@@ -305,14 +305,15 @@ php artisan test --coverage
 
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
-| README.md | Project overview, quick start | As needed |
-| INSTALLATION_AND_SETUP.md | Detailed setup instructions | When setup changes |
-| ARCHITECTURE.md | System design documentation | When architecture changes |
-| SECURITY.md | Security implementation details | When security changes |
-| API_OVERVIEW.md | API capabilities documentation | When API changes |
-| REQUIREMENTS_AND_TRACEABILITY.md | Requirements mapping | When requirements change |
-| BACKEND_COMPLETION_STATUS.md | Completion status | When features complete |
-| CONTRIBUTING.md | Contribution guidelines | When process changes |
+| [README.md](README.md) | Project overview, quick start | As needed |
+| [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md) | Detailed setup instructions | When setup changes |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design documentation | When architecture changes |
+| [SECURITY.md](docs/SECURITY.md) | Security implementation details | When security changes |
+| [API_OVERVIEW.md](docs/API_OVERVIEW.md) | API capabilities documentation | When API changes |
+| [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping | When requirements change |
+| [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) | Completion status | When features complete |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines | When process changes |
+| [TESTING.md](TESTING.md) | Backend testing documentation | When tests change |
 
 ### Documentation Standards
 
