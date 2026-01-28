@@ -300,14 +300,14 @@ Comprehensive documentation is available in the following files:
 
 | Document | Description |
 |----------|-------------|
-| [INSTALLATION_AND_SETUP.md](backend/camp-burnt-gin-api/INSTALLATION_AND_SETUP.md) | Detailed installation and configuration guide |
-| [ARCHITECTURE.md](backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) | System architecture and design decisions |
-| [SECURITY.md](backend/camp-burnt-gin-api/docs/SECURITY.md) | Security implementation and HIPAA compliance |
-| [API_OVERVIEW.md](backend/camp-burnt-gin-api/docs/API_OVERVIEW.md) | API capabilities and endpoint documentation |
-| [REQUIREMENTS_AND_TRACEABILITY.md](backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
-| [BACKEND_COMPLETION_STATUS.md](backend/camp-burnt-gin-api/BACKEND_COMPLETION_STATUS.md) | Backend completion status and handoff notes |
-| [CONTRIBUTING.md](backend/camp-burnt-gin-api/CONTRIBUTING.md) | Contribution guidelines |
-| [TESTING.md](backend/camp-burnt-gin-api/TESTING.md) | Backend testing documentation |
+| [INSTALLATION_AND_SETUP.md](/backend/camp-burnt-gin-api/INSTALLATION_AND_SETUP.md) | Detailed installation and configuration guide |
+| [ARCHITECTURE.md](/backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) | System architecture and design decisions |
+| [SECURITY.md](/backend/camp-burnt-gin-api/docs/SECURITY.md) | Security implementation and HIPAA compliance |
+| [API_OVERVIEW.md](/backend/camp-burnt-gin-api/docs/API_OVERVIEW.md) | API capabilities and endpoint documentation |
+| [REQUIREMENTS_AND_TRACEABILITY.md](/backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
+| [BACKEND_COMPLETION_STATUS.md](/backend/camp-burnt-gin-api/BACKEND_COMPLETION_STATUS.md) | Backend completion status and handoff notes |
+| [CONTRIBUTING.md](/backend/camp-burnt-gin-api/CONTRIBUTING.md) | Contribution guidelines |
+| [TESTING.md](/backend/camp-burnt-gin-api/TESTING.md) | Backend testing documentation |
 
 ---
 
