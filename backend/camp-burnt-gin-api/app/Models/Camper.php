@@ -1,0 +1,129 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+/**
+ * Camper model representing a child who attends camp programs.
+ *
+ * Campers are managed by users (parents or guardians) and can have
+ * multiple applications submitted for different camp sessions.
+ */
+class Camper extends Model
+{
+    use HasFactory;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'user_id',
+        'first_name',
+        'last_name',
+        'date_of_birth',
+        'gender',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'date_of_birth' => 'date',
+        ];
+    }
+
+    /**
+     * Get the user (parent/guardian) who manages this camper.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get all applications submitted for this camper.
+     */
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
+    }
+
+    /**
+     * Get the camper's full name.
+     */
+    public function getFullNameAttribute(): string
+    {
+        return "{$this->first_name} {$this->last_name}";
+    }
+
+    /**
+     * Calculate the camper's age as of a given date.
+     */
+    public function ageAsOf(\DateTimeInterface $date): int
+    {
+        return $this->date_of_birth->diffInYears($date);
+    }
+
+    /**
+     * Get the medical record for this camper.
+     */
+    public function medicalRecord(): HasOne
+    {
+        return $this->hasOne(MedicalRecord::class);
+    }
+
+    /**
+     * Get all emergency contacts for this camper.
+     */
+    public function emergencyContacts(): HasMany
+    {
+        return $this->hasMany(EmergencyContact::class);
+    }
+
+    /**
+     * Get all allergies for this camper.
+     */
+    public function allergies(): HasMany
+    {
+        return $this->hasMany(Allergy::class);
+    }
+
+    /**
+     * Get all medications for this camper.
+     */
+    public function medications(): HasMany
+    {
+        return $this->hasMany(Medication::class);
+    }
+
+    /**
+     * Get all medical provider links for this camper.
+     */
+    public function medicalProviderLinks(): HasMany
+    {
+        return $this->hasMany(MedicalProviderLink::class);
+    }
+
+    /**
+     * Determine if this camper has any allergies requiring immediate attention.
+     *
+     * Returns true if any allergy is classified as severe or life-threatening.
+     */
+    public function requiresImmediateAttention(): bool
+    {
+        return $this->allergies()->get()->contains(
+            fn ($allergy) => $allergy->requiresImmediateAttention()
+        );
+    }
+}

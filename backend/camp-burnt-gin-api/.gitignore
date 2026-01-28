@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────
+# Logs & runtime files
+# ─────────────────────────────────────────────
+*.log                       # Application and debug logs
+.phpunit.result.cache       # PHPUnit cached test results
+/.phpunit.cache             # PHPUnit internal cache
+
+# ─────────────────────────────────────────────
+# OS / Editor / IDE files
+# ─────────────────────────────────────────────
+.DS_Store                   # macOS Finder metadata
+Thumbs.db                   # Windows Explorer metadata
+/.vscode                    # VS Code settings
+/.idea                      # IntelliJ / PhpStorm
+/.fleet                     # JetBrains Fleet
+/.zed                       # Zed editor
+/.nova                      # Nova editor
+
+# ─────────────────────────────────────────────
+# Environment & secrets
+# ─────────────────────────────────────────────
+.env                        # Local environment variables (secrets)
+.env.backup                 # Backup env files
+.env.production             # Production secrets
+/auth.json                  # Composer auth tokens
+
+# ─────────────────────────────────────────────
+# Dependency directories
+# ─────────────────────────────────────────────
+/node_modules               # Node dependencies
+/vendor                     # PHP Composer dependencies
+
+# ─────────────────────────────────────────────
+# Build & runtime artifacts
+# ─────────────────────────────────────────────
+/public/build               # Frontend compiled assets
+/public/hot                 # Vite hot reload file
+/public/storage             # Laravel storage symlink
+
+# ─────────────────────────────────────────────
+# Storage & encryption artifacts
+# ─────────────────────────────────────────────
+/storage/*.key              # Encryption keys (VERY sensitive)
+/storage/pail               # Runtime storage artifacts
+
+# ─────────────────────────────────────────────
+# Laravel / Vagrant
+# ─────────────────────────────────────────────
+Homestead.json              # Local Homestead config
+Homestead.yaml              # Local Homestead config
+
+# ─────────────────────────────────────────────
+# AI / Assistant instructions (DO NOT COMMIT)
+# ─────────────────────────────────────────────
+CLAUDE.md                   # Local Claude instructions (team-specific)
+.claude/
