@@ -307,7 +307,7 @@ Comprehensive documentation is available in the following files:
 | [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
 | [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) | Backend completion status and handoff notes |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
-| [TESTING.md](TESTING.md) | Backend testing documentation |
+| [TESTING.md](docs/TESTING.md) | Backend testing documentation |
 
 ---
 

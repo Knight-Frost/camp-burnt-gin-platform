@@ -307,7 +307,7 @@ Comprehensive documentation is available in the following files:
 | [REQUIREMENTS_AND_TRACEABILITY.md](/backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
 | [BACKEND_COMPLETION_STATUS.md](/backend/camp-burnt-gin-api/BACKEND_COMPLETION_STATUS.md) | Backend completion status and handoff notes |
 | [CONTRIBUTING.md](/backend/camp-burnt-gin-api/CONTRIBUTING.md) | Contribution guidelines |
-| [TESTING.md](/backend/camp-burnt-gin-api/TESTING.md) | Backend testing documentation |
+| [TESTING.md](/backend/camp-burnt-gin-api/docs/TESTING.md) | Backend testing documentation |
 
 ---
 

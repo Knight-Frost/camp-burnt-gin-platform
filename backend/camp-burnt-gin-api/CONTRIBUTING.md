@@ -313,7 +313,7 @@ php artisan test --coverage
 | [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping | When requirements change |
 | [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) | Completion status | When features complete |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines | When process changes |
-| [TESTING.md](TESTING.md) | Backend testing documentation | When tests change |
+| [TESTING.md](docs/TESTING.md) | Backend testing documentation | When tests change |
 
 ### Documentation Standards
 
