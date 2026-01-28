@@ -54,3 +54,4 @@ Homestead.yaml              # Local Homestead config
 # ─────────────────────────────────────────────
 CLAUDE.md                   # Local Claude instructions (team-specific)
 .claude/
+.phpunit.result.cache
