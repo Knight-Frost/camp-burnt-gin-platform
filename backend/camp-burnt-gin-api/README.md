@@ -301,11 +301,13 @@ Comprehensive documentation is available in the following files:
 | Document | Description |
 |----------|-------------|
 | [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md) | Detailed installation and configuration guide |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and design decisions |
-| [SECURITY.md](SECURITY.md) | Security implementation and HIPAA compliance |
-| [API_OVERVIEW.md](API_OVERVIEW.md) | API capabilities and endpoint documentation |
-| [REQUIREMENTS_AND_TRACEABILITY.md](REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and design decisions |
+| [SECURITY.md](docs/SECURITY.md) | Security implementation and HIPAA compliance |
+| [API_OVERVIEW.md](docs/API_OVERVIEW.md) | API capabilities and endpoint documentation |
+| [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
 | [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) | Backend completion status and handoff notes |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+| [TESTING.md](TESTING.md) | Backend testing documentation |
 
 ---
 
