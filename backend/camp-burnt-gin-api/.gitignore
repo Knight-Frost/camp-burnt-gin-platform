@@ -49,9 +49,4 @@ Thumbs.db                   # Windows Explorer metadata
 Homestead.json              # Local Homestead config
 Homestead.yaml              # Local Homestead config
 
-# ─────────────────────────────────────────────
-# AI / Assistant instructions (DO NOT COMMIT)
-# ─────────────────────────────────────────────
-CLAUDE.md                   # Local Claude instructions (team-specific)
-.claude/
-.phpunit.result.cache
+
