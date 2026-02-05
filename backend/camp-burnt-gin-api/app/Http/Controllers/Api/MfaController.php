@@ -58,7 +58,7 @@ class MfaController extends Controller
         if (!$result['success']) {
             return response()->json([
                 'message' => $result['message'],
-            ], Response::HTTP_BAD_REQUEST);
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
         return response()->json([

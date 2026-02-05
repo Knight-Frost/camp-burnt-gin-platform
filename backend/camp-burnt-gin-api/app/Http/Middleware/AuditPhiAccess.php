@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\AuditLog;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -12,6 +13,9 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Logs all access to endpoints containing protected health information.
  * Records user, timestamp, resource accessed, and action performed.
+ *
+ * Implements graceful degradation: if audit logging fails, the request
+ * proceeds but the failure is logged to error log for investigation.
  */
 class AuditPhiAccess
 {
@@ -26,6 +30,7 @@ class AuditPhiAccess
         'documents.*',
         'provider-access.*',
         'applications.show',
+        'applications.store',
         'applications.review',
         'campers.show',
     ];
@@ -76,32 +81,53 @@ class AuditPhiAccess
 
     /**
      * Log the PHI access event.
+     *
+     * Implements graceful error handling: if audit log fails,
+     * log to error log but DO NOT fail the request.
      */
     protected function logPhiAccess(Request $request, Response $response): void
     {
-        $route = $request->route();
-        $action = $this->determineAction($request);
+        try {
+            $route = $request->route();
+            $action = $this->determineAction($request);
 
-        AuditLog::create([
-            'request_id' => $request->header('X-Request-ID'),
-            'user_id' => $request->user()?->id,
-            'event_type' => AuditLog::EVENT_TYPE_PHI_ACCESS,
-            'action' => $action,
-            'description' => sprintf(
-                '%s %s',
-                $request->method(),
-                $request->path()
-            ),
-            'metadata' => [
-                'route' => $route?->getName(),
+            AuditLog::create([
+                'request_id' => $request->header('X-Request-ID'),
+                'user_id' => $request->user()?->id,
+                'event_type' => AuditLog::EVENT_TYPE_PHI_ACCESS,
+                'action' => $action,
+                'description' => sprintf(
+                    '%s %s',
+                    $request->method(),
+                    $request->path()
+                ),
+                'metadata' => [
+                    'route' => $route?->getName(),
+                    'method' => $request->method(),
+                    'status' => $response->getStatusCode(),
+                    'route_parameters' => $this->sanitizeParameters($route?->parameters() ?? []),
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Log the audit failure but DO NOT block the request
+            // This prevents audit system issues from causing service outages
+            Log::error('AUDIT LOG FAILED - PHI access not recorded', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_id' => $request->header('X-Request-ID'),
+                'user_id' => $request->user()?->id,
+                'route' => $request->route()?->getName(),
                 'method' => $request->method(),
-                'status' => $response->getStatusCode(),
-                'route_parameters' => $this->sanitizeParameters($route?->parameters() ?? []),
-            ],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'created_at' => now(),
-        ]);
+                'path' => $request->path(),
+                'ip' => $request->ip(),
+            ]);
+
+            // Optionally: dispatch alert/notification about audit failure
+            // This is critical for HIPAA compliance monitoring
+        }
     }
 
     /**
@@ -109,6 +135,13 @@ class AuditPhiAccess
      */
     protected function determineAction(Request $request): string
     {
+        $routeName = $request->route()?->getName();
+
+        // Special case: review routes are updates even though they use POST
+        if ($routeName && str_ends_with($routeName, '.review')) {
+            return 'update';
+        }
+
         return match ($request->method()) {
             'GET' => 'view',
             'POST' => 'create',
@@ -138,3 +171,4 @@ class AuditPhiAccess
         return $sanitized;
     }
 }
+

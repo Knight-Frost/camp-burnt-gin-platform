@@ -32,7 +32,7 @@ class MedicalRecordPolicy
      * Determine whether the user can view the medical record.
      *
      * Administrators have full access.
-     * Medical providers can view all medical records.
+     * Medical providers can only view records for campers they're linked to.
      * Parents can only view records for their own children.
      */
     public function view(User $user, MedicalRecord $medicalRecord): bool
@@ -42,7 +42,10 @@ class MedicalRecordPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return true;
+            // Verify provider has an active link to this camper
+            return \App\Models\MedicalProviderLink::where('camper_id', $medicalRecord->camper_id)
+                ->where('is_used', true)
+                ->exists();
         }
 
         if ($user->isParent() && $user->ownsCamper($medicalRecord->camper)) {
@@ -67,7 +70,7 @@ class MedicalRecordPolicy
      * Determine whether the user can update the medical record.
      *
      * Administrators have full access.
-     * Medical providers can update medical information.
+     * Medical providers can only update records for campers they're linked to.
      * Parents can update records for their own children.
      */
     public function update(User $user, MedicalRecord $medicalRecord): bool
@@ -77,7 +80,10 @@ class MedicalRecordPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return true;
+            // Verify provider has an active link to this camper
+            return \App\Models\MedicalProviderLink::where('camper_id', $medicalRecord->camper_id)
+                ->where('is_used', true)
+                ->exists();
         }
 
         if ($user->isParent() && $user->ownsCamper($medicalRecord->camper)) {

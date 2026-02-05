@@ -12,6 +12,7 @@ use App\Models\Application;
 use App\Notifications\ApplicationStatusChangedNotification;
 use App\Notifications\ApplicationSubmittedNotification;
 use App\Services\LetterService;
+use App\Traits\QueuesNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ApplicationController extends Controller
 {
+    use QueuesNotifications;
+
     public function __construct(
         protected LetterService $letterService
     ) {}
@@ -130,7 +133,10 @@ class ApplicationController extends Controller
         $application->load(['camper', 'campSession']);
 
         if (!$isDraft) {
-            $application->camper->user->notify(new ApplicationSubmittedNotification($application));
+            $this->queueNotification(
+                $application->camper->user,
+                new ApplicationSubmittedNotification($application)
+            );
         }
 
         return response()->json([
@@ -173,7 +179,10 @@ class ApplicationController extends Controller
         $application->update($data);
 
         if (isset($data['is_draft']) && $data['is_draft'] === false && $application->wasChanged('is_draft')) {
-            $application->camper->user->notify(new ApplicationSubmittedNotification($application));
+            $this->queueNotification(
+                $application->camper->user,
+                new ApplicationSubmittedNotification($application)
+            );
         }
 
         return response()->json([
@@ -218,7 +227,8 @@ class ApplicationController extends Controller
             'reviewed_by' => $request->user()->id,
         ]);
 
-        $application->camper->user->notify(
+        $this->queueNotification(
+            $application->camper->user,
             new ApplicationStatusChangedNotification($application, $previousStatus)
         );
 

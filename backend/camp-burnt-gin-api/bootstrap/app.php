@@ -18,56 +18,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-/**
- * Configure rate limiting for API endpoints.
- *
- * Implements tiered rate limiting to prevent brute force attacks and abuse:
- * - Authentication endpoints: Strict limits to prevent credential stuffing
- * - Sensitive operations: Moderate limits for MFA, provider links, uploads
- * - General API: Standard limits for normal operations
- */
-function configureRateLimiting(): void
-{
-    RateLimiter::for('api', function (Request $request) {
-        return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-    });
-
-    RateLimiter::for('auth', function (Request $request) {
-        return [
-            Limit::perMinute(5)->by($request->ip()),
-            Limit::perHour(20)->by($request->ip()),
-        ];
-    });
-
-    RateLimiter::for('mfa', function (Request $request) {
-        return [
-            Limit::perMinute(3)->by($request->user()?->id ?: $request->ip()),
-            Limit::perHour(10)->by($request->user()?->id ?: $request->ip()),
-        ];
-    });
-
-    RateLimiter::for('provider-link', function (Request $request) {
-        return [
-            Limit::perMinute(2)->by($request->ip()),
-            Limit::perHour(10)->by($request->ip()),
-        ];
-    });
-
-    RateLimiter::for('uploads', function (Request $request) {
-        return [
-            Limit::perMinute(5)->by($request->user()?->id ?: $request->ip()),
-            Limit::perHour(50)->by($request->user()?->id ?: $request->ip()),
-        ];
-    });
-
-    RateLimiter::for('sensitive', function (Request $request) {
-        return [
-            Limit::perMinute(10)->by($request->user()?->id ?: $request->ip()),
-            Limit::perHour(100)->by($request->user()?->id ?: $request->ip()),
-        ];
-    });
-}
-
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -75,7 +25,52 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            configureRateLimiting();
+            /**
+             * Configure rate limiting for API endpoints.
+             *
+             * Implements tiered rate limiting to prevent brute force attacks and abuse:
+             * - Authentication endpoints: Strict limits to prevent credential stuffing
+             * - Sensitive operations: Moderate limits for MFA, provider links, uploads
+             * - General API: Standard limits for normal operations
+             */
+            RateLimiter::for('api', function (Request $request) {
+                return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            });
+
+            RateLimiter::for('auth', function (Request $request) {
+                return [
+                    Limit::perMinute(5)->by($request->ip()),
+                    Limit::perHour(20)->by($request->ip()),
+                ];
+            });
+
+            RateLimiter::for('mfa', function (Request $request) {
+                return [
+                    Limit::perMinute(3)->by($request->user()?->id ?: $request->ip()),
+                    Limit::perHour(10)->by($request->user()?->id ?: $request->ip()),
+                ];
+            });
+
+            RateLimiter::for('provider-link', function (Request $request) {
+                return [
+                    Limit::perMinute(2)->by($request->ip()),
+                    Limit::perHour(10)->by($request->ip()),
+                ];
+            });
+
+            RateLimiter::for('uploads', function (Request $request) {
+                return [
+                    Limit::perMinute(5)->by($request->user()?->id ?: $request->ip()),
+                    Limit::perHour(50)->by($request->user()?->id ?: $request->ip()),
+                ];
+            });
+
+            RateLimiter::for('sensitive', function (Request $request) {
+                return [
+                    Limit::perMinute(10)->by($request->user()?->id ?: $request->ip()),
+                    Limit::perHour(100)->by($request->user()?->id ?: $request->ip()),
+                ];
+            });
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

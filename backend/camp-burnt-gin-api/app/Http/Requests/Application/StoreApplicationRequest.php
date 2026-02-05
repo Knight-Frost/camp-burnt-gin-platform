@@ -21,7 +21,27 @@ class StoreApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        // Admins can create applications for any camper
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Parents can only create applications for their own campers
+        if ($user->isParent()) {
+            $camperId = $this->input('camper_id');
+            if ($camperId) {
+                $camper = Camper::find($camperId);
+                // If camper exists but doesn't belong to user, deny (403)
+                if ($camper && $camper->user_id !== $user->id) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -31,14 +51,8 @@ class StoreApplicationRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = $this->user();
-
-        $camperRule = $user->isAdmin()
-            ? ['required', 'integer', 'exists:campers,id']
-            : ['required', 'integer', Rule::exists('campers', 'id')->where('user_id', $user->id)];
-
         return [
-            'camper_id' => $camperRule,
+            'camper_id' => ['required', 'integer', 'exists:campers,id'],
             'camp_session_id' => [
                 'required',
                 'integer',

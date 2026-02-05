@@ -52,19 +52,35 @@ class AuthController extends Controller
         $result = $this->authService->login($request->validated());
 
         if (!$result['success']) {
-            return response()->json([
+            $response = [
+                'success' => false,
                 'message' => $result['message'],
-            ], Response::HTTP_UNAUTHORIZED);
+            ];
+
+            // Include lockout information if account is locked
+            if (isset($result['lockout']) && $result['lockout']) {
+                $response['lockout'] = true;
+                $response['retry_after'] = $result['retry_after'];
+            }
+
+            // Include remaining attempts for failed login
+            if (isset($result['attempts_remaining'])) {
+                $response['attempts_remaining'] = $result['attempts_remaining'];
+            }
+
+            return response()->json($response, Response::HTTP_UNAUTHORIZED);
         }
 
         if ($result['mfa_required'] ?? false) {
             return response()->json([
+                'success' => true,
                 'message' => 'MFA verification required.',
                 'mfa_required' => true,
             ], Response::HTTP_OK);
         }
 
         return response()->json([
+            'success' => true,
             'message' => 'Login successful.',
             'data' => [
                 'user' => $result['user'],

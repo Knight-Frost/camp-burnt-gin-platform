@@ -35,7 +35,6 @@ return new class extends Migration
 
             $table->index(['auditable_type', 'auditable_id']);
             $table->index(['event_type', 'created_at']);
-            $table->index('created_at');
         });
     }
 

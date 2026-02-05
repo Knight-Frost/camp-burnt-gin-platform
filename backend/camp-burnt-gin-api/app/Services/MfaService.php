@@ -58,7 +58,14 @@ class MfaService
             ];
         }
 
-        if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+        try {
+            if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid verification code.',
+                ];
+            }
+        } catch (\Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Invalid verification code.',
@@ -84,7 +91,11 @@ class MfaService
             return false;
         }
 
-        return $this->google2fa->verifyKey($user->mfa_secret, $code);
+        try {
+            return $this->google2fa->verifyKey($user->mfa_secret, $code);
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -108,7 +119,14 @@ class MfaService
             ];
         }
 
-        if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+        try {
+            if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid verification code.',
+                ];
+            }
+        } catch (\Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Invalid verification code.',

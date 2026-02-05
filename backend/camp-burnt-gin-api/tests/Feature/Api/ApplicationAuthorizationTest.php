@@ -186,7 +186,7 @@ class ApplicationAuthorizationTest extends TestCase
             'camp_session_id' => $session->id,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(403);
     }
 
     public function test_parent_can_update_own_pending_application(): void
@@ -297,7 +297,7 @@ class ApplicationAuthorizationTest extends TestCase
             'camp_session_id' => $session->id,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(403);
     }
 
     public function test_medical_provider_cannot_update_application(): void

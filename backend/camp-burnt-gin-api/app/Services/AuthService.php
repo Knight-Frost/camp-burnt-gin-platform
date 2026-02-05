@@ -62,11 +62,23 @@ class AuthService
 
         if (!Hash::check($credentials['password'], $user->password)) {
             $user->recordFailedLogin();
+            $user = $user->fresh();
+
+            // Check if this attempt triggered a lockout
+            if ($user->isLockedOut()) {
+                $minutesRemaining = $user->getLockoutMinutesRemaining();
+                return [
+                    'success' => false,
+                    'message' => "Account locked due to too many failed attempts. Try again in {$minutesRemaining} minute(s).",
+                    'lockout' => true,
+                    'retry_after' => $minutesRemaining * 60,
+                ];
+            }
 
             return [
                 'success' => false,
                 'message' => 'Invalid credentials.',
-                'attempts_remaining' => max(0, 5 - $user->fresh()->failed_login_attempts),
+                'attempts_remaining' => max(0, 5 - $user->failed_login_attempts),
             ];
         }
 

@@ -18,7 +18,27 @@ class StoreMedicalRecordRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        // Admins can create medical records for any camper
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Parents can only create medical records for their own campers
+        if ($user->isParent()) {
+            $camperId = $this->input('camper_id');
+            if ($camperId) {
+                $camper = \App\Models\Camper::find($camperId);
+                // If camper exists but doesn't belong to user, deny (403)
+                if ($camper && $camper->user_id !== $user->id) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -28,19 +48,8 @@ class StoreMedicalRecordRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = $this->user();
-
-        $camperRule = $user->isAdmin()
-            ? ['required', 'integer', Rule::exists('campers', 'id'), Rule::unique('medical_records', 'camper_id')]
-            : [
-                'required',
-                'integer',
-                Rule::exists('campers', 'id')->where('user_id', $user->id),
-                Rule::unique('medical_records', 'camper_id'),
-            ];
-
         return [
-            'camper_id' => $camperRule,
+            'camper_id' => ['required', 'integer', Rule::exists('campers', 'id'), Rule::unique('medical_records', 'camper_id')],
             'physician_name' => ['nullable', 'string', 'max:255'],
             'physician_phone' => ['nullable', 'string', 'max:20'],
             'insurance_provider' => ['nullable', 'string', 'max:255'],
