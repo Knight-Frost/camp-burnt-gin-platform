@@ -299,7 +299,7 @@ php artisan test --coverage
 | Security-related change | [SECURITY.md](docs/SECURITY.md) |
 | Architectural change | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | New requirement implemented | [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) |
-| New feature completed | [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) |
+| New feature completed | [BACKEND_COMPLETION_STATUS.md](docs/BACKEND_COMPLETION_STATUS.md) |
 
 ### Documentation Files
 

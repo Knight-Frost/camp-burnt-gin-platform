@@ -294,26 +294,26 @@ php artisan test --coverage
 
 | Change | Documentation Update Required |
 |--------|-------------------------------|
-| New API endpoint | [API_OVERVIEW.md](docs/API_OVERVIEW.md) |
-| New environment variable | [README.md](README.md), [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md), .env.example |
-| Security-related change | [SECURITY.md](docs/SECURITY.md) |
-| Architectural change | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| New requirement implemented | [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) |
-| New feature completed | [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) |
+| New API endpoint | [API_OVERVIEW.md](../backend/camp-burnt-gin-api/docs/API_OVERVIEW.md) |
+| New environment variable | [README.md](../backend/camp-burnt-gin-api/README.md), [INSTALLATION_AND_SETUP.md](../backend/camp-burnt-gin-api/INSTALLATION_AND_SETUP.md), .env.example |
+| Security-related change | [SECURITY.md](../backend/camp-burnt-gin-api/docs/SECURITY.md) |
+| Architectural change | [ARCHITECTURE.md](../backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) |
+| New requirement implemented | [REQUIREMENTS_AND_TRACEABILITY.md](../backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) |
+| New feature completed | [BACKEND_COMPLETION_STATUS.md](../backend/camp-burnt-gin-api/docs/BACKEND_COMPLETION_STATUS.md) |
 
 ### Documentation Files
 
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
-| [README.md](README.md) | Project overview, quick start | As needed |
-| [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md) | Detailed setup instructions | When setup changes |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design documentation | When architecture changes |
-| [SECURITY.md](docs/SECURITY.md) | Security implementation details | When security changes |
-| [API_OVERVIEW.md](docs/API_OVERVIEW.md) | API capabilities documentation | When API changes |
-| [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping | When requirements change |
-| [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) | Completion status | When features complete |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines | When process changes |
-| [TESTING.md](docs/TESTING.md) | Backend testing documentation | When tests change |
+| [README.md](../backend/camp-burnt-gin-api/README.md) | Project overview, quick start | As needed |
+| [INSTALLATION_AND_SETUP.md](../backend/camp-burnt-gin-api/INSTALLATION_AND_SETUP.md) | Detailed setup instructions | When setup changes |
+| [ARCHITECTURE.md](../backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) | System design documentation | When architecture changes |
+| [SECURITY.md](../backend/camp-burnt-gin-api/docs/SECURITY.md) | Security implementation details | When security changes |
+| [API_OVERVIEW.md](../backend/camp-burnt-gin-api/docs/API_OVERVIEW.md) | API capabilities documentation | When API changes |
+| [REQUIREMENTS_AND_TRACEABILITY.md](../backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping | When requirements change |
+| [BACKEND_COMPLETION_STATUS.md](../backend/camp-burnt-gin-api/docs/BACKEND_COMPLETION_STATUS.md) | Completion status | When features complete |
+| [CONTRIBUTING.md](../backend/camp-burnt-gin-api/CONTRIBUTING.md) | Contribution guidelines | When process changes |
+| [TESTING.md](../backend/camp-burnt-gin-api/docs/TESTING.md) | Backend testing documentation | When tests change |
 
 ### Documentation Standards
 
