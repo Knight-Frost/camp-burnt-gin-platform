@@ -249,21 +249,36 @@ public function ownsCamper(Camper $camper): bool
 
 ### Token Expiration
 
-Token expiration is configurable in `config/sanctum.php`:
+API tokens expire automatically to enforce session timeouts:
+
+**Configuration:** `config/sanctum.php`
 
 ```php
-'expiration' => 60 * 24 * 7, // 7 days in minutes
+'expiration' => 60, // 60 minutes (1 hour) - HIPAA compliant
 ```
+
+**Behavior:**
+- Tokens expire 60 minutes after creation
+- Expired tokens return HTTP 401 (Unauthorized)
+- Users must re-authenticate after expiration
+- Expiration enforces automatic logout for inactive users
+
+**Why 60 Minutes:**
+- HIPAA requires automatic session termination for PHI systems
+- Balances security (shorter window) with usability
+- Prevents unauthorized access from abandoned sessions
+- Industry standard for healthcare applications
 
 ### Concurrent Sessions
 
-The system supports multiple concurrent sessions (tokens) per user. Each device/client receives a unique token.
+The system supports multiple concurrent sessions (tokens) per user. Each device/client receives a unique token that expires independently.
 
 ### Session Termination
 
 Users can terminate sessions by:
-- Logging out (revokes current token)
-- Admin can revoke all tokens for a user (administrative action)
+- **Logout:** Revokes current token immediately
+- **Admin Revocation:** Admin can revoke all tokens for a user
+- **Automatic:** Tokens automatically expire after 60 minutes
 
 ---
 
@@ -662,11 +677,51 @@ Cross-Origin Resource Sharing is configured in `config/cors.php`:
 
 ### Rate Limiting
 
-Laravel's rate limiting protects against abuse:
+Multi-tier rate limiting protects against brute force attacks, resource exhaustion, and abuse:
 
-- Configurable requests per minute
-- Per-user and per-IP limits
-- Login attempts throttled after failures
+**Rate Limit Tiers:**
+
+| Endpoint | Limit | Scope | Purpose |
+|----------|-------|-------|---------|
+| Authentication (`/api/auth/login`) | 5/minute | Per IP | Prevent credential stuffing |
+| MFA Verification (`/api/mfa/verify`) | 3/minute | Per user | Prevent MFA brute force |
+| Provider Access (`/api/provider-access/*`) | 2/minute | Per IP | Prevent token enumeration |
+| File Uploads (`/api/documents`) | 5/minute | Per user | Prevent resource abuse |
+| General API | 60/minute | Per user | Prevent API abuse |
+
+**Rate Limiting Behavior:**
+- Returns HTTP 429 (Too Many Requests) when limit exceeded
+- Includes `Retry-After` header indicating seconds to wait
+- Per-IP limits apply to unauthenticated requests
+- Per-user limits apply to authenticated requests
+- Limits reset after specified time window
+
+### Account Lockout Protection
+
+Automatic account lockout prevents brute force password attacks:
+
+**Lockout Policy:**
+- **Threshold:** 5 failed login attempts
+- **Duration:** 15-minute lockout period
+- **Tracking:** Failed attempts tracked per user account
+- **Reset:** Counter resets on successful login
+- **Response:** Returns `lockout: true` flag with `retry_after` seconds
+
+**Implementation:**
+- Failed login attempts stored in `users` table (`failed_login_attempts` column)
+- Lockout timestamp stored in `lockout_until` column
+- Lockout expires automatically after 15 minutes
+- Attempts remaining returned in login failure responses
+
+**Example Response:**
+```json
+{
+  "success": false,
+  "message": "Account locked due to too many failed attempts. Try again in 14 minute(s).",
+  "lockout": true,
+  "retry_after": 840
+}
+```
 
 ---
 

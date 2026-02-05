@@ -126,6 +126,7 @@ The application implements a strict layered architecture where each layer has de
 
 | Middleware | Purpose |
 |------------|---------|
+| `AuditPhiAccess` | HIPAA-compliant audit logging for PHI access with graceful failure handling |
 | `EnsureUserIsAdmin` | Restricts routes to admin users only |
 | `EnsureUserHasRole` | Restricts routes to users with specified roles |
 
@@ -216,6 +217,44 @@ Policies are automatically discovered through Laravel's policy auto-discovery or
 - Services are stateless
 - Services accept and return simple data structures
 - Services throw exceptions for error conditions
+
+#### Jobs Layer
+
+**Location:** `app/Jobs/`
+
+**Responsibilities:**
+- Handle asynchronous background processing
+- Implement retry logic with exponential backoff
+- Process notifications, emails, and long-running tasks
+- Queue work that doesn't need immediate completion
+
+**Key Jobs:**
+
+| Job | Purpose | Queue | Retries |
+|-----|---------|-------|---------|
+| SendNotificationJob | Async email notification dispatch | notifications | 3 (60s, 300s, 900s backoff) |
+
+**Job Design Principles:**
+- Jobs are idempotent (safe to run multiple times)
+- Jobs fail gracefully and log errors
+- Jobs use specific queues for prioritization
+- Jobs have defined retry strategies
+
+#### Traits
+
+**Location:** `app/Traits/`
+
+**Responsibilities:**
+- Provide reusable functionality across controllers
+- Encapsulate common patterns
+- Reduce code duplication
+- Maintain clean, DRY controllers
+
+**Key Traits:**
+
+| Trait | Purpose | Used By |
+|-------|---------|---------|
+| QueuesNotifications | Helper for dispatching notification jobs | ApplicationController |
 
 #### Model Layer
 
