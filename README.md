@@ -356,15 +356,15 @@ Comprehensive documentation is available in the following files:
 
 | Document | Description |
 |----------|-------------|
-| [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md) | Detailed installation and configuration guide |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines and development workflow |
-| [TESTING_GUIDE.md](TESTING_GUIDE.md) | Test execution, organization, and troubleshooting |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and design decisions |
-| [docs/SECURITY.md](docs/SECURITY.md) | Security implementation and HIPAA compliance |
-| [docs/API_OVERVIEW.md](docs/API_OVERVIEW.md) | API capabilities and endpoint documentation |
-| [docs/TESTING.md](docs/TESTING.md) | Testing strategy and coverage details |
-| [docs/REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
-| [docs/BACKEND_COMPLETION_STATUS.md](docs/BACKEND_COMPLETION_STATUS.md) | Backend completion status and frontend handoff |
+| [INSTALLATION_AND_SETUP.md](backend/camp-burnt-gin-api/INSTALLATION_AND_SETUP.md) | Detailed installation and configuration guide |
+| [CONTRIBUTING.md](backend/camp-burnt-gin-api/CONTRIBUTING.md) | Contribution guidelines and development workflow |
+| [TESTING_GUIDE.md](backend/camp-burnt-gin-api/TESTING_GUIDE.md) | Test execution, organization, and troubleshooting |
+| [docs/ARCHITECTURE.md](backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) | System architecture and design decisions |
+| [docs/SECURITY.md](backend/camp-burnt-gin-api/docs/SECURITY.md) | Security implementation and HIPAA compliance |
+| [docs/API_OVERVIEW.md](backend/camp-burnt-gin-api/docs/API_OVERVIEW.md) | API capabilities and endpoint documentation |
+| [docs/TESTING.md](backend/camp-burnt-gin-api/docs/TESTING.md) | Testing strategy and coverage details |
+| [docs/REQUIREMENTS_AND_TRACEABILITY.md](backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
+| [docs/BACKEND_COMPLETION_STATUS.md](backend/camp-burnt-gin-api/docs/BACKEND_COMPLETION_STATUS.md) | Backend completion status and frontend handoff |
 
 ---
 
