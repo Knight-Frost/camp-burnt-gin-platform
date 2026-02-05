@@ -39,7 +39,17 @@ class DocumentPolicy
         }
 
         if ($document->documentable_type === 'App\\Models\\MedicalRecord' && $user->isMedicalProvider()) {
-            return true;
+            $medicalRecord = \App\Models\MedicalRecord::find($document->documentable_id);
+            if (!$medicalRecord) {
+                return false;
+            }
+
+            $camperId = $medicalRecord->camper_id;
+            $hasAccessViaProviderLink = \App\Models\MedicalProviderLink::where('camper_id', $camperId)
+                ->where('is_used', true)
+                ->exists();
+
+            return $hasAccessViaProviderLink;
         }
 
         return false;

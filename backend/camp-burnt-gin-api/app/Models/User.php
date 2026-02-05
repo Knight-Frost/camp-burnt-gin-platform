@@ -34,6 +34,9 @@ class User extends Authenticatable
         'mfa_enabled',
         'mfa_secret',
         'mfa_verified_at',
+        'failed_login_attempts',
+        'lockout_until',
+        'last_failed_login_at',
     ];
 
     /**
@@ -59,6 +62,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'mfa_enabled' => 'boolean',
             'mfa_verified_at' => 'datetime',
+            'lockout_until' => 'datetime',
+            'last_failed_login_at' => 'datetime',
         ];
     }
 
@@ -124,5 +129,70 @@ class User extends Authenticatable
     public function ownsCamper(Camper $camper): bool
     {
         return $this->id === $camper->user_id;
+    }
+
+    /**
+     * Check if account is currently locked due to failed login attempts.
+     */
+    public function isLockedOut(): bool
+    {
+        if (!$this->lockout_until) {
+            return false;
+        }
+
+        if ($this->lockout_until->isFuture()) {
+            return true;
+        }
+
+        $this->update([
+            'lockout_until' => null,
+            'failed_login_attempts' => 0,
+        ]);
+
+        return false;
+    }
+
+    /**
+     * Increment failed login attempts and lock account if threshold reached.
+     */
+    public function recordFailedLogin(): void
+    {
+        $attempts = $this->failed_login_attempts + 1;
+        $lockoutMinutes = 15;
+
+        $data = [
+            'failed_login_attempts' => $attempts,
+            'last_failed_login_at' => now(),
+        ];
+
+        if ($attempts >= 5) {
+            $data['lockout_until'] = now()->addMinutes($lockoutMinutes);
+        }
+
+        $this->update($data);
+    }
+
+    /**
+     * Reset failed login attempts after successful login.
+     */
+    public function resetFailedLogins(): void
+    {
+        $this->update([
+            'failed_login_attempts' => 0,
+            'lockout_until' => null,
+            'last_failed_login_at' => null,
+        ]);
+    }
+
+    /**
+     * Get minutes remaining until account lockout expires.
+     */
+    public function getLockoutMinutesRemaining(): ?int
+    {
+        if (!$this->lockout_until || $this->lockout_until->isPast()) {
+            return null;
+        }
+
+        return now()->diffInMinutes($this->lockout_until, false);
     }
 }

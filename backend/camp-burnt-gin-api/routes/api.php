@@ -34,10 +34,11 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 |
 | Routes for user registration, login, and password recovery.
-| These routes do not require authentication.
+| These routes do not require authentication but have strict rate limiting
+| to prevent brute force attacks and account enumeration.
 |
 */
-Route::prefix('auth')->group(function () {
+Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
@@ -51,15 +52,16 @@ Route::prefix('auth')->group(function () {
 |
 | Routes for medical providers to access forms via secure, expiring links.
 | Authentication is via the secure token, not user credentials.
+| Strict rate limiting prevents token brute-force attempts.
 |
 */
-Route::prefix('provider-access')->group(function () {
+Route::prefix('provider-access')->middleware('throttle:provider-link')->group(function () {
     Route::get('/{token}', [MedicalProviderLinkController::class, 'accessForm'])->name('provider-access.form');
     Route::post('/{token}/submit', [MedicalProviderLinkController::class, 'submitForm'])->name('provider-access.submit');
     Route::post('/{token}/upload', [MedicalProviderLinkController::class, 'uploadDocument'])->name('provider-access.upload');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -110,7 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     | MFA Setup Routes
     |--------------------------------------------------------------------------
     */
-    Route::prefix('mfa')->group(function () {
+    Route::prefix('mfa')->middleware('throttle:mfa')->group(function () {
         Route::post('/setup', [MfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/verify', [MfaController::class, 'verify'])->name('mfa.verify');
         Route::post('/disable', [MfaController::class, 'disable'])->name('mfa.disable');
@@ -134,9 +136,9 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::prefix('documents')->group(function () {
         Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
-        Route::post('/', [DocumentController::class, 'store'])->name('documents.store');
+        Route::post('/', [DocumentController::class, 'store'])->middleware('throttle:uploads')->name('documents.store');
         Route::get('/{document}', [DocumentController::class, 'show'])->name('documents.show');
-        Route::get('/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+        Route::get('/{document}/download', [DocumentController::class, 'download'])->middleware('throttle:sensitive')->name('documents.download');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     });
 
@@ -145,7 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     | Medical Provider Link Management Routes
     |--------------------------------------------------------------------------
     */
-    Route::prefix('provider-links')->group(function () {
+    Route::prefix('provider-links')->middleware('throttle:sensitive')->group(function () {
         Route::get('/', [MedicalProviderLinkController::class, 'index'])->name('provider-links.index');
         Route::post('/', [MedicalProviderLinkController::class, 'store'])->name('provider-links.store');
         Route::get('/{providerLink}', [MedicalProviderLinkController::class, 'show'])->name('provider-links.show');

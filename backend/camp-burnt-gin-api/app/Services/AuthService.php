@@ -33,6 +33,9 @@ class AuthService
     /**
      * Authenticate a user with email and password.
      *
+     * Implements account lockout after 5 failed attempts for 15 minutes.
+     * Prevents brute force attacks on authentication endpoint.
+     *
      * @param array<string, mixed> $credentials
      * @return array<string, mixed>
      */
@@ -40,10 +43,30 @@ class AuthService
     {
         $user = User::where('email', $credentials['email'])->first();
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (!$user) {
             return [
                 'success' => false,
                 'message' => 'Invalid credentials.',
+            ];
+        }
+
+        if ($user->isLockedOut()) {
+            $minutesRemaining = $user->getLockoutMinutesRemaining();
+            return [
+                'success' => false,
+                'message' => "Account locked due to too many failed attempts. Try again in {$minutesRemaining} minute(s).",
+                'lockout' => true,
+                'retry_after' => $minutesRemaining * 60,
+            ];
+        }
+
+        if (!Hash::check($credentials['password'], $user->password)) {
+            $user->recordFailedLogin();
+
+            return [
+                'success' => false,
+                'message' => 'Invalid credentials.',
+                'attempts_remaining' => max(0, 5 - $user->fresh()->failed_login_attempts),
             ];
         }
 
@@ -55,11 +78,16 @@ class AuthService
         }
 
         if ($user->mfa_enabled && !$this->verifyMfaCode($user, $credentials['mfa_code'])) {
+            $user->recordFailedLogin();
+
             return [
                 'success' => false,
                 'message' => 'Invalid MFA code.',
+                'attempts_remaining' => max(0, 5 - $user->fresh()->failed_login_attempts),
             ];
         }
+
+        $user->resetFailedLogins();
 
         $token = $user->createToken('auth-token')->plainTextToken;
 

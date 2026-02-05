@@ -45,9 +45,12 @@ return [
     | considered expired. This will override any values set in the token's
     | "expires_at" attribute, but first-party sessions are not affected.
     |
+    | Set to 60 minutes for HIPAA compliance - tokens must expire to enforce
+    | session timeout requirements.
+    |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_EXPIRATION', 60),
 
     /*
     |--------------------------------------------------------------------------

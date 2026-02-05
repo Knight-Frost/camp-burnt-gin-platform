@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Each camper has a single medical record containing physician details,
  * insurance information, and any special medical needs or dietary
  * restrictions that staff should be aware of.
+ *
+ * PHI fields are encrypted at rest using Laravel's encrypted casting.
  */
 class MedicalRecord extends Model
 {
@@ -32,6 +34,26 @@ class MedicalRecord extends Model
         'dietary_restrictions',
         'notes',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * PHI fields are encrypted at rest for HIPAA compliance.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'physician_name' => 'encrypted',
+            'physician_phone' => 'encrypted',
+            'insurance_provider' => 'encrypted',
+            'insurance_policy_number' => 'encrypted',
+            'special_needs' => 'encrypted',
+            'dietary_restrictions' => 'encrypted',
+            'notes' => 'encrypted',
+        ];
+    }
 
     /**
      * Get the camper this medical record belongs to.
