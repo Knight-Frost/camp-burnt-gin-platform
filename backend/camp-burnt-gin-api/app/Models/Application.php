@@ -148,6 +148,7 @@ class Application extends Model
     public function scopeWithStatus($query, ApplicationStatus|string $status)
     {
         $statusValue = $status instanceof ApplicationStatus ? $status->value : $status;
+
         return $query->where('status', $statusValue);
     }
 }

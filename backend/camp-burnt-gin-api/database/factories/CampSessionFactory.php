@@ -32,7 +32,7 @@ class CampSessionFactory extends Factory
 
         return [
             'camp_id' => Camp::factory(),
-            'name' => 'Session ' . fake()->numberBetween(1, 10),
+            'name' => 'Session '.fake()->numberBetween(1, 10),
             'start_date' => $startDate,
             'end_date' => $endDate,
             'capacity' => fake()->numberBetween(20, 100),

@@ -20,19 +20,19 @@ class DocumentService
     /**
      * Upload a new document.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public function upload(UploadedFile $file, array $data, User $user): array
     {
-        if (!$this->validateMimeType($file)) {
+        if (! $this->validateMimeType($file)) {
             return [
                 'success' => false,
                 'message' => 'File type not allowed.',
             ];
         }
 
-        if (!$this->validateFileSize($file)) {
+        if (! $this->validateFileSize($file)) {
             return [
                 'success' => false,
                 'message' => 'File size exceeds maximum allowed size.',
@@ -53,7 +53,7 @@ class DocumentService
             'mime_type' => $file->getMimeType(),
             'file_size' => $file->getSize(),
             'disk' => 'local',
-            'path' => $path . '/' . $storedFilename,
+            'path' => $path.'/'.$storedFilename,
             'document_type' => $data['document_type'] ?? null,
             'is_scanned' => false,
         ]);
@@ -88,24 +88,25 @@ class DocumentService
     protected function generateFilename(UploadedFile $file): string
     {
         $extension = $file->getClientOriginalExtension();
-        return Str::uuid() . '.' . $extension;
+
+        return Str::uuid().'.'.$extension;
     }
 
     /**
      * Get the storage path based on document data.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     protected function getStoragePath(array $data): string
     {
         $basePath = 'documents';
 
-        if (!empty($data['documentable_type'])) {
+        if (! empty($data['documentable_type'])) {
             $type = class_basename($data['documentable_type']);
-            $basePath .= '/' . Str::snake($type);
+            $basePath .= '/'.Str::snake($type);
         }
 
-        return $basePath . '/' . date('Y/m');
+        return $basePath.'/'.date('Y/m');
     }
 
     /**
@@ -126,11 +127,27 @@ class DocumentService
 
     /**
      * Perform security scan on document.
+     *
+     * HIPAA COMPLIANCE NOTE:
+     * This implements a quarantine-based security system where all uploaded
+     * files are marked as "pending review" and require manual administrator
+     * approval before they can be accessed by non-admin users.
+     *
+     * For production deployment with automated virus scanning, integrate
+     * one of the following solutions:
+     * - ClamAV (open-source antivirus engine)
+     * - VirusTotal API (cloud-based scanning)
+     * - AWS GuardDuty Malware Protection
+     * - Microsoft Defender for Cloud
+     *
+     * @return bool|null Returns false for obviously dangerous files,
+     *                   null for files requiring manual review,
+     *                   true for approved files (manual approval only)
      */
-    protected function performSecurityScan(Document $document): bool
+    protected function performSecurityScan(Document $document): ?bool
     {
-        $dangerousExtensions = ['exe', 'bat', 'cmd', 'sh', 'php', 'js', 'vbs'];
-        $extension = pathinfo($document->original_filename, PATHINFO_EXTENSION);
+        $dangerousExtensions = ['exe', 'bat', 'cmd', 'sh', 'php', 'js', 'vbs', 'com', 'pif', 'scr'];
+        $extension = pathinfo($document->stored_filename, PATHINFO_EXTENSION);
 
         if (in_array(strtolower($extension), $dangerousExtensions)) {
             return false;
@@ -140,14 +157,40 @@ class DocumentService
             'application/x-executable',
             'application/x-msdownload',
             'application/x-httpd-php',
+            'application/x-sh',
             'text/x-php',
+            'text/x-shellscript',
         ];
 
         if (in_array($document->mime_type, $dangerousMimeTypes)) {
             return false;
         }
 
-        return true;
+        return null;
+    }
+
+    /**
+     * Manually approve a document after security review (admin only).
+     */
+    public function approveDocument(Document $document): void
+    {
+        $document->update([
+            'is_scanned' => true,
+            'scan_passed' => true,
+            'scanned_at' => now(),
+        ]);
+    }
+
+    /**
+     * Manually reject a document after security review (admin only).
+     */
+    public function rejectDocument(Document $document): void
+    {
+        $document->update([
+            'is_scanned' => true,
+            'scan_passed' => false,
+            'scanned_at' => now(),
+        ]);
     }
 
     /**

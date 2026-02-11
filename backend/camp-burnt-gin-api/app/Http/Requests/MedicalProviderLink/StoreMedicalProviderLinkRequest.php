@@ -20,7 +20,7 @@ class StoreMedicalProviderLinkRequest extends FormRequest
     {
         $camper = Camper::find($this->camper_id);
 
-        if (!$camper) {
+        if (! $camper) {
             return false;
         }
 
@@ -40,7 +40,7 @@ class StoreMedicalProviderLinkRequest extends FormRequest
             'camper_id' => ['required', 'exists:campers,id'],
             'provider_email' => ['required', 'email', 'max:255'],
             'provider_name' => ['nullable', 'string', 'max:255'],
-            'expires_in_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
+            'expires_in_hours' => ['nullable', 'integer', 'min:4', 'max:72'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -57,7 +57,8 @@ class StoreMedicalProviderLinkRequest extends FormRequest
             'camper_id.exists' => 'Camper not found.',
             'provider_email.required' => 'Provider email address is required.',
             'provider_email.email' => 'Please provide a valid email address.',
-            'expires_in_hours.max' => 'Link cannot expire more than 7 days from now.',
+            'expires_in_hours.min' => 'Link must be valid for at least 4 hours.',
+            'expires_in_hours.max' => 'Link cannot expire more than 3 days from now.',
         ];
     }
 }

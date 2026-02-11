@@ -22,7 +22,7 @@ class CampSessionController extends Controller
     {
         $query = CampSession::with('camp');
 
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             $query->where('is_active', true);
         }
 

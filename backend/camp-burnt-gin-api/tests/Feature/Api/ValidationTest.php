@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Enums\ApplicationStatus;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\MedicalRecord;

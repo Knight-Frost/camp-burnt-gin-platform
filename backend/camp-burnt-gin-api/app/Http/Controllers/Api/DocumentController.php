@@ -74,7 +74,7 @@ class DocumentController extends Controller
             $request->user()
         );
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
             ], Response::HTTP_BAD_REQUEST);
@@ -100,14 +100,25 @@ class DocumentController extends Controller
 
     /**
      * Download a document file.
+     *
+     * Security enforcement:
+     * - Rejected files (scan_passed = false): Cannot be downloaded by anyone
+     * - Pending review files (scan_passed = null): Admin only
+     * - Approved files (scan_passed = true): All authorized users
      */
     public function download(Document $document): StreamedResponse|JsonResponse
     {
         $this->authorize('view', $document);
 
-        if (!$document->isSecure() && !auth()->user()->isAdmin()) {
+        if ($document->scan_passed === false) {
             return response()->json([
-                'message' => 'Document is pending security scan.',
+                'message' => 'Document failed security check and cannot be downloaded.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (! $document->isSecure() && ! auth()->user()->isAdmin()) {
+            return response()->json([
+                'message' => 'Document is pending security review. Contact an administrator.',
             ], Response::HTTP_FORBIDDEN);
         }
 

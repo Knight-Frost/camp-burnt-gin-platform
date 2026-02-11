@@ -38,13 +38,13 @@ class ApplicationSubmittedNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Application Submitted - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello '.$notifiable->name.',')
             ->line('Your application has been successfully submitted.')
-            ->line('Camper: ' . $this->application->camper->full_name)
-            ->line('Camp Session: ' . $this->application->campSession->name)
-            ->line('Submitted: ' . $this->application->submitted_at->format('F j, Y \a\t g:i A'))
+            ->line('Camper: '.$this->application->camper->full_name)
+            ->line('Camp Session: '.$this->application->campSession->name)
+            ->line('Submitted: '.$this->application->submitted_at->format('F j, Y \a\t g:i A'))
             ->line('We will review your application and notify you of the decision.')
-            ->action('View Application', config('app.frontend_url') . '/applications/' . $this->application->id)
+            ->action('View Application', config('app.frontend_url').'/applications/'.$this->application->id)
             ->salutation('Camp Burnt Gin');
     }
 

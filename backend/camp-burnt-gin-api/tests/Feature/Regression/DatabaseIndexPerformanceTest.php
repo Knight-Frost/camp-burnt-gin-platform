@@ -7,7 +7,6 @@ use App\Models\Camper;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;
@@ -252,7 +251,7 @@ class DatabaseIndexPerformanceTest extends TestCase
         ]);
 
         // Simulate admin filtered query (uses multiple indexes)
-        $response = $this->actingAs($admin)->getJson('/api/applications?status=pending&camp_session_id=' . $session->id);
+        $response = $this->actingAs($admin)->getJson('/api/applications?status=pending&camp_session_id='.$session->id);
 
         $response->assertStatus(200);
         $this->assertCount(5, $response->json('data'));

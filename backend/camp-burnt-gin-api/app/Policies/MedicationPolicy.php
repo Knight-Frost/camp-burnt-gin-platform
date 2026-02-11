@@ -32,7 +32,7 @@ class MedicationPolicy
      * Determine whether the user can view the medication.
      *
      * Administrators have full access.
-     * Medical providers can view for care purposes.
+     * Medical providers can only view for campers they have valid provider links for.
      * Parents can only view medications for their own children.
      */
     public function view(User $user, Medication $medication): bool
@@ -42,7 +42,12 @@ class MedicationPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return true;
+            // Medical providers require valid, non-revoked, unexpired provider link
+            return \App\Models\MedicalProviderLink::where('camper_id', $medication->camper_id)
+                ->where('is_used', true)
+                ->whereNull('revoked_at')
+                ->where('expires_at', '>', now())
+                ->exists();
         }
 
         if ($user->isParent() && $user->ownsCamper($medication->camper)) {
@@ -67,7 +72,7 @@ class MedicationPolicy
      * Determine whether the user can update the medication.
      *
      * Administrators have full access.
-     * Medical providers can update medication information.
+     * Medical providers can update only for campers they have valid provider links for.
      * Parents can update medications for their own children.
      */
     public function update(User $user, Medication $medication): bool
@@ -77,7 +82,12 @@ class MedicationPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return true;
+            // Medical providers require valid, non-revoked, unexpired provider link
+            return \App\Models\MedicalProviderLink::where('camper_id', $medication->camper_id)
+                ->where('is_used', true)
+                ->whereNull('revoked_at')
+                ->where('expires_at', '>', now())
+                ->exists();
         }
 
         if ($user->isParent() && $user->ownsCamper($medication->camper)) {
@@ -89,6 +99,18 @@ class MedicationPolicy
 
     /**
      * Determine whether the user can delete the medication.
+     *
+     * AUTHORIZATION DESIGN NOTE:
+     * Medical providers can create and update medications but cannot delete them.
+     * This intentional design ensures that:
+     * - Providers can document medications discovered during care
+     * - Providers can update dosage or frequency as medically appropriate
+     * - Providers cannot remove medication records from the system
+     * - All provider modifications are audited via PHI audit middleware
+     * - Parents retain final authority over their child's medical record
+     *
+     * This follows HIPAA best practices for medical record integrity
+     * and audit trail completeness.
      *
      * Administrators have full access.
      * Parents can delete medications for their own children.

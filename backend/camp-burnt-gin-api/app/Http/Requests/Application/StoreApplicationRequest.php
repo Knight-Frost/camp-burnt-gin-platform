@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Application;
 
 use App\Models\Camper;
-use App\Models\CampSession;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -38,6 +37,7 @@ class StoreApplicationRequest extends FormRequest
                     return false;
                 }
             }
+
             return true;
         }
 

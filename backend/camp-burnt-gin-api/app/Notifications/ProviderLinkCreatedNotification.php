@@ -18,7 +18,8 @@ class ProviderLinkCreatedNotification extends Notification
     use Queueable;
 
     public function __construct(
-        protected MedicalProviderLink $link
+        protected MedicalProviderLink $link,
+        protected string $plainToken
     ) {}
 
     /**
@@ -36,15 +37,15 @@ class ProviderLinkCreatedNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $accessUrl = config('app.frontend_url') . '/provider-access/' . $this->link->token;
+        $accessUrl = config('app.frontend_url').'/provider-access/'.$this->plainToken;
 
         return (new MailMessage)
             ->subject('Medical Information Request - Camp Burnt Gin')
             ->greeting('Hello,')
             ->line('You have been requested to provide medical information for a camper at Camp Burnt Gin.')
-            ->line('Camper: ' . $this->link->camper->full_name)
+            ->line('Camper: '.$this->link->camper->full_name)
             ->action('Complete Medical Form', $accessUrl)
-            ->line('This link will expire on ' . $this->link->expires_at->format('F j, Y \a\t g:i A') . '.')
+            ->line('This link will expire on '.$this->link->expires_at->format('F j, Y \a\t g:i A').'.')
             ->line('This is a secure, single-use link. Once you submit the information, the link will no longer be valid.')
             ->salutation('Camp Burnt Gin');
     }

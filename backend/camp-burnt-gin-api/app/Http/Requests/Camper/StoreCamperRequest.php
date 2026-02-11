@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Camper;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * Form request for creating a new camper.

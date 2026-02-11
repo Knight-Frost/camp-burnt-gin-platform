@@ -31,12 +31,26 @@ class MedicalProviderLinkController extends Controller
         $user = $request->user();
 
         if ($user->isAdmin()) {
-            $links = MedicalProviderLink::with(['camper', 'creator'])
+            $links = MedicalProviderLink::with([
+                'camper.user',
+                'camper.allergies',
+                'camper.medications',
+                'camper.medicalRecord',
+                'creator',
+                'revoker',
+            ])
                 ->latest()
                 ->paginate(15);
         } else {
             $camperIds = $user->campers()->pluck('id');
-            $links = MedicalProviderLink::with(['camper', 'creator'])
+            $links = MedicalProviderLink::with([
+                'camper.user',
+                'camper.allergies',
+                'camper.medications',
+                'camper.medicalRecord',
+                'creator',
+                'revoker',
+            ])
                 ->whereIn('camper_id', $camperIds)
                 ->latest()
                 ->paginate(15);
@@ -107,22 +121,17 @@ class MedicalProviderLinkController extends Controller
 
     /**
      * Resend a provider link (admin only).
+     *
+     * Since tokens are hashed and cannot be retrieved, this always generates
+     * a new link and sends it to the provider.
      */
     public function resend(MedicalProviderLink $providerLink): JsonResponse
     {
-        if ($providerLink->isRevoked() || $providerLink->is_used) {
-            $newLink = $this->linkService->regenerate($providerLink, auth()->user());
-
-            return response()->json([
-                'message' => 'New provider link generated and sent.',
-                'data' => $newLink,
-            ]);
-        }
-
-        $this->linkService->resend($providerLink);
+        $newLink = $this->linkService->regenerate($providerLink, auth()->user());
 
         return response()->json([
-            'message' => 'Provider link resent successfully.',
+            'message' => 'New provider link generated and sent.',
+            'data' => $newLink,
         ]);
     }
 
@@ -131,16 +140,17 @@ class MedicalProviderLinkController extends Controller
      */
     public function accessForm(string $token): JsonResponse
     {
-        $link = MedicalProviderLink::where('token', $token)->first();
+        $link = $this->findLinkByPlainToken($token);
 
-        if (!$link) {
+        if (! $link) {
             return response()->json([
                 'message' => 'Invalid link.',
             ], Response::HTTP_NOT_FOUND);
         }
 
-        if (!$link->isValid()) {
+        if (! $link->isValid()) {
             $reason = $link->isRevoked() ? 'revoked' : ($link->isExpired() ? 'expired' : 'already used');
+
             return response()->json([
                 'message' => "This link has been {$reason}.",
             ], Response::HTTP_FORBIDDEN);
@@ -165,9 +175,9 @@ class MedicalProviderLinkController extends Controller
      */
     public function submitForm(Request $request, string $token): JsonResponse
     {
-        $link = MedicalProviderLink::where('token', $token)->first();
+        $link = $this->findLinkByPlainToken($token);
 
-        if (!$link || !$link->isValid()) {
+        if (! $link || ! $link->isValid()) {
             return response()->json([
                 'message' => 'Invalid or expired link.',
             ], Response::HTTP_FORBIDDEN);
@@ -175,7 +185,7 @@ class MedicalProviderLinkController extends Controller
 
         $result = $this->linkService->processSubmission($link, $request->all());
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
                 'errors' => $result['errors'] ?? [],
@@ -192,9 +202,9 @@ class MedicalProviderLinkController extends Controller
      */
     public function uploadDocument(Request $request, string $token): JsonResponse
     {
-        $link = MedicalProviderLink::where('token', $token)->first();
+        $link = $this->findLinkByPlainToken($token);
 
-        if (!$link || !$link->isValid()) {
+        if (! $link || ! $link->isValid()) {
             return response()->json([
                 'message' => 'Invalid or expired link.',
             ], Response::HTTP_FORBIDDEN);
@@ -207,7 +217,7 @@ class MedicalProviderLinkController extends Controller
 
         $result = $this->linkService->uploadDocument($link, $request->file('file'), $request->document_type);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
             ], Response::HTTP_BAD_REQUEST);
@@ -217,5 +227,27 @@ class MedicalProviderLinkController extends Controller
             'message' => 'Document uploaded successfully.',
             'data' => $result['document'],
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Find a medical provider link by verifying the plain token against stored hashes.
+     *
+     * This method retrieves all active links and checks each hashed token
+     * to prevent timing attacks and protect against token enumeration.
+     */
+    protected function findLinkByPlainToken(string $plainToken): ?MedicalProviderLink
+    {
+        $potentialLinks = MedicalProviderLink::where('expires_at', '>', now())
+            ->where('is_used', false)
+            ->whereNull('revoked_at')
+            ->get();
+
+        foreach ($potentialLinks as $link) {
+            if (MedicalProviderLink::verifyToken($plainToken, $link->token)) {
+                return $link;
+            }
+        }
+
+        return null;
     }
 }

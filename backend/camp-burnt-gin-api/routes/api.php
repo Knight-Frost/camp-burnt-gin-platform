@@ -3,19 +3,19 @@
 use App\Http\Controllers\Api\AllergyController;
 use App\Http\Controllers\Api\ApplicationController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CampController;
 use App\Http\Controllers\Api\CamperController;
+use App\Http\Controllers\Api\CampSessionController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\EmergencyContactController;
+use App\Http\Controllers\Api\MedicalProviderLinkController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\MedicationController;
 use App\Http\Controllers\Api\MfaController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetController;
-use App\Http\Controllers\Api\MedicalProviderLinkController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\UserProfileController;
-use App\Http\Controllers\Api\CampController;
-use App\Http\Controllers\Api\CampSessionController;
 use Illuminate\Support\Facades\Route;
 
 /*

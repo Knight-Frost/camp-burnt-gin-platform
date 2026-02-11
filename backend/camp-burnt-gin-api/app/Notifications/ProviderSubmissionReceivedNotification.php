@@ -38,11 +38,11 @@ class ProviderSubmissionReceivedNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Medical Information Received - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
-            ->line('Medical information has been submitted for ' . $this->link->camper->full_name . '.')
-            ->line('Provider: ' . ($this->link->provider_name ?? $this->link->provider_email))
-            ->line('Submitted: ' . $this->link->submitted_at->format('F j, Y \a\t g:i A'))
-            ->action('View Medical Record', config('app.frontend_url') . '/campers/' . $this->link->camper_id . '/medical')
+            ->greeting('Hello '.$notifiable->name.',')
+            ->line('Medical information has been submitted for '.$this->link->camper->full_name.'.')
+            ->line('Provider: '.($this->link->provider_name ?? $this->link->provider_email))
+            ->line('Submitted: '.$this->link->submitted_at->format('F j, Y \a\t g:i A'))
+            ->action('View Medical Record', config('app.frontend_url').'/campers/'.$this->link->camper_id.'/medical')
             ->salutation('Camp Burnt Gin');
     }
 

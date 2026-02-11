@@ -30,7 +30,7 @@ class PasswordResetService
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return ['success' => true];
         }
 
@@ -60,14 +60,14 @@ class PasswordResetService
             ->where('email', $email)
             ->first();
 
-        if (!$record) {
+        if (! $record) {
             return [
                 'success' => false,
                 'message' => 'Invalid password reset request.',
             ];
         }
 
-        if (!Hash::check($token, $record->token)) {
+        if (! Hash::check($token, $record->token)) {
             return [
                 'success' => false,
                 'message' => 'Invalid password reset token.',
@@ -84,7 +84,7 @@ class PasswordResetService
 
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return [
                 'success' => false,
                 'message' => 'User not found.',

@@ -72,10 +72,15 @@ class AuditLog extends Model
      * Event types for categorization and filtering.
      */
     public const EVENT_TYPE_AUTH = 'authentication';
+
     public const EVENT_TYPE_PHI_ACCESS = 'phi_access';
+
     public const EVENT_TYPE_ADMIN_ACTION = 'admin_action';
+
     public const EVENT_TYPE_SECURITY = 'security';
+
     public const EVENT_TYPE_DATA_CHANGE = 'data_change';
+
     public const EVENT_TYPE_FILE_ACCESS = 'file_access';
 
     /**

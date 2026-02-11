@@ -36,11 +36,18 @@ class EmergencyContact extends Model
     /**
      * Get the attributes that should be cast.
      *
+     * PHI fields are encrypted at rest for HIPAA compliance.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'name' => 'encrypted',
+            'relationship' => 'encrypted',
+            'phone_primary' => 'encrypted',
+            'phone_secondary' => 'encrypted',
+            'email' => 'encrypted',
             'is_primary' => 'boolean',
             'is_authorized_pickup' => 'boolean',
         ];

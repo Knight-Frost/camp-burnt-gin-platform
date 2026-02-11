@@ -55,10 +55,11 @@ php artisan test
 
 **Observable Success:**
 - All commands complete without errors
-- Final output shows `Tests: X passed` with zero failures
+- Final output shows `Tests: 228 passed (430 assertions)` with zero failures
 - No red text or `FAIL` messages appear
+- Test duration: 2-3 seconds
 
-If all tests pass, the backend is verified and working correctly.
+If all 228 tests pass, the backend is verified and working correctly.
 
 ---
 
@@ -307,8 +308,8 @@ php artisan test
   ✓ parent can view own campers
   ...
 
-Tests:    47 passed (156 assertions)
-Duration: 2.34s
+Tests:    228 passed (430 assertions)
+Duration: 2.74s
 ```
 
 **Key Indicators of Success:**
@@ -325,8 +326,8 @@ Duration: 2.34s
 
   Failed asserting that 200 matches expected 422.
 
-Tests:    1 failed, 46 passed (155 assertions)
-Duration: 2.41s
+Tests:    1 failed, 227 passed (429 assertions)
+Duration: 2.80s
 ```
 
 **Key Indicators of Failure:**
@@ -978,6 +979,111 @@ curl -X POST http://127.0.0.1:8000/api/auth/login \
 
 ---
 
+### 7.11 Advanced Security Testing (February 2026 Audit)
+
+#### What Is Being Tested
+
+Enhanced security measures implemented during comprehensive security audit:
+- Account lockout after failed login attempts
+- Rate limiting on authentication endpoints
+- MFA disable brute-force protection
+- Token expiration enforcement
+- IDOR (Insecure Direct Object Reference) prevention
+- PHI access audit logging
+- Session encryption
+
+**Validates:** Enterprise security requirements and HIPAA compliance
+
+#### How to Perform the Test
+
+**Run security test suite:**
+```bash
+php artisan test tests/Feature/Security/
+```
+
+**Test account lockout:**
+```bash
+# Attempt 5 failed logins
+for i in {1..5}; do
+  curl -X POST http://127.0.0.1:8000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -d '{"email": "user@example.com", "password": "wrong"}'
+done
+
+# 6th attempt should be locked out
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"email": "user@example.com", "password": "correct"}'
+```
+
+**Test rate limiting:**
+```bash
+# Rapid-fire authentication attempts
+for i in {1..10}; do
+  curl -s -X POST http://127.0.0.1:8000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -d '{"email": "test@example.com", "password": "test"}'
+done
+```
+
+#### Observable Success Criteria
+
+**Account Lockout:**
+- First 5 failed attempts: HTTP 401 with remaining attempts count
+- 6th attempt: HTTP 401 with lockout message and retry_after seconds
+- After 15 minutes: Account automatically unlocked
+
+**Rate Limiting:**
+- Requests within limit: HTTP 200/201/401 based on credentials
+- Requests exceeding limit: HTTP 429 (Too Many Requests)
+- Response includes `Retry-After` header
+
+**Token Expiration:**
+- Tokens expire after 60 minutes of inactivity
+- Expired tokens return HTTP 401
+- Users must re-authenticate
+
+**IDOR Prevention:**
+- Parents cannot access other parents' resources
+- Returns HTTP 403 Forbidden
+- Sequential ID enumeration blocked
+
+**PHI Audit Logging:**
+- All medical record access logged
+- Logs include user ID, IP, timestamp, action
+- Audit failures don't block requests (graceful degradation)
+
+#### Observable Failure Indicators
+
+**Account Lockout Not Working:**
+- Unlimited failed login attempts allowed
+- No lockout after 5 failures
+
+**Rate Limiting Not Working:**
+- No HTTP 429 responses after excessive requests
+- Unlimited requests accepted
+
+**Token Expiration Not Working:**
+- Old tokens still valid after 60 minutes
+- No automatic session timeout
+
+#### Security Test Categories
+
+| Test File | Tests | Focus |
+|-----------|-------|-------|
+| AccountLockoutTest.php | 5 | Brute-force protection |
+| RateLimitingTest.php | 6 | API abuse prevention |
+| TokenExpirationTest.php | 8 | Session timeout |
+| IdorPreventionTest.php | 11 | Authorization bypass prevention |
+| PhiAuditingTest.php | 9 | HIPAA compliance logging |
+
+**Total Security Tests:** 39 (All passing)
+
+---
+
 ## 8. Role-Based Access Testing
 
 ### Testing Applicant (Parent) Restrictions
@@ -1414,5 +1520,6 @@ php artisan test --coverage
 
 ---
 
-*Document Version: 1.1*
-*Last Updated: January 2026*
+*Document Version: 1.2*
+*Last Updated: February 2026*
+*Test Suite: 228 tests, 430+ assertions, 100% pass rate*

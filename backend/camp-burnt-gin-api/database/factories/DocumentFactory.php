@@ -30,9 +30,9 @@ class DocumentFactory extends Factory
         return [
             'documentable_type' => 'App\\Models\\Camper',
             'documentable_id' => Camper::factory(),
-            'original_filename' => fake()->word() . '.pdf',
-            'stored_filename' => fake()->uuid() . '.pdf',
-            'path' => 'documents/' . fake()->uuid() . '.pdf',
+            'original_filename' => fake()->word().'.pdf',
+            'stored_filename' => fake()->uuid().'.pdf',
+            'path' => 'documents/'.fake()->uuid().'.pdf',
             'file_size' => fake()->numberBetween(1000, 5000000),
             'mime_type' => 'application/pdf',
             'disk' => 'local',

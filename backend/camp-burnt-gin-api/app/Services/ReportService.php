@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
-use App\Models\Camper;
 
 /**
  * Service for report generation.
@@ -17,26 +16,26 @@ class ReportService
     /**
      * Generate applications report with filtering.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function generateApplicationsReport(array $filters): array
     {
         $query = Application::with(['camper.user', 'campSession.camp', 'reviewer']);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['camp_session_id'])) {
+        if (! empty($filters['camp_session_id'])) {
             $query->where('camp_session_id', $filters['camp_session_id']);
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('submitted_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('submitted_at', '<=', $filters['date_to']);
         }
 
@@ -70,15 +69,19 @@ class ReportService
     /**
      * Generate list of accepted applicants.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function generateAcceptedApplicantsReport(array $filters): array
     {
-        $query = Application::with(['camper.user', 'campSession.camp'])
+        $query = Application::with([
+            'camper.user',
+            'camper.medicalRecord',
+            'campSession.camp',
+        ])
             ->where('status', ApplicationStatus::Approved);
 
-        if (!empty($filters['camp_session_id'])) {
+        if (! empty($filters['camp_session_id'])) {
             $query->where('camp_session_id', $filters['camp_session_id']);
         }
 
@@ -94,7 +97,7 @@ class ReportService
                     'parent_name' => $app->camper->user->name,
                     'parent_email' => $app->camper->user->email,
                     'camp_session' => $app->campSession->name,
-                    'session_dates' => $app->campSession->start_date->format('M j') . ' - ' . $app->campSession->end_date->format('M j, Y'),
+                    'session_dates' => $app->campSession->start_date->format('M j').' - '.$app->campSession->end_date->format('M j, Y'),
                     'approved_at' => $app->reviewed_at?->toIso8601String(),
                 ];
             }),
@@ -105,15 +108,19 @@ class ReportService
     /**
      * Generate list of rejected applicants.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function generateRejectedApplicantsReport(array $filters): array
     {
-        $query = Application::with(['camper.user', 'campSession.camp'])
+        $query = Application::with([
+            'camper.user',
+            'campSession.camp',
+            'reviewer',
+        ])
             ->where('status', ApplicationStatus::Rejected);
 
-        if (!empty($filters['camp_session_id'])) {
+        if (! empty($filters['camp_session_id'])) {
             $query->where('camp_session_id', $filters['camp_session_id']);
         }
 
@@ -138,7 +145,7 @@ class ReportService
     /**
      * Generate mailing labels data.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<array<string, mixed>>
      */
     public function generateMailingLabels(array $filters): array
@@ -146,13 +153,13 @@ class ReportService
         $query = Application::with(['camper.user'])
             ->whereNotNull('submitted_at');
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         } else {
             $query->where('status', ApplicationStatus::Approved);
         }
 
-        if (!empty($filters['camp_session_id'])) {
+        if (! empty($filters['camp_session_id'])) {
             $query->where('camp_session_id', $filters['camp_session_id']);
         }
 
@@ -172,7 +179,13 @@ class ReportService
      */
     public function generateIdLabels(int $campSessionId): array
     {
-        $applications = Application::with(['camper.allergies', 'campSession'])
+        $applications = Application::with([
+            'camper.user',
+            'camper.allergies',
+            'camper.medications',
+            'camper.medicalRecord',
+            'campSession',
+        ])
             ->where('camp_session_id', $campSessionId)
             ->where('status', ApplicationStatus::Approved)
             ->get();

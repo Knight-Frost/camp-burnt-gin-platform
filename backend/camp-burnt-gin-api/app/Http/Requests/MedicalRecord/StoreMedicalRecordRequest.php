@@ -35,6 +35,7 @@ class StoreMedicalRecordRequest extends FormRequest
                     return false;
                 }
             }
+
             return true;
         }
 

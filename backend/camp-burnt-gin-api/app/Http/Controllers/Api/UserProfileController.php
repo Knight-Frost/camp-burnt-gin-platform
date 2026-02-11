@@ -33,7 +33,7 @@ class UserProfileController extends Controller
     {
         $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'email', 'unique:users,email,' . $request->user()->id],
+            'email' => ['sometimes', 'email', 'unique:users,email,'.$request->user()->id],
         ]);
 
         $request->user()->update($request->only(['name', 'email']));

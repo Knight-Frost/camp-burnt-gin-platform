@@ -20,17 +20,18 @@ class StoreDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        if (!$this->documentable_type || !$this->documentable_id) {
+        if (! $this->documentable_type || ! $this->documentable_id) {
             return true;
         }
 
         if ($this->documentable_type === 'App\\Models\\Camper') {
             $camper = Camper::find($this->documentable_id);
-            if (!$camper) {
+            if (! $camper) {
                 return false;
             }
 
             $user = $this->user();
+
             return $user->isAdmin() || $user->ownsCamper($camper);
         }
 

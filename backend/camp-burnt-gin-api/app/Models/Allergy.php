@@ -34,12 +34,17 @@ class Allergy extends Model
     /**
      * Get the attributes that should be cast.
      *
+     * PHI fields are encrypted at rest for HIPAA compliance.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'allergen' => 'encrypted',
             'severity' => AllergySeverity::class,
+            'reaction' => 'encrypted',
+            'treatment' => 'encrypted',
         ];
     }
 

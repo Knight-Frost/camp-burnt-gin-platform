@@ -31,7 +31,7 @@ class AllergyPolicy
      * Determine whether the user can view the allergy.
      *
      * Administrators have full access.
-     * Medical providers can view for safety purposes.
+     * Medical providers can only view for campers they have valid provider links for.
      * Parents can only view allergies for their own children.
      */
     public function view(User $user, Allergy $allergy): bool
@@ -41,7 +41,12 @@ class AllergyPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return true;
+            // Medical providers require valid, non-revoked, unexpired provider link
+            return \App\Models\MedicalProviderLink::where('camper_id', $allergy->camper_id)
+                ->where('is_used', true)
+                ->whereNull('revoked_at')
+                ->where('expires_at', '>', now())
+                ->exists();
         }
 
         if ($user->isParent() && $user->ownsCamper($allergy->camper)) {
@@ -66,7 +71,7 @@ class AllergyPolicy
      * Determine whether the user can update the allergy.
      *
      * Administrators have full access.
-     * Medical providers can update allergy information.
+     * Medical providers can update only for campers they have valid provider links for.
      * Parents can update allergies for their own children.
      */
     public function update(User $user, Allergy $allergy): bool
@@ -76,7 +81,12 @@ class AllergyPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return true;
+            // Medical providers require valid, non-revoked, unexpired provider link
+            return \App\Models\MedicalProviderLink::where('camper_id', $allergy->camper_id)
+                ->where('is_used', true)
+                ->whereNull('revoked_at')
+                ->where('expires_at', '>', now())
+                ->exists();
         }
 
         if ($user->isParent() && $user->ownsCamper($allergy->camper)) {
@@ -88,6 +98,18 @@ class AllergyPolicy
 
     /**
      * Determine whether the user can delete the allergy.
+     *
+     * AUTHORIZATION DESIGN NOTE:
+     * Medical providers can create and update allergies but cannot delete them.
+     * This intentional design ensures that:
+     * - Providers can document allergies discovered during care
+     * - Providers can update treatment protocols
+     * - Providers cannot remove allergy records from the system
+     * - All provider modifications are audited via PHI audit middleware
+     * - Parents retain final authority over their child's medical record
+     *
+     * This follows HIPAA best practices for medical record integrity
+     * and audit trail completeness.
      *
      * Administrators have full access.
      * Parents can delete allergies for their own children.

@@ -42,9 +42,11 @@ class MedicalRecordPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Verify provider has an active link to this camper
+            // Medical providers require valid, non-revoked, unexpired provider link
             return \App\Models\MedicalProviderLink::where('camper_id', $medicalRecord->camper_id)
                 ->where('is_used', true)
+                ->whereNull('revoked_at')
+                ->where('expires_at', '>', now())
                 ->exists();
         }
 
@@ -80,9 +82,11 @@ class MedicalRecordPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Verify provider has an active link to this camper
+            // Medical providers require valid, non-revoked, unexpired provider link
             return \App\Models\MedicalProviderLink::where('camper_id', $medicalRecord->camper_id)
                 ->where('is_used', true)
+                ->whereNull('revoked_at')
+                ->where('expires_at', '>', now())
                 ->exists();
         }
 

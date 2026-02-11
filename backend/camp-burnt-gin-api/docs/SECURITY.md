@@ -13,13 +13,14 @@ This document provides comprehensive documentation of the security architecture,
 5. [Session Management](#session-management)
 6. [Password Security](#password-security)
 7. [Data Encryption](#data-encryption)
-8. [File Upload Security](#file-upload-security)
-9. [Input Validation](#input-validation)
-10. [Audit Logging](#audit-logging)
-11. [HIPAA Compliance](#hipaa-compliance)
-12. [Medical Provider Security](#medical-provider-security)
-13. [Security Headers and Transport](#security-headers-and-transport)
-14. [Incident Response Considerations](#incident-response-considerations)
+8. [Secret Management and Rotation](#secret-management-and-rotation)
+9. [File Upload Security](#file-upload-security)
+10. [Input Validation](#input-validation)
+11. [Audit Logging](#audit-logging)
+12. [HIPAA Compliance](#hipaa-compliance)
+13. [Medical Provider Security](#medical-provider-security)
+14. [Security Headers and Transport](#security-headers-and-transport)
+15. [Incident Response Considerations](#incident-response-considerations)
 
 ---
 
@@ -365,6 +366,290 @@ This key must be:
 - Unique per environment
 - Never committed to version control
 - Stored securely in production
+
+---
+
+## Secret Management and Rotation
+
+### Overview
+
+Cryptographic secrets and credentials are critical security assets that require proper management and periodic rotation. This section documents the secrets used by the system, rotation procedures, and recommended schedules.
+
+### Secrets Inventory
+
+| Secret | Purpose | Storage Location | Rotation Frequency |
+|--------|---------|------------------|-------------------|
+| `APP_KEY` | Application encryption key | `.env` | Annually or on compromise |
+| Database credentials | Database access | `.env` | Annually or on compromise |
+| Mail credentials | Email sending | `.env` | Quarterly or on compromise |
+| API tokens (user) | Authentication | Database (hashed) | 60-minute expiration |
+| Password reset tokens | Password recovery | Database (hashed) | 60-minute expiration |
+| MFA secrets | Two-factor authentication | Database | User-controlled |
+| Medical provider link tokens | Temporary PHI access | Database | 72-hour expiration |
+
+### Application Key Rotation
+
+The `APP_KEY` is used for encrypting session data, signed URLs, and other Laravel encryption operations.
+
+**When to Rotate:**
+- Annually as preventive maintenance
+- Immediately if key is compromised or exposed
+- When employee with access leaves organization
+- After security incident involving encryption
+
+**Rotation Procedure:**
+
+1. **Backup Current State**
+   ```bash
+   # Backup database
+   mysqldump -u username -p database_name > backup_$(date +%Y%m%d).sql
+
+   # Backup current .env file
+   cp .env .env.backup.$(date +%Y%m%d)
+   ```
+
+2. **Generate New Key**
+   ```bash
+   # Generate new key (do not overwrite yet)
+   php artisan key:generate --show
+   ```
+
+3. **Update Environment Configuration**
+   ```bash
+   # Add new key to APP_PREVIOUS_KEYS in .env
+   APP_PREVIOUS_KEYS="${APP_KEY},previous_key_2,previous_key_3"
+
+   # Update APP_KEY with new key
+   APP_KEY=base64:NEW_GENERATED_KEY_HERE
+   ```
+
+4. **Clear Application Caches**
+   ```bash
+   php artisan optimize:clear
+   php artisan config:cache
+   php artisan route:cache
+   ```
+
+5. **Verify Application Functionality**
+   ```bash
+   # Run automated tests
+   php artisan test
+
+   # Verify signed URLs still work
+   # Verify session encryption works
+   # Test authentication flow
+   ```
+
+6. **Remove Old Keys** (After 30-day grace period)
+   ```bash
+   # Remove oldest key from APP_PREVIOUS_KEYS
+   # Keep recent previous keys for backward compatibility
+   ```
+
+**Important Notes:**
+- Laravel 12 supports `APP_PREVIOUS_KEYS` for graceful key rotation
+- Signed URLs created with old keys remain valid during grace period
+- Session data encrypted with old keys can be decrypted during transition
+- Never remove all previous keys until all active sessions have expired
+
+### Database Credential Rotation
+
+**Rotation Procedure:**
+
+1. **Create New Database User**
+   ```sql
+   CREATE USER 'new_camp_user'@'localhost' IDENTIFIED BY 'new_secure_password';
+   GRANT ALL PRIVILEGES ON camp_burnt_gin.* TO 'new_camp_user'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+2. **Update Application Configuration**
+   ```bash
+   # Update .env file
+   DB_USERNAME=new_camp_user
+   DB_PASSWORD=new_secure_password
+   ```
+
+3. **Restart Application**
+   ```bash
+   # Clear configuration cache
+   php artisan config:clear
+
+   # Restart application server
+   sudo systemctl restart php-fpm
+   ```
+
+4. **Verify Database Connectivity**
+   ```bash
+   # Test database connection
+   php artisan db:show
+
+   # Run health check query
+   php artisan tinker
+   >>> DB::select('SELECT 1');
+   ```
+
+5. **Remove Old Database User** (After verification)
+   ```sql
+   DROP USER 'old_camp_user'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+### Mail Credential Rotation
+
+**Rotation Procedure:**
+
+1. **Generate New SMTP Credentials** (Provider-specific)
+   - Log into mail service provider (e.g., SendGrid, Mailgun, AWS SES)
+   - Create new API key or SMTP credentials
+   - Document key name and creation date
+
+2. **Update Application Configuration**
+   ```bash
+   # Update .env file
+   MAIL_PASSWORD=new_smtp_password
+   # or
+   MAIL_API_KEY=new_api_key
+   ```
+
+3. **Clear Configuration Cache**
+   ```bash
+   php artisan config:clear
+   ```
+
+4. **Test Email Functionality**
+   ```bash
+   # Send test email
+   php artisan tinker
+   >>> Mail::raw('Test email after rotation', function ($message) {
+       $message->to('admin@example.com')->subject('Test');
+   });
+   ```
+
+5. **Revoke Old Credentials**
+   - Delete old API key from mail service provider
+   - Verify old credentials no longer work
+
+### API Token Rotation
+
+User authentication tokens automatically expire after 60 minutes. No manual rotation is required.
+
+**Force Token Revocation (When Needed):**
+
+```php
+// Revoke all tokens for specific user
+$user->tokens()->delete();
+
+// Revoke specific token
+$user->tokens()->where('id', $tokenId)->delete();
+```
+
+**Bulk Token Revocation (Emergency):**
+
+```bash
+php artisan tinker
+>>> \Laravel\Sanctum\PersonalAccessToken::where('created_at', '<', now()->subDays(1))->delete();
+```
+
+### MFA Secret Rotation
+
+MFA secrets are user-controlled. Users can reset MFA by:
+
+1. Disabling MFA (requires current password + TOTP code)
+2. Re-enabling MFA (generates new secret)
+
+**Admin-Forced MFA Reset:**
+
+```php
+// In case of user lockout or emergency
+$user->update([
+    'mfa_enabled' => false,
+    'mfa_secret' => null,
+    'mfa_verified_at' => null,
+]);
+
+// Notify user to re-enable MFA
+Mail::to($user)->send(new MfaResetNotification($user));
+```
+
+### Medical Provider Link Token Security
+
+Medical provider links automatically expire after 72 hours. No rotation procedure is required as tokens are single-use and short-lived.
+
+**Bulk Revocation (If Needed):**
+
+```bash
+php artisan tinker
+>>> \App\Models\MedicalProviderLink::whereNull('revoked_at')
+       ->where('expires_at', '<', now())
+       ->update(['revoked_at' => now(), 'revoked_by' => 1]);
+```
+
+### Emergency Rotation Procedures
+
+**Scenario: Credential Exposure Detected**
+
+1. **Immediate Actions** (Within 1 hour)
+   ```bash
+   # Revoke all active user tokens
+   php artisan tinker
+   >>> \Laravel\Sanctum\PersonalAccessToken::truncate();
+
+   # Notify all active users
+   php artisan app:notify-users-credential-rotation
+
+   # Enable maintenance mode if needed
+   php artisan down --secret="rotation-in-progress"
+   ```
+
+2. **Credential Rotation** (Within 4 hours)
+   - Rotate all exposed credentials immediately
+   - Follow individual rotation procedures above
+   - Document incident in `docs/SECURITY_INCIDENT_*.md`
+
+3. **Verification** (Within 24 hours)
+   - Audit all access logs for suspicious activity
+   - Verify all systems operational with new credentials
+   - Force password reset for all users if compromise suspected
+   - Review and update security procedures
+
+4. **Post-Incident**
+   - Conduct incident review
+   - Update response procedures
+   - Schedule additional security training
+
+### Rotation Validation Checklist
+
+After any secret rotation, verify:
+
+- [ ] Application starts without errors
+- [ ] Database queries execute successfully
+- [ ] Email notifications send successfully
+- [ ] User authentication works
+- [ ] Session management functions correctly
+- [ ] API endpoints respond correctly
+- [ ] Automated tests pass
+- [ ] PHI access audit logging continues
+- [ ] No error spikes in logs
+- [ ] Third-party integrations operational
+
+### Rotation Schedule
+
+| Secret Type | Rotation Frequency | Next Review Date |
+|-------------|-------------------|------------------|
+| Application Key | Annually | Set based on deployment |
+| Database Credentials | Annually | Set based on deployment |
+| Mail Credentials | Quarterly | Set based on deployment |
+| User Passwords | User-controlled + 90-day prompt | Ongoing |
+| Admin Passwords | 90 days | Ongoing |
+
+**Best Practices:**
+- Schedule rotations during maintenance windows
+- Notify stakeholders 48 hours in advance
+- Document all rotations in change log
+- Test thoroughly in staging before production
+- Keep rollback procedures ready
+- Maintain access to previous keys during grace period
 
 ---
 

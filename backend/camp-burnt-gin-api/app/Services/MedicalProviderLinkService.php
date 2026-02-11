@@ -30,21 +30,23 @@ class MedicalProviderLinkService
     /**
      * Create a new provider link and send notification.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createAndSend(Camper $camper, array $data, User $creator): MedicalProviderLink
     {
+        $plainToken = MedicalProviderLink::generateToken();
+
         $link = MedicalProviderLink::create([
             'camper_id' => $camper->id,
             'created_by' => $creator->id,
-            'token' => MedicalProviderLink::generateToken(),
+            'token' => MedicalProviderLink::hashToken($plainToken),
             'provider_email' => $data['provider_email'],
             'provider_name' => $data['provider_name'] ?? null,
             'expires_at' => now()->addHours($data['expires_in_hours'] ?? MedicalProviderLink::DEFAULT_EXPIRATION_HOURS),
             'notes' => $data['notes'] ?? null,
         ]);
 
-        $this->sendProviderNotification($link);
+        $this->sendProviderNotification($link, $plainToken);
 
         return $link;
     }
@@ -52,10 +54,10 @@ class MedicalProviderLinkService
     /**
      * Send link notification to provider.
      */
-    protected function sendProviderNotification(MedicalProviderLink $link): void
+    protected function sendProviderNotification(MedicalProviderLink $link, string $plainToken): void
     {
         \Illuminate\Support\Facades\Notification::route('mail', $link->provider_email)
-            ->notify(new ProviderLinkCreatedNotification($link));
+            ->notify(new ProviderLinkCreatedNotification($link, $plainToken));
     }
 
     /**
@@ -86,16 +88,18 @@ class MedicalProviderLinkService
 
     /**
      * Resend notification for an existing valid link.
+     *
+     * Note: Cannot resend with hashed token. Link must be regenerated.
      */
     public function resend(MedicalProviderLink $link): void
     {
-        $this->sendProviderNotification($link);
+        throw new \RuntimeException('Cannot resend link with hashed token. Use regenerate() instead.');
     }
 
     /**
      * Process medical information submission from provider.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public function processSubmission(MedicalProviderLink $link, array $data): array
@@ -139,7 +143,7 @@ class MedicalProviderLinkService
             ]);
             $medicalRecord->save();
 
-            if (!empty($data['allergies'])) {
+            if (! empty($data['allergies'])) {
                 foreach ($data['allergies'] as $allergyData) {
                     Allergy::create([
                         'camper_id' => $camper->id,
@@ -148,7 +152,7 @@ class MedicalProviderLinkService
                 }
             }
 
-            if (!empty($data['medications'])) {
+            if (! empty($data['medications'])) {
                 foreach ($data['medications'] as $medicationData) {
                     Medication::create([
                         'camper_id' => $camper->id,
@@ -172,15 +176,15 @@ class MedicalProviderLinkService
      */
     public function uploadDocument(MedicalProviderLink $link, UploadedFile $file, ?string $documentType): array
     {
-        if (!in_array($file->getMimeType(), Document::ALLOWED_MIME_TYPES)) {
+        if (! in_array($file->getMimeType(), Document::ALLOWED_MIME_TYPES)) {
             return [
                 'success' => false,
                 'message' => 'File type not allowed.',
             ];
         }
 
-        $storedFilename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = 'documents/medical/' . date('Y/m');
+        $storedFilename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        $path = 'documents/medical/'.date('Y/m');
 
         Storage::disk('local')->putFileAs($path, $file, $storedFilename);
 
@@ -193,7 +197,7 @@ class MedicalProviderLinkService
             'mime_type' => $file->getMimeType(),
             'file_size' => $file->getSize(),
             'disk' => 'local',
-            'path' => $path . '/' . $storedFilename,
+            'path' => $path.'/'.$storedFilename,
             'document_type' => $documentType ?? 'medical_document',
             'is_scanned' => false,
             'scan_passed' => null,

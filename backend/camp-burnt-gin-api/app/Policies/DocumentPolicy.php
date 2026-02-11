@@ -40,7 +40,7 @@ class DocumentPolicy
 
         if ($document->documentable_type === 'App\\Models\\MedicalRecord' && $user->isMedicalProvider()) {
             $medicalRecord = \App\Models\MedicalRecord::find($document->documentable_id);
-            if (!$medicalRecord) {
+            if (! $medicalRecord) {
                 return false;
             }
 
@@ -57,10 +57,14 @@ class DocumentPolicy
 
     /**
      * Determine whether the user can create documents.
+     *
+     * Admins, parents, and medical providers can upload documents.
+     * Specific authorization for what they can attach to is handled
+     * in StoreDocumentRequest.
      */
     public function create(User $user): bool
     {
-        return true;
+        return $user->isAdmin() || $user->isParent() || $user->isMedicalProvider();
     }
 
     /**

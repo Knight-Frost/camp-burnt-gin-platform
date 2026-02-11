@@ -50,7 +50,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             // Explicit index on email for faster auth lookups
             // (unique constraint provides index, but explicit is clearer)
-            if (!$this->indexExists('users', 'users_email_index')) {
+            if (! $this->indexExists('users', 'users_email_index')) {
                 $table->index('email');
             }
 
@@ -90,6 +90,7 @@ return new class extends Migration
     protected function indexExists(string $table, string $index): bool
     {
         $indexes = Schema::getIndexes($table);
+
         return collect($indexes)->pluck('name')->contains($index);
     }
 };

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 
 /**
  * Controller for user notification management.
@@ -52,7 +51,7 @@ class NotificationController extends Controller
             ->where('id', $notification)
             ->first();
 
-        if (!$notificationModel) {
+        if (! $notificationModel) {
             return response()->json([
                 'message' => 'Notification not found.',
             ], 404);

@@ -14,7 +14,9 @@ use App\Models\User;
 trait WithRoles
 {
     protected ?Role $adminRole = null;
+
     protected ?Role $parentRole = null;
+
     protected ?Role $medicalRole = null;
 
     /**

@@ -29,9 +29,9 @@ class MedicalRecordFactory extends Factory
     {
         return [
             'camper_id' => Camper::factory(),
-            'physician_name' => 'Dr. ' . fake()->name(),
+            'physician_name' => 'Dr. '.fake()->name(),
             'physician_phone' => fake()->phoneNumber(),
-            'insurance_provider' => fake()->company() . ' Insurance',
+            'insurance_provider' => fake()->company().' Insurance',
             'insurance_policy_number' => fake()->regexify('[A-Z]{3}[0-9]{9}'),
             'special_needs' => fake()->optional()->paragraph(),
             'dietary_restrictions' => fake()->optional()->sentence(),

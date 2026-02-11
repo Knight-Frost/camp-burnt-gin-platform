@@ -124,7 +124,7 @@ class CamperAuthorizationTest extends TestCase
         $response = $this->actingAs($admin)->deleteJson("/api/campers/{$camper->id}");
 
         $response->assertStatus(200);
-        $this->assertDatabaseMissing('campers', ['id' => $camper->id]);
+        $this->assertSoftDeleted('campers', ['id' => $camper->id]);
     }
 
     /*

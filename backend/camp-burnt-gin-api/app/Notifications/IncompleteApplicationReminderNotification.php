@@ -38,13 +38,13 @@ class IncompleteApplicationReminderNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Complete Your Application - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello '.$notifiable->name.',')
             ->line('You have an incomplete application that needs your attention.')
-            ->line('Camper: ' . $this->application->camper->full_name)
-            ->line('Camp Session: ' . $this->application->campSession->name)
-            ->line('Registration closes: ' . $this->application->campSession->registration_closes_at?->format('F j, Y'))
+            ->line('Camper: '.$this->application->camper->full_name)
+            ->line('Camp Session: '.$this->application->campSession->name)
+            ->line('Registration closes: '.$this->application->campSession->registration_closes_at?->format('F j, Y'))
             ->line('Please complete and submit your application to secure your spot.')
-            ->action('Complete Application', config('app.frontend_url') . '/applications/' . $this->application->id . '/edit')
+            ->action('Complete Application', config('app.frontend_url').'/applications/'.$this->application->id.'/edit')
             ->salutation('Camp Burnt Gin');
     }
 

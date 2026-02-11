@@ -137,7 +137,7 @@ class User extends Authenticatable
      */
     public function isLockedOut(): bool
     {
-        if (!$this->lockout_until) {
+        if (! $this->lockout_until) {
             return false;
         }
 
@@ -190,7 +190,7 @@ class User extends Authenticatable
      */
     public function getLockoutMinutesRemaining(): ?int
     {
-        if (!$this->lockout_until || $this->lockout_until->isPast()) {
+        if (! $this->lockout_until || $this->lockout_until->isPast()) {
             return null;
         }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -67,6 +68,22 @@ class MedicalProviderLink extends Model
     }
 
     /**
+     * Hash a token for secure storage.
+     */
+    public static function hashToken(string $token): string
+    {
+        return Hash::make($token);
+    }
+
+    /**
+     * Verify a plain token against a hashed token.
+     */
+    public static function verifyToken(string $plainToken, string $hashedToken): bool
+    {
+        return Hash::check($plainToken, $hashedToken);
+    }
+
+    /**
      * Get the camper this link provides access to.
      */
     public function camper(): BelongsTo
@@ -95,9 +112,9 @@ class MedicalProviderLink extends Model
      */
     public function isValid(): bool
     {
-        return !$this->is_used
-            && !$this->isRevoked()
-            && !$this->isExpired();
+        return ! $this->is_used
+            && ! $this->isRevoked()
+            && ! $this->isExpired();
     }
 
     /**
@@ -129,7 +146,7 @@ class MedicalProviderLink extends Model
      */
     public function markAsAccessed(): void
     {
-        if (!$this->accessed_at) {
+        if (! $this->accessed_at) {
             $this->update(['accessed_at' => now()]);
         }
     }

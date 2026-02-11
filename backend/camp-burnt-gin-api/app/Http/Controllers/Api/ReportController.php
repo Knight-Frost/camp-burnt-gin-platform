@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\ApplicationStatus;
 use App\Http\Controllers\Controller;
-use App\Models\Application;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

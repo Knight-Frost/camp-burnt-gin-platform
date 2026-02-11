@@ -33,6 +33,25 @@ class Medication extends Model
     ];
 
     /**
+     * Get the attributes that should be cast.
+     *
+     * PHI fields are encrypted at rest for HIPAA compliance.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'name' => 'encrypted',
+            'dosage' => 'encrypted',
+            'frequency' => 'encrypted',
+            'purpose' => 'encrypted',
+            'prescribing_physician' => 'encrypted',
+            'notes' => 'encrypted',
+        ];
+    }
+
+    /**
      * Get the camper this medication belongs to.
      */
     public function camper(): BelongsTo

@@ -18,7 +18,10 @@ use App\Policies\EmergencyContactPolicy;
 use App\Policies\MedicalProviderLinkPolicy;
 use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicationPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -59,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPolicies();
+        $this->configureRateLimiting();
     }
 
     /**
@@ -69,5 +73,63 @@ class AppServiceProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+    }
+
+    /**
+     * Configure rate limiting for the application.
+     *
+     * Implements strict rate limits for HIPAA-compliant operations
+     * to prevent brute-force attacks and resource exhaustion.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('auth', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Too many authentication attempts. Please try again later.',
+                    ], 429);
+                });
+        });
+
+        RateLimiter::for('provider-link', function (Request $request) {
+            return Limit::perMinutes(5, 10)->by($request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Too many provider link attempts. Please try again later.',
+                    ], 429);
+                });
+        });
+
+        RateLimiter::for('mfa', function (Request $request) {
+            return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Too many MFA attempts. Please try again later.',
+                    ], 429);
+                });
+        });
+
+        RateLimiter::for('uploads', function (Request $request) {
+            return Limit::perHour(10)->by($request->user()?->id ?: $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Upload limit exceeded. Please try again later.',
+                    ], 429);
+                });
+        });
+
+        RateLimiter::for('sensitive', function (Request $request) {
+            return Limit::perHour(30)->by($request->user()?->id ?: $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Rate limit exceeded for sensitive operations.',
+                    ], 429);
+                });
+        });
     }
 }

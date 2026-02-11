@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -18,7 +19,7 @@ class MfaService
 
     public function __construct()
     {
-        $this->google2fa = new Google2FA();
+        $this->google2fa = new Google2FA;
     }
 
     /**
@@ -51,7 +52,7 @@ class MfaService
      */
     public function verifyAndEnable(User $user, string $code): array
     {
-        if (!$user->mfa_secret) {
+        if (! $user->mfa_secret) {
             return [
                 'success' => false,
                 'message' => 'MFA setup has not been initialized.',
@@ -59,7 +60,7 @@ class MfaService
         }
 
         try {
-            if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+            if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
                 return [
                     'success' => false,
                     'message' => 'Invalid verification code.',
@@ -87,7 +88,7 @@ class MfaService
      */
     public function verifyCode(User $user, string $code): bool
     {
-        if (!$user->mfa_secret) {
+        if (! $user->mfa_secret) {
             return false;
         }
 
@@ -101,18 +102,37 @@ class MfaService
     /**
      * Disable MFA for a user.
      *
+     * Implements rate limiting to prevent password brute-force attacks
+     * through repeated MFA disable attempts.
+     *
      * @return array<string, mixed>
      */
     public function disable(User $user, string $code, string $password): array
     {
-        if (!$user->mfa_secret) {
+        $rateLimitKey = "mfa_disable_attempts:{$user->id}";
+        $attempts = Cache::get($rateLimitKey, 0);
+
+        if ($attempts >= 5) {
+            $ttl = Cache::get("{$rateLimitKey}:ttl");
+            $remainingMinutes = $ttl ? ceil($ttl / 60) : 15;
+
+            return [
+                'success' => false,
+                'message' => "Too many MFA disable attempts. Please try again in {$remainingMinutes} minutes.",
+            ];
+        }
+
+        if (! $user->mfa_secret) {
             return [
                 'success' => false,
                 'message' => 'MFA is not enabled for this account.',
             ];
         }
 
-        if (!Hash::check($password, $user->password)) {
+        if (! Hash::check($password, $user->password)) {
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+            Cache::put("{$rateLimitKey}:ttl", 900, now()->addMinutes(15));
+
             return [
                 'success' => false,
                 'message' => 'Invalid password.',
@@ -120,18 +140,27 @@ class MfaService
         }
 
         try {
-            if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+            if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
+                Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+                Cache::put("{$rateLimitKey}:ttl", 900, now()->addMinutes(15));
+
                 return [
                     'success' => false,
                     'message' => 'Invalid verification code.',
                 ];
             }
         } catch (\Exception $e) {
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+            Cache::put("{$rateLimitKey}:ttl", 900, now()->addMinutes(15));
+
             return [
                 'success' => false,
                 'message' => 'Invalid verification code.',
             ];
         }
+
+        Cache::forget($rateLimitKey);
+        Cache::forget("{$rateLimitKey}:ttl");
 
         $user->update([
             'mfa_enabled' => false,

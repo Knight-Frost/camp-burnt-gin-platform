@@ -15,6 +15,7 @@ use App\Services\LetterService;
 use App\Traits\QueuesNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -46,7 +47,12 @@ class ApplicationController extends Controller
 
         if ($user->isAdmin()) {
             $this->authorize('viewAny', Application::class);
-            $query = Application::with(['camper.user', 'campSession.camp']);
+            $query = Application::with([
+                'camper.user',
+                'camper.medicalRecord',
+                'campSession.camp',
+                'reviewer',
+            ]);
 
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
@@ -90,7 +96,12 @@ class ApplicationController extends Controller
         } elseif ($user->isParent()) {
             $camperIds = $user->campers()->pluck('id');
             $applications = Application::whereIn('camper_id', $camperIds)
-                ->with(['camper', 'campSession.camp'])
+                ->with([
+                    'camper.user',
+                    'camper.medicalRecord',
+                    'campSession.camp',
+                    'reviewer',
+                ])
                 ->latest()
                 ->paginate(15);
         } else {
@@ -114,6 +125,9 @@ class ApplicationController extends Controller
      *
      * Supports draft mode for saving incomplete applications.
      * Implements FR-4: Save and return to draft.
+     *
+     * Wraps application creation and notification queueing in a transaction
+     * to prevent inconsistent state between database and notification queue.
      */
     public function store(StoreApplicationRequest $request): JsonResponse
     {
@@ -125,19 +139,23 @@ class ApplicationController extends Controller
         $data['is_draft'] = $isDraft;
         $data['status'] = ApplicationStatus::Pending;
 
-        if (!$isDraft) {
+        if (! $isDraft) {
             $data['submitted_at'] = now();
         }
 
-        $application = Application::create($data);
-        $application->load(['camper', 'campSession']);
+        $application = DB::transaction(function () use ($data, $isDraft) {
+            $application = Application::create($data);
+            $application->load(['camper', 'campSession']);
 
-        if (!$isDraft) {
-            $this->queueNotification(
-                $application->camper->user,
-                new ApplicationSubmittedNotification($application)
-            );
-        }
+            if (! $isDraft) {
+                $this->queueNotification(
+                    $application->camper->user,
+                    new ApplicationSubmittedNotification($application)
+                );
+            }
+
+            return $application;
+        });
 
         return response()->json([
             'message' => $isDraft ? 'Application draft saved.' : 'Application submitted successfully.',

@@ -56,17 +56,17 @@ class AuditPhiAccess
      */
     protected function shouldAudit(Request $request, Response $response): bool
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return $request->routeIs('provider-access.*');
         }
 
         $route = $request->route();
-        if (!$route) {
+        if (! $route) {
             return false;
         }
 
         $routeName = $route->getName();
-        if (!$routeName) {
+        if (! $routeName) {
             return false;
         }
 
@@ -171,4 +171,3 @@ class AuditPhiAccess
         return $sanitized;
     }
 }
-

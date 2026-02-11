@@ -7,16 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Camper model representing a child who attends camp programs.
  *
  * Campers are managed by users (parents or guardians) and can have
  * multiple applications submitted for different camp sessions.
+ *
+ * HIPAA COMPLIANCE NOTE:
+ * This model uses soft deletes to maintain audit trail and record retention
+ * requirements. Camper records are never physically deleted from the database,
+ * ensuring compliance with medical record retention regulations.
  */
 class Camper extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.

@@ -41,11 +41,14 @@ class Document extends Model
     /**
      * Get the attributes that should be cast.
      *
+     * Original filename is encrypted to prevent PHI disclosure through filenames.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'original_filename' => 'encrypted',
             'file_size' => 'integer',
             'is_scanned' => 'boolean',
             'scan_passed' => 'boolean',
@@ -107,6 +110,6 @@ class Document extends Model
      */
     public function isPendingScan(): bool
     {
-        return !$this->is_scanned;
+        return ! $this->is_scanned;
     }
 }

@@ -5,7 +5,6 @@ namespace Tests\Feature\Security;
 use App\Models\Application;
 use App\Models\Camper;
 use App\Models\MedicalRecord;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;

@@ -27,10 +27,12 @@ class MedicalProviderLinkFactory extends Factory
      */
     public function definition(): array
     {
+        $plainToken = MedicalProviderLink::generateToken();
+
         return [
             'camper_id' => Camper::factory(),
             'created_by' => \App\Models\User::factory(),
-            'token' => fake()->uuid(),
+            'token' => MedicalProviderLink::hashToken($plainToken),
             'provider_email' => fake()->unique()->safeEmail(),
             'provider_name' => fake()->name(),
             'expires_at' => now()->addDays(7),

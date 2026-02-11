@@ -32,7 +32,7 @@ class MedicationFactory extends Factory
         return [
             'camper_id' => Camper::factory(),
             'name' => fake()->randomElement($medications),
-            'dosage' => fake()->numberBetween(5, 500) . 'mg',
+            'dosage' => fake()->numberBetween(5, 500).'mg',
             'frequency' => fake()->randomElement(['Once daily', 'Twice daily', 'As needed', 'Every 4-6 hours']),
             'purpose' => fake()->sentence(),
             'prescribing_physician' => fake()->optional()->name(),
@@ -46,7 +46,7 @@ class MedicationFactory extends Factory
     public function prescribed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'prescribing_physician' => 'Dr. ' . fake()->name(),
+            'prescribing_physician' => 'Dr. '.fake()->name(),
         ]);
     }
 

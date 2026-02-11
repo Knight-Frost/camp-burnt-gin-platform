@@ -27,9 +27,9 @@ class CampFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->words(3, true) . ' Camp',
+            'name' => fake()->words(3, true).' Camp',
             'description' => fake()->paragraph(),
-            'location' => fake()->city() . ', ' . fake()->state(),
+            'location' => fake()->city().', '.fake()->state(),
             'is_active' => true,
         ];
     }

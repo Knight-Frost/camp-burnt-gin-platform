@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pagination Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Default pagination size for API responses. Controllers should use
+    | config('app.pagination.per_page') instead of hardcoding values.
+    |
+    */
+
+    'pagination' => [
+        'per_page' => env('PAGINATION_PER_PAGE', 15),
+    ],
+
 ];

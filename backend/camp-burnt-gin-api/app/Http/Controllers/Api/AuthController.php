@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -51,7 +49,7 @@ class AuthController extends Controller
     {
         $result = $this->authService->login($request->validated());
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             $response = [
                 'success' => false,
                 'message' => $result['message'],

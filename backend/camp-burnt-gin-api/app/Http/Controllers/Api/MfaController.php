@@ -55,7 +55,7 @@ class MfaController extends Controller
         $user = $request->user();
         $result = $this->mfaService->verifyAndEnable($user, $request->code);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
             ], Response::HTTP_UNAUTHORIZED);
@@ -82,7 +82,7 @@ class MfaController extends Controller
         $user = $request->user();
         $result = $this->mfaService->disable($user, $request->code, $request->password);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
             ], Response::HTTP_BAD_REQUEST);
