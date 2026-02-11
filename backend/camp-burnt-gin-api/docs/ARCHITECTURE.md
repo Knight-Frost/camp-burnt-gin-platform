@@ -1,153 +1,327 @@
 # System Architecture
 
-This document provides a comprehensive overview of the Camp Burnt Gin API backend architecture. It describes the system design, component relationships, data flow patterns, and the architectural decisions that guide the implementation.
+This document provides a comprehensive overview of the Camp Burnt Gin API architecture, including design patterns, technology choices, component organization, and architectural decisions that guide system implementation and maintenance.
 
 ---
 
-## Table of Contents
+## 1. High-Level Overview
 
-1. [Architectural Overview](#architectural-overview)
-2. [Layered Architecture](#layered-architecture)
-3. [Domain Subsystems](#domain-subsystems)
-4. [Data Flow](#data-flow)
-5. [Authentication and Authorization](#authentication-and-authorization)
-6. [Database Design](#database-design)
-7. [Service Layer Design](#service-layer-design)
-8. [API Design Principles](#api-design-principles)
-9. [Scalability Considerations](#scalability-considerations)
-10. [Maintainability and Extensibility](#maintainability-and-extensibility)
+The Camp Burnt Gin API is a Laravel 12-based RESTful backend designed to manage camp registration, medical records, staff workflows, and administrative oversight. The system serves as the authoritative data source for all camp operations and is built to handle Protected Health Information (PHI) in compliance with HIPAA security requirements.
+
+### Purpose
+
+Provide a secure, scalable, and maintainable API backend that enables:
+- Secure management of camper registration and applications
+- Protected storage and access of medical information (PHI)
+- Role-based authorization for parents, administrators, and medical providers
+- Comprehensive audit logging for compliance
+- Integration with future frontend applications
+
+### Key Goals
+
+| Goal | Description |
+|------|-------------|
+| **Security** | Token-based authentication, role-based access control, PHI encryption, audit logging |
+| **Modularity** | Layered architecture with clear separation of concerns |
+| **Scalability** | Stateless API design supporting horizontal scaling |
+| **Maintainability** | Service layer isolation, comprehensive testing, consistent patterns |
 
 ---
 
-## Architectural Overview
+## 2. Architecture Style
 
-The Camp Burnt Gin API is designed as a **layered, service-oriented backend** that follows established Laravel conventions while enforcing strict separation of concerns. The architecture prioritizes:
+### RESTful API Pattern
 
-- **Security** — Protection of sensitive medical data (PHI) through role-based access control
-- **Maintainability** — Clear separation between layers prevents coupling
-- **Testability** — Business logic isolated in services enables comprehensive testing
-- **Scalability** — Stateless API design supports horizontal scaling
+The system implements a **RESTful API architecture** using Laravel 12's routing and controller conventions. All client interactions occur through stateless HTTP requests using standard REST verbs (GET, POST, PUT, DELETE).
 
-### High-Level Architecture Diagram
+### Layered Architecture
+
+The application follows a strict **layered architecture** where each layer has defined responsibilities and dependencies flow downward only:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         CLIENT APPLICATIONS                          │
-│                    (Frontend, Mobile, Integrations)                  │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ HTTPS / REST API
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                           ROUTES LAYER                               │
-│                         (routes/api.php)                             │
-│          Endpoint definitions, middleware assignment                 │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         MIDDLEWARE LAYER                             │
-│            Authentication, Role Verification, Rate Limiting          │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        CONTROLLER LAYER                              │
-│         Request handling, response formatting, delegation            │
-│                 (app/Http/Controllers/Api/)                          │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                          ┌─────────┴─────────┐
-                          ▼                   ▼
-┌─────────────────────────────────┐ ┌─────────────────────────────────┐
-│       FORM REQUEST LAYER        │ │         POLICY LAYER            │
-│    Input validation, request    │ │   Authorization rules, access   │
-│        authorization            │ │         control logic           │
-│   (app/Http/Requests/)          │ │     (app/Policies/)             │
-└─────────────────────────────────┘ └─────────────────────────────────┘
-                          │                   │
-                          └─────────┬─────────┘
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         SERVICE LAYER                                │
-│            Business logic, workflow orchestration                    │
-│                     (app/Services/)                                  │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                          MODEL LAYER                                 │
-│        Eloquent models, relationships, query scopes                  │
-│                      (app/Models/)                                   │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         DATABASE LAYER                               │
-│                   MySQL with defined schema                          │
-│                   (database/migrations/)                             │
-└─────────────────────────────────────────────────────────────────────┘
+Client Layer (Frontend/Mobile)
+        ↓
+Routes Layer (Endpoint definitions)
+        ↓
+Middleware Layer (Auth, RBAC, Rate limiting)
+        ↓
+Controller Layer (Request handling)
+        ↓
+Form Request Layer (Validation) + Policy Layer (Authorization)
+        ↓
+Service Layer (Business logic)
+        ↓
+Model Layer (Data access, relationships)
+        ↓
+Database Layer (MySQL persistence)
+```
+
+### Separation of Concerns
+
+Each layer has a single, well-defined responsibility:
+
+- **Controllers** — Receive requests, delegate to services, return responses
+- **Services** — Contain all business logic and orchestrate workflows
+- **Models** — Represent database entities and relationships
+- **Policies** — Enforce authorization rules
+- **Form Requests** — Validate and sanitize input data
+
+This separation ensures:
+- Business logic is testable in isolation
+- Controllers remain thin and focused
+- Database queries are encapsulated in models
+- Authorization is consistent across endpoints
+
+---
+
+## 3. Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Backend Framework** | Laravel 12 | RESTful API framework with ORM, routing, middleware |
+| **Language** | PHP 8.2+ | Modern PHP with type declarations and error handling |
+| **Database** | MySQL 8.0+ | Relational storage with foreign key constraints |
+| **Authentication** | Laravel Sanctum | Token-based API authentication |
+| **Authorization** | Laravel Policies | Role-based access control (RBAC) |
+| **Multi-Factor Auth** | PragmaRX Google2FA | TOTP-based MFA implementation |
+| **Notifications** | Laravel Notifications | Email and database notification delivery |
+| **Queue System** | Laravel Queues | Asynchronous job processing (emails, document scanning) |
+| **Testing** | PHPUnit + Laravel Testing | Unit and feature test framework |
+| **File Storage** | Laravel Storage | Secure file upload and retrieval |
+| **Validation** | Laravel Form Requests | Input validation with custom rules |
+
+---
+
+## 4. Directory Structure
+
+### Application Directory (`app/`)
+
+```
+app/
+├── Http/
+│   ├── Controllers/Api/     # API endpoint controllers (thin, delegation only)
+│   ├── Requests/            # Form request validation classes
+│   └── Middleware/          # Custom middleware (audit logging, role checks)
+├── Services/                # Business logic and workflow orchestration
+├── Models/                  # Eloquent models and relationships
+├── Policies/                # Authorization rules for model operations
+├── Jobs/                    # Asynchronous queue jobs
+├── Traits/                  # Reusable functionality (notifications, etc.)
+└── Enums/                   # Enumeration classes (statuses, roles, severity levels)
+```
+
+### Database Directory (`database/`)
+
+```
+database/
+├── migrations/              # Database schema definitions (timestamped)
+├── seeders/                 # Development and test data seeders
+└── factories/               # Model factories for testing
+```
+
+### Routes Directory (`routes/`)
+
+```
+routes/
+├── api.php                  # API endpoint definitions (all /api/* routes)
+└── web.php                  # Web routes (minimal, not used for API)
+```
+
+### Documentation Directory (`docs/`)
+
+```
+docs/
+├── API_OVERVIEW.md          # API capabilities overview
+├── API_REFERENCE.md         # Complete endpoint documentation
+├── ARCHITECTURE.md          # This document
+├── SECURITY.md              # Security architecture and HIPAA compliance
+├── TESTING.md               # Testing strategy and execution
+└── ...                      # Additional technical documentation
+```
+
+### Tests Directory (`tests/`)
+
+```
+tests/
+├── Feature/                 # End-to-end API endpoint tests
+├── Unit/                    # Isolated component tests (services, models)
+└── TestCase.php             # Base test case with shared utilities
 ```
 
 ---
 
-## Layered Architecture
+## 5. Core Components
 
-The application implements a strict layered architecture where each layer has defined responsibilities and dependencies flow only downward.
+### Authentication System
 
-### Layer Responsibilities
+**Technology:** Laravel Sanctum token-based authentication
 
-#### Routes Layer
+**Components:**
+- `AuthController` — Registration, login, logout endpoints
+- `AuthService` — Credential validation, token generation
+- `MfaController` — Multi-factor authentication setup and verification
+- `MfaService` — TOTP secret generation and code validation
 
-**Location:** `routes/api.php`
+**Features:**
+- Email and password authentication
+- TOTP-based multi-factor authentication (Google Authenticator compatible)
+- Token expiration and revocation
+- Account lockout after failed attempts
+- Password reset flow
 
-**Responsibilities:**
-- Define all API endpoints
-- Assign middleware to routes and groups
-- Bind route parameters to models
-- Organize endpoints by domain
+### Application Workflow Engine
 
-**Constraints:**
-- No business logic
-- No direct database access
-- No response formatting
+**Purpose:** Manage complete application lifecycle from draft to final decision
 
-#### Middleware Layer
+**Components:**
+- `ApplicationController` — Application operations
+- `ApplicationPolicy` — Authorization rules
+- `Application` Model — Application data with status tracking
+- `ApplicationStatus` Enum — Valid status values and transitions
 
-**Location:** `app/Http/Middleware/`
+**Features:**
+- Draft mode with auto-save capability
+- Digital signature capture
+- Status workflow (pending → under review → approved/rejected/waitlisted)
+- Admin review with notes
+- Automatic notification dispatch
+- Acceptance and rejection letter generation
 
-**Responsibilities:**
-- Authentication verification via Sanctum
-- Role-based access control at route level
-- Request preprocessing
-- Cross-cutting concerns (CORS, rate limiting)
+### Role-Based Authorization
 
-**Custom Middleware:**
+**Technology:** Laravel Policies with custom middleware
 
-| Middleware | Purpose |
-|------------|---------|
-| `AuditPhiAccess` | HIPAA-compliant audit logging for PHI access with graceful failure handling |
-| `EnsureUserIsAdmin` | Restricts routes to admin users only |
-| `EnsureUserHasRole` | Restricts routes to users with specified roles |
+**Roles:**
+- `admin` — Full system access, application review, reporting
+- `parent` — Own campers and applications only
+- `medical` — Medical information access via provider links (token-based, no user account)
 
-#### Controller Layer
+**Enforcement Layers:**
+1. **Route Middleware** — Restricts entire routes by role
+2. **Policy Layer** — Fine-grained model-level authorization
+3. **Relationship Validation** — Ownership checks (e.g., parent owns camper)
 
-**Location:** `app/Http/Controllers/Api/`
+### Audit Logging System
 
-**Responsibilities:**
-- Receive HTTP requests
-- Invoke Form Request validation
-- Delegate work to Services
-- Format and return HTTP responses
+**Purpose:** HIPAA-compliant audit trail for PHI access
 
-**Constraints:**
-- Controllers must be thin (no business logic)
-- No direct database queries
-- No complex conditionals or loops
-- All work delegated to services
+**Implementation:**
+- `AuditPhiAccess` Middleware — Logs all PHI-related requests
+- `AuditLog` Model — Stores access records with user, resource, timestamp, IP
+- Graceful failure handling (logging failures do not block requests)
 
-**Pattern Example:**
+**Logged Actions:**
+- Medical record access (view, create, update)
+- Allergy and medication access
+- Emergency contact access
+- Document downloads
+- Provider link creation and revocation
 
+### Document Upload System
+
+**Purpose:** Secure file upload with validation and security scanning
+
+**Components:**
+- `DocumentController` — Upload, download, delete operations
+- `DocumentService` — File validation, storage, security checks
+- `DocumentPolicy` — Authorization for document access
+- `Document` Model — Polymorphic file metadata
+
+**Features:**
+- MIME type validation
+- File size limits (10 MB)
+- Dangerous extension detection
+- Security scanning (async, blocks download until passed)
+- Polymorphic attachment (documents can attach to campers, applications, medical records)
+
+### Multi-Factor Authentication (MFA) System
+
+**Technology:** PragmaRX Google2FA (TOTP-based)
+
+**Workflow:**
+1. User enables MFA via setup endpoint
+2. System generates secret and QR code URL
+3. User scans QR code with authenticator app
+4. User verifies with 6-digit code
+5. System enables MFA for user account
+6. Future logins require email + password + TOTP code
+
+**Security Features:**
+- Cryptographically secure secret generation
+- Rate limiting on MFA verification attempts
+- Fallback mechanism (future enhancement)
+
+---
+
+## 6. Data Flow
+
+### Request Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Client sends HTTP request to /api/* endpoint             │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Route matches endpoint definition in routes/api.php      │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Middleware validates authentication token (Sanctum)      │
+│    → Token missing/invalid: Return 401 Unauthorized         │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 4. Middleware verifies user role (if required)              │
+│    → Insufficient role: Return 403 Forbidden                │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 5. Controller method invoked                                │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 6. Form Request validates input data                        │
+│    → Validation fails: Return 422 with field errors         │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 7. Policy checks authorization for action                   │
+│    → Authorization fails: Return 403 Forbidden              │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 8. Controller delegates to Service method                   │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 9. Service executes business logic                          │
+│    - Coordinates multiple models                            │
+│    - Enforces business rules                                │
+│    - Manages database transactions                          │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 10. Service interacts with Model(s)                         │
+│     Models query database via Eloquent ORM                  │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 11. Service returns result to Controller                    │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 12. Controller formats HTTP response (JSON)                 │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 13. Response returned to client with appropriate status code│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Controller → Service → Model Example
+
+**Controller (Thin):**
 ```php
 public function store(StoreApplicationRequest $request)
 {
@@ -159,606 +333,206 @@ public function store(StoreApplicationRequest $request)
 }
 ```
 
-#### Form Request Layer
-
-**Location:** `app/Http/Requests/`
-
-**Responsibilities:**
-- Validate incoming request data
-- Authorize request execution
-- Transform and sanitize input
-- Return validation error responses
-
-**Validation Organization:**
-
-```
-Requests/
-├── Auth/
-│   ├── RegisterRequest.php
-│   └── LoginRequest.php
-├── Camper/
-│   ├── StoreCamperRequest.php
-│   └── UpdateCamperRequest.php
-├── Application/
-│   ├── StoreApplicationRequest.php
-│   ├── UpdateApplicationRequest.php
-│   ├── ReviewApplicationRequest.php
-│   └── SignApplicationRequest.php
-└── ...
-```
-
-#### Policy Layer
-
-**Location:** `app/Policies/`
-
-**Responsibilities:**
-- Define authorization rules for model operations
-- Enforce ownership and relationship constraints
-- Provide fine-grained access control
-- Return authorization decisions
-
-**Policy Registration:**
-
-Policies are automatically discovered through Laravel's policy auto-discovery or explicitly registered in `AuthServiceProvider`.
-
-#### Service Layer
-
-**Location:** `app/Services/`
-
-**Responsibilities:**
-- Contain all business logic
-- Orchestrate complex workflows
-- Coordinate between multiple models
-- Handle external service integrations
-- Manage transactions for multi-step operations
-
-**Service Design Principles:**
-- One service per domain responsibility
-- Services are stateless
-- Services accept and return simple data structures
-- Services throw exceptions for error conditions
-
-#### Jobs Layer
-
-**Location:** `app/Jobs/`
-
-**Responsibilities:**
-- Handle asynchronous background processing
-- Implement retry logic with exponential backoff
-- Process notifications, emails, and long-running tasks
-- Queue work that doesn't need immediate completion
-
-**Key Jobs:**
-
-| Job | Purpose | Queue | Retries |
-|-----|---------|-------|---------|
-| SendNotificationJob | Async email notification dispatch | notifications | 3 (60s, 300s, 900s backoff) |
-
-**Job Design Principles:**
-- Jobs are idempotent (safe to run multiple times)
-- Jobs fail gracefully and log errors
-- Jobs use specific queues for prioritization
-- Jobs have defined retry strategies
-
-#### Traits
-
-**Location:** `app/Traits/`
-
-**Responsibilities:**
-- Provide reusable functionality across controllers
-- Encapsulate common patterns
-- Reduce code duplication
-- Maintain clean, DRY controllers
-
-**Key Traits:**
-
-| Trait | Purpose | Used By |
-|-------|---------|---------|
-| QueuesNotifications | Helper for dispatching notification jobs | ApplicationController |
-
-#### Model Layer
-
-**Location:** `app/Models/`
-
-**Responsibilities:**
-- Define database table mappings
-- Declare relationships between entities
-- Provide query scopes for common filters
-- Cast attributes to appropriate types
-- Hide sensitive fields from serialization
-
-**Model Features:**
-- Explicit relationship definitions with foreign keys
-- Computed attributes via accessors
-- Domain-specific methods (e.g., `isEditable()`)
-- Query scopes for filtering (e.g., `scopeDraft()`)
-
----
-
-## Domain Subsystems
-
-The application is organized into logical domain subsystems, each handling a specific area of functionality.
-
-### Authentication Subsystem
-
-**Purpose:** User registration, login, logout, password management, and multi-factor authentication.
-
-**Components:**
-- `AuthController` — Registration, login, logout endpoints
-- `MfaController` — MFA setup, verification, disable
-- `PasswordResetController` — Password reset flow
-- `AuthService` — Authentication business logic
-- `MfaService` — MFA secret generation and verification
-- `PasswordResetService` — Reset token management
-
-**Data Flow:**
-```
-Registration: Client → AuthController → AuthService → User Model → Database
-Login: Client → AuthController → AuthService → Sanctum Token → Response
-MFA: Client → MfaController → MfaService → Google2FA → User Model
-```
-
-### Camp Management Subsystem
-
-**Purpose:** Define and manage camp programs and sessions.
-
-**Components:**
-- `CampController` — Camp CRUD operations
-- `CampSessionController` — Session CRUD operations
-- `Camp` Model — Camp entity
-- `CampSession` Model — Session entity with dates, capacity, age limits
-
-**Relationships:**
-```
-Camp (1) ──────< CampSession (many)
-                      │
-                      └──────< Application (many)
-```
-
-### Camper Management Subsystem
-
-**Purpose:** Manage camper profiles and their relationship to parent users.
-
-**Components:**
-- `CamperController` — Camper CRUD operations
-- `CamperPolicy` — Authorization for camper operations
-- `Camper` Model — Camper profile with DOB, gender
-
-**Relationships:**
-```
-User (parent) (1) ──────< Camper (many)
-                              │
-                              ├──────< Application (many)
-                              ├────── MedicalRecord (1)
-                              ├──────< EmergencyContact (many)
-                              ├──────< Allergy (many)
-                              └──────< Medication (many)
-```
-
-### Application Subsystem
-
-**Purpose:** Manage the full application lifecycle from draft to approved/rejected.
-
-**Components:**
-- `ApplicationController` — Application operations and review
-- `ApplicationPolicy` — Authorization for application operations
-- `Application` Model — Application with status, signature, review data
-- `ApplicationStatus` Enum — Status values and transitions
-
-**Application Status Flow:**
-```
-┌─────────┐    Submit    ┌──────────────┐    Review    ┌──────────┐
-│  Draft  │ ───────────> │ Under Review │ ───────────> │ Approved │
-│(pending)│              │              │              └──────────┘
-└─────────┘              └──────────────┘                   │
-                               │                            │
-                               │ Review                     │
-                               ▼                            ▼
-                         ┌──────────┐              ┌───────────┐
-                         │ Rejected │              │ Cancelled │
-                         └──────────┘              └───────────┘
-```
-
-### Medical Information Subsystem
-
-**Purpose:** Securely manage protected health information (PHI).
-
-**Components:**
-- `MedicalRecordController` — Medical record operations
-- `AllergyController` — Allergy management
-- `MedicationController` — Medication management
-- `EmergencyContactController` — Emergency contact management
-- `MedicalProviderLinkController` — Provider access tokens
-- `MedicalProviderLinkService` — Provider workflow logic
-- Associated Policies — Authorization for each entity
-
-**Provider Link Flow:**
-```
-Parent creates link → Link emailed to provider → Provider accesses form
-                                                        │
-                                                        ▼
-                                               Provider submits data
-                                                        │
-                                                        ▼
-                                          Medical data saved, link marked used
-                                                        │
-                                                        ▼
-                                          Parent and admin notified
-```
-
-### Document Management Subsystem
-
-**Purpose:** Handle secure document uploads with validation and scanning.
-
-**Components:**
-- `DocumentController` — Upload, download, delete operations
-- `DocumentService` — File validation, storage, security scanning
-- `DocumentPolicy` — Authorization for document access
-- `Document` Model — Polymorphic file metadata
-
-**Document Processing Flow:**
-```
-Upload → MIME Validation → Size Validation → Storage → Security Scan (async)
-                                                              │
-                                                              ▼
-                                                    Scan result recorded
-                                                              │
-                                                              ▼
-                                              Download allowed if scan passed
-```
-
-### Reporting Subsystem
-
-**Purpose:** Generate administrative reports for camp management.
-
-**Components:**
-- `ReportController` — Report endpoint access
-- `ReportService` — Report generation logic
-- `LetterService` — Acceptance/rejection letter generation
-
-**Available Reports:**
-- Applications summary with filters
-- Accepted applicants list
-- Rejected applicants list
-- Mailing labels data
-- ID labels with allergy information
-
-### Notification Subsystem
-
-**Purpose:** Send and track user notifications.
-
-**Components:**
-- `NotificationController` — List and mark notifications
-- Notification classes — Individual notification types
-- Laravel Notifications — Framework notification system
-
-**Notification Channels:**
-- Email (primary)
-- Database (for notification history)
-
----
-
-## Data Flow
-
-### Typical Request Flow
-
-```
-1. Client sends HTTP request to API endpoint
-                │
-                ▼
-2. Route middleware authenticates request (Sanctum)
-                │
-                ▼
-3. Route middleware verifies role (if required)
-                │
-                ▼
-4. Controller receives request
-                │
-                ▼
-5. Form Request validates input data
-                │
-                ▼
-6. Controller invokes policy authorization
-                │
-                ▼
-7. Controller delegates to service method
-                │
-                ▼
-8. Service executes business logic
-                │
-                ▼
-9. Service interacts with models/database
-                │
-                ▼
-10. Controller formats response
-                │
-                ▼
-11. Response returned to client
-```
-
-### Error Handling Flow
-
-```
-Validation Error (Step 5):
-    → Form Request returns 422 with error details
-
-Authorization Error (Step 6):
-    → Policy returns 403 Forbidden
-
-Business Logic Error (Step 8):
-    → Service throws exception
-    → Controller catches and returns appropriate error response
-
-Database Error (Step 9):
-    → Exception handler logs error
-    → Returns 500 with generic message (production)
-    → Returns 500 with details (development)
-```
-
----
-
-## Authentication and Authorization
-
-### Authentication Model
-
-The system uses **token-based authentication** via Laravel Sanctum:
-
-1. User authenticates with email/password
-2. Server validates credentials and optional MFA code
-3. Server generates API token
-4. Client includes token in `Authorization: Bearer {token}` header
-5. Middleware validates token on each request
-
-### Multi-Factor Authentication
-
-TOTP-based MFA using Google2FA library:
-
-1. User enables MFA via setup endpoint
-2. Server generates secret and QR code URL
-3. User scans QR code with authenticator app
-4. User verifies with 6-digit code
-5. Server confirms and enables MFA
-6. Future logins require email, password, and TOTP code
-
-### Role-Based Access Control
-
-Three primary roles with distinct access levels:
-
-| Role | Description | Access Level |
-|------|-------------|--------------|
-| `admin` | Camp administrators | Full system access |
-| `parent` | Parents/guardians | Own campers and applications |
-| `medical` | Medical providers | Health information only |
-
-### Authorization Enforcement
-
-Authorization is enforced at multiple levels:
-
-1. **Route Level** — Middleware restricts entire routes
-2. **Policy Level** — Fine-grained model operation control
-3. **Relationship Level** — Ownership verification in policies
-
-**Example Policy Logic:**
-
-```
-Can user view application?
-    ├── User is admin? → Allow
-    ├── User is parent of camper? → Allow
-    └── Otherwise → Deny
-```
-
----
-
-## Database Design
-
-### Entity Relationship Model
-
-```
-┌──────────┐       ┌──────────┐       ┌──────────────┐
-│  roles   │◄──────│  users   │──────►│   sessions   │
-└──────────┘   1:N └──────────┘   1:N └──────────────┘
-                        │
-                        │ 1:N
-                        ▼
-                   ┌──────────┐
-                   │ campers  │
-                   └──────────┘
-                        │
-         ┌──────────────┼──────────────┐
-         │              │              │
-         ▼              ▼              ▼
-┌─────────────┐  ┌───────────┐  ┌────────────────┐
-│applications │  │med_records│  │emergency_      │
-└─────────────┘  └───────────┘  │contacts        │
-         │              │       └────────────────┘
-         │              │
-         ▼              ├──────┬───────────┐
-┌─────────────┐         │      │           │
-│camp_sessions│         ▼      ▼           ▼
-└─────────────┘   ┌─────────┐ ┌───────┐ ┌───────────┐
-         │        │allergies│ │meds   │ │documents  │
-         ▼        └─────────┘ └───────┘ └───────────┘
-    ┌────────┐
-    │ camps  │
-    └────────┘
-```
-
-### Key Design Decisions
-
-1. **Explicit Foreign Keys** — All relationships use defined foreign key constraints
-2. **Unique Constraints** — Prevent duplicate applications per camper per session
-3. **Indexing** — Strategic indexes on frequently queried columns
-4. **Soft References** — Nullable foreign keys where appropriate (e.g., `reviewed_by`)
-5. **Polymorphic Relations** — Documents use polymorphic relations for flexibility
-
----
-
-## Service Layer Design
-
-### Service Responsibilities
-
-| Service | Responsibility |
-|---------|----------------|
-| `AuthService` | User registration, login, credential validation |
-| `MfaService` | MFA setup, verification, disable |
-| `PasswordResetService` | Reset token generation, password update |
-| `DocumentService` | File upload, validation, scanning, storage |
-| `MedicalProviderLinkService` | Provider link lifecycle, submission processing |
-| `ReportService` | Report data aggregation and formatting |
-| `LetterService` | Acceptance/rejection letter content |
-
-### Service Patterns
-
-**Input/Output Pattern:**
+**Service (Business Logic):**
 ```php
-public function create(array $data): Model
+public function create(array $data): Application
 {
     // Validate business rules
-    // Execute database operations
-    // Trigger notifications
-    // Return result
+    $this->validateUniqueApplication($data['camper_id'], $data['camp_session_id']);
+
+    // Create application with transaction
+    DB::beginTransaction();
+    try {
+        $application = Application::create($data);
+        $this->notifyApplicationCreated($application);
+        DB::commit();
+        return $application;
+    } catch (\Exception $e) {
+        DB::rollBack();
+        throw $e;
+    }
 }
 ```
 
-**Error Handling Pattern:**
+**Model (Data Access):**
 ```php
-public function process(array $data): array
+class Application extends Model
 {
-    return [
-        'success' => true|false,
-        'message' => 'Description',
-        'data' => $result,
-        'errors' => $errors,
-    ];
+    protected $fillable = ['camper_id', 'camp_session_id', 'status'];
+
+    public function camper()
+    {
+        return $this->belongsTo(Camper::class);
+    }
+
+    public function campSession()
+    {
+        return $this->belongsTo(CampSession::class);
+    }
 }
 ```
 
 ---
 
-## API Design Principles
+## 7. Security Architecture
 
-### RESTful Conventions
+### Token-Based Authentication
 
-The API follows REST conventions:
+**Implementation:** Laravel Sanctum API tokens
 
-- `GET /resources` — List resources
-- `GET /resources/{id}` — Retrieve single resource
-- `POST /resources` — Create resource
-- `PUT /resources/{id}` — Update resource
-- `DELETE /resources/{id}` — Delete resource
+- Tokens generated on successful login
+- Tokens transmitted via `Authorization: Bearer {token}` header
+- Tokens validated on every request via middleware
+- Tokens expire after configurable period (default: 60 minutes)
+- Tokens revoked on logout
 
-### Response Format
+### Authorization Policies
 
-All responses use JSON format:
+**Ownership Model:**
+- Parents can only access their own campers and applications
+- Admins have full access to all resources
+- Medical providers access specific records via secure tokens
 
-**Success Response:**
-```json
-{
-    "id": 1,
-    "attribute": "value",
-    "created_at": "2024-01-01T00:00:00.000000Z"
-}
-```
+**Policy Enforcement:**
+- All model operations protected by policies
+- Authorization checked before service layer execution
+- Consistent authorization logic across all endpoints
 
-**Collection Response:**
-```json
-{
-    "data": [...],
-    "meta": {
-        "total": 100,
-        "per_page": 15,
-        "current_page": 1
-    }
-}
-```
+### IDOR Prevention
 
-**Error Response:**
-```json
-{
-    "message": "Error description",
-    "errors": {
-        "field": ["Validation message"]
-    }
-}
-```
+**Insecure Direct Object Reference** attacks are prevented through:
 
-### HTTP Status Codes
+1. **Policy Layer** — Verifies user has permission to access resource
+2. **Relationship Validation** — Confirms ownership relationships (e.g., user → camper → application)
+3. **Database Constraints** — Foreign keys enforce referential integrity
 
-| Code | Usage |
-|------|-------|
-| 200 | Successful GET/PUT/DELETE |
-| 201 | Successful POST (created) |
-| 204 | Successful DELETE (no content) |
-| 400 | Bad request |
-| 401 | Unauthenticated |
-| 403 | Forbidden |
-| 404 | Not found |
-| 422 | Validation error |
-| 500 | Server error |
+### Input Validation
+
+**Form Request Classes:**
+- All input validated before reaching controllers
+- Custom validation rules for domain logic (age ranges, date constraints)
+- Sanitization of user input
+- Type casting and transformation
+
+### Audit Logging
+
+**PHI Access Logging:**
+- All access to medical records, allergies, medications logged
+- Logs include user, resource, timestamp, IP address, user agent
+- Logs are tamper-evident (no update/delete operations)
+- Graceful failure (logging errors do not block API requests)
+
+### Secure File Handling
+
+**Document Security:**
+- MIME type validation prevents executable uploads
+- File extension checking blocks dangerous file types
+- Security scanning detects malware patterns
+- Unscanned files blocked from download (non-admin users)
+- Polymorphic storage prevents direct file access
 
 ---
 
-## Scalability Considerations
+## 8. Scalability & Performance
 
-### Stateless Design
+### Stateless API Design
 
-The API is stateless:
+The API is fully stateless:
 - No server-side session storage
-- Token-based authentication
-- Each request contains all necessary context
+- All authentication via tokens
+- Each request contains complete context
 
-This enables horizontal scaling across multiple application servers.
+**Benefits:**
+- Horizontal scaling across multiple application servers
+- Load balancing without session affinity
+- High availability with minimal coordination
 
 ### Database Optimization
 
-- Indexed columns for frequent queries
-- Eager loading to prevent N+1 queries
-- Pagination for list endpoints
-- Query scopes for reusable filters
+**Indexing Strategy:**
+- Foreign keys indexed automatically
+- Frequently queried columns indexed explicitly
+- Composite indexes for multi-column queries
+- Unique indexes for constraint enforcement
+
+**Query Optimization:**
+- Eager loading prevents N+1 query problems
+- Query scopes encapsulate reusable filters
+- Pagination reduces memory consumption
+- Select only required columns
+
+### Service Layer Separation
+
+**Benefits:**
+- Business logic isolated from controllers enables caching at service layer
+- Database-agnostic service interfaces support future optimizations
+- Transaction management centralized in services
 
 ### Asynchronous Processing
 
-Document security scanning is designed for asynchronous processing:
-- Upload returns immediately
-- Scan runs in background
-- Download checks scan status
+**Queue System:**
+- Email notifications dispatched to queues
+- Document security scanning runs asynchronously
+- Long-running reports can be queued
+- Retry logic with exponential backoff
+
+### Horizontal Scaling Considerations
+
+The architecture supports horizontal scaling:
+
+1. **Database Layer** — MySQL supports read replicas for scaling reads
+2. **Application Layer** — Stateless design allows multiple app servers
+3. **Queue Layer** — Queue workers can scale independently
+4. **File Storage Layer** — Can migrate to S3-compatible storage for distributed access
 
 ---
 
-## Maintainability and Extensibility
+## 9. Future Expansion
 
-### Adding New Features
+The architecture is designed to support future growth and feature additions:
 
-To add a new domain feature:
+### Extensibility Points
 
-1. Create migration for database schema
-2. Create Eloquent model with relationships
-3. Create Form Request classes for validation
-4. Create Policy for authorization
-5. Create Service for business logic
-6. Create Controller with thin methods
-7. Add routes to `routes/api.php`
-8. Write feature tests
+| Extension | How Architecture Supports It |
+|-----------|------------------------------|
+| **Additional User Roles** | Role-based middleware and policies are extensible |
+| **External Integrations** | Service layer can integrate with third-party APIs |
+| **Real-Time Notifications** | Queue system can be extended with WebSocket broadcasting |
+| **Advanced Reporting** | Report service can be extended with new report types |
+| **Mobile Applications** | RESTful API supports any HTTP client |
+| **Payment Processing** | Service layer can integrate payment gateway |
+| **Calendar Integration** | Service layer can sync sessions with external calendars |
 
-### Modifying Existing Features
+### Modularity Benefits
 
-Changes should follow the layer where the change belongs:
+The layered architecture allows:
+- **Independent Layer Updates** — Services can be refactored without changing controllers
+- **Feature Toggles** — New features can be enabled/disabled via configuration
+- **A/B Testing** — Service layer supports multiple implementations
+- **Version Migration** — API versioning can be added at route level
 
-- Database schema → New migration (never modify existing)
-- Validation rules → Form Request class
-- Authorization rules → Policy class
-- Business logic → Service class
-- Endpoint behavior → Controller method
-- Route structure → routes/api.php
+### Maintainability
 
-### Code Organization
+Consistent patterns across the codebase:
+- Controllers follow identical structure
+- Services use standard input/output patterns
+- Models use consistent naming and relationship definitions
+- Tests follow predictable organization
 
-The codebase follows consistent naming and organization:
+This consistency reduces onboarding time and maintenance burden.
 
-- Controllers: `{Model}Controller`
-- Form Requests: `Store{Model}Request`, `Update{Model}Request`
-- Policies: `{Model}Policy`
-- Services: `{Domain}Service`
-- Notifications: `{Event}Notification`
+---
 
-This consistency enables developers to quickly locate and understand code.
+## Summary
+
+The Camp Burnt Gin API architecture prioritizes **security, maintainability, and scalability** through:
+
+- **Layered design** with clear separation of concerns
+- **RESTful API** following industry conventions
+- **Token-based authentication** with multi-factor support
+- **Role-based authorization** with fine-grained policies
+- **Service layer isolation** for testable business logic
+- **Comprehensive audit logging** for HIPAA compliance
+- **Stateless design** supporting horizontal scaling
+
+This architecture provides a solid foundation for current operations and future expansion.
