@@ -1,379 +1,160 @@
-# Camp Burnt Gin Application Software
+# Camp Burnt Gin API Documentation
 
-## System Overview
-
-Camp Burnt Gin Application Software is a secure, HIPAA-compliant backend system designed to manage camp registration, medical records, staff workflows, and administrative oversight for the Camp Burnt Gin camp program.
-
-This system replaces an existing third-party platform and serves as the **system of record** for all application data, medical information, and administrative operations.
+This directory contains the complete technical documentation for the Camp Burnt Gin API backend system. This documentation serves as the authoritative reference for developers, system administrators, security auditors, and technical stakeholders.
 
 ---
 
-## Project Scope
+## Documentation Overview
 
-### Backend (This Repository)
+The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to manage camp registration, medical records, staff workflows, and administrative operations. The system handles Protected Health Information (PHI) and implements HIPAA-compliant security controls.
 
-This repository contains the complete **API-only backend** built with Laravel 12. The backend is responsible for:
-
-- **Authentication and Authorization** — User registration, login, multi-factor authentication, role-based access control
-- **Application Lifecycle Management** — Camper registration, application submission, draft support, digital signatures, admin review workflows
-- **Medical Data Handling** — Protected Health Information (PHI), allergies, medications, medical records, emergency contacts
-- **Medical Provider Integration** — Secure, time-limited links for medical providers to submit health information
-- **Administrative Workflows** — Application review, reporting, acceptance/rejection letters, mailing and ID label generation
-- **Notification System** — Email notifications for application status changes, provider links, and administrative actions
-- **Document Management** — Secure file uploads with MIME validation and security scanning
-
-### Frontend (Separate Repository)
-
-Frontend integration is **out of scope** for this repository. The backend exposes a complete RESTful API that will be consumed by a frontend application in a separate development effort.
+**Current Status:** Production-ready backend with 228 passing tests and zero security vulnerabilities.
 
 ---
 
-## Technology Stack
+## Documentation Structure
 
-| Component | Technology | Version |
-|-----------|------------|---------|
-| Language | PHP | ^8.2 |
-| Framework | Laravel | 12.x |
-| Database | MySQL | 8.0+ |
-| Authentication | Laravel Sanctum | 4.x |
-| MFA | PragmaRX Google2FA | 8.x |
-| Password Hashing | bcrypt | — |
-| Testing | PHPUnit | 11.x |
+### System Overview and Architecture
 
----
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) | High-level system description, capabilities, and scope | All stakeholders |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture, design patterns, and component organization | Developers, architects |
+| [DATA_MODEL.md](DATA_MODEL.md) | Database schema, relationships, and entity descriptions | Developers, DBAs |
+| [BUSINESS_RULES.md](BUSINESS_RULES.md) | Business logic, validation rules, and workflow constraints | Developers, product team |
 
-## System Features
+### API Documentation
 
-### Core Capabilities
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [API_OVERVIEW.md](API_OVERVIEW.md) | API capabilities and endpoint organization | All developers |
+| [API_REFERENCE.md](API_REFERENCE.md) | Complete endpoint reference with request/response examples | Frontend developers, integrators |
+| [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md) | Authentication mechanisms, token management, and session handling | Security team, developers |
+| [ROLES_AND_PERMISSIONS.md](ROLES_AND_PERMISSIONS.md) | RBAC system, role definitions, and permission matrix | Security team, developers |
 
-- **Complete RESTful API** — 70+ endpoints covering all camp management operations
-- **HIPAA-Compliant Security** — PHI encryption, audit logging, secure access controls
-- **Multi-Factor Authentication** — TOTP-based MFA with QR code enrollment
-- **Role-Based Access Control** — Admin, Parent, and Medical Provider roles with fine-grained permissions
-- **Medical Provider Integration** — Secure, time-limited links for external health data submission
-- **Digital Signatures** — Capture and store parental consent with timestamps
-- **Document Management** — Secure file uploads with MIME validation and security scanning
-- **Comprehensive Notifications** — Email notifications for all critical events
+### Security and Compliance
 
-### Performance & Reliability
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [SECURITY.md](SECURITY.md) | Security architecture, controls, and HIPAA compliance | Security auditors, compliance team |
+| [SECURITY_AUDIT_REPORT.md](SECURITY_AUDIT_REPORT.md) | Security audit findings and remediation summary | Security team, management |
+| [SECURITY_INCIDENTS/](SECURITY_INCIDENTS/) | Historical security incident reports | Security team, compliance team |
+| [AUDIT_LOGGING.md](AUDIT_LOGGING.md) | Audit trail implementation and PHI access logging | Compliance team, security auditors |
 
-- **Optimized Database Queries** — Strategic indexes provide 5-10x performance improvements on complex queries
-- **Asynchronous Notifications** — Background job processing with automatic retry logic improves response times by 81%
-- **Queue Reliability** — Transaction-aware job dispatching prevents orphaned notifications
-- **Audit Resilience** — Graceful degradation ensures service availability even during audit system failures
-- **Rate Limiting** — Multi-tier throttling protects against brute force attacks and resource exhaustion
-- **Account Lockout** — Automatic 5-attempt lockout with 15-minute cooldown
-- **Token Expiration** — 60-minute API token expiration enforces session timeouts
+### Workflows and Operations
 
-### Security Hardening
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [APPLICATION_WORKFLOWS.md](APPLICATION_WORKFLOWS.md) | Application lifecycle, state transitions, and business processes | Developers, business analysts |
+| [FILE_UPLOADS.md](FILE_UPLOADS.md) | Document management, upload security, and validation | Developers, security team |
+| [ERROR_HANDLING.md](ERROR_HANDLING.md) | Error handling patterns, status codes, and error responses | Frontend developers, support team |
 
-- **IDOR Prevention** — Authorization checks before validation prevent unauthorized resource access
-- **PHI Encryption at Rest** — Medical records encrypted using Laravel's encrypted casting
-- **Comprehensive Audit Logging** — Full audit trail with correlation IDs for HIPAA compliance
-- **Security Headers** — CSP, HSTS, XSS protection headers configured
-- **Session Security** — 30-minute session lifetime, encrypted cookies, strict SameSite policy
+### Configuration and Deployment
 
----
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md) | Installation, configuration, and environment setup | Developers, DevOps team |
+| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference and environment variables | DevOps team, system administrators |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment procedures and production considerations | DevOps team, system administrators |
 
-## Prerequisites
+### Testing and Quality Assurance
 
-Before setting up the project, ensure the following software is installed:
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [TESTING.md](TESTING.md) | Testing strategy, test execution, and quality assurance | Developers, QA team |
 
-| Requirement | Minimum Version | Verification Command |
-|-------------|-----------------|---------------------|
-| PHP | 8.2 | `php -v` |
-| Composer | 2.x | `composer -V` |
-| MySQL | 8.0 | `mysql --version` |
-| Git | 2.x | `git --version` |
+### Performance and Reliability
 
-### Required PHP Extensions
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [PERFORMANCE_AND_SCALABILITY.md](PERFORMANCE_AND_SCALABILITY.md) | Performance optimization, scalability considerations, and benchmarks | Developers, architects |
 
-- `php-mysql` — PDO MySQL driver
-- `php-mbstring` — Multibyte string support
-- `php-xml` — XML processing
-- `php-curl` — HTTP client
-- `php-zip` — Archive handling
-- `php-gd` or `php-imagick` — Image processing
+### Maintenance and Support
 
----
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues, solutions, and diagnostic procedures | Support team, system administrators |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines and development standards | Developers, contributors |
 
-## Installation Guide
+### Project Management
 
-### Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/your-organization/camp-burnt-gin-api.git
-cd camp-burnt-gin-api
-```
-
-### Step 2: Install Dependencies
-
-```bash
-composer install
-```
-
-This command installs all PHP dependencies defined in `composer.json`, including Laravel framework packages, Sanctum, Google2FA, and development tools.
-
-### Step 3: Environment Configuration
-
-Copy the example environment file and configure it:
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` in your editor and configure the following required variables:
-
-```dotenv
-# Application Settings
-APP_NAME="Camp Burnt Gin"
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-
-# Database Configuration
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=camp_burnt_gin
-DB_USERNAME=your_mysql_username
-DB_PASSWORD=your_mysql_password
-
-# Mail Configuration (required for notifications)
-MAIL_MAILER=smtp
-MAIL_HOST=your_mail_host
-MAIL_PORT=587
-MAIL_USERNAME=your_mail_username
-MAIL_PASSWORD=your_mail_password
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@campburntgin.org
-MAIL_FROM_NAME="${APP_NAME}"
-```
-
-### Step 4: Generate Application Key
-
-```bash
-php artisan key:generate
-```
-
-This generates a unique encryption key stored in `APP_KEY` and used for encrypting session data and other sensitive information.
-
-### Step 5: Create the Database
-
-Create the MySQL database before running migrations:
-
-```bash
-mysql -u your_username -p -e "CREATE DATABASE camp_burnt_gin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-```
-
-### Step 6: Run Database Migrations
-
-```bash
-php artisan migrate
-```
-
-This creates all required database tables:
-
-- `users` — User accounts and authentication
-- `roles` — Role definitions (admin, parent, medical)
-- `camps` — Camp program definitions
-- `camp_sessions` — Individual camp session schedules
-- `campers` — Camper profiles linked to parent users
-- `applications` — Camp applications with status tracking
-- `medical_records` — Camper medical information
-- `emergency_contacts` — Emergency contact information
-- `allergies` — Allergy records with severity levels
-- `medications` — Medication records
-- `documents` — File upload metadata
-- `medical_provider_links` — Secure provider access tokens
-- `notifications` — User notification history
-- `personal_access_tokens` — Sanctum API tokens
-
-### Step 7: Clear Cached State
-
-```bash
-php artisan optimize:clear
-```
-
-This clears all cached configuration, routes, and views to ensure a clean state.
-
-### Step 8: Start the Development Server
-
-```bash
-php artisan serve
-```
-
-The API will be available at `http://localhost:8000`.
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [REQUIREMENTS_AND_TRACEABILITY.md](REQUIREMENTS_AND_TRACEABILITY.md) | Functional requirements and implementation traceability | Product team, stakeholders |
+| [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) | Backend completion status and frontend handoff | Management, frontend team |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and change log | All stakeholders |
+| [FUTURE_WORK.md](FUTURE_WORK.md) | Deferred features and roadmap | Product team, management |
 
 ---
 
-## Verifying the Installation
+## Quick Start
 
-### Health Check
+### For Developers
 
-Access the API to verify the server is running:
+1. **Setup:** Read [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md) for installation instructions
+2. **Architecture:** Review [ARCHITECTURE.md](ARCHITECTURE.md) to understand system design
+3. **API:** Reference [API_REFERENCE.md](API_REFERENCE.md) for endpoint documentation
+4. **Security:** Understand [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md) for auth implementation
 
-```bash
-curl http://localhost:8000/api/camps
-```
+### For Security Auditors
 
-Expected response: JSON array of camps (empty initially).
+1. **Security:** Start with [SECURITY.md](SECURITY.md) for comprehensive security documentation
+2. **Audit Report:** Review [SECURITY_AUDIT_REPORT.md](SECURITY_AUDIT_REPORT.md) for audit findings
+3. **Logging:** Check [AUDIT_LOGGING.md](AUDIT_LOGGING.md) for PHI access audit trails
+4. **Compliance:** Verify HIPAA compliance sections in [SECURITY.md](SECURITY.md)
 
-### Run Tests
+### For System Administrators
 
-Execute the test suite to verify system integrity:
+1. **Deployment:** Follow [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment
+2. **Configuration:** Reference [CONFIGURATION.md](CONFIGURATION.md) for environment variables
+3. **Troubleshooting:** Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues
+4. **Security:** Implement secret rotation per [SECURITY.md](SECURITY.md#secret-management-and-rotation)
 
-```bash
-php artisan test
-```
+### For Frontend Developers
 
-**Expected Result:** 228 tests passing in under 3 seconds.
-
-All tests should pass. If any tests fail, review the error messages and verify database connectivity and environment configuration.
-
-### Test Coverage
-
-The system includes comprehensive test coverage across:
-- **Authorization Tests** — Policy and permission enforcement (90+ tests)
-- **Security Tests** — Account lockout, rate limiting, IDOR prevention, PHI auditing, token expiration (39 tests)
-- **Regression Tests** — Queue reliability, audit resilience, index performance, workflow integrity (42 tests)
-- **Integration Tests** — End-to-end API workflows (57+ tests)
-
-Total: **228 tests passing (430+ assertions)** with deterministic, isolated execution.
+1. **API:** Start with [API_OVERVIEW.md](API_OVERVIEW.md) for API capabilities
+2. **Reference:** Use [API_REFERENCE.md](API_REFERENCE.md) for detailed endpoint specs
+3. **Auth:** Implement authentication per [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md)
+4. **Errors:** Handle errors per [ERROR_HANDLING.md](ERROR_HANDLING.md)
 
 ---
 
-## Common Commands
+## Documentation Standards
 
-| Command | Description |
-|---------|-------------|
-| `composer install` | Install PHP dependencies |
-| `php artisan key:generate` | Generate application encryption key |
-| `php artisan migrate` | Run database migrations |
-| `php artisan migrate:fresh` | Drop all tables and re-run migrations |
-| `php artisan optimize:clear` | Clear all cached state |
-| `php artisan serve` | Start development server |
-| `php artisan test` | Run test suite |
-| `php artisan test --filter MethodName` | Run specific test |
-| `php artisan route:list` | List all registered routes |
+All documentation in this directory adheres to the following standards:
+
+1. **Accuracy** - Documentation reflects actual backend implementation
+2. **Completeness** - No undocumented features or placeholder sections
+3. **Clarity** - Professional language without informal expressions
+4. **Consistency** - Cross-references are accurate and terminology is consistent
+5. **Currency** - Documentation is maintained and updated with code changes
 
 ---
 
-## Project Structure
+## Frontend Status
 
-```
-camp-burnt-gin-api/
-├── app/
-│   ├── Console/              # Artisan commands
-│   ├── Enums/                # Application status, allergy severity enums
-│   ├── Http/
-│   │   ├── Controllers/Api/  # API controllers (16 controllers)
-│   │   ├── Middleware/       # Custom middleware (audit, admin check)
-│   │   └── Requests/         # Form request validation classes
-│   ├── Jobs/                 # Queueable jobs (notifications)
-│   ├── Models/               # Eloquent models (12 models)
-│   ├── Notifications/        # Email notification classes
-│   ├── Policies/             # Authorization policies
-│   ├── Providers/            # Service providers
-│   ├── Services/             # Business logic services
-│   └── Traits/               # Reusable traits (queued notifications)
-├── bootstrap/                # Framework bootstrap
-├── config/                   # Configuration files
-├── database/
-│   ├── factories/            # Model factories for testing
-│   ├── migrations/           # Database schema migrations
-│   └── seeders/              # Database seeders
-├── docs/                     # Comprehensive documentation
-│   ├── ARCHITECTURE.md       # System architecture
-│   ├── API_OVERVIEW.md       # API capabilities
-│   ├── SECURITY.md           # Security and HIPAA compliance
-│   ├── TESTING.md            # Testing documentation
-│   └── *.md                  # Additional documentation
-├── routes/
-│   └── api.php               # API route definitions
-├── storage/                  # File uploads, logs, cache
-├── tests/
-│   ├── Feature/
-│   │   ├── Api/              # API feature tests
-│   │   ├── Regression/       # Regression tests
-│   │   └── Security/         # Security tests
-│   ├── Traits/               # Test helper traits
-│   └── Unit/                 # Unit tests
-├── .env.example              # Environment template
-├── composer.json             # PHP dependencies
-└── phpunit.xml               # Test configuration
-```
+**Important:** The frontend application has **not been developed**. The backend exposes a complete RESTful API ready for frontend integration. Frontend development is a separate effort that will consume the documented API endpoints.
+
+See [BACKEND_COMPLETION_STATUS.md](BACKEND_COMPLETION_STATUS.md) for frontend integration readiness information.
 
 ---
 
-## Troubleshooting
+## Version Information
 
-### Database Connection Failed
-
-**Symptom:** `SQLSTATE[HY000] [2002] Connection refused`
-
-**Solution:**
-1. Verify MySQL is running: `sudo systemctl status mysql`
-2. Confirm database credentials in `.env`
-3. Ensure the database exists: `mysql -u root -p -e "SHOW DATABASES;"`
-
-### Permission Denied on Storage
-
-**Symptom:** `The stream or file could not be opened`
-
-**Solution:**
-```bash
-chmod -R 775 storage bootstrap/cache
-chown -R www-data:www-data storage bootstrap/cache
-```
-
-### Migration Failures
-
-**Symptom:** `Base table or table already exists`
-
-**Solution:**
-```bash
-php artisan migrate:fresh
-```
-
-**Warning:** This drops all tables and recreates them. Use only in development.
-
-### Class Not Found Errors
-
-**Symptom:** `Class 'App\...' not found`
-
-**Solution:**
-```bash
-composer dump-autoload
-php artisan optimize:clear
-```
+- **Backend Version:** 1.0.0
+- **Laravel Framework:** 12.x
+- **PHP Version:** 8.2+
+- **Database:** MySQL 8.0+
+- **Documentation Last Updated:** February 2026
 
 ---
 
-## Documentation
+## Contact and Support
 
-Comprehensive documentation is available in the following files:
+For technical questions regarding this backend system, contact the development team through the project repository issue tracker.
 
-| Document | Description |
-|----------|-------------|
-| [INSTALLATION_AND_SETUP.md](backend/camp-burnt-gin-api/INSTALLATION_AND_SETUP.md) | Detailed installation and configuration guide |
-| [CONTRIBUTING.md](backend/camp-burnt-gin-api/CONTRIBUTING.md) | Contribution guidelines and development workflow |
-| [TESTING_GUIDE.md](backend/camp-burnt-gin-api/TESTING_GUIDE.md) | Test execution, organization, and troubleshooting |
-| [docs/ARCHITECTURE.md](backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) | System architecture and design decisions |
-| [docs/SECURITY.md](backend/camp-burnt-gin-api/docs/SECURITY.md) | Security implementation and HIPAA compliance |
-| [docs/API_OVERVIEW.md](backend/camp-burnt-gin-api/docs/API_OVERVIEW.md) | API capabilities and endpoint documentation |
-| [docs/TESTING.md](backend/camp-burnt-gin-api/docs/TESTING.md) | Testing strategy and coverage details |
-| [docs/REQUIREMENTS_AND_TRACEABILITY.md](backend/camp-burnt-gin-api/docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping and traceability |
-| [docs/BACKEND_COMPLETION_STATUS.md](backend/camp-burnt-gin-api/docs/BACKEND_COMPLETION_STATUS.md) | Backend completion status and frontend handoff |
+For security concerns, follow the security reporting procedures outlined in [SECURITY.md](SECURITY.md).
 
 ---
 
-## License
-
-This software is proprietary to Camp Burnt Gin and is not licensed for public use or distribution.
-
----
-
-## Contact
-
-For technical questions regarding this backend system, contact the development team through the project repository.
+**Documentation Status:** Complete and authoritative as of February 2026.
