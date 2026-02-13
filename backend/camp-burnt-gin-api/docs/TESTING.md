@@ -298,14 +298,14 @@ php artisan test
 
 ```
    PASS  Tests\Feature\Api\ValidationTest
-  ✓ registration requires name
-  ✓ registration requires valid email
-  ✓ registration requires password confirmation
+   registration requires name
+   registration requires valid email
+   registration requires password confirmation
   ...
 
    PASS  Tests\Feature\Api\CamperAuthorizationTest
-  ✓ admin can view all campers
-  ✓ parent can view own campers
+   admin can view all campers
+   parent can view own campers
   ...
 
 Tests:    228 passed (430 assertions)
@@ -321,7 +321,7 @@ Duration: 2.74s
 
 ```
    FAIL  Tests\Feature\Api\ValidationTest
-  ✓ registration requires name
+   registration requires name
   ✗ registration requires valid email
 
   Failed asserting that 200 matches expected 422.

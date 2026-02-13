@@ -692,6 +692,48 @@ tail -f /var/www/camp-burnt-gin-api/storage/logs/queue-worker.log
 - [ ] Performance analysis
 - [ ] Capacity planning review
 
+### Log Rotation Configuration
+
+Configure automatic log rotation to prevent disk space exhaustion.
+
+**Create logrotate configuration** (`/etc/logrotate.d/camp-burnt-gin-api`):
+
+```
+/var/www/camp-burnt-gin-api/storage/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 www-data www-data
+    sharedscripts
+    postrotate
+        /usr/bin/systemctl reload php8.2-fpm > /dev/null 2>&1 || true
+    endscript
+}
+```
+
+**Configuration explanation:**
+- `daily` — Rotate logs every day
+- `rotate 14` — Keep 14 days of compressed logs
+- `compress` — Compress rotated logs with gzip
+- `delaycompress` — Don't compress the most recent rotated log
+- `notifempty` — Don't rotate empty log files
+- `create 0640 www-data www-data` — Set permissions on new log files
+- `sharedscripts` — Run postrotate script once after all logs rotated
+- `postrotate` — Reload PHP-FPM after rotation
+
+**Test configuration:**
+```bash
+sudo logrotate -d /etc/logrotate.d/camp-burnt-gin-api
+```
+
+**Force rotation (for testing):**
+```bash
+sudo logrotate -f /etc/logrotate.d/camp-burnt-gin-api
+```
+
 ---
 
 ## Cross-References

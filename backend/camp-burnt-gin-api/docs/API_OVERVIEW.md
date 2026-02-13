@@ -113,11 +113,11 @@ The API implements role-based access control (RBAC) with three primary roles:
 
 | Action | Admin | Parent | Provider |
 |--------|-------|--------|----------|
-| View all campers | ✅ Yes | ❌ No (own only) | ❌ No |
-| Edit camper profile | ✅ Yes | ✅ Yes (own only) | ❌ No |
-| Review application | ✅ Yes | ❌ No | ❌ No |
-| Submit medical info | ✅ Yes | ✅ Yes (own campers) | ✅ Yes (linked camper only) |
-| Generate reports | ✅ Yes | ❌ No | ❌ No |
+| View all campers |  Yes |  No (own only) |  No |
+| Edit camper profile |  Yes |  Yes (own only) |  No |
+| Review application |  Yes |  No |  No |
+| Submit medical info |  Yes |  Yes (own campers) |  Yes (linked camper only) |
+| Generate reports |  Yes |  No |  No |
 
 ---
 

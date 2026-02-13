@@ -494,7 +494,7 @@ If authorization fails, Laravel automatically returns HTTP 403 Forbidden.
 
 **Pattern:**
 ```php
-// ✅ Correct: Authorize first
+//  Correct: Authorize first
 public function update(Request $request, Camper $camper)
 {
     $this->authorize('update', $camper); // Check ownership
@@ -502,7 +502,7 @@ public function update(Request $request, Camper $camper)
     // Process update
 }
 
-// ❌ Incorrect: Validate first (leaks information)
+//  Incorrect: Validate first (leaks information)
 public function update(Request $request, Camper $camper)
 {
     $validated = $request->validate([...]); // Validates even if unauthorized

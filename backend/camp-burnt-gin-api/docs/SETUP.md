@@ -4,7 +4,7 @@ Cross-platform setup instructions for Camp Burnt Gin API backend development.
 
 ---
 
-## 🎯 Quick Start
+##  Quick Start
 
 Choose your preferred setup method:
 
@@ -475,11 +475,11 @@ Recommended extensions:
 
 After setup is complete:
 
-1. ✅ Run tests to verify: `php artisan test`
-2. ✅ Review [CLAUDE.md](../CLAUDE.md) for development rules
-3. ✅ Check [CI_CD.md](./CI_CD.md) for CI/CD workflows
-4. ✅ Review [API Routes](#) documentation
-5. ✅ Start coding!
+1.  Run tests to verify: `php artisan test`
+2.  Review [CLAUDE.md](../CLAUDE.md) for development rules
+3.  Check [CI_CD.md](./CI_CD.md) for CI/CD workflows
+4.  Review [API Routes](#) documentation
+5.  Start coding!
 
 ---
 
@@ -492,4 +492,4 @@ After setup is complete:
 
 ---
 
-**Happy Development! 🚀**
+**Happy Development! **
