@@ -215,38 +215,41 @@ This document provides the formal declaration of backend completion for the Camp
 
 ## Component Summary
 
-### Controllers (16)
+### Controllers (16 - Domain-Organized)
 
-| Controller | Responsibility |
-|------------|----------------|
-| AuthController | Registration, login, logout |
-| MfaController | MFA setup, verification, disable |
-| PasswordResetController | Password reset flow |
-| UserProfileController | Profile management, pre-fill |
-| CampController | Camp CRUD operations |
-| CampSessionController | Session CRUD operations |
-| CamperController | Camper CRUD operations |
-| ApplicationController | Application lifecycle management |
-| MedicalRecordController | Medical record CRUD |
-| AllergyController | Allergy CRUD |
-| MedicationController | Medication CRUD |
-| EmergencyContactController | Contact CRUD |
-| MedicalProviderLinkController | Provider link management |
-| DocumentController | Document upload/download |
-| NotificationController | Notification management |
-| ReportController | Report generation |
+| Controller | Domain | Responsibility |
+|------------|--------|----------------|
+| Auth\AuthController | Auth | Registration, login, logout |
+| Auth\MfaController | Auth | MFA setup, verification, disable |
+| Auth\PasswordResetController | Auth | Password reset flow |
+| Camp\CampController | Camp | Camp CRUD operations |
+| Camp\CampSessionController | Camp | Session CRUD operations |
+| Camper\CamperController | Camper | Camper CRUD operations |
+| Camper\ApplicationController | Camper | Application lifecycle management |
+| Camper\UserProfileController | Camper | Profile management, pre-fill |
+| Document\DocumentController | Document | Document upload/download |
+| Document\MedicalProviderLinkController | Document | Provider link management |
+| Medical\MedicalRecordController | Medical | Medical record CRUD |
+| Medical\AllergyController | Medical | Allergy CRUD |
+| Medical\MedicationController | Medical | Medication CRUD |
+| Medical\EmergencyContactController | Medical | Contact CRUD |
+| System\NotificationController | System | Notification management |
+| System\ReportController | System | Report generation |
 
-### Services (7)
+### Services (10 - Domain-Organized)
 
-| Service | Responsibility |
-|---------|----------------|
-| AuthService | Authentication logic |
-| MfaService | MFA operations |
-| PasswordResetService | Password reset logic |
-| DocumentService | File handling, scanning |
-| MedicalProviderLinkService | Provider link lifecycle |
-| ReportService | Report data aggregation |
-| LetterService | Acceptance/rejection content |
+| Service | Domain | Responsibility |
+|---------|--------|----------------|
+| Auth\AuthService | Auth | Authentication logic |
+| Auth\MfaService | Auth | MFA operations |
+| Auth\PasswordResetService | Auth | Password reset logic |
+| Camper\ApplicationService | Camper | Application approval workflow |
+| Document\DocumentEnforcementService | Document | Document compliance validation |
+| Medical\MedicalProviderLinkService | Medical | Provider link lifecycle |
+| Medical\SpecialNeedsRiskAssessmentService | Medical | CYSHCN complexity assessment |
+| System\ReportService | System | Report data aggregation |
+| System\LetterService | System | Acceptance/rejection letter generation |
+| System\HealthCheckService | System | Health monitoring |
 
 ### Policies (8)
 

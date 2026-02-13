@@ -53,9 +53,10 @@ The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to man
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md) | Installation, configuration, and environment setup | Developers, DevOps team |
+| [SETUP.md](SETUP.md) | Cross-platform development environment setup (Docker + local) | Developers |
+| [CI_CD.md](CI_CD.md) | CI/CD workflows and GitHub Actions configuration | Developers, DevOps team |
 | [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference and environment variables | DevOps team, system administrators |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment procedures and production considerations | DevOps team, system administrators |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment procedures and considerations | DevOps team, system administrators |
 
 ### Testing and Quality Assurance
 
@@ -91,10 +92,11 @@ The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to man
 
 ### For Developers
 
-1. **Setup:** Read [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md) for installation instructions
+1. **Setup:** Read [SETUP.md](SETUP.md) for development environment installation (Docker or local)
 2. **Architecture:** Review [ARCHITECTURE.md](ARCHITECTURE.md) to understand system design
 3. **API:** Reference [API_REFERENCE.md](API_REFERENCE.md) for endpoint documentation
-4. **Security:** Understand [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md) for auth implementation
+4. **Testing:** See [TESTING.md](TESTING.md) for running and writing tests
+5. **Security:** Understand [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md) for auth implementation
 
 ### For Security Auditors
 

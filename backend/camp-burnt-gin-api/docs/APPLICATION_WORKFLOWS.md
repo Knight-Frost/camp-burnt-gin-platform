@@ -30,7 +30,8 @@ The application workflow manages the complete lifecycle of camp registration app
 | Component | Role |
 |-----------|------|
 | Application Model | Represents registration request with status tracking |
-| ApplicationController | Handles API requests for application operations |
+| Camper\ApplicationController | Handles API requests for application operations |
+| Camper\ApplicationService | Manages application approval workflow and compliance |
 | ApplicationPolicy | Enforces authorization rules |
 | ApplicationStatus Enum | Defines valid states and transitions |
 | Notification System | Alerts users of status changes |

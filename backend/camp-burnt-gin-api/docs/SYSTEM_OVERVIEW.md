@@ -201,7 +201,7 @@ The system follows a layered Laravel architecture:
 | Layer | Responsibility | Example |
 |-------|----------------|---------|
 | **Routes** | Endpoint definitions | `routes/api.php` |
-| **Controllers** | HTTP request handling | `ApplicationController` |
+| **Controllers** | HTTP request handling | `Camper\ApplicationController` |
 | **Form Requests** | Input validation | `StoreApplicationRequest` |
 | **Policies** | Authorization rules | `ApplicationPolicy` |
 | **Services** | Business logic | `ReportService` |

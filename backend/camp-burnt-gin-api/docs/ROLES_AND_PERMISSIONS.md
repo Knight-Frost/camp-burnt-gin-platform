@@ -200,7 +200,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
 // Multi-role routes
 Route::middleware(['auth:sanctum', 'role:admin,parent'])->group(function () {
-    Route::get('/campers', [CamperController::class, 'index']);
+    Route::get('/campers', [Camper\CamperController::class, 'index']);
 });
 ```
 

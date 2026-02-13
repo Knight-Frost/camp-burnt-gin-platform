@@ -462,7 +462,7 @@ The `AuditPhiAccess` middleware provides automatic PHI access logging.
 
 ```php
 Route::middleware(['auth:sanctum', 'audit.phi'])->group(function () {
-    Route::get('/medical-records', [MedicalRecordController::class, 'index']);
+    Route::get('/medical-records', [Medical\MedicalRecordController::class, 'index']);
 });
 ```
 

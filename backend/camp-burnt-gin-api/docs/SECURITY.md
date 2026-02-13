@@ -198,12 +198,12 @@ Authorization is enforced at multiple levels:
 ```php
 // Admin-only routes
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::get('/reports/applications', [ReportController::class, 'applications']);
+    Route::get('/reports/applications', [System\ReportController::class, 'applications']);
 });
 
 // Role-restricted routes
 Route::middleware(['auth:sanctum', 'role:admin,medical'])->group(function () {
-    Route::get('/medical-records', [MedicalRecordController::class, 'index']);
+    Route::get('/medical-records', [Medical\MedicalRecordController::class, 'index']);
 });
 ```
 

@@ -99,12 +99,29 @@ This separation ensures:
 ```
 app/
 ├── Http/
-│   ├── Controllers/Api/     # API endpoint controllers (thin, delegation only)
-│   ├── Requests/            # Form request validation classes
+│   ├── Controllers/Api/     # API endpoint controllers (domain-organized)
+│   │   ├── Auth/           # Authentication controllers
+│   │   ├── Camp/           # Camp management controllers
+│   │   ├── Camper/         # Camper and application controllers
+│   │   ├── Document/       # Document and provider link controllers
+│   │   ├── Medical/        # Medical record controllers
+│   │   └── System/         # System health and notification controllers
+│   ├── Requests/            # Form request validation classes (domain-organized)
 │   └── Middleware/          # Custom middleware (audit logging, role checks)
-├── Services/                # Business logic and workflow orchestration
+├── Services/                # Business logic (domain-organized)
+│   ├── Auth/               # Authentication services
+│   ├── Camper/             # Application workflow services
+│   ├── Document/           # Document enforcement services
+│   ├── Medical/            # Medical assessment services
+│   └── System/             # Reporting and letter services
 ├── Models/                  # Eloquent models and relationships
 ├── Policies/                # Authorization rules for model operations
+├── Notifications/           # Notification classes (domain-organized)
+│   ├── Auth/               # Authentication notifications
+│   ├── Camper/             # Application notifications
+│   ├── Document/           # Provider link notifications
+│   ├── Medical/            # Medical update notifications
+│   └── System/             # System-level notifications
 ├── Jobs/                    # Asynchronous queue jobs
 ├── Traits/                  # Reusable functionality (notifications, etc.)
 └── Enums/                   # Enumeration classes (statuses, roles, severity levels)
@@ -157,10 +174,10 @@ tests/
 **Technology:** Laravel Sanctum token-based authentication
 
 **Components:**
-- `AuthController` — Registration, login, logout endpoints
-- `AuthService` — Credential validation, token generation
-- `MfaController` — Multi-factor authentication setup and verification
-- `MfaService` — TOTP secret generation and code validation
+- `Auth\AuthController` — Registration, login, logout endpoints
+- `Auth\AuthService` — Credential validation, token generation
+- `Auth\MfaController` — Multi-factor authentication setup and verification
+- `Auth\MfaService` — TOTP secret generation and code validation
 
 **Features:**
 - Email and password authentication
@@ -174,7 +191,8 @@ tests/
 **Purpose:** Manage complete application lifecycle from draft to final decision
 
 **Components:**
-- `ApplicationController` — Application operations
+- `Camper\ApplicationController` — Application operations
+- `Camper\ApplicationService` — Application approval workflow and compliance
 - `ApplicationPolicy` — Authorization rules
 - `Application` Model — Application data with status tracking
 - `ApplicationStatus` Enum — Valid status values and transitions
@@ -222,8 +240,8 @@ tests/
 **Purpose:** Secure file upload with validation and security scanning
 
 **Components:**
-- `DocumentController` — Upload, download, delete operations
-- `DocumentService` — File validation, storage, security checks
+- `Document\DocumentController` — Upload, download, delete operations
+- `Document\DocumentEnforcementService` — Document compliance and validation
 - `DocumentPolicy` — Authorization for document access
 - `Document` Model — Polymorphic file metadata
 

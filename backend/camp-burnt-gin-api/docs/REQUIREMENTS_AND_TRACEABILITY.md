@@ -55,36 +55,36 @@ Requirements are organized into the following categories:
 
 | ID | Requirement | Priority | Status | Backend Component |
 |----|-------------|----------|--------|-------------------|
-| FR-AUTH-01 | System shall allow new users to register with email and password | High | **Complete** | `AuthController::register`, `AuthService::register` |
-| FR-AUTH-02 | System shall authenticate users with email and password | High | **Complete** | `AuthController::login`, `AuthService::login` |
-| FR-AUTH-03 | System shall generate secure API tokens upon successful authentication | High | **Complete** | `AuthService::login`, Sanctum |
-| FR-AUTH-04 | System shall allow users to logout and invalidate their token | High | **Complete** | `AuthController::logout` |
-| FR-AUTH-05 | System shall support password reset via email | High | **Complete** | `PasswordResetController`, `PasswordResetService` |
-| FR-AUTH-06 | System shall support multi-factor authentication via TOTP | High | **Complete** | `MfaController`, `MfaService`, Google2FA |
-| FR-AUTH-07 | System shall allow users to enable MFA with QR code enrollment | Medium | **Complete** | `MfaService::initializeSetup` |
-| FR-AUTH-08 | System shall allow users to disable MFA with verification | Medium | **Complete** | `MfaService::disable` |
+| FR-AUTH-01 | System shall allow new users to register with email and password | High | **Complete** | `Auth\AuthController::register`, `Auth\AuthService::register` |
+| FR-AUTH-02 | System shall authenticate users with email and password | High | **Complete** | `Auth\AuthController::login`, `Auth\AuthService::login` |
+| FR-AUTH-03 | System shall generate secure API tokens upon successful authentication | High | **Complete** | `Auth\AuthService::login`, Sanctum |
+| FR-AUTH-04 | System shall allow users to logout and invalidate their token | High | **Complete** | `Auth\AuthController::logout` |
+| FR-AUTH-05 | System shall support password reset via email | High | **Complete** | `Auth\PasswordResetController`, `PasswordResetService` |
+| FR-AUTH-06 | System shall support multi-factor authentication via TOTP | High | **Complete** | `Auth\MfaController`, `MfaService`, Google2FA |
+| FR-AUTH-07 | System shall allow users to enable MFA with QR code enrollment | Medium | **Complete** | `Auth\MfaService::initializeSetup` |
+| FR-AUTH-08 | System shall allow users to disable MFA with verification | Medium | **Complete** | `Auth\MfaService::disable` |
 | FR-AUTH-09 | System shall enforce password complexity requirements | High | **Complete** | `RegisterRequest` validation rules |
-| FR-AUTH-10 | Password reset tokens shall expire after 60 minutes | High | **Complete** | `PasswordResetService::resetPassword` |
+| FR-AUTH-10 | Password reset tokens shall expire after 60 minutes | High | **Complete** | `Auth\PasswordResetService::resetPassword` |
 
 ### User Management Requirements (FR-USER)
 
 | ID | Requirement | Priority | Status | Backend Component |
 |----|-------------|----------|--------|-------------------|
-| FR-USER-01 | Users shall be able to view their profile information | Medium | **Complete** | `UserProfileController::show` |
-| FR-USER-02 | Users shall be able to update their name and email | Medium | **Complete** | `UserProfileController::update` |
-| FR-USER-03 | System shall provide pre-fill data for returning applicants | Medium | **Complete** | `UserProfileController::prefill` |
+| FR-USER-01 | Users shall be able to view their profile information | Medium | **Complete** | `Camper\UserProfileController::show` |
+| FR-USER-02 | Users shall be able to update their name and email | Medium | **Complete** | `Camper\UserProfileController::update` |
+| FR-USER-03 | System shall provide pre-fill data for returning applicants | Medium | **Complete** | `Camper\UserProfileController::prefill` |
 | FR-USER-04 | System shall support three user roles: admin, parent, medical | High | **Complete** | `Role` model, `roles` table |
-| FR-USER-05 | New registrations shall default to parent role | High | **Complete** | `AuthService::register` |
+| FR-USER-05 | New registrations shall default to parent role | High | **Complete** | `Auth\AuthService::register` |
 
 ### Camp Management Requirements (FR-CAMP)
 
 | ID | Requirement | Priority | Status | Backend Component |
 |----|-------------|----------|--------|-------------------|
-| FR-CAMP-01 | Administrators shall be able to create camp programs | High | **Complete** | `CampController::store` |
-| FR-CAMP-02 | Administrators shall be able to update camp programs | High | **Complete** | `CampController::update` |
-| FR-CAMP-03 | Administrators shall be able to delete camp programs | Medium | **Complete** | `CampController::destroy` |
-| FR-CAMP-04 | Users shall be able to view active camp programs | High | **Complete** | `CampController::index` |
-| FR-CAMP-05 | Administrators shall be able to create camp sessions | High | **Complete** | `CampSessionController::store` |
+| FR-CAMP-01 | Administrators shall be able to create camp programs | High | **Complete** | `Camp\CampController::store` |
+| FR-CAMP-02 | Administrators shall be able to update camp programs | High | **Complete** | `Camp\CampController::update` |
+| FR-CAMP-03 | Administrators shall be able to delete camp programs | Medium | **Complete** | `Camp\CampController::destroy` |
+| FR-CAMP-04 | Users shall be able to view active camp programs | High | **Complete** | `Camp\CampController::index` |
+| FR-CAMP-05 | Administrators shall be able to create camp sessions | High | **Complete** | `Camp\CampSessionController::store` |
 | FR-CAMP-06 | Camp sessions shall include dates, capacity, and age limits | High | **Complete** | `camp_sessions` migration |
 | FR-CAMP-07 | Camp sessions shall have registration windows | Medium | **Complete** | `registration_opens_at`, `registration_closes_at` fields |
 | FR-CAMP-08 | System shall track session capacity | Medium | **Complete** | `capacity` field in `camp_sessions` |
@@ -93,32 +93,32 @@ Requirements are organized into the following categories:
 
 | ID | Requirement | Priority | Status | Backend Component |
 |----|-------------|----------|--------|-------------------|
-| FR-CAMPER-01 | Parents shall be able to register campers | High | **Complete** | `CamperController::store` |
+| FR-CAMPER-01 | Parents shall be able to register campers | High | **Complete** | `Camper\CamperController::store` |
 | FR-CAMPER-02 | Camper profiles shall include name, DOB, and gender | High | **Complete** | `campers` migration |
 | FR-CAMPER-03 | Parents shall only view their own campers | High | **Complete** | `CamperPolicy::view` |
 | FR-CAMPER-04 | Administrators shall be able to view all campers | High | **Complete** | `CamperPolicy::viewAny` |
-| FR-CAMPER-05 | Parents shall be able to update their campers | Medium | **Complete** | `CamperController::update`, `CamperPolicy` |
+| FR-CAMPER-05 | Parents shall be able to update their campers | Medium | **Complete** | `Camper\CamperController::update`, `CamperPolicy` |
 | FR-CAMPER-06 | System shall calculate camper age from date of birth | Medium | **Complete** | `Camper::ageAsOf()` |
 
 ### Application Requirements (FR-APP)
 
 | ID | Requirement | Priority | Status | Backend Component |
 |----|-------------|----------|--------|-------------------|
-| FR-APP-01 | Parents shall be able to submit applications for campers | High | **Complete** | `ApplicationController::store` |
+| FR-APP-01 | Parents shall be able to submit applications for campers | High | **Complete** | `Camper\ApplicationController::store` |
 | FR-APP-02 | Applications shall be linked to specific camp sessions | High | **Complete** | `camper_id`, `camp_session_id` foreign keys |
 | FR-APP-03 | System shall prevent duplicate applications per camper per session | High | **Complete** | Unique constraint in migration |
 | FR-APP-04 | Applications shall support draft mode for partial completion | High | **Complete** | `is_draft` field, `ApplicationController` |
-| FR-APP-05 | Parents shall be able to update draft applications | Medium | **Complete** | `ApplicationController::update` |
+| FR-APP-05 | Parents shall be able to update draft applications | Medium | **Complete** | `Camper\ApplicationController::update` |
 | FR-APP-06 | Parents shall be able to submit draft applications | High | **Complete** | `submit` field in update request |
 | FR-APP-07 | System shall capture digital signatures on applications | High | **Complete** | `signature_data`, `signature_name`, `signed_at`, `signed_ip_address` |
-| FR-APP-08 | Signature shall record timestamp and IP address | Medium | **Complete** | `ApplicationController::sign` |
+| FR-APP-08 | Signature shall record timestamp and IP address | Medium | **Complete** | `Camper\ApplicationController::sign` |
 | FR-APP-09 | Applications shall track status throughout lifecycle | High | **Complete** | `ApplicationStatus` enum |
 | FR-APP-10 | System shall support statuses: pending, under_review, approved, rejected, waitlisted, cancelled | High | **Complete** | `ApplicationStatus` enum cases |
-| FR-APP-11 | Administrators shall be able to search applications | High | **Complete** | `ApplicationController::index` with search |
-| FR-APP-12 | Administrators shall be able to filter applications by status | High | **Complete** | `ApplicationController::index` with filters |
+| FR-APP-11 | Administrators shall be able to search applications | High | **Complete** | `Camper\ApplicationController::index` with search |
+| FR-APP-12 | Administrators shall be able to filter applications by status | High | **Complete** | `Camper\ApplicationController::index` with filters |
 | FR-APP-13 | Administrators shall be able to filter applications by session | Medium | **Complete** | `camp_session_id` filter |
 | FR-APP-14 | Administrators shall be able to filter applications by date range | Medium | **Complete** | `date_from`, `date_to` filters |
-| FR-APP-15 | Administrators shall be able to review and change application status | High | **Complete** | `ApplicationController::review` |
+| FR-APP-15 | Administrators shall be able to review and change application status | High | **Complete** | `Camper\ApplicationController::review` |
 | FR-APP-16 | Review shall record reviewer, timestamp, and notes | High | **Complete** | `reviewed_by`, `reviewed_at`, `notes` fields |
 | FR-APP-17 | System shall send acceptance letters upon approval | High | **Complete** | `LetterService::sendAcceptanceLetter` |
 | FR-APP-18 | System shall send rejection letters upon rejection | High | **Complete** | `LetterService::sendRejectionLetter` |
