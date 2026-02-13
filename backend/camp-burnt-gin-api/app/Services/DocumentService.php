@@ -97,6 +97,7 @@ class DocumentService
                 'detected' => $detectedMime,
                 'filename' => $file->getClientOriginalName(),
             ]);
+
             return false;
         }
 
@@ -289,6 +290,7 @@ class DocumentService
                     'path' => $filePath,
                     'error' => $e->getMessage(),
                 ]);
+
                 throw $e;
             }
         });

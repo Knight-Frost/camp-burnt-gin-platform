@@ -31,7 +31,7 @@ class DocumentEnforcementService
      * modify database state or log PHI. It returns structured compliance
      * information suitable for approval enforcement and parent notification.
      *
-     * @param Camper $camper The camper to check compliance for
+     * @param  Camper  $camper  The camper to check compliance for
      * @return array{
      *     is_compliant: bool,
      *     required_documents: array,

@@ -94,7 +94,7 @@ class CalculateRecordRetention extends Command
         });
 
         $this->newLine();
-        $this->info("Retention calculation complete:");
+        $this->info('Retention calculation complete:');
         $this->table(
             ['Metric', 'Count'],
             [

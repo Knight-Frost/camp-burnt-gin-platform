@@ -27,8 +27,8 @@ use App\Policies\AllergyPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\AssistiveDevicePolicy;
 use App\Policies\BehavioralProfilePolicy;
-use App\Policies\CampPolicy;
 use App\Policies\CamperPolicy;
+use App\Policies\CampPolicy;
 use App\Policies\CampSessionPolicy;
 use App\Policies\DiagnosisPolicy;
 use App\Policies\DocumentPolicy;
@@ -77,10 +77,7 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
     /**
      * Bootstrap any application services.

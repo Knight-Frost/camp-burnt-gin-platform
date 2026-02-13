@@ -1,0 +1,18 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+        - routes
+    excludePaths:
+        - database/seeders/*
+        - database/factories/*
+    ignoreErrors:
+        # Ignore Laravel dynamic property access patterns that are safe
+        - '#Access to an undefined property Illuminate\\Database\\Eloquent\\Model::\$#'
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder::#'
+        - '#Access to an undefined property Illuminate\\Database\\Eloquent\\Collection::#'
+        # Ignore factory-related type covariance issues
+        - '#PHPDoc type class-string<Illuminate\\Database\\Eloquent\\Model> of property .+::\$model is not covariant#'

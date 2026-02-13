@@ -80,7 +80,6 @@ Route::prefix('provider-access')->middleware('throttle:provider-link')->group(fu
 });
 
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
-
     /*
     |--------------------------------------------------------------------------
     | Authenticated User Routes

@@ -3,13 +3,10 @@
 namespace Tests\Unit\Services;
 
 use App\Enums\DocumentVerificationStatus;
-use App\Enums\MedicalComplexityTier;
 use App\Enums\SupervisionLevel;
 use App\Models\Camper;
 use App\Models\Document;
-use App\Models\RequiredDocumentRule;
 use App\Services\DocumentEnforcementService;
-use App\Services\SpecialNeedsRiskAssessmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

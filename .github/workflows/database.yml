@@ -1,0 +1,213 @@
+name: Database
+
+on:
+  push:
+    branches: [ main, backend, develop ]
+    paths:
+      - 'backend/camp-burnt-gin-api/database/migrations/**'
+      - 'backend/camp-burnt-gin-api/database/seeders/**'
+  pull_request:
+    branches: [ main, backend, develop ]
+    paths:
+      - 'backend/camp-burnt-gin-api/database/migrations/**'
+      - 'backend/camp-burnt-gin-api/database/seeders/**'
+
+permissions:
+  contents: read
+
+jobs:
+  migration-validation:
+    name: Migration Validation
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: camp_burnt_gin_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, bcmath
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        working-directory: backend/camp-burnt-gin-api
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Create .env file
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Test fresh migrations
+        working-directory: backend/camp-burnt-gin-api
+        run: php artisan migrate:fresh --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: camp_burnt_gin_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+      - name: Test migration rollback
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          # Get the count of migrations
+          BATCH_COUNT=$(php artisan migrate:status --env=testing | grep -c "Ran" || true)
+
+          if [ "$BATCH_COUNT" -gt 0 ]; then
+            echo "Testing rollback of last migration batch..."
+            php artisan migrate:rollback --step=1 --force
+
+            echo "Re-running migrations to verify idempotency..."
+            php artisan migrate --force
+          else
+            echo "No migrations to rollback"
+          fi
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: camp_burnt_gin_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+      - name: Test seeding
+        working-directory: backend/camp-burnt-gin-api
+        run: php artisan db:seed --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: camp_burnt_gin_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+  migration-conflict-check:
+    name: Migration Conflict Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for migration file conflicts
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          echo "Checking for duplicate migration timestamps..."
+
+          # Extract timestamps from migration filenames
+          TIMESTAMPS=$(ls database/migrations/*.php 2>/dev/null | sed -E 's/.*\/([0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6})_.*/\1/' | sort)
+
+          # Check for duplicates
+          DUPLICATES=$(echo "$TIMESTAMPS" | uniq -d)
+
+          if [ -n "$DUPLICATES" ]; then
+            echo "ERROR: Duplicate migration timestamps detected:"
+            echo "$DUPLICATES"
+            exit 1
+          else
+            echo "✓ No duplicate migration timestamps"
+          fi
+
+      - name: Check migration naming conventions
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          echo "Validating migration naming conventions..."
+
+          # Check that all migrations follow naming pattern
+          INVALID=$(ls database/migrations/*.php 2>/dev/null | grep -v -E '^database/migrations/[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6}_[a-z_]+\.php$' || true)
+
+          if [ -n "$INVALID" ]; then
+            echo "WARNING: Migrations with non-standard naming detected:"
+            echo "$INVALID"
+          else
+            echo "✓ All migrations follow naming conventions"
+          fi
+
+  schema-documentation:
+    name: Database Schema Documentation
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: camp_burnt_gin_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, bcmath
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        working-directory: backend/camp-burnt-gin-api
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Create .env file
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run migrations
+        working-directory: backend/camp-burnt-gin-api
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: camp_burnt_gin_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+      - name: Generate schema documentation
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          php artisan migrate:status
+
+          echo "Extracting schema information..."
+          mysql -h127.0.0.1 -uroot -ppassword camp_burnt_gin_test -e "SHOW TABLES;" > schema_tables.txt
+          cat schema_tables.txt
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: camp_burnt_gin_test
+          DB_USERNAME: root
+          DB_PASSWORD: password

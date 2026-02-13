@@ -19,8 +19,6 @@ class HealthController extends Controller
      *
      * Returns 200 if the application process is alive.
      * Does NOT check dependencies (database, cache, etc.)
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
     public function liveness(): JsonResponse
     {
@@ -36,8 +34,6 @@ class HealthController extends Controller
      *
      * Checks critical dependencies before returning success.
      * Returns 200 if ready, 503 if not ready.
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
     public function readiness(): JsonResponse
     {
