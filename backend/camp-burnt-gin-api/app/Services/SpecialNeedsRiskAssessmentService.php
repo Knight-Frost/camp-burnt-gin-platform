@@ -77,7 +77,7 @@ class SpecialNeedsRiskAssessmentService
         $camper->loadMissing([
             'medicalRecord',
             'feedingPlan',
-            'behavioral Profile',
+            'behavioralProfile',
             'assistiveDevices',
             'diagnoses',
             'allergies',
