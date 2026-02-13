@@ -39,6 +39,18 @@ class MedicalProviderLink extends Model
     ];
 
     /**
+     * The attributes that should be hidden for serialization.
+     *
+     * Token is hashed but should never be exposed in API responses
+     * to prevent hash analysis attacks and maintain defense-in-depth.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'token',  // Hashed token - hidden to prevent hash enumeration
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
