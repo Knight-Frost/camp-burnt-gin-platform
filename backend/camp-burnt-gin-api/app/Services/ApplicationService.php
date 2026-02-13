@@ -6,7 +6,7 @@ use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\User;
 use App\Notifications\ApplicationStatusChangedNotification;
-use Illuminate\Support\Facades\Notification;
+use App\Traits\QueuesNotifications;
 
 /**
  * Service for managing application business logic.
@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Notification;
  */
 class ApplicationService
 {
+    use QueuesNotifications;
+
     public function __construct(
         protected DocumentEnforcementService $documentEnforcement,
         protected LetterService $letterService
@@ -67,7 +69,7 @@ class ApplicationService
 
         // Send status change notification
         $application->loadMissing('camper.user');
-        Notification::send(
+        $this->queueNotification(
             $application->camper->user,
             new ApplicationStatusChangedNotification($application, $previousStatus)
         );
