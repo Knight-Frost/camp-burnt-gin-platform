@@ -170,10 +170,18 @@ class Camper extends Model
      * Determine if this camper has any allergies requiring immediate attention.
      *
      * Returns true if any allergy is classified as severe or life-threatening.
+     *
+     * PERFORMANCE: Uses relationship collection if already loaded to avoid N+1 queries.
+     * Callers should eager load allergies: Camper::with('allergies')->get()
      */
     public function requiresImmediateAttention(): bool
     {
-        return $this->allergies()->get()->contains(
+        // Use loaded relationship if available to prevent N+1 query
+        $allergies = $this->relationLoaded('allergies')
+            ? $this->allergies
+            : $this->allergies()->get();
+
+        return $allergies->contains(
             fn ($allergy) => $allergy->requiresImmediateAttention()
         );
     }

@@ -30,11 +30,10 @@ class CampController extends Controller
             $query->where('is_active', true);
         }
 
-        $camps = $query->get();
+        // PERFORMANCE: Paginate to prevent loading all camps at once
+        $camps = $query->paginate(config('app.pagination_per_page', 15));
 
-        return response()->json([
-            'data' => $camps,
-        ]);
+        return response()->json($camps);
     }
 
     /**

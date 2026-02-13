@@ -67,10 +67,23 @@ class SpecialNeedsRiskAssessmentService
      * supervision level and medical complexity tier, extracts risk flags,
      * and persists the supervision level if changed.
      *
+     * PERFORMANCE: Eagerly loads all required relationships to prevent N+1 queries.
+     *
      * @return array<string, mixed> Assessment results with risk_score, supervision_level, medical_complexity_tier, and flags
      */
     public function assessCamper(Camper $camper): array
     {
+        // Eagerly load all relationships needed for assessment to prevent N+1 queries
+        $camper->loadMissing([
+            'medicalRecord',
+            'feedingPlan',
+            'behavioral Profile',
+            'assistiveDevices',
+            'diagnoses',
+            'allergies',
+            'activityPermissions',
+        ]);
+
         $riskScore = $this->calculateRiskScore($camper);
         $supervisionLevel = $this->determineSupervisionLevel($riskScore);
         $complexityTier = $this->determineComplexityTier($riskScore);

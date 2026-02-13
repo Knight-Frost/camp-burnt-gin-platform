@@ -86,36 +86,33 @@ class DocumentEnforcementService
         $level = $assessment['supervision_level'];
         $flags = $assessment['flags'];
 
-        // Start with universal rules (no tier, level, or flag specified)
+        // Fetch all applicable rules in a single query using OR conditions
+        // PERFORMANCE: Consolidate multiple queries into one to prevent N+1
         $rules = RequiredDocumentRule::mandatory()
-            ->whereNull('medical_complexity_tier')
-            ->whereNull('supervision_level')
-            ->whereNull('condition_flag')
+            ->where(function ($query) use ($tier, $level, $flags) {
+                // Universal rules (no tier, level, or flag specified)
+                $query->where(function ($q) {
+                    $q->whereNull('medical_complexity_tier')
+                        ->whereNull('supervision_level')
+                        ->whereNull('condition_flag');
+                });
+
+                // Tier-specific rules
+                if ($tier !== null) {
+                    $query->orWhere('medical_complexity_tier', $tier->value);
+                }
+
+                // Supervision-level-specific rules
+                if ($level !== null) {
+                    $query->orWhere('supervision_level', $level->value);
+                }
+
+                // Condition-flag-specific rules
+                if (! empty($flags)) {
+                    $query->orWhereIn('condition_flag', $flags);
+                }
+            })
             ->get();
-
-        // Add tier-specific rules
-        if ($tier !== null) {
-            $tierRules = RequiredDocumentRule::mandatory()
-                ->where('medical_complexity_tier', $tier->value)
-                ->get();
-            $rules = $rules->merge($tierRules);
-        }
-
-        // Add supervision-level-specific rules
-        if ($level !== null) {
-            $levelRules = RequiredDocumentRule::mandatory()
-                ->where('supervision_level', $level->value)
-                ->get();
-            $rules = $rules->merge($levelRules);
-        }
-
-        // Add condition-flag-specific rules
-        foreach ($flags as $flag) {
-            $flagRules = RequiredDocumentRule::mandatory()
-                ->where('condition_flag', $flag)
-                ->get();
-            $rules = $rules->merge($flagRules);
-        }
 
         // Remove duplicates by document_type
         return $rules->unique('document_type');

@@ -39,11 +39,11 @@ class CampSessionController extends Controller
                 ->where('registration_closes_at', '>=', now());
         }
 
-        $sessions = $query->orderBy('start_date')->get();
+        // PERFORMANCE: Paginate to prevent loading all sessions at once
+        $sessions = $query->orderBy('start_date')
+            ->paginate(config('app.pagination_per_page', 15));
 
-        return response()->json([
-            'data' => $sessions,
-        ]);
+        return response()->json($sessions);
     }
 
     /**

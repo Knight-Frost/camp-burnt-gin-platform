@@ -244,7 +244,8 @@ class ApplicationController extends Controller
 
         // CRITICAL SAFETY CHECK: Enforce document compliance before approval
         if ($newStatus === ApplicationStatus::Approved) {
-            $application->load('camper');
+            // PERFORMANCE: Use loadMissing to avoid reloading if already present
+            $application->loadMissing('camper');
             $compliance = $this->documentEnforcement->checkCompliance($application->camper);
 
             if (! $compliance['is_compliant']) {
@@ -268,6 +269,9 @@ class ApplicationController extends Controller
             'reviewed_at' => now(),
             'reviewed_by' => $request->user()->id,
         ]);
+
+        // PERFORMANCE: Ensure relationships are loaded before accessing nested properties
+        $application->loadMissing('camper.user');
 
         $this->queueNotification(
             $application->camper->user,
