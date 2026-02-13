@@ -775,27 +775,21 @@ Warning: 299 - "This endpoint is deprecated. Migrate to /api/v2/campers before D
 **API Version Support Lifecycle:**
 
 ```
-v1.0 Release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-                                                      ┃
-    v2.0 Release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓┃
-                                                      ┃┃
-        v1 Deprecation Period (3 months) ────────────┨┃
-                                                      ┃┃
-        v1 Sunset Warning Period (6 months) ─────────┨┃
-                                                      ┃┃
-        v1 Sunset (12 months minimum) ───────────────┨┃
-                                                      ┃┃
-        v1 Removal (18 months) ──────────────────────┛┃
-                                                       ┃
-            v3.0 Release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓┃
-                                                      ┃┃
-                v2 Deprecation Period (3 months) ────┨┃
-                                                      ┃┃
-                v2 Sunset (12 months minimum) ───────┨┃
-                                                      ┃┃
-                v2 Removal (18 months) ──────────────┛┃
-                                                       ┃
-                    v2 Active Support ─────────────────┛
+Time ────────────────────────────────────────────────>
+
+v1.0 Release ────────────────┐
+                              ├─ Deprecation (3m)
+                              ├─ Sunset Warning (6m)
+                              ├─ Sunset (12m)
+                              └─ Removal (18m)
+
+v2.0 Release ────────────────┐
+                              ├─ Deprecation (3m)
+                              ├─ Sunset (12m)
+                              └─ Removal (18m)
+
+v3.0 Release ────────────────┐
+                              └─ v2 becomes deprecated
 ```
 
 **Minimum Support Windows:**
