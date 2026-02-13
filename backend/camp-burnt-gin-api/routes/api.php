@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DiagnosisController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\EmergencyContactController;
 use App\Http\Controllers\Api\FeedingPlanController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MedicalProviderLinkController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\MedicationController;
@@ -32,6 +33,18 @@ use Illuminate\Support\Facades\Route;
 | protected by role-based middleware and model policies.
 |
 */
+
+/*
+|--------------------------------------------------------------------------
+| Health Check Routes (No Authentication Required)
+|--------------------------------------------------------------------------
+|
+| Operational health endpoints for monitoring and orchestration.
+| These routes do not require authentication for liveness/readiness probes.
+|
+*/
+Route::get('/health', [HealthController::class, 'liveness'])->name('health.liveness');
+Route::get('/ready', [HealthController::class, 'readiness'])->name('health.readiness');
 
 /*
 |--------------------------------------------------------------------------

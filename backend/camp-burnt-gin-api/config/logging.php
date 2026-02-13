@@ -73,6 +73,15 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'audit' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/audit.log'),
+            'level' => 'info',
+            'days' => 90,  // HIPAA compliance: 90-day retention for audit logs
+            'replace_placeholders' => true,
+            'permission' => 0600,  // Restrict access to audit logs
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
