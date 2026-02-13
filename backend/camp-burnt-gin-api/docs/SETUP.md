@@ -476,7 +476,7 @@ Recommended extensions:
 After setup is complete:
 
 1.  Run tests to verify: `php artisan test`
-2.  Review [CLAUDE.md](../CLAUDE.md) for development rules
+2.  Review [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines
 3.  Check [CI_CD.md](./CI_CD.md) for CI/CD workflows
 4.  Review [API Routes](#) documentation
 5.  Start coding!
