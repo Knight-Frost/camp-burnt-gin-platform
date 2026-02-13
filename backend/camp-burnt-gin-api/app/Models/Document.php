@@ -44,6 +44,20 @@ class Document extends Model
     ];
 
     /**
+     * The attributes that should be hidden for serialization.
+     *
+     * These fields contain sensitive internal storage information
+     * that should never be exposed in API responses.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'path',             // Internal storage path - security risk if exposed
+        'stored_filename',  // UUID filename - reveals storage structure
+        'disk',             // Storage backend configuration
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * Original filename is encrypted to prevent PHI disclosure through filenames.

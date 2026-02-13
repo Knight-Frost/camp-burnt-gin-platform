@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -261,11 +262,35 @@ class DocumentService
     }
 
     /**
-     * Delete a document.
+     * Delete a document with transaction safety.
+     *
+     * Ensures atomic deletion of both file and database record.
+     * Uses transaction to prevent orphaned files or database records.
      */
     public function delete(Document $document): void
     {
-        Storage::disk($document->disk)->delete($document->path);
-        $document->delete();
+        DB::transaction(function () use ($document) {
+            // Store file path before deletion
+            $filePath = $document->path;
+            $disk = $document->disk;
+
+            // Delete database record first (can be rolled back)
+            $document->delete();
+
+            // Then delete file (throws exception on failure if configured)
+            try {
+                if (! Storage::disk($disk)->delete($filePath)) {
+                    throw new \RuntimeException('File deletion failed');
+                }
+            } catch (\Exception $e) {
+                // Rollback database deletion by throwing exception
+                Log::error('File deletion failed, rolling back database deletion', [
+                    'document_id' => $document->id,
+                    'path' => $filePath,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
+        });
     }
 }
