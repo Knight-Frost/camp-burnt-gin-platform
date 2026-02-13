@@ -3,8 +3,8 @@
 
 **Document Type:** Technical Architecture Guidance
 **Intended Audience:** Frontend Development Team
-**Purpose:** Inform frontend planning, architecture, UI flows, component design, security boundaries, API contracts, and state management decisions
-**Backend Version:** Laravel 12.0 API
+**Purpose:** Define frontend planning, architecture, UI flows, component design, security boundaries, API contracts, and state management
+**Backend Version:** Laravel 12.0 REST API
 **Date:** February 13, 2026
 **Status:** Authoritative
 
@@ -12,197 +12,158 @@
 
 ## Document Alignment
 
-This frontend architecture guidance document is aligned with the following project deliverables and specifications:
-
+This document aligns with:
 - **System Requirements Specification (SRS)** — Deliverable 2
-- **Software Development & Design Document** — Deliverable 3 (CSCI475Project-Deliverable3)
-- **Interview Documentation & Project Description** — Deliverable 1
-- **Phase 1 Rubric** — CSCI 475 Phase 1 Rubric (ensuring traceability and demonstrability)
+- **Software Development & Design Document** — Deliverable 3
+- **Interview Documentation** — Deliverable 1
+- **Phase 1 Rubric** — CSCI 475
 
-The frontend must remain:
-- HIPAA compliant
-- RBAC enforced
-- MFA required
-- Mobile-first responsive
-- Modular and scalable
-- Aligned with the Requirements Traceability Matrix (RTM)
+The frontend must maintain:
+- HIPAA compliance for Protected Health Information (PHI)
+- Role-Based Access Control (RBAC) enforcement
+- Multi-Factor Authentication (MFA) requirement
+- Mobile-first responsive design
+- Modular, scalable architecture
+- Requirements Traceability Matrix (RTM) alignment
+
+---
+
+## Terminology Clarification
+
+To ensure architectural precision, the following terms have specific meanings throughout this document:
+
+| Term | Definition | Context |
+|------|------------|---------|
+| **Camp** | Organizational entity representing the Camp Burnt Gin program | System configuration |
+| **Camp Session** | Time-bound program instance with specific dates, capacity, and age requirements | Registration target |
+| **Camper** | Child participant registered by a parent/guardian for a camp session | Primary data subject |
+| **Parent/Guardian** | Legal guardian who creates camper profiles and submits applications | Primary system user |
+| **Medical Provider** | Healthcare professional with authenticated access to Protected Health Information | PHI-authorized role |
+| **Application** | Formal registration request linking a camper to a specific camp session | Core workflow entity |
+
+**Critical Distinction:** When this document references "camper management," it refers exclusively to managing child participant records, not camp organizational data. Camp and session management are administrative functions restricted to the Administrator role.
 
 ---
 
 ## 1. Executive Summary
 
-### 1.1 Backend Architecture Overview
+### 1.1 Backend Architecture
 
-The Camp Burnt Gin API backend is a comprehensive, enterprise-grade RESTful API built using Laravel 12.0 with PHP 8.2+. The system implements a robust, security-first architecture designed specifically to handle Protected Health Information (PHI) in compliance with HIPAA technical safeguards. The backend follows a strict Model-View-Controller (MVC) architectural pattern enhanced with a service layer for complex business logic, policy-based authorization, and comprehensive audit logging.
+The Camp Burnt Gin Application Software backend is an enterprise-grade RESTful API built with Laravel 12.0 and PHP 8.2+. The system implements security-first architecture for handling Protected Health Information in HIPAA-compliant environments. The architecture follows Model-View-Controller (MVC) pattern with service layer enhancement, policy-based authorization, and comprehensive audit logging.
 
-The backend has achieved 100% completion of all 114 defined requirements across functional and non-functional categories, including authentication, user management, camp management, camper registration, application workflows, medical information handling, document management, notifications, and administrative reporting. All backend APIs are production-ready, fully tested (228 automated tests with 430 assertions), and documented.
+The backend has achieved 100% completion of 114 requirements across authentication, user management, camp operations, camper registration, application workflows, medical information handling, document management, notifications, and administrative reporting. All APIs are production-ready with 228 automated tests covering 430 assertions.
 
-### 1.2 Backend Technology Stack
+**Technology Stack:**
 
 | Layer | Technology | Version | Purpose |
 |-------|-----------|---------|---------|
-| **Framework** | Laravel | 12.0 | Core application framework |
-| **Language** | PHP | 8.2+ | Server-side programming language |
-| **Authentication** | Laravel Sanctum | 4.2 | Token-based API authentication |
-| **Multi-Factor Authentication** | PragmaRX Google2FA | 9.0 | TOTP-based two-factor authentication |
-| **Database** | MySQL/MariaDB | 8.0+ | Relational data persistence |
-| **ORM** | Eloquent | Laravel 12 | Database abstraction and query building |
-| **Validation** | Form Requests | Laravel 12 | Input validation and sanitization |
-| **Authorization** | Policies + Middleware | Laravel 12 | Role-based access control enforcement |
-| **Queue System** | Laravel Queues | Laravel 12 | Asynchronous job processing |
-| **File Storage** | Laravel Storage | Laravel 12 | Document upload and retrieval |
-| **Caching** | Database/Redis | Configurable | Performance optimization layer |
-| **Email** | Laravel Mail | Laravel 12 | Notification delivery system |
-| **Testing** | PHPUnit + Pest | Latest | Automated test suite |
-
-### 1.3 Architectural Style
-
-**Primary Pattern:** RESTful API with resource-oriented design
+| Framework | Laravel | 12.0 | Core application framework |
+| Language | PHP | 8.2+ | Server-side programming |
+| Authentication | Laravel Sanctum | 4.2 | Token-based API authentication |
+| MFA | PragmaRX Google2FA | 9.0 | TOTP two-factor authentication |
+| Database | MySQL/MariaDB | 8.0+ | Data persistence |
+| ORM | Eloquent | Laravel 12 | Database abstraction |
+| Authorization | Policies + Middleware | Laravel 12 | RBAC enforcement |
+| Queue | Laravel Queues | Laravel 12 | Async job processing |
+| Storage | Laravel Storage | Laravel 12 | Document management |
+| Email | Laravel Mail | Laravel 12 | Notification delivery |
+| Testing | PHPUnit + Pest | Latest | Automated testing |
 
 **Architectural Characteristics:**
 
-| Characteristic | Implementation |
-|---------------|----------------|
-| **Stateless** | Token-based authentication eliminates server-side session state, enabling horizontal scalability |
-| **Resource-Oriented** | All entities exposed as RESTful resources with standard HTTP verbs (GET, POST, PUT, DELETE) |
-| **Layered Architecture** | Clear separation of concerns: Routes → Controllers → Services → Models → Database |
-| **Service Layer Pattern** | Complex business logic encapsulated in dedicated service classes (AuthService, DocumentService, LetterService, MedicalProviderLinkService, etc.) |
-| **Policy-Based Authorization** | Fine-grained access control using Laravel Policy classes enforcing ownership and role-based rules |
-| **Repository Pattern** | Eloquent ORM provides abstraction over database queries with relationship management |
-| **Event-Driven Notifications** | Asynchronous job queues for email notifications, document scanning, and time-consuming operations |
-| **Defense-in-Depth Security** | Multi-layered security: Transport (TLS), Authentication (Sanctum + MFA), Authorization (Policies + Middleware), Input Validation (Form Requests), Audit Logging |
+- **Stateless:** Token authentication enables horizontal scalability
+- **Resource-Oriented:** RESTful resources with standard HTTP verbs
+- **Layered:** Routes → Controllers → Services → Models → Database
+- **Service Layer:** Complex logic in dedicated service classes
+- **Policy-Based:** Fine-grained access control via Policy classes
+- **Event-Driven:** Async queues for notifications and heavy operations
+- **Defense-in-Depth:** Multi-layer security (TLS, Sanctum, MFA, Policies, Validation, Audit)
 
-**API Design Standards:**
+**API Standards:**
 
-- **Content Type:** All requests and responses use `application/json`
-- **Authentication Header:** `Authorization: Bearer {token}` for all protected endpoints
-- **Base Path:** `/api` prefix for all API routes
-- **Versioning Strategy:** Implicit v1 (no version in URL path currently; future versions would use `/api/v2` if breaking changes required)
-- **Error Format:** Standardized JSON error responses with HTTP status codes and field-level validation errors
-- **Pagination:** Cursor-based pagination for list endpoints with configurable page size (default 15 items)
-- **Rate Limiting:** Multi-tier throttling based on endpoint sensitivity (5/min for auth, 60/min for general API)
+- Content Type: `application/json`
+- Authentication: `Authorization: Bearer {token}`
+- Base Path: `/api`
+- Versioning: Implicit v1 (future: `/api/v2` for breaking changes)
+- Pagination: Laravel format, 15 items default
+- Rate Limiting: Tiered (5/min auth, 60/min general)
 
-### 1.4 Frontend Implications at a Glance
+### 1.2 Frontend Integration Requirements
 
-The frontend application must be architected to integrate seamlessly with the backend's security model, workflow requirements, and architectural constraints. Key implications include:
-
-**Authentication & Session Management:**
-- Implement secure token storage mechanism (recommend: httpOnly cookies or encrypted localStorage with additional client-side encryption)
-- Handle 60-minute automatic token expiration with graceful session timeout UX
-- Support MFA challenge flow during login with TOTP code input
-- Implement account lockout detection and countdown timer display (15-minute lockout after 5 failed attempts)
-- Provide password reset flow with token-based email verification
+**Authentication & Session:**
+- Secure token storage (memory-only recommended)
+- 60-minute token expiration with graceful timeout
+- MFA TOTP verification flow
+- Account lockout detection (15 minutes after 5 failures)
+- Password reset with email token verification
 
 **Role-Based Access Control:**
-- Implement route guards for three distinct user roles: Administrator, Parent, Medical Provider
-- Conditionally render UI components based on user role and ownership
-- Hide administrative functions from non-admin users at UI layer (not just authorization failure)
-- Scope data queries client-side to prevent unauthorized data exposure in UI state
-- Display "access denied" messages for forbidden operations with clear guidance
+- Route guards for Administrator, Parent, Medical Provider roles
+- Conditional UI rendering based on role and ownership
+- Data scoping to prevent unauthorized exposure
+- Clear access denial messaging
 
-**Application Workflow State Management:**
-- Support draft mode with auto-save functionality for incomplete applications
-- Implement digital signature capture using canvas or signature pad library
-- Track application status transitions through six states: pending, under_review, approved, rejected, waitlisted, cancelled
-- Prevent editing of final state applications (approved, rejected, cancelled) at UI layer
-- Display submission confirmation and status change notifications prominently
+**Application Workflow:**
+- Draft auto-save functionality
+- Digital signature capture
+- Six-state workflow: pending, under_review, approved, rejected, waitlisted, cancelled
+- Edit prevention for final states
+- Status transition notifications
 
-**File Upload & Document Security:**
-- Implement client-side file validation: max 10 MB, allowed types (PDF, JPG, PNG, GIF, DOC, DOCX)
-- Display upload progress with percentage and cancel functionality
-- Prevent download of unscanned documents for non-admin users (check `scan_passed` flag)
-- Handle expired medical provider links gracefully with clear error messaging
-- Support drag-and-drop file upload with visual feedback
+**File Handling:**
+- Client validation: 10 MB max, specific MIME types
+- Upload progress with cancellation
+- Security scan status checks (pending, passed, failed)
+- Medical provider link expiration handling
+- Drag-and-drop interface
 
-**Performance & Scalability:**
-- Implement lazy loading for route components to reduce initial bundle size
-- Use pagination for large data sets (applications, medical records, audit logs)
-- Handle rate limiting gracefully with retry-after countdown timers for 429 responses
-- Cache static data (camp sessions, role definitions) in client state with configurable TTL
-- Implement optimistic UI updates for form submissions to improve perceived performance
+**Performance:**
+- Route-based lazy loading
+- Pagination for large datasets
+- Rate limit handling with retry timers
+- Static data caching with TTL
+- Optimistic UI updates
 
-**Security & HIPAA Compliance:**
-- Prevent PHI from being cached in browser history or localStorage without encryption
-- Clear sensitive data from application state on logout
-- Implement automatic logout on token expiration with data wipe
-- Avoid displaying PHI in URL parameters (use POST bodies or route parameters, not query strings)
-- Log UI-triggered PHI access events for audit trail (coordinate with backend audit logging)
-- Prevent sensitive data from appearing in browser console logs or error messages visible to users
+**Security & HIPAA:**
+- No PHI in localStorage/sessionStorage
+- State clearing on logout
+- Automatic logout on expiration
+- No PHI in URLs
+- Audit event logging
+- Console log protection
 
 **Data Model Alignment:**
-- Structure frontend state to mirror backend Eloquent models: User, Camper, Application, MedicalRecord, Allergy, Medication, EmergencyContact, Document, etc.
-- Maintain referential integrity in client state (camper → applications, camper → medical records)
-- Implement form validation rules matching backend validation (field lengths, formats, required fields)
-- Support polymorphic document relationships (documents belong to camper, medical record, or application)
+- Frontend state mirrors backend Eloquent models
+- Referential integrity maintenance
+- Validation rule matching
+- Polymorphic relationship support
 
 ---
 
 ## 2. Backend API Surface Analysis
 
-This section provides a comprehensive catalog of all API endpoints exposed by the Camp Burnt Gin backend. Each endpoint is documented with HTTP method, full URL path, authentication requirements, role-based authorization, request payload structure, response format, error conditions, and HTTP status codes.
-
-### 2.1 API Base Configuration
+### 2.1 API Configuration
 
 | Configuration | Value |
 |--------------|-------|
-| **Base URL** | `/api` |
-| **Protocol** | HTTPS (enforced in production) |
-| **Content Type** | `application/json` |
-| **Authentication Method** | Bearer token via `Authorization` header |
-| **Token Format** | `Authorization: Bearer {token_id}\|{token_string}` |
-| **Character Encoding** | UTF-8 |
-| **Date/Time Format** | ISO 8601 (`YYYY-MM-DDTHH:MM:SS.ssssssZ`) |
-| **Pagination Format** | Laravel pagination with `data`, `links`, `meta` envelope |
+| Base URL | `/api` |
+| Protocol | HTTPS (production enforced) |
+| Content Type | `application/json` |
+| Authentication | Bearer token in `Authorization` header |
+| Token Format | `Bearer {token_id}\|{token_string}` |
+| Encoding | UTF-8 |
+| DateTime Format | ISO 8601 (`YYYY-MM-DDTHH:MM:SS.ssssssZ`) |
+| Pagination | Laravel format with `data`, `links`, `meta` |
 
-### 2.2 Health Check Endpoints
+### 2.2 Authentication Endpoints
 
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/health` | No | None | Liveness probe for load balancers |
-| GET | `/api/ready` | No | None | Readiness probe for orchestration |
+All authentication endpoints are public but rate-limited (5/min, 20/hour per IP).
 
-**GET /api/health**
+#### POST /api/auth/register
 
-**Request:** None
+Creates new user account (defaults to parent role).
 
-**Response (200 OK):**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-02-13T10:30:00.000000Z"
-}
-```
-
-**GET /api/ready**
-
-**Request:** None
-
-**Response (200 OK):**
-```json
-{
-  "status": "ready",
-  "database": "connected",
-  "cache": "available",
-  "timestamp": "2026-02-13T10:30:00.000000Z"
-}
-```
-
-### 2.3 Authentication Endpoints (Public)
-
-All authentication endpoints are public (no token required) but implement aggressive rate limiting to prevent abuse.
-
-**Rate Limit:** 5 requests/minute, 20 requests/hour per IP address
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| POST | `/api/auth/register` | No | None | Create new user account (defaults to parent role) |
-| POST | `/api/auth/login` | No | None | Authenticate user and receive API token |
-| POST | `/api/auth/forgot-password` | No | None | Request password reset email with token |
-| POST | `/api/auth/reset-password` | No | None | Reset password using emailed token |
-
-**POST /api/auth/register**
-
-**Request Payload:**
+**Request:**
 ```json
 {
   "name": "Jane Doe",
@@ -212,12 +173,12 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Validation Rules:**
-- `name`: required, string, max 255 characters
-- `email`: required, email format, unique in users table
-- `password`: required, min 12 characters, must contain uppercase, lowercase, number, symbol, confirmed, not compromised (checked against haveibeenpwned API)
+**Validation:**
+- `name`: required, string, max 255 chars
+- `email`: required, valid email, unique
+- `password`: required, min 12 chars, uppercase, lowercase, number, symbol, confirmed, not compromised (haveibeenpwned check)
 
-**Response (201 Created):**
+**Response (201):**
 ```json
 {
   "user": {
@@ -225,11 +186,7 @@ All authentication endpoints are public (no token required) but implement aggres
     "name": "Jane Doe",
     "email": "jane.doe@example.com",
     "role_id": 2,
-    "role": {
-      "id": 2,
-      "name": "parent",
-      "display_name": "Parent"
-    },
+    "role": {"id": 2, "name": "parent", "display_name": "Parent"},
     "mfa_enabled": false,
     "created_at": "2026-02-13T10:30:00.000000Z"
   },
@@ -237,24 +194,22 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Error Response (422 Unprocessable Entity):**
+**Error (422):**
 ```json
 {
   "message": "The given data was invalid.",
   "errors": {
     "email": ["The email has already been taken."],
-    "password": [
-      "The password must be at least 12 characters.",
-      "The password must contain at least one uppercase letter.",
-      "The password has appeared in a data leak. Please choose a different password."
-    ]
+    "password": ["The password must be at least 12 characters."]
   }
 }
 ```
 
-**POST /api/auth/login**
+#### POST /api/auth/login
 
-**Request Payload (Without MFA):**
+Authenticates user and issues token.
+
+**Request (without MFA):**
 ```json
 {
   "email": "jane.doe@example.com",
@@ -262,7 +217,7 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Request Payload (With MFA Enabled):**
+**Request (with MFA):**
 ```json
 {
   "email": "jane.doe@example.com",
@@ -271,12 +226,7 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Validation Rules:**
-- `email`: required, email format
-- `password`: required, string
-- `mfa_code`: required if user has MFA enabled, exactly 6 digits
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "user": {
@@ -284,11 +234,7 @@ All authentication endpoints are public (no token required) but implement aggres
     "name": "Jane Doe",
     "email": "jane.doe@example.com",
     "role_id": 2,
-    "role": {
-      "id": 2,
-      "name": "parent",
-      "display_name": "Parent"
-    },
+    "role": {"id": 2, "name": "parent", "display_name": "Parent"},
     "mfa_enabled": true,
     "created_at": "2026-02-13T10:30:00.000000Z"
   },
@@ -297,14 +243,14 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Error Response (401 Unauthorized - Invalid Credentials):**
+**Error (401 - Invalid Credentials):**
 ```json
 {
   "message": "Invalid credentials."
 }
 ```
 
-**Error Response (403 Forbidden - Account Locked):**
+**Error (403 - Account Locked):**
 ```json
 {
   "success": false,
@@ -314,94 +260,56 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Error Response (422 Unprocessable Entity - MFA Required):**
-```json
-{
-  "message": "MFA code is required.",
-  "errors": {
-    "mfa_code": ["The mfa code field is required when MFA is enabled."]
-  }
-}
-```
+#### POST /api/auth/forgot-password
 
-**Error Response (422 Unprocessable Entity - Invalid MFA Code):**
-```json
-{
-  "message": "Invalid MFA code.",
-  "errors": {
-    "mfa_code": ["The MFA code is invalid or has expired."]
-  }
-}
-```
+Sends password reset email.
 
-**POST /api/auth/forgot-password**
-
-**Request Payload:**
+**Request:**
 ```json
 {
   "email": "jane.doe@example.com"
 }
 ```
 
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "message": "Password reset link sent to your email address."
 }
 ```
 
-**Note:** Always returns 200 OK even if email doesn't exist (security best practice to prevent email enumeration).
+*Note: Always returns 200 to prevent email enumeration.*
 
-**POST /api/auth/reset-password**
+#### POST /api/auth/reset-password
 
-**Request Payload:**
+Resets password using emailed token.
+
+**Request:**
 ```json
 {
   "email": "jane.doe@example.com",
-  "token": "64-character-reset-token-from-email",
+  "token": "64-character-reset-token",
   "password": "NewSecurePassword123!",
   "password_confirmation": "NewSecurePassword123!"
 }
 ```
 
-**Validation Rules:**
-- `email`: required, email format, exists in users table
-- `token`: required, string, valid unexpired token
-- `password`: required, min 12 characters, uppercase, lowercase, number, symbol, confirmed, not compromised
-- Token expires after 60 minutes
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "message": "Password has been reset successfully."
 }
 ```
 
-**Error Response (422 Unprocessable Entity - Invalid/Expired Token):**
-```json
-{
-  "message": "This password reset token is invalid or has expired.",
-  "errors": {
-    "email": ["This password reset token is invalid."]
-  }
-}
-```
+### 2.3 Multi-Factor Authentication Endpoints
 
-### 2.4 Multi-Factor Authentication Endpoints (Authenticated)
+Authenticated, rate-limited: 3/min, 10/hour per user.
 
-**Rate Limit:** 3 requests/minute, 10 requests/hour per user
+#### POST /api/mfa/setup
 
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| POST | `/api/mfa/setup` | Yes | Any | Initialize MFA enrollment, receive QR code |
-| POST | `/api/mfa/verify` | Yes | Any | Verify TOTP code and enable MFA |
-| POST | `/api/mfa/disable` | Yes | Any | Disable MFA (requires password + TOTP code) |
+Initializes MFA enrollment.
 
-**POST /api/mfa/setup**
-
-**Request:** None
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "secret": "BASE32ENCODEDSECRETKEY",
@@ -410,21 +318,18 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Frontend Action:** Display QR code by encoding `qr_code_url` or provide manual entry instructions with formatted key.
+#### POST /api/mfa/verify
 
-**POST /api/mfa/verify**
+Verifies TOTP code and enables MFA.
 
-**Request Payload:**
+**Request:**
 ```json
 {
   "code": "123456"
 }
 ```
 
-**Validation Rules:**
-- `code`: required, exactly 6 digits, valid TOTP code generated from secret
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "message": "MFA has been enabled successfully.",
@@ -433,19 +338,11 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Error Response (422 Unprocessable Entity - Invalid Code):**
-```json
-{
-  "message": "The provided MFA code is invalid.",
-  "errors": {
-    "code": ["The MFA code is invalid. Please try again."]
-  }
-}
-```
+#### POST /api/mfa/disable
 
-**POST /api/mfa/disable**
+Disables MFA (requires password + TOTP).
 
-**Request Payload:**
+**Request:**
 ```json
 {
   "password": "SecurePassword123!",
@@ -453,11 +350,7 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Validation Rules:**
-- `password`: required, string, matches current password
-- `code`: required, exactly 6 digits, valid TOTP code
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "message": "MFA has been disabled successfully.",
@@ -465,65 +358,42 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Error Response (422 Unprocessable Entity):**
-```json
-{
-  "message": "The given data was invalid.",
-  "errors": {
-    "password": ["The password is incorrect."],
-    "code": ["The MFA code is invalid."]
-  }
-}
-```
+### 2.4 User Profile Endpoints
 
-### 2.5 User Profile Endpoints (Authenticated)
+#### GET /api/user
 
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/user` | Yes | Any | Get authenticated user profile |
-| POST | `/api/logout` | Yes | Any | Logout and revoke current token |
-| GET | `/api/profile` | Yes | Any | Get user profile (alias for `/api/user`) |
-| PUT | `/api/profile` | Yes | Any | Update user profile (name, email) |
-| GET | `/api/profile/prefill` | Yes | Parent | Get pre-fill data for returning applicants |
+Returns authenticated user profile.
 
-**GET /api/user**
-
-**Request:** None (token in header)
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "id": 1,
   "name": "Jane Doe",
   "email": "jane.doe@example.com",
   "role_id": 2,
-  "role": {
-    "id": 2,
-    "name": "parent",
-    "display_name": "Parent"
-  },
+  "role": {"id": 2, "name": "parent", "display_name": "Parent"},
   "mfa_enabled": true,
   "created_at": "2026-02-13T10:30:00.000000Z",
   "updated_at": "2026-02-13T10:30:00.000000Z"
 }
 ```
 
-**POST /api/logout**
+#### POST /api/logout
 
-**Request:** None
+Revokes current token.
 
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "message": "Logged out successfully."
 }
 ```
 
-**Effect:** Current API token is permanently deleted from database.
+#### PUT /api/profile
 
-**PUT /api/profile**
+Updates user profile.
 
-**Request Payload:**
+**Request:**
 ```json
 {
   "name": "Jane Marie Doe",
@@ -531,32 +401,11 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Validation Rules:**
-- `name`: required, string, max 255 characters
-- `email`: required, email format, unique (excluding current user)
+#### GET /api/profile/prefill
 
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "name": "Jane Marie Doe",
-  "email": "jane.m.doe@example.com",
-  "role_id": 2,
-  "role": {
-    "id": 2,
-    "name": "parent",
-    "display_name": "Parent"
-  },
-  "mfa_enabled": true,
-  "updated_at": "2026-02-13T11:00:00.000000Z"
-}
-```
+Returns pre-fill data for returning parents/guardians.
 
-**GET /api/profile/prefill**
-
-**Request:** None
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "campers": [
@@ -579,23 +428,19 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Purpose:** Allows returning parents to auto-populate forms with stable data from previous applications.
+### 2.5 Camp Management Endpoints
 
-### 2.6 Camp Management Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/camps` | Yes | Any | List all active camps (filtered by role) |
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/camps` | Yes | Any | List active camps |
 | GET | `/api/camps/{id}` | Yes | Any | Get camp details |
-| POST | `/api/camps` | Yes | Admin | Create new camp program |
-| PUT | `/api/camps/{id}` | Yes | Admin | Update camp program |
-| DELETE | `/api/camps/{id}` | Yes | Admin | Delete camp program |
+| POST | `/api/camps` | Yes | Admin | Create camp |
+| PUT | `/api/camps/{id}` | Yes | Admin | Update camp |
+| DELETE | `/api/camps/{id}` | Yes | Admin | Delete camp |
 
-**GET /api/camps**
+#### GET /api/camps
 
-**Request:** None
-
-**Response (200 OK):**
+**Response (200):**
 ```json
 {
   "data": [
@@ -612,170 +457,35 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**GET /api/camps/{id}**
+### 2.6 Camp Session Endpoints
 
-**Request:** None
-
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "name": "Camp Burnt Gin Summer 2026",
-  "description": "Week-long summer camp for children with special health care needs",
-  "location": "Burnt Gin Camp Facility, VA",
-  "is_active": true,
-  "created_at": "2025-11-01T10:00:00.000000Z",
-  "updated_at": "2025-11-01T10:00:00.000000Z",
-  "sessions": [
-    {
-      "id": 1,
-      "camp_id": 1,
-      "name": "Session 1 - June 2026",
-      "start_date": "2026-06-15",
-      "end_date": "2026-06-21",
-      "capacity": 50,
-      "min_age": 8,
-      "max_age": 18,
-      "registration_opens_at": "2026-02-01T00:00:00.000000Z",
-      "registration_closes_at": "2026-06-01T23:59:59.000000Z",
-      "applications_count": 23
-    }
-  ]
-}
-```
-
-**POST /api/camps** (Admin Only)
-
-**Request Payload:**
-```json
-{
-  "name": "Camp Burnt Gin Fall 2026",
-  "description": "Fall weekend retreat",
-  "location": "Burnt Gin Camp Facility, VA",
-  "is_active": true
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 2,
-  "name": "Camp Burnt Gin Fall 2026",
-  "description": "Fall weekend retreat",
-  "location": "Burnt Gin Camp Facility, VA",
-  "is_active": true,
-  "created_at": "2026-02-13T11:00:00.000000Z"
-}
-```
-
-**PUT /api/camps/{id}** (Admin Only)
-
-**Request Payload:**
-```json
-{
-  "name": "Camp Burnt Gin Fall Retreat 2026",
-  "description": "Updated description",
-  "is_active": false
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "id": 2,
-  "name": "Camp Burnt Gin Fall Retreat 2026",
-  "description": "Updated description",
-  "location": "Burnt Gin Camp Facility, VA",
-  "is_active": false,
-  "updated_at": "2026-02-13T11:05:00.000000Z"
-}
-```
-
-**DELETE /api/camps/{id}** (Admin Only)
-
-**Request:** None
-
-**Response (204 No Content)**
-
-### 2.7 Camp Session Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/sessions` | Yes | Any | List all sessions with filters |
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/sessions` | Yes | Any | List sessions with filters |
 | GET | `/api/sessions/{id}` | Yes | Any | Get session details |
-| POST | `/api/sessions` | Yes | Admin | Create new session |
+| POST | `/api/sessions` | Yes | Admin | Create session |
 | PUT | `/api/sessions/{id}` | Yes | Admin | Update session |
 | DELETE | `/api/sessions/{id}` | Yes | Admin | Delete session |
 
-**GET /api/sessions**
-
 **Query Parameters:**
-- `camp_id` (optional): Filter by camp ID
-- `is_active` (optional): Filter by active status (true/false)
+- `camp_id`: Filter by camp
+- `is_active`: Filter by status
 
-**Request Example:** `GET /api/sessions?camp_id=1&is_active=true`
+### 2.7 Camper Endpoints
 
-**Response (200 OK):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "camp_id": 1,
-      "name": "Session 1 - June 2026",
-      "start_date": "2026-06-15",
-      "end_date": "2026-06-21",
-      "capacity": 50,
-      "min_age": 8,
-      "max_age": 18,
-      "registration_opens_at": "2026-02-01T00:00:00.000000Z",
-      "registration_closes_at": "2026-06-01T23:59:59.000000Z",
-      "is_active": true,
-      "applications_count": 23,
-      "approved_count": 15,
-      "available_spots": 35
-    }
-  ]
-}
-```
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/campers` | Yes | Admin, Parent | List child participants (scoped by role) |
+| POST | `/api/campers` | Yes | Admin, Parent | Create child participant profile |
+| GET | `/api/campers/{id}` | Yes | Admin, Parent (own) | Get child participant details |
+| PUT | `/api/campers/{id}` | Yes | Admin, Parent (own) | Update child participant profile |
+| DELETE | `/api/campers/{id}` | Yes | Admin, Parent (own) | Soft delete child participant |
 
-### 2.8 Camper Endpoints
+**Note:** "Camper" refers exclusively to child participants registered by parents/guardians.
 
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/campers` | Yes | Admin, Parent | List campers (Admin: all, Parent: own) |
-| POST | `/api/campers` | Yes | Admin, Parent | Create camper profile |
-| GET | `/api/campers/{id}` | Yes | Admin, Parent (own) | Get camper details |
-| PUT | `/api/campers/{id}` | Yes | Admin, Parent (own) | Update camper |
-| DELETE | `/api/campers/{id}` | Yes | Admin, Parent (own) | Soft delete camper |
-| GET | `/api/campers/{id}/risk-summary` | Yes | Admin, Medical | Get risk assessment summary |
-| GET | `/api/campers/{id}/compliance-status` | Yes | Admin | Get compliance status |
+#### POST /api/campers
 
-**GET /api/campers** (Scoped by Role)
-
-**Request:** None
-
-**Response (200 OK) - Parent:**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "user_id": 1,
-      "first_name": "Sarah",
-      "last_name": "Doe",
-      "date_of_birth": "2015-03-15",
-      "gender": "female",
-      "age": 10,
-      "created_at": "2026-01-10T10:00:00.000000Z"
-    }
-  ]
-}
-```
-
-**POST /api/campers**
-
-**Request Payload:**
+**Request:**
 ```json
 {
   "first_name": "Sarah",
@@ -785,143 +495,43 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Validation Rules:**
-- `first_name`: required, string, max 255 characters
-- `last_name`: required, string, max 255 characters
-- `date_of_birth`: required, date format, before today
-- `gender`: nullable, string, max 50 characters
+**Validation:**
+- `first_name`: required, string, max 255
+- `last_name`: required, string, max 255
+- `date_of_birth`: required, date, before today
+- `gender`: nullable, string, max 50
 
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "user_id": 1,
-  "first_name": "Sarah",
-  "last_name": "Doe",
-  "date_of_birth": "2015-03-15",
-  "gender": "female",
-  "age": 10,
-  "created_at": "2026-02-13T11:00:00.000000Z"
-}
-```
+### 2.8 Application Endpoints
 
-**PUT /api/campers/{id}**
-
-**Request Payload:**
-```json
-{
-  "first_name": "Sarah Marie",
-  "last_name": "Doe",
-  "gender": "female"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "user_id": 1,
-  "first_name": "Sarah Marie",
-  "last_name": "Doe",
-  "date_of_birth": "2015-03-15",
-  "gender": "female",
-  "age": 10,
-  "updated_at": "2026-02-13T11:05:00.000000Z"
-}
-```
-
-**DELETE /api/campers/{id}**
-
-**Request:** None
-
-**Response (204 No Content)**
-
-**Note:** Soft delete (sets `deleted_at` timestamp) for HIPAA compliance and record retention.
-
-### 2.9 Application Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/applications` | Yes | Admin, Parent | List applications with search/filter |
-| POST | `/api/applications` | Yes | Admin, Parent | Create application (supports draft mode) |
-| GET | `/api/applications/{id}` | Yes | Admin, Parent (own) | Get application details |
-| PUT | `/api/applications/{id}` | Yes | Admin, Parent (own) | Update application |
-| POST | `/api/applications/{id}/sign` | Yes | Admin, Parent (own) | Digitally sign application |
-| POST | `/api/applications/{id}/review` | Yes | Admin | Review application (approve/reject/waitlist) |
-| DELETE | `/api/applications/{id}` | Yes | Admin | Delete application |
-
-**GET /api/applications**
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/applications` | Yes | Admin, Parent | List with filters |
+| POST | `/api/applications` | Yes | Admin, Parent | Create (draft/submit) |
+| GET | `/api/applications/{id}` | Yes | Admin, Parent (own) | Get details |
+| PUT | `/api/applications/{id}` | Yes | Admin, Parent (own) | Update |
+| POST | `/api/applications/{id}/sign` | Yes | Admin, Parent (own) | Digital signature |
+| POST | `/api/applications/{id}/review` | Yes | Admin | Approve/reject/waitlist |
+| DELETE | `/api/applications/{id}` | Yes | Admin | Delete |
 
 **Query Parameters:**
-- `status` (optional): Filter by status (pending, under_review, approved, rejected, waitlisted, cancelled)
-- `camp_session_id` (optional): Filter by session ID
-- `date_from` (optional): Filter by submission date (YYYY-MM-DD)
-- `date_to` (optional): Filter by submission date (YYYY-MM-DD)
-- `search` (optional): Search by camper name
-- `page` (optional): Page number for pagination (default: 1)
-- `per_page` (optional): Items per page (default: 15)
+- `status`: pending, under_review, approved, rejected, waitlisted, cancelled
+- `camp_session_id`: Filter by session
+- `date_from`, `date_to`: Date range
+- `search`: Child participant name search
+- `page`, `per_page`: Pagination
 
-**Request Example:** `GET /api/applications?status=under_review&camp_session_id=1&page=1`
+#### POST /api/applications
 
-**Response (200 OK):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "camper_id": 1,
-      "camp_session_id": 1,
-      "status": "under_review",
-      "is_draft": false,
-      "submitted_at": "2026-02-10T14:30:00.000000Z",
-      "reviewed_at": null,
-      "reviewed_by": null,
-      "signature_name": "Jane Doe",
-      "signed_at": "2026-02-10T14:29:00.000000Z",
-      "camper": {
-        "id": 1,
-        "first_name": "Sarah",
-        "last_name": "Doe",
-        "date_of_birth": "2015-03-15"
-      },
-      "camp_session": {
-        "id": 1,
-        "name": "Session 1 - June 2026",
-        "start_date": "2026-06-15",
-        "end_date": "2026-06-21"
-      }
-    }
-  ],
-  "links": {
-    "first": "http://api.campburntgin.org/api/applications?page=1",
-    "last": "http://api.campburntgin.org/api/applications?page=5",
-    "prev": null,
-    "next": "http://api.campburntgin.org/api/applications?page=2"
-  },
-  "meta": {
-    "current_page": 1,
-    "from": 1,
-    "last_page": 5,
-    "per_page": 15,
-    "to": 15,
-    "total": 67
-  }
-}
-```
-
-**POST /api/applications**
-
-**Request Payload (Draft):**
+**Request (Draft):**
 ```json
 {
   "camper_id": 1,
   "camp_session_id": 1,
-  "is_draft": true,
-  "notes": "Partial application - saving for later"
+  "is_draft": true
 }
 ```
 
-**Request Payload (Submission - requires signature first):**
+**Request (Submit):**
 ```json
 {
   "camper_id": 1,
@@ -930,4827 +540,4056 @@ All authentication endpoints are public (no token required) but implement aggres
 }
 ```
 
-**Validation Rules:**
-- `camper_id`: required, exists in campers table, owned by authenticated user (if parent)
-- `camp_session_id`: required, exists in camp_sessions table, registration window must be open
-- `is_draft`: boolean, default true
-- Unique constraint: one application per camper per session
+**Constraint:** One application per child participant per session.
 
-**Response (201 Created):**
+#### POST /api/applications/{id}/sign
+
+**Request:**
 ```json
 {
-  "id": 1,
-  "camper_id": 1,
-  "camp_session_id": 1,
-  "status": "pending",
-  "is_draft": true,
-  "submitted_at": null,
-  "created_at": "2026-02-13T11:00:00.000000Z"
-}
-```
-
-**Error Response (422 - Duplicate Application):**
-```json
-{
-  "message": "The given data was invalid.",
-  "errors": {
-    "camper_id": ["This camper already has an application for this session."]
-  }
-}
-```
-
-**POST /api/applications/{id}/sign**
-
-**Request Payload:**
-```json
-{
-  "signature_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "signature_data": "data:image/png;base64,iVBORw0KGgo...",
   "signature_name": "Jane Doe"
 }
 ```
 
-**Validation Rules:**
-- `signature_data`: required, string (base64 encoded image)
-- `signature_name`: required, string, max 255 characters
+#### POST /api/applications/{id}/review
 
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "signature_name": "Jane Doe",
-  "signed_at": "2026-02-13T11:05:00.000000Z",
-  "signed_ip_address": "192.168.1.100",
-  "is_signed": true
-}
-```
-
-**POST /api/applications/{id}/review** (Admin Only)
-
-**Request Payload:**
+**Request:**
 ```json
 {
   "status": "approved",
-  "notes": "Application meets all requirements. Camper medical information complete."
+  "notes": "Application approved. All requirements met."
 }
 ```
 
-**Validation Rules:**
-- `status`: required, enum (approved, rejected, waitlisted)
-- `notes`: required if status is rejected, optional otherwise
+**Status Options:** approved, rejected, waitlisted
 
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "camper_id": 1,
-  "camp_session_id": 1,
-  "status": "approved",
-  "is_draft": false,
-  "submitted_at": "2026-02-10T14:30:00.000000Z",
-  "reviewed_at": "2026-02-13T11:10:00.000000Z",
-  "reviewed_by": 5,
-  "notes": "Application meets all requirements. Camper medical information complete.",
-  "reviewer": {
-    "id": 5,
-    "name": "Admin User",
-    "email": "admin@campburntgin.org"
-  }
-}
-```
+### 2.9 Medical Record Endpoints
 
-**Side Effects:**
-- Status change to "approved" triggers acceptance letter generation and email notification
-- Status change to "rejected" triggers rejection letter generation and email notification
-- Audit log entry created for review action
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/medical-records` | Yes | Admin, Medical, Parent | List records (scoped) |
+| POST | `/api/medical-records` | Yes | Admin, Medical, Parent | Create record |
+| GET | `/api/medical-records/{id}` | Yes | Admin, Medical, Parent (own) | Get details |
+| PUT | `/api/medical-records/{id}` | Yes | Admin, Medical, Parent (own) | Update record |
+| DELETE | `/api/medical-records/{id}` | Yes | Admin | Delete record |
 
-### 2.10 Medical Record Endpoints
+### 2.10 Allergy Endpoints
 
-**Role Restrictions:** Admin (full CRUD), Parent (own campers only), Medical (read-only + update)
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/allergies` | Yes | Admin, Medical, Parent | List allergies (scoped) |
+| POST | `/api/allergies` | Yes | Admin, Medical, Parent | Create allergy |
+| GET | `/api/allergies/{id}` | Yes | Admin, Medical, Parent (own) | Get details |
+| PUT | `/api/allergies/{id}` | Yes | Admin, Medical, Parent (own) | Update |
+| DELETE | `/api/allergies/{id}` | Yes | Admin, Parent (own) | Delete |
 
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/medical-records` | Yes | Admin, Medical | List all medical records |
-| POST | `/api/medical-records` | Yes | Admin, Parent | Create medical record |
-| GET | `/api/medical-records/{id}` | Yes | Admin, Parent (own), Medical | Get medical record |
-| PUT | `/api/medical-records/{id}` | Yes | Admin, Parent (own), Medical | Update medical record |
-| DELETE | `/api/medical-records/{id}` | Yes | Admin | Delete medical record |
+**Note:** Medical providers can create/update but not delete allergies.
 
-**GET /api/medical-records**
+### 2.11 Medication Endpoints
 
-**Response (200 OK):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "camper_id": 1,
-      "physician_name": "Dr. Emily Smith",
-      "physician_phone": "555-0200",
-      "insurance_provider": "Blue Cross Blue Shield",
-      "insurance_policy_number": "ABC123456789",
-      "special_needs": "Requires assistance with mobility",
-      "dietary_restrictions": "Gluten-free diet",
-      "camper": {
-        "id": 1,
-        "first_name": "Sarah",
-        "last_name": "Doe"
-      }
-    }
-  ]
-}
-```
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/medications` | Yes | Admin, Medical, Parent | List medications (scoped) |
+| POST | `/api/medications` | Yes | Admin, Medical, Parent | Create medication |
+| GET | `/api/medications/{id}` | Yes | Admin, Medical, Parent (own) | Get details |
+| PUT | `/api/medications/{id}` | Yes | Admin, Medical, Parent (own) | Update |
+| DELETE | `/api/medications/{id}` | Yes | Admin, Parent (own) | Delete |
 
-**POST /api/medical-records**
+**Note:** Medical providers can create/update but not delete medications.
 
-**Request Payload:**
-```json
-{
-  "camper_id": 1,
-  "physician_name": "Dr. Emily Smith",
-  "physician_phone": "555-0200",
-  "insurance_provider": "Blue Cross Blue Shield",
-  "insurance_policy_number": "ABC123456789",
-  "special_needs": "Requires assistance with mobility",
-  "dietary_restrictions": "Gluten-free diet"
-}
-```
+### 2.12 Emergency Contact Endpoints
 
-**Validation Rules:**
-- `camper_id`: required, exists, one medical record per camper (unique constraint)
-- `physician_name`: nullable, string, max 255
-- `physician_phone`: nullable, string, max 20
-- `insurance_provider`: nullable, string, max 255
-- `insurance_policy_number`: nullable, string, max 100
-- `special_needs`: nullable, text, max 5000 characters
-- `dietary_restrictions`: nullable, text, max 2000 characters
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "camper_id": 1,
-  "physician_name": "Dr. Emily Smith",
-  "physician_phone": "555-0200",
-  "insurance_provider": "Blue Cross Blue Shield",
-  "insurance_policy_number": "ABC123456789",
-  "special_needs": "Requires assistance with mobility",
-  "dietary_restrictions": "Gluten-free diet",
-  "created_at": "2026-02-13T11:15:00.000000Z"
-}
-```
-
-### 2.11 Allergy Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/allergies` | Yes | Admin, Medical | List all allergies |
-| POST | `/api/allergies` | Yes | Admin, Parent, Medical | Create allergy |
-| GET | `/api/allergies/{id}` | Yes | Admin, Parent (own), Medical | Get allergy details |
-| PUT | `/api/allergies/{id}` | Yes | Admin, Parent (own), Medical | Update allergy |
-| DELETE | `/api/allergies/{id}` | Yes | Admin, Parent (own) | Delete allergy |
-
-**POST /api/allergies**
-
-**Request Payload:**
-```json
-{
-  "camper_id": 1,
-  "allergen": "Peanuts",
-  "severity": "life_threatening",
-  "reaction": "Anaphylaxis, throat swelling, difficulty breathing",
-  "treatment": "EpiPen administered immediately, call 911"
-}
-```
-
-**Validation Rules:**
-- `camper_id`: required, exists in campers table
-- `allergen`: required, string, max 255
-- `severity`: required, enum (mild, moderate, severe, life_threatening)
-- `reaction`: nullable, text, max 2000 characters
-- `treatment`: nullable, text, max 2000 characters
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "camper_id": 1,
-  "allergen": "Peanuts",
-  "severity": "life_threatening",
-  "reaction": "Anaphylaxis, throat swelling, difficulty breathing",
-  "treatment": "EpiPen administered immediately, call 911",
-  "created_at": "2026-02-13T11:20:00.000000Z"
-}
-```
-
-### 2.12 Medication Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/medications` | Yes | Admin, Medical | List all medications |
-| POST | `/api/medications` | Yes | Admin, Parent, Medical | Create medication |
-| GET | `/api/medications/{id}` | Yes | Admin, Parent (own), Medical | Get medication details |
-| PUT | `/api/medications/{id}` | Yes | Admin, Parent (own), Medical | Update medication |
-| DELETE | `/api/medications/{id}` | Yes | Admin, Parent (own) | Delete medication |
-
-**POST /api/medications**
-
-**Request Payload:**
-```json
-{
-  "camper_id": 1,
-  "name": "Albuterol Inhaler",
-  "dosage": "2 puffs",
-  "frequency": "Every 4-6 hours as needed",
-  "purpose": "Asthma control",
-  "prescribing_physician": "Dr. Emily Smith",
-  "notes": "Use before physical activity"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "camper_id": 1,
-  "name": "Albuterol Inhaler",
-  "dosage": "2 puffs",
-  "frequency": "Every 4-6 hours as needed",
-  "purpose": "Asthma control",
-  "prescribing_physician": "Dr. Emily Smith",
-  "notes": "Use before physical activity",
-  "created_at": "2026-02-13T11:25:00.000000Z"
-}
-```
-
-### 2.13 Emergency Contact Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/emergency-contacts` | Yes | Admin, Medical | List all contacts |
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/emergency-contacts` | Yes | Admin, Medical, Parent | List contacts (scoped) |
 | POST | `/api/emergency-contacts` | Yes | Admin, Parent | Create contact |
-| GET | `/api/emergency-contacts/{id}` | Yes | Admin, Parent (own), Medical | Get contact details |
-| PUT | `/api/emergency-contacts/{id}` | Yes | Admin, Parent (own) | Update contact |
-| DELETE | `/api/emergency-contacts/{id}` | Yes | Admin, Parent (own) | Delete contact |
+| GET | `/api/emergency-contacts/{id}` | Yes | Admin, Medical, Parent (own) | Get details |
+| PUT | `/api/emergency-contacts/{id}` | Yes | Admin, Parent (own) | Update |
+| DELETE | `/api/emergency-contacts/{id}` | Yes | Admin, Parent (own) | Delete |
 
-**POST /api/emergency-contacts**
+**Note:** Medical providers have read-only access.
 
-**Request Payload:**
-```json
-{
-  "camper_id": 1,
-  "name": "John Doe",
-  "relationship": "Father",
-  "primary_phone": "555-0100",
-  "secondary_phone": "555-0101",
-  "email": "john.doe@example.com",
-  "is_primary": true,
-  "is_authorized_pickup": true
-}
-```
+### 2.13 Document Endpoints
 
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "camper_id": 1,
-  "name": "John Doe",
-  "relationship": "Father",
-  "primary_phone": "555-0100",
-  "secondary_phone": "555-0101",
-  "email": "john.doe@example.com",
-  "is_primary": true,
-  "is_authorized_pickup": true,
-  "created_at": "2026-02-13T11:30:00.000000Z"
-}
-```
-
-### 2.14 Document Endpoints
-
-**Rate Limit:** Upload: 5/minute, 50/hour; Download: 10/minute, 100/hour
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/documents` | Yes | Admin, Parent (own) | List documents |
-| POST | `/api/documents` | Yes | Admin, Parent | Upload document (multipart/form-data) |
-| GET | `/api/documents/{id}` | Yes | Admin, Parent (own) | Get document metadata |
-| GET | `/api/documents/{id}/download` | Yes | Admin, Parent (own) | Download document file |
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/documents` | Yes | Admin, Parent | List documents |
+| POST | `/api/documents` | Yes | Admin, Parent | Upload document |
+| GET | `/api/documents/{id}` | Yes | Admin, Parent (own) | Get metadata |
+| GET | `/api/documents/{id}/download` | Yes | Admin, Parent (own) | Download file |
 | DELETE | `/api/documents/{id}` | Yes | Admin, Parent (own) | Delete document |
 
-**POST /api/documents**
+**Upload Constraints:**
+- Max size: 10 MB
+- Allowed: PDF, JPG, PNG, GIF, DOC, DOCX
+- Blocked: EXE, BAT, CMD, SH, PHP, JS, VBS, COM, PIF, SCR
 
-**Content-Type:** `multipart/form-data`
+**Security Scanning:**
+- Status: pending, passed, failed
+- Downloads blocked if scan failed (non-admin users)
 
-**Request Payload:**
-```
-file: [binary file data]
-documentable_type: "App\Models\Camper"
-documentable_id: 1
-document_type: "medical"
-```
+### 2.14 Medical Provider Link Endpoints
 
-**Validation Rules:**
-- `file`: required, max 10 MB (10,485,760 bytes), mimes: pdf, jpg, jpeg, png, gif, doc, docx
-- `documentable_type`: required, string (polymorphic model class)
-- `documentable_id`: required, integer (polymorphic model ID)
-- `document_type`: optional, string (category: medical, legal, identification)
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/medical-provider-links` | Yes | Admin, Parent | List links |
+| POST | `/api/medical-provider-links` | Yes | Admin, Parent | Create secure link |
+| GET | `/api/medical-provider-links/{token}/validate` | No | None | Validate link |
+| POST | `/api/medical-provider-links/{token}/submit` | No | None | Submit via link |
+| POST | `/api/medical-provider-links/{id}/revoke` | Yes | Admin, Parent (own) | Revoke link |
 
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "documentable_type": "App\\Models\\Camper",
-  "documentable_id": 1,
-  "uploaded_by": 1,
-  "document_type": "medical",
-  "original_filename": "medical_form.pdf",
-  "stored_filename": "a1b2c3d4-e5f6-7890-abcd-ef1234567890.pdf",
-  "mime_type": "application/pdf",
-  "file_size": 2048576,
-  "is_scanned": false,
-  "scan_passed": null,
-  "created_at": "2026-02-13T11:35:00.000000Z"
-}
-```
+**Link Properties:**
+- 72-hour expiration
+- Single-use (consumed on first submission)
+- Secure token-based access
+- Email delivery to medical provider
 
-**GET /api/documents/{id}/download**
+### 2.15 Report Endpoints
 
-**Request:** None
-
-**Response (200 OK):**
-- **Content-Type:** Original file MIME type
-- **Content-Disposition:** `attachment; filename="original_filename.pdf"`
-- **Body:** Binary file data
-
-**Authorization Check:** User must be admin or own the documentable entity. Non-admin users cannot download unscanned files (`scan_passed` must be `true`).
-
-**Error Response (403 Forbidden - Unscanned File):**
-```json
-{
-  "message": "This document has not been security scanned yet. Please try again later."
-}
-```
-
-### 2.15 Medical Provider Link Endpoints
-
-**Rate Limit:** 10/minute, 100/hour
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/provider-links` | Yes | Admin, Parent (own) | List provider links |
-| POST | `/api/provider-links` | Yes | Admin, Parent | Create provider link |
-| GET | `/api/provider-links/{id}` | Yes | Admin, Parent (own) | Get link details |
-| POST | `/api/provider-links/{id}/revoke` | Yes | Admin, Parent (own) | Revoke link |
-| POST | `/api/provider-links/{id}/resend` | Yes | Admin | Regenerate and resend link |
-
-**POST /api/provider-links**
-
-**Request Payload:**
-```json
-{
-  "camper_id": 1,
-  "provider_email": "doctor@example.com",
-  "message": "Please complete the medical information form for camp registration."
-}
-```
-
-**Validation Rules:**
-- `camper_id`: required, exists, owned by authenticated user (if parent)
-- `provider_email`: required, email format
-- `message`: optional, string, max 1000 characters
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "camper_id": 1,
-  "provider_email": "doctor@example.com",
-  "token": "64-character-cryptographically-secure-token",
-  "expires_at": "2026-02-16T11:40:00.000000Z",
-  "is_used": false,
-  "revoked_at": null,
-  "created_at": "2026-02-13T11:40:00.000000Z",
-  "link_url": "https://app.campburntgin.org/provider/64-character-token"
-}
-```
-
-**Side Effect:** Email sent to provider with secure link and parent's message.
-
-### 2.16 Medical Provider Access Endpoints (Public with Token)
-
-**Rate Limit:** 2/minute, 10/hour per IP
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/provider-access/{token}` | No | None | Access provider form (token validation) |
-| POST | `/api/provider-access/{token}/submit` | No | None | Submit medical data via provider link |
-| POST | `/api/provider-access/{token}/upload` | No | None | Upload document via provider link |
-
-**GET /api/provider-access/{token}**
-
-**Request:** None (token in URL path)
-
-**Response (200 OK - Valid Token):**
-```json
-{
-  "camper": {
-    "id": 1,
-    "first_name": "Sarah",
-    "last_name": "Doe",
-    "date_of_birth": "2015-03-15"
-  },
-  "expires_at": "2026-02-16T11:40:00.000000Z",
-  "hours_remaining": 71
-}
-```
-
-**Error Response (410 Gone - Expired/Used/Revoked Token):**
-```json
-{
-  "message": "This link has expired, been used, or has been revoked."
-}
-```
-
-**POST /api/provider-access/{token}/submit**
-
-**Request Payload:**
-```json
-{
-  "medical_record": {
-    "physician_name": "Dr. Emily Smith",
-    "physician_phone": "555-0200",
-    "insurance_provider": "Blue Cross Blue Shield",
-    "insurance_policy_number": "ABC123456789",
-    "special_needs": "Requires assistance with mobility",
-    "dietary_restrictions": "Gluten-free diet"
-  },
-  "allergies": [
-    {
-      "allergen": "Peanuts",
-      "severity": "life_threatening",
-      "reaction": "Anaphylaxis",
-      "treatment": "EpiPen immediately"
-    }
-  ],
-  "medications": [
-    {
-      "name": "Albuterol Inhaler",
-      "dosage": "2 puffs",
-      "frequency": "Every 4-6 hours as needed",
-      "purpose": "Asthma control"
-    }
-  ]
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "message": "Medical information submitted successfully. Thank you for your contribution.",
-  "link_used": true
-}
-```
-
-**Side Effect:**
-- Medical record created/updated
-- Allergies and medications created
-- Link marked as used (`is_used = true`, `used_at = timestamp`)
-- Parent and admin notified via email
-- Audit log entry created
-
-### 2.17 Notification Endpoints
-
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/notifications` | Yes | Any | List user notifications (with unread filter) |
-| PUT | `/api/notifications/{id}/read` | Yes | Any | Mark notification as read |
-| PUT | `/api/notifications/read-all` | Yes | Any | Mark all notifications as read |
-
-**GET /api/notifications**
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/reports/applications` | Yes | Admin | Applications summary |
+| GET | `/api/reports/accepted-applicants` | Yes | Admin | Accepted list |
+| GET | `/api/reports/rejected-applicants` | Yes | Admin | Rejected list |
+| GET | `/api/reports/mailing-labels` | Yes | Admin | Mailing labels |
+| GET | `/api/reports/id-labels` | Yes | Admin | ID labels |
 
 **Query Parameters:**
-- `unread` (optional): Filter unread notifications (true/false)
+- `camp_session_id`: Filter by session
+- `format`: pdf, csv, excel
 
-**Response (200 OK):**
-```json
-{
-  "data": [
-    {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "type": "App\\Notifications\\ApplicationStatusChangedNotification",
-      "data": {
-        "application_id": 1,
-        "old_status": "under_review",
-        "new_status": "approved",
-        "message": "Your application for Sarah Doe has been approved!"
-      },
-      "read_at": null,
-      "created_at": "2026-02-13T11:10:00.000000Z"
-    }
-  ]
-}
+### 2.16 Notification Endpoints
+
+| Method | Endpoint | Auth | Role | Description |
+|--------|----------|------|------|-------------|
+| GET | `/api/notifications` | Yes | Any | List notifications |
+| POST | `/api/notifications/{id}/mark-read` | Yes | Any | Mark as read |
+| POST | `/api/notifications/mark-all-read` | Yes | Any | Mark all read |
+
+**Notification Types:**
+- application_submitted
+- application_reviewed
+- document_uploaded
+- medical_provider_link_accessed
+- session_reminder
+- account_activity
+
+**Delivery Channels:**
+- Email (always enabled)
+- In-app (polled via API)
+
+### 2.17 API Versioning Strategy
+
+#### 2.17.1 Versioning Mechanism
+
+The Camp Burnt Gin API uses **URL-based versioning** for explicit version management and clear deprecation boundaries.
+
+**Current State:** Implicit v1 (no version prefix)
+- All endpoints: `/api/resource`
+- Assumed version: 1.0
+
+**Future State:** Explicit versioning for v2+
+- Version 2 endpoints: `/api/v2/resource`
+- Legacy v1 endpoints: `/api/resource` (maintained during transition)
+
+**Rationale:** URL-based versioning provides:
+- Clear visual indication of API version in client code
+- Simplified proxy/gateway routing rules
+- Explicit deprecation timeline (URL remains but returns deprecation warnings)
+- Easier client migration planning
+
+#### 2.17.2 Versioning Policy Matrix
+
+| Change Type | Versioning Impact | Strategy | Example |
+|-------------|-------------------|----------|---------|
+| **Additive (non-breaking)** | No version increment | Add to current version | New optional field in response |
+| **Modification (breaking)** | Major version increment | Create new version, maintain old | Change field type from `string` to `int` |
+| **Removal (breaking)** | Major version increment | Create new version, deprecate old | Remove deprecated field |
+| **Behavioral change** | Major version increment | Create new version | Change validation rules |
+| **Bug fix** | No version increment | Patch current version | Fix incorrect calculation |
+
+**Breaking Change Definition:**
+- Removing or renaming a field
+- Changing field data type
+- Changing response structure
+- Modifying status code behavior
+- Altering authentication requirements
+- Changing error response format
+
+#### 2.17.3 Deprecation Strategy
+
+| Phase | Timeline | Backend Behavior | Frontend Impact |
+|-------|----------|------------------|-----------------|
+| **1. Announcement** | T+0 | Document deprecation, set sunset date | No impact - plan migration |
+| **2. Warning Period** | T+3 months | Add `Deprecation: true` header to responses | Display console warnings in dev mode |
+| **3. Sunset Warning** | T+6 months | Add `Sunset: <date>` header (RFC 8594) | Display in-app migration prompts |
+| **4. Sunset** | T+12 months | Return `HTTP 410 Gone` for deprecated endpoints | Force client upgrade |
+| **5. Removal** | T+18 months | Remove endpoint code from codebase | N/A (clients must have migrated) |
+
+**Example Deprecation Response Headers:**
+```http
+HTTP/1.1 200 OK
+Deprecation: true
+Sunset: Sat, 31 Dec 2027 23:59:59 GMT
+Link: </api/v2/campers>; rel="alternate"; type="application/json"
+Warning: 299 - "This endpoint is deprecated. Migrate to /api/v2/campers before Dec 2027."
 ```
 
-**PUT /api/notifications/{id}/read**
+#### 2.17.4 Breaking Change Policy
 
-**Request:** None
+**When Breaking Changes Are Allowed:**
+- Major version releases only (v1 → v2, v2 → v3)
+- After 3-month public announcement period
+- With migration guide published
+- With parallel version support (minimum 12 months)
 
-**Response (200 OK):**
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "read_at": "2026-02-13T12:00:00.000000Z"
-}
+**When Breaking Changes Are Prohibited:**
+- Within minor versions (v1.1 → v1.2)
+- Within patch versions (v1.1.1 → v1.1.2)
+- Without deprecation warnings
+- For actively used endpoints (>10% traffic)
+
+**Migration Approach:**
+1. Publish v2 endpoints with breaking changes
+2. Maintain v1 endpoints unchanged (deprecation warnings only)
+3. Provide automated migration tooling where feasible
+4. Monitor v1 traffic until < 5% of total
+5. Sunset v1 endpoints after 12-month minimum support window
+
+#### 2.17.5 Backward Compatibility Guarantees
+
+| Version | Guarantee | Support Window | EOL Policy |
+|---------|-----------|----------------|------------|
+| **Current (v1)** | No breaking changes within v1.x | Until v2.0 sunsets v1 | Minimum 12 months after v2 release |
+| **Previous Major (v2 after v3 release)** | Security patches only | 12 months | Hard cutoff after 18 months |
+| **Legacy (v1 after v2 sunset)** | No support | 0 months | Immediate 410 Gone response |
+
+**Frontend Impact:**
+- Frontend must specify API version explicitly (via URL or header)
+- Frontend should monitor response headers for deprecation warnings
+- Frontend should implement version-agnostic abstractions (API service layer)
+
+#### 2.17.6 Minimum Support Window
+
+**API Version Support Lifecycle:**
+
+```
+v1.0 Release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                                                      ┃
+    v2.0 Release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓┃
+                                                      ┃┃
+        v1 Deprecation Period (3 months) ────────────┨┃
+                                                      ┃┃
+        v1 Sunset Warning Period (6 months) ─────────┨┃
+                                                      ┃┃
+        v1 Sunset (12 months minimum) ───────────────┨┃
+                                                      ┃┃
+        v1 Removal (18 months) ──────────────────────┛┃
+                                                       ┃
+            v3.0 Release ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓┃
+                                                      ┃┃
+                v2 Deprecation Period (3 months) ────┨┃
+                                                      ┃┃
+                v2 Sunset (12 months minimum) ───────┨┃
+                                                      ┃┃
+                v2 Removal (18 months) ──────────────┛┃
+                                                       ┃
+                    v2 Active Support ─────────────────┛
 ```
 
-### 2.18 Report Endpoints (Admin Only)
+**Minimum Support Windows:**
+- **Active Support:** Indefinite (until next major version release)
+- **Deprecation Warning:** Minimum 3 months
+- **Sunset Warning:** Minimum 6 months
+- **Parallel Support:** Minimum 12 months after new version release
+- **Grace Period:** Additional 6 months before hard removal (18 months total)
 
-| Method | Endpoint | Auth Required | Role Required | Description |
-|--------|----------|---------------|---------------|-------------|
-| GET | `/api/reports/applications` | Yes | Admin | Generate applications report with filters |
-| GET | `/api/reports/accepted` | Yes | Admin | List accepted applicants |
-| GET | `/api/reports/rejected` | Yes | Admin | List rejected applicants |
-| GET | `/api/reports/mailing-labels` | Yes | Admin | Generate mailing label data |
-| GET | `/api/reports/id-labels` | Yes | Admin | Generate ID badge label data |
+#### 2.17.7 Frontend Version Detection
 
-**GET /api/reports/applications**
+**Recommended Implementation:**
+```typescript
+// api/config.ts
+export const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-**Query Parameters:**
-- `status` (optional): Filter by application status
-- `camp_session_id` (optional): Filter by session ID
-- `date_from` (optional): Filter by submission date
-- `date_to` (optional): Filter by submission date
-
-**Response (200 OK):**
-```json
-{
-  "summary": {
-    "total_applications": 67,
-    "pending": 12,
-    "under_review": 20,
-    "approved": 25,
-    "rejected": 5,
-    "waitlisted": 5
-  },
-  "applications": [
-    {
-      "id": 1,
-      "camper_name": "Sarah Doe",
-      "session_name": "Session 1 - June 2026",
-      "status": "approved",
-      "submitted_at": "2026-02-10T14:30:00.000000Z",
-      "reviewed_at": "2026-02-13T11:10:00.000000Z"
-    }
-  ]
-}
-```
-
-**GET /api/reports/id-labels**
-
-**Response (200 OK):**
-```json
-{
-  "labels": [
-    {
-      "camper_id": 1,
-      "full_name": "Sarah Doe",
-      "session_name": "Session 1 - June 2026",
-      "severe_allergies": ["Peanuts (life-threatening)"],
-      "emergency_contact": "John Doe - 555-0100"
-    }
-  ]
-}
-```
-
-### 2.19 Common HTTP Status Codes
-
-| Code | Status | Usage |
-|------|--------|-------|
-| 200 | OK | Successful GET, PUT, POST request with response body |
-| 201 | Created | Successful POST request creating a new resource |
-| 204 | No Content | Successful DELETE request with no response body |
-| 400 | Bad Request | Malformed request syntax or invalid JSON |
-| 401 | Unauthorized | Authentication failed, missing token, or expired token |
-| 403 | Forbidden | Authenticated but not authorized (role/ownership check failed) |
-| 404 | Not Found | Resource does not exist |
-| 409 | Conflict | Duplicate resource or conflicting state (e.g., duplicate application) |
-| 410 | Gone | Resource permanently deleted or link expired |
-| 422 | Unprocessable Entity | Validation failed, invalid input data |
-| 429 | Too Many Requests | Rate limit exceeded |
-| 500 | Internal Server Error | Unexpected server error |
-
-### 2.20 Standard Error Response Format
-
-All error responses follow a consistent JSON structure:
-
-**Validation Error (422):**
-```json
-{
-  "message": "The given data was invalid.",
-  "errors": {
-    "field_name": [
-      "The field name is required.",
-      "The field name must be at least 3 characters."
-    ],
-    "another_field": [
-      "The another field must be a valid email address."
-    ]
+// For v1 (current): /api/campers
+// For v2 (future): /api/v2/campers
+export const getVersionedUrl = (endpoint: string): string => {
+  if (API_VERSION === 'v1') {
+    return `${API_BASE_URL}${endpoint}`;
   }
-}
-```
+  return `${API_BASE_URL}/${API_VERSION}${endpoint}`;
+};
 
-**Authentication Error (401):**
-```json
-{
-  "message": "Unauthenticated."
-}
-```
+// Deprecation warning interceptor
+axios.interceptors.response.use(response => {
+  const deprecation = response.headers['deprecation'];
+  const sunset = response.headers['sunset'];
 
-**Authorization Error (403):**
-```json
-{
-  "message": "This action is unauthorized."
-}
-```
+  if (deprecation && import.meta.env.DEV) {
+    console.warn(`API Deprecation Warning: ${response.config.url}`);
+    if (sunset) {
+      console.warn(`Sunset Date: ${sunset}`);
+    }
+  }
 
-**Resource Not Found (404):**
-```json
-{
-  "message": "Resource not found."
-}
-```
-
-**Rate Limit Exceeded (429):**
-```json
-{
-  "message": "Too Many Attempts."
-}
-```
-
-**Rate Limit Headers:**
-```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 0
-X-RateLimit-Reset: 1707666240
-Retry-After: 42
+  return response;
+});
 ```
 
 ---
 
 ## 3. Authentication & Session Architecture
 
-### 3.1 Authentication Implementation: Laravel Sanctum
-
-The backend implements token-based authentication using Laravel Sanctum 4.2, providing stateless API authentication suitable for single-page applications (SPAs) and mobile applications.
-
-**Core Mechanism:** Personal Access Tokens
-
-| Aspect | Implementation |
-|--------|----------------|
-| **Token Generation** | Cryptographically secure random token generated on successful login |
-| **Token Format** | `{token_id}\|{random_string}` (e.g., `1\|KpPJQm8tGqHZ5wNrYxV3LbC7DfMj4sRt`) |
-| **Token Storage (Server)** | SHA-256 hash stored in `personal_access_tokens` table |
-| **Token Storage (Client)** | Plain-text token provided once and never recoverable server-side |
-| **Token Transmission** | `Authorization: Bearer {token}` header on all authenticated requests |
-| **Token Expiration** | 60 minutes from creation (configurable in `config/sanctum.php`) |
-| **Token Abilities** | All tokens have `["*"]` abilities (full API access for authenticated user) |
-
-### 3.2 Authentication Flow Architecture
-
-**Registration Flow:**
+### 3.1 Token-Based Authentication Flow
 
 ```
-1. Frontend collects user registration data
-   ↓
-2. POST /api/auth/register
-   - name (required, max 255)
-   - email (required, unique, valid email format)
-   - password (required, min 12 chars, complexity rules, not compromised)
-   - password_confirmation (required, must match password)
-   ↓
-3. Backend validation:
-   - Email uniqueness check
-   - Password complexity validation (uppercase, lowercase, number, symbol)
-   - haveibeenpwned API check for compromised passwords
-   ↓
-4. If valid:
-   - Password hashed with bcrypt (cost factor 12)
-   - User created with role_id = 2 (parent) by default
-   - API token generated and returned
-   ↓
-5. Frontend receives:
-   - User object (id, name, email, role)
-   - API token (store securely)
-   ↓
-6. Frontend stores token and redirects to dashboard
+1. User submits credentials → POST /api/auth/login
+2. Backend validates credentials
+3. If MFA enabled → Backend requires mfa_code
+4. Backend issues token (60-minute TTL)
+5. Frontend stores token in memory (Redux store)
+6. All subsequent requests include: Authorization: Bearer {token}
+7. Token expires after 60 minutes (HIPAA requirement)
+8. Frontend rotates token proactively at 55 minutes (revoke old, issue new)
+9. On logout → POST /api/logout revokes token
 ```
 
-**Login Flow (Without MFA):**
+**Note:** Token "refresh" is implemented as token rotation (revoke + reissue) via custom endpoint. See Section 3.6 for detailed lifecycle documentation.
+
+### 3.2 Multi-Factor Authentication Flow
+
+**Initial Setup (First Login):**
 
 ```
-1. Frontend collects credentials
-   ↓
-2. POST /api/auth/login
-   - email
-   - password
-   ↓
-3. Backend validation:
-   - User lookup by email
-   - Password verification (bcrypt comparison)
-   - Account lockout check (lockout_until > now)
-   - Failed login attempt tracking
-   ↓
-4. If valid and MFA not enabled:
-   - Generate new API token
-   - Set expiration = now + 60 minutes
-   - Reset failed_login_attempts to 0
-   - Return user + token
-   ↓
-5. If invalid:
-   - Increment failed_login_attempts
-   - If attempts >= 5: set lockout_until = now + 15 minutes
-   - Return 401 or 403 (if locked)
-   ↓
-6. Frontend stores token and navigates to dashboard
+1. User logs in with credentials
+2. Backend response indicates mfa_enabled: false
+3. Frontend redirects to MFA setup
+4. Call POST /api/mfa/setup → Receive QR code
+5. Display QR code for user to scan with authenticator app
+6. User enters 6-digit TOTP code
+7. Call POST /api/mfa/verify {code: "123456"}
+8. Backend enables MFA, returns confirmation
+9. Frontend proceeds to dashboard
 ```
 
-**Login Flow (With MFA Enabled):**
+**Subsequent Logins:**
 
 ```
-1. Frontend collects credentials
-   ↓
-2. POST /api/auth/login
-   - email
-   - password
-   ↓
-3. Backend checks MFA status:
-   - If mfa_enabled = true and mfa_code not provided
-   - Return 422 with "MFA code required"
-   ↓
-4. Frontend displays MFA code input (6-digit TOTP)
-   ↓
-5. User enters code from authenticator app
-   ↓
-6. POST /api/auth/login
-   - email
-   - password
-   - mfa_code (6 digits)
-   ↓
-7. Backend validates TOTP code:
-   - Decrypt mfa_secret from database
-   - Verify code against current time window (30-second intervals)
-   - Allow ±1 window for clock skew tolerance
-   ↓
-8. If TOTP valid:
-   - Generate API token
-   - Return user + token
-   ↓
-9. If TOTP invalid:
-   - Return 422 "Invalid MFA code"
-   - Do NOT increment failed login attempts for invalid TOTP
-   ↓
-10. Frontend stores token and navigates to dashboard
+1. User submits email + password
+2. Backend requires MFA code (returns error if missing)
+3. User enters 6-digit code from authenticator app
+4. Frontend submits POST /api/auth/login {email, password, mfa_code}
+5. Backend validates TOTP code
+6. Backend issues token if valid
+7. Frontend stores token and proceeds
 ```
 
-**Token Expiration & Session Timeout:**
+### 3.3 Session Timeout Implementation
+
+**HIPAA Requirement:** 60-minute automatic logout
+
+**Frontend Implementation:**
 
 ```
-1. Token created with expires_at = now + 60 minutes
-   ↓
-2. Every API request checks:
-   - Token hash matches database
-   - expires_at > current time
-   ↓
-3. If expired:
-   - Return 401 Unauthorized
-   - Delete expired token from database
-   ↓
-4. Frontend receives 401:
-   - Clear local token storage
-   - Redirect to login page
-   - Display "Session expired, please login again"
-   ↓
-5. No token refresh mechanism:
-   - Deliberate security decision for PHI systems
-   - HIPAA requires automatic session termination
-   - User must re-authenticate after 60 minutes
+1. Store token expiration time (now + 60 minutes)
+2. Start idle timer
+3. At 55 minutes → Display warning modal
+4. Show 5-minute countdown
+5. Provide "Stay Logged In" button
+6. If clicked → Refresh token, reset timer
+7. If not clicked → Force logout at 60 minutes
+8. Auto-save draft data before logout
+9. Clear all PHI from application state
+10. Redirect to login page
 ```
 
-### 3.3 Multi-Factor Authentication (MFA) Implementation
+### 3.4 Account Lockout Handling
 
-**Technology:** TOTP (Time-based One-Time Password) - RFC 6238
+**Backend Behavior:**
+- 5 failed login attempts → Account locked
+- Lockout duration: 15 minutes
+- Additional attempts extend lockout by 10 minutes
 
-| Parameter | Value |
-|-----------|-------|
-| **Library** | PragmaRX Google2FA 9.0 |
-| **Algorithm** | TOTP (Time-based One-Time Password) |
-| **Hash Function** | SHA-1 (TOTP standard) |
-| **Code Length** | 6 digits |
-| **Time Step** | 30 seconds |
-| **Window Tolerance** | ±1 period (allows for 30-second clock skew) |
-| **Secret Length** | 160 bits (32 characters base32-encoded) |
-| **QR Code Format** | `otpauth://totp/Camp%20Burnt%20Gin:{email}?secret={secret}&issuer=Camp%20Burnt%20Gin` |
+**Frontend Response:**
 
-**MFA Enrollment Flow:**
+```typescript
+// Detect lockout
+if (response.status === 403 && response.data.lockout) {
+  const retryAfter = response.data.retry_after; // seconds
 
+  // Display countdown timer
+  displayLockoutMessage(`Account locked. Retry in ${formatTime(retryAfter)}`);
+
+  // Start countdown
+  startCountdown(retryAfter);
+
+  // Disable login form
+  disableLoginForm();
+}
 ```
-1. Authenticated user initiates MFA setup
-   ↓
-2. POST /api/mfa/setup
-   ↓
-3. Backend generates:
-   - Cryptographically secure 160-bit secret
-   - QR code URL (otpauth:// format)
-   - Manual entry key (formatted with spaces for readability)
-   ↓
-4. Backend stores secret in users.mfa_secret (NOT yet enabled)
-   ↓
-5. Frontend receives:
+
+### 3.5 Password Requirements
+
+**Backend Validation:**
+- Minimum 12 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one symbol
+- Not compromised (haveibeenpwned API check)
+
+**Frontend Implementation:**
+- Real-time validation display
+- Password strength meter
+- Visual requirement checklist
+- Immediate feedback on input
+
+### 3.6 Token Lifecycle & Session Strategy
+
+#### 3.6.1 Laravel Sanctum Token Architecture
+
+Laravel Sanctum uses **stateless personal access tokens** for API authentication. Unlike session-based authentication or OAuth refresh token patterns, Sanctum tokens do not support native token refresh. The token lifecycle is deterministic and immutable.
+
+**Token Structure:**
+```
+{token_id}|{plaintext_token}
+Example: 1|KpPJQm8tGqHZ5wNrYxV3LbC7DfMj4sRt
+```
+
+**Token Properties:**
+- **Token ID:** Database reference (visible)
+- **Plaintext Token:** SHA-256 hashed in database (never retrievable after issuance)
+- **Expiration:** Configured via `sanctum.expiration` (default: 60 minutes for HIPAA compliance)
+- **Revocation:** Achieved via token deletion (logout, manual revocation, expiration cleanup)
+
+#### 3.6.2 Token Lifecycle Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Laravel API
+    participant Database
+
+    User->>Frontend: Enter credentials
+    Frontend->>Laravel API: POST /api/auth/login
+    Laravel API->>Database: Validate credentials
+    Database-->>Laravel API: User authenticated
+    Laravel API->>Database: Create token (60 min TTL)
+    Database-->>Laravel API: Token ID + Plaintext
+    Laravel API-->>Frontend: {token: "1|abc...xyz"}
+    Frontend->>Frontend: Store in memory (Redux)
+
+    Note over Frontend,Laravel API: Normal API Operations (0-55 min)
+
+    Frontend->>Laravel API: GET /api/campers (Bearer token)
+    Laravel API->>Database: Validate token hash
+    Database-->>Laravel API: Token valid
+    Laravel API-->>Frontend: 200 OK + data
+
+    Note over Frontend: At 55 minutes
+    Frontend->>Frontend: Display timeout warning
+    User->>Frontend: Click "Stay Logged In"
+    Frontend->>Laravel API: POST /api/auth/refresh-session
+    Laravel API->>Database: Revoke old token
+    Laravel API->>Database: Issue new token (60 min TTL)
+    Database-->>Laravel API: New token
+    Laravel API-->>Frontend: {token: "2|def...uvw"}
+    Frontend->>Frontend: Update Redux store
+
+    Note over Frontend: At 60 minutes (if no refresh)
+    Frontend->>Frontend: Force logout
+    Frontend->>Laravel API: POST /api/logout
+    Laravel API->>Database: Delete token
+    Frontend->>Frontend: Clear state, redirect to login
+```
+
+#### 3.6.3 Token Refresh Strategy
+
+**Critical Clarification:** Laravel Sanctum does not natively support token refresh in the OAuth 2.0 sense. Token "refresh" is implemented as **re-authentication with automatic token rotation**.
+
+**Recommended Implementation:**
+
+| Approach | Mechanism | Security Posture | User Experience |
+|----------|-----------|------------------|-----------------|
+| **Proactive Rotation** | At 55 min, call custom refresh endpoint that revokes old token and issues new token | High - Short-lived tokens | Seamless - User unaware |
+| **Forced Re-authentication** | At 60 min, force logout and require re-login | Highest - No token extension | Disruptive - HIPAA compliant |
+
+**Selected Approach for Camp Burnt Gin:** **Proactive Rotation with User Consent**
+
+**Implementation Requirements:**
+
+1. **Backend:** Create custom `POST /api/auth/refresh-session` endpoint
+   ```php
+   public function refreshSession(Request $request)
    {
-     "secret": "BASE32ENCODEDSECRETKEY",
-     "qr_code_url": "otpauth://totp/...",
-     "manual_entry_key": "XXXX XXXX XXXX XXXX"
+       $user = $request->user();
+
+       // Revoke current token
+       $request->user()->currentAccessToken()->delete();
+
+       // Issue new token (60 min TTL)
+       $newToken = $user->createToken('auth_token', ['*'], now()->addMinutes(60));
+
+       return response()->json(['token' => $newToken->plainTextToken]);
    }
-   ↓
-6. Frontend displays:
-   - QR code (render qr_code_url as QR image)
-   - Manual entry key (for users who can't scan)
-   - Instructions: "Scan with Google Authenticator, Authy, etc."
-   ↓
-7. User scans QR code with authenticator app
-   ↓
-8. Authenticator app displays 6-digit code
-   ↓
-9. User enters code into frontend verification form
-   ↓
-10. POST /api/mfa/verify
-    - code: "123456"
-   ↓
-11. Backend validates code against secret:
-    - If valid: Set mfa_enabled = true, mfa_verified_at = now
-    - If invalid: Return 422 "Invalid MFA code"
-   ↓
-12. Frontend displays success message
-    - "MFA enabled successfully"
-    - "You will need your authenticator app for future logins"
-```
+   ```
 
-**MFA Disable Flow:**
+2. **Frontend:** Implement warning modal at 55 minutes
+   ```typescript
+   useEffect(() => {
+     const expiresAt = loginTime + 55 * 60 * 1000; // 55 min
+     const timeoutId = setTimeout(() => {
+       setShowSessionWarning(true);
+     }, expiresAt - Date.now());
 
-```
-1. User requests to disable MFA
-   ↓
-2. Frontend collects:
-   - Current password (security verification)
-   - Current TOTP code (proof of possession)
-   ↓
-3. POST /api/mfa/disable
-   - password: "current_password"
-   - code: "123456"
-   ↓
-4. Backend validates:
-   - Password matches current hashed password
-   - TOTP code is valid for current secret
-   ↓
-5. If both valid:
-   - Set mfa_enabled = false
-   - Set mfa_secret = null
-   - Set mfa_verified_at = null
-   ↓
-6. If invalid:
-   - Return 422 with specific field errors
-   ↓
-7. Frontend displays confirmation
-   - "MFA has been disabled"
-   - Option to re-enable
-```
+     return () => clearTimeout(timeoutId);
+   }, [loginTime]);
+   ```
 
-### 3.4 Password Security Architecture
+3. **Frontend:** Automatic forced logout at 60 minutes if no action taken
+   ```typescript
+   useEffect(() => {
+     if (showSessionWarning) {
+       const forceLogoutId = setTimeout(() => {
+         dispatch(logout());
+         navigate('/login');
+       }, 5 * 60 * 1000); // 5 min countdown
 
-**Password Storage:**
-
-| Aspect | Implementation |
-|--------|----------------|
-| **Hashing Algorithm** | bcrypt |
-| **Cost Factor** | 12 (Laravel default, ~250ms to hash) |
-| **Salt** | Unique random salt per password (bcrypt built-in) |
-| **Hash Length** | 60 characters (bcrypt output format) |
-| **Plaintext Storage** | Never stored, never recoverable |
-
-**Password Validation Rules:**
-
-| Rule | Requirement | Error Message |
-|------|-------------|---------------|
-| **Minimum Length** | 12 characters | "The password must be at least 12 characters." |
-| **Uppercase** | At least one uppercase letter | "The password must contain at least one uppercase letter." |
-| **Lowercase** | At least one lowercase letter | "The password must contain at least one lowercase letter." |
-| **Number** | At least one digit | "The password must contain at least one number." |
-| **Symbol** | At least one special character | "The password must contain at least one symbol." |
-| **Confirmation** | Must match password_confirmation field | "The password confirmation does not match." |
-| **Compromised Check** | Not in haveibeenpwned database | "The password has appeared in a data leak. Please choose a different password." |
-
-**Password Reset Flow:**
-
-```
-1. User clicks "Forgot Password" on login page
-   ↓
-2. Frontend displays email input form
-   ↓
-3. POST /api/auth/forgot-password
-   - email: "user@example.com"
-   ↓
-4. Backend processes:
-   - Lookup user by email (if not found, still return 200 to prevent enumeration)
-   - Generate cryptographically secure 64-character token
-   - Hash token with SHA-256
-   - Store hashed token in password_reset_tokens table
-   - Set expiration = now + 60 minutes
-   ↓
-5. Backend sends email with reset link:
-   - URL: https://app.campburntgin.org/reset-password?token={plaintext_token}&email={email}
-   ↓
-6. Frontend always displays: "If email exists, reset link sent"
-   - Security: Prevents email enumeration
-   ↓
-7. User clicks link in email
-   ↓
-8. Frontend extracts token and email from URL
-   ↓
-9. Frontend displays password reset form:
-   - Email (pre-filled, read-only)
-   - New password (with strength indicator)
-   - Confirm password
-   ↓
-10. POST /api/auth/reset-password
-    - email
-    - token (from URL)
-    - password
-    - password_confirmation
-   ↓
-11. Backend validates:
-    - Token exists and matches hashed value
-    - Token not expired (expires_at > now)
-    - Password meets complexity requirements
-   ↓
-12. If valid:
-    - Update user password with new bcrypt hash
-    - Delete used token from password_reset_tokens
-    - Revoke all existing API tokens (force re-login)
-    - Return 200 success
-   ↓
-13. If invalid:
-    - Return 422 "Invalid or expired token"
-   ↓
-14. Frontend redirects to login with success message
-```
-
-### 3.5 Account Lockout Mechanism
-
-**Lockout Policy:**
-
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| **Failed Attempt Threshold** | 5 attempts | Prevent brute force attacks |
-| **Lockout Duration** | 15 minutes | Balance security with usability |
-| **Counter Storage** | `users.failed_login_attempts` | Persistent tracking |
-| **Lockout Timestamp** | `users.lockout_until` | Expiration time |
-| **Reset Condition** | Successful login | Clear counter on success |
-
-**Lockout Flow:**
-
-```
-1. User attempts login with incorrect password
-   ↓
-2. Backend increments failed_login_attempts
-   ↓
-3. If failed_login_attempts < 5:
-   - Return 401 with remaining attempts
-   - Response: { "message": "Invalid credentials", "attempts_remaining": 3 }
-   ↓
-4. If failed_login_attempts >= 5:
-   - Set lockout_until = now + 15 minutes
-   - Return 403 Forbidden
-   - Response: {
-       "success": false,
-       "message": "Account locked due to too many failed attempts. Try again in 14 minute(s).",
-       "lockout": true,
-       "retry_after": 840  // seconds
+       return () => clearTimeout(forceLogoutId);
      }
-   ↓
-5. Subsequent login attempts during lockout:
-   - Check if lockout_until > now
-   - Return 403 with updated retry_after countdown
-   ↓
-6. After 15 minutes:
-   - Lockout expires automatically
-   - User can attempt login again
-   - Counter resets to 0 on successful login
-```
+   }, [showSessionWarning]);
+   ```
 
-### 3.6 Frontend Token Storage Strategy
+#### 3.6.4 Session Expiration Handling Matrix
 
-**Critical Security Requirement:** PHI application requires secure token storage to prevent unauthorized access to Protected Health Information.
+| Scenario | Frontend Behavior | Backend Behavior | User Experience |
+|----------|-------------------|------------------|-----------------|
+| **Token expires (60 min)** | Detect 401, clear state, redirect to login | Return 401 Unauthorized | "Session expired. Please log in again." |
+| **User clicks "Stay Logged In" at 55 min** | Call refresh endpoint, update Redux token | Revoke old token, issue new token | Seamless continuation |
+| **User ignores warning at 55 min** | Force logout at 60 min, clear PHI | Token expires naturally | Redirect to login with message |
+| **Token manually revoked (logout)** | Clear state immediately | Delete token from database | Immediate logout |
+| **Concurrent session detection** | Detect 401 on API call, force logout | Token already deleted | "You've been logged out from another device." |
 
-**Storage Options Analysis:**
+#### 3.6.5 Token Storage Strategy
 
-| Storage Method | Security | XSS Vulnerability | CSRF Vulnerability | Persistence | Recommendation |
-|----------------|----------|-------------------|-------------------|-------------|----------------|
-| **localStorage** | Low | High (accessible to scripts) | None | Persists across sessions | ❌ Not recommended for PHI |
-| **sessionStorage** | Low | High (accessible to scripts) | None | Clears on tab close | ❌ Not recommended for PHI |
-| **httpOnly Cookie** | High | Immune (not accessible to JS) | Requires CSRF token | Persists until expiry | ✅ Recommended |
-| **Memory Only** | High | Medium (cleared on refresh) | None | Lost on refresh | ⚠️ Poor UX |
-| **Encrypted localStorage** | Medium-High | Medium (encryption key in memory) | None | Persists across sessions | ✅ Acceptable alternative |
+**HIPAA Compliance Requirement:** Tokens providing access to PHI must not persist beyond session lifetime.
 
-**Recommended Strategy: httpOnly Cookie + CSRF Protection**
+| Storage Location | Security Level | Persistence | Recommendation |
+|------------------|----------------|-------------|----------------|
+| **localStorage** | Low - Persistent, XSS vulnerable | Survives page refresh, browser close | ❌ **Never use for auth tokens** |
+| **sessionStorage** | Medium - Session-scoped, XSS vulnerable | Cleared on tab close | ❌ **Not recommended** |
+| **Cookie (httpOnly)** | High - Server-controlled, XSS resistant | Configurable | ⚠️ **Not applicable** (Sanctum uses Bearer tokens, not cookies for SPA) |
+| **Memory (Redux)** | Medium - No persistence, XSS vulnerable | Cleared on page refresh | ✅ **Required for HIPAA** |
 
-```javascript
-// Backend sets cookie on login response:
-Set-Cookie: token={token}; HttpOnly; Secure; SameSite=Strict; Max-Age=3600; Path=/
+**Selected Approach:** Memory-only storage (Redux state)
 
-// Frontend axios configuration:
-axios.defaults.withCredentials = true;
-axios.defaults.xsrfCookieName = 'XSRF-TOKEN';
-axios.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
-
-// All requests automatically include cookie
-// No manual token management needed
-```
-
-**Alternative Strategy: Encrypted localStorage (if cookies not feasible)**
-
-```javascript
-// Install crypto library: npm install crypto-js
-import CryptoJS from 'crypto-js';
-
-// Generate encryption key on login (store in memory only)
-const encryptionKey = CryptoJS.lib.WordArray.random(256/8).toString();
-
-// Encrypt token before storing
-const encryptedToken = CryptoJS.AES.encrypt(token, encryptionKey).toString();
-localStorage.setItem('auth_token_enc', encryptedToken);
-
-// Store encryption key in sessionStorage (cleared on tab close)
-sessionStorage.setItem('auth_key', encryptionKey);
-
-// Decrypt when needed
-const encryptedToken = localStorage.getItem('auth_token_enc');
-const encryptionKey = sessionStorage.getItem('auth_key');
-const decryptedToken = CryptoJS.AES.decrypt(encryptedToken, encryptionKey).toString(CryptoJS.enc.Utf8);
-
-// Clear on logout
-localStorage.removeItem('auth_token_enc');
-sessionStorage.removeItem('auth_key');
-```
-
-### 3.7 Frontend Session Management Considerations
-
-**Token Expiration Handling:**
-
-```javascript
-// Axios interceptor for 401 responses
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      store.dispatch('auth/logout'); // Clear user state
-      router.push({
-        name: 'login',
-        query: {
-          redirect: router.currentRoute.value.fullPath,
-          reason: 'session_expired'
-        }
-      });
-      // Display user-friendly message
-      ElMessage.warning('Your session has expired. Please login again.');
+**Implementation:**
+```typescript
+// store/slices/authSlice.ts
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: {
+    token: null, // Never persisted
+    user: null,
+    loginTime: null,
+  },
+  reducers: {
+    setCredentials: (state, action) => {
+      state.token = action.payload.token;
+      state.user = action.payload.user;
+      state.loginTime = Date.now();
+    },
+    logout: (state) => {
+      state.token = null;
+      state.user = null;
+      state.loginTime = null;
     }
-    return Promise.reject(error);
   }
-);
-```
-
-**Session Timeout Warning (Optional UX Enhancement):**
-
-```javascript
-// Track last activity time
-let lastActivityTime = Date.now();
-const SESSION_DURATION = 60 * 60 * 1000; // 60 minutes in milliseconds
-const WARNING_BEFORE_EXPIRY = 5 * 60 * 1000; // Warn 5 minutes before expiry
-
-// Update on user activity
-['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
-  document.addEventListener(event, () => {
-    lastActivityTime = Date.now();
-  }, true);
 });
 
-// Check session expiry every minute
-setInterval(() => {
-  const timeRemaining = SESSION_DURATION - (Date.now() - lastActivityTime);
-
-  if (timeRemaining <= 0) {
-    // Session expired
-    store.dispatch('auth/logout');
-    router.push('/login?reason=timeout');
-  } else if (timeRemaining <= WARNING_BEFORE_EXPIRY && !warningShown) {
-    // Show warning dialog
-    ElMessageBox.confirm(
-      `Your session will expire in ${Math.ceil(timeRemaining / 60000)} minutes. Do you want to continue?`,
-      'Session Expiring',
-      {
-        confirmButtonText: 'Stay Logged In',
-        cancelButtonText: 'Logout',
-        type: 'warning'
-      }
-    ).then(() => {
-      // User clicked "Stay Logged In" - refresh token by making any API call
-      axios.get('/api/user').then(() => {
-        lastActivityTime = Date.now();
-        warningShown = false;
-      });
-    }).catch(() => {
-      // User clicked "Logout" or closed dialog
-      store.dispatch('auth/logout');
-      router.push('/login');
-    });
-    warningShown = true;
-  }
-}, 60000); // Check every minute
+// Note: No redux-persist configuration for auth slice
 ```
 
-**Logout Implementation:**
+**Trade-off:** Page refresh forces re-authentication. This is acceptable and required for HIPAA compliance.
 
-```javascript
-// Complete logout flow
-async function logout() {
-  try {
-    // Call backend to revoke token
-    await axios.post('/api/logout');
-  } catch (error) {
-    // Continue logout even if API call fails
-    console.error('Logout API error:', error);
-  } finally {
-    // Clear all client-side state
-    localStorage.clear();
-    sessionStorage.clear();
+#### 3.6.6 Re-authentication Boundary Conditions
 
-    // Clear Vuex/Pinia store
-    store.dispatch('auth/clearUser');
-    store.dispatch('app/clearAllData');
+| Condition | Trigger | Frontend Action | User Impact |
+|-----------|---------|-----------------|-------------|
+| **Page refresh** | Token cleared from memory | Redirect to login | User must re-authenticate |
+| **Browser restart** | Token cleared from memory | Redirect to login | User must re-authenticate |
+| **Network interruption** | API calls fail | Display offline banner, retry on reconnect | Temporary, recovers automatically |
+| **401 from backend** | Token expired or revoked | Force logout, redirect | User must re-authenticate |
+| **60-minute expiration** | Timer reaches limit | Force logout | User must re-authenticate |
 
-    // Clear axios default headers
-    delete axios.defaults.headers.common['Authorization'];
-
-    // Navigate to login
-    router.push('/login');
-  }
-}
-```
-
-### 3.8 Protected Route Implementation
-
-**Vue Router Navigation Guard:**
-
-```javascript
-// router/index.js
-import { useAuthStore } from '@/stores/auth';
-
-router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore();
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  const requiredRole = to.meta.role;
-
-  if (requiresAuth) {
-    if (!authStore.isAuthenticated) {
-      // Not logged in, redirect to login
-      next({
-        name: 'login',
-        query: { redirect: to.fullPath }
-      });
-      return;
-    }
-
-    // Verify token is still valid by checking user data
-    if (!authStore.user) {
-      try {
-        await authStore.fetchUser(); // GET /api/user
-      } catch (error) {
-        // Token invalid or expired
-        authStore.logout();
-        next({
-          name: 'login',
-          query: { redirect: to.fullPath, reason: 'invalid_session' }
-        });
-        return;
-      }
-    }
-
-    // Check role-based access
-    if (requiredRole && !authStore.hasRole(requiredRole)) {
-      next({
-        name: 'forbidden',
-        params: { message: 'You do not have permission to access this page.' }
-      });
-      return;
-    }
-
-    next();
-  } else {
-    // Public route
-    next();
-  }
-});
-```
-
-**Route Definitions with Meta:**
-
-```javascript
-const routes = [
-  {
-    path: '/login',
-    name: 'login',
-    component: () => import('@/views/auth/Login.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/dashboard',
-    name: 'dashboard',
-    component: () => import('@/views/Dashboard.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/admin',
-    name: 'admin',
-    component: () => import('@/views/admin/AdminDashboard.vue'),
-    meta: {
-      requiresAuth: true,
-      role: 'admin'
-    }
-  },
-  {
-    path: '/applications/:id/review',
-    name: 'application-review',
-    component: () => import('@/views/admin/ApplicationReview.vue'),
-    meta: {
-      requiresAuth: true,
-      role: 'admin'
-    }
-  }
-];
-```
-
-### 3.9 Account Lockout UX Implementation
-
-**Login Form with Lockout Display:**
-
-```vue
-<template>
-  <div v-if="lockoutInfo.isLocked" class="alert alert-danger">
-    <i class="fas fa-lock"></i>
-    <p>
-      Account locked due to too many failed login attempts.
-      <br>
-      Please try again in <strong>{{ lockoutInfo.minutesRemaining }} minute(s)</strong>.
-    </p>
-    <el-progress
-      :percentage="lockoutInfo.percentageRemaining"
-      :status="lockoutInfo.percentageRemaining < 20 ? 'success' : 'exception'"
-    />
-  </div>
-
-  <el-form v-else @submit.prevent="handleLogin">
-    <!-- Login form fields -->
-  </el-form>
-</template>
-
-<script setup>
-import { ref, computed } from 'vue';
-import axios from 'axios';
-
-const lockoutInfo = ref({
-  isLocked: false,
-  retryAfter: 0,
-  minutesRemaining: 0,
-  percentageRemaining: 0
-});
-
-async function handleLogin() {
-  try {
-    const response = await axios.post('/api/auth/login', loginForm);
-    // Success handling
-  } catch (error) {
-    if (error.response?.status === 403 && error.response.data.lockout) {
-      // Account locked
-      const retryAfter = error.response.data.retry_after; // seconds
-      lockoutInfo.value = {
-        isLocked: true,
-        retryAfter: retryAfter,
-        minutesRemaining: Math.ceil(retryAfter / 60),
-        percentageRemaining: (retryAfter / 900) * 100 // 900 = 15 minutes in seconds
-      };
-
-      // Start countdown timer
-      const countdownInterval = setInterval(() => {
-        lockoutInfo.value.retryAfter--;
-        lockoutInfo.value.minutesRemaining = Math.ceil(lockoutInfo.value.retryAfter / 60);
-        lockoutInfo.value.percentageRemaining = (lockoutInfo.value.retryAfter / 900) * 100;
-
-        if (lockoutInfo.value.retryAfter <= 0) {
-          clearInterval(countdownInterval);
-          lockoutInfo.value.isLocked = false;
-        }
-      }, 1000);
-    } else if (error.response?.status === 401) {
-      // Invalid credentials
-      ElMessage.error(error.response.data.message || 'Invalid credentials');
-    }
-  }
-}
-</script>
-```
-
-### 3.10 MFA Challenge UI Implementation
-
-**MFA Code Input Component:**
-
-```vue
-<template>
-  <div v-if="mfaRequired" class="mfa-challenge">
-    <h3>Two-Factor Authentication</h3>
-    <p>Enter the 6-digit code from your authenticator app</p>
-
-    <div class="code-input-group">
-      <input
-        v-for="(digit, index) in 6"
-        :key="index"
-        ref="codeInputs"
-        v-model="mfaCode[index]"
-        type="text"
-        inputmode="numeric"
-        maxlength="1"
-        class="code-digit"
-        @input="handleInput(index, $event)"
-        @keydown="handleKeydown(index, $event)"
-        @paste="handlePaste"
-      />
-    </div>
-
-    <el-button
-      type="primary"
-      @click="verifyMFA"
-      :loading="loading"
-      :disabled="mfaCode.join('').length !== 6"
-    >
-      Verify Code
-    </el-button>
-
-    <p class="help-text">
-      <i class="fas fa-info-circle"></i>
-      Codes expire every 30 seconds. If code doesn't work, wait for new code.
-    </p>
-  </div>
-</template>
-
-<script setup>
-import { ref, nextTick } from 'vue';
-
-const mfaRequired = ref(false);
-const mfaCode = ref(['', '', '', '', '', '']);
-const codeInputs = ref([]);
-const loading = ref(false);
-
-function handleInput(index, event) {
-  const value = event.target.value;
-
-  // Only allow digits
-  if (!/^\d*$/.test(value)) {
-    mfaCode.value[index] = '';
-    return;
-  }
-
-  // Auto-focus next input
-  if (value && index < 5) {
-    nextTick(() => {
-      codeInputs.value[index + 1]?.focus();
-    });
-  }
-
-  // Auto-submit when all 6 digits entered
-  if (index === 5 && value) {
-    verifyMFA();
-  }
-}
-
-function handleKeydown(index, event) {
-  // Handle backspace
-  if (event.key === 'Backspace' && !mfaCode.value[index] && index > 0) {
-    nextTick(() => {
-      codeInputs.value[index - 1]?.focus();
-    });
-  }
-}
-
-function handlePaste(event) {
-  event.preventDefault();
-  const pastedData = event.clipboardData.getData('text').replace(/\D/g, '');
-
-  if (pastedData.length === 6) {
-    mfaCode.value = pastedData.split('');
-    nextTick(() => {
-      codeInputs.value[5]?.focus();
-      verifyMFA();
-    });
-  }
-}
-
-async function verifyMFA() {
-  loading.value = true;
-  try {
-    const code = mfaCode.value.join('');
-    const response = await axios.post('/api/auth/login', {
-      email: email.value,
-      password: password.value,
-      mfa_code: code
-    });
-
-    // Success - store token and redirect
-    authStore.setToken(response.data.token);
-    authStore.setUser(response.data.user);
-    router.push('/dashboard');
-  } catch (error) {
-    ElMessage.error('Invalid MFA code. Please try again.');
-    mfaCode.value = ['', '', '', '', '', ''];
-    nextTick(() => {
-      codeInputs.value[0]?.focus();
-    });
-  } finally {
-    loading.value = false;
-  }
-}
-</script>
-
-<style scoped>
-.code-input-group {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-.code-digit {
-  width: 50px;
-  height: 60px;
-  text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  border: 2px solid #dcdfe6;
-  border-radius: 8px;
-  transition: border-color 0.3s;
-}
-
-.code-digit:focus {
-  border-color: #409eff;
-  outline: none;
-}
-</style>
-```
+**Architectural Decision:** Accept page refresh logout as necessary security trade-off for HIPAA compliance.
 
 ---
 
-## 4. Role-Based Access Control (RBAC) Implications
+## 4. Role-Based Access Control (RBAC)
 
-### 4.1 Role Definitions and User Distribution
+### 4.1 Role Definitions
 
-The backend implements a three-tier role system enforced at the database level through the `roles` table and foreign key constraint on `users.role_id`.
+| Role | Code | Purpose | Target Audience |
+|------|------|---------|-----------------|
+| Administrator | `admin` | System and camp management | Camp staff, admins |
+| Parent | `parent` | Self-service for families | Parents/guardians |
+| Medical Provider | `medical` | Medical record review | Internal medical staff |
 
-| Role ID | Role Code | Display Name | Default Assignment | Target Users |
-|---------|-----------|--------------|-------------------|--------------|
-| 1 | `admin` | Administrator | Manual (seeder/database) | Camp staff, system administrators |
-| 2 | `parent` | Parent/Guardian | Automatic on registration | Parents and legal guardians |
-| 3 | `medical` | Medical Provider | Manual (database only) | Internal medical staff with system accounts |
+**Note:** External medical providers use unauthenticated token links, not the Medical Provider role.
 
-**Important Distinction:** External medical providers (e.g., camper's personal physician) do NOT receive user accounts. They access the system via time-limited, single-use secure tokens (`medical_provider_links` table). The `medical` role is reserved for internal camp medical staff who review all campers' health information.
+### 4.2 Permission Matrix
 
-### 4.2 Comprehensive Permission Matrix
+#### Camper Management
 
-This matrix defines exact CRUD (Create, Read, Update, Delete) permissions for each role across all system resources. Frontend must enforce these permissions through route guards, UI element visibility, and API request authorization.
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List all child participants | Yes | Own only | No |
+| View child participant | Yes | Own only | No |
+| Create child participant | Yes | Yes | No |
+| Update child participant | Yes | Own only | No |
+| Delete child participant | Yes | Own only | No |
 
-#### 4.2.1 Camper Management Permissions
+#### Application Management
 
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **List all campers** | ✅ Full access | ✅ Own campers only | ❌ No access | Filter UI: Admin sees all, Parent filtered by `user_id` |
-| **View camper details** | ✅ Any camper | ✅ Own campers only | ❌ No access | Route guard: Check ownership on `:id` routes |
-| **Create camper** | ✅ For any user | ✅ For self only | ❌ No access | UI: Both can create, Admin can specify `user_id` |
-| **Update camper** | ✅ Any camper | ✅ Own campers only | ❌ No access | Edit form: Disable if not owner (unless admin) |
-| **Delete camper** | ✅ Any camper (soft delete) | ✅ Own campers only | ❌ No access | Delete button: Show only if authorized |
-| **View risk summary** | ✅ Yes | ❌ No | ✅ Yes | Route: `/campers/:id/risk-summary` - Admin/Medical only |
-| **View compliance status** | ✅ Yes | ❌ No | ❌ No | Route: `/campers/:id/compliance-status` - Admin only |
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List applications | Yes | Own only | No |
+| View application | Yes | Own only | No |
+| Create application | Yes | Yes (own campers) | No |
+| Update application | Yes | Own only (if pending) | No |
+| Sign application | Yes | Yes (own only) | No |
+| Review application | Yes | No | No |
+| Delete application | Yes | No | No |
 
-**Frontend Scoping Example:**
+#### Medical Records
 
-```javascript
-// Vuex/Pinia getter for accessible campers
-const accessibleCampers = computed(() => {
-  if (authStore.isAdmin) {
-    return campersStore.allCampers; // Admin sees all
-  } else if (authStore.isParent) {
-    return campersStore.allCampers.filter(c => c.user_id === authStore.user.id); // Parent sees own
-  } else {
-    return []; // Medical has no camper access
-  }
-});
-```
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List records | Yes | No | Yes |
+| View record | Yes | Own campers | Yes |
+| Create record | Yes | Yes (own campers) | No |
+| Update record | Yes | Yes (own campers) | Yes |
+| Delete record | Yes | No | No |
 
-#### 4.2.2 Application Management Permissions
+#### Allergies & Medications
 
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **List applications** | ✅ All applications | ✅ Own campers' applications | ❌ No access | Filter: Admin all, Parent `camper.user_id = auth.id` |
-| **View application details** | ✅ Any application | ✅ Own campers' applications | ❌ No access | Route guard: Check camper ownership |
-| **Create application (draft)** | ✅ For any camper | ✅ For own campers | ❌ No access | Camper dropdown: Filtered by accessible campers |
-| **Update application** | ✅ Any application | ✅ Own (if pending/under_review) | ❌ No access | Edit enabled: Check status + ownership |
-| **Sign application** | ✅ Any application | ✅ Own campers' applications | ❌ No access | Signature pad: Show if authorized |
-| **Submit application** | ✅ Any application | ✅ Own (after signing) | ❌ No access | Submit button: Enabled after signature |
-| **Review application** | ✅ Yes (approve/reject/waitlist) | ❌ No | ❌ No | Review interface: Admin-only route `/admin/applications/:id/review` |
-| **Delete application** | ✅ Any application | ❌ No (can cancel instead) | ❌ No | Delete button: Admin only |
-| **Cancel application** | ✅ Any application | ✅ Own (if not final status) | ❌ No | Cancel button: Show if not final (approved/rejected/cancelled) |
-| **Search/Filter applications** | ✅ All filters | ✅ Own campers only | ❌ No access | Search UI: Admin sees all statuses, Parent limited |
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List | Yes | No | Yes |
+| View | Yes | Own campers | Yes |
+| Create | Yes | Yes (own campers) | Yes |
+| Update | Yes | Yes (own campers) | Yes |
+| Delete | Yes | Yes (own campers) | No |
 
-**Application Status-Based UI Rules:**
+**Rationale:** Medical providers can document but not delete critical health information.
 
-```javascript
-// Determine if application is editable
-function isApplicationEditable(application) {
-  const authStore = useAuthStore();
+#### Emergency Contacts
 
-  // Final statuses cannot be edited
-  if (['approved', 'rejected', 'cancelled'].includes(application.status)) {
-    return false;
-  }
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List | Yes | No | Yes |
+| View | Yes | Own campers | Yes |
+| Create | Yes | Yes (own campers) | No |
+| Update | Yes | Yes (own campers) | No |
+| Delete | Yes | Yes (own campers) | No |
 
-  // Admin can edit any non-final application
-  if (authStore.isAdmin) {
-    return true;
-  }
+#### Documents
 
-  // Parent can edit own pending or under_review applications
-  if (authStore.isParent) {
-    const ownsApplication = application.camper?.user_id === authStore.user.id;
-    const editableStatus = ['pending', 'under_review'].includes(application.status);
-    return ownsApplication && editableStatus && !application.is_draft;
-  }
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List | Yes | Own only | No |
+| View | Yes | Own only | No |
+| Upload | Yes | Yes | No |
+| Download | Yes | Own only | No |
+| Delete | Yes | Own only | No |
 
-  return false;
+#### Medical Provider Links
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List | Yes | Own only | No |
+| View | Yes | Own only | No |
+| Create | Yes | Yes (own campers) | No |
+| Revoke | Yes | Yes (own links) | No |
+| Resend | Yes | No | No |
+
+#### Reports
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| All reports | Yes | No | No |
+
+#### Camp Management
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List camps | Yes | Yes (read) | No |
+| View camp | Yes | Yes (read) | No |
+| Create camp | Yes | No | No |
+| Update camp | Yes | No | No |
+| Delete camp | Yes | No | No |
+| Manage sessions | Yes | No | No |
+
+### 4.3 Frontend Authorization Implementation
+
+**Route Protection:**
+
+```typescript
+// router/ProtectedRoute.tsx
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAppSelector } from '@/store/hooks';
+
+interface ProtectedRouteProps {
+  allowedRoles?: string[];
+  requireMFA?: boolean;
 }
-```
 
-#### 4.2.3 Medical Information Permissions
+export function ProtectedRoute({ allowedRoles, requireMFA = true }: ProtectedRouteProps) {
+  const location = useLocation();
+  const { isAuthenticated, user, mfaVerified } = useAppSelector(state => state.auth);
 
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **List all medical records** | ✅ Yes | ❌ No (own only via camper) | ✅ Yes | Medical Records route: Admin/Medical only |
-| **View medical record** | ✅ Any record | ✅ Own campers' records | ✅ Any record | Detail view: Check role + ownership |
-| **Create medical record** | ✅ For any camper | ✅ For own campers | ❌ No (read-only) | Create form: Admin/Parent only |
-| **Update medical record** | ✅ Any record | ✅ Own campers' records | ✅ Any record (limited fields) | Edit form: Medical can update but not delete |
-| **Delete medical record** | ✅ Any record | ❌ No | ❌ No | Delete button: Admin only |
-| **List all allergies** | ✅ Yes | ❌ No | ✅ Yes | Allergies list route: Admin/Medical only |
-| **View allergy** | ✅ Any allergy | ✅ Own campers' allergies | ✅ Any allergy | Detail view: Check role + ownership |
-| **Create allergy** | ✅ For any camper | ✅ For own campers | ✅ For any camper | Add button: All roles can create |
-| **Update allergy** | ✅ Any allergy | ✅ Own campers' allergies | ✅ Any allergy | Edit form: All roles can update |
-| **Delete allergy** | ✅ Any allergy | ✅ Own campers' allergies | ❌ No | Delete button: Admin/Parent only (Medical cannot delete) |
-| **List all medications** | ✅ Yes | ❌ No | ✅ Yes | Medications list route: Admin/Medical only |
-| **View medication** | ✅ Any medication | ✅ Own campers' medications | ✅ Any medication | Detail view: Check role + ownership |
-| **Create medication** | ✅ For any camper | ✅ For own campers | ✅ For any camper | Add button: All roles can create |
-| **Update medication** | ✅ Any medication | ✅ Own campers' medications | ✅ Any medication | Edit form: All roles can update |
-| **Delete medication** | ✅ Any medication | ✅ Own campers' medications | ❌ No | Delete button: Admin/Parent only (Medical cannot delete) |
-| **List emergency contacts** | ✅ Yes | ❌ No | ✅ Yes | Contacts list route: Admin/Medical only |
-| **View emergency contact** | ✅ Any contact | ✅ Own campers' contacts | ✅ Any contact | Detail view: Check role + ownership |
-| **Create emergency contact** | ✅ For any camper | ✅ For own campers | ❌ No | Add button: Admin/Parent only |
-| **Update emergency contact** | ✅ Any contact | ✅ Own campers' contacts | ❌ No | Edit form: Admin/Parent only |
-| **Delete emergency contact** | ✅ Any contact | ✅ Own campers' contacts | ❌ No | Delete button: Admin/Parent only |
-
-**Critical Security Note:** Medical providers (role `medical`) have intentionally limited write permissions. They can CREATE and UPDATE allergies/medications to document health concerns, but CANNOT DELETE them. This design prevents accidental or malicious removal of critical health information. Only parents and admins can delete medical records.
-
-#### 4.2.4 Document Management Permissions
-
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **List documents** | ✅ All documents | ✅ Own documents only | ❌ No access | Documents list: Filter by ownership |
-| **View document metadata** | ✅ Any document | ✅ Own documents | ❌ No access | Metadata view: Check ownership |
-| **Upload document** | ✅ For any entity | ✅ For own entities | ❌ No (use provider links) | Upload UI: Admin/Parent only |
-| **Download document** | ✅ Any document (even unscanned) | ✅ Own (if `scan_passed = true`) | ❌ No access | Download button: Check `scan_passed` flag for non-admins |
-| **Delete document** | ✅ Any document | ✅ Own documents | ❌ No access | Delete button: Check ownership |
-
-**Document Security Frontend Logic:**
-
-```javascript
-function canDownloadDocument(document) {
-  const authStore = useAuthStore();
-
-  // Admin can download any document, even unscanned
-  if (authStore.isAdmin) {
-    return true;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check ownership
-  const ownsDocument = document.uploaded_by === authStore.user.id;
-  if (!ownsDocument) {
-    return false;
+  if (requireMFA && !mfaVerified) {
+    return <Navigate to="/mfa/verify" replace />;
   }
 
-  // Non-admin must wait for security scan to pass
-  if (document.scan_passed === null) {
-    return false; // Still scanning
+  if (allowedRoles && !allowedRoles.includes(user?.role.name || '')) {
+    return <Navigate to="/forbidden" replace />;
   }
 
-  if (document.scan_passed === false) {
-    return false; // Failed scan, quarantined
-  }
-
-  return true; // Passed scan
+  return <Outlet />;
 }
+
+// Usage in routes
+<Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+  <Route path="/admin/reports" element={<ReportsView />} />
+</Route>
 ```
 
-#### 4.2.5 Medical Provider Link Permissions
+**Permission Hook:**
 
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **List provider links** | ✅ All links | ✅ Own campers' links | ❌ No access | Links list: Filter by camper ownership |
-| **View link details** | ✅ Any link | ✅ Own campers' links | ❌ No access | Detail view: Check camper ownership |
-| **Create provider link** | ✅ For any camper | ✅ For own campers | ❌ No access | Create form: Specify provider email, message |
-| **Revoke provider link** | ✅ Any link | ✅ Own campers' links | ❌ No access | Revoke button: Show if not already revoked/used |
-| **Resend provider link** | ✅ Any link (regenerates token) | ❌ No | ❌ No | Resend button: Admin only |
-| **Access via token (public)** | N/A | N/A | N/A | Public route `/provider/{token}` - no auth required |
-
-#### 4.2.6 Reporting Permissions
-
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **Applications report** | ✅ Yes | ❌ No | ❌ No | Route: `/admin/reports/applications` - Admin only |
-| **Accepted applicants list** | ✅ Yes | ❌ No | ❌ No | Route: `/admin/reports/accepted` - Admin only |
-| **Rejected applicants list** | ✅ Yes | ❌ No | ❌ No | Route: `/admin/reports/rejected` - Admin only |
-| **Mailing labels** | ✅ Yes | ❌ No | ❌ No | Route: `/admin/reports/mailing-labels` - Admin only |
-| **ID badge labels** | ✅ Yes | ❌ No | ❌ No | Route: `/admin/reports/id-labels` - Admin only |
-
-#### 4.2.7 Camp & Session Management Permissions
-
-| Operation | Admin | Parent | Medical | Frontend Implementation |
-|-----------|-------|--------|---------|------------------------|
-| **List camps** | ✅ Full access | ✅ Read-only (active camps) | ❌ No access | Camp selection: Parent sees active only |
-| **View camp details** | ✅ Yes | ✅ Yes (active camps) | ❌ No access | Camp detail page: Public info for parents |
-| **Create camp** | ✅ Yes | ❌ No | ❌ No | Create form: Admin-only route |
-| **Update camp** | ✅ Yes | ❌ No | ❌ No | Edit form: Admin-only |
-| **Delete camp** | ✅ Yes | ❌ No | ❌ No | Delete button: Admin-only |
-| **List sessions** | ✅ Full access | ✅ Read-only (active sessions) | ❌ No access | Session selection: Parent sees active only |
-| **View session details** | ✅ Yes | ✅ Yes (active sessions) | ❌ No access | Session detail: Public info for parents |
-| **Create session** | ✅ Yes | ❌ No | ❌ No | Create form: Admin-only route |
-| **Update session** | ✅ Yes | ❌ No | ❌ No | Edit form: Admin-only |
-| **Delete session** | ✅ Yes | ❌ No | ❌ No | Delete button: Admin-only |
-
-### 4.3 Role → Page → Component Mapping
-
-This section maps user roles to accessible pages and the specific components that must be conditionally rendered based on permissions.
-
-#### 4.3.1 Administrator Role (`admin`)
-
-**Accessible Pages:**
-
-| Page Route | Component | Purpose |
-|------------|-----------|---------|
-| `/dashboard` | `AdminDashboard.vue` | Overview of applications, pending reviews, statistics |
-| `/applications` | `ApplicationList.vue` | All applications with advanced filtering |
-| `/applications/:id` | `ApplicationDetail.vue` | Full application details with review actions |
-| `/applications/:id/review` | `ApplicationReview.vue` | Approve/reject/waitlist interface |
-| `/campers` | `CamperList.vue` | All campers with search |
-| `/campers/:id` | `CamperDetail.vue` | Camper profile with medical info |
-| `/campers/:id/risk-summary` | `RiskSummary.vue` | Risk assessment dashboard |
-| `/campers/:id/compliance-status` | `ComplianceStatus.vue` | Compliance checklist |
-| `/medical-records` | `MedicalRecordList.vue` | All medical records |
-| `/medical-records/:id` | `MedicalRecordDetail.vue` | Detailed medical information |
-| `/camps` | `CampManagement.vue` | Create/edit/delete camps |
-| `/sessions` | `SessionManagement.vue` | Create/edit/delete sessions |
-| `/users` | `UserManagement.vue` | Manage user accounts |
-| `/reports` | `ReportsHub.vue` | Access to all reports |
-| `/reports/applications` | `ApplicationsReport.vue` | Applications report with filters |
-| `/reports/accepted` | `AcceptedList.vue` | Accepted applicants |
-| `/reports/rejected` | `RejectedList.vue` | Rejected applicants |
-| `/reports/mailing-labels` | `MailingLabels.vue` | Generate mailing labels |
-| `/reports/id-labels` | `IDLabels.vue` | Generate ID badge labels |
-| `/provider-links` | `ProviderLinkManagement.vue` | View all provider links |
-| `/documents` | `DocumentManagement.vue` | All documents with download (unscanned OK) |
-
-**Conditionally Rendered Components:**
-
-```vue
-<!-- In ApplicationDetail.vue -->
-<div v-if="authStore.isAdmin" class="admin-actions">
-  <el-button type="primary" @click="reviewApplication">Review Application</el-button>
-  <el-button type="danger" @click="deleteApplication">Delete</el-button>
-</div>
-
-<!-- In CamperList.vue -->
-<el-table-column v-if="authStore.isAdmin" label="Parent">
-  <template #default="{ row }">
-    {{ row.user.name }} ({{ row.user.email }})
-  </template>
-</el-table-column>
-
-<!-- In DocumentDetail.vue -->
-<el-button
-  v-if="authStore.isAdmin || document.scan_passed === true"
-  type="primary"
-  @click="downloadDocument"
->
-  Download
-</el-button>
-<el-alert
-  v-else-if="document.scan_passed === null"
-  type="warning"
-  :closable="false"
->
-  Document is being scanned. Download will be available shortly.
-</el-alert>
-```
-
-#### 4.3.2 Parent Role (`parent`)
-
-**Accessible Pages:**
-
-| Page Route | Component | Purpose |
-|------------|-----------|---------|
-| `/dashboard` | `ParentDashboard.vue` | Overview of own campers and applications |
-| `/campers` | `CamperList.vue` | Own campers only |
-| `/campers/create` | `CamperForm.vue` | Create new camper profile |
-| `/campers/:id` | `CamperDetail.vue` | Own camper details (ownership verified) |
-| `/campers/:id/edit` | `CamperForm.vue` | Edit own camper |
-| `/campers/:id/medical` | `MedicalInformation.vue` | Manage own camper's medical info |
-| `/applications` | `ApplicationList.vue` | Own campers' applications only |
-| `/applications/create` | `ApplicationForm.vue` | Create application for own camper |
-| `/applications/:id` | `ApplicationDetail.vue` | Own camper's application (ownership verified) |
-| `/applications/:id/edit` | `ApplicationForm.vue` | Edit draft or pending application |
-| `/applications/:id/sign` | `ApplicationSignature.vue` | Digital signature for own application |
-| `/provider-links` | `ProviderLinkList.vue` | Own campers' provider links |
-| `/provider-links/create` | `ProviderLinkForm.vue` | Create provider link for own camper |
-| `/documents` | `DocumentList.vue` | Own documents only |
-| `/camps` | `CampBrowse.vue` | View active camps (read-only) |
-| `/sessions` | `SessionBrowse.vue` | View active sessions for registration |
-| `/profile` | `UserProfile.vue` | Edit own profile and MFA settings |
-
-**Conditionally Hidden Components:**
-
-```vue
-<!-- In ApplicationDetail.vue -->
-<div v-if="!authStore.isAdmin" class="parent-view">
-  <!-- No review actions -->
-  <!-- No delete button -->
-  <el-button
-    v-if="canEdit"
-    type="primary"
-    @click="editApplication"
-  >
-    Edit Application
-  </el-button>
-  <el-button
-    v-if="canSign"
-    type="success"
-    @click="signApplication"
-  >
-    Sign Application
-  </el-button>
-  <el-button
-    v-if="canCancel"
-    type="danger"
-    @click="cancelApplication"
-  >
-    Cancel Application
-  </el-button>
-</div>
-
-<!-- In CamperList.vue -->
-<!-- No "Parent" column (parent sees own campers only) -->
-<!-- No "Delete" action (soft delete not exposed to parents in UI) -->
-
-<!-- In DocumentList.vue -->
-<el-button
-  v-if="document.scan_passed === true"
-  type="primary"
-  @click="downloadDocument"
->
-  Download
-</el-button>
-<el-alert
-  v-else-if="document.scan_passed === null"
-  type="info"
->
-  Document is being scanned for security. Please check back shortly.
-</el-alert>
-<el-alert
-  v-else
-  type="error"
->
-  This document failed security scanning. Please contact support.
-</el-alert>
-```
-
-#### 4.3.3 Medical Provider Role (`medical`)
-
-**Note:** Medical providers with user accounts have very limited UI access. Most medical data is submitted via unauthenticated provider links.
-
-**Accessible Pages:**
-
-| Page Route | Component | Purpose |
-|------------|-----------|---------|
-| `/dashboard` | `MedicalDashboard.vue` | Overview of medical data |
-| `/medical-records` | `MedicalRecordList.vue` | All medical records (read-mostly) |
-| `/medical-records/:id` | `MedicalRecordDetail.vue` | View medical record details |
-| `/medical-records/:id/edit` | `MedicalRecordForm.vue` | Update medical information (limited) |
-| `/allergies` | `AllergyList.vue` | All allergies |
-| `/medications` | `MedicationList.vue` | All medications |
-| `/emergency-contacts` | `EmergencyContactList.vue` | All emergency contacts (read-only) |
-| `/campers/:id/risk-summary` | `RiskSummary.vue` | View risk assessment |
-
-**Restricted Actions:**
-
-```vue
-<!-- In MedicalRecordDetail.vue -->
-<div class="medical-provider-actions">
-  <!-- Can update but not delete -->
-  <el-button type="primary" @click="editRecord">Update Information</el-button>
-  <!-- No delete button for medical role -->
-</div>
-
-<!-- In AllergyList.vue -->
-<el-table-column label="Actions">
-  <template #default="{ row }">
-    <el-button size="small" @click="viewAllergy(row)">View</el-button>
-    <el-button size="small" @click="editAllergy(row)">Edit</el-button>
-    <!-- No delete button for medical role -->
-  </template>
-</el-table-column>
-```
-
-### 4.4 Frontend Route Protection Strategy
-
-**Complete Route Guard Implementation:**
-
-```javascript
-// router/guards.js
-import { useAuthStore } from '@/stores/auth';
-
-export function setupRouteGuards(router) {
-  router.beforeEach(async (to, from, next) => {
-    const authStore = useAuthStore();
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-    const requiredRole = to.meta.role;
-    const requiredRoles = to.meta.roles; // Array of allowed roles
-    const requiresOwnership = to.meta.requiresOwnership;
-
-    // Public routes - allow access
-    if (!requiresAuth) {
-      // If logged in and accessing login page, redirect to dashboard
-      if (to.name === 'login' && authStore.isAuthenticated) {
-        next({ name: 'dashboard' });
-        return;
-      }
-      next();
-      return;
-    }
-
-    // Protected routes - check authentication
-    if (!authStore.isAuthenticated) {
-      next({
-        name: 'login',
-        query: { redirect: to.fullPath }
-      });
-      return;
-    }
-
-    // Verify user data is loaded
-    if (!authStore.user) {
-      try {
-        await authStore.fetchUser();
-      } catch (error) {
-        authStore.logout();
-        next({
-          name: 'login',
-          query: { redirect: to.fullPath, reason: 'session_expired' }
-        });
-        return;
-      }
-    }
-
-    // Check single role requirement
-    if (requiredRole && !authStore.hasRole(requiredRole)) {
-      next({
-        name: 'forbidden',
-        params: {
-          message: `This page requires ${requiredRole} role.`
-        }
-      });
-      return;
-    }
-
-    // Check multiple role requirement (any of)
-    if (requiredRoles && !authStore.hasAnyRole(requiredRoles)) {
-      next({
-        name: 'forbidden',
-        params: {
-          message: `This page requires one of: ${requiredRoles.join(', ')}.`
-        }
-      });
-      return;
-    }
-
-    // Check ownership requirement (for detail routes)
-    if (requiresOwnership) {
-      const resourceId = to.params.id;
-      const resourceType = to.meta.resourceType; // 'camper', 'application', etc.
-
-      // Admin bypasses ownership checks
-      if (!authStore.isAdmin) {
-        try {
-          const owns = await authStore.checkOwnership(resourceType, resourceId);
-          if (!owns) {
-            next({
-              name: 'forbidden',
-              params: {
-                message: 'You do not have permission to access this resource.'
-              }
-            });
-            return;
-          }
-        } catch (error) {
-          next({
-            name: 'not-found',
-            params: { message: 'Resource not found.' }
-          });
-          return;
-        }
-      }
-    }
-
-    // All checks passed
-    next();
-  });
-}
-```
-
-**Route Definitions with RBAC Metadata:**
-
-```javascript
-const routes = [
-  // Public routes
-  {
-    path: '/login',
-    name: 'login',
-    component: () => import('@/views/auth/Login.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/register',
-    name: 'register',
-    component: () => import('@/views/auth/Register.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/reset-password',
-    name: 'reset-password',
-    component: () => import('@/views/auth/ResetPassword.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/provider/:token',
-    name: 'provider-access',
-    component: () => import('@/views/provider/ProviderForm.vue'),
-    meta: { requiresAuth: false, layout: 'provider' }
-  },
-
-  // Authenticated routes - any role
-  {
-    path: '/dashboard',
-    name: 'dashboard',
-    component: () => import('@/views/Dashboard.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/profile',
-    name: 'profile',
-    component: () => import('@/views/profile/UserProfile.vue'),
-    meta: { requiresAuth: true }
-  },
-
-  // Parent routes
-  {
-    path: '/campers',
-    name: 'campers',
-    component: () => import('@/views/campers/CamperList.vue'),
-    meta: {
-      requiresAuth: true,
-      roles: ['admin', 'parent'] // Admin or Parent
-    }
-  },
-  {
-    path: '/campers/:id',
-    name: 'camper-detail',
-    component: () => import('@/views/campers/CamperDetail.vue'),
-    meta: {
-      requiresAuth: true,
-      roles: ['admin', 'parent'],
-      requiresOwnership: true,
-      resourceType: 'camper'
-    }
-  },
-  {
-    path: '/applications/:id/sign',
-    name: 'application-sign',
-    component: () => import('@/views/applications/ApplicationSignature.vue'),
-    meta: {
-      requiresAuth: true,
-      roles: ['admin', 'parent'],
-      requiresOwnership: true,
-      resourceType: 'application'
-    }
-  },
-
-  // Admin-only routes
-  {
-    path: '/admin',
-    name: 'admin',
-    component: () => import('@/views/admin/AdminDashboard.vue'),
-    meta: {
-      requiresAuth: true,
-      role: 'admin'
-    }
-  },
-  {
-    path: '/admin/applications/:id/review',
-    name: 'application-review',
-    component: () => import('@/views/admin/ApplicationReview.vue'),
-    meta: {
-      requiresAuth: true,
-      role: 'admin'
-    }
-  },
-  {
-    path: '/admin/reports',
-    name: 'reports',
-    component: () => import('@/views/admin/ReportsHub.vue'),
-    meta: {
-      requiresAuth: true,
-      role: 'admin'
-    }
-  },
-  {
-    path: '/admin/camps',
-    name: 'camp-management',
-    component: () => import('@/views/admin/CampManagement.vue'),
-    meta: {
-      requiresAuth: true,
-      role: 'admin'
-    }
-  },
-
-  // Medical provider routes
-  {
-    path: '/medical/records',
-    name: 'medical-records',
-    component: () => import('@/views/medical/MedicalRecordList.vue'),
-    meta: {
-      requiresAuth: true,
-      roles: ['admin', 'medical']
-    }
-  },
-  {
-    path: '/medical/allergies',
-    name: 'allergies',
-    component: () => import('@/views/medical/AllergyList.vue'),
-    meta: {
-      requiresAuth: true,
-      roles: ['admin', 'medical']
-    }
-  },
-
-  // Error pages
-  {
-    path: '/forbidden',
-    name: 'forbidden',
-    component: () => import('@/views/errors/Forbidden.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'not-found',
-    component: () => import('@/views/errors/NotFound.vue'),
-    meta: { requiresAuth: false }
-  }
-];
-```
-
-### 4.5 Component-Level Visibility Control
-
-**Composable for Permission Checks:**
-
-```javascript
-// composables/usePermissions.js
-import { computed } from 'vue';
-import { useAuthStore } from '@/stores/auth';
+```typescript
+// hooks/usePermissions.ts
+import { useMemo } from 'react';
+import { useAppSelector } from '@/store/hooks';
 
 export function usePermissions() {
-  const authStore = useAuthStore();
+  const user = useAppSelector(state => state.auth.user);
 
-  const can = {
-    // Camper permissions
-    viewAllCampers: computed(() => authStore.isAdmin),
-    createCamper: computed(() => authStore.isAdmin || authStore.isParent),
-    editCamper: (camper) => {
-      if (authStore.isAdmin) return true;
-      if (authStore.isParent) return camper.user_id === authStore.user.id;
-      return false;
-    },
-    deleteCamper: (camper) => {
-      if (authStore.isAdmin) return true;
-      if (authStore.isParent) return camper.user_id === authStore.user.id;
-      return false;
-    },
+  const isAdmin = useMemo(() => user?.role.name === 'admin', [user]);
+  const isParent = useMemo(() => user?.role.name === 'parent', [user]);
+  const isMedical = useMemo(() => user?.role.name === 'medical', [user]);
 
-    // Application permissions
-    viewAllApplications: computed(() => authStore.isAdmin),
-    createApplication: computed(() => authStore.isAdmin || authStore.isParent),
-    editApplication: (application) => {
-      if (authStore.isAdmin) return true;
-      if (authStore.isParent) {
-        const owns = application.camper?.user_id === authStore.user.id;
-        const editable = !['approved', 'rejected', 'cancelled'].includes(application.status);
-        return owns && editable;
-      }
-      return false;
-    },
-    signApplication: (application) => {
-      if (authStore.isAdmin) return true;
-      if (authStore.isParent) {
-        const owns = application.camper?.user_id === authStore.user.id;
-        const needsSignature = !application.signed_at;
-        const notFinal = !['approved', 'rejected', 'cancelled'].includes(application.status);
-        return owns && needsSignature && notFinal;
-      }
-      return false;
-    },
-    reviewApplication: computed(() => authStore.isAdmin),
-    deleteApplication: computed(() => authStore.isAdmin),
-
-    // Medical information permissions
-    viewAllMedicalRecords: computed(() => authStore.isAdmin || authStore.isMedical),
-    createMedicalRecord: computed(() => authStore.isAdmin || authStore.isParent),
-    editMedicalRecord: (record) => {
-      if (authStore.isAdmin || authStore.isMedical) return true;
-      if (authStore.isParent) return record.camper?.user_id === authStore.user.id;
-      return false;
-    },
-    deleteMedicalRecord: computed(() => authStore.isAdmin),
-
-    createAllergy: computed(() => authStore.isAdmin || authStore.isParent || authStore.isMedical),
-    editAllergy: computed(() => authStore.isAdmin || authStore.isParent || authStore.isMedical),
-    deleteAllergy: (allergy) => {
-      if (authStore.isAdmin) return true;
-      if (authStore.isParent) return allergy.camper?.user_id === authStore.user.id;
-      return false; // Medical cannot delete
-    },
-
-    // Document permissions
-    uploadDocument: computed(() => authStore.isAdmin || authStore.isParent),
-    downloadDocument: (document) => {
-      if (authStore.isAdmin) return true; // Admin can download unscanned
-      const owns = document.uploaded_by === authStore.user.id;
-      return owns && document.scan_passed === true;
-    },
-    deleteDocument: (document) => {
-      if (authStore.isAdmin) return true;
-      return document.uploaded_by === authStore.user.id;
-    },
-
-    // Provider link permissions
-    createProviderLink: computed(() => authStore.isAdmin || authStore.isParent),
-    revokeProviderLink: (link) => {
-      if (authStore.isAdmin) return true;
-      if (authStore.isParent) return link.camper?.user_id === authStore.user.id;
-      return false;
-    },
-    resendProviderLink: computed(() => authStore.isAdmin),
-
-    // Reporting permissions
-    viewReports: computed(() => authStore.isAdmin),
-
-    // Camp management permissions
-    manageCamps: computed(() => authStore.isAdmin),
-    manageSessions: computed(() => authStore.isAdmin)
+  const canViewCamper = (camperId: number): boolean => {
+    if (isAdmin) return true;
+    if (isParent) {
+      return user?.campers?.some(c => c.id === camperId) ?? false;
+    }
+    return false;
   };
 
-  return { can };
+  const canReviewApplication = (): boolean => {
+    return isAdmin;
+  };
+
+  return { isAdmin, isParent, isMedical, canViewCamper, canReviewApplication };
 }
 ```
 
-**Usage in Components:**
+**UI Conditional Rendering:**
 
-```vue
-<template>
-  <div class="camper-detail">
-    <h2>{{ camper.first_name }} {{ camper.last_name }}</h2>
+```typescript
+// components/applications/ApplicationActions.tsx
+import { usePermissions } from '@/hooks/usePermissions';
 
-    <!-- Edit button - conditionally rendered -->
-    <el-button
-      v-if="can.editCamper(camper)"
-      type="primary"
-      @click="editCamper"
-    >
-      Edit Camper
-    </el-button>
+export function ApplicationActions({ applicationId }: { applicationId: number }) {
+  const { canReviewApplication, isAdmin, isParent } = usePermissions();
 
-    <!-- Delete button - admin or parent owner only -->
-    <el-button
-      v-if="can.deleteCamper(camper)"
-      type="danger"
-      @click="deleteCamper"
-    >
-      Delete Camper
-    </el-button>
+  return (
+    <div className="flex gap-2">
+      {canReviewApplication() && (
+        <button
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          onClick={() => reviewApplication(applicationId)}
+        >
+          Review Application
+        </button>
+      )}
 
-    <!-- Medical info section - hide if not authorized -->
-    <div v-if="can.viewAllMedicalRecords || camper.user_id === authStore.user.id">
-      <h3>Medical Information</h3>
-      <!-- Medical data display -->
+      {(isAdmin || isParent) && (
+        <button className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+          View Details
+        </button>
+      )}
     </div>
-
-    <!-- Admin-only section -->
-    <div v-if="authStore.isAdmin" class="admin-panel">
-      <h3>Administrative Actions</h3>
-      <!-- Admin-specific UI -->
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { usePermissions } from '@/composables/usePermissions';
-import { useAuthStore } from '@/stores/auth';
-
-const { can } = usePermissions();
-const authStore = useAuthStore();
-const props = defineProps(['camper']);
-</script>
-```
-
-### 4.6 Data Filtering in Frontend State
-
-**Vuex/Pinia Store with Role-Based Filtering:**
-
-```javascript
-// stores/campers.js
-import { defineStore } from 'pinia';
-import { useAuthStore } from './auth';
-import axios from 'axios';
-
-export const useCampersStore = defineStore('campers', {
-  state: () => ({
-    allCampers: [], // Raw data from API
-    loading: false,
-    error: null
-  }),
-
-  getters: {
-    // Filtered campers based on role
-    accessibleCampers(state) {
-      const authStore = useAuthStore();
-
-      if (authStore.isAdmin) {
-        return state.allCampers; // Admin sees all
-      }
-
-      if (authStore.isParent) {
-        return state.allCampers.filter(
-          camper => camper.user_id === authStore.user.id
-        ); // Parent sees own only
-      }
-
-      return []; // Medical has no camper access
-    },
-
-    getCamperById: (state) => (id) => {
-      const authStore = useAuthStore();
-      const camper = state.allCampers.find(c => c.id === parseInt(id));
-
-      if (!camper) return null;
-
-      // Authorization check
-      if (authStore.isAdmin) return camper;
-      if (authStore.isParent && camper.user_id === authStore.user.id) return camper;
-
-      return null; // Unauthorized access
-    }
-  },
-
-  actions: {
-    async fetchCampers() {
-      this.loading = true;
-      this.error = null;
-
-      try {
-        const response = await axios.get('/api/campers');
-        // Backend already filters by role, but store all for consistency
-        this.allCampers = response.data.data;
-      } catch (error) {
-        this.error = error.response?.data?.message || 'Failed to load campers';
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchCamper(id) {
-      this.loading = true;
-      this.error = null;
-
-      try {
-        const response = await axios.get(`/api/campers/${id}`);
-
-        // Update or add to allCampers
-        const index = this.allCampers.findIndex(c => c.id === response.data.id);
-        if (index >= 0) {
-          this.allCampers[index] = response.data;
-        } else {
-          this.allCampers.push(response.data);
-        }
-
-        return response.data;
-      } catch (error) {
-        if (error.response?.status === 403) {
-          this.error = 'You do not have permission to view this camper.';
-        } else if (error.response?.status === 404) {
-          this.error = 'Camper not found.';
-        } else {
-          this.error = error.response?.data?.message || 'Failed to load camper';
-        }
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    }
-  }
-});
-```
-
-### 4.7 Critical Security Implementation Notes
-
-**1. Never Trust Client-Side Authorization:**
-- Frontend RBAC enforcement is for UX only (hide irrelevant UI)
-- Backend always validates permissions server-side
-- Malicious users can bypass client-side checks
-- Always expect 403 Forbidden responses and handle gracefully
-
-**2. Avoid Exposing Unauthorized Data:**
-- Do not fetch data user cannot access "just in case"
-- Filter dropdown options to only show authorized choices (e.g., camper selection)
-- Clear sensitive data from store on logout
-
-**3. URL Parameter Security:**
-- Never expose sensitive IDs in query parameters
-- Use route parameters for resource IDs: `/campers/:id` (better than `/campers?id=123`)
-- Backend validates ownership on every request, frontend should prevent unauthorized navigation
-
-**4. Conditional Rendering Best Practices:**
-```vue
-<!-- GOOD: Hide UI element completely -->
-<el-button v-if="can.deleteApplication" @click="delete">Delete</el-button>
-
-<!-- BAD: Disable but show UI element (hints at hidden functionality) -->
-<el-button :disabled="!can.deleteApplication" @click="delete">Delete</el-button>
-```
-
-**5. Global Error Handling for Authorization:**
-```javascript
-// axios interceptors
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 403) {
-      ElMessage.error('You do not have permission to perform this action.');
-      router.push({ name: 'forbidden', params: {
-        message: error.response.data.message
-      }});
-    }
-    return Promise.reject(error);
-  }
-);
+  );
+}
 ```
 
 ---
 
 ## 5. Application Workflow Mapping
 
-The application lifecycle in the Camp Burnt Gin system follows a strict state machine with defined transitions, validation requirements, and notification triggers. This section maps the complete workflow from draft creation through final decision, documenting backend state, required frontend state, UI views, notifications, and edge cases for each stage.
+### 5.1 Application Status States
 
-### 5.1 Application State Machine
+| Status | Description | Editable | Final State |
+|--------|-------------|----------|-------------|
+| `pending` | Submitted, awaiting admin review | No | No |
+| `under_review` | Admin is reviewing | No | No |
+| `approved` | Accepted for camp session | No | Yes |
+| `rejected` | Denied | No | Yes |
+| `waitlisted` | On waitlist | No | No |
+| `cancelled` | Cancelled by parent/admin | No | Yes |
 
-The backend implements a six-state application workflow with defined transitions:
-
-**States:**
-1. **Pending** (`pending`) - Initial state, draft mode enabled
-2. **Under Review** (`under_review`) - Submitted and awaiting administrative review
-3. **Approved** (`approved`) - **FINAL** - Accepted for camp attendance
-4. **Rejected** (`rejected`) - **FINAL** - Application denied
-5. **Waitlisted** (`waitlisted`) - Placed on waiting list, may transition to approved or rejected
-6. **Cancelled** (`cancelled`) - **FINAL** - Cancelled by parent
-
-**State Transition Diagram (Text Form):**
+### 5.2 State Transitions
 
 ```
-┌──────────────┐
-│   PENDING    │ (is_draft = true, status = pending)
-│  (Draft)     │
-└──────┬───────┘
-       │
-       │ ACTION: Parent sets is_draft = false (requires signature)
-       │ TRIGGER: PUT /api/applications/{id}
-       │ VALIDATION: signature_data, signature_name, signed_at must be present
-       │
-       ▼
-┌──────────────┐
-│ UNDER REVIEW │ (is_draft = false, status = under_review, submitted_at set)
-│              │
-└──────┬───────┘
-       │
-       │ ACTION: Admin reviews application
-       │ TRIGGER: POST /api/applications/{id}/review
-       │
-       ├───► APPROVED (FINAL - cannot be changed)
-       │     - Sets: reviewed_at, reviewed_by, notes (optional)
-       │     - Triggers: Acceptance letter email + notification
-       │
-       ├───► REJECTED (FINAL - cannot be changed)
-       │     - Sets: reviewed_at, reviewed_by, notes (required)
-       │     - Triggers: Rejection letter email + notification
-       │
-       └───► WAITLISTED (can transition to approved or rejected later)
-             - Sets: reviewed_at, reviewed_by, notes (optional)
-             - Triggers: Waitlist notification email
-             └──────┬─────────
-                    │
-                    │ ACTION: Admin reviews again (space available or final decision)
-                    │
-                    ├───► APPROVED (FINAL)
-                    └───► REJECTED (FINAL)
-
-┌─────────────────────────────────────────────┐
-│  CANCELLED (FINAL)                           │
-│                                             │
-│  From: Any non-final state                  │
-│  ACTION: Parent cancels application         │
-│  TRIGGER: PUT /api/applications/{id}        │
-│  Sets: status = cancelled                   │
-│  Notification: Admin notified               │
-└─────────────────────────────────────────────┘
+Draft (is_draft: true)
+  ↓ Parent signs
+Pending (submitted_at set)
+  ↓ Admin begins review
+Under Review
+  ↓ Admin decision
+  ├─→ Approved (final)
+  ├─→ Rejected (final)
+  └─→ Waitlisted
+      ↓ Spot opens
+      Approved (final)
 ```
 
-### 5.2 Draft Creation and Saving
+### 5.3 Workflow Rules
 
-**Stage:** Initial Application Creation
+**Draft State:**
+- Editable by parent/guardian
+- Not visible to admin review queue
+- No signature required
+- Auto-save every 30 seconds
 
-**Backend State:**
-- `status` = `pending`
-- `is_draft` = `true`
-- `submitted_at` = `NULL`
-- `reviewed_at` = `NULL`
-- `signed_at` = `NULL`
+**Submission Requirements:**
+- Digital signature required
+- Child participant profile complete
+- Medical records submitted (if required by session)
+- Terms accepted
 
-**Required Frontend State:**
+**Review Process:**
+- Only admins can review
+- Review requires status selection and notes
+- Status change triggers email notification
+- Audit log entry created
 
-```javascript
-{
-  applicationForm: {
-    id: null, // Will be set after creation
-    camper_id: null, // User selects from dropdown
-    camp_session_id: null, // User selects from dropdown
-    is_draft: true,
-    notes: '', // Optional parent notes
-  },
-  validationErrors: {},
-  saveStatus: 'unsaved', // 'unsaved', 'saving', 'saved', 'error'
-  lastSavedAt: null,
-  isDirty: false // Track unsaved changes
-}
-```
+**Final States:**
+- Approved, Rejected, Cancelled are immutable
+- No editing allowed
+- Status visible to parents/guardians
+- Included in reports
 
-**Required UI Views:**
+### 5.4 Frontend Implementation
 
-1. **Application Create Form** (`/applications/create`)
-   - Camper selection dropdown (filtered by accessible campers)
-   - Camp session selection dropdown (filtered by active sessions, registration window open)
-   - Notes textarea (optional)
-   - "Save Draft" button (primary action)
-   - "Cancel" button (navigates back)
+**Draft Auto-Save:**
 
-2. **Auto-Save Indicator**
-   - Visual indicator of save status
-   - Last saved timestamp
-   - "Saving..." spinner during API call
+```typescript
+// hooks/useAutoSave.ts
+import { useEffect, useRef } from 'react';
+import { applicationsApi } from '@/api/applications.api';
 
-**Frontend Workflow:**
+export function useAutoSave(formData: any, applicationId: number, interval = 30000) {
+  const saveTimer = useRef<NodeJS.Timeout>();
+  const lastSaved = useRef<Date>();
 
-```javascript
-// Auto-save implementation
-let autoSaveTimer = null;
+  useEffect(() => {
+    const scheduleSave = async () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
 
-watch(
-  () => applicationForm,
-  () => {
-    isDirty.value = true;
-    saveStatus.value = 'unsaved';
-
-    // Debounce auto-save
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(() => {
-      saveDraft();
-    }, 3000); // Auto-save 3 seconds after last change
-  },
-  { deep: true }
-);
-
-async function saveDraft() {
-  saveStatus.value = 'saving';
-  validationErrors.value = {};
-
-  try {
-    const payload = {
-      camper_id: applicationForm.camper_id,
-      camp_session_id: applicationForm.camp_session_id,
-      is_draft: true,
-      notes: applicationForm.notes
+      saveTimer.current = setTimeout(async () => {
+        try {
+          await applicationsApi.update(applicationId, {
+            ...formData,
+            is_draft: true
+          });
+          lastSaved.current = new Date();
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+        }
+      }, interval);
     };
 
-    let response;
-    if (applicationForm.id) {
-      // Update existing draft
-      response = await axios.put(`/api/applications/${applicationForm.id}`, payload);
-    } else {
-      // Create new draft
-      response = await axios.post('/api/applications', payload);
-      applicationForm.id = response.data.id;
-    }
+    scheduleSave();
 
-    saveStatus.value = 'saved';
-    lastSavedAt.value = new Date();
-    isDirty.value = false;
-
-    ElMessage.success('Draft saved', { duration: 2000 });
-  } catch (error) {
-    saveStatus.value = 'error';
-    if (error.response?.status === 422) {
-      validationErrors.value = error.response.data.errors;
-      ElMessage.error('Validation error: ' + Object.values(error.response.data.errors).flat().join(', '));
-    } else if (error.response?.data?.errors?.camper_id?.[0]?.includes('already has an application')) {
-      ElMessage.error('This camper already has an application for this session.');
-      router.push({ name: 'applications' });
-    } else {
-      ElMessage.error('Failed to save draft. Please try again.');
-    }
-  }
-}
-
-// Manual save button
-async function saveAndExit() {
-  await saveDraft();
-  if (saveStatus.value === 'saved') {
-    router.push({ name: 'applications' });
-  }
-}
-
-// Warn user before leaving with unsaved changes
-onBeforeRouteLeave((to, from, next) => {
-  if (isDirty.value) {
-    ElMessageBox.confirm(
-      'You have unsaved changes. Do you want to save before leaving?',
-      'Unsaved Changes',
-      {
-        confirmButtonText: 'Save and Leave',
-        cancelButtonText: 'Leave Without Saving',
-        type: 'warning'
-      }
-    ).then(async () => {
-      await saveDraft();
-      next();
-    }).catch(() => {
-      next(); // Leave without saving
-    });
-  } else {
-    next();
-  }
-});
-```
-
-**Notifications:** None (draft saved locally, no email sent)
-
-**Edge Cases:**
-1. **Duplicate Application:** Camper already has application for session
-   - Backend returns 422 with error: "This camper already has an application for this session."
-   - Frontend displays error and prevents creation/update
-2. **Registration Window Closed:** Session registration period expired
-   - Backend returns 422 with error: "Registration is not currently open for this session."
-   - Frontend should disable session selection for closed sessions
-3. **Network Failure During Auto-Save:** API call fails
-   - Frontend retries once after 5 seconds
-   - If retry fails, displays "Failed to auto-save. Please save manually."
-   - Keeps local state intact for manual retry
-
-### 5.3 Resume Draft
-
-**Stage:** Returning to Incomplete Application
-
-**Backend State:**
-- `is_draft` = `true`
-- `status` = `pending`
-
-**Required Frontend State:**
-
-```javascript
-{
-  applicationId: 'from-route-params',
-  application: null, // Loaded from API
-  loading: true,
-  error: null
-}
-```
-
-**Required UI View:**
-
-1. **Application Edit Form** (`/applications/:id/edit`)
-   - Pre-populated with existing data
-   - Same layout as create form
-   - "Save Draft" button
-   - "Continue to Signature" button (navigates to signature step)
-
-**Frontend Workflow:**
-
-```javascript
-async function loadDraft() {
-  loading.value = true;
-  error.value = null;
-
-  try {
-    const response = await axios.get(`/api/applications/${route.params.id}`);
-    application.value = response.data;
-
-    // Populate form
-    applicationForm.value = {
-      id: application.value.id,
-      camper_id: application.value.camper_id,
-      camp_session_id: application.value.camp_session_id,
-      is_draft: application.value.is_draft,
-      notes: application.value.notes || ''
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
     };
+  }, [formData, applicationId, interval]);
 
-    loading.value = false;
-  } catch (error) {
-    if (error.response?.status === 403) {
-      error.value = 'You do not have permission to view this application.';
-      router.push({ name: 'forbidden' });
-    } else if (error.response?.status === 404) {
-      error.value = 'Application not found.';
-      router.push({ name: 'not-found' });
-    } else {
-      error.value = 'Failed to load application.';
+  return { lastSaved: lastSaved.current };
+}
+```
+
+**Signature Capture:**
+
+```typescript
+// components/applications/SignatureCanvas.tsx
+import { useRef, useState } from 'react';
+
+export function SignatureCanvas({ onSave }: { onSave: (signature: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
     }
-    loading.value = false;
-  }
-}
+  };
 
-function continueToSignature() {
-  // Validate that camper and session are selected
-  if (!applicationForm.value.camper_id || !applicationForm.value.camp_session_id) {
-    ElMessage.warning('Please select a camper and camp session before continuing.');
-    return;
-  }
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) {
+      ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+      ctx.stroke();
+    }
+  };
 
-  // Save draft before navigating
-  saveDraft().then(() => {
-    router.push({ name: 'application-sign', params: { id: application.value.id } });
-  });
-}
-```
+  const stopDrawing = () => setIsDrawing(false);
 
-**Notifications:** None
+  const clearSignature = () => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx && canvasRef.current) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+  };
 
-**Edge Cases:**
-1. **Application No Longer Draft:** User navigated to edit form for submitted application
-   - Backend returns application with `is_draft = false`
-   - Frontend detects and redirects to read-only view with message: "This application has been submitted and cannot be edited."
-2. **Ownership Changed:** Admin transferred application to different user
-   - Backend returns 403 Forbidden for parent user
-   - Frontend redirects to applications list with error message
+  const saveSignature = () => {
+    const dataUrl = canvasRef.current?.toDataURL('image/png');
+    if (dataUrl) onSave(dataUrl);
+  };
 
-### 5.4 Digital Signature Collection
-
-**Stage:** Parent Signs Application Before Submission
-
-**Backend State:**
-- Application exists with `is_draft = true`
-- `signed_at` = `NULL` (before signature)
-- After signature: `signature_data`, `signature_name`, `signed_at`, `signed_ip_address` populated
-
-**Required Frontend State:**
-
-```javascript
-{
-  applicationId: 'from-route-params',
-  application: null,
-  signature: {
-    canvas: null, // HTML5 Canvas element ref
-    signatureName: '', // Parent's full name
-    signatureImage: '', // Base64 encoded PNG
-    isSigned: false,
-    isSubmitting: false
-  },
-  agreementAccepted: false, // Checkbox for terms
-  validationErrors: {}
-}
-```
-
-**Required UI View:**
-
-1. **Signature Page** (`/applications/:id/sign`)
-   - Application summary (read-only camper info, session info)
-   - Terms and conditions checkbox
-   - Signature canvas (HTML5 canvas or signature pad library)
-   - "Clear" button to reset canvas
-   - Text input for printed name
-   - "Sign and Continue" button (enabled only if signature drawn, name entered, terms accepted)
-
-**Frontend Implementation:**
-
-```vue
-<template>
-  <div class="signature-page">
-    <h2>Sign Application</h2>
-
-    <!-- Application Summary -->
-    <el-card class="summary-card">
-      <h3>Application Summary</h3>
-      <p><strong>Camper:</strong> {{ application.camper.first_name }} {{ application.camper.last_name }}</p>
-      <p><strong>Camp Session:</strong> {{ application.camp_session.name }}</p>
-      <p><strong>Dates:</strong> {{ formatDate(application.camp_session.start_date) }} - {{ formatDate(application.camp_session.end_date) }}</p>
-    </el-card>
-
-    <!-- Terms and Conditions -->
-    <el-card class="terms-card">
-      <h3>Terms and Conditions</h3>
-      <div class="terms-content">
-        <p>By signing this application, I certify that:</p>
-        <ul>
-          <li>All information provided is accurate and complete</li>
-          <li>I am the legal parent or guardian of the camper</li>
-          <li>I authorize camp staff to provide emergency medical treatment if needed</li>
-          <li>I have reviewed and agree to the camp policies and procedures</li>
-        </ul>
+  return (
+    <div className="space-y-4">
+      <canvas
+        ref={canvasRef}
+        width={500}
+        height={200}
+        className="border-2 border-gray-300 rounded cursor-crosshair"
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={clearSignature}
+          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+        >
+          Clear
+        </button>
+        <button
+          onClick={saveSignature}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Sign Application
+        </button>
       </div>
-      <el-checkbox v-model="agreementAccepted" size="large">
-        I have read and agree to the terms and conditions
-      </el-checkbox>
-    </el-card>
-
-    <!-- Signature Canvas -->
-    <el-card class="signature-card">
-      <h3>Signature</h3>
-      <p>Please sign below using your mouse or touchscreen:</p>
-
-      <div class="signature-container">
-        <canvas
-          ref="signatureCanvas"
-          width="600"
-          height="200"
-          @mousedown="startDrawing"
-          @mousemove="draw"
-          @mouseup="stopDrawing"
-          @mouseleave="stopDrawing"
-          @touchstart="startDrawing"
-          @touchmove="draw"
-          @touchend="stopDrawing"
-          class="signature-canvas"
-        ></canvas>
-      </div>
-
-      <el-button @click="clearSignature" size="small">Clear Signature</el-button>
-
-      <el-form-item label="Printed Name" class="printed-name">
-        <el-input
-          v-model="signature.signatureName"
-          placeholder="Enter your full name"
-          maxlength="255"
-        />
-      </el-form-item>
-    </el-card>
-
-    <!-- Actions -->
-    <div class="actions">
-      <el-button @click="router.back()">Back</el-button>
-      <el-button
-        type="primary"
-        @click="signAndContinue"
-        :disabled="!canSign"
-        :loading="signature.isSubmitting"
-      >
-        Sign and Continue to Submission
-      </el-button>
     </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
-import { ElMessage } from 'element-plus';
-
-const route = useRoute();
-const router = useRouter();
-
-const application = ref(null);
-const signatureCanvas = ref(null);
-const signature = ref({
-  signatureName: '',
-  signatureImage: '',
-  isSigned: false,
-  isSubmitting: false
-});
-const agreementAccepted = ref(false);
-
-let isDrawing = false;
-let ctx = null;
-
-onMounted(() => {
-  loadApplication();
-  setupCanvas();
-});
-
-async function loadApplication() {
-  try {
-    const response = await axios.get(`/api/applications/${route.params.id}`);
-    application.value = response.data;
-
-    // Check if already signed
-    if (application.value.signed_at) {
-      ElMessage.info('This application has already been signed.');
-      router.push({ name: 'application-detail', params: { id: application.value.id } });
-    }
-  } catch (error) {
-    ElMessage.error('Failed to load application');
-    router.back();
-  }
-}
-
-function setupCanvas() {
-  ctx = signatureCanvas.value.getContext('2d');
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-}
-
-function startDrawing(e) {
-  isDrawing = true;
-  const rect = signatureCanvas.value.getBoundingClientRect();
-  const x = (e.clientX || e.touches[0].clientX) - rect.left;
-  const y = (e.clientY || e.touches[0].clientY) - rect.top;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  signature.value.isSigned = true;
-}
-
-function draw(e) {
-  if (!isDrawing) return;
-  e.preventDefault();
-  const rect = signatureCanvas.value.getBoundingClientRect();
-  const x = (e.clientX || e.touches[0].clientX) - rect.left;
-  const y = (e.clientY || e.touches[0].clientY) - rect.top;
-  ctx.lineTo(x, y);
-  ctx.stroke();
-}
-
-function stopDrawing() {
-  isDrawing = false;
-}
-
-function clearSignature() {
-  ctx.clearRect(0, 0, signatureCanvas.value.width, signatureCanvas.value.height);
-  signature.value.isSigned = false;
-  signature.value.signatureImage = '';
-}
-
-const canSign = computed(() => {
-  return signature.value.isSigned &&
-         signature.value.signatureName.trim().length > 0 &&
-         agreementAccepted.value;
-});
-
-async function signAndContinue() {
-  signature.value.isSubmitting = true;
-
-  try {
-    // Convert canvas to base64 PNG
-    signature.value.signatureImage = signatureCanvas.value.toDataURL('image/png');
-
-    // Submit signature to backend
-    await axios.post(`/api/applications/${application.value.id}/sign`, {
-      signature_data: signature.value.signatureImage,
-      signature_name: signature.value.signatureName
-    });
-
-    ElMessage.success('Application signed successfully');
-
-    // Navigate to submission confirmation
-    router.push({
-      name: 'application-submit',
-      params: { id: application.value.id }
-    });
-  } catch (error) {
-    ElMessage.error('Failed to save signature. Please try again.');
-  } finally {
-    signature.value.isSubmitting = false;
-  }
-}
-</script>
-
-<style scoped>
-.signature-canvas {
-  border: 2px solid #dcdfe6;
-  border-radius: 4px;
-  cursor: crosshair;
-  background: white;
-  display: block;
-  margin: 16px auto;
-}
-
-.signature-container {
-  background: #f5f7fa;
-  padding: 16px;
-  border-radius: 8px;
-}
-
-.terms-content {
-  max-height: 200px;
-  overflow-y: auto;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f9fafc;
-  border-radius: 4px;
-}
-</style>
-```
-
-**Notifications:** None (signature saved, not submitted yet)
-
-**Edge Cases:**
-1. **Empty Signature:** User clicks "Sign and Continue" without drawing
-   - Frontend validation prevents submission (button disabled)
-   - If bypassed: Backend returns 422 "signature_data is required"
-2. **Name Mismatch:** Signature name doesn't match account name
-   - Allowed by backend (parent may be signing on behalf of another guardian)
-   - No validation required
-3. **Duplicate Signature:** User already signed and returns to page
-   - Frontend detects `signed_at !== null` and redirects with message
-4. **Browser Refresh:** User refreshes page during signature
-   - Canvas is cleared (signature not submitted yet)
-   - User must re-sign
-
-### 5.5 Application Submission
-
-**Stage:** Converting Draft to Submitted Application
-
-**Backend State Transition:**
-- Before: `is_draft = true`, `status = pending`, `submitted_at = NULL`
-- After: `is_draft = false`, `status = under_review`, `submitted_at = CURRENT_TIMESTAMP`
-
-**Required Frontend State:**
-
-```javascript
-{
-  applicationId: 'from-route-params',
-  application: null,
-  isSubmitting: false,
-  submissionConfirmed: false
+  );
 }
 ```
 
-**Required UI View:**
+**Status Badge Component:**
 
-1. **Submission Confirmation Page** (`/applications/:id/submit`)
-   - Final review checklist (camper info, session, signature confirmed)
-   - Warning: "Once submitted, you cannot edit this application."
-   - "Submit Application" button (prominent, primary color)
-   - "Go Back" button (to make last-minute changes)
+```typescript
+// components/applications/StatusBadge.tsx
+import { ApplicationStatus } from '@/types/application.types';
 
-**Frontend Workflow:**
+const statusConfig: Record<ApplicationStatus, { label: string; className: string }> = {
+  pending: { label: 'Pending', className: 'bg-gray-500 text-white' },
+  under_review: { label: 'Under Review', className: 'bg-blue-500 text-white' },
+  approved: { label: 'Approved', className: 'bg-green-500 text-white' },
+  rejected: { label: 'Rejected', className: 'bg-red-500 text-white' },
+  waitlisted: { label: 'Waitlisted', className: 'bg-yellow-500 text-white' },
+  cancelled: { label: 'Cancelled', className: 'bg-gray-500 text-white' }
+};
 
-```javascript
-async function submitApplication() {
-  // Confirm submission
-  try {
-    await ElMessageBox.confirm(
-      'Once submitted, you will not be able to edit this application. Are you sure you want to submit?',
-      'Confirm Submission',
-      {
-        confirmButtonText: 'Yes, Submit',
-        cancelButtonText: 'Not Yet',
-        type: 'warning',
-        distinguishCancelAndClose: true
-      }
-    );
-  } catch {
-    return; // User cancelled
-  }
+export function StatusBadge({ status }: { status: ApplicationStatus }) {
+  const config = statusConfig[status];
 
-  isSubmitting.value = true;
-
-  try {
-    // Submit by setting is_draft = false
-    const response = await axios.put(`/api/applications/${route.params.id}`, {
-      is_draft: false
-    });
-
-    submissionConfirmed.value = true;
-
-    // Success notification
-    ElNotification({
-      title: 'Application Submitted',
-      message: `Your application for ${application.value.camper.first_name} has been submitted successfully. You will receive an email confirmation shortly.`,
-      type: 'success',
-      duration: 10000
-    });
-
-    // Navigate to application detail (read-only)
-    router.push({
-      name: 'application-detail',
-      params: { id: application.value.id }
-    });
-  } catch (error) {
-    if (error.response?.status === 422) {
-      const errors = error.response.data.errors;
-      if (errors.signature_data) {
-        ElMessage.error('Application must be signed before submission.');
-        router.push({ name: 'application-sign', params: { id: application.value.id } });
-      } else {
-        ElMessage.error('Validation error: ' + Object.values(errors).flat().join(', '));
-      }
-    } else {
-      ElMessage.error('Failed to submit application. Please try again.');
-    }
-  } finally {
-    isSubmitting.value = false;
-  }
+  return (
+    <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.className}`}>
+      {config.label}
+    </span>
+  );
 }
 ```
-
-**Backend Side Effects:**
-- `submitted_at` timestamp set to current time
-- Status changes from `pending` to `under_review`
-- Application becomes visible in admin review queue
-- Parent receives email: "Application Submitted"
-
-**Notifications:**
-
-**Email to Parent:**
-```
-Subject: Application Submitted - Camp Burnt Gin
-
-Dear [Parent Name],
-
-Your application for [Camper Name] to attend [Session Name] has been successfully submitted.
-
-Application ID: [ID]
-Submitted: [Date/Time]
-
-Our team will review your application and you will receive a notification when a decision has been made.
-
-If you have any questions, please contact us at [Contact Email].
-
-Thank you,
-Camp Burnt Gin Team
-```
-
-**In-App Notification:**
-- Type: Success
-- Title: "Application Submitted"
-- Message: "Your application has been submitted and is under review."
-
-**Edge Cases:**
-1. **Missing Signature:** User bypassed signature step
-   - Backend returns 422 "Application must be signed before submission."
-   - Frontend redirects to signature page with error message
-2. **Session Registration Closed:** Registration window closed after draft was created
-   - Backend returns 422 "Registration is no longer open for this session."
-   - Frontend displays error and prevents submission
-3. **Application Already Submitted:** User clicks submit button twice rapidly
-   - First request succeeds, second returns application with `is_draft = false`
-   - Frontend detects and displays "Application already submitted" message
-
-### 5.6 Administrative Review Process
-
-**Stage:** Admin Reviews Submitted Application
-
-**Backend State:**
-- `status = under_review`
-- `is_draft = false`
-- `reviewed_at = NULL` (before review)
-
-**Required Frontend State (Admin Dashboard):**
-
-```javascript
-{
-  applicationsList: [],
-  filters: {
-    status: 'under_review',
-    camp_session_id: null,
-    search: '',
-    date_from: null,
-    date_to: null
-  },
-  pagination: {
-    currentPage: 1,
-    perPage: 15,
-    total: 0
-  },
-  loading: false
-}
-```
-
-**Required UI Views:**
-
-1. **Admin Applications List** (`/admin/applications`)
-   - Filterable table (status, session, date range, search by camper name)
-   - Columns: Application ID, Camper Name, Session, Status, Submitted Date, Actions
-   - "Review" button for `under_review` status
-   - Pagination controls
-
-2. **Application Review Page** (`/admin/applications/:id/review`)
-   - Full application details (camper info, session, medical records, documents)
-   - Medical risk indicators (life-threatening allergies, critical medications)
-   - Signature display (image)
-   - Review decision form:
-     - Radio buttons: Approve / Reject / Waitlist
-     - Notes textarea (required for rejection)
-     - "Submit Review" button
-
-**Frontend Review Workflow:**
-
-```javascript
-const reviewForm = ref({
-  status: null, // 'approved', 'rejected', 'waitlisted'
-  notes: ''
-});
-
-async function submitReview() {
-  // Validate
-  if (!reviewForm.value.status) {
-    ElMessage.warning('Please select a review decision.');
-    return;
-  }
-
-  if (reviewForm.value.status === 'rejected' && !reviewForm.value.notes.trim()) {
-    ElMessage.warning('Please provide notes explaining the rejection.');
-    return;
-  }
-
-  // Confirm
-  const statusLabel = {
-    approved: 'approve',
-    rejected: 'reject',
-    waitlisted: 'waitlist'
-  }[reviewForm.value.status];
-
-  try {
-    await ElMessageBox.confirm(
-      `Are you sure you want to ${statusLabel} this application?`,
-      'Confirm Review Decision',
-      {
-        confirmButtonText: 'Yes, Confirm',
-        cancelButtonText: 'Cancel',
-        type: reviewForm.value.status === 'rejected' ? 'error' : 'warning'
-      }
-    );
-  } catch {
-    return;
-  }
-
-  isSubmitting.value = true;
-
-  try {
-    const response = await axios.post(`/api/applications/${route.params.id}/review`, {
-      status: reviewForm.value.status,
-      notes: reviewForm.value.notes
-    });
-
-    application.value = response.data;
-
-    ElNotification({
-      title: 'Review Submitted',
-      message: `Application ${statusLabel}d successfully. Parent will be notified.`,
-      type: 'success',
-      duration: 5000
-    });
-
-    // Navigate back to applications list
-    router.push({ name: 'admin-applications' });
-  } catch (error) {
-    if (error.response?.status === 422) {
-      ElMessage.error('Validation error: ' + Object.values(error.response.data.errors).flat().join(', '));
-    } else {
-      ElMessage.error('Failed to submit review. Please try again.');
-    }
-  } finally {
-    isSubmitting.value = false;
-  }
-}
-```
-
-**Backend Side Effects:**
-- `status` changes to `approved`, `rejected`, or `waitlisted`
-- `reviewed_at` set to current timestamp
-- `reviewed_by` set to admin user ID
-- `notes` saved
-- Notification queued to parent
-- If approved: Acceptance letter generated
-- If rejected: Rejection letter generated
-
-**Notifications:**
-
-**Approval Email to Parent:**
-```
-Subject: Application Approved - Camp Burnt Gin
-
-Dear [Parent Name],
-
-Congratulations! Your application for [Camper Name] to attend [Session Name] has been approved.
-
-Session Details:
-- Dates: [Start Date] - [End Date]
-- Location: [Camp Location]
-
-Next Steps:
-1. Review the attached acceptance letter
-2. Complete the pre-camp health form (link)
-3. Submit any outstanding documents
-4. Arrive for check-in on [Start Date] at [Time]
-
-We look forward to seeing [Camper Name] at camp!
-
-Best regards,
-Camp Burnt Gin Team
-```
-
-**Rejection Email to Parent:**
-```
-Subject: Application Status Update - Camp Burnt Gin
-
-Dear [Parent Name],
-
-Thank you for your application for [Camper Name] to attend [Session Name].
-
-After careful review, we regret to inform you that we are unable to accept [Camper Name] for this session.
-
-[Admin Notes if provided]
-
-We encourage you to apply for future sessions. If you have questions, please contact us at [Contact Email].
-
-Sincerely,
-Camp Burnt Gin Team
-```
-
-**Edge Cases:**
-1. **Application Already Reviewed:** Another admin reviewed while current admin had page open
-   - Backend returns 422 if application status is already final
-   - Frontend displays: "This application has already been reviewed by [Reviewer Name] on [Date]."
-2. **Missing Medical Information:** Critical medical data not provided
-   - Admin can still approve/reject but should note missing information
-   - Frontend displays warning banner: "Warning: Medical record incomplete"
-3. **Concurrent Reviews:** Two admins review same application simultaneously
-   - Last write wins (Laravel handles database-level consistency)
-   - First review succeeds, second receives error or overwrites (depending on timing)
-
-### 5.7 Status Change Notifications
-
-**Stage:** Automated System Notifications After Review
-
-**Notification Triggers:**
-
-| Event | Trigger | Recipients | Delivery Method |
-|-------|---------|------------|-----------------|
-| Application Submitted | `is_draft` changes from `true` to `false` | Parent | Email + In-app notification |
-| Application Approved | `status` changes to `approved` | Parent | Email (with acceptance letter) + In-app notification |
-| Application Rejected | `status` changes to `rejected` | Parent | Email (with rejection letter) + In-app notification |
-| Application Waitlisted | `status` changes to `waitlisted` | Parent | Email + In-app notification |
-| Waitlist to Approved | `status` changes from `waitlisted` to `approved` | Parent | Email (with acceptance letter) + In-app notification |
-| Waitlist to Rejected | `status` changes from `waitlisted` to `rejected` | Parent | Email + In-app notification |
-| Application Cancelled | Parent sets `status` to `cancelled` | Admin | In-app notification only |
-
-**Frontend In-App Notification Display:**
-
-```vue
-<template>
-  <el-dropdown trigger="click" @command="handleNotificationClick">
-    <el-badge :value="unreadCount" :hidden="unreadCount === 0">
-      <el-icon :size="24"><Bell /></el-icon>
-    </el-badge>
-    <template #dropdown>
-      <el-dropdown-menu class="notification-dropdown">
-        <div class="notification-header">
-          <span>Notifications</span>
-          <el-button
-            v-if="unreadCount > 0"
-            text
-            size="small"
-            @click="markAllRead"
-          >
-            Mark all read
-          </el-button>
-        </div>
-
-        <el-scrollbar max-height="400px">
-          <el-dropdown-item
-            v-for="notification in notifications"
-            :key="notification.id"
-            :command="notification.id"
-            :class="{ unread: !notification.read_at }"
-          >
-            <div class="notification-item">
-              <el-icon :color="getNotificationColor(notification.type)">
-                <component :is="getNotificationIcon(notification.type)" />
-              </el-icon>
-              <div class="notification-content">
-                <p class="notification-message">{{ notification.data.message }}</p>
-                <span class="notification-time">{{ formatTimeAgo(notification.created_at) }}</span>
-              </div>
-            </div>
-          </el-dropdown-item>
-        </el-scrollbar>
-
-        <div class="notification-footer">
-          <el-button text @click="viewAllNotifications">View All</el-button>
-        </div>
-      </el-dropdown-menu>
-    </template>
-  </el-dropdown>
-</template>
-
-<script setup>
-import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
-import { Bell, CircleCheck, CircleClose, InfoFilled } from '@element-plus/icons-vue';
-
-const notifications = ref([]);
-
-const unreadCount = computed(() =>
-  notifications.value.filter(n => !n.read_at).length
-);
-
-async function fetchNotifications() {
-  try {
-    const response = await axios.get('/api/notifications?unread=false');
-    notifications.value = response.data.data;
-  } catch (error) {
-    console.error('Failed to fetch notifications:', error);
-  }
-}
-
-async function markAllRead() {
-  try {
-    await axios.put('/api/notifications/read-all');
-    notifications.value.forEach(n => {
-      n.read_at = new Date().toISOString();
-    });
-  } catch (error) {
-    ElMessage.error('Failed to mark notifications as read');
-  }
-}
-
-async function handleNotificationClick(notificationId) {
-  const notification = notifications.value.find(n => n.id === notificationId);
-  if (!notification) return;
-
-  // Mark as read
-  if (!notification.read_at) {
-    try {
-      await axios.put(`/api/notifications/${notificationId}/read`);
-      notification.read_at = new Date().toISOString();
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-    }
-  }
-
-  // Navigate to related resource
-  if (notification.data.application_id) {
-    router.push({
-      name: 'application-detail',
-      params: { id: notification.data.application_id }
-    });
-  }
-}
-
-function getNotificationIcon(type) {
-  if (type.includes('Approved') || type.includes('Accepted')) return CircleCheck;
-  if (type.includes('Rejected')) return CircleClose;
-  return InfoFilled;
-}
-
-function getNotificationColor(type) {
-  if (type.includes('Approved')) return '#67c23a';
-  if (type.includes('Rejected')) return '#f56c6c';
-  if (type.includes('Waitlisted')) return '#e6a23c';
-  return '#909399';
-}
-
-onMounted(() => {
-  fetchNotifications();
-
-  // Poll for new notifications every 30 seconds
-  setInterval(fetchNotifications, 30000);
-});
-</script>
-```
-
-### 5.8 Medical Provider Link Workflow
-
-**Stage:** External Medical Provider Submits Information
-
-This workflow is unique: unauthenticated external access via secure token.
-
-**Backend State:**
-- `medical_provider_links` table entry with:
-  - `token`: 64-character cryptographically secure string
-  - `camper_id`: Associated camper
-  - `provider_email`: Recipient email
-  - `expires_at`: 72 hours from creation (default)
-  - `is_used`: `false` (before submission)
-  - `revoked_at`: `NULL`
-
-**Frontend Workflow (Parent Creates Link):**
-
-```javascript
-async function createProviderLink() {
-  try {
-    const response = await axios.post('/api/provider-links', {
-      camper_id: selectedCamper.value.id,
-      provider_email: providerEmail.value,
-      message: customMessage.value || 'Please complete the medical information form for camp registration.'
-    });
-
-    ElNotification({
-      title: 'Provider Link Created',
-      message: `An email has been sent to ${providerEmail.value} with a secure link to submit medical information.`,
-      type: 'success',
-      duration: 8000
-    });
-
-    // Display link details
-    providerLink.value = response.data;
-    showLinkDialog.value = true;
-  } catch (error) {
-    ElMessage.error('Failed to create provider link');
-  }
-}
-
-// Revoke link
-async function revokeLink(linkId) {
-  try {
-    await ElMessageBox.confirm(
-      'Are you sure you want to revoke this link? The provider will no longer be able to use it.',
-      'Confirm Revocation',
-      { type: 'warning' }
-    );
-
-    await axios.post(`/api/provider-links/${linkId}/revoke`);
-
-    ElMessage.success('Provider link revoked');
-    fetchProviderLinks();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('Failed to revoke link');
-    }
-  }
-}
-```
-
-**Frontend Workflow (Provider Accesses Link):**
-
-**Public Route:** `/provider/:token` (no authentication required)
-
-```vue
-<!-- ProviderForm.vue -->
-<template>
-  <div class="provider-access-page">
-    <header class="provider-header">
-      <h1>Camp Burnt Gin - Medical Information Form</h1>
-    </header>
-
-    <div v-if="linkStatus === 'loading'" class="loading">
-      <el-icon class="is-loading"><Loading /></el-icon>
-      <p>Verifying access link...</p>
-    </div>
-
-    <div v-else-if="linkStatus === 'expired'" class="error-state">
-      <el-result icon="warning" title="Link Expired" sub-title="This link has expired, been used, or has been revoked. Please contact the parent for a new link.">
-      </el-result>
-    </div>
-
-    <div v-else-if="linkStatus === 'valid'" class="provider-form">
-      <el-alert
-        type="info"
-        :closable="false"
-        show-icon
-        class="info-banner"
-      >
-        <template #title>
-          Completing information for: <strong>{{ camper.first_name }} {{ camper.last_name }}</strong>
-        </template>
-        This link will expire in {{ hoursRemaining }} hour(s). Once submitted, you will not be able to make changes.
-      </el-alert>
-
-      <el-form :model="medicalForm" :rules="rules" ref="formRef" label-position="top">
-        <!-- Physician Information -->
-        <h3>Physician Information</h3>
-        <el-form-item label="Physician Name" prop="physician_name">
-          <el-input v-model="medicalForm.physician_name" />
-        </el-form-item>
-        <el-form-item label="Physician Phone" prop="physician_phone">
-          <el-input v-model="medicalForm.physician_phone" />
-        </el-form-item>
-
-        <!-- Insurance Information -->
-        <h3>Insurance Information</h3>
-        <el-form-item label="Insurance Provider" prop="insurance_provider">
-          <el-input v-model="medicalForm.insurance_provider" />
-        </el-form-item>
-        <el-form-item label="Policy Number" prop="insurance_policy_number">
-          <el-input v-model="medicalForm.insurance_policy_number" />
-        </el-form-item>
-
-        <!-- Medical Conditions -->
-        <h3>Medical Conditions</h3>
-        <el-form-item label="Special Needs or Medical Conditions">
-          <el-input
-            v-model="medicalForm.special_needs"
-            type="textarea"
-            :rows="4"
-            maxlength="5000"
-            show-word-limit
-          />
-        </el-form-item>
-        <el-form-item label="Dietary Restrictions">
-          <el-input
-            v-model="medicalForm.dietary_restrictions"
-            type="textarea"
-            :rows="3"
-            maxlength="2000"
-            show-word-limit
-          />
-        </el-form-item>
-
-        <!-- Allergies -->
-        <h3>Allergies</h3>
-        <div v-for="(allergy, index) in medicalForm.allergies" :key="index" class="allergy-entry">
-          <el-form-item :label="`Allergy ${index + 1} - Allergen`">
-            <el-input v-model="allergy.allergen" placeholder="e.g., Peanuts" />
-          </el-form-item>
-          <el-form-item label="Severity">
-            <el-select v-model="allergy.severity" placeholder="Select severity">
-              <el-option label="Mild" value="mild" />
-              <el-option label="Moderate" value="moderate" />
-              <el-option label="Severe" value="severe" />
-              <el-option label="Life-Threatening" value="life_threatening" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Reaction">
-            <el-input v-model="allergy.reaction" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="Treatment">
-            <el-input v-model="allergy.treatment" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-button @click="removeAllergy(index)" type="danger" size="small">Remove</el-button>
-        </div>
-        <el-button @click="addAllergy" type="primary" plain>Add Allergy</el-button>
-
-        <!-- Medications -->
-        <h3>Current Medications</h3>
-        <div v-for="(med, index) in medicalForm.medications" :key="index" class="medication-entry">
-          <el-form-item :label="`Medication ${index + 1} - Name`">
-            <el-input v-model="med.name" placeholder="e.g., Albuterol Inhaler" />
-          </el-form-item>
-          <el-form-item label="Dosage">
-            <el-input v-model="med.dosage" placeholder="e.g., 2 puffs" />
-          </el-form-item>
-          <el-form-item label="Frequency">
-            <el-input v-model="med.frequency" placeholder="e.g., Every 4-6 hours as needed" />
-          </el-form-item>
-          <el-form-item label="Purpose">
-            <el-input v-model="med.purpose" placeholder="e.g., Asthma control" />
-          </el-form-item>
-          <el-button @click="removeMedication(index)" type="danger" size="small">Remove</el-button>
-        </div>
-        <el-button @click="addMedication" type="primary" plain">Add Medication</el-button>
-
-        <!-- Submit -->
-        <div class="form-actions">
-          <el-button
-            type="primary"
-            size="large"
-            @click="submitForm"
-            :loading="isSubmitting"
-          >
-            Submit Medical Information
-          </el-button>
-        </div>
-      </el-form>
-    </div>
-
-    <div v-else-if="linkStatus === 'submitted'" class="success-state">
-      <el-result icon="success" title="Thank You!" sub-title="Medical information submitted successfully. The parent will be notified.">
-      </el-result>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import axios from 'axios';
-import { ElMessage, ElMessageBox } from 'element-plus';
-
-const route = useRoute();
-const linkStatus = ref('loading'); // 'loading', 'valid', 'expired', 'submitted'
-const camper = ref(null);
-const hoursRemaining = ref(0);
-const isSubmitting = ref(false);
-
-const medicalForm = ref({
-  physician_name: '',
-  physician_phone: '',
-  insurance_provider: '',
-  insurance_policy_number: '',
-  special_needs: '',
-  dietary_restrictions: '',
-  allergies: [],
-  medications: []
-});
-
-onMounted(async () => {
-  await validateLink();
-});
-
-async function validateLink() {
-  try {
-    const response = await axios.get(`/api/provider-access/${route.params.token}`);
-    camper.value = response.data.camper;
-    hoursRemaining.value = response.data.hours_remaining;
-    linkStatus.value = 'valid';
-  } catch (error) {
-    if (error.response?.status === 410) {
-      linkStatus.value = 'expired';
-    } else {
-      ElMessage.error('Failed to validate access link');
-      linkStatus.value = 'expired';
-    }
-  }
-}
-
-function addAllergy() {
-  medicalForm.value.allergies.push({
-    allergen: '',
-    severity: '',
-    reaction: '',
-    treatment: ''
-  });
-}
-
-function removeAllergy(index) {
-  medicalForm.value.allergies.splice(index, 1);
-}
-
-function addMedication() {
-  medicalForm.value.medications.push({
-    name: '',
-    dosage: '',
-    frequency: '',
-    purpose: ''
-  });
-}
-
-function removeMedication(index) {
-  medicalForm.value.medications.splice(index, 1);
-}
-
-async function submitForm() {
-  // Confirm submission
-  try {
-    await ElMessageBox.confirm(
-      'Once submitted, you will not be able to make changes. Are you sure you want to submit?',
-      'Confirm Submission',
-      { type: 'warning' }
-    );
-  } catch {
-    return;
-  }
-
-  isSubmitting.value = true;
-
-  try {
-    // Filter out empty allergies and medications
-    const payload = {
-      medical_record: {
-        physician_name: medicalForm.value.physician_name,
-        physician_phone: medicalForm.value.physician_phone,
-        insurance_provider: medicalForm.value.insurance_provider,
-        insurance_policy_number: medicalForm.value.insurance_policy_number,
-        special_needs: medicalForm.value.special_needs,
-        dietary_restrictions: medicalForm.value.dietary_restrictions
-      },
-      allergies: medicalForm.value.allergies.filter(a => a.allergen.trim() !== ''),
-      medications: medicalForm.value.medications.filter(m => m.name.trim() !== '')
-    };
-
-    await axios.post(`/api/provider-access/${route.params.token}/submit`, payload);
-
-    linkStatus.value = 'submitted';
-  } catch (error) {
-    if (error.response?.status === 410) {
-      ElMessage.error('This link has expired or been used.');
-      linkStatus.value = 'expired';
-    } else if (error.response?.status === 422) {
-      ElMessage.error('Validation error: ' + Object.values(error.response.data.errors).flat().join(', '));
-    } else {
-      ElMessage.error('Failed to submit medical information. Please try again.');
-    }
-  } finally {
-    isSubmitting.value = false;
-  }
-}
-</script>
-```
-
-**Backend Side Effects (Provider Submission):**
-- Medical record created or updated
-- Allergies created
-- Medications created
-- Provider link marked as used (`is_used = true`, `used_at = timestamp`)
-- Parent notified via email: "Medical provider submitted information"
-- Admin notified via in-app notification
-
-**Edge Cases:**
-1. **Link Expired During Form Fill:** User started form, link expired before submission
-   - Backend returns 410 Gone
-   - Frontend displays: "This link has expired. Please request a new link from the parent."
-2. **Link Already Used:** Provider clicks link again after submitting
-   - Backend returns 410 Gone
-   - Frontend displays: "This link has already been used and is no longer valid."
-3. **Link Revoked:** Parent revoked link while provider was filling form
-   - Backend returns 410 Gone
-   - Frontend displays: "This link has been revoked and is no longer valid."
 
 ---
 
 ## 6. Data Models & Frontend State Design
 
-This section defines the core data entities, their relationships, and the recommended frontend state structure aligned with the backend Eloquent models. The goal is to establish a clear, maintainable state architecture that mirrors the backend data model while optimizing for frontend performance and user experience.
-
-### 6.1 Backend Entity-Relationship Model
-
-**Core Entities and Relationships:**
-
-```
-┌──────────────┐
-│     User     │
-└──────┬───────┘
-       │ has_many (1:N)
-       ▼
-┌──────────────┐       has_many (1:N)        ┌──────────────┐
-│    Camper    │───────────────────────────►│  Application │
-└──────┬───────┘                            └──────┬───────┘
-       │                                           │
-       │ has_one (1:1)                             │ belongs_to (N:1)
-       ├──────────────────────────►┌───────────────┴────────┐
-       │                            │    CampSession         │
-       │ has_many (1:N)             └───────────┬────────────┘
-       ├──────►┌────────────────┐               │
-       │       │    Allergy     │               │ belongs_to (N:1)
-       │       └────────────────┘               ▼
-       │                                  ┌──────────────┐
-       ├──────►┌────────────────┐        │     Camp     │
-       │       │   Medication   │        └──────────────┘
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │EmergencyContact│
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │ MedicalRecord  │
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │   Diagnosis    │
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │BehavioralProfile
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │  FeedingPlan   │
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │AssistiveDevice │
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │ActivityPermission
-       │       └────────────────┘
-       │
-       ├──────►┌────────────────┐
-       │       │MedicalProviderLink
-       │       └────────────────┘
-       │
-       └──────►┌────────────────┐ (Polymorphic)
-               │    Document    │ (documentable_type, documentable_id)
-               └────────────────┘
-
-┌──────────────┐
-│     Role     │ (admin, parent, medical)
-└──────┬───────┘
-       │ has_many (1:N)
-       ▼
-┌──────────────┐
-│     User     │
-└──────────────┘
-```
-
-### 6.2 Core Entity Definitions
-
-#### 6.2.1 User Model
-
-**Backend Table:** `users`
-
-**Fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | bigint | PK | Unique user identifier |
-| `name` | string(255) | Yes | Full name |
-| `email` | string(255) | Yes, unique | Email address (login credential) |
-| `email_verified_at` | timestamp | Nullable | Email verification timestamp |
-| `password` | string(255) | Yes | bcrypt hashed password |
-| `role_id` | bigint | Yes, FK | Foreign key to roles table |
-| `mfa_enabled` | boolean | Default false | MFA enabled flag |
-| `mfa_secret` | string(255) | Nullable, hidden | TOTP secret (never exposed to frontend) |
-| `mfa_verified_at` | timestamp | Nullable | MFA verification timestamp |
-| `failed_login_attempts` | integer | Default 0 | Failed login counter |
-| `lockout_until` | timestamp | Nullable | Account lockout expiration |
-| `created_at` | timestamp | Auto | Account creation timestamp |
-| `updated_at` | timestamp | Auto | Last update timestamp |
-
-**Frontend State Shape:**
+### 6.1 TypeScript Type Definitions
 
 ```typescript
-interface User {
+// types/user.types.ts
+export interface User {
   id: number;
   name: string;
   email: string;
   role_id: number;
   role: Role;
   mfa_enabled: boolean;
-  created_at: string; // ISO 8601 format
+  created_at: string;
   updated_at: string;
 }
 
-interface Role {
+export interface Role {
   id: number;
   name: 'admin' | 'parent' | 'medical';
   display_name: string;
 }
-```
 
-**Pinia Store:**
-
-```javascript
-// stores/auth.js
-export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    user: null as User | null,
-    token: null as string | null,
-    isAuthenticated: false
-  }),
-
-  getters: {
-    isAdmin: (state) => state.user?.role.name === 'admin',
-    isParent: (state) => state.user?.role.name === 'parent',
-    isMedical: (state) => state.user?.role.name === 'medical',
-
-    hasRole: (state) => (role: string) => state.user?.role.name === role,
-    hasAnyRole: (state) => (roles: string[]) => roles.includes(state.user?.role.name || ''),
-
-    userName: (state) => state.user?.name || 'User',
-    userEmail: (state) => state.user?.email || ''
-  },
-
-  actions: {
-    setToken(token: string) {
-      this.token = token;
-      this.isAuthenticated = true;
-      // Store in httpOnly cookie or encrypted localStorage
-    },
-
-    setUser(user: User) {
-      this.user = user;
-    },
-
-    async fetchUser() {
-      const response = await axios.get('/api/user');
-      this.user = response.data;
-      return this.user;
-    },
-
-    logout() {
-      this.user = null;
-      this.token = null;
-      this.isAuthenticated = false;
-      // Clear storage
-    }
-  }
-});
-```
-
-#### 6.2.2 Camper Model
-
-**Backend Table:** `campers`
-
-**Fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | bigint | PK | Unique camper identifier |
-| `user_id` | bigint | Yes, FK | Parent/guardian user ID |
-| `first_name` | string(255) | Yes | Camper's first name |
-| `last_name` | string(255) | Yes | Camper's last name |
-| `date_of_birth` | date | Yes | Camper's date of birth |
-| `gender` | string(50) | Nullable | Gender identity |
-| `supervision_level` | enum | Nullable | Supervision requirement level |
-| `record_retention_until` | date | Nullable | HIPAA record retention date |
-| `created_at` | timestamp | Auto | Record creation timestamp |
-| `updated_at` | timestamp | Auto | Last update timestamp |
-| `deleted_at` | timestamp | Nullable | Soft delete timestamp (HIPAA compliance) |
-
-**Computed Properties (Frontend):**
-
-```typescript
-interface Camper {
+// types/camper.types.ts
+export interface Camper {
   id: number;
   user_id: number;
   first_name: string;
   last_name: string;
-  date_of_birth: string; // YYYY-MM-DD
-  gender?: string;
-  supervision_level?: string;
+  date_of_birth: string;
+  gender: string | null;
+  age: number;
   created_at: string;
   updated_at: string;
-
-  // Computed
-  full_name: string; // first_name + last_name
-  age: number; // Calculated from date_of_birth
-  age_on_date?: (date: string) => number; // Age on specific date (session start)
-
-  // Relationships (optional, loaded via API with ?include=)
-  user?: User;
-  medical_record?: MedicalRecord;
-  allergies?: Allergy[];
-  medications?: Medication[];
-  emergency_contacts?: EmergencyContact[];
-  applications?: Application[];
-  documents?: Document[];
 }
-```
 
-**Pinia Store:**
+// types/application.types.ts
+export type ApplicationStatus =
+  | 'pending'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'waitlisted'
+  | 'cancelled';
 
-```javascript
-// stores/campers.js
-export const useCampersStore = defineStore('campers', {
-  state: () => ({
-    campers: [] as Camper[],
-    currentCamper: null as Camper | null,
-    loading: false,
-    error: null as string | null
-  }),
-
-  getters: {
-    getCamperById: (state) => (id: number) => {
-      return state.campers.find(c => c.id === id) || null;
-    },
-
-    accessibleCampers(state) {
-      const authStore = useAuthStore();
-      if (authStore.isAdmin) return state.campers;
-      if (authStore.isParent) {
-        return state.campers.filter(c => c.user_id === authStore.user.id);
-      }
-      return [];
-    },
-
-    campersByAge: (state) => {
-      return [...state.campers].sort((a, b) => {
-        const ageA = calculateAge(a.date_of_birth);
-        const ageB = calculateAge(b.date_of_birth);
-        return ageA - ageB;
-      });
-    }
-  },
-
-  actions: {
-    async fetchCampers() {
-      this.loading = true;
-      try {
-        const response = await axios.get('/api/campers');
-        this.campers = response.data.data;
-      } catch (error) {
-        this.error = 'Failed to load campers';
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchCamper(id: number, includes?: string[]) {
-      this.loading = true;
-      try {
-        const params = includes ? { include: includes.join(',') } : {};
-        const response = await axios.get(`/api/campers/${id}`, { params });
-        this.currentCamper = response.data;
-
-        // Update in list
-        const index = this.campers.findIndex(c => c.id === id);
-        if (index >= 0) {
-          this.campers[index] = response.data;
-        } else {
-          this.campers.push(response.data);
-        }
-
-        return response.data;
-      } catch (error) {
-        this.error = 'Failed to load camper';
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async createCamper(camperData: Partial<Camper>) {
-      const response = await axios.post('/api/campers', camperData);
-      this.campers.push(response.data);
-      return response.data;
-    },
-
-    async updateCamper(id: number, camperData: Partial<Camper>) {
-      const response = await axios.put(`/api/campers/${id}`, camperData);
-      const index = this.campers.findIndex(c => c.id === id);
-      if (index >= 0) {
-        this.campers[index] = response.data;
-      }
-      return response.data;
-    },
-
-    async deleteCamper(id: number) {
-      await axios.delete(`/api/campers/${id}`);
-      this.campers = this.campers.filter(c => c.id !== id);
-    }
-  }
-});
-
-function calculateAge(dateOfBirth: string): number {
-  const today = new Date();
-  const birthDate = new Date(dateOfBirth);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-}
-```
-
-#### 6.2.3 Application Model
-
-**Backend Table:** `applications`
-
-**Fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | bigint | PK | Unique application identifier |
-| `camper_id` | bigint | Yes, FK, unique with camp_session_id | Camper ID |
-| `camp_session_id` | bigint | Yes, FK | Camp session ID |
-| `status` | enum | Yes, default 'pending' | Application status |
-| `is_draft` | boolean | Default true | Draft mode flag |
-| `submitted_at` | timestamp | Nullable | Submission timestamp |
-| `reviewed_at` | timestamp | Nullable | Review timestamp |
-| `reviewed_by` | bigint | Nullable, FK | Admin user ID who reviewed |
-| `notes` | text | Nullable | Review notes or parent notes |
-| `signature_data` | text | Nullable, hidden from API | Base64 signature image (never exposed) |
-| `signature_name` | string(255) | Nullable | Printed name of signer |
-| `signed_at` | timestamp | Nullable | Signature timestamp |
-| `signed_ip_address` | string(45) | Nullable | IP address of signer |
-| `created_at` | timestamp | Auto | Creation timestamp |
-| `updated_at` | timestamp | Auto | Last update timestamp |
-
-**Enums:**
-- `status`: `pending`, `under_review`, `approved`, `rejected`, `waitlisted`, `cancelled`
-
-**Frontend State Shape:**
-
-```typescript
-type ApplicationStatus = 'pending' | 'under_review' | 'approved' | 'rejected' | 'waitlisted' | 'cancelled';
-
-interface Application {
+export interface Application {
   id: number;
   camper_id: number;
   camp_session_id: number;
   status: ApplicationStatus;
   is_draft: boolean;
-  submitted_at?: string;
-  reviewed_at?: string;
-  reviewed_by?: number;
-  notes?: string;
-  signature_name?: string;
-  signed_at?: string;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  reviewed_by: number | null;
+  signature_name: string | null;
+  signed_at: string | null;
   created_at: string;
   updated_at: string;
-
-  // Computed
-  is_final: boolean; // approved, rejected, or cancelled
-  is_editable: boolean; // pending or under_review
-  is_signed: boolean; // signed_at !== null
-  status_label: string; // Formatted status
-  status_color: string; // Color for UI badges
-
-  // Relationships
   camper?: Camper;
   camp_session?: CampSession;
-  reviewer?: User;
 }
-```
 
-**Pinia Store:**
-
-```javascript
-// stores/applications.js
-export const useApplicationsStore = defineStore('applications', {
-  state: () => ({
-    applications: [] as Application[],
-    currentApplication: null as Application | null,
-    filters: {
-      status: null as ApplicationStatus | null,
-      camp_session_id: null as number | null,
-      search: '',
-      date_from: null as string | null,
-      date_to: null as string | null
-    },
-    pagination: {
-      currentPage: 1,
-      perPage: 15,
-      total: 0
-    },
-    loading: false
-  }),
-
-  getters: {
-    getApplicationById: (state) => (id: number) => {
-      return state.applications.find(a => a.id === id) || null;
-    },
-
-    draftApplications(state) {
-      return state.applications.filter(a => a.is_draft === true);
-    },
-
-    submittedApplications(state) {
-      return state.applications.filter(a => a.is_draft === false);
-    },
-
-    applicationsByStatus: (state) => (status: ApplicationStatus) => {
-      return state.applications.filter(a => a.status === status);
-    },
-
-    pendingReview(state) {
-      return state.applications.filter(a => a.status === 'under_review');
-    }
-  },
-
-  actions: {
-    async fetchApplications(params = {}) {
-      this.loading = true;
-      try {
-        const response = await axios.get('/api/applications', {
-          params: {
-            ...this.filters,
-            ...params,
-            page: this.pagination.currentPage,
-            per_page: this.pagination.perPage
-          }
-        });
-
-        this.applications = response.data.data;
-        this.pagination.total = response.data.meta.total;
-        this.pagination.currentPage = response.data.meta.current_page;
-      } catch (error) {
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchApplication(id: number) {
-      const response = await axios.get(`/api/applications/${id}`);
-      this.currentApplication = response.data;
-
-      // Update in list
-      const index = this.applications.findIndex(a => a.id === id);
-      if (index >= 0) {
-        this.applications[index] = response.data;
-      }
-
-      return response.data;
-    },
-
-    async createApplication(applicationData: Partial<Application>) {
-      const response = await axios.post('/api/applications', applicationData);
-      this.applications.push(response.data);
-      return response.data;
-    },
-
-    async updateApplication(id: number, applicationData: Partial<Application>) {
-      const response = await axios.put(`/api/applications/${id}`, applicationData);
-
-      const index = this.applications.findIndex(a => a.id === id);
-      if (index >= 0) {
-        this.applications[index] = response.data;
-      }
-
-      if (this.currentApplication?.id === id) {
-        this.currentApplication = response.data;
-      }
-
-      return response.data;
-    },
-
-    async signApplication(id: number, signatureData: { signature_data: string, signature_name: string }) {
-      const response = await axios.post(`/api/applications/${id}/sign`, signatureData);
-
-      // Update application with signature info
-      const index = this.applications.findIndex(a => a.id === id);
-      if (index >= 0) {
-        this.applications[index] = { ...this.applications[index], ...response.data };
-      }
-
-      return response.data;
-    },
-
-    async submitApplication(id: number) {
-      return await this.updateApplication(id, { is_draft: false });
-    },
-
-    async reviewApplication(id: number, reviewData: { status: ApplicationStatus, notes?: string }) {
-      const response = await axios.post(`/api/applications/${id}/review`, reviewData);
-
-      const index = this.applications.findIndex(a => a.id === id);
-      if (index >= 0) {
-        this.applications[index] = response.data;
-      }
-
-      return response.data;
-    }
-  }
-});
-```
-
-#### 6.2.4 MedicalRecord Model
-
-**Backend Table:** `medical_records`
-
-**Fields:**
-
-| Field | Type | Required | Constraint |
-|-------|------|----------|------------|
-| `id` | bigint | PK | |
-| `camper_id` | bigint | Yes, FK, unique | One record per camper |
-| `physician_name` | string(255) | Nullable | |
-| `physician_phone` | string(20) | Nullable | |
-| `insurance_provider` | string(255) | Nullable | |
-| `insurance_policy_number` | string(100) | Nullable | |
-| `special_needs` | text | Nullable | Max 5000 chars |
-| `dietary_restrictions` | text | Nullable | Max 2000 chars |
-| `created_at` | timestamp | Auto | |
-| `updated_at` | timestamp | Auto | |
-
-**Frontend State Shape:**
-
-```typescript
-interface MedicalRecord {
+// types/medical.types.ts
+export interface MedicalRecord {
   id: number;
   camper_id: number;
-  physician_name?: string;
-  physician_phone?: string;
-  insurance_provider?: string;
-  insurance_policy_number?: string;
-  special_needs?: string;
-  dietary_restrictions?: string;
+  diagnosis: string;
+  treatment: string | null;
+  physician_name: string | null;
+  physician_phone: string | null;
   created_at: string;
   updated_at: string;
-
-  // Relationships
-  camper?: Camper;
 }
-```
 
-#### 6.2.5 Allergy Model
-
-**Backend Table:** `allergies`
-
-**Fields:**
-
-| Field | Type | Required | Constraint |
-|-------|------|----------|------------|
-| `id` | bigint | PK | |
-| `camper_id` | bigint | Yes, FK | |
-| `allergen` | string(255) | Yes | |
-| `severity` | enum | Yes | mild, moderate, severe, life_threatening |
-| `reaction` | text | Nullable | Max 2000 chars |
-| `treatment` | text | Nullable | Max 2000 chars |
-| `created_at` | timestamp | Auto | |
-| `updated_at` | timestamp | Auto | |
-
-**Frontend State Shape:**
-
-```typescript
-type AllergySeverity = 'mild' | 'moderate' | 'severe' | 'life_threatening';
-
-interface Allergy {
+export interface Allergy {
   id: number;
   camper_id: number;
   allergen: string;
-  severity: AllergySeverity;
-  reaction?: string;
-  treatment?: string;
+  reaction: string;
+  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening';
+  treatment: string | null;
   created_at: string;
   updated_at: string;
-
-  // Computed
-  severity_label: string;
-  severity_color: string; // For UI badges
-  is_critical: boolean; // severe or life_threatening
 }
-```
 
-#### 6.2.6 Medication Model
-
-**Backend Table:** `medications`
-
-**Fields:**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `id` | bigint | PK |
-| `camper_id` | bigint | Yes, FK |
-| `name` | string(255) | Yes |
-| `dosage` | string(100) | Yes |
-| `frequency` | string(100) | Yes |
-| `purpose` | string(500) | Nullable |
-| `prescribing_physician` | string(255) | Nullable |
-| `notes` | text | Nullable, max 2000 |
-| `created_at` | timestamp | Auto |
-| `updated_at` | timestamp | Auto |
-
-**Frontend State Shape:**
-
-```typescript
-interface Medication {
+export interface Medication {
   id: number;
   camper_id: number;
   name: string;
   dosage: string;
   frequency: string;
-  purpose?: string;
-  prescribing_physician?: string;
-  notes?: string;
+  administration_method: string | null;
+  prescribing_physician: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface EmergencyContact {
+  id: number;
+  camper_id: number;
+  name: string;
+  relationship: string;
+  primary_phone: string;
+  secondary_phone: string | null;
+  is_primary: boolean;
+  can_pickup: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// types/document.types.ts
+export type DocumentScanStatus = 'pending' | 'passed' | 'failed';
+
+export interface Document {
+  id: number;
+  documentable_type: string;
+  documentable_id: number;
+  name: string;
+  file_path: string;
+  mime_type: string;
+  size: number;
+  scan_status: DocumentScanStatus;
+  scanned_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// types/notification.types.ts
+export interface Notification {
+  id: string;
+  type: string;
+  data: {
+    title: string;
+    message: string;
+    action_url?: string;
+  };
+  read_at: string | null;
+  created_at: string;
+}
+
+// types/camp.types.ts
+export interface Camp {
+  id: number;
+  name: string;
+  description: string;
+  location: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  sessions?: CampSession[];
+}
+
+export interface CampSession {
+  id: number;
+  camp_id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  capacity: number;
+  min_age: number;
+  max_age: number;
+  registration_opens_at: string;
+  registration_closes_at: string;
+  is_active: boolean;
+  applications_count?: number;
+  approved_count?: number;
+  available_spots?: number;
+}
+
+// types/api.types.ts
+export interface ApiResponse<T> {
+  data: T;
+  status: number;
+  statusText: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  links: {
+    first: string;
+    last: string;
+    prev: string | null;
+    next: string | null;
+  };
+  meta: {
+    current_page: number;
+    from: number;
+    last_page: number;
+    per_page: number;
+    to: number;
+    total: number;
+  };
+}
+
+export interface ValidationError {
+  message: string;
+  errors: Record<string, string[]>;
+}
 ```
 
-#### 6.2.7 Document Model (Polymorphic)
+### 6.2 Redux Toolkit Store Architecture
 
-**Backend Table:** `documents`
-
-**Fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | bigint | PK | |
-| `documentable_type` | string(255) | Nullable | Polymorphic type (e.g., "App\\Models\\Camper") |
-| `documentable_id` | bigint | Nullable | Polymorphic ID |
-| `uploaded_by` | bigint | FK | User who uploaded |
-| `document_type` | string(100) | Nullable | Category (medical, legal, identification) |
-| `original_filename` | string(255) | Yes | Original file name |
-| `stored_filename` | string(255) | Yes | UUID-based storage filename |
-| `mime_type` | string(100) | Yes | File MIME type |
-| `file_size` | bigint | Yes | File size in bytes |
-| `disk` | string(50) | Default 'local' | Storage disk |
-| `path` | string(500) | Yes | Storage path |
-| `is_scanned` | boolean | Default false | Security scan completed |
-| `scan_passed` | boolean | Nullable | Security scan result (null = pending, true = passed, false = failed) |
-| `scanned_at` | timestamp | Nullable | Scan completion timestamp |
-| `created_at` | timestamp | Auto | |
-| `updated_at` | timestamp | Auto | |
-
-**Frontend State Shape:**
+**Auth Slice:**
 
 ```typescript
-interface Document {
-  id: number;
-  documentable_type?: string;
-  documentable_id?: number;
-  uploaded_by: number;
-  document_type?: string;
-  original_filename: string;
-  mime_type: string;
-  file_size: number;
-  is_scanned: boolean;
-  scan_passed: boolean | null;
-  scanned_at?: string;
-  created_at: string;
-  updated_at: string;
+// store/slices/authSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { User } from '@/types/user.types';
 
-  // Computed
-  file_size_formatted: string; // "2.5 MB"
-  can_download: boolean; // Based on scan_passed and user role
-  scan_status_label: string; // "Pending", "Passed", "Failed"
-  scan_status_color: string;
-  file_icon: string; // Icon based on MIME type
+interface AuthState {
+  token: string | null;
+  tokenExpiry: Date | null;
+  user: User | null;
+  mfaVerified: boolean;
+  isAuthenticated: boolean;
 }
-```
 
-### 6.3 Recommended State Management Strategy
-
-**Technology Choice:** Pinia (Vue 3 official state management)
-
-**Rationale:**
-- Official Vue 3 recommendation (replaces Vuex)
-- TypeScript-first design
-- Simpler API than Vuex (no mutations)
-- Better development experience with devtools
-- Modular store design aligns with backend resource structure
-
-**Store Structure:**
-
-```
-stores/
-├── auth.js          # User authentication, session management
-├── campers.js       # Camper CRUD operations
-├── applications.js  # Application lifecycle management
-├── medical.js       # Medical records, allergies, medications, contacts
-├── documents.js     # Document upload/download management
-├── camps.js         # Camp and session data
-├── notifications.js # In-app notifications
-├── providers.js     # Medical provider links
-└── ui.js            # UI state (sidebar, modals, loading states)
-```
-
-**Cross-Store Communication:**
-
-```javascript
-// applications.js - accessing campers store
-import { useCampersStore } from './campers';
-
-export const useApplicationsStore = defineStore('applications', {
-  actions: {
-    async createApplicationForCamper(camperId: number, sessionId: number) {
-      const campersStore = useCampersStore();
-
-      // Verify camper exists
-      const camper = campersStore.getCamperById(camperId);
-      if (!camper) {
-        await campersStore.fetchCamper(camperId);
-      }
-
-      // Create application
-      return await this.createApplication({
-        camper_id: camperId,
-        camp_session_id: sessionId,
-        is_draft: true
-      });
-    }
-  }
-});
-```
-
-### 6.4 Form State Isolation Strategy
-
-**Problem:** Large nested forms (application + camper + medical info) can become unwieldy in global state.
-
-**Solution:** Isolate form state in component-level reactive refs, sync with store only on save.
-
-**Pattern:**
-
-```vue
-<template>
-  <el-form :model="formData" :rules="rules" ref="formRef">
-    <!-- Form fields -->
-  </el-form>
-</template>
-
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useCampersStore } from '@/stores/campers';
-
-const campersStore = useCampersStore();
-
-// Component-level form state (isolated)
-const formData = ref({
-  first_name: '',
-  last_name: '',
-  date_of_birth: '',
-  gender: ''
-});
-
-// Load from store on mount
-onMounted(async () => {
-  if (props.camperId) {
-    const camper = await campersStore.fetchCamper(props.camperId);
-    formData.value = { ...camper }; // Clone to avoid mutating store
-  }
-});
-
-// Save to store on submit
-async function handleSubmit() {
-  await formRef.value.validate();
-
-  if (props.camperId) {
-    await campersStore.updateCamper(props.camperId, formData.value);
-  } else {
-    await campersStore.createCamper(formData.value);
-  }
-
-  router.push({ name: 'campers' });
-}
-</script>
-```
-
-### 6.5 Draft Persistence Approach
-
-**Requirement:** Auto-save draft applications to prevent data loss.
-
-**Strategy:** Debounced auto-save to backend + optimistic local state updates.
-
-**Implementation:**
-
-```javascript
-import { watchDebounced } from '@vueuse/core';
-
-const applicationForm = ref({ /* form data */ });
-const saveStatus = ref('saved'); // 'saved', 'saving', 'unsaved', 'error'
-
-// Watch for changes and auto-save
-watchDebounced(
-  applicationForm,
-  async () => {
-    await saveDraft();
-  },
-  { debounce: 3000, deep: true }
-);
-
-async function saveDraft() {
-  saveStatus.value = 'saving';
-
-  try {
-    const response = await applicationsStore.updateApplication(
-      applicationForm.value.id,
-      applicationForm.value
-    );
-
-    // Update local form with backend response (timestamps, etc.)
-    applicationForm.value = { ...applicationForm.value, ...response };
-
-    saveStatus.value = 'saved';
-    lastSavedAt.value = new Date();
-  } catch (error) {
-    saveStatus.value = 'error';
-    console.error('Auto-save failed:', error);
-  }
-}
-```
-
-### 6.6 Validation Layering (Frontend vs Backend)
-
-**Frontend Validation:**
-- **Purpose:** Immediate feedback, prevent unnecessary API calls
-- **Scope:** Format validation, required fields, length limits
-- **Library:** Element Plus built-in validation or Vuelidate
-
-**Backend Validation:**
-- **Purpose:** Authoritative validation, security enforcement
-- **Scope:** Business rules, uniqueness, authorization, data integrity
-- **Always trust:** Backend validation is final
-
-**Layered Approach:**
-
-```javascript
-// Frontend validation rules
-const rules = {
-  first_name: [
-    { required: true, message: 'First name is required', trigger: 'blur' },
-    { min: 1, max: 255, message: 'First name must be 1-255 characters', trigger: 'blur' }
-  ],
-  date_of_birth: [
-    { required: true, message: 'Date of birth is required', trigger: 'blur' },
-    {
-      validator: (rule, value, callback) => {
-        if (new Date(value) >= new Date()) {
-          callback(new Error('Date of birth must be in the past'));
-        } else {
-          callback();
-        }
-      },
-      trigger: 'blur'
-    }
-  ],
-  email: [
-    { required: true, message: 'Email is required', trigger: 'blur' },
-    { type: 'email', message: 'Please enter a valid email', trigger: 'blur' }
-  ]
+const initialState: AuthState = {
+  token: null,
+  tokenExpiry: null,
+  user: null,
+  mfaVerified: false,
+  isAuthenticated: false
 };
 
-// Backend validation error handling
-async function handleSubmit() {
-  try {
-    await formRef.value.validate(); // Frontend validation first
-
-    await campersStore.createCamper(formData.value);
-
-    router.push({ name: 'campers' });
-  } catch (error) {
-    if (error.response?.status === 422) {
-      // Backend validation errors
-      const backendErrors = error.response.data.errors;
-
-      // Display field-specific errors
-      Object.keys(backendErrors).forEach(field => {
-        const errorMessage = backendErrors[field].join(', ');
-        ElMessage.error(`${field}: ${errorMessage}`);
-      });
-
-      // Optionally map backend errors to form fields
-      formRef.value.fields.forEach(field => {
-        if (backendErrors[field.prop]) {
-          field.validateState = 'error';
-          field.validateMessage = backendErrors[field.prop][0];
-        }
-      });
-    } else {
-      ElMessage.error('An unexpected error occurred. Please try again.');
-    }
-  }
-}
-```
-
-### 6.7 Stable Fields for Repopulation
-
-**Use Case:** Returning parents should have forms pre-populated with stable data from previous applications.
-
-**Stable Fields (Unlikely to Change):**
-- Parent name, email
-- Emergency contact information (if same people)
-- Camper date of birth (never changes)
-- Physician information (often same doctor)
-- Insurance information (if same policy)
-
-**API Endpoint:** `GET /api/profile/prefill`
-
-**Frontend Implementation:**
-
-```javascript
-async function prefillForm() {
-  try {
-    const response = await axios.get('/api/profile/prefill');
-    const prefillData = response.data;
-
-    // Prefill emergency contacts
-    if (prefillData.emergency_contacts?.length > 0) {
-      emergencyContactsForm.value = prefillData.emergency_contacts.map(contact => ({
-        ...contact,
-        id: null // Remove ID to create new records
-      }));
-    }
-
-    // Optionally prefill camper data if editing
-    if (prefillData.campers?.length === 1) {
-      const camper = prefillData.campers[0];
-      camperForm.value = {
-        first_name: camper.first_name,
-        last_name: camper.last_name,
-        date_of_birth: camper.date_of_birth,
-        gender: camper.gender
-      };
-    }
-
-    ElMessage.success('Form prefilled with previous information');
-  } catch (error) {
-    // Prefill is optional, fail silently
-    console.warn('Failed to prefill form:', error);
-  }
-}
-```
-
-### 6.8 Derived/Computed Fields
-
-**Computed Properties in Stores:**
-
-```javascript
-// stores/campers.js
-export const useCampersStore = defineStore('campers', {
-  getters: {
-    // Camper with computed age
-    enrichedCampers(state) {
-      return state.campers.map(camper => ({
-        ...camper,
-        full_name: `${camper.first_name} ${camper.last_name}`,
-        age: this.calculateAge(camper.date_of_birth),
-        initials: `${camper.first_name[0]}${camper.last_name[0]}`
-      }));
+export const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+      state.tokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+      state.isAuthenticated = true;
     },
-
-    calculateAge: () => (dateOfBirth: string) => {
-      const today = new Date();
-      const birthDate = new Date(dateOfBirth);
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      return age;
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+    },
+    setMfaVerified: (state, action: PayloadAction<boolean>) => {
+      state.mfaVerified = action.payload;
+    },
+    clearAuth: (state) => {
+      state.token = null;
+      state.tokenExpiry = null;
+      state.user = null;
+      state.mfaVerified = false;
+      state.isAuthenticated = false;
     }
   }
 });
 
-// stores/applications.js
-export const useApplicationsStore = defineStore('applications', {
-  getters: {
-    enrichedApplications(state) {
-      return state.applications.map(app => ({
-        ...app,
-        is_final: ['approved', 'rejected', 'cancelled'].includes(app.status),
-        is_editable: ['pending', 'under_review'].includes(app.status),
-        is_signed: Boolean(app.signed_at),
-        status_label: this.getStatusLabel(app.status),
-        status_color: this.getStatusColor(app.status)
-      }));
-    },
+export const { setToken, setUser, setMfaVerified, clearAuth } = authSlice.actions;
+export default authSlice.reducer;
+```
 
-    getStatusLabel: () => (status: ApplicationStatus) => {
-      const labels = {
-        pending: 'Pending',
-        under_review: 'Under Review',
-        approved: 'Approved',
-        rejected: 'Rejected',
-        waitlisted: 'Waitlisted',
-        cancelled: 'Cancelled'
-      };
-      return labels[status] || status;
-    },
+**Campers Slice:**
 
-    getStatusColor: () => (status: ApplicationStatus) => {
-      const colors = {
-        pending: '#909399',
-        under_review: '#409eff',
-        approved: '#67c23a',
-        rejected: '#f56c6c',
-        waitlisted: '#e6a23c',
-        cancelled: '#909399'
-      };
-      return colors[status] || '#909399';
+```typescript
+// store/slices/campersSlice.ts
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { campersApi } from '@/api/campers.api';
+import type { Camper } from '@/types/camper.types';
+
+interface CampersState {
+  campers: Camper[];
+  currentCamper: Camper | null;
+  loading: boolean;
+  error: string | null;
+}
+
+const initialState: CampersState = {
+  campers: [],
+  currentCamper: null,
+  loading: false,
+  error: null
+};
+
+export const fetchCampers = createAsyncThunk('campers/fetchAll', async () => {
+  const response = await campersApi.index();
+  return response.data.data;
+});
+
+export const createCamper = createAsyncThunk(
+  'campers/create',
+  async (data: Partial<Camper>) => {
+    const response = await campersApi.store(data);
+    return response.data;
+  }
+);
+
+export const campersSlice = createSlice({
+  name: 'campers',
+  initialState,
+  reducers: {
+    setCurrentCamper: (state, action: PayloadAction<Camper | null>) => {
+      state.currentCamper = action.payload;
     }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchCampers.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchCampers.fulfilled, (state, action) => {
+        state.loading = false;
+        state.campers = action.payload;
+      })
+      .addCase(fetchCampers.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch child participants';
+      })
+      .addCase(createCamper.fulfilled, (state, action) => {
+        state.campers.push(action.payload);
+      });
   }
 });
+
+export const { setCurrentCamper } = campersSlice.actions;
+export default campersSlice.reducer;
+```
+
+**Store Configuration:**
+
+```typescript
+// store/index.ts
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from './slices/authSlice';
+import campersReducer from './slices/campersSlice';
+
+export const store = configureStore({
+  reducer: {
+    auth: authReducer,
+    campers: campersReducer
+  }
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
 ```
 
 ---
 
-**End of Phase 3**
+## 7. File Upload & Document Handling
 
-**Sections Completed:**
-5. ✅ Application Workflow Mapping
-6. ✅ Data Models & Frontend State Design
+### 7.1 Upload Constraints
 
-**Next Phase:**
-- Section 7: File Upload & Document Handling Considerations
-- Section 8: Notification & Messaging Architecture
-- Section 9: Performance & Scalability Implications
+- **Maximum Size:** 10 MB (10,485,760 bytes)
+- **Allowed Types:** PDF, JPG, PNG, GIF, DOC, DOCX
+- **Blocked Extensions:** EXE, BAT, CMD, SH, PHP, JS, VBS, COM, PIF, SCR
+- **Rate Limits:** 5 uploads/minute, 50 uploads/hour per user
+
+### 7.2 Security Scanning
+
+**Three-State Process:**
+
+1. **Pending:** File uploaded, scan queued
+2. **Passed:** No threats detected, download allowed
+3. **Failed:** Threat detected, download blocked (except admin)
+
+**Frontend Handling:**
+
+```typescript
+function canDownload(document: Document, userRole: string): boolean {
+  if (userRole === 'admin') return true;
+  if (document.scan_status === 'passed') return true;
+  return false;
+}
+```
+
+### 7.3 File Upload Implementation
+
+```typescript
+// hooks/useFileUpload.ts
+import { useState } from 'react';
+import axios from 'axios';
+
+const MAX_SIZE = 10 * 1024 * 1024;
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
+
+export function useFileUpload() {
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const validateFile = (file: File): { valid: boolean; error?: string } => {
+    if (file.size > MAX_SIZE) {
+      return {
+        valid: false,
+        error: `File exceeds 10 MB limit (${formatFileSize(file.size)})`
+      };
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return {
+        valid: false,
+        error: `File type not allowed: ${file.type}`
+      };
+    }
+
+    return { valid: true };
+  };
+
+  const uploadFile = async (
+    file: File,
+    documentableType: string,
+    documentableId: number
+  ) => {
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentable_type', documentableType);
+    formData.append('documentable_id', documentableId.toString());
+
+    const response = await axios.post('/api/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round(
+          (progressEvent.loaded * 100) / (progressEvent.total || 1)
+        );
+        setUploadProgress(percentCompleted);
+      }
+    });
+
+    return response.data;
+  };
+
+  return { validateFile, uploadFile, uploadProgress };
+}
+
+function formatFileSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+```
+
+### 7.4 Medical Provider Links
+
+**Link Properties:**
+- 72-hour expiration from creation
+- Single-use (invalidated after first submission)
+- Secure token-based access
+- Email delivery
+
+**Link Creation:**
+
+```typescript
+async function createMedicalProviderLink(camperId: number, providerEmail: string) {
+  const response = await medicalProviderLinksApi.create({
+    camper_id: camperId,
+    provider_email: providerEmail,
+    expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000) // 72 hours
+  });
+
+  return response.data;
+}
+```
+
+**Link Expiration Handling:**
+
+```typescript
+// components/medical/ExpiredLink.tsx
+export function ExpiredLink() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="max-w-md p-8 bg-white rounded-lg shadow-lg text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-100 flex items-center justify-center">
+          <svg className="w-10 h-10 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Link Expired</h2>
+        <p className="text-gray-600 mb-4">
+          This medical provider link has expired or was already used.
+        </p>
+        <div className="text-sm text-gray-500 space-y-2">
+          <p>Medical provider links expire after 72 hours and can only be used once.</p>
+          <p>Please contact the parent/guardian to request a new link.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## 8. Notification Architecture
+
+### 8.1 Notification Channels
+
+- **Email:** Always enabled, server-side delivery
+- **In-App:** Polled via API, user-controlled
+
+### 8.2 Notification Types
+
+| Type | Trigger | Recipients |
+|------|---------|------------|
+| `application_submitted` | Application submitted | Parent, Admin |
+| `application_reviewed` | Status changed | Parent |
+| `document_uploaded` | File uploaded | Admin |
+| `medical_provider_link_accessed` | Link opened | Parent |
+| `session_reminder` | Camp approaching | Parent |
+| `account_activity` | Login from new device | User |
+
+### 8.3 Polling Implementation
+
+**Recommended: 30-second intervals**
+
+```typescript
+// store/slices/notificationsSlice.ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { notificationsApi } from '@/api/notifications.api';
+import type { Notification } from '@/types/notification.types';
+
+interface NotificationsState {
+  notifications: Notification[];
+  unreadCount: number;
+  pollingInterval: NodeJS.Timeout | null;
+}
+
+const initialState: NotificationsState = {
+  notifications: [],
+  unreadCount: 0,
+  pollingInterval: null
+};
+
+export const fetchNotifications = createAsyncThunk(
+  'notifications/fetch',
+  async () => {
+    const response = await notificationsApi.index();
+    return response.data.data;
+  }
+);
+
+export const notificationsSlice = createSlice({
+  name: 'notifications',
+  initialState,
+  reducers: {
+    markAsRead: (state, action) => {
+      const notification = state.notifications.find(n => n.id === action.payload);
+      if (notification) {
+        notification.read_at = new Date().toISOString();
+        state.unreadCount = state.notifications.filter(n => !n.read_at).length;
+      }
+    }
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchNotifications.fulfilled, (state, action) => {
+      state.notifications = action.payload;
+      state.unreadCount = action.payload.filter(n => !n.read_at).length;
+    });
+  }
+});
+
+export const { markAsRead } = notificationsSlice.actions;
+export default notificationsSlice.reducer;
+```
+
+**Polling Hook:**
+
+```typescript
+// hooks/useNotificationPolling.ts
+import { useEffect } from 'react';
+import { useAppDispatch } from '@/store/hooks';
+import { fetchNotifications } from '@/store/slices/notificationsSlice';
+
+export function useNotificationPolling(interval = 30000) {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    dispatch(fetchNotifications());
+
+    const intervalId = setInterval(() => {
+      dispatch(fetchNotifications());
+    }, interval);
+
+    return () => clearInterval(intervalId);
+  }, [dispatch, interval]);
+}
+```
+
+---
+
+## 9. Performance & Scalability
+
+### 9.1 Non-Functional Requirements
+
+| Requirement | Target | Source |
+|-------------|--------|--------|
+| API Response Time | < 2 seconds | SRS |
+| Concurrent Users | 250 minimum | SRS |
+| System Uptime | 99.5% | SRS |
+| User Scalability | 1000 users | SRS |
+| Initial Page Load | < 3 seconds | SRS |
+
+### 9.2 Lazy Loading Strategy
+
+**Route-Based Code Splitting:**
+
+```typescript
+// router/index.tsx
+import { lazy } from 'react';
+
+const CampersIndex = lazy(() => import('@/features/campers/pages/CampersIndex'));
+const ApplicationsIndex = lazy(() => import('@/features/applications/pages/ApplicationsIndex'));
+
+const routes = [
+  {
+    path: '/campers',
+    element: <CampersIndex />
+  },
+  {
+    path: '/applications',
+    element: <ApplicationsIndex />
+  }
+];
+```
+
+### 9.3 Pagination
+
+**Backend Format:**
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "current_page": 1,
+    "per_page": 15,
+    "total": 67,
+    "last_page": 5
+  }
+}
+```
+
+**Frontend Implementation:**
+
+```typescript
+// hooks/usePagination.ts
+import { useState, useCallback } from 'react';
+
+export function usePagination<T>(fetchFn: (page: number, perPage: number) => Promise<any>) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage] = useState(15);
+  const [total, setTotal] = useState(0);
+  const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPage = useCallback(async (page: number) => {
+    setLoading(true);
+    try {
+      const response = await fetchFn(page, perPage);
+      setData(response.data.data);
+      setTotal(response.data.meta.total);
+      setCurrentPage(page);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchFn, perPage]);
+
+  return { currentPage, perPage, total, data, loading, fetchPage };
+}
+```
+
+### 9.4 Caching Strategy
+
+| Resource Type | Cache Strategy | TTL | Location |
+|---------------|----------------|-----|----------|
+| Static Assets | Immutable with hash | 1 year | Browser |
+| Camps/Sessions | In-memory | 5-10 min | Redux |
+| User Data | No cache | N/A | Always fetch |
+| PHI Data | Never cache | N/A | Always fetch |
+
+### 9.5 Rate Limit Handling
+
+```typescript
+// api/axiosConfig.ts
+import axios from 'axios';
+
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'] || 60;
+
+      // Display toast notification
+      toast.warning(`Rate limit exceeded. Retry in ${retryAfter} seconds.`, {
+        duration: retryAfter * 1000
+      });
+
+      // Wait and retry
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+      return axios(error.config);
+    }
+
+    return Promise.reject(error);
+  }
+);
+```
+
+---
+
+## 10. Security & HIPAA Compliance
+
+### 10.1 Session Timeout
+
+**HIPAA Requirement:** 60-minute automatic logout
+
+**Implementation:**
+
+```typescript
+// hooks/useSessionTimeout.ts
+import { useEffect, useRef } from 'react';
+import { useAppDispatch } from '@/store/hooks';
+import { clearAuth } from '@/store/slices/authSlice';
+
+const WARNING_TIME = 55 * 60 * 1000; // 55 minutes
+const TIMEOUT_TIME = 60 * 60 * 1000; // 60 minutes
+
+export function useSessionTimeout() {
+  const dispatch = useAppDispatch();
+  const warningTimer = useRef<NodeJS.Timeout>();
+  const logoutTimer = useRef<NodeJS.Timeout>();
+
+  const resetTimers = () => {
+    if (warningTimer.current) clearTimeout(warningTimer.current);
+    if (logoutTimer.current) clearTimeout(logoutTimer.current);
+
+    warningTimer.current = setTimeout(showWarning, WARNING_TIME);
+    logoutTimer.current = setTimeout(forceLogout, TIMEOUT_TIME);
+  };
+
+  const showWarning = async () => {
+    const result = window.confirm(
+      'Session expiring in 5 minutes. Stay logged in?'
+    );
+
+    if (result) {
+      // Call token rotation endpoint (POST /api/auth/refresh-session)
+      // See Section 3.6 for implementation details
+      await dispatch(rotateAuthToken());
+      resetTimers();
+    } else {
+      dispatch(clearAuth());
+    }
+  };
+
+  const forceLogout = () => {
+    dispatch(clearAuth());
+    alert('Session expired due to inactivity.');
+  };
+
+  useEffect(() => {
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => document.addEventListener(event, resetTimers));
+    resetTimers();
+
+    return () => {
+      if (warningTimer.current) clearTimeout(warningTimer.current);
+      if (logoutTimer.current) clearTimeout(logoutTimer.current);
+      events.forEach(event => document.removeEventListener(event, resetTimers));
+    };
+  }, []);
+}
+```
+
+### 10.2 PHI Display Rules
+
+| Data Type | List View | Detail View | Export |
+|-----------|-----------|-------------|--------|
+| Child Participant Name | Full | Full | Admin only |
+| Date of Birth | MM/DD/YYYY | MM/DD/YYYY | Admin only |
+| Medical Records | Count only | Full detail | No |
+| Allergies | Count only | Full with severity | Admin, Medical |
+| Medications | Count only | Full with dosage | Admin, Medical |
+| Emergency Contacts | Primary only | All with phones | Admin only |
+
+### 10.3 Data Storage Restrictions
+
+**HIPAA Requirements:**
+
+- **Prohibited:** PHI in localStorage, sessionStorage, cookies
+- **Allowed:** PHI in Redux store (memory only, cleared on logout/refresh)
+- **Required:** `Cache-Control: no-store, no-cache` headers for PHI responses
+
+### 10.4 XSS Protection
+
+**React Automatic Escaping:**
+
+```typescript
+// Safe: Auto-escaped
+<p>{userInput}</p>
+
+// Dangerous: Never use with user input
+<div dangerouslySetInnerHTML={{ __html: userInput }} />
+```
+
+**Sanitization for Rich Text:**
+
+```typescript
+import DOMPurify from 'dompurify';
+
+function sanitizeHTML(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u'],
+    ALLOWED_ATTR: []
+  });
+}
+```
+
+### 10.5 CSRF Protection
+
+```typescript
+// api/axiosConfig.ts
+import axios from 'axios';
+
+axios.defaults.withCredentials = true;
+axios.defaults.xsrfCookieName = 'XSRF-TOKEN';
+axios.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
+```
+
+### 10.6 Frontend Threat Model Summary
+
+#### 10.6.1 Threat Classification Matrix
+
+This threat model identifies frontend-specific attack vectors, mitigation strategies, and residual risk assessments for the Camp Burnt Gin Application Software operating in a HIPAA-regulated environment.
+
+| Threat ID | Threat Category | Attack Vector | Likelihood | Impact | Severity |
+|-----------|----------------|---------------|------------|--------|----------|
+| TM-01 | Token Theft | XSS, localStorage access, network interception | Medium | Critical | High |
+| TM-02 | XSS Injection | Reflected/Stored XSS via user input | Medium | Critical | High |
+| TM-03 | CSRF | Forged requests from malicious sites | Low | High | Medium |
+| TM-04 | Replay Attack | Token reuse after logout/expiration | Low | Medium | Low |
+| TM-05 | PHI Leakage | Client-side logging, localStorage, URL params | Medium | Critical | High |
+| TM-06 | Brute Force | Automated login attempts | Medium | Medium | Medium |
+| TM-07 | Rate Limit Abuse | API exhaustion, resource starvation | Low | Low | Low |
+| TM-08 | Medical Link Misuse | Link sharing, unauthorized PHI access | Medium | Critical | High |
+| TM-09 | Client Storage Exposure | Browser extensions, devtools access | Low | Medium | Low |
+| TM-10 | Session Fixation | Forced token reuse | Very Low | High | Low |
+
+#### 10.6.2 Detailed Threat Analysis
+
+**TM-01: Token Theft**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Attacker gains access to authentication token via XSS, malicious browser extension, network sniffing, or localStorage compromise |
+| **Threat Actor** | External attacker, malicious insider with system access |
+| **Attack Scenario** | 1) Attacker injects malicious script via XSS<br>2) Script reads token from Redux DevTools or memory<br>3) Attacker uses stolen token to access PHI |
+| **STRIDE Category** | Spoofing, Information Disclosure |
+| **Mitigation Strategy** | - Memory-only token storage (no localStorage)<br>- HttpOnly cookies for CSRF token<br>- HTTPS enforcement (TLS 1.2+)<br>- Content Security Policy headers<br>- Redux DevTools disabled in production<br>- 60-minute token expiration |
+| **Residual Risk** | **Low** - Multi-layer defense makes exploitation difficult. Remaining risk: XSS via third-party dependency vulnerability |
+
+**TM-02: Cross-Site Scripting (XSS)**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Injection of malicious JavaScript via user-controlled input fields (camper name, medical notes, etc.) |
+| **Threat Actor** | External attacker, malicious parent user |
+| **Attack Scenario** | 1) Attacker submits `<script>alert(document.cookie)</script>` in camper name<br>2) Admin views camper profile<br>3) Script executes in admin context, steals session |
+| **STRIDE Category** | Tampering, Information Disclosure |
+| **Mitigation Strategy** | - React automatic escaping (JSX)<br>- DOMPurify for any `dangerouslySetInnerHTML` usage<br>- Backend HTML sanitization (HTMLPurifier)<br>- Content Security Policy: `script-src 'self'`<br>- No `eval()` or `Function()` usage<br>- Input validation on all text fields |
+| **Residual Risk** | **Very Low** - React's automatic escaping provides strong default protection. Remaining risk: Developer bypassing safety mechanisms |
+
+**TM-03: Cross-Site Request Forgery (CSRF)**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Malicious website triggers authenticated API request using victim's session |
+| **Threat Actor** | External attacker hosting phishing site |
+| **Attack Scenario** | 1) Victim logs into Camp Burnt Gin application<br>2) Victim visits malicious site in another tab<br>3) Malicious site sends `POST /api/applications/123/approve` using victim's credentials |
+| **STRIDE Category** | Tampering, Elevation of Privilege |
+| **Mitigation Strategy** | - Laravel Sanctum CSRF token verification<br>- `SameSite=Lax` cookie attribute<br>- Axios automatic CSRF token injection<br>- CORS policy enforcement<br>- State-changing operations require POST/PUT/DELETE<br>- Critical actions require re-authentication (e.g., approve application) |
+| **Residual Risk** | **Very Low** - Sanctum provides robust CSRF protection. Remaining risk: Browser without SameSite cookie support |
+
+**TM-04: Replay Attack**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Attacker captures valid token and replays it after user logout |
+| **Threat Actor** | Network attacker (MITM), malicious insider |
+| **Attack Scenario** | 1) Attacker intercepts token during transmission<br>2) User logs out<br>3) Attacker uses captured token to access system |
+| **STRIDE Category** | Spoofing |
+| **Mitigation Strategy** | - HTTPS enforcement (prevents network interception)<br>- Token revocation on logout (backend deletes token)<br>- Short token lifetime (60 minutes)<br>- No token reuse after expiration<br>- Backend validates token not in revocation list |
+| **Residual Risk** | **Low** - HTTPS + token revocation mitigates risk. Remaining risk: Token used before explicit logout |
+
+**TM-05: PHI Leakage**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Sensitive medical information exposed via client-side storage, console logs, URL parameters, or error messages |
+| **Threat Actor** | Accidental exposure, curious bystander, malicious browser extension |
+| **Attack Scenario** | 1) Developer logs `console.log(camper.medicalRecord)`<br>2) PHI visible in browser DevTools<br>3) Unauthorized person views sensitive data |
+| **STRIDE Category** | Information Disclosure |
+| **Mitigation Strategy** | - No PHI in localStorage/sessionStorage<br>- No PHI in URL parameters (use POST body)<br>- Console.log stripped in production build<br>- Error messages sanitized (no stack traces with PHI)<br>- No PHI in Redux DevTools (disabled in prod)<br>- Audit logging for all PHI access<br>- Screen blanking on idle (60 min timeout) |
+| **Residual Risk** | **Medium** - Human error remains highest risk. Remaining risk: Developer accidentally commits PHI in logs |
+
+**TM-06: Brute Force Login**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Automated credential guessing via login endpoint |
+| **Threat Actor** | External attacker with credential dictionary |
+| **Attack Scenario** | 1) Attacker runs automated script against `/api/auth/login`<br>2) Script tries common passwords<br>3) Attacker gains access to weak account |
+| **STRIDE Category** | Elevation of Privilege |
+| **Mitigation Strategy** | - Rate limiting: 5 attempts per minute<br>- Account lockout: 15 minutes after 5 failures<br>- Progressive lockout: +10 minutes per additional attempt<br>- Strong password requirements (12+ chars, complexity)<br>- haveibeenpwned API check on registration<br>- MFA required for all users<br>- CAPTCHA on repeated failures (future enhancement) |
+| **Residual Risk** | **Very Low** - Multi-layer rate limiting + MFA makes brute force impractical. Remaining risk: Distributed attack from many IPs |
+
+**TM-07: Rate Limit Abuse**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Excessive API requests exhaust backend resources |
+| **Threat Actor** | External attacker, malicious bot |
+| **Attack Scenario** | 1) Attacker floods `/api/notifications` endpoint<br>2) Backend overwhelmed with requests<br>3) Legitimate users experience degraded performance |
+| **STRIDE Category** | Denial of Service |
+| **Mitigation Strategy** | - Backend rate limiting: 60 requests/minute per user<br>- Frontend polling throttle: 30-second intervals<br>- Exponential backoff on 429 responses<br>- Request debouncing for search inputs<br>- Nginx/Cloudflare rate limiting by IP<br>- Circuit breaker pattern for repeated failures |
+| **Residual Risk** | **Low** - Rate limiting prevents single-source attacks. Remaining risk: Distributed DoS attack |
+
+**TM-08: Medical Provider Link Misuse**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Medical provider link shared or intercepted, granting unauthorized PHI access |
+| **Threat Actor** | Unauthorized recipient, network attacker |
+| **Attack Scenario** | 1) Parent creates medical provider link<br>2) Link sent via unencrypted email<br>3) Attacker intercepts link and accesses PHI |
+| **STRIDE Category** | Information Disclosure, Elevation of Privilege |
+| **Mitigation Strategy** | - Time-limited links (7-day expiration)<br>- Single-use links (revoked after first access)<br>- Link access audit logging<br>- HTTPS-only link delivery<br>- Email security recommendations to users<br>- Link revocation capability<br>- No PHI in link URL (token only) |
+| **Residual Risk** | **Medium** - Email interception risk persists. Remaining risk: Parent forwards link to unauthorized person |
+
+**TM-09: Client-Side Storage Exposure**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Malicious browser extension or local access reads sensitive data from client storage |
+| **Threat Actor** | Malicious browser extension, shared computer user |
+| **Attack Scenario** | 1) User installs malicious browser extension<br>2) Extension reads localStorage/cookies<br>3) Extension exfiltrates data to attacker |
+| **STRIDE Category** | Information Disclosure |
+| **Mitigation Strategy** | - Memory-only token storage (Redux, no persistence)<br>- No PHI in client-side storage<br>- Session timeout clears all state<br>- No sensitive data in cookies (except httpOnly CSRF)<br>- User education: avoid untrusted extensions<br>- Browser security recommendations documented |
+| **Residual Risk** | **Medium** - Malicious extensions can still access DOM and memory. Remaining risk: User installs malware disguised as extension |
+
+**TM-10: Session Fixation**
+
+| Attribute | Details |
+|-----------|---------|
+| **Attack Vector** | Attacker forces victim to use attacker-controlled session token |
+| **Threat Actor** | External attacker with social engineering capability |
+| **Attack Scenario** | 1) Attacker obtains valid token<br>2) Attacker tricks victim into using that token<br>3) Attacker accesses victim's session |
+| **STRIDE Category** | Spoofing, Elevation of Privilege |
+| **Mitigation Strategy** | - Token regenerated on every login<br>- Old token revoked on new login<br>- No token accepted from URL parameters<br>- Token only issued via POST response<br>- User cannot manually set token (Redux read-only) |
+| **Residual Risk** | **Very Low** - Token issuance controls prevent fixation. Remaining risk: Sophisticated phishing attack |
+
+#### 10.6.3 STRIDE Analysis Summary
+
+| STRIDE Category | Applicable Threats | Primary Mitigations |
+|-----------------|-------------------|---------------------|
+| **Spoofing** | TM-01, TM-04, TM-10 | HTTPS, token expiration, MFA, token revocation |
+| **Tampering** | TM-02, TM-03 | React escaping, CSRF tokens, input validation |
+| **Repudiation** | *(Low risk - audit logging handles)* | Backend audit logs for all PHI access |
+| **Information Disclosure** | TM-01, TM-02, TM-05, TM-08, TM-09 | Memory-only storage, HTTPS, no PHI in logs/URLs |
+| **Denial of Service** | TM-07 | Rate limiting, exponential backoff, circuit breakers |
+| **Elevation of Privilege** | TM-03, TM-06, TM-08, TM-10 | RBAC, MFA, strong passwords, rate limiting |
+
+#### 10.6.4 Residual Risk Summary
+
+After applying all mitigation strategies, the following residual risks remain acceptable for production deployment:
+
+| Risk Category | Residual Risk Level | Justification |
+|---------------|---------------------|---------------|
+| **XSS via third-party dependency** | Low | Dependency scanning + React's default protections reduce likelihood |
+| **Email interception (medical links)** | Medium | User education + link expiration limit exposure window |
+| **Developer error (PHI in logs)** | Medium | Code review + linting rules + prod log stripping reduce risk |
+| **Malicious browser extensions** | Medium | Browser-level threat outside application control; user education required |
+| **Distributed brute force** | Very Low | MFA makes brute force impractical even if rate limits bypassed |
+
+**Overall Risk Posture:** **Acceptable** for HIPAA-regulated production environment with documented compensating controls.
+
+---
+
+## 11. Error Handling & Resilience
+
+### 11.1 HTTP Status Code Mapping
+
+| Status | Backend Meaning | User Message | Action |
+|--------|-----------------|--------------|--------|
+| 400 | Bad Request | "Invalid request. Please try again." | Display error |
+| 401 | Unauthorized | "Session expired. Please log in again." | Redirect to login |
+| 403 | Forbidden | "You don't have permission for this action." | Display error, disable |
+| 404 | Not Found | "Resource not found." | Display error |
+| 422 | Validation | Field-specific errors | Inline field errors |
+| 429 | Rate Limit | "Too many requests. Wait {X} seconds." | Countdown timer |
+| 500 | Server Error | "Unexpected error. Try again later." | Log, notify support |
+
+### 11.2 Network Resilience & Offline Handling
+
+**Offline Detection:**
+
+```typescript
+// hooks/useOnlineStatus.ts
+import { useState, useEffect } from 'react';
+
+export function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return isOnline;
+}
+```
+
+**Graceful Degradation:**
+- Display offline banner when network unavailable
+- Queue draft auto-saves for retry when connection restored
+- Disable form submissions with clear messaging
+- Cache last known session list for read-only access
+
+### 11.3 API Timeout Strategy
+
+**Axios Configuration:**
+
+```typescript
+// api/axiosConfig.ts
+import axios from 'axios';
+
+axios.defaults.timeout = 30000; // 30 seconds default
+
+// Per-request timeout override for long-running operations
+export const longTimeoutConfig = {
+  timeout: 120000 // 2 minutes for reports
+};
+```
+
+### 11.4 Exponential Backoff Retry Logic
+
+```typescript
+// utils/retryWithBackoff.ts
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  initialDelay = 1000
+): Promise<T> {
+  let lastError: Error;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+
+      // Don't retry client errors (4xx except 429)
+      if (axios.isAxiosError(error) && error.response) {
+        const status = error.response.status;
+        if (status >= 400 && status < 500 && status !== 429) {
+          throw error;
+        }
+      }
+
+      if (attempt < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError!;
+}
+```
+
+### 11.5 Idempotency Enforcement
+
+**Application Submission:**
+
+```typescript
+// Idempotency key generation
+import { v4 as uuidv4 } from 'uuid';
+
+export async function submitApplication(data: ApplicationSubmission) {
+  const idempotencyKey = uuidv4();
+
+  const response = await axios.post('/api/applications', data, {
+    headers: {
+      'Idempotency-Key': idempotencyKey
+    }
+  });
+
+  return response.data;
+}
+```
+
+**Critical Operations Requiring Idempotency:**
+- Application submission (prevent duplicate registrations)
+- Payment processing (if implemented)
+- Digital signature capture
+- Medical provider link creation
+
+### 11.6 Form Submission Protection
+
+```typescript
+// hooks/useFormSubmission.ts
+import { useState } from 'react';
+
+export function useFormSubmission<T>(
+  submitFn: (data: T) => Promise<void>
+) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitCount, setSubmitCount] = useState(0);
+
+  const handleSubmit = async (data: T) => {
+    if (isSubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
+    setSubmitCount(prev => prev + 1);
+
+    try {
+      await submitFn(data);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return { handleSubmit, isSubmitting, submitCount };
+}
+```
+
+**UI Implementation:**
+- Disable submit button when `isSubmitting === true`
+- Display loading spinner during submission
+- Prevent form re-submission on Enter key
+- Show success confirmation before allowing re-access
+
+### 11.7 Optimistic UI Reconciliation
+
+**Pattern:**
+
+```typescript
+// Optimistic update example
+export async function updateCamperOptimistic(id: number, updates: Partial<Camper>) {
+  const dispatch = useAppDispatch();
+
+  // 1. Optimistically update UI
+  dispatch(updateCamperLocal({ id, updates }));
+
+  try {
+    // 2. Send to backend
+    const response = await campersApi.update(id, updates);
+
+    // 3. Reconcile with backend response
+    dispatch(updateCamperSuccess({ id, data: response.data }));
+  } catch (error) {
+    // 4. Rollback on failure
+    dispatch(updateCamperRollback(id));
+    throw error;
+  }
+}
+```
+
+**Reconciliation Rules:**
+- Backend response always wins
+- Display success confirmation only after backend confirms
+- Show inline error if reconciliation fails
+- Maintain version tracking to detect conflicts
+
+### 11.8 Notification Polling Resilience
+
+**Graceful Degradation:**
+
+```typescript
+// hooks/useNotificationPolling.ts (enhanced)
+export function useNotificationPolling(interval = 30000) {
+  const dispatch = useAppDispatch();
+  const [failureCount, setFailureCount] = useState(0);
+
+  useEffect(() => {
+    const fetchWithErrorHandling = async () => {
+      try {
+        await dispatch(fetchNotifications()).unwrap();
+        setFailureCount(0); // Reset on success
+      } catch (error) {
+        setFailureCount(prev => prev + 1);
+
+        // Stop polling after 3 consecutive failures
+        if (failureCount >= 3) {
+          console.warn('Notification polling suspended due to repeated failures');
+          return;
+        }
+      }
+    };
+
+    fetchWithErrorHandling();
+    const intervalId = setInterval(fetchWithErrorHandling, interval);
+
+    return () => clearInterval(intervalId);
+  }, [dispatch, interval, failureCount]);
+}
+```
+
+**Failure Strategy:**
+- Continue core functionality if polling fails
+- Display warning banner after 3 consecutive failures
+- Do not block user from accessing application
+- Retry polling when user performs manual refresh
+
+### 11.9 Global Error Handler
+
+```typescript
+// utils/errorHandler.ts
+import { AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
+import { store } from '@/store';
+import { clearAuth } from '@/store/slices/authSlice';
+
+export class GlobalErrorHandler {
+  static handle(error: AxiosError) {
+    const status = error.response?.status;
+
+    switch (status) {
+      case 401:
+        this.handleUnauthorized();
+        break;
+      case 403:
+        this.handleForbidden(error);
+        break;
+      case 422:
+        this.handleValidation(error);
+        break;
+      case 429:
+        this.handleRateLimit(error);
+        break;
+      case 500:
+      case 502:
+      case 503:
+        this.handleServerError(error);
+        break;
+      default:
+        this.handleGeneric(error);
+    }
+  }
+
+  private static handleUnauthorized() {
+    store.dispatch(clearAuth());
+    toast.error('Session expired. Please log in again.');
+  }
+
+  private static handleValidation(error: AxiosError) {
+    const errors = (error.response?.data as any)?.errors;
+    if (errors) {
+      const messages = Object.values(errors).flat() as string[];
+      toast.error(messages[0]);
+    }
+  }
+
+  private static handleRateLimit(error: AxiosError) {
+    const retryAfter = error.response?.headers['retry-after'] || 60;
+    toast.error(`Rate limit exceeded. Wait ${retryAfter} seconds.`, {
+      duration: retryAfter * 1000
+    });
+  }
+
+  private static handleServerError(error: AxiosError) {
+    toast.error('An unexpected error occurred. Our team has been notified.', {
+      duration: 0
+    });
+
+    if (window.Sentry) {
+      window.Sentry.captureException(error);
+    }
+  }
+
+  private static handleGeneric(error: AxiosError) {
+    toast.error('An error occurred. Please try again.');
+  }
+
+  private static handleForbidden(error: AxiosError) {
+    toast.error("You don't have permission for this action.");
+  }
+}
+```
+
+### 11.10 Axios Interceptor
+
+```typescript
+// api/axiosConfig.ts
+import axios from 'axios';
+import { GlobalErrorHandler } from '@/utils/errorHandler';
+import { retryWithBackoff } from '@/utils/retryWithBackoff';
+
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config;
+
+    // Force logout on 401 (token expired or invalid)
+    // Note: Do not attempt automatic token refresh on 401
+    // HIPAA compliance requires explicit user re-authentication
+    if (error.response?.status === 401 && !originalRequest._isRetry) {
+      originalRequest._isRetry = true;
+
+      // Clear auth state and redirect to login
+      store.dispatch(logout());
+      window.location.href = '/login?session_expired=true';
+
+      return Promise.reject(error);
+    }
+
+    // Retry with exponential backoff for network errors
+    if (!error.response && !originalRequest._retried) {
+      originalRequest._retried = true;
+      try {
+        return await retryWithBackoff(() => axios(originalRequest));
+      } catch (retryError) {
+        GlobalErrorHandler.handle(retryError as AxiosError);
+        return Promise.reject(retryError);
+      }
+    }
+
+    GlobalErrorHandler.handle(error);
+    return Promise.reject(error);
+  }
+);
+```
+
+**Note:** Token rotation at 55 minutes (Section 3.6) is handled proactively by the session timeout component, not by the Axios interceptor. The interceptor only handles expired/invalid tokens by forcing re-authentication.
+
+### 11.11 Observability & Monitoring Architecture
+
+#### 11.11.1 Request Correlation Strategy
+
+**Purpose:** End-to-end request tracing across frontend, API, and logging infrastructure for debugging and performance analysis.
+
+**Implementation:** UUID-based correlation ID propagated via `X-Request-ID` header.
+
+```typescript
+// utils/correlationId.ts
+import { v4 as uuidv4 } from 'uuid';
+
+export class CorrelationIdManager {
+  private static current: string | null = null;
+
+  static generate(): string {
+    this.current = uuidv4();
+    return this.current;
+  }
+
+  static getCurrent(): string {
+    if (!this.current) {
+      this.current = this.generate();
+    }
+    return this.current;
+  }
+
+  static clear(): void {
+    this.current = null;
+  }
+}
+
+// api/axiosConfig.ts
+axios.interceptors.request.use(config => {
+  // Generate or retrieve correlation ID
+  const correlationId = CorrelationIdManager.generate();
+
+  // Attach to request headers
+  config.headers['X-Request-ID'] = correlationId;
+
+  // Store in config for later retrieval
+  config.metadata = { correlationId, startTime: Date.now() };
+
+  return config;
+});
+
+axios.interceptors.response.use(
+  response => {
+    const duration = Date.now() - response.config.metadata.startTime;
+    const correlationId = response.config.metadata.correlationId;
+
+    // Log successful request
+    console.debug(`[${correlationId}] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${duration}ms)`);
+
+    return response;
+  },
+  error => {
+    const duration = Date.now() - error.config?.metadata?.startTime || 0;
+    const correlationId = error.config?.metadata?.correlationId || 'unknown';
+
+    // Log failed request
+    console.error(`[${correlationId}] ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status || 'Network Error'} (${duration}ms)`);
+
+    return Promise.reject(error);
+  }
+);
+```
+
+**Backend Laravel Integration:**
+```php
+// app/Http/Middleware/CorrelationId.php
+public function handle($request, Closure $next)
+{
+    $correlationId = $request->header('X-Request-ID') ?? Str::uuid()->toString();
+
+    // Store in request for logging
+    $request->attributes->set('correlation_id', $correlationId);
+
+    // Add to response headers
+    $response = $next($request);
+    $response->headers->set('X-Request-ID', $correlationId);
+
+    // Log with correlation ID
+    Log::withContext(['correlation_id' => $correlationId]);
+
+    return $response;
+}
+```
+
+#### 11.11.2 Structured Frontend Logging
+
+**Log Levels:**
+
+| Level | Use Case | Example | Production Enabled |
+|-------|----------|---------|-------------------|
+| **DEBUG** | Development debugging | Component render cycles | No |
+| **INFO** | User actions, state changes | "User submitted application" | Yes |
+| **WARN** | Recoverable errors, deprecations | "API deprecated, migrate soon" | Yes |
+| **ERROR** | Unrecoverable errors | "Payment processing failed" | Yes |
+| **FATAL** | Application crash | "Redux store corrupted" | Yes |
+
+**Implementation:**
+```typescript
+// utils/logger.ts
+interface LogContext {
+  correlationId?: string;
+  userId?: number;
+  userRole?: string;
+  component?: string;
+  action?: string;
+  metadata?: Record<string, unknown>;
+}
+
+class Logger {
+  private isProduction = import.meta.env.PROD;
+
+  private sanitize(data: unknown): unknown {
+    // Remove PHI from logs
+    if (typeof data === 'object' && data !== null) {
+      const sanitized = { ...data as Record<string, unknown> };
+      const phiFields = ['ssn', 'medical_notes', 'diagnosis', 'medications', 'allergies'];
+
+      phiFields.forEach(field => {
+        if (field in sanitized) {
+          sanitized[field] = '[REDACTED]';
+        }
+      });
+
+      return sanitized;
+    }
+    return data;
+  }
+
+  private format(level: string, message: string, context?: LogContext): string {
+    const timestamp = new Date().toISOString();
+    const correlationId = context?.correlationId || CorrelationIdManager.getCurrent();
+    const userId = context?.userId || 'anonymous';
+
+    return JSON.stringify({
+      timestamp,
+      level,
+      message,
+      correlationId,
+      userId,
+      userRole: context?.userRole,
+      component: context?.component,
+      action: context?.action,
+      metadata: this.sanitize(context?.metadata),
+    });
+  }
+
+  debug(message: string, context?: LogContext): void {
+    if (!this.isProduction) {
+      console.debug(this.format('DEBUG', message, context));
+    }
+  }
+
+  info(message: string, context?: LogContext): void {
+    console.info(this.format('INFO', message, context));
+  }
+
+  warn(message: string, context?: LogContext): void {
+    console.warn(this.format('WARN', message, context));
+  }
+
+  error(message: string, context?: LogContext): void {
+    console.error(this.format('ERROR', message, context));
+
+    // Send to error tracking service
+    if (this.isProduction) {
+      this.sendToErrorTracking(message, context);
+    }
+  }
+
+  fatal(message: string, context?: LogContext): void {
+    console.error(this.format('FATAL', message, context));
+
+    // Always send fatal errors
+    this.sendToErrorTracking(message, context, 'fatal');
+  }
+
+  private sendToErrorTracking(message: string, context?: LogContext, severity: string = 'error'): void {
+    // Integration with Sentry, Rollbar, etc.
+    // See Section 11.11.3
+  }
+}
+
+export const logger = new Logger();
+```
+
+**Usage Examples:**
+```typescript
+// Component usage
+const handleSubmit = async () => {
+  logger.info('Application submission started', {
+    component: 'ApplicationForm',
+    action: 'submit',
+    metadata: { applicationId: application.id }
+  });
+
+  try {
+    await submitApplication(application);
+    logger.info('Application submitted successfully', {
+      component: 'ApplicationForm',
+      action: 'submit_success',
+      metadata: { applicationId: application.id }
+    });
+  } catch (error) {
+    logger.error('Application submission failed', {
+      component: 'ApplicationForm',
+      action: 'submit_error',
+      metadata: { applicationId: application.id, error: (error as Error).message }
+    });
+  }
+};
+```
+
+#### 11.11.3 Error Monitoring Integration
+
+**Recommended Service:** Sentry (error tracking and performance monitoring)
+
+**Configuration:**
+```typescript
+// main.tsx
+import * as Sentry from '@sentry/react';
+import { BrowserTracing } from '@sentry/tracing';
+
+if (import.meta.env.PROD) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    integrations: [
+      new BrowserTracing(),
+      new Sentry.Replay({
+        maskAllText: true, // HIPAA compliance - mask all text
+        blockAllMedia: true, // Block images/videos
+      }),
+    ],
+    tracesSampleRate: 0.1, // 10% of transactions
+    replaysSessionSampleRate: 0.01, // 1% of sessions
+    replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
+    environment: import.meta.env.VITE_ENVIRONMENT || 'production',
+    beforeSend(event, hint) {
+      // Sanitize PHI before sending to Sentry
+      if (event.request?.data) {
+        event.request.data = sanitizePHI(event.request.data);
+      }
+
+      // Add correlation ID
+      event.tags = {
+        ...event.tags,
+        correlation_id: CorrelationIdManager.getCurrent(),
+      };
+
+      return event;
+    },
+  });
+}
+
+// Custom error boundary
+export const SentryErrorBoundary = Sentry.withErrorBoundary(App, {
+  fallback: <ErrorFallbackComponent />,
+  showDialog: false, // Don't show Sentry dialog to users
+});
+```
+
+**PHI Sanitization:**
+```typescript
+function sanitizePHI(data: unknown): unknown {
+  if (typeof data === 'string') {
+    // Remove potential SSN patterns
+    data = data.replace(/\d{3}-\d{2}-\d{4}/g, '***-**-****');
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    const sanitized = { ...data as Record<string, unknown> };
+    const phiFields = [
+      'ssn', 'social_security_number',
+      'medical_notes', 'diagnosis', 'medications', 'allergies',
+      'date_of_birth', 'dob', 'phone_number', 'address',
+    ];
+
+    phiFields.forEach(field => {
+      if (field in sanitized) {
+        sanitized[field] = '[REDACTED-PHI]';
+      }
+    });
+
+    return sanitized;
+  }
+
+  return data;
+}
+```
+
+#### 11.11.4 Performance Monitoring
+
+**Metrics Collection:**
+
+| Metric | Target | Measurement Point | Alert Threshold |
+|--------|--------|-------------------|-----------------|
+| **Initial Load Time** | < 3 seconds | DOMContentLoaded | > 5 seconds |
+| **Time to Interactive** | < 4 seconds | Lighthouse TTI | > 6 seconds |
+| **API Latency (p95)** | < 500ms | Axios interceptor | > 1000ms |
+| **API Latency (p99)** | < 1000ms | Axios interceptor | > 2000ms |
+| **Error Rate** | < 0.5% | Error boundary | > 1% |
+| **Session Duration (avg)** | 15-20 minutes | Analytics | N/A |
+
+**Implementation:**
+```typescript
+// utils/performanceMonitor.ts
+class PerformanceMonitor {
+  private metrics: Map<string, number[]> = new Map();
+
+  recordMetric(name: string, value: number): void {
+    if (!this.metrics.has(name)) {
+      this.metrics.set(name, []);
+    }
+    this.metrics.get(name)!.push(value);
+
+    // Send to monitoring service every 100 metrics
+    if (this.metrics.get(name)!.length >= 100) {
+      this.flush(name);
+    }
+  }
+
+  private flush(name: string): void {
+    const values = this.metrics.get(name)!;
+    const p50 = this.percentile(values, 0.5);
+    const p95 = this.percentile(values, 0.95);
+    const p99 = this.percentile(values, 0.99);
+
+    // Send to analytics
+    this.sendToAnalytics(name, { p50, p95, p99, count: values.length });
+
+    // Clear buffer
+    this.metrics.set(name, []);
+  }
+
+  private percentile(values: number[], p: number): number {
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.ceil(sorted.length * p) - 1;
+    return sorted[index];
+  }
+
+  private sendToAnalytics(name: string, data: Record<string, number>): void {
+    // Send to monitoring service (e.g., Datadog, New Relic)
+    if (import.meta.env.PROD) {
+      fetch('/api/metrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metric: name, ...data, timestamp: Date.now() }),
+      }).catch(() => {
+        // Silently fail - metrics are non-critical
+      });
+    }
+  }
+}
+
+export const performanceMonitor = new PerformanceMonitor();
+
+// API latency tracking (in axios interceptor)
+axios.interceptors.response.use(
+  response => {
+    const duration = Date.now() - response.config.metadata.startTime;
+    performanceMonitor.recordMetric('api_latency', duration);
+    performanceMonitor.recordMetric(`api_latency_${response.config.url}`, duration);
+    return response;
+  }
+);
+
+// Page load time tracking
+window.addEventListener('load', () => {
+  const perfData = window.performance.timing;
+  const loadTime = perfData.loadEventEnd - perfData.navigationStart;
+  performanceMonitor.recordMetric('page_load_time', loadTime);
+});
+```
+
+#### 11.11.5 Production Alerting Strategy
+
+**Alert Severity Levels:**
+
+| Severity | Response Time | Escalation | Example |
+|----------|--------------|------------|---------|
+| **P0 (Critical)** | Immediate (< 5 min) | Page on-call engineer | Complete outage, data breach |
+| **P1 (High)** | < 30 minutes | Email + Slack | Error rate > 5%, API down |
+| **P2 (Medium)** | < 2 hours | Slack notification | Error rate > 1%, slow performance |
+| **P3 (Low)** | Next business day | Ticket creation | Deprecation warnings, minor issues |
+
+**Alert Rules:**
+
+| Alert Name | Condition | Severity | Action |
+|------------|-----------|----------|--------|
+| **Frontend Down** | Error rate > 50% for 5 min | P0 | Page on-call, investigate immediately |
+| **API Unreachable** | 100% network errors for 2 min | P0 | Page on-call, check backend health |
+| **High Error Rate** | Error rate > 5% for 10 min | P1 | Alert team, review error logs |
+| **Slow API Response** | p95 latency > 2s for 15 min | P2 | Notify team, investigate slow queries |
+| **Session Timeout Spike** | Forced logouts > 100/hour | P2 | Check token expiration logic |
+| **Failed Login Spike** | Failed logins > 50/hour | P2 | Potential brute force attack |
+
+**Integration with Monitoring Services:**
+```typescript
+// alerting/config.ts
+export const alertConfig = {
+  sentry: {
+    errorThreshold: 10, // errors per minute
+    notifyChannels: ['email', 'slack'],
+  },
+  datadog: {
+    apiLatencyThreshold: 2000, // ms (p95)
+    errorRateThreshold: 0.05, // 5%
+  },
+  pagerduty: {
+    criticalAlerts: ['frontend_down', 'api_unreachable', 'data_breach'],
+  },
+};
+```
+
+#### 11.11.6 Request Flow Observability Diagram
+
+```mermaid
+graph LR
+    A[User Action] -->|Generate Correlation ID| B[Frontend]
+    B -->|X-Request-ID header| C[API Gateway]
+    C -->|Forward header| D[Laravel API]
+    D -->|Log with correlation_id| E[Application Logs]
+    D -->|Return X-Request-ID| C
+    C -->|Forward header| B
+    B -->|Log response| F[Browser Console]
+
+    E -->|Aggregate| G[Log Management<br/>ELK/Splunk]
+    F -->|Send errors| H[Sentry]
+    B -->|Performance metrics| I[Datadog/New Relic]
+
+    G --> J[Dashboard]
+    H --> J
+    I --> J
+
+    J -->|Alert rules| K[PagerDuty]
+    K -->|Notify| L[On-Call Engineer]
+
+    style A fill:#e1f5ff
+    style J fill:#fff4e1
+    style K fill:#ffe1e1
+    style L fill:#e1ffe1
+```
+
+#### 11.11.7 Frontend Metrics Dashboard
+
+**Recommended KPIs:**
+
+```typescript
+// Dashboard configuration (Datadog/Grafana)
+export const dashboardMetrics = {
+  availability: {
+    metric: 'frontend.uptime',
+    target: 99.9,
+    calculation: '(total_requests - error_requests) / total_requests * 100',
+  },
+  performance: {
+    pageLoadTime: { metric: 'frontend.load_time', target: 3000, unit: 'ms' },
+    apiLatencyP95: { metric: 'api.latency.p95', target: 500, unit: 'ms' },
+    apiLatencyP99: { metric: 'api.latency.p99', target: 1000, unit: 'ms' },
+  },
+  reliability: {
+    errorRate: { metric: 'frontend.error_rate', target: 0.005, unit: 'ratio' },
+    failedRequestRate: { metric: 'api.failure_rate', target: 0.01, unit: 'ratio' },
+  },
+  usage: {
+    activeUsers: { metric: 'frontend.active_users', unit: 'count' },
+    sessionDuration: { metric: 'frontend.session_duration', unit: 'seconds' },
+    pageViews: { metric: 'frontend.page_views', unit: 'count' },
+  },
+};
+```
+
+**Grafana Dashboard Example:**
+- Panel 1: Real-time error rate (last 1 hour)
+- Panel 2: API latency percentiles (p50, p95, p99)
+- Panel 3: Active users by role (admin, parent, medical)
+- Panel 4: Top 10 slowest API endpoints
+- Panel 5: Error breakdown by component
+- Panel 6: Session timeout rate
+- Panel 7: Geographic distribution of users
+- Panel 8: Browser/device breakdown
+
+---
+
+## 12. Recommended Frontend Architecture
+
+### 12.1 Technology Stack
+
+| Layer | Technology | Version | Purpose |
+|-------|-----------|---------|---------|
+| Framework | React | 18.x | Component-based UI library |
+| Language | TypeScript | 5.x | Type-safe development |
+| State | Redux Toolkit | 2.x | State management |
+| Router | React Router | 6.x | Client-side routing |
+| Styling | Tailwind CSS | 3.x | Utility-first CSS framework |
+| HTTP Client | Axios | 1.x | API communication |
+| Build Tool | Vite | 5.x | Fast development/build |
+| Testing | Vitest + Playwright | Latest | Unit + E2E testing |
+
+### 12.2 Project Structure
+
+```
+src/
+├── api/                      # API service classes
+│   ├── auth.api.ts
+│   ├── campers.api.ts
+│   ├── applications.api.ts
+│   └── axiosConfig.ts
+├── assets/                   # Static assets
+│   ├── styles/
+│   └── images/
+├── components/               # Shared components
+│   ├── common/
+│   │   ├── Button.tsx
+│   │   ├── Modal.tsx
+│   │   └── Table.tsx
+│   └── layout/
+│       ├── Header.tsx
+│       └── Sidebar.tsx
+├── features/                 # Feature-based modules
+│   ├── auth/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── hooks/
+│   ├── campers/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── hooks/
+│   ├── applications/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── hooks/
+│   └── medical/
+│       ├── components/
+│       ├── pages/
+│       └── hooks/
+├── hooks/                    # Shared custom hooks
+│   ├── useAuth.ts
+│   ├── usePermissions.ts
+│   └── useFileUpload.ts
+├── router/                   # Routing config
+│   ├── index.tsx
+│   └── ProtectedRoute.tsx
+├── store/                    # Redux store
+│   ├── slices/
+│   │   ├── authSlice.ts
+│   │   ├── campersSlice.ts
+│   │   └── applicationsSlice.ts
+│   ├── hooks.ts
+│   └── index.ts
+├── types/                    # TypeScript types
+│   ├── user.types.ts
+│   ├── camper.types.ts
+│   └── application.types.ts
+├── utils/                    # Utility functions
+│   ├── errorHandler.ts
+│   ├── validators.ts
+│   └── formatters.ts
+├── App.tsx
+└── main.tsx
+```
+
+### 12.3 Component Architecture
+
+**Container vs Presentational Components:**
+
+| Aspect | Container (Feature Pages) | Presentational (Common) |
+|--------|---------------------------|-------------------------|
+| Location | `features/*/pages/` | `components/common/` |
+| Redux Access | Yes (useSelector, useDispatch) | No (props only) |
+| API Calls | Yes | No (callbacks only) |
+| Router | Yes | No |
+| Reusability | Low | High |
+| Testing | Integration | Unit |
+
+### 12.4 Routing with Guards
+
+```typescript
+// router/index.tsx
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { ProtectedRoute } from './ProtectedRoute';
+import { lazy, Suspense } from 'react';
+
+const Dashboard = lazy(() => import('@/features/dashboard/pages/Dashboard'));
+const AdminDashboard = lazy(() => import('@/features/admin/pages/AdminDashboard'));
+const Login = lazy(() => import('@/features/auth/pages/Login'));
+
+const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <Login />
+  },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: '/dashboard',
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <Dashboard />
+          </Suspense>
+        )
+      }
+    ]
+  },
+  {
+    element: <ProtectedRoute allowedRoles={['admin']} />,
+    children: [
+      {
+        path: '/admin',
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <AdminDashboard />
+          </Suspense>
+        )
+      }
+    ]
+  }
+]);
+
+export function AppRouter() {
+  return <RouterProvider router={router} />;
+}
+```
+
+### 12.5 API Service Layer
+
+```typescript
+// api/campers.api.ts
+import axios from 'axios';
+import type { Camper } from '@/types/camper.types';
+import type { ApiResponse } from '@/types/api.types';
+
+export class CampersAPI {
+  private static baseURL = '/api/campers';
+
+  static async index(): Promise<ApiResponse<Camper[]>> {
+    return axios.get(this.baseURL);
+  }
+
+  static async show(id: number): Promise<ApiResponse<Camper>> {
+    return axios.get(`${this.baseURL}/${id}`);
+  }
+
+  static async store(data: Partial<Camper>): Promise<ApiResponse<Camper>> {
+    return axios.post(this.baseURL, data);
+  }
+
+  static async update(id: number, data: Partial<Camper>): Promise<ApiResponse<Camper>> {
+    return axios.put(`${this.baseURL}/${id}`, data);
+  }
+
+  static async destroy(id: number): Promise<ApiResponse<void>> {
+    return axios.delete(`${this.baseURL}/${id}`);
+  }
+}
+
+export const campersApi = new CampersAPI();
+```
+
+### 12.6 Design System Governance & UI Consistency
+
+#### Design System Architecture
+
+**Tailwind Token System:**
+
+```typescript
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#f0f9ff',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8'
+        },
+        error: '#ef4444',
+        success: '#10b981',
+        warning: '#f59e0b',
+        disabled: '#9ca3af'
+      },
+      spacing: {
+        'form-gap': '1.5rem',
+        'section-gap': '2rem'
+      }
+    }
+  }
+};
+```
+
+**Centralized Component Library:**
+
+All reusable UI components must reside in `components/common/` and follow atomic design principles:
+- **Atoms:** Button, Input, Label, Badge
+- **Molecules:** FormField, SearchBar, StatusBadge
+- **Organisms:** DataTable, Modal, FormWizard
+
+**Component Standards:**
+
+```typescript
+// components/common/Button.tsx
+import { ButtonHTMLAttributes, ReactNode } from 'react';
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  children: ReactNode;
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled,
+  children,
+  className = '',
+  ...props
+}: ButtonProps) {
+  const baseStyles = 'rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+
+  const variantStyles = {
+    primary: 'bg-primary-600 text-white hover:bg-primary-700',
+    secondary: 'bg-gray-600 text-white hover:bg-gray-700',
+    danger: 'bg-error text-white hover:bg-red-600'
+  };
+
+  const sizeStyles = {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-base',
+    lg: 'px-6 py-3 text-lg'
+  };
+
+  return (
+    <button
+      className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading ? 'Loading...' : children}
+    </button>
+  );
+}
+```
+
+#### Figma Design Integration
+
+**Workflow:**
+1. All UI components designed in Figma first
+2. Design tokens exported to Tailwind configuration
+3. Component implementation reviewed against Figma specs
+4. Design sign-off required before production deployment
+
+**Approval Chain:**
+- Designer approves Figma prototype
+- Frontend lead approves component implementation
+- Product owner approves user flow
+- Security lead approves PHI display patterns
+
+#### UI Consistency Enforcement
+
+**Prohibited Patterns:**
+- Inline styles via `style` attribute
+- Direct Tailwind utility modification without token system
+- Component duplication across features
+- Custom color hex values outside token system
+
+**Mandatory Patterns:**
+
+| UI Element | Required Component | Location |
+|------------|-------------------|----------|
+| All Buttons | `<Button>` | `components/common/Button.tsx` |
+| All Modals | `<Modal>` | `components/common/Modal.tsx` |
+| All Forms | `<Form>` wrapper | `components/common/Form.tsx` |
+| All Tables | `<DataTable>` | `components/common/DataTable.tsx` |
+| Status Indicators | `<StatusBadge>` | `components/applications/StatusBadge.tsx` |
+
+**Layout Standards:**
+
+```typescript
+// All forms follow 12-column grid
+<form className="grid grid-cols-12 gap-form-gap">
+  <div className="col-span-12 md:col-span-6">
+    <Input label="First Name" {...register('first_name')} />
+  </div>
+  <div className="col-span-12 md:col-span-6">
+    <Input label="Last Name" {...register('last_name')} />
+  </div>
+</form>
+```
+
+#### Accessibility Enforcement Policy
+
+**WCAG 2.1 AA Compliance Requirements:**
+- All interactive elements require ARIA labels
+- Color contrast minimum 4.5:1 for text
+- Keyboard navigation fully functional
+- Focus indicators visible and consistent
+- Error messages announced to screen readers
+- Form validation errors linked to inputs
+
+**Automated Enforcement:**
+- ESLint plugin `jsx-a11y` required
+- Pre-commit hook validates accessibility
+- CI/CD pipeline runs axe-core automated tests
+
+#### Scalability Design Principle
+
+**3× Growth Readiness:**
+
+The frontend architecture must support scaling to 3× current UI scope without refactoring core architecture:
+
+- **Current Scope:** 6 primary features (Auth, Campers, Applications, Medical, Documents, Admin)
+- **Scalability Target:** 18+ features without structural changes
+
+**Architecture Requirements:**
+- Feature-based folder structure prevents cross-contamination
+- Shared components remain stateless and generic
+- Redux slices isolated per feature
+- API services follow consistent class-based pattern
+- No hardcoded feature-specific logic in layout components
+
+**Scalability Checkpoints:**
+- Can a new feature be added in `features/` without modifying existing features? (Required: Yes)
+- Can shared components handle new use cases without modification? (Required: 80% reuse rate)
+- Does adding a new Redux slice require changes to store configuration? (Required: No)
+- Can design tokens accommodate new UI patterns? (Required: Yes)
+
+### 12.7 Server-State Management Strategy Review
+
+#### 12.7.1 Architectural Comparison: Redux Toolkit vs TanStack Query
+
+**Context:** The current architecture uses Redux Toolkit (RTK) for all state management, including server-state caching. This section evaluates whether introducing TanStack Query (React Query) for server-state would improve architectural quality in a HIPAA-regulated environment.
+
+**State Classification:**
+
+| State Type | Examples | Volatility | Source of Truth | Current Solution |
+|------------|----------|------------|-----------------|------------------|
+| **Client State** | UI toggles, form inputs, modals | High | Frontend | Redux Toolkit ✓ |
+| **Authentication State** | Token, user, session | Medium | Backend (verified) | Redux Toolkit ✓ |
+| **Server State** | Campers, applications, camps | High | Backend | Redux Toolkit + createAsyncThunk |
+| **Derived State** | Filtered lists, computed values | High | Client-side | Redux selectors (useMemo) ✓ |
+
+#### 12.7.2 Redux Toolkit Only Approach (Current)
+
+**Architecture:**
+
+```typescript
+// store/slices/campersSlice.ts
+const campersSlice = createSlice({
+  name: 'campers',
+  initialState: {
+    items: [],
+    loading: false,
+    error: null,
+    lastFetched: null,
+  },
+  reducers: {
+    // Client actions
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchCampers.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchCampers.fulfilled, (state, action) => {
+        state.items = action.payload;
+        state.loading = false;
+        state.lastFetched = Date.now();
+      })
+      .addCase(fetchCampers.rejected, (state, action) => {
+        state.error = action.error.message;
+        state.loading = false;
+      });
+  },
+});
+
+export const fetchCampers = createAsyncThunk(
+  'campers/fetch',
+  async () => {
+    const response = await camperService.getAll();
+    return response.data;
+  }
+);
+```
+
+**Strengths:**
+
+| Aspect | Evaluation | Details |
+|--------|------------|---------|
+| **Single Source of Truth** | ✓ Strong | All state in one Redux store, predictable data flow |
+| **DevTools Integration** | ✓ Strong | Redux DevTools provides time-travel debugging |
+| **Type Safety** | ✓ Strong | TypeScript integration with RTK is excellent |
+| **Learning Curve** | ✓ Moderate | Team already familiar with Redux patterns |
+| **Bundle Size** | ✓ Good | RTK included, no additional library needed |
+
+**Weaknesses:**
+
+| Aspect | Evaluation | Details |
+|--------|------------|---------|
+| **Cache Invalidation** | ✗ Manual | Developer must manually invalidate stale data |
+| **Background Refetch** | ✗ Manual | No automatic refetch on window focus/reconnect |
+| **Optimistic Updates** | ⚠ Complex | Requires manual rollback logic on error |
+| **Request Deduplication** | ✗ Manual | Multiple components fetching same data = multiple requests |
+| **Stale-While-Revalidate** | ✗ Not built-in | Must implement custom caching logic |
+| **Loading State Granularity** | ⚠ Coarse | Single `loading` flag for entire slice |
+
+**Code Complexity Example:**
+
+```typescript
+// Manual cache invalidation
+useEffect(() => {
+  const cacheAge = Date.now() - lastFetched;
+  if (cacheAge > 5 * 60 * 1000) { // 5 minutes
+    dispatch(fetchCampers());
+  }
+}, [lastFetched, dispatch]);
+
+// Manual optimistic update with rollback
+const handleUpdateCamper = async (camper: Camper) => {
+  const previousState = [...campers];
+  dispatch(updateCamperOptimistic(camper)); // Immediate UI update
+
+  try {
+    await camperService.update(camper);
+  } catch (error) {
+    dispatch(revertCampers(previousState)); // Manual rollback
+    toast.error('Update failed');
+  }
+};
+```
+
+#### 12.7.3 TanStack Query Integration Approach (Alternative)
+
+**Architecture:**
+
+```typescript
+// api/queries/camperQueries.ts
+export const useCampers = () => {
+  return useQuery({
+    queryKey: ['campers'],
+    queryFn: () => camperService.getAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+};
+
+export const useUpdateCamper = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (camper: Camper) => camperService.update(camper),
+    onMutate: async (newCamper) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['campers'] });
+
+      // Snapshot previous value
+      const previous = queryClient.getQueryData(['campers']);
+
+      // Optimistically update
+      queryClient.setQueryData(['campers'], (old: Camper[]) =>
+        old.map(c => c.id === newCamper.id ? newCamper : c)
+      );
+
+      return { previous };
+    },
+    onError: (err, newCamper, context) => {
+      // Rollback on error
+      queryClient.setQueryData(['campers'], context.previous);
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['campers'] });
+    },
+  });
+};
+
+// Usage in component
+const CamperList = () => {
+  const { data: campers, isLoading, error } = useCampers();
+  const updateCamper = useUpdateCamper();
+
+  // Automatic cache invalidation, background refetch, deduplication
+};
+```
+
+**Strengths:**
+
+| Aspect | Evaluation | Details |
+|--------|------------|---------|
+| **Cache Invalidation** | ✓ Strong | Automatic stale-while-revalidate pattern |
+| **Background Refetch** | ✓ Strong | Auto-refetch on window focus, reconnect, interval |
+| **Optimistic Updates** | ✓ Strong | Built-in rollback and reconciliation |
+| **Request Deduplication** | ✓ Strong | Automatic deduplication by query key |
+| **Loading State Granularity** | ✓ Strong | Per-query loading/error states |
+| **Developer Experience** | ✓ Excellent | Less boilerplate for common patterns |
+
+**Weaknesses:**
+
+| Aspect | Evaluation | Details |
+|--------|------------|---------|
+| **Bundle Size** | ⚠ Moderate | +14 KB gzipped (TanStack Query v5) |
+| **Learning Curve** | ⚠ Moderate | New paradigm for team (queries vs slices) |
+| **DevTools** | ⚠ Separate | Requires separate React Query DevTools |
+| **State Fragmentation** | ⚠ Risk | Server state in TanStack, client state in Redux |
+| **Redux Integration** | ⚠ Complex | Syncing TanStack cache with Redux requires custom logic |
+
+#### 12.7.4 HIPAA & Compliance Considerations
+
+**Critical Requirement:** PHI must not persist beyond session lifetime.
+
+| Solution | PHI Handling | Compliance Assessment |
+|----------|--------------|----------------------|
+| **Redux Toolkit** | Memory-only (no redux-persist for PHI) | ✓ Compliant - Full control over storage |
+| **TanStack Query** | Memory-only (default), must disable persistence | ✓ Compliant - Requires explicit `gcTime` management |
+
+**TanStack Query PHI Configuration:**
+
+```typescript
+// queryClient.ts
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 0, // CRITICAL: Never cache PHI beyond component unmount
+      staleTime: 0, // Always refetch PHI
+      refetchOnWindowFocus: false, // Don't auto-refetch PHI
+      retry: false, // Don't retry PHI requests (audit trail accuracy)
+    },
+  },
+});
+
+// For non-PHI data (camps, sessions)
+export const useCamps = () => {
+  return useQuery({
+    queryKey: ['camps'],
+    queryFn: () => campService.getAll(),
+    gcTime: 30 * 60 * 1000, // 30 minutes - camps are not PHI
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// For PHI data (campers, medical records)
+export const useCampers = () => {
+  return useQuery({
+    queryKey: ['campers'],
+    queryFn: () => camperService.getAll(),
+    gcTime: 0, // NEVER cache PHI
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+};
+```
+
+**HIPAA Risk Assessment:**
+
+| Risk | Redux Toolkit | TanStack Query | Mitigation |
+|------|---------------|----------------|------------|
+| **PHI Persistence** | Low (explicit control) | Medium (requires configuration) | Explicit `gcTime: 0` for PHI queries |
+| **Accidental Caching** | Low (no auto-cache) | Medium (default caching) | Query key naming convention (prefix `phi:`) |
+| **Audit Trail** | High (Redux DevTools logs) | Medium (React Query DevTools) | Disable DevTools in production |
+
+#### 12.7.5 Performance Comparison
+
+**Scenario:** User navigates to Camper List → Camper Detail → Back to Camper List
+
+| Metric | Redux Toolkit | TanStack Query | Winner |
+|--------|---------------|----------------|--------|
+| **Initial Load** | 1 API call | 1 API call | Tie |
+| **Navigation to Detail** | 0 API calls (cached) | 0 API calls (cached) | Tie |
+| **Navigation Back** | 0 API calls (cached) | 0 API calls + background refetch | TanStack (fresher data) |
+| **Stale Data Risk** | High (manual invalidation) | Low (auto-revalidation) | TanStack |
+| **Network Efficiency** | Developer-controlled | Automatic deduplication | TanStack |
+| **Bundle Size** | Smaller | +14 KB | Redux |
+
+**Verdict:** TanStack Query provides better default performance for server-state, but requires careful PHI configuration.
+
+#### 12.7.6 Architectural Recommendation
+
+**Decision Matrix:**
+
+| Criteria | Weight | Redux Toolkit | TanStack Query | Weighted Score |
+|----------|--------|---------------|----------------|----------------|
+| **HIPAA Compliance** | 30% | 9/10 (full control) | 7/10 (requires config) | RTK: 2.7, TQ: 2.1 |
+| **Developer Experience** | 20% | 6/10 (boilerplate) | 9/10 (less boilerplate) | RTK: 1.2, TQ: 1.8 |
+| **Performance** | 15% | 7/10 (manual) | 9/10 (automatic) | RTK: 1.05, TQ: 1.35 |
+| **Maintainability** | 15% | 7/10 (explicit) | 8/10 (conventions) | RTK: 1.05, TQ: 1.2 |
+| **Team Learning Curve** | 10% | 9/10 (familiar) | 6/10 (new) | RTK: 0.9, TQ: 0.6 |
+| **Bundle Size** | 5% | 9/10 (included) | 7/10 (+14 KB) | RTK: 0.45, TQ: 0.35 |
+| **State Consistency** | 5% | 10/10 (single source) | 6/10 (fragmented) | RTK: 0.5, TQ: 0.3 |
+| **Total Score** | 100% | — | — | **RTK: 7.85**, **TQ: 7.70** |
+
+**Final Recommendation: Redux Toolkit Only**
+
+**Justification:**
+
+1. **HIPAA Compliance Simplicity:** Redux Toolkit provides explicit, predictable control over PHI caching. TanStack Query requires careful per-query configuration to avoid accidental PHI persistence.
+
+2. **State Consistency:** Single state management solution (Redux Toolkit) avoids architectural fragmentation. Introducing TanStack Query creates two state paradigms (Redux for client state, TanStack for server state), increasing cognitive load.
+
+3. **Team Familiarity:** Development team already proficient with Redux Toolkit patterns. TanStack Query introduces new learning curve without proportional benefit given HIPAA constraints.
+
+4. **Acceptable Trade-offs:** Manual cache invalidation and optimistic updates are acceptable complexity given the regulatory environment. The additional safety of explicit control outweighs developer convenience.
+
+5. **Regulatory Audit:** Single state management layer simplifies compliance audits. Auditors can inspect Redux store exclusively rather than multiple caching layers.
+
+**Exception Case:** If future requirements include real-time collaboration features (e.g., concurrent application editing), re-evaluate TanStack Query for its superior background synchronization capabilities.
+
+#### 12.7.7 Redux Toolkit Enhancement Strategy
+
+To address Redux Toolkit weaknesses without introducing TanStack Query, implement the following enhancements:
+
+**1. Centralized Cache Invalidation Utility:**
+
+```typescript
+// utils/cacheManager.ts
+export class CacheManager {
+  private static instance: CacheManager;
+  private invalidationRules = new Map<string, number>();
+
+  static getInstance(): CacheManager {
+    if (!this.instance) {
+      this.instance = new CacheManager();
+    }
+    return this.instance;
+  }
+
+  shouldRefetch(sliceName: string, lastFetched: number | null): boolean {
+    const maxAge = this.invalidationRules.get(sliceName) || 5 * 60 * 1000; // 5 min default
+    if (!lastFetched) return true;
+    return Date.now() - lastFetched > maxAge;
+  }
+
+  configure(sliceName: string, maxAgeMs: number): void {
+    this.invalidationRules.set(sliceName, maxAgeMs);
+  }
+}
+
+// Usage in component
+const CamperList = () => {
+  const dispatch = useDispatch();
+  const { items, lastFetched } = useSelector(state => state.campers);
+  const cacheManager = CacheManager.getInstance();
+
+  useEffect(() => {
+    if (cacheManager.shouldRefetch('campers', lastFetched)) {
+      dispatch(fetchCampers());
+    }
+  }, []);
+};
+```
+
+**2. Request Deduplication Middleware:**
+
+```typescript
+// middleware/deduplicationMiddleware.ts
+const pendingRequests = new Map<string, Promise<unknown>>();
+
+export const deduplicationMiddleware: Middleware = () => next => action => {
+  if (action.type.endsWith('/pending')) {
+    const requestId = action.meta.requestId;
+
+    if (pendingRequests.has(requestId)) {
+      // Duplicate request, return existing promise
+      return pendingRequests.get(requestId);
+    }
+
+    const result = next(action);
+    pendingRequests.set(requestId, result);
+
+    return result;
+  }
+
+  if (action.type.endsWith('/fulfilled') || action.type.endsWith('/rejected')) {
+    const requestId = action.meta.requestId;
+    pendingRequests.delete(requestId);
+  }
+
+  return next(action);
+};
+```
+
+**3. Optimistic Update Helper:**
+
+```typescript
+// utils/optimisticUpdate.ts
+export const createOptimisticUpdate = <T>(
+  slice: Slice<{ items: T[] }>,
+  updateFn: (item: T) => T
+) => {
+  return {
+    update: (item: T) => {
+      return async (dispatch: Dispatch, getState: () => RootState) => {
+        const previousState = getState()[slice.name].items;
+
+        // Optimistic update
+        dispatch(slice.actions.updateItem(updateFn(item)));
+
+        try {
+          // Actual API call
+          await apiService.update(item);
+        } catch (error) {
+          // Rollback
+          dispatch(slice.actions.setItems(previousState));
+          throw error;
+        }
+      };
+    },
+  };
+};
+```
+
+**Conclusion:** Redux Toolkit remains the recommended solution with enhancements to address its weaknesses, providing a secure, auditable, and maintainable architecture for HIPAA-compliant applications.
+
+---
+
+## 13. Identified Gaps & Recommendations
+
+### 13.1 API Design Gaps
+
+**Gap: Inconsistent Pagination**
+- **Issue:** Not all list endpoints support pagination
+- **Impact:** Difficult to build reusable components
+- **Recommendation:** Standardize all list endpoints with optional `?page=X&per_page=Y`
+
+**Gap: Missing Bulk Operations**
+- **Issue:** No bulk delete, bulk review endpoints
+- **Impact:** Poor admin UX for batch operations
+- **Recommendation:** Add `POST /api/applications/bulk-review` for batch approvals
+
+**Gap: Limited Search/Filter**
+- **Issue:** List endpoints lack comprehensive filtering
+- **Impact:** Users must manually scan long lists
+- **Recommendation:** Add `?search=query&status=X&sort=field&order=asc`
+
+**Gap: No Field Selection**
+- **Issue:** API always returns full resources
+- **Impact:** Unnecessary data transfer
+- **Recommendation:** Implement `?fields=id,first_name,last_name` sparse fieldsets
+
+### 13.2 Security Gaps
+
+**Gap: No Per-Endpoint Rate Limiting**
+- **Issue:** Global 60/min limit applies to all operations
+- **Impact:** Expensive operations (reports) not separately limited
+- **Recommendation:** Implement tiered limits (5/min for reports, 30/min for writes)
+
+**Gap: Insufficient Medical Provider Link Tracking**
+- **Issue:** No detailed access logging documented
+- **Impact:** Difficult to audit PHI access
+- **Recommendation:** Log every link access attempt with IP, user agent, timestamp
+
+**Gap: No Account Takeover Detection**
+- **Issue:** No login anomaly detection
+- **Impact:** Compromised accounts may go undetected
+- **Recommendation:** Implement device fingerprinting, geolocation alerts
+
+### 13.3 Performance Gaps
+
+**Gap: Potential N+1 Queries**
+- **Issue:** List endpoints may not eager-load relationships
+- **Impact:** Slow response times
+- **Recommendation:** Use eager loading, document which relationships are included
+
+**Gap: No Caching Strategy**
+- **Issue:** No HTTP caching headers documented
+- **Impact:** Repeated requests for unchanged data
+- **Recommendation:** Implement `Cache-Control` headers for semi-static data
+
+**Gap: Synchronous Report Generation**
+- **Issue:** Reports generated in-request
+- **Impact:** Long request times, potential timeouts
+- **Recommendation:** Async job queue with polling: `POST /api/reports → GET /api/reports/{job_id}`
+
+### 13.4 HIPAA Compliance Gaps
+
+**Gap: No Documented Encryption at Rest**
+- **Issue:** Database encryption not documented
+- **Impact:** HIPAA requires PHI encryption at rest
+- **Recommendation:** Document MySQL encryption, use Laravel encryption for sensitive fields
+
+**Gap: No BAA Workflow**
+- **Issue:** Medical provider links sent without BAA confirmation
+- **Impact:** HIPAA violation
+- **Recommendation:** Require BAA acceptance before link creation, store signature
+
+**Gap: No Data Retention Policy**
+- **Issue:** No documented retention/disposal process
+- **Impact:** HIPAA requires defined retention
+- **Recommendation:** Document retention periods, implement automated purging
+
+### 13.5 Missing Features
+
+**Feature: Draft Auto-Save**
+- **Impact:** Users risk losing partial applications
+- **Recommendation:** Add `PATCH /api/applications/{id}/auto-save` for background saves
+
+**Feature: Email Verification**
+- **Impact:** Cannot verify user email addresses
+- **Recommendation:** Require email verification during registration
+
+**Feature: Application Templates**
+- **Impact:** Cannot adapt forms to different camp types
+- **Recommendation:** Add `GET /api/sessions/{id}/application-template` with dynamic form structure
+
+**Feature: Waitlist Management**
+- **Impact:** Manual waitlist processing
+- **Recommendation:** Add `waitlist_position`, `POST /api/applications/{id}/promote-from-waitlist`
+
+### 13.6 Documentation Gaps
+
+**Gap: No OpenAPI Specification**
+- **Impact:** Cannot auto-generate client code
+- **Recommendation:** Generate OpenAPI 3.0 spec, publish at `/api/docs/openapi.json`
+
+**Gap: No Webhook System**
+- **Impact:** Frontend must poll for updates
+- **Recommendation:** Implement webhook registration for real-time events
+
+---
+
+## 14. Frontend Development Checklist
+
+### Phase 1: Project Setup
+
+**Environment:**
+- [ ] Install Node.js 18+, npm/yarn
+- [ ] Initialize React 18 + TypeScript project with Vite
+- [ ] Configure ESLint and Prettier
+- [ ] Set up Git hooks (Husky) for pre-commit linting
+- [ ] Create environment files (`.env.development`, `.env.production`)
+- [ ] Configure Vite proxy for backend API
+
+**Dependencies:**
+- [ ] Install core: `react`, `react-dom`, `react-router-dom`, `@reduxjs/toolkit`, `react-redux`, `axios`
+- [ ] Install styling: `tailwindcss`, `postcss`, `autoprefixer`
+- [ ] Install utilities: `dompurify`, `react-hot-toast`, `date-fns`, `uuid`
+- [ ] Install testing: `vitest`, `@testing-library/react`, `playwright`
+
+**Project Structure:**
+- [ ] Create folder structure per Section 12.2
+- [ ] Set up TypeScript path aliases (`@/` for `src/`)
+- [ ] Configure Tailwind CSS with design tokens
+- [ ] Configure VS Code settings and extensions
+
+### Phase 2: Core Architecture
+
+**Type System:**
+- [ ] Define all API response types (`types/api.types.ts`)
+- [ ] Define entity types (User, Camper, Application, etc.)
+- [ ] Export all types from `types/index.ts`
+
+**Routing:**
+- [ ] Configure React Router with BrowserRouter
+- [ ] Implement ProtectedRoute component with guards
+- [ ] Configure route-based code splitting with lazy loading
+- [ ] Set up 404 route
+- [ ] Test all guards with different roles
+
+**State Management:**
+- [ ] Create Redux store with Redux Toolkit
+- [ ] Create auth slice with token management
+- [ ] Create campers slice with CRUD operations
+- [ ] Create applications slice
+- [ ] Create notifications slice with polling
+- [ ] Test store persistence and reset on logout
+
+**API Layer:**
+- [ ] Create API service classes for all endpoints
+- [ ] Configure Axios with baseURL, interceptors, timeout
+- [ ] Implement CSRF token handling
+- [ ] Set up global error handler with retry logic
+- [ ] Implement exponential backoff for network errors
+- [ ] Test all API services
+
+### Phase 3: Authentication & Authorization
+
+**Login/Registration:**
+- [ ] Build login form with validation
+- [ ] Build registration form
+- [ ] Implement password strength indicator
+- [ ] Handle account lockout with countdown
+- [ ] Test forgot password flow
+
+**MFA:**
+- [ ] Build MFA setup wizard (4 steps)
+- [ ] Display QR code for scanning
+- [ ] Implement 6-digit code input
+- [ ] Handle recovery codes download
+- [ ] Test MFA verification flow
+
+**Session Management:**
+- [ ] Implement token storage (memory only)
+- [ ] Build session timeout warning modal
+- [ ] Implement 60-minute auto-logout
+- [ ] Add proactive token refresh (55 min)
+- [ ] Test timeout across all pages
+
+**Authorization:**
+- [ ] Implement `usePermissions` hook
+- [ ] Add role-based conditional rendering
+- [ ] Test admin, parent, medical role access
+- [ ] Verify ownership checks work correctly
+
+### Phase 4: Core Features
+
+**Child Participant Management:**
+- [ ] Build child participant list view with Tailwind table
+- [ ] Build child participant create form with validation
+- [ ] Build child participant edit form
+- [ ] Build child participant detail view
+- [ ] Implement delete with confirmation modal
+- [ ] Test all CRUD operations
+
+**Application Management:**
+- [ ] Build application list with filters
+- [ ] Build application form (multi-step if needed)
+- [ ] Implement draft auto-save (30-second intervals)
+- [ ] Build digital signature canvas component
+- [ ] Build application review UI (admin)
+- [ ] Implement status badge component
+- [ ] Implement idempotency for application submission
+- [ ] Prevent duplicate form submissions
+- [ ] Test all six status states
+
+**Medical Records:**
+- [ ] Build medical record forms
+- [ ] Implement allergy/medication management
+- [ ] Build emergency contact forms
+- [ ] Verify PHI access restrictions
+- [ ] Test medical role read-only access
+
+**Document Management:**
+- [ ] Build file upload with drag-and-drop
+- [ ] Implement client-side validation
+- [ ] Display upload progress bar
+- [ ] Show security scan status
+- [ ] Implement file preview and download
+- [ ] Test rate limiting (5/minute)
+
+**Notifications:**
+- [ ] Implement 30-second polling with custom hook
+- [ ] Build notification dropdown/panel
+- [ ] Display unread count badge
+- [ ] Implement mark as read functionality
+- [ ] Implement graceful degradation on polling failure
+- [ ] Test polling doesn't cause memory leaks
+
+**Admin Features:**
+- [ ] Build admin dashboard
+- [ ] Build application review queue
+- [ ] Build report generation UI
+- [ ] Build audit log viewer
+- [ ] Test admin features are inaccessible to non-admins
+
+### Phase 5: Security Implementation
+
+**Input Validation:**
+- [ ] Implement client-side validation for all forms
+- [ ] Create custom validation hooks
+- [ ] Display inline validation errors
+- [ ] Test XSS prevention (no `dangerouslySetInnerHTML` with user input)
+
+**HIPAA Compliance:**
+- [ ] Verify no PHI in localStorage/sessionStorage
+- [ ] Implement session timeout (60 min)
+- [ ] Clear PHI on logout
+- [ ] Test audit logging for PHI access
+- [ ] Verify clipboard protection for sensitive fields
+
+**HTTPS & CSRF:**
+- [ ] Configure HTTPS-only in production
+- [ ] Set CSP headers
+- [ ] Configure Axios CSRF token handling
+- [ ] Test mixed content is blocked
+
+### Phase 6: UX & Accessibility
+
+**Loading States:**
+- [ ] Add loading spinners for all async operations
+- [ ] Use skeleton screens for page loads
+- [ ] Disable buttons during submission
+
+**Error Handling:**
+- [ ] Display user-friendly error messages with toast
+- [ ] Show validation errors inline
+- [ ] Use toasts for transient errors
+- [ ] Implement offline detection banner
+- [ ] Test all error scenarios
+
+**Empty States:**
+- [ ] Design empty states for all lists
+- [ ] Add call-to-action buttons
+- [ ] Use friendly messaging
+
+**Accessibility (WCAG 2.1 AA):**
+- [ ] Add ARIA labels to interactive elements
+- [ ] Ensure form inputs have labels
+- [ ] Test keyboard navigation
+- [ ] Test focus indicators
+- [ ] Verify color contrast (4.5:1 for text)
+- [ ] Test with screen reader
+- [ ] Ensure error messages are announced
+- [ ] Configure ESLint jsx-a11y plugin
+
+**Responsive Design:**
+- [ ] Test on mobile devices
+- [ ] Test on tablets
+- [ ] Implement mobile-first Tailwind classes
+- [ ] Test forms on mobile (proper keyboards)
+- [ ] Ensure touch targets are 44x44 pixels
+
+### Phase 7: Performance Optimization
+
+**Code Splitting:**
+- [ ] Verify route-based lazy loading
+- [ ] Implement component lazy loading where needed
+- [ ] Check bundle sizes (< 1 MB main)
+
+**Caching:**
+- [ ] Implement client-side caching for camps/sessions in Redux
+- [ ] Configure cache TTLs
+- [ ] Never cache PHI
+
+**Performance:**
+- [ ] Run Lighthouse audit (score > 90)
+- [ ] Optimize images
+- [ ] Test on 3G connection
+- [ ] Measure initial page load (< 3 seconds)
+
+### Phase 8: Design System & UI Consistency
+
+**Component Library:**
+- [ ] Build centralized Button component
+- [ ] Build centralized Modal component
+- [ ] Build centralized Form components
+- [ ] Build centralized DataTable component
+- [ ] Verify no inline styles exist
+- [ ] Audit for component duplication
+
+**Figma Integration:**
+- [ ] Export design tokens to Tailwind config
+- [ ] Validate all components against Figma specs
+- [ ] Obtain design sign-off for all features
+
+**Scalability Validation:**
+- [ ] Verify feature-based structure supports 3× growth
+- [ ] Test adding mock feature without modifying existing code
+- [ ] Validate shared component reusability (80% target)
+
+### Phase 9: Testing
+
+**Unit Tests:**
+- [ ] Write tests for custom hooks
+- [ ] Write tests for utilities (retryWithBackoff, error handlers)
+- [ ] Write tests for Redux slices
+- [ ] Achieve 80% coverage
+
+**Component Tests:**
+- [ ] Test form components with React Testing Library
+- [ ] Test user interactions
+- [ ] Test validation behavior
+- [ ] Mock API calls
+
+**Integration Tests:**
+- [ ] Test authentication flow
+- [ ] Test child participant creation flow
+- [ ] Test application submission
+- [ ] Test authorization flows
+- [ ] Test optimistic UI reconciliation
+
+**E2E Tests:**
+- [ ] Test complete registration + login + MFA with Playwright
+- [ ] Test creating child participant and application
+- [ ] Test document upload
+- [ ] Test session timeout
+- [ ] Test offline detection
+- [ ] Run on multiple browsers
+
+### Phase 10: Code Quality
+
+**Code Review:**
+- [ ] Run ESLint (fix all errors)
+- [ ] Run Prettier
+- [ ] Remove console.log statements
+- [ ] Remove TODO comments
+- [ ] Remove unused imports
+- [ ] Add JSDoc comments
+
+**TypeScript:**
+- [ ] Enable strict mode
+- [ ] Fix all TypeScript errors
+- [ ] Avoid `any` type
+- [ ] Define explicit return types
+
+**Documentation:**
+- [ ] Update README with setup instructions
+- [ ] Document environment variables
+- [ ] Document project structure
+- [ ] Create developer onboarding guide
+
+### Phase 11: Pre-Deployment
+
+**Environment:**
+- [ ] Set production API base URL
+- [ ] Configure error tracking (Sentry)
+- [ ] Remove debug flags
+- [ ] Verify SSL certificate
+
+**Build:**
+- [ ] Run production build
+- [ ] Verify bundle sizes
+- [ ] Test production build locally
+- [ ] Enable gzip/Brotli compression
+
+**Security:**
+- [ ] Review security headers
+- [ ] Verify HTTPS enforcement
+- [ ] Run npm audit
+- [ ] Fix critical vulnerabilities
+- [ ] Review OWASP Top 10
+
+**Final Testing:**
+- [ ] Run full test suite
+- [ ] Smoke test on staging
+- [ ] Test with real backend
+- [ ] Test critical flows
+- [ ] Test network resilience (offline mode)
+- [ ] Get stakeholder sign-off
+
+### Phase 12: Deployment
+
+- [ ] Back up current production
+- [ ] Deploy to staging
+- [ ] Run smoke tests on staging
+- [ ] Get QA approval
+- [ ] Deploy to production
+- [ ] Monitor for errors
+- [ ] Verify all pages load
+- [ ] Test login, MFA, core flows
+
+### Phase 13: Post-Deployment
+
+**Monitoring:**
+- [ ] Set up error tracking
+- [ ] Set up performance monitoring
+- [ ] Configure alerts
+- [ ] Monitor API error rates
+
+**Maintenance:**
+- [ ] Review error logs weekly
+- [ ] Update dependencies monthly
+- [ ] Patch security vulnerabilities immediately
+- [ ] Monitor performance trends
+
+### Phase 14: Architectural Validation
+
+**Token & Session Strategy (Section 3.6):**
+- [ ] Verify token lifecycle diagram matches implementation
+- [ ] Implement custom `/api/auth/refresh-session` endpoint
+- [ ] Test proactive token rotation at 55 minutes
+- [ ] Verify forced logout at 60 minutes if no action
+- [ ] Confirm memory-only token storage (no localStorage)
+- [ ] Test re-authentication after page refresh
+- [ ] Validate token expiration handling for all edge cases
+
+**API Versioning Strategy (Section 2.17):**
+- [ ] Document current API version (implicit v1)
+- [ ] Establish deprecation policy with timelines
+- [ ] Implement version detection utility (`getVersionedUrl`)
+- [ ] Add Axios interceptor for deprecation warning detection
+- [ ] Plan migration strategy for future v2 breaking changes
+- [ ] Verify 12-month minimum support window for deprecated versions
+
+**Frontend Threat Model (Section 10.6):**
+- [ ] Review all 10 identified threats (TM-01 through TM-10)
+- [ ] Verify XSS mitigation (React escaping, DOMPurify, CSP)
+- [ ] Test CSRF protection (Sanctum token, SameSite cookies)
+- [ ] Audit PHI leakage vectors (no localStorage, no URLs, sanitized logs)
+- [ ] Test rate limiting and brute force protection
+- [ ] Validate medical provider link expiration and audit logging
+- [ ] Document residual risks for compliance review
+- [ ] Conduct STRIDE analysis review with security team
+
+**Observability & Monitoring (Section 11.11):**
+- [ ] Implement correlation ID propagation (`X-Request-ID`)
+- [ ] Set up structured frontend logging with PHI sanitization
+- [ ] Integrate error monitoring (Sentry with PHI masking)
+- [ ] Configure performance monitoring (API latency, load time)
+- [ ] Set up production alerting rules (P0/P1/P2/P3 severity)
+- [ ] Create observability dashboard (Grafana/Datadog)
+- [ ] Test correlation ID flow from frontend to backend logs
+- [ ] Verify log aggregation and searchability
+
+**Server-State Management Strategy (Section 12.7):**
+- [ ] Confirm Redux Toolkit as recommended solution
+- [ ] Implement centralized cache invalidation utility
+- [ ] Add request deduplication middleware
+- [ ] Create optimistic update helper utilities
+- [ ] Document rationale for not using TanStack Query
+- [ ] Verify PHI cache management (no persistence)
+- [ ] Test manual cache invalidation logic
+- [ ] Audit state management consistency
+
+---
+
+**Document Status:** Complete and Authoritative
+**Total Sections:** 14
+**Target Audience:** Frontend Development Team
+**Compliance:** HIPAA, RBAC, MFA, Mobile-First
+**Backend:** Laravel 12.0 REST API
+**Recommended Frontend:** React 18 + TypeScript + Redux Toolkit + Tailwind CSS
+**Design System:** Figma-driven, Tailwind token-based, WCAG 2.1 AA compliant
+**Scalability:** 3× growth ready without architectural refactor
