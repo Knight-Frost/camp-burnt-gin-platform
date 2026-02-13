@@ -1,27 +1,27 @@
 <?php
 
-use App\Http\Controllers\Api\ActivityPermissionController;
-use App\Http\Controllers\Api\AllergyController;
-use App\Http\Controllers\Api\ApplicationController;
-use App\Http\Controllers\Api\AssistiveDeviceController;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\BehavioralProfileController;
-use App\Http\Controllers\Api\CampController;
-use App\Http\Controllers\Api\CamperController;
-use App\Http\Controllers\Api\CampSessionController;
-use App\Http\Controllers\Api\DiagnosisController;
-use App\Http\Controllers\Api\DocumentController;
-use App\Http\Controllers\Api\EmergencyContactController;
-use App\Http\Controllers\Api\FeedingPlanController;
-use App\Http\Controllers\Api\HealthController;
-use App\Http\Controllers\Api\MedicalProviderLinkController;
-use App\Http\Controllers\Api\MedicalRecordController;
-use App\Http\Controllers\Api\MedicationController;
-use App\Http\Controllers\Api\MfaController;
-use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\PasswordResetController;
-use App\Http\Controllers\Api\ReportController;
-use App\Http\Controllers\Api\UserProfileController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\MfaController;
+use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Camp\CampController;
+use App\Http\Controllers\Api\Camp\CampSessionController;
+use App\Http\Controllers\Api\Camper\ApplicationController;
+use App\Http\Controllers\Api\Camper\CamperController;
+use App\Http\Controllers\Api\Camper\UserProfileController;
+use App\Http\Controllers\Api\Document\DocumentController;
+use App\Http\Controllers\Api\Document\MedicalProviderLinkController;
+use App\Http\Controllers\Api\Medical\ActivityPermissionController;
+use App\Http\Controllers\Api\Medical\AllergyController;
+use App\Http\Controllers\Api\Medical\AssistiveDeviceController;
+use App\Http\Controllers\Api\Medical\BehavioralProfileController;
+use App\Http\Controllers\Api\Medical\DiagnosisController;
+use App\Http\Controllers\Api\Medical\EmergencyContactController;
+use App\Http\Controllers\Api\Medical\FeedingPlanController;
+use App\Http\Controllers\Api\Medical\MedicalRecordController;
+use App\Http\Controllers\Api\Medical\MedicationController;
+use App\Http\Controllers\Api\System\HealthController;
+use App\Http\Controllers\Api\System\NotificationController;
+use App\Http\Controllers\Api\System\ReportController;
 use Illuminate\Support\Facades\Route;
 
 /*

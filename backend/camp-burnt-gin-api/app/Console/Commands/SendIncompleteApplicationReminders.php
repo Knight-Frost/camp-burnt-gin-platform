@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Application;
-use App\Notifications\IncompleteApplicationReminderNotification;
+use App\Notifications\Camper\IncompleteApplicationReminderNotification;
 use Illuminate\Console\Command;
 
 /**

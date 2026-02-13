@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Models\AssistiveDevice;
-use App\Services\SpecialNeedsRiskAssessmentService;
+use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
  * Observer for AssistiveDevice model changes.

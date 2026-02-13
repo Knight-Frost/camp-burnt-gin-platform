@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Models\MedicalRecord;
-use App\Services\SpecialNeedsRiskAssessmentService;
+use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
  * Observer for MedicalRecord model changes.

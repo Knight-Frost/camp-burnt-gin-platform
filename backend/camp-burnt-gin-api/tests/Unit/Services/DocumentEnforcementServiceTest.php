@@ -6,7 +6,7 @@ use App\Enums\DocumentVerificationStatus;
 use App\Enums\SupervisionLevel;
 use App\Models\Camper;
 use App\Models\Document;
-use App\Services\DocumentEnforcementService;
+use App\Services\Document\DocumentEnforcementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

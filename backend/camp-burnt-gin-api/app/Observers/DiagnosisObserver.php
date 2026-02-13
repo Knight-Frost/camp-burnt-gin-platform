@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Diagnosis;
-use App\Services\SpecialNeedsRiskAssessmentService;
+use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
  * Observer for Diagnosis model changes.

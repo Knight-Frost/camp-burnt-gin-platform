@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\MedicalProviderLinkService;
+use App\Services\Medical\MedicalProviderLinkService;
 use Illuminate\Console\Command;
 
 /**

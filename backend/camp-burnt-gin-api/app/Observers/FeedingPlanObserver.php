@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Models\FeedingPlan;
-use App\Services\SpecialNeedsRiskAssessmentService;
+use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
  * Observer for FeedingPlan model changes.
