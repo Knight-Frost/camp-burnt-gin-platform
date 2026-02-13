@@ -12,9 +12,10 @@ The Camp Burnt Gin API is a RESTful backend designed to support camp registratio
 
 | User Type | Description | Primary Use Cases |
 |-----------|-------------|-------------------|
-| **Admin** | Camp administrators and staff | Application review, camp management, reporting, system administration |
+| **Super Admin** | System owners and primary administrators | Role management, delegation governance, all admin capabilities |
+| **Admin** | Camp administrators and operational staff | Application review, camp management, reporting, system administration |
 | **Parent/Guardian** | Parents registering campers | Camper registration, application submission, medical records, document uploads |
-| **Medical Provider** | Healthcare professionals | Medical information submission via secure token (no account required) |
+| **Medical Provider** | Healthcare professionals (token-based) | Medical information submission via secure token (no account required) |
 
 ---
 
@@ -95,29 +96,43 @@ The following endpoints do not require authentication:
 
 ## 4. Role Access Model
 
-The API implements role-based access control (RBAC) with three primary roles:
+The API implements role-based access control (RBAC) with a four-tier hierarchical role system:
+
+**Hierarchy:** super_admin > admin > parent > medical
 
 | Role | Access Scope | Key Permissions |
 |------|--------------|-----------------|
-| **admin** | Full system access | View all data, review applications, manage camps/sessions, generate reports, access audit logs |
-| **parent** | Own resources only | Create/view/edit own campers and applications, manage medical records for own campers, upload documents |
+| **super_admin** | Absolute system authority | All admin permissions plus: assign/modify roles, create/delete role definitions, promote/demote users, delegation governance |
+| **admin** | Full operational access | View all data, review applications, manage camps/sessions, generate reports, access audit logs, moderate conversations |
+| **parent** | Own resources only | Create/view/edit own campers and applications, manage medical records for own campers, upload documents, create conversations with admins |
+| **medical** | Read-only medical access | View medical records, allergies, medications for all campers (audit logged, no modification rights) |
 | **provider** | Token-specific access | Submit medical information for linked camper (no user account, access via secure token) |
 
 ### Authorization Enforcement
 
 - **Route-Level** — Middleware restricts entire endpoints by role
-- **Resource-Level** — Policies verify ownership and relationships
+- **Resource-Level** — Policies verify ownership and relationships (RolePolicy for delegation governance)
 - **Field-Level** — Sensitive fields hidden based on role (e.g., SSNs, full medical records)
+- **Model-Level** — Safeguards prevent deletion of last super_admin
+
+### Hierarchical Authority
+
+- **super_admin** inherits all **admin** privileges via isAdmin() override
+- **admin** retains full operational authority but cannot manage roles
+- Only **super_admin** can assign roles or promote users
+- Last **super_admin** cannot be deleted or demoted
 
 ### Example Authorization Rules
 
-| Action | Admin | Parent | Provider |
-|--------|-------|--------|----------|
-| View all campers |  Yes |  No (own only) |  No |
-| Edit camper profile |  Yes |  Yes (own only) |  No |
-| Review application |  Yes |  No |  No |
-| Submit medical info |  Yes |  Yes (own campers) |  Yes (linked camper only) |
-| Generate reports |  Yes |  No |  No |
+| Action | Super Admin | Admin | Parent | Medical | Provider |
+|--------|-------------|-------|--------|---------|----------|
+| Assign user roles |  Yes |  No |  No |  No |  No |
+| View all campers |  Yes |  Yes |  No (own only) |  No |  No |
+| Edit camper profile |  Yes |  Yes |  Yes (own only) |  No |  No |
+| Review application |  Yes |  Yes |  No |  No |  No |
+| View medical records |  Yes |  Yes |  Yes (own campers) |  Yes (all, read-only) |  No |
+| Submit medical info |  Yes |  Yes |  Yes (own campers) |  No |  Yes (linked camper only) |
+| Generate reports |  Yes |  Yes |  No |  No |  No |
 
 ---
 

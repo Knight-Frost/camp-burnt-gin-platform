@@ -16,7 +16,7 @@ This guide covers **backend-only testing**. The following components are tested:
 
 - **Authentication**: User registration, login, logout, and password reset
 - **Multi-Factor Authentication (MFA)**: TOTP-based MFA setup, verification, and disabling
-- **Role-Based Access Control (RBAC)**: Admin, parent, and medical provider role restrictions
+- **Role-Based Access Control (RBAC)**: Super admin, admin, parent, and medical provider role restrictions with hierarchical authority
 - **Camper Management**: Creating and managing camper profiles
 - **Application Workflow**: Creating, submitting, reviewing, and signing applications
 - **Medical Records**: HIPAA-compliant medical information management
@@ -56,11 +56,11 @@ php artisan test
 
 **Observable Success:**
 - All commands complete without errors
-- Final output shows `Tests: 286 passed (654 assertions)` with zero failures
+- Final output shows `Tests: 308 passed (708 assertions)` with zero failures
 - No red text or `FAIL` messages appear
 - Test duration: 2-3 seconds
 
-If all 286 tests pass, the backend is verified and working correctly.
+If all 308 tests pass, the backend is verified and working correctly.
 
 ---
 
@@ -309,8 +309,8 @@ php artisan test
    parent can view own campers
   ...
 
-Tests:    286 passed (654 assertions)
-Duration: 2.74s
+Tests:    308 passed (708 assertions)
+Duration: 4.56s
 ```
 
 **Key Indicators of Success:**
@@ -487,10 +487,13 @@ curl -X POST http://127.0.0.1:8000/api/mfa/setup \
 
 #### What Is Being Tested
 
-The system enforces three user roles:
-- **Admin**: Full system access
+The system enforces four user roles with hierarchical authority:
+- **Super Admin**: Absolute system authority and delegation governance
+- **Admin**: Full operational access (inherits from super_admin authority model)
 - **Parent**: Access to own children only
 - **Medical**: Access to medical data only
+
+**Hierarchy:** super_admin > admin > parent > medical
 
 **Validates:** FR-6, FR-7, FR-8
 
@@ -1707,4 +1710,4 @@ php artisan test --coverage
 
 *Document Version: 1.3*
 *Last Updated: February 2026*
-*Test Suite: 286 tests, 654 assertions, 100% pass rate*
+*Test Suite: 308 tests, 708 assertions, 100% pass rate*

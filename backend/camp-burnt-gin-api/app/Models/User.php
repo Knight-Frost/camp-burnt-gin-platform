@@ -69,6 +69,29 @@ class User extends Authenticatable
     }
 
     /**
+     * Boot the model and apply event listeners.
+     *
+     * Prevents deletion of the last super administrator to avoid system lockout.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($user) {
+            // Prevent deletion of the last super administrator
+            if ($user->isSuperAdmin()) {
+                $superAdminCount = static::whereHas('role', function ($query) {
+                    $query->where('name', 'super_admin');
+                })->count();
+
+                if ($superAdminCount <= 1) {
+                    throw new \Exception('Cannot delete the last super administrator. At least one super administrator must exist in the system.');
+                }
+            }
+        });
+    }
+
+    /**
      * Get the role assigned to this user.
      */
     public function role(): BelongsTo
@@ -101,11 +124,25 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine if the user is a super administrator.
+     *
+     * Super administrators have absolute system authority and can manage
+     * system-level configurations, feature flags, and role assignments.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super_admin');
+    }
+
+    /**
      * Determine if the user is an administrator.
+     *
+     * This includes both regular administrators and super administrators.
+     * Super administrators inherit all admin privileges.
      */
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->hasRole('admin') || $this->hasRole('super_admin');
     }
 
     /**

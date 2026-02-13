@@ -6,26 +6,53 @@ This document defines the role-based access control (RBAC) system implemented in
 
 ## Role Definitions
 
-The system implements three distinct user roles:
+The system implements a four-tier role hierarchy:
+
+**Hierarchy:** super_admin > admin > parent > medical
+
+### Super Administrator
+
+**Role Code:** `super_admin`
+
+**Purpose:** Absolute system authority and delegation governance
+
+**Target Audience:** System owners, primary administrators
+
+**Capabilities:**
+- All capabilities of Administrator role (inherited)
+- Assign and modify user roles (delegation governance)
+- Create and delete roles
+- Promote users to admin or super_admin
+- Demote users from admin to parent
+- Delete users (with safeguards to prevent deletion of last super_admin)
+- Manage system-wide authorization policies
+
+**Safeguards:**
+- Last super_admin cannot be deleted
+- Last super_admin cannot demote themselves
+- Role assignment restricted to super_admin only
 
 ### Administrator
 
 **Role Code:** `admin`
 
-**Purpose:** System administration and camp management
+**Purpose:** Operational administration and camp management
 
-**Target Audience:** Camp staff, system administrators
+**Target Audience:** Camp staff, operational administrators
 
 **Capabilities:**
-- Full system access
+- Full operational access (but not governance authority)
 - Create and manage camps and sessions
 - View all applications across all users
 - Review applications (approve/reject/waitlist)
 - Generate administrative reports
 - View all medical records (with audit logging)
 - Create and revoke medical provider links
-- Delete any record
-- Manage user accounts
+- Delete camper records
+- Manage day-to-day operations
+- **Cannot** assign or modify user roles
+- **Cannot** manage role definitions
+- **Cannot** promote users to admin or super_admin
 
 ### Parent
 
@@ -235,13 +262,43 @@ if ($user->isAdmin()) {
 
 ## Role Assignment
 
+### Initial Assignment
+
 Roles are assigned at user creation:
 
-- **Default Role:** Parent
-- **Admin Assignment:** Manual database assignment or seeder
-- **Medical Assignment:** Manual database assignment
+- **Default Role:** Parent (self-registration)
+- **Super Admin Assignment:** Created via database seeder or manual database insert
+- **Admin Assignment:** Super admin via role management or database seeder
+- **Medical Assignment:** Super admin via role management or manual database assignment
 
-Role cannot be changed via API. Admins must update directly in database.
+### Role Management
+
+- **Role Assignment Authority:** Only super_admin users can assign or modify roles
+- **Role Management Endpoint:** Reserved for future implementation
+- **Current Method:** Super admin must use database direct assignment or future admin panel
+- **Delegation Governance:** RolePolicy enforces that only super_admin can manage role assignments
+
+### Hierarchical Authority
+
+- **super_admin** inherits all **admin** privileges via `isAdmin()` method override
+- **admin** retains full operational authority over camp management and applications
+- **super_admin** is the only role authorized for governance operations (role assignment, user promotion)
+- This hierarchy was implemented without modifying existing policy files to avoid regression
+
+### Role Seeding
+
+The system includes automatic role seeding:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+This command:
+1. Creates all four roles (super_admin, admin, parent, medical) via RoleSeeder
+2. Creates a default super_admin user (email: admin@campburntgin.org)
+3. Ensures idempotent seeding (safe to run multiple times)
+
+**Security Warning:** The default super_admin password must be changed immediately in production environments.
 
 ---
 

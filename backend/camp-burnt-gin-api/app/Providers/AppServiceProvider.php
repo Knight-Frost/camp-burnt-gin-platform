@@ -19,6 +19,7 @@ use App\Models\MedicalProviderLink;
 use App\Models\MedicalRecord;
 use App\Models\Medication;
 use App\Models\Message;
+use App\Models\Role;
 use App\Observers\AssistiveDeviceObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\DiagnosisObserver;
@@ -41,6 +42,7 @@ use App\Policies\MedicalProviderLinkPolicy;
 use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicationPolicy;
 use App\Policies\MessagePolicy;
+use App\Policies\RolePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -79,6 +81,8 @@ class AppServiceProvider extends ServiceProvider
         // Inbox Messaging System policies (explicit registration)
         Conversation::class => ConversationPolicy::class,
         Message::class => MessagePolicy::class,
+        // Role delegation governance policy
+        Role::class => RolePolicy::class,
     ];
 
     /**

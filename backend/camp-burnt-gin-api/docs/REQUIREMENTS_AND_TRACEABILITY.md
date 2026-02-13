@@ -74,7 +74,7 @@ Requirements are organized into the following categories:
 | FR-USER-01 | Users shall be able to view their profile information | Medium | **Complete** | `Camper\UserProfileController::show` |
 | FR-USER-02 | Users shall be able to update their name and email | Medium | **Complete** | `Camper\UserProfileController::update` |
 | FR-USER-03 | System shall provide pre-fill data for returning applicants | Medium | **Complete** | `Camper\UserProfileController::prefill` |
-| FR-USER-04 | System shall support three user roles: admin, parent, medical | High | **Complete** | `Role` model, `roles` table |
+| FR-USER-04 | System shall support four user roles: super_admin, admin, parent, medical with hierarchical authority | High | **Complete** | `Role` model, `roles` table, RoleSeeder, RolePolicy, hierarchical isAdmin() override |
 | FR-USER-05 | New registrations shall default to parent role | High | **Complete** | `Auth\AuthService::register` |
 
 ### Camp Management Requirements (FR-CAMP)

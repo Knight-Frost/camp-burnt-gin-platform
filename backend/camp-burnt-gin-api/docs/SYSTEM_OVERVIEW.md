@@ -79,7 +79,7 @@ The system implements comprehensive authentication and authorization:
 | User Login | Token-based authentication via Laravel Sanctum |
 | Multi-Factor Authentication | TOTP-based MFA with QR code enrollment |
 | Password Reset | Secure email-based password recovery |
-| Role-Based Access Control | Three roles (Admin, Parent, Medical Provider) with policy-based authorization |
+| Role-Based Access Control | Four-tier hierarchical role system (Super Admin, Admin, Parent, Medical) with policy-based authorization and delegation governance |
 | Session Management | 60-minute token expiration with automatic logout |
 | Account Security | 5-attempt lockout with 15-minute cooldown |
 
@@ -232,11 +232,31 @@ The system follows a layered Laravel architecture:
 
 ## User Roles
 
-The system implements three distinct user roles:
+The system implements a four-tier role hierarchy:
+
+**Hierarchy:** super_admin > admin > parent > medical
+
+### Super Administrator
+
+**Purpose:** Absolute system authority and delegation governance for system owners
+
+**Capabilities:**
+- All capabilities of Administrator role (inherited via isAdmin() override)
+- Assign and modify user roles
+- Create and delete role definitions
+- Promote users to admin or super_admin
+- Demote users from admin to parent
+- Delete users (with safeguards to prevent deletion of last super_admin)
+- Manage system-wide authorization policies
+
+**Safeguards:**
+- Last super_admin cannot be deleted
+- Last super_admin cannot demote themselves
+- Role assignment restricted to super_admin only
 
 ### Administrator
 
-**Purpose:** Full system access for camp staff and administrators
+**Purpose:** Full operational access for camp staff and administrators
 
 **Capabilities:**
 - Create and manage camps and sessions
@@ -245,10 +265,12 @@ The system implements three distinct user roles:
 - Generate administrative reports
 - View all medical records (with audit logging)
 - Create and revoke medical provider links
-- Delete any record
+- Delete camper records
 - Access system administration functions
 - View all conversations and moderate content (soft delete messages)
 - Create conversations with any users
+- **Cannot** assign or modify user roles
+- **Cannot** manage role definitions
 
 ### Parent
 
@@ -292,7 +314,7 @@ The system maintains data across 20 database tables:
 | Table | Purpose | Key Relationships |
 |-------|---------|-------------------|
 | `users` | User accounts | Has many: campers, applications (via campers), conversations |
-| `roles` | Role definitions | Belongs to: users |
+| `roles` | Role definitions (4 roles: super_admin, admin, parent, medical) | Belongs to: users |
 | `camps` | Camp programs | Has many: camp_sessions |
 | `camp_sessions` | Session schedules | Belongs to: camps; has many: applications |
 | `campers` | Camper profiles | Belongs to: users; has many: applications, medical_records |
@@ -401,7 +423,7 @@ The backend exposes a RESTful API for frontend consumption:
 | Metric | Status |
 |--------|--------|
 | Development Phase | Complete |
-| Test Coverage | 286 tests passing (654 assertions) |
+| Test Coverage | 308 tests passing (708 assertions) |
 | Security Audit | Complete (zero vulnerabilities) |
 | Code Quality | 100% Laravel Pint compliant |
 | Documentation | Complete |

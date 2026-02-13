@@ -13,6 +13,8 @@ use App\Models\User;
  */
 trait WithRoles
 {
+    protected ?Role $superAdminRole = null;
+
     protected ?Role $adminRole = null;
 
     protected ?Role $parentRole = null;
@@ -24,9 +26,14 @@ trait WithRoles
      */
     protected function setUpRoles(): void
     {
+        $this->superAdminRole = Role::firstOrCreate(
+            ['name' => 'super_admin'],
+            ['description' => 'Super Administrator with absolute system authority']
+        );
+
         $this->adminRole = Role::firstOrCreate(
             ['name' => 'admin'],
-            ['description' => 'Administrator with full access']
+            ['description' => 'Administrator with full operational access']
         );
 
         $this->parentRole = Role::firstOrCreate(
@@ -38,6 +45,16 @@ trait WithRoles
             ['name' => 'medical'],
             ['description' => 'Medical provider with limited access']
         );
+    }
+
+    /**
+     * Create a super admin user.
+     */
+    protected function createSuperAdmin(array $attributes = []): User
+    {
+        return User::factory()->create(array_merge([
+            'role_id' => $this->superAdminRole->id,
+        ], $attributes));
     }
 
     /**

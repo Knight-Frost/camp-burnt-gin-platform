@@ -212,14 +212,21 @@ tests/
 **Technology:** Laravel Policies with custom middleware
 
 **Roles:**
-- `admin` — Full system access, application review, reporting
+- `super_admin` — Absolute system authority, delegation governance, role management
+- `admin` — Full operational access, application review, reporting
 - `parent` — Own campers and applications only
 - `medical` — Medical information access via provider links (token-based, no user account)
 
+**Hierarchical Authority:**
+- super_admin > admin > parent > medical
+- super_admin inherits admin privileges via isAdmin() override
+- Only super_admin can assign roles and manage delegation
+
 **Enforcement Layers:**
 1. **Route Middleware** — Restricts entire routes by role
-2. **Policy Layer** — Fine-grained model-level authorization
+2. **Policy Layer** — Fine-grained model-level authorization (includes RolePolicy for delegation governance)
 3. **Relationship Validation** — Ownership checks (e.g., parent owns camper)
+4. **Model Safeguards** — Last super_admin deletion prevention via boot() events
 
 ### Audit Logging System
 

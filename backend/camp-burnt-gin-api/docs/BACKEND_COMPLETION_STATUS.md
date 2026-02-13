@@ -226,7 +226,7 @@ This document provides the formal declaration of backend completion for the Camp
 | Security Documentation | 270-line secret management guide added | Complete |
 
 **Audit Summary:**
-- 286/286 tests passing (654 assertions)
+- 308/308 tests passing (708 assertions)
 - Zero security vulnerabilities remaining
 - 100% HIPAA-compliant PHI handling
 - Enterprise-grade security controls
@@ -276,7 +276,7 @@ This document provides the formal declaration of backend completion for the Camp
 | System\LetterService | System | Acceptance/rejection letter generation |
 | System\HealthCheckService | System | Health monitoring |
 
-### Policies (10)
+### Policies (11)
 
 | Policy | Protected Resource |
 |--------|-------------------|
@@ -290,6 +290,7 @@ This document provides the formal declaration of backend completion for the Camp
 | MedicalProviderLinkPolicy | Provider links |
 | ConversationPolicy | Conversation operations |
 | MessagePolicy | Message operations |
+| RolePolicy | Role assignment and delegation governance |
 
 ### Models (16)
 
@@ -397,7 +398,7 @@ Email and database notification classes for all system events.
 | users | User accounts | Variable |
 | password_reset_tokens | Reset tokens | Temporary |
 | sessions | Session storage | Variable |
-| roles | Role definitions | 3 (admin, parent, medical) |
+| roles | Role definitions | 4 (super_admin, admin, parent, medical) |
 | camps | Camp programs | Variable |
 | camp_sessions | Session schedules | Variable |
 | campers | Camper profiles | Variable |
@@ -436,9 +437,9 @@ Strategic indexes on:
 
 | Metric | Value |
 |--------|-------|
-| Total Tests | 286 |
-| Passing Tests | 286 (100%) |
-| Total Assertions | 654 |
+| Total Tests | 308 |
+| Passing Tests | 308 (100%) |
+| Total Assertions | 708 |
 | Test Runtime | < 3 seconds |
 | Code Coverage | Comprehensive |
 
@@ -457,7 +458,7 @@ Strategic indexes on:
 
 | Trait | Purpose |
 |-------|---------|
-| WithRoles | Role creation for tests (admin, parent, medical) |
+| WithRoles | Role creation for tests (super_admin, admin, parent, medical) |
 | RefreshDatabase | Database isolation between tests |
 
 ### Running Tests

@@ -367,12 +367,20 @@ php artisan migrate:status
 ### Seeding
 
 ```bash
-# Run database seeders
+# Run all database seeders (includes role seeding and default users)
 php artisan db:seed
 
 # Run specific seeder
 php artisan db:seed --class=RoleSeeder
 ```
+
+**Important:** Database seeding automatically creates:
+- Four system roles (super_admin, admin, parent, medical) via RoleSeeder
+- Default super_admin user (email: admin@campburntgin.org, password: ChangeThisPassword123!)
+
+**Security Warning:** The default super_admin password MUST be changed immediately in production environments.
+
+**Idempotency:** Seeders are safe to run multiple times. Existing roles and users will not be duplicated.
 
 ---
 

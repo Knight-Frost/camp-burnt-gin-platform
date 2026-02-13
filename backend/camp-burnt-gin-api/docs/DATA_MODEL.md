@@ -11,7 +11,7 @@ The system implements 20 database tables:
 | Table | Records | Description |
 |-------|---------|-------------|
 | `users` | Variable | User accounts and authentication |
-| `roles` | 3 | Role definitions (admin, parent, medical) |
+| `roles` | 4 | Role definitions (super_admin, admin, parent, medical) with hierarchical authority model |
 | `camps` | Variable | Camp program definitions |
 | `camp_sessions` | Variable | Individual camp session schedules |
 | `campers` | Variable | Camper profiles linked to parents |
