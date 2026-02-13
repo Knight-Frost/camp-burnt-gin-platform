@@ -8,7 +8,7 @@ This directory contains the complete technical documentation for the Camp Burnt 
 
 The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to manage camp registration, medical records, staff workflows, and administrative operations. The system handles Protected Health Information (PHI) and implements HIPAA-compliant security controls.
 
-**Current Status:** Production-ready backend with 228 passing tests and zero security vulnerabilities.
+**Current Status:** Production-ready backend with 254 passing tests and zero security vulnerabilities.
 
 ---
 
@@ -53,9 +53,9 @@ The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to man
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [ENVIRONMENT_SETUP.md](backend/camp-burnt-gin-api/docs/ENVIRONMENT_SETUP.md) | Installation, configuration, and environment setup | Developers, DevOps team |
+| [SETUP.md](backend/camp-burnt-gin-api/docs/SETUP.md) | Development environment setup and local installation | Developers |
 | [CONFIGURATION.md](backend/camp-burnt-gin-api/docs/CONFIGURATION.md) | Configuration reference and environment variables | DevOps team, system administrators |
-| [DEPLOYMENT.md](backend/camp-burnt-gin-api/docs/DEPLOYMENT.md) | Deployment procedures and production considerations | DevOps team, system administrators |
+| [DEPLOYMENT.md](backend/camp-burnt-gin-api/docs/DEPLOYMENT.md) | Production deployment procedures and operations | DevOps team, system administrators |
 
 ### Testing and Quality Assurance
 
@@ -91,7 +91,7 @@ The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to man
 
 ### For Developers
 
-1. **Setup:** Read [ENVIRONMENT_SETUP.md](backend/camp-burnt-gin-api/docs/ENVIRONMENT_SETUP.md) for installation instructions
+1. **Setup:** Read [SETUP.md](backend/camp-burnt-gin-api/docs/SETUP.md) for local development environment installation
 2. **Architecture:** Review [ARCHITECTURE.md](backend/camp-burnt-gin-api/docs/ARCHITECTURE.md) to understand system design
 3. **API:** Reference [API_REFERENCE.md](backend/camp-burnt-gin-api/docs/API_REFERENCE.md) for endpoint documentation
 4. **Security:** Understand [AUTHENTICATION_AND_AUTHORIZATION.md](backend/camp-burnt-gin-api/docs/AUTHENTICATION_AND_AUTHORIZATION.md) for auth implementation

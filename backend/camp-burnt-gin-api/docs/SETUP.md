@@ -488,7 +488,7 @@ After setup is complete:
 - **Documentation:** [docs/](./README.md)
 - **Issues:** Create GitHub issue
 - **CI/CD:** See [CI_CD.md](./CI_CD.md)
-- **Security:** See [SECURITY.md](../SECURITY.md)
+- **Security:** See [SECURITY.md](./SECURITY.md)
 
 ---
 

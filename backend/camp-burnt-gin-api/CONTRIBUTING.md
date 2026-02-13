@@ -295,7 +295,7 @@ php artisan test --coverage
 | Change | Documentation Update Required |
 |--------|-------------------------------|
 | New API endpoint | [API_OVERVIEW.md](docs/API_OVERVIEW.md) |
-| New environment variable | [README.md](../../README.md), [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md), .env.example |
+| New environment variable | [README.md](../../README.md), [SETUP.md](docs/SETUP.md), .env.example |
 | Security-related change | [SECURITY.md](docs/SECURITY.md) |
 | Architectural change | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | New requirement implemented | [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) |
@@ -306,7 +306,7 @@ php artisan test --coverage
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
 | [README.md](../../README.md) | Project overview, quick start | As needed |
-| [INSTALLATION_AND_SETUP.md](INSTALLATION_AND_SETUP.md) | Detailed setup instructions | When setup changes |
+| [SETUP.md](docs/SETUP.md) | Development environment setup instructions | When setup changes |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design documentation | When architecture changes |
 | [SECURITY.md](docs/SECURITY.md) | Security implementation details | When security changes |
 | [API_OVERVIEW.md](docs/API_OVERVIEW.md) | API capabilities documentation | When API changes |

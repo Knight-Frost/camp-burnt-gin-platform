@@ -747,7 +747,7 @@ php artisan tinker
 
 For related documentation, see:
 
-- [Environment Setup](./ENVIRONMENT_SETUP.md) — Initial configuration and installation
+- [Setup](./SETUP.md) — Development environment setup and configuration
 - [Security](./SECURITY.md) — Security-related configuration
 - [Deployment](./DEPLOYMENT.md) — Production deployment procedures
 - [Troubleshooting](./TROUBLESHOOTING.md) — Configuration troubleshooting
