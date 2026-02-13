@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Application;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ class ReportController extends Controller
      */
     public function applications(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Application::class);
+
         $filters = $request->only(['status', 'camp_session_id', 'date_from', 'date_to']);
 
         $report = $this->reportService->generateApplicationsReport($filters);
@@ -39,6 +42,8 @@ class ReportController extends Controller
      */
     public function acceptedApplicants(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Application::class);
+
         $filters = $request->only(['camp_session_id']);
 
         $report = $this->reportService->generateAcceptedApplicantsReport($filters);
@@ -54,6 +59,8 @@ class ReportController extends Controller
      */
     public function rejectedApplicants(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Application::class);
+
         $filters = $request->only(['camp_session_id']);
 
         $report = $this->reportService->generateRejectedApplicantsReport($filters);
@@ -69,6 +76,8 @@ class ReportController extends Controller
      */
     public function mailingLabels(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Application::class);
+
         $request->validate([
             'status' => ['nullable', 'string'],
             'camp_session_id' => ['nullable', 'exists:camp_sessions,id'],
@@ -87,6 +96,8 @@ class ReportController extends Controller
      */
     public function idLabels(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Application::class);
+
         $request->validate([
             'camp_session_id' => ['required', 'exists:camp_sessions,id'],
         ]);

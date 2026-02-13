@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Camp\StoreCampRequest;
+use App\Http\Requests\Camp\UpdateCampRequest;
 use App\Models\Camp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,8 @@ class CampController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Camp::class);
+
         $query = Camp::with('sessions');
 
         if (! $request->user()->isAdmin()) {
@@ -48,16 +52,11 @@ class CampController extends Controller
     /**
      * Store a newly created camp.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreCampRequest $request): JsonResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['boolean'],
-        ]);
+        $this->authorize('create', Camp::class);
 
-        $camp = Camp::create($request->all());
+        $camp = Camp::create($request->validated());
 
         return response()->json([
             'message' => 'Camp created successfully.',
@@ -68,16 +67,11 @@ class CampController extends Controller
     /**
      * Update the specified camp.
      */
-    public function update(Request $request, Camp $camp): JsonResponse
+    public function update(UpdateCampRequest $request, Camp $camp): JsonResponse
     {
-        $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['boolean'],
-        ]);
+        $this->authorize('update', $camp);
 
-        $camp->update($request->all());
+        $camp->update($request->validated());
 
         return response()->json([
             'message' => 'Camp updated successfully.',
@@ -90,6 +84,8 @@ class CampController extends Controller
      */
     public function destroy(Camp $camp): JsonResponse
     {
+        $this->authorize('delete', $camp);
+
         $camp->delete();
 
         return response()->json([

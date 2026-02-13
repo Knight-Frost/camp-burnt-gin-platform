@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CampSession\StoreCampSessionRequest;
+use App\Http\Requests\CampSession\UpdateCampSessionRequest;
 use App\Models\CampSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,8 @@ class CampSessionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', CampSession::class);
+
         $query = CampSession::with('camp');
 
         if (! $request->user()->isAdmin()) {
@@ -57,22 +61,11 @@ class CampSessionController extends Controller
     /**
      * Store a newly created camp session.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreCampSessionRequest $request): JsonResponse
     {
-        $request->validate([
-            'camp_id' => ['required', 'exists:camps,id'],
-            'name' => ['required', 'string', 'max:255'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after:start_date'],
-            'capacity' => ['required', 'integer', 'min:1'],
-            'min_age' => ['nullable', 'integer', 'min:0'],
-            'max_age' => ['nullable', 'integer', 'min:0', 'gte:min_age'],
-            'registration_opens_at' => ['nullable', 'date'],
-            'registration_closes_at' => ['nullable', 'date', 'after:registration_opens_at'],
-            'is_active' => ['boolean'],
-        ]);
+        $this->authorize('create', CampSession::class);
 
-        $session = CampSession::create($request->all());
+        $session = CampSession::create($request->validated());
 
         return response()->json([
             'message' => 'Camp session created successfully.',
@@ -83,22 +76,11 @@ class CampSessionController extends Controller
     /**
      * Update the specified camp session.
      */
-    public function update(Request $request, CampSession $session): JsonResponse
+    public function update(UpdateCampSessionRequest $request, CampSession $session): JsonResponse
     {
-        $request->validate([
-            'camp_id' => ['sometimes', 'exists:camps,id'],
-            'name' => ['sometimes', 'string', 'max:255'],
-            'start_date' => ['sometimes', 'date'],
-            'end_date' => ['sometimes', 'date', 'after:start_date'],
-            'capacity' => ['sometimes', 'integer', 'min:1'],
-            'min_age' => ['nullable', 'integer', 'min:0'],
-            'max_age' => ['nullable', 'integer', 'min:0'],
-            'registration_opens_at' => ['nullable', 'date'],
-            'registration_closes_at' => ['nullable', 'date'],
-            'is_active' => ['boolean'],
-        ]);
+        $this->authorize('update', $session);
 
-        $session->update($request->all());
+        $session->update($request->validated());
 
         return response()->json([
             'message' => 'Camp session updated successfully.',
@@ -111,6 +93,8 @@ class CampSessionController extends Controller
      */
     public function destroy(CampSession $session): JsonResponse
     {
+        $this->authorize('delete', $session);
+
         $session->delete();
 
         return response()->json([

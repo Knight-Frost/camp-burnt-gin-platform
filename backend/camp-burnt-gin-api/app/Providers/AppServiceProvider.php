@@ -2,19 +2,38 @@
 
 namespace App\Providers;
 
+use App\Models\ActivityPermission;
 use App\Models\Allergy;
 use App\Models\Application;
+use App\Models\AssistiveDevice;
+use App\Models\BehavioralProfile;
+use App\Models\Camp;
 use App\Models\Camper;
+use App\Models\CampSession;
+use App\Models\Diagnosis;
 use App\Models\Document;
 use App\Models\EmergencyContact;
+use App\Models\FeedingPlan;
 use App\Models\MedicalProviderLink;
 use App\Models\MedicalRecord;
 use App\Models\Medication;
+use App\Observers\AssistiveDeviceObserver;
+use App\Observers\BehavioralProfileObserver;
+use App\Observers\DiagnosisObserver;
+use App\Observers\FeedingPlanObserver;
+use App\Observers\MedicalRecordObserver;
+use App\Policies\ActivityPermissionPolicy;
 use App\Policies\AllergyPolicy;
 use App\Policies\ApplicationPolicy;
+use App\Policies\AssistiveDevicePolicy;
+use App\Policies\BehavioralProfilePolicy;
+use App\Policies\CampPolicy;
 use App\Policies\CamperPolicy;
+use App\Policies\CampSessionPolicy;
+use App\Policies\DiagnosisPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EmergencyContactPolicy;
+use App\Policies\FeedingPlanPolicy;
 use App\Policies\MedicalProviderLinkPolicy;
 use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicationPolicy;
@@ -46,6 +65,13 @@ class AppServiceProvider extends ServiceProvider
         Medication::class => MedicationPolicy::class,
         Document::class => DocumentPolicy::class,
         MedicalProviderLink::class => MedicalProviderLinkPolicy::class,
+        ActivityPermission::class => ActivityPermissionPolicy::class,
+        AssistiveDevice::class => AssistiveDevicePolicy::class,
+        BehavioralProfile::class => BehavioralProfilePolicy::class,
+        Diagnosis::class => DiagnosisPolicy::class,
+        FeedingPlan::class => FeedingPlanPolicy::class,
+        Camp::class => CampPolicy::class,
+        CampSession::class => CampSessionPolicy::class,
     ];
 
     /**
@@ -62,6 +88,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPolicies();
+        $this->registerObservers();
         $this->configureRateLimiting();
     }
 
@@ -73,6 +100,22 @@ class AppServiceProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+    }
+
+    /**
+     * Register model observers for automatic risk reassessment.
+     *
+     * Observers trigger risk assessment recalculation when medical data
+     * changes, ensuring supervision levels remain accurate as camper
+     * conditions are updated.
+     */
+    protected function registerObservers(): void
+    {
+        MedicalRecord::observe(MedicalRecordObserver::class);
+        Diagnosis::observe(DiagnosisObserver::class);
+        BehavioralProfile::observe(BehavioralProfileObserver::class);
+        FeedingPlan::observe(FeedingPlanObserver::class);
+        AssistiveDevice::observe(AssistiveDeviceObserver::class);
     }
 
     /**
