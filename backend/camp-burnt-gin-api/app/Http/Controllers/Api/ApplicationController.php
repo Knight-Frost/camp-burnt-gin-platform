@@ -9,10 +9,8 @@ use App\Http\Requests\Application\SignApplicationRequest;
 use App\Http\Requests\Application\StoreApplicationRequest;
 use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
-use App\Notifications\ApplicationStatusChangedNotification;
 use App\Notifications\ApplicationSubmittedNotification;
-use App\Services\DocumentEnforcementService;
-use App\Services\LetterService;
+use App\Services\ApplicationService;
 use App\Traits\QueuesNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,8 +29,7 @@ class ApplicationController extends Controller
     use QueuesNotifications;
 
     public function __construct(
-        protected LetterService $letterService,
-        protected DocumentEnforcementService $documentEnforcement
+        protected ApplicationService $applicationService
     ) {}
 
     /**
@@ -240,53 +237,29 @@ class ApplicationController extends Controller
         $this->authorize('review', $application);
 
         $newStatus = ApplicationStatus::from($request->validated('status'));
-        $previousStatus = $application->status->value;
 
-        // CRITICAL SAFETY CHECK: Enforce document compliance before approval
-        if ($newStatus === ApplicationStatus::Approved) {
-            // PERFORMANCE: Use loadMissing to avoid reloading if already present
-            $application->loadMissing('camper');
-            $compliance = $this->documentEnforcement->checkCompliance($application->camper);
-
-            if (! $compliance['is_compliant']) {
-                return response()->json([
-                    'message' => 'Application cannot be approved due to incomplete medical documentation.',
-                    'errors' => [
-                        'compliance' => 'Required medical documents are missing, expired, or unverified.',
-                    ],
-                    'compliance_details' => [
-                        'missing_documents' => $compliance['missing_documents'],
-                        'expired_documents' => $compliance['expired_documents'],
-                        'unverified_documents' => $compliance['unverified_documents'],
-                    ],
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-        }
-
-        $application->update([
-            'status' => $newStatus,
-            'notes' => $request->validated('notes'),
-            'reviewed_at' => now(),
-            'reviewed_by' => $request->user()->id,
-        ]);
-
-        // PERFORMANCE: Ensure relationships are loaded before accessing nested properties
-        $application->loadMissing('camper.user');
-
-        $this->queueNotification(
-            $application->camper->user,
-            new ApplicationStatusChangedNotification($application, $previousStatus)
+        // Delegate business logic to ApplicationService
+        $result = $this->applicationService->reviewApplication(
+            application: $application,
+            newStatus: $newStatus,
+            notes: $request->validated('notes'),
+            reviewedBy: $request->user()
         );
 
-        if ($application->status === ApplicationStatus::Approved) {
-            $this->letterService->sendAcceptanceLetter($application);
-        } elseif ($application->status === ApplicationStatus::Rejected) {
-            $this->letterService->sendRejectionLetter($application);
+        // Handle compliance failure
+        if (! $result['success']) {
+            return response()->json([
+                'message' => 'Application cannot be approved due to incomplete medical documentation.',
+                'errors' => [
+                    'compliance' => 'Required medical documents are missing, expired, or unverified.',
+                ],
+                'compliance_details' => $result['compliance_details'],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return response()->json([
             'message' => 'Application reviewed successfully.',
-            'data' => $application,
+            'data' => $application->fresh(),
         ]);
     }
 
