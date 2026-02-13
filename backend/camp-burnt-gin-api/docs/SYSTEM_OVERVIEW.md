@@ -124,6 +124,25 @@ Comprehensive administrative capabilities:
 | ID Labels | Generate identification labels with allergy warnings |
 | User Management | View and manage user accounts |
 
+### Inbox Messaging System
+
+Secure internal communication platform for users:
+
+| Capability | Description |
+|------------|-------------|
+| Threaded Conversations | Multi-participant message threads with subject lines |
+| Participant Management | Add/remove participants, leave conversations |
+| Read Receipts | Track message read status per user |
+| Message Attachments | Attach documents to messages (5 files, 10MB each) |
+| Conversation Context | Link conversations to applications, campers, or sessions |
+| Archive/Unarchive | Archive inactive conversations for organization |
+| Unread Counts | Real-time unread message and conversation counts |
+| Idempotency | Duplicate send prevention with client-generated keys |
+| Message Immutability | Messages cannot be edited after creation (audit integrity) |
+| Audit Trail | Complete audit logging of all messaging operations |
+| RBAC Enforcement | Role-based restrictions on conversation creation and access |
+| Soft Delete Moderation | Admin soft delete for compliance without data destruction |
+
 ---
 
 ## Technology Stack
@@ -228,6 +247,8 @@ The system implements three distinct user roles:
 - Create and revoke medical provider links
 - Delete any record
 - Access system administration functions
+- View all conversations and moderate content (soft delete messages)
+- Create conversations with any users
 
 ### Parent
 
@@ -242,7 +263,9 @@ The system implements three distinct user roles:
 - Manage medical information for their campers
 - Upload documents for their campers
 - Create medical provider links for their campers
-- Cannot access other families' data
+- Create conversations with admins and other parents
+- Send messages in conversations they participate in
+- Cannot access other families' data (except via shared conversations)
 
 ### Medical Provider
 
@@ -264,11 +287,11 @@ The system implements three distinct user roles:
 
 ### Database Organization
 
-The system maintains data across 16 database tables:
+The system maintains data across 20 database tables:
 
 | Table | Purpose | Key Relationships |
 |-------|---------|-------------------|
-| `users` | User accounts | Has many: campers, applications (via campers) |
+| `users` | User accounts | Has many: campers, applications (via campers), conversations |
 | `roles` | Role definitions | Belongs to: users |
 | `camps` | Camp programs | Has many: camp_sessions |
 | `camp_sessions` | Session schedules | Belongs to: camps; has many: applications |
@@ -278,8 +301,12 @@ The system maintains data across 16 database tables:
 | `allergies` | Allergy records | Belongs to: campers |
 | `medications` | Medication records | Belongs to: campers |
 | `emergency_contacts` | Contact information | Belongs to: campers |
-| `documents` | File metadata | Polymorphic: belongs to various entities |
+| `documents` | File metadata | Polymorphic: belongs to various entities (including messages) |
 | `medical_provider_links` | Provider access tokens | Belongs to: campers |
+| `conversations` | Message thread containers | Belongs to: users; has many: messages, participants |
+| `conversation_participants` | User-conversation membership | Belongs to: conversations, users |
+| `messages` | Individual messages | Belongs to: conversations, users (sender) |
+| `message_reads` | Read receipt tracking | Belongs to: messages, users |
 | `notifications` | Notification history | Belongs to: users |
 | `personal_access_tokens` | API tokens | Belongs to: users |
 | `sessions` | Session storage | Laravel framework |
@@ -374,7 +401,7 @@ The backend exposes a RESTful API for frontend consumption:
 | Metric | Status |
 |--------|--------|
 | Development Phase | Complete |
-| Test Coverage | 228 tests passing (430+ assertions) |
+| Test Coverage | 286 tests passing (654 assertions) |
 | Security Audit | Complete (zero vulnerabilities) |
 | Code Quality | 100% Laravel Pint compliant |
 | Documentation | Complete |

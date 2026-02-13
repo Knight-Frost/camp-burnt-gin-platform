@@ -25,6 +25,7 @@ This guide covers **backend-only testing**. The following components are tested:
 - **Document Uploads**: File upload, download, and validation
 - **Medical Provider Links**: Secure token-based provider access
 - **Notifications**: User notification delivery and management
+- **Inbox Messaging**: HIPAA-compliant internal messaging with read receipts and attachments
 - **Reports**: Administrative reporting endpoints
 - **Camp and Session Management**: Camp program administration
 
@@ -55,11 +56,11 @@ php artisan test
 
 **Observable Success:**
 - All commands complete without errors
-- Final output shows `Tests: 228 passed (430 assertions)` with zero failures
+- Final output shows `Tests: 286 passed (654 assertions)` with zero failures
 - No red text or `FAIL` messages appear
 - Test duration: 2-3 seconds
 
-If all 228 tests pass, the backend is verified and working correctly.
+If all 286 tests pass, the backend is verified and working correctly.
 
 ---
 
@@ -308,7 +309,7 @@ php artisan test
    parent can view own campers
   ...
 
-Tests:    228 passed (430 assertions)
+Tests:    286 passed (654 assertions)
 Duration: 2.74s
 ```
 
@@ -1084,6 +1085,190 @@ done
 
 ---
 
+### 7.12 Inbox Messaging System
+
+#### What Is Being Tested
+
+The Inbox Messaging System provides HIPAA-compliant internal messaging for secure communication between parents, administrators, and medical providers. Tests verify:
+- Conversation creation with role-based restrictions
+- Message sending and retrieval
+- Read receipt tracking
+- File attachment handling with validation
+- Participant management (admin-only operations)
+- Message immutability and soft deletion
+- Idempotency protection
+- Rate limiting on messaging operations
+- RBAC enforcement across all operations
+
+**Validates:** Inbox functional requirements (FR-INB-01 through FR-INB-30)
+
+#### How to Perform the Test
+
+**Run complete Inbox test suite:**
+```bash
+php artisan test tests/Feature/Inbox/
+```
+
+**Run Conversation tests only:**
+```bash
+php artisan test tests/Feature/Inbox/ConversationTest.php
+```
+
+**Run Message tests only:**
+```bash
+php artisan test tests/Feature/Inbox/MessageTest.php
+```
+
+#### Test Coverage
+
+**ConversationTest.php - 17 tests covering conversation management:**
+
+1. `admin_can_create_conversation_with_parent` - Admin conversation creation
+2. `parent_can_create_conversation_with_admin` - Parent-initiated conversations
+3. `parent_cannot_create_conversation_with_another_parent` - Parent-to-parent restriction
+4. `parent_cannot_create_conversation_with_medical_provider` - Parent-to-medical restriction
+5. `medical_provider_cannot_create_conversation` - Medical provider creation block
+6. `user_can_list_their_conversations` - Conversation listing and pagination
+7. `user_cannot_view_conversation_they_are_not_part_of` - Participant-only access
+8. `participant_can_view_conversation_details` - Conversation detail retrieval
+9. `creator_can_archive_conversation` - Conversation archiving
+10. `non_creator_cannot_archive_conversation` - Archive permission enforcement
+11. `only_admin_can_add_participants` - Participant addition (admin-only)
+12. `parent_cannot_add_participants` - Non-admin participant addition block
+13. `only_admin_can_soft_delete_conversation` - Soft delete (admin-only)
+14. `parent_cannot_delete_conversation` - Non-admin deletion block
+15. `conversation_creation_is_rate_limited` - Rate limiting enforcement
+16. `validation_fails_with_empty_participant_list` - Participant list validation
+17. `validation_fails_with_invalid_user_id` - User ID validation
+
+**MessageTest.php - 15 tests covering message operations:**
+
+1. `participant_can_send_message_in_conversation` - Message sending by participants
+2. `non_participant_cannot_send_message` - Non-participant message block
+3. `message_can_include_attachments` - File attachment support
+4. `attachment_size_limit_is_enforced` - 10MB file size limit
+5. `attachment_mime_type_restriction_is_enforced` - MIME type validation
+6. `idempotency_key_prevents_duplicate_messages` - Duplicate message prevention
+7. `participant_can_retrieve_messages` - Message retrieval and pagination
+8. `message_is_marked_as_read_when_retrieved` - Automatic read receipt marking
+9. `sender_message_is_not_marked_as_read` - Sender read status logic
+10. `unread_message_count_is_accurate` - Unread count calculation
+11. `message_send_is_rate_limited` - Message rate limiting
+12. `only_admin_can_delete_message` - Message deletion (admin-only)
+13. `parent_cannot_delete_their_own_message` - Message immutability for non-admins
+14. `validation_fails_with_empty_message_body` - Message body validation
+15. `validation_fails_with_excessive_attachments` - Attachment count limit (5 max)
+
+**Total Inbox Tests:** 32 (17 conversation + 15 message)
+
+#### Observable Success Criteria
+
+**Conversation Creation:**
+- HTTP Status: `201 Created`
+- Response contains conversation with participant list
+- All participants receive conversation access
+- Role restrictions enforced (parents cannot message other parents directly)
+
+**Message Sending:**
+- HTTP Status: `201 Created`
+- Response contains message with sender details
+- Attachments uploaded and associated with message
+- Idempotency key prevents duplicate sends
+- All participants notified
+
+**Read Receipt Tracking:**
+- Message retrieval auto-marks as read for recipient
+- Sender's own messages not marked as read
+- Unread count decrements after reading
+
+**Participant Management:**
+- Only admins can add/remove participants
+- Participant addition returns HTTP 200
+- Non-admin attempts return HTTP 403
+
+**File Attachments:**
+- Up to 5 attachments per message
+- Each file limited to 10MB
+- Allowed types: pdf, jpeg, png, gif, doc, docx
+- Attachment download returns correct MIME type
+
+#### Observable Failure Indicators
+
+**Conversation Creation Failures:**
+- HTTP 403: Parent attempting parent-to-parent or parent-to-medical conversation
+- HTTP 403: Medical provider attempting any conversation creation
+- HTTP 422: Empty participant list or invalid user IDs
+- HTTP 429: Rate limit exceeded (5 conversations per minute)
+
+**Message Sending Failures:**
+- HTTP 403: Non-participant attempting to send message
+- HTTP 403: Sending to archived conversation
+- HTTP 422: Empty message body
+- HTTP 422: More than 5 attachments
+- HTTP 422: File exceeds 10MB
+- HTTP 422: Invalid MIME type
+- HTTP 429: Rate limit exceeded (60 messages per minute)
+
+**Read Receipt Failures:**
+- HTTP 403: Non-participant attempting to view message
+- HTTP 404: Message not found
+
+**Participant Management Failures:**
+- HTTP 403: Non-admin attempting to add/remove participants
+- HTTP 422: Adding user already in conversation
+- HTTP 404: Invalid participant user ID
+
+**Soft Delete Failures:**
+- HTTP 403: Non-admin attempting to delete conversation or message
+- HTTP 404: Conversation/message not found
+
+#### Security and Compliance Verification
+
+**HIPAA Compliance:**
+- All message operations logged to audit trail
+- Messages immutable (cannot be edited)
+- Soft delete preserves audit trail
+- PHI access tracked per user
+
+**RBAC Enforcement:**
+- Parent-to-parent messaging blocked (must go through admin)
+- Medical providers cannot initiate conversations
+- Only admins can manage participants
+- Only admins can soft delete messages/conversations
+
+**Data Integrity:**
+- Idempotency keys prevent duplicate messages
+- Rate limiting prevents abuse
+- File validation prevents malicious uploads
+- Participant verification on all operations
+
+#### Test Execution Example
+
+```bash
+# Run full Inbox test suite
+php artisan test tests/Feature/Inbox/
+
+# Expected output:
+   PASS  Tests\Feature\Inbox\ConversationTest
+   ✓ admin can create conversation with parent
+   ✓ parent can create conversation with admin
+   ✓ parent cannot create conversation with another parent
+   ...
+   (17 tests)
+
+   PASS  Tests\Feature\Inbox\MessageTest
+   ✓ participant can send message in conversation
+   ✓ non participant cannot send message
+   ✓ message can include attachments
+   ...
+   (15 tests)
+
+Tests:    32 passed (85 assertions)
+Duration: 1.2s
+```
+
+---
+
 ## 8. Role-Based Access Testing
 
 ### Testing Applicant (Parent) Restrictions
@@ -1520,6 +1705,6 @@ php artisan test --coverage
 
 ---
 
-*Document Version: 1.2*
+*Document Version: 1.3*
 *Last Updated: February 2026*
-*Test Suite: 228 tests, 430+ assertions, 100% pass rate*
+*Test Suite: 286 tests, 654 assertions, 100% pass rate*

@@ -26,6 +26,7 @@ class Document extends Model
     protected $fillable = [
         'documentable_type',
         'documentable_id',
+        'message_id',
         'uploaded_by',
         'original_filename',
         'stored_filename',
@@ -117,6 +118,14 @@ class Document extends Model
     public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    /**
+     * Get the message this document is attached to (if any).
+     */
+    public function message(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Message::class, 'message_id');
     }
 
     /**

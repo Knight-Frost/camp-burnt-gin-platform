@@ -104,6 +104,7 @@ app/
 │   │   ├── Camp/           # Camp management controllers
 │   │   ├── Camper/         # Camper and application controllers
 │   │   ├── Document/       # Document and provider link controllers
+│   │   ├── Inbox/          # Inbox messaging controllers
 │   │   ├── Medical/        # Medical record controllers
 │   │   └── System/         # System health and notification controllers
 │   ├── Requests/            # Form request validation classes (domain-organized)
@@ -112,6 +113,7 @@ app/
 │   ├── Auth/               # Authentication services
 │   ├── Camper/             # Application workflow services
 │   ├── Document/           # Document enforcement services
+│   ├── Inbox/              # Conversation and message services
 │   ├── Medical/            # Medical assessment services
 │   └── System/             # Reporting and letter services
 ├── Models/                  # Eloquent models and relationships
@@ -268,6 +270,171 @@ tests/
 - Cryptographically secure secret generation
 - Rate limiting on MFA verification attempts
 - Fallback mechanism (future enhancement)
+
+### Inbox Messaging Architecture
+
+**Purpose:** Provide secure, HIPAA-compliant internal communication between system users with threaded conversations, read receipts, and attachment support.
+
+**Components:**
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| Conversation Model | Thread container with metadata | `app/Models/Conversation.php` |
+| Message Model | Individual messages (immutable) | `app/Models/Message.php` |
+| ConversationParticipant Model | User membership tracking | `app/Models/ConversationParticipant.php` |
+| MessageRead Model | Read receipt tracking | `app/Models/MessageRead.php` |
+| InboxService | Conversation operations | `app/Services/Inbox/InboxService.php` |
+| MessageService | Message operations | `app/Services/Inbox/MessageService.php` |
+| ConversationPolicy | Conversation authorization | `app/Policies/ConversationPolicy.php` |
+| MessagePolicy | Message authorization | `app/Policies/MessagePolicy.php` |
+| ConversationController | Conversation endpoints | `app/Http/Controllers/Api/Inbox/ConversationController.php` |
+| MessageController | Message endpoints | `app/Http/Controllers/Api/Inbox/MessageController.php` |
+
+**Architecture Diagram:**
+
+```mermaid
+graph TD
+    A[Client Request] --> B[ConversationController]
+    A --> C[MessageController]
+    B --> D[ConversationPolicy]
+    C --> E[MessagePolicy]
+    D --> F[InboxService]
+    E --> G[MessageService]
+    F --> H[Conversation Model]
+    G --> I[Message Model]
+    F --> J[ConversationParticipant]
+    G --> K[MessageRead]
+    G --> L[DocumentService]
+    F --> M[AuditLog]
+    G --> M
+    F --> N[Notifications]
+    G --> N
+```
+
+**Design Principles:**
+
+**Immutable Messages**
+
+Messages are write-once entities that cannot be edited after creation:
+- Maintains audit integrity for HIPAA compliance
+- Prevents retroactive modification in legal contexts
+- Simplifies concurrency control
+- Only soft delete available (admin only)
+
+**Threaded Conversations**
+
+All messages belong to conversations:
+- Preserves context for medical discussions
+- Reduces cognitive load for users
+- Enables efficient permission scoping
+- Supports subject lines and metadata
+
+**Participant-Based Access**
+
+Conversations use explicit participant lists:
+- Users must be participants to view/send messages
+- Participants can leave conversations
+- Admins can manage participants
+- Participant join/leave timestamps tracked
+
+**Context Linking**
+
+Conversations can be linked to:
+- Applications (application-specific discussions)
+- Campers (general camper discussions)
+- Camp Sessions (session-wide announcements)
+- NULL (general admin-parent communication)
+
+**Service Layer Operations:**
+
+**InboxService Responsibilities:**
+- `createConversation()` - Create conversation with participants
+- `addParticipant()` - Add user to conversation
+- `removeParticipant()` - Remove user from conversation
+- `archiveConversation()` - Archive conversation
+- `unarchiveConversation()` - Restore archived conversation
+- `getUserConversations()` - Paginated conversation list
+- `getUnreadConversationCount()` - Unread conversation count
+
+**MessageService Responsibilities:**
+- `sendMessage()` - Send message with idempotency
+- `markAsRead()` - Mark message as read
+- `getConversationMessages()` - Paginated messages
+- `getUnreadMessageCount()` - Global unread count
+- `accessAttachment()` - Secure attachment access
+- `deleteMessage()` - Soft delete (admin only)
+
+**Authorization Model:**
+
+**Conversation Access:**
+- View: Participant in conversation
+- Create: Any authenticated user
+- Archive: Participant in conversation
+- Delete: Admin only (soft delete)
+
+**Message Access:**
+- View: Participant in conversation
+- Send: Participant in conversation
+- Delete: Admin only (soft delete)
+
+**Data Retention:**
+- Soft deletes preserve audit trail
+- No hard deletes in production
+- Read receipts maintained indefinitely
+
+**API Endpoints:**
+
+The Inbox subsystem provides 15 RESTful endpoints organized into conversation and message operations:
+
+**Conversation Endpoints (9):**
+- `GET /api/inbox/conversations` - List user conversations
+- `POST /api/inbox/conversations` - Create conversation
+- `GET /api/inbox/conversations/{id}` - View conversation
+- `POST /api/inbox/conversations/{id}/archive` - Archive conversation
+- `POST /api/inbox/conversations/{id}/unarchive` - Unarchive conversation
+- `POST /api/inbox/conversations/{id}/participants` - Add participant
+- `DELETE /api/inbox/conversations/{id}/participants/{user}` - Remove participant
+- `POST /api/inbox/conversations/{id}/leave` - Leave conversation
+- `DELETE /api/inbox/conversations/{id}` - Delete conversation (admin)
+
+**Message Endpoints (6):**
+- `GET /api/inbox/conversations/{id}/messages` - List messages
+- `POST /api/inbox/conversations/{id}/messages` - Send message
+- `GET /api/inbox/messages/{id}` - View message
+- `GET /api/inbox/messages/unread-count` - Get unread count
+- `GET /api/inbox/messages/{id}/attachments/{doc}` - Download attachment
+- `DELETE /api/inbox/messages/{id}` - Delete message (admin)
+
+**Database Schema:**
+
+**conversations table:**
+- Subject line and participant metadata
+- Optional context linking (application_id, camper_id, camp_session_id)
+- Archive status and last message timestamp
+- Soft delete support
+
+**conversation_participants table:**
+- Many-to-many relationship between users and conversations
+- Join and leave timestamps
+- Active participant filtering
+
+**messages table:**
+- Conversation threading
+- Sender identification
+- Message body (immutable)
+- Idempotency key for duplicate prevention
+- Soft delete support
+
+**message_reads table:**
+- User-message read tracking
+- Read timestamp
+- Unique constraint per user-message pair
+
+**Performance Optimizations:**
+- Eager loading prevents N+1 queries
+- Composite indexes for active conversation listing
+- Pagination for message threads (25 per page)
+- Unread counts calculated via optimized queries
 
 ---
 
@@ -448,6 +615,32 @@ class Application extends Model
 - Security scanning detects malware patterns
 - Unscanned files blocked from download (non-admin users)
 - Polymorphic storage prevents direct file access
+
+### Inbox Security
+
+**Participant Verification:**
+- All conversation operations verify active participant status
+- Removed participants cannot access conversation
+- Policy checks at both controller and service layers
+- Join/leave timestamps tracked for audit
+
+**Message Immutability:**
+- No edit endpoints exist
+- Soft delete maintains audit trail
+- Idempotency keys prevent duplicate sends
+- All message operations logged
+
+**Attachment Security:**
+- Message attachments use DocumentService scanning
+- Access logged in audit trail
+- MIME type and size validation enforced
+- Maximum 5 attachments per message (10MB each)
+
+**Access Control:**
+- Conversation access restricted to active participants
+- Messages inherit conversation participant restrictions
+- Admins have moderation capabilities (soft delete only)
+- Read receipts track PHI access patterns
 
 ---
 

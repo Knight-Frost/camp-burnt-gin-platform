@@ -442,6 +442,47 @@ Generate administrative reports for camp management.
 
 ---
 
+### Inbox Endpoints
+
+Secure internal messaging system for threaded conversations between users.
+
+**All Inbox endpoints require authentication.**
+
+| Method | Endpoint | Purpose | Access |
+|--------|----------|---------|--------|
+| `GET` | `/api/inbox/conversations` | List user's conversations | Authenticated |
+| `POST` | `/api/inbox/conversations` | Create new conversation | Authenticated |
+| `GET` | `/api/inbox/conversations/{id}` | View conversation details | Participant |
+| `POST` | `/api/inbox/conversations/{id}/archive` | Archive conversation | Participant |
+| `POST` | `/api/inbox/conversations/{id}/unarchive` | Unarchive conversation | Participant |
+| `POST` | `/api/inbox/conversations/{id}/participants` | Add participant | Participant / Admin |
+| `DELETE` | `/api/inbox/conversations/{id}/participants/{user}` | Remove participant | Participant / Admin |
+| `POST` | `/api/inbox/conversations/{id}/leave` | Leave conversation | Participant |
+| `DELETE` | `/api/inbox/conversations/{id}` | Delete conversation | Admin |
+| `GET` | `/api/inbox/conversations/{id}/messages` | List messages in conversation | Participant |
+| `POST` | `/api/inbox/conversations/{id}/messages` | Send message | Participant |
+| `GET` | `/api/inbox/messages/{id}` | View specific message | Participant |
+| `GET` | `/api/inbox/messages/unread-count` | Get unread message count | Authenticated |
+| `GET` | `/api/inbox/messages/{id}/attachments/{document}` | Download message attachment | Participant |
+| `DELETE` | `/api/inbox/messages/{id}` | Delete message | Admin |
+
+**Key Features:**
+- Threaded conversations with up to 10 participants
+- Subject lines and conversation context (link to applications, campers, sessions)
+- Read receipt tracking
+- Message attachments (5 files per message, 10MB each)
+- Archive/unarchive functionality
+- Idempotent message sending
+- Message immutability (no editing after creation)
+- Unread count tracking
+- RBAC enforcement (parents restricted to admin conversations)
+
+**Endpoint Groups:**
+- **Conversation Management**: 9 endpoints for conversation lifecycle
+- **Message Operations**: 6 endpoints for sending, reading, and managing messages
+
+---
+
 ## 6. Request / Response Format
 
 ### Request Format

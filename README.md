@@ -6,7 +6,7 @@ This directory contains the complete technical documentation for the Camp Burnt 
 
 ## Documentation Overview
 
-The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to manage camp registration, medical records, staff workflows, and administrative operations. The system handles Protected Health Information (PHI) and implements HIPAA-compliant security controls.
+The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to manage camp registration, medical records, internal messaging, staff workflows, and administrative operations. The system handles Protected Health Information (PHI) and implements HIPAA-compliant security controls.
 
 **Current Status:** Production-ready backend with 254 passing tests and zero security vulnerabilities.
 
@@ -48,6 +48,14 @@ The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to man
 | [APPLICATION_WORKFLOWS.md](backend/camp-burnt-gin-api/docs/APPLICATION_WORKFLOWS.md) | Application lifecycle, state transitions, and business processes | Developers, business analysts |
 | [FILE_UPLOADS.md](backend/camp-burnt-gin-api/docs/FILE_UPLOADS.md) | Document management, upload security, and validation | Developers, security team |
 | [ERROR_HANDLING.md](backend/camp-burnt-gin-api/docs/ERROR_HANDLING.md) | Error handling patterns, status codes, and error responses | Frontend developers, support team |
+
+### Internal Communication
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [INBOX_SYSTEM_ARCHITECTURE.md](INBOX_SYSTEM_ARCHITECTURE.md) | Inbox messaging system design, architecture, and implementation details | Developers, architects |
+| [INBOX_IMPLEMENTATION_SUMMARY.md](INBOX_IMPLEMENTATION_SUMMARY.md) | Complete implementation summary, deliverables, and verification checklist | Developers, project managers |
+| [INBOX_SECURITY_AUDIT_REPORT.md](INBOX_SECURITY_AUDIT_REPORT.md) | Security audit findings and HIPAA compliance verification for messaging system | Security team, compliance team |
 
 ### Configuration and Deployment
 

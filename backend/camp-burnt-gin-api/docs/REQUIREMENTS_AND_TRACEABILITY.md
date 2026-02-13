@@ -42,6 +42,7 @@ Requirements are organized into the following categories:
 | Medical Information | FR-MED | Health records and medical data |
 | Documents | FR-DOC | File uploads and management |
 | Notifications | FR-NOTIF | System notifications |
+| Inbox Messaging | FR-INB | Internal HIPAA-compliant messaging |
 | Reporting | FR-RPT | Administrative reports |
 | Security | NFR-SEC | Security requirements |
 | Performance | NFR-PERF | Performance requirements |
@@ -175,6 +176,43 @@ Requirements are organized into the following categories:
 | FR-NOTIF-07 | System shall store notifications in database | Medium | **Complete** | `notifications` table |
 | FR-NOTIF-08 | Users shall be able to view notification history | Medium | **Complete** | `NotificationController::index` |
 | FR-NOTIF-09 | Users shall be able to mark notifications as read | Low | **Complete** | `NotificationController::markRead` |
+
+### Inbox Messaging Requirements (FR-INB)
+
+| ID | Requirement | Priority | Status | Backend Component |
+|----|-------------|----------|--------|-------------------|
+| FR-INB-01 | System shall provide HIPAA-compliant internal messaging | High | **Complete** | `Inbox\ConversationController`, `Inbox\MessageController` |
+| FR-INB-02 | Admins shall be able to create conversations with any users | High | **Complete** | `ConversationPolicy::create`, `InboxService::createConversation` |
+| FR-INB-03 | Parents shall be able to create conversations with admins only | High | **Complete** | `ConversationPolicy::create` (enforces non-admin participant restriction) |
+| FR-INB-04 | Parents shall NOT be able to message other parents directly | High | **Complete** | `ConversationPolicy::create` validation |
+| FR-INB-05 | Medical providers shall NOT be able to create conversations | High | **Complete** | `ConversationPolicy::create` returns false for medical role |
+| FR-INB-06 | Conversations shall support up to 10 participants | Medium | **Complete** | `InboxService` validation |
+| FR-INB-07 | Conversation creation shall be rate limited (5/min) | High | **Complete** | Route middleware: `throttle:5,1` |
+| FR-INB-08 | System shall track conversation metadata (subject, last_message_at, is_archived) | High | **Complete** | `conversations` table migration |
+| FR-INB-09 | Users shall be able to list their conversations with pagination | High | **Complete** | `ConversationController::index` |
+| FR-INB-10 | Users shall be able to view conversation details | High | **Complete** | `ConversationController::show` |
+| FR-INB-11 | Participants shall be able to send messages in conversations | High | **Complete** | `MessageController::store`, `MessagePolicy::send` |
+| FR-INB-12 | Non-participants shall NOT be able to send or view messages | High | **Complete** | `MessagePolicy::send`, `MessagePolicy::view` |
+| FR-INB-13 | Messages shall be immutable (cannot be edited after sending) | High | **Complete** | No update endpoint, architecture design |
+| FR-INB-14 | Message sending shall be rate limited (60/min) | High | **Complete** | Route middleware: `throttle:60,1` |
+| FR-INB-15 | System shall support message idempotency keys to prevent duplicates | High | **Complete** | `MessageService::sendMessage` checks existing idempotency_key |
+| FR-INB-16 | Messages shall support up to 5 file attachments | Medium | **Complete** | `MessageService::sendMessage` validation |
+| FR-INB-17 | Each attachment shall be limited to 10MB | High | **Complete** | `StoreMessageRequest` validation rule |
+| FR-INB-18 | Attachments shall be restricted to safe MIME types (pdf, jpeg, png, gif, doc, docx) | High | **Complete** | `StoreMessageRequest` validation |
+| FR-INB-19 | Messages shall be automatically marked as read when viewed | Medium | **Complete** | `MessageController::show` auto-creates `MessageRead` record |
+| FR-INB-20 | Sender's own messages shall NOT be marked as read | Low | **Complete** | `MessageController::show` skips read marking for sender |
+| FR-INB-21 | System shall track read receipts with user_id and timestamp | Medium | **Complete** | `message_reads` table, `MessageRead` model |
+| FR-INB-22 | Users shall be able to retrieve unread message count | Medium | **Complete** | `MessageController::unreadCount` |
+| FR-INB-23 | System shall support message soft deletion (admin only) | Medium | **Complete** | `MessageController::destroy`, `MessagePolicy::delete`, soft delete architecture |
+| FR-INB-24 | System shall support conversation soft deletion (admin only) | Medium | **Complete** | `ConversationController::destroy`, `ConversationPolicy::delete` |
+| FR-INB-25 | Admins shall be able to add participants to conversations | Medium | **Complete** | `ConversationController::addParticipant`, `ConversationPolicy::addParticipant` |
+| FR-INB-26 | Admins shall be able to remove participants from conversations | Medium | **Complete** | `ConversationController::removeParticipant`, `ConversationPolicy::removeParticipant` |
+| FR-INB-27 | Non-admins shall NOT be able to add/remove participants | High | **Complete** | `ConversationPolicy` enforces admin-only |
+| FR-INB-28 | Users shall be able to leave conversations | Low | **Complete** | `ConversationController::leave` |
+| FR-INB-29 | Users shall be able to archive conversations | Medium | **Complete** | `ConversationController::archive` |
+| FR-INB-30 | Users shall be able to unarchive conversations | Low | **Complete** | `ConversationController::unarchive` |
+| FR-INB-31 | System shall log all inbox operations for HIPAA audit trail | High | **Complete** | `AuditLogService` integration with conversation/message/message_attachment events |
+| FR-INB-32 | Messages shall be linked to applications for context | Low | **Complete** | `application_id` foreign key in `conversations` table |
 
 ### Reporting Requirements (FR-RPT)
 

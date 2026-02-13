@@ -10,6 +10,7 @@ use App\Models\BehavioralProfile;
 use App\Models\Camp;
 use App\Models\Camper;
 use App\Models\CampSession;
+use App\Models\Conversation;
 use App\Models\Diagnosis;
 use App\Models\Document;
 use App\Models\EmergencyContact;
@@ -17,6 +18,7 @@ use App\Models\FeedingPlan;
 use App\Models\MedicalProviderLink;
 use App\Models\MedicalRecord;
 use App\Models\Medication;
+use App\Models\Message;
 use App\Observers\AssistiveDeviceObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\DiagnosisObserver;
@@ -30,6 +32,7 @@ use App\Policies\BehavioralProfilePolicy;
 use App\Policies\CamperPolicy;
 use App\Policies\CampPolicy;
 use App\Policies\CampSessionPolicy;
+use App\Policies\ConversationPolicy;
 use App\Policies\DiagnosisPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EmergencyContactPolicy;
@@ -37,6 +40,7 @@ use App\Policies\FeedingPlanPolicy;
 use App\Policies\MedicalProviderLinkPolicy;
 use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicationPolicy;
+use App\Policies\MessagePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -72,6 +76,9 @@ class AppServiceProvider extends ServiceProvider
         FeedingPlan::class => FeedingPlanPolicy::class,
         Camp::class => CampPolicy::class,
         CampSession::class => CampSessionPolicy::class,
+        // Inbox Messaging System policies (explicit registration)
+        Conversation::class => ConversationPolicy::class,
+        Message::class => MessagePolicy::class,
     ];
 
     /**

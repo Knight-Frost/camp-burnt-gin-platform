@@ -161,6 +161,9 @@ The system categorizes audit events into distinct types for filtering and analys
 | Security | `EVENT_TYPE_SECURITY` | Security-related events | Failed authentication, authorization denial |
 | Data Change | `EVENT_TYPE_DATA_CHANGE` | Significant data modifications | Record deletion, bulk updates |
 | File Access | `EVENT_TYPE_FILE_ACCESS` | Document operations | Document upload, download, scan |
+| Conversation | `EVENT_TYPE_CONVERSATION` | Conversation lifecycle operations | Conversation creation, archive, participant management |
+| Message | `EVENT_TYPE_MESSAGE` | Message operations | Message sent, read, soft deleted |
+| Message Attachment | `EVENT_TYPE_MESSAGE_ATTACHMENT` | Message attachment operations | Attachment uploaded, downloaded |
 
 ### Event Type Usage
 

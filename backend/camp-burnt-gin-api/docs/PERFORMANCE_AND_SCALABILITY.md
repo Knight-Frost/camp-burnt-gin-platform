@@ -50,8 +50,8 @@ The Camp Burnt Gin API is designed with performance and scalability in mind, imp
 ### Development Environment Benchmarks
 
 **Test Suite Performance:**
-- 228 tests execute in 2-3 seconds
-- 430 assertions validated
+- 286 tests execute in 2-3 seconds
+- 654 assertions validated
 - Average test execution: ~13ms per test
 
 **API Endpoint Performance (Development):**

@@ -2,10 +2,15 @@
 ## Camp Burnt Gin Application Software
 
 **Document Type:** Technical Architecture Guidance
+
 **Intended Audience:** Frontend Development Team
+
 **Purpose:** Define frontend planning, architecture, UI flows, component design, security boundaries, API contracts, and state management
+
 **Backend Version:** Laravel 12.0 REST API
+
 **Date:** February 13, 2026
+
 **Status:** Authoritative
 
 ---
@@ -51,7 +56,7 @@ To ensure architectural precision, the following terms have specific meanings th
 
 The Camp Burnt Gin Application Software backend is an enterprise-grade RESTful API built with Laravel 12.0 and PHP 8.2+. The system implements security-first architecture for handling Protected Health Information in HIPAA-compliant environments. The architecture follows Model-View-Controller (MVC) pattern with service layer enhancement, policy-based authorization, and comprehensive audit logging.
 
-The backend has achieved 100% completion of 114 requirements across authentication, user management, camp operations, camper registration, application workflows, medical information handling, document management, notifications, and administrative reporting. All APIs are production-ready with 228 automated tests covering 430 assertions.
+The backend has achieved 100% completion of 114 requirements across authentication, user management, camp operations, camper registration, application workflows, medical information handling, document management, inbox messaging, notifications, and administrative reporting. All APIs are production-ready with 286 automated tests covering 654 assertions.
 
 **Technology Stack:**
 
@@ -679,7 +684,222 @@ Returns pre-fill data for returning parents/guardians.
 - Email (always enabled)
 - In-app (polled via API)
 
-### 2.17 API Versioning Strategy
+### 2.17 Inbox Endpoints
+
+The Inbox Messaging System provides HIPAA-compliant internal messaging for secure communication between parents, administrators, and medical providers. All messages are immutable for audit trail integrity, and access is strictly controlled via role-based authorization policies.
+
+**System Characteristics:**
+- Message immutability (messages cannot be edited or permanently deleted)
+- Audit logging for all operations
+- Idempotent message sending (duplicate prevention via optional idempotency keys)
+- Automatic read tracking when messages are viewed
+- File attachments (up to 5 per message, 10MB each)
+- Admin-controlled participant management
+
+**Authorization Rules:**
+
+| Role | Create Conversation | Send Message | Add Participants | Delete Message |
+|------|---------------------|--------------|------------------|----------------|
+| Admin | Unrestricted | Yes (if participant) | Yes | Yes (soft delete) |
+| Parent | Only with admins | Yes (if participant) | No | No |
+| Medical Provider | No | Yes (if participant) | No | No |
+
+**Conversation Endpoints:**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/inbox/conversations` | Yes | List user's conversations |
+| POST | `/api/inbox/conversations` | Yes | Create new conversation |
+| GET | `/api/inbox/conversations/{id}` | Yes | View conversation details |
+| POST | `/api/inbox/conversations/{id}/archive` | Yes | Archive conversation |
+| POST | `/api/inbox/conversations/{id}/unarchive` | Yes | Unarchive conversation |
+| POST | `/api/inbox/conversations/{id}/participants` | Admin | Add participant |
+| DELETE | `/api/inbox/conversations/{id}/participants/{user}` | Admin | Remove participant |
+| POST | `/api/inbox/conversations/{id}/leave` | Yes | Leave conversation |
+| DELETE | `/api/inbox/conversations/{id}` | Admin | Soft delete conversation |
+
+**Message Endpoints:**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/inbox/conversations/{id}/messages` | Yes | List messages in conversation |
+| POST | `/api/inbox/conversations/{id}/messages` | Yes | Send message |
+| GET | `/api/inbox/messages/{id}` | Yes | View message (auto-marks read) |
+| GET | `/api/inbox/messages/unread-count` | Yes | Get unread message count |
+| GET | `/api/inbox/messages/{id}/attachments/{document}` | Yes | Download attachment |
+| DELETE | `/api/inbox/messages/{id}` | Admin | Soft delete message |
+
+**Rate Limiting:**
+- Conversation creation: 5 requests/minute
+- Message sending: 60 requests/minute
+- Message retrieval: 60 requests/minute
+
+**Validation Rules:**
+- Conversation subject: required, max 255 characters
+- Participant list: required, array, min 1 user (excludes creator)
+- Maximum participants: 10 per conversation
+- Parents can only message admins (cannot include other parents or medical providers)
+- Medical providers cannot create conversations
+- Message body: required, max 65535 characters
+- Attachments: max 5 files, 10MB each
+- Allowed MIME types: pdf, jpeg, png, gif, doc, docx
+
+**Create Conversation Request:**
+```json
+{
+  "subject": "Question about medical form",
+  "participant_user_ids": [1, 5],
+  "application_id": 12
+}
+```
+
+**Create Conversation Response (201):**
+```json
+{
+  "success": true,
+  "message": "Conversation created successfully",
+  "data": {
+    "id": 1,
+    "subject": "Question about medical form",
+    "created_by_id": 2,
+    "application_id": 12,
+    "last_message_at": "2026-02-13T10:00:00.000000Z",
+    "is_archived": false,
+    "created_at": "2026-02-13T10:00:00.000000Z",
+    "participants": [
+      {
+        "id": 1,
+        "name": "Admin User",
+        "email": "admin@campburntgin.com",
+        "role": {"name": "admin", "display_name": "Administrator"}
+      },
+      {
+        "id": 2,
+        "name": "Jane Parent",
+        "email": "jane@example.com",
+        "role": {"name": "parent", "display_name": "Parent"}
+      }
+    ],
+    "unread_count": 0
+  }
+}
+```
+
+**Send Message Request:**
+```http
+POST /api/inbox/conversations/1/messages
+Content-Type: multipart/form-data
+
+body: "I have a question about the physician signature requirement."
+attachments[]: [binary file data]
+idempotency_key: "msg_abc123def456"
+```
+
+**Send Message Response (201):**
+```json
+{
+  "success": true,
+  "message": "Message sent successfully",
+  "data": {
+    "id": 1,
+    "conversation_id": 1,
+    "sender_id": 2,
+    "body": "I have a question about the physician signature requirement.",
+    "idempotency_key": "msg_abc123def456",
+    "created_at": "2026-02-13T10:15:00.000000Z",
+    "sender": {
+      "id": 2,
+      "name": "Jane Parent"
+    },
+    "attachments": [
+      {
+        "id": 5,
+        "file_name": "medical_form_question.pdf",
+        "file_size": 156789,
+        "mime_type": "application/pdf",
+        "created_at": "2026-02-13T10:15:00.000000Z"
+      }
+    ]
+  }
+}
+```
+
+**List Messages Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "conversation_id": 1,
+      "sender_id": 2,
+      "body": "I have a question about the physician signature requirement.",
+      "created_at": "2026-02-13T10:15:00.000000Z",
+      "sender": {
+        "id": 2,
+        "name": "Jane Parent"
+      },
+      "read_by": [
+        {
+          "user_id": 1,
+          "read_at": "2026-02-13T10:20:00.000000Z"
+        }
+      ],
+      "attachments_count": 1
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "total": 1
+  }
+}
+```
+
+**Unread Count Response (200):**
+```json
+{
+  "unread_count": 3
+}
+```
+
+**Error Responses:**
+
+```json
+// 403 Forbidden - Not a participant
+{
+  "success": false,
+  "error": "You are not a participant in this conversation"
+}
+
+// 403 Forbidden - Parent trying to message another parent
+{
+  "success": false,
+  "error": "Parents can only create conversations with administrators"
+}
+
+// 422 Unprocessable Entity - Too many attachments
+{
+  "success": false,
+  "error": "You may only attach up to 5 files per message"
+}
+
+// 422 Unprocessable Entity - File too large
+{
+  "success": false,
+  "error": "File size exceeds 10MB limit"
+}
+```
+
+**Frontend Considerations:**
+- Poll `/api/inbox/messages/unread-count` every 30-60 seconds for notification badge
+- Use idempotency keys for message sending to prevent duplicates on network retry
+- Messages are automatically marked as read when viewed (no explicit API call needed)
+- Implement optimistic UI updates for message sending
+- Store conversation state in Redux/Pinia for real-time updates
+- Display read receipts showing which participants have read each message
+
+### 2.18 API Versioning Strategy
 
 #### 2.17.1 Versioning Mechanism
 
@@ -1867,7 +2087,1065 @@ export type AppDispatch = typeof store.dispatch;
 
 ---
 
-## 7. File Upload & Document Handling
+## 7. Inbox Messaging Module
+
+### 7.1 Overview
+
+The Inbox Messaging Module provides HIPAA-compliant internal messaging for secure communication between parents, administrators, and medical providers. The module implements message immutability for audit trail integrity, automatic read receipt tracking, file attachment support, and role-based participant restrictions.
+
+**Key Features:**
+- Threaded conversations with up to 10 participants
+- Real-time unread count updates via polling
+- File attachments (up to 5 per message, 10MB each)
+- Automatic read receipt marking when messages are viewed
+- Idempotency protection for message sending
+- Soft delete for admin users (preserves audit trail)
+- RBAC enforcement (parents can only message admins)
+
+**Technical Requirements:**
+- WebSocket-free design (polling-based)
+- Optimistic UI updates for message sending
+- Redux/Pinia state management for conversation and message stores
+- TypeScript interfaces for type safety
+- Zod validation schemas for form validation
+- Error boundary for graceful error handling
+
+### 7.2 Routes and Navigation Guards
+
+**Route Definitions:**
+
+```typescript
+// router/routes/inbox.ts
+import type { RouteRecordRaw } from 'vue-router';
+import InboxLayout from '@/views/inbox/InboxLayout.vue';
+import ConversationList from '@/views/inbox/ConversationList.vue';
+import ConversationDetail from '@/views/inbox/ConversationDetail.vue';
+
+export const inboxRoutes: RouteRecordRaw[] = [
+  {
+    path: '/inbox',
+    component: InboxLayout,
+    meta: {
+      requiresAuth: true,
+      title: 'Inbox',
+      breadcrumb: 'Inbox'
+    },
+    children: [
+      {
+        path: '',
+        name: 'inbox.list',
+        component: ConversationList,
+        meta: {
+          title: 'Conversations',
+          description: 'View your conversations'
+        }
+      },
+      {
+        path: 'conversations/:id',
+        name: 'inbox.conversation',
+        component: ConversationDetail,
+        meta: {
+          title: 'Conversation',
+          description: 'View conversation details'
+        },
+        props: true
+      },
+      {
+        path: 'new',
+        name: 'inbox.create',
+        component: () => import('@/views/inbox/ConversationCreate.vue'),
+        meta: {
+          title: 'New Conversation',
+          description: 'Start a new conversation',
+          allowedRoles: ['admin', 'parent'] // Medical providers cannot create
+        }
+      }
+    ]
+  }
+];
+```
+
+**Navigation Guards:**
+
+```typescript
+// router/guards/inbox.ts
+import type { NavigationGuardNext, RouteLocationNormalized } from 'vue-router';
+import { useAuthStore } from '@/stores/authStore';
+
+export function inboxGuard(
+  to: RouteLocationNormalized,
+  from: RouteLocationNormalized,
+  next: NavigationGuardNext
+) {
+  const authStore = useAuthStore();
+  const userRole = authStore.user?.role?.name;
+
+  // Medical providers cannot create conversations
+  if (to.name === 'inbox.create' && userRole === 'medical') {
+    return next({
+      name: 'inbox.list',
+      query: { error: 'Medical providers cannot create conversations' }
+    });
+  }
+
+  next();
+}
+```
+
+### 7.3 State Management
+
+#### 7.3.1 Conversation Store (Redux/Pinia)
+
+**Redux Implementation:**
+
+```typescript
+// store/slices/conversationSlice.ts
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import type { Conversation, ConversationListResponse } from '@/types/inbox';
+import inboxApi from '@/services/api/inbox';
+
+interface ConversationState {
+  conversations: Conversation[];
+  currentConversation: Conversation | null;
+  loading: boolean;
+  error: string | null;
+  pagination: {
+    currentPage: number;
+    lastPage: number;
+    total: number;
+  };
+  unreadCount: number;
+}
+
+const initialState: ConversationState = {
+  conversations: [],
+  currentConversation: null,
+  loading: false,
+  error: null,
+  pagination: {
+    currentPage: 1,
+    lastPage: 1,
+    total: 0
+  },
+  unreadCount: 0
+};
+
+// Async thunks
+export const fetchConversations = createAsyncThunk(
+  'conversations/fetchAll',
+  async (page: number = 1) => {
+    const response = await inboxApi.getConversations(page);
+    return response.data;
+  }
+);
+
+export const fetchConversation = createAsyncThunk(
+  'conversations/fetchOne',
+  async (id: number) => {
+    const response = await inboxApi.getConversation(id);
+    return response.data.data;
+  }
+);
+
+export const createConversation = createAsyncThunk(
+  'conversations/create',
+  async (data: { subject: string; participant_user_ids: number[]; application_id?: number }) => {
+    const response = await inboxApi.createConversation(data);
+    return response.data.data;
+  }
+);
+
+export const archiveConversation = createAsyncThunk(
+  'conversations/archive',
+  async (id: number) => {
+    const response = await inboxApi.archiveConversation(id);
+    return { id, ...response.data.data };
+  }
+);
+
+export const fetchUnreadCount = createAsyncThunk(
+  'conversations/unreadCount',
+  async () => {
+    const response = await inboxApi.getUnreadCount();
+    return response.data.unread_count;
+  }
+);
+
+const conversationSlice = createSlice({
+  name: 'conversations',
+  initialState,
+  reducers: {
+    setCurrentConversation: (state, action: PayloadAction<Conversation | null>) => {
+      state.currentConversation = action.payload;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    incrementUnreadCount: (state) => {
+      state.unreadCount += 1;
+    },
+    decrementUnreadCount: (state, action: PayloadAction<number>) => {
+      state.unreadCount = Math.max(0, state.unreadCount - action.payload);
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch conversations
+      .addCase(fetchConversations.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchConversations.fulfilled, (state, action) => {
+        state.loading = false;
+        state.conversations = action.payload.data;
+        state.pagination = {
+          currentPage: action.payload.meta.current_page,
+          lastPage: action.payload.meta.last_page,
+          total: action.payload.meta.total
+        };
+      })
+      .addCase(fetchConversations.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch conversations';
+      })
+      // Fetch single conversation
+      .addCase(fetchConversation.fulfilled, (state, action) => {
+        state.currentConversation = action.payload;
+        // Update in list if present
+        const index = state.conversations.findIndex(c => c.id === action.payload.id);
+        if (index !== -1) {
+          state.conversations[index] = action.payload;
+        }
+      })
+      // Create conversation
+      .addCase(createConversation.fulfilled, (state, action) => {
+        state.conversations.unshift(action.payload);
+        state.currentConversation = action.payload;
+      })
+      // Archive conversation
+      .addCase(archiveConversation.fulfilled, (state, action) => {
+        const index = state.conversations.findIndex(c => c.id === action.payload.id);
+        if (index !== -1) {
+          state.conversations[index].is_archived = true;
+        }
+        if (state.currentConversation?.id === action.payload.id) {
+          state.currentConversation.is_archived = true;
+        }
+      })
+      // Unread count
+      .addCase(fetchUnreadCount.fulfilled, (state, action) => {
+        state.unreadCount = action.payload;
+      });
+  }
+});
+
+export const {
+  setCurrentConversation,
+  clearError,
+  incrementUnreadCount,
+  decrementUnreadCount
+} = conversationSlice.actions;
+
+export default conversationSlice.reducer;
+```
+
+**Pinia Implementation (Alternative):**
+
+```typescript
+// stores/conversationStore.ts
+import { defineStore } from 'pinia';
+import type { Conversation } from '@/types/inbox';
+import inboxApi from '@/services/api/inbox';
+
+export const useConversationStore = defineStore('conversations', {
+  state: () => ({
+    conversations: [] as Conversation[],
+    currentConversation: null as Conversation | null,
+    loading: false,
+    error: null as string | null,
+    pagination: {
+      currentPage: 1,
+      lastPage: 1,
+      total: 0
+    },
+    unreadCount: 0
+  }),
+
+  getters: {
+    activeConversations: (state) =>
+      state.conversations.filter(c => !c.is_archived),
+    archivedConversations: (state) =>
+      state.conversations.filter(c => c.is_archived),
+    hasUnread: (state) => state.unreadCount > 0
+  },
+
+  actions: {
+    async fetchConversations(page: number = 1) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await inboxApi.getConversations(page);
+        this.conversations = response.data.data;
+        this.pagination = {
+          currentPage: response.data.meta.current_page,
+          lastPage: response.data.meta.last_page,
+          total: response.data.meta.total
+        };
+      } catch (error: any) {
+        this.error = error.response?.data?.message || 'Failed to fetch conversations';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchConversation(id: number) {
+      try {
+        const response = await inboxApi.getConversation(id);
+        this.currentConversation = response.data.data;
+
+        // Update in list if present
+        const index = this.conversations.findIndex(c => c.id === id);
+        if (index !== -1) {
+          this.conversations[index] = response.data.data;
+        }
+
+        return response.data.data;
+      } catch (error: any) {
+        this.error = error.response?.data?.message || 'Failed to fetch conversation';
+        throw error;
+      }
+    },
+
+    async createConversation(data: {
+      subject: string;
+      participant_user_ids: number[];
+      application_id?: number;
+    }) {
+      try {
+        const response = await inboxApi.createConversation(data);
+        this.conversations.unshift(response.data.data);
+        this.currentConversation = response.data.data;
+        return response.data.data;
+      } catch (error: any) {
+        this.error = error.response?.data?.error || 'Failed to create conversation';
+        throw error;
+      }
+    },
+
+    async archiveConversation(id: number) {
+      try {
+        await inboxApi.archiveConversation(id);
+        const index = this.conversations.findIndex(c => c.id === id);
+        if (index !== -1) {
+          this.conversations[index].is_archived = true;
+        }
+        if (this.currentConversation?.id === id) {
+          this.currentConversation.is_archived = true;
+        }
+      } catch (error: any) {
+        this.error = error.response?.data?.error || 'Failed to archive conversation';
+        throw error;
+      }
+    },
+
+    async fetchUnreadCount() {
+      try {
+        const response = await inboxApi.getUnreadCount();
+        this.unreadCount = response.data.unread_count;
+      } catch (error) {
+        // Silent fail - don't block UI
+        console.error('Failed to fetch unread count:', error);
+      }
+    }
+  }
+});
+```
+
+#### 7.3.2 Message Store
+
+```typescript
+// store/slices/messageSlice.ts
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import type { Message, SendMessageData } from '@/types/inbox';
+import inboxApi from '@/services/api/inbox';
+
+interface MessageState {
+  messagesByConversation: Record<number, Message[]>;
+  loading: boolean;
+  sending: boolean;
+  error: string | null;
+  pagination: Record<number, {
+    currentPage: number;
+    lastPage: number;
+    total: number;
+  }>;
+}
+
+const initialState: MessageState = {
+  messagesByConversation: {},
+  loading: false,
+  sending: false,
+  error: null,
+  pagination: {}
+};
+
+export const fetchMessages = createAsyncThunk(
+  'messages/fetchByConversation',
+  async ({ conversationId, page = 1 }: { conversationId: number; page?: number }) => {
+    const response = await inboxApi.getMessages(conversationId, page);
+    return { conversationId, ...response.data };
+  }
+);
+
+export const sendMessage = createAsyncThunk(
+  'messages/send',
+  async (data: SendMessageData) => {
+    const response = await inboxApi.sendMessage(
+      data.conversation_id,
+      data.body,
+      data.attachments,
+      data.idempotency_key
+    );
+    return { conversationId: data.conversation_id, message: response.data.data };
+  }
+);
+
+const messageSlice = createSlice({
+  name: 'messages',
+  initialState,
+  reducers: {
+    clearMessages: (state, action: PayloadAction<number>) => {
+      delete state.messagesByConversation[action.payload];
+      delete state.pagination[action.payload];
+    },
+    addOptimisticMessage: (state, action: PayloadAction<{ conversationId: number; message: Message }>) => {
+      const { conversationId, message } = action.payload;
+      if (!state.messagesByConversation[conversationId]) {
+        state.messagesByConversation[conversationId] = [];
+      }
+      state.messagesByConversation[conversationId].push(message);
+    },
+    removeOptimisticMessage: (state, action: PayloadAction<{ conversationId: number; tempId: string }>) => {
+      const { conversationId, tempId } = action.payload;
+      const messages = state.messagesByConversation[conversationId];
+      if (messages) {
+        state.messagesByConversation[conversationId] = messages.filter(m => m.id !== tempId as any);
+      }
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchMessages.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMessages.fulfilled, (state, action) => {
+        state.loading = false;
+        const { conversationId, data, meta } = action.payload;
+        state.messagesByConversation[conversationId] = data;
+        state.pagination[conversationId] = {
+          currentPage: meta.current_page,
+          lastPage: meta.last_page,
+          total: meta.total
+        };
+      })
+      .addCase(fetchMessages.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch messages';
+      })
+      .addCase(sendMessage.pending, (state) => {
+        state.sending = true;
+        state.error = null;
+      })
+      .addCase(sendMessage.fulfilled, (state, action) => {
+        state.sending = false;
+        const { conversationId, message } = action.payload;
+
+        // Remove optimistic message if exists
+        const messages = state.messagesByConversation[conversationId] || [];
+        const optimisticIndex = messages.findIndex(m => typeof m.id === 'string');
+        if (optimisticIndex !== -1) {
+          messages.splice(optimisticIndex, 1);
+        }
+
+        // Add real message
+        if (!state.messagesByConversation[conversationId]) {
+          state.messagesByConversation[conversationId] = [];
+        }
+        state.messagesByConversation[conversationId].push(message);
+      })
+      .addCase(sendMessage.rejected, (state, action) => {
+        state.sending = false;
+        state.error = action.error.message || 'Failed to send message';
+      });
+  }
+});
+
+export const { clearMessages, addOptimisticMessage, removeOptimisticMessage } = messageSlice.actions;
+export default messageSlice.reducer;
+```
+
+### 7.4 Component Hierarchy
+
+```
+InboxLayout
+├── InboxSidebar
+│   ├── ConversationListHeader
+│   │   ├── NewConversationButton (parent/admin only)
+│   │   └── UnreadBadge
+│   ├── ConversationSearchBar
+│   └── ConversationList
+│       └── ConversationListItem (multiple)
+│           ├── ParticipantAvatars
+│           ├── ConversationSubject
+│           ├── LastMessagePreview
+│           └── UnreadIndicator
+└── InboxMain
+    ├── ConversationHeader
+    │   ├── ConversationTitle
+    │   ├── ParticipantList
+    │   └── ConversationActions
+    │       ├── ArchiveButton
+    │       └── ManageParticipantsButton (admin only)
+    ├── MessageThread
+    │   └── MessageItem (multiple)
+    │       ├── SenderAvatar
+    │       ├── MessageBody
+    │       ├── AttachmentList
+    │       │   └── AttachmentItem (multiple)
+    │       ├── MessageTimestamp
+    │       └── ReadReceiptIndicator
+    └── MessageComposer
+        ├── MessageTextarea
+        ├── AttachmentUploader
+        │   └── AttachmentPreview (multiple)
+        └── SendButton
+```
+
+### 7.5 API Service Layer
+
+```typescript
+// services/api/inbox.ts
+import axios from '@/lib/axios';
+import type {
+  Conversation,
+  ConversationListResponse,
+  Message,
+  MessageListResponse,
+  CreateConversationData,
+  UnreadCountResponse
+} from '@/types/inbox';
+
+const inboxApi = {
+  // Conversations
+  getConversations(page: number = 1): Promise<{ data: ConversationListResponse }> {
+    return axios.get('/inbox/conversations', { params: { page } });
+  },
+
+  getConversation(id: number): Promise<{ data: { success: boolean; data: Conversation } }> {
+    return axios.get(`/inbox/conversations/${id}`);
+  },
+
+  createConversation(data: CreateConversationData): Promise<{ data: { success: boolean; message: string; data: Conversation } }> {
+    return axios.post('/inbox/conversations', data);
+  },
+
+  archiveConversation(id: number): Promise<{ data: { success: boolean; message: string; data: Conversation } }> {
+    return axios.post(`/inbox/conversations/${id}/archive`);
+  },
+
+  unarchiveConversation(id: number): Promise<{ data: { success: boolean; message: string; data: Conversation } }> {
+    return axios.post(`/inbox/conversations/${id}/unarchive`);
+  },
+
+  addParticipant(conversationId: number, userId: number): Promise<{ data: { success: boolean; message: string } }> {
+    return axios.post(`/inbox/conversations/${conversationId}/participants`, {
+      user_id: userId
+    });
+  },
+
+  removeParticipant(conversationId: number, userId: number): Promise<{ data: { success: boolean; message: string } }> {
+    return axios.delete(`/inbox/conversations/${conversationId}/participants/${userId}`);
+  },
+
+  leaveConversation(id: number): Promise<{ data: { success: boolean; message: string } }> {
+    return axios.post(`/inbox/conversations/${id}/leave`);
+  },
+
+  deleteConversation(id: number): Promise<{ data: { success: boolean; message: string } }> {
+    return axios.delete(`/inbox/conversations/${id}`);
+  },
+
+  // Messages
+  getMessages(conversationId: number, page: number = 1): Promise<{ data: MessageListResponse }> {
+    return axios.get(`/inbox/conversations/${conversationId}/messages`, {
+      params: { page }
+    });
+  },
+
+  sendMessage(
+    conversationId: number,
+    body: string,
+    attachments?: File[],
+    idempotencyKey?: string
+  ): Promise<{ data: { success: boolean; message: string; data: Message } }> {
+    const formData = new FormData();
+    formData.append('body', body);
+
+    if (attachments && attachments.length > 0) {
+      attachments.forEach((file) => {
+        formData.append('attachments[]', file);
+      });
+    }
+
+    if (idempotencyKey) {
+      formData.append('idempotency_key', idempotencyKey);
+    }
+
+    return axios.post(`/inbox/conversations/${conversationId}/messages`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  getMessage(id: number): Promise<{ data: { success: boolean; data: Message } }> {
+    return axios.get(`/inbox/messages/${id}`);
+  },
+
+  getUnreadCount(): Promise<{ data: UnreadCountResponse }> {
+    return axios.get('/inbox/messages/unread-count');
+  },
+
+  downloadAttachment(messageId: number, documentId: number): Promise<Blob> {
+    return axios.get(`/inbox/messages/${messageId}/attachments/${documentId}`, {
+      responseType: 'blob'
+    });
+  },
+
+  deleteMessage(id: number): Promise<{ data: { success: boolean; message: string } }> {
+    return axios.delete(`/inbox/messages/${id}`);
+  }
+};
+
+export default inboxApi;
+```
+
+### 7.6 TypeScript Type Definitions
+
+```typescript
+// types/inbox.ts
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: {
+    id: number;
+    name: 'admin' | 'parent' | 'medical';
+    display_name: string;
+  };
+}
+
+export interface ConversationParticipant {
+  id: number;
+  name: string;
+  email: string;
+  role: {
+    name: 'admin' | 'parent' | 'medical';
+    display_name: string;
+  };
+}
+
+export interface Conversation {
+  id: number;
+  subject: string;
+  created_by_id: number;
+  application_id: number | null;
+  last_message_at: string;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+  participants: ConversationParticipant[];
+  unread_count: number;
+  last_message?: {
+    id: number;
+    body: string;
+    sender_id: number;
+    created_at: string;
+  };
+}
+
+export interface MessageAttachment {
+  id: number;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+}
+
+export interface MessageReadReceipt {
+  user_id: number;
+  read_at: string;
+}
+
+export interface Message {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  body: string;
+  idempotency_key: string | null;
+  created_at: string;
+  updated_at: string;
+  sender: {
+    id: number;
+    name: string;
+  };
+  attachments: MessageAttachment[];
+  read_by: MessageReadReceipt[];
+  attachments_count: number;
+}
+
+export interface ConversationListResponse {
+  data: Conversation[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+  links: {
+    first: string;
+    last: string;
+    prev: string | null;
+    next: string | null;
+  };
+}
+
+export interface MessageListResponse {
+  data: Message[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
+export interface CreateConversationData {
+  subject: string;
+  participant_user_ids: number[];
+  application_id?: number;
+}
+
+export interface SendMessageData {
+  conversation_id: number;
+  body: string;
+  attachments?: File[];
+  idempotency_key?: string;
+}
+
+export interface UnreadCountResponse {
+  unread_count: number;
+}
+```
+
+### 7.7 Validation Schemas (Zod)
+
+```typescript
+// schemas/inbox.ts
+import { z } from 'zod';
+
+export const createConversationSchema = z.object({
+  subject: z.string()
+    .min(1, 'Subject is required')
+    .max(255, 'Subject must not exceed 255 characters'),
+  participant_user_ids: z.array(z.number())
+    .min(1, 'At least one participant is required')
+    .max(9, 'Maximum 9 additional participants allowed (10 total including you)'),
+  application_id: z.number().optional()
+});
+
+export const sendMessageSchema = z.object({
+  body: z.string()
+    .min(1, 'Message cannot be empty')
+    .max(65535, 'Message too long'),
+  attachments: z.array(z.instanceof(File))
+    .max(5, 'Maximum 5 attachments per message')
+    .optional(),
+  idempotency_key: z.string()
+    .max(64, 'Idempotency key too long')
+    .optional()
+}).refine(
+  (data) => {
+    if (data.attachments) {
+      return data.attachments.every(file => file.size <= 10 * 1024 * 1024);
+    }
+    return true;
+  },
+  {
+    message: 'Each attachment must be 10MB or less',
+    path: ['attachments']
+  }
+).refine(
+  (data) => {
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (data.attachments) {
+      return data.attachments.every(file => allowedTypes.includes(file.type));
+    }
+    return true;
+  },
+  {
+    message: 'Invalid file type. Allowed: PDF, JPEG, PNG, GIF, DOC, DOCX',
+    path: ['attachments']
+  }
+);
+
+export type CreateConversationInput = z.infer<typeof createConversationSchema>;
+export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+```
+
+### 7.8 Polling Strategy for Unread Count
+
+```typescript
+// hooks/useInboxPolling.ts
+import { useEffect, useRef } from 'react';
+import { useAppDispatch } from '@/store/hooks';
+import { fetchUnreadCount } from '@/store/slices/conversationSlice';
+
+const POLLING_INTERVAL = 30000; // 30 seconds
+
+export function useInboxPolling(enabled: boolean = true) {
+  const dispatch = useAppDispatch();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    // Initial fetch
+    dispatch(fetchUnreadCount());
+
+    // Set up polling
+    intervalRef.current = setInterval(() => {
+      dispatch(fetchUnreadCount());
+    }, POLLING_INTERVAL);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [enabled, dispatch]);
+}
+```
+
+### 7.9 Optimistic UI Updates
+
+```typescript
+// hooks/useSendMessage.ts
+import { useState } from 'react';
+import { useAppDispatch } from '@/store/hooks';
+import { sendMessage, addOptimisticMessage, removeOptimisticMessage } from '@/store/slices/messageSlice';
+import type { SendMessageData, Message } from '@/types/inbox';
+import { v4 as uuidv4 } from 'uuid';
+
+export function useSendMessage(conversationId: number, currentUserId: number) {
+  const dispatch = useAppDispatch();
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = async (body: string, attachments?: File[]) => {
+    setSending(true);
+    setError(null);
+
+    // Generate temporary ID and idempotency key
+    const tempId = `temp_${uuidv4()}`;
+    const idempotencyKey = `msg_${uuidv4()}`;
+
+    // Create optimistic message
+    const optimisticMessage: Message = {
+      id: tempId as any,
+      conversation_id: conversationId,
+      sender_id: currentUserId,
+      body,
+      idempotency_key: idempotencyKey,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      sender: {
+        id: currentUserId,
+        name: 'You'
+      },
+      attachments: [],
+      read_by: [],
+      attachments_count: attachments?.length || 0
+    };
+
+    // Add optimistic message to store
+    dispatch(addOptimisticMessage({
+      conversationId,
+      message: optimisticMessage
+    }));
+
+    try {
+      // Send actual message
+      const messageData: SendMessageData = {
+        conversation_id: conversationId,
+        body,
+        attachments,
+        idempotency_key: idempotencyKey
+      };
+
+      await dispatch(sendMessage(messageData)).unwrap();
+
+      // Remove optimistic message (real message added by fulfilled action)
+      dispatch(removeOptimisticMessage({ conversationId, tempId }));
+    } catch (err: any) {
+      // Remove optimistic message on error
+      dispatch(removeOptimisticMessage({ conversationId, tempId }));
+      setError(err.response?.data?.error || 'Failed to send message');
+      throw err;
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return { send, sending, error };
+}
+```
+
+### 7.10 Error Handling
+
+```typescript
+// components/inbox/ErrorBoundary.tsx
+import React, { Component, ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export class InboxErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Inbox error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="inbox-error">
+          <h3>Unable to load inbox</h3>
+          <p>An error occurred while loading the messaging system.</p>
+          <button onClick={() => this.setState({ hasError: false, error: null })}>
+            Try again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+### 7.11 Testing Strategy
+
+**Unit Tests:**
+- Test conversation store actions and reducers
+- Test message store actions and reducers
+- Test validation schemas with valid and invalid inputs
+- Test API service methods (mock axios responses)
+- Test hooks (useInboxPolling, useSendMessage) with React Testing Library
+
+**Integration Tests:**
+- Test complete conversation creation flow
+- Test message sending with optimistic updates
+- Test file attachment upload and validation
+- Test read receipt marking
+- Test participant management (admin-only operations)
+
+**E2E Tests (Cypress/Playwright):**
+- Test full user journey: create conversation → send message → receive message → mark as read
+- Test RBAC restrictions (parent cannot message parent)
+- Test attachment upload and download
+- Test error handling for network failures
+
+**Example Unit Test:**
+
+```typescript
+// __tests__/store/conversationSlice.test.ts
+import { configureStore } from '@reduxjs/toolkit';
+import conversationReducer, { fetchConversations } from '@/store/slices/conversationSlice';
+import inboxApi from '@/services/api/inbox';
+
+jest.mock('@/services/api/inbox');
+
+describe('conversationSlice', () => {
+  let store: ReturnType<typeof configureStore>;
+
+  beforeEach(() => {
+    store = configureStore({
+      reducer: {
+        conversations: conversationReducer
+      }
+    });
+  });
+
+  it('should fetch conversations successfully', async () => {
+    const mockData = {
+      data: [
+        { id: 1, subject: 'Test', participants: [] }
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1 }
+    };
+
+    (inboxApi.getConversations as jest.Mock).mockResolvedValue({ data: mockData });
+
+    await store.dispatch(fetchConversations(1));
+
+    const state = store.getState().conversations;
+    expect(state.conversations).toEqual(mockData.data);
+    expect(state.loading).toBe(false);
+    expect(state.error).toBe(null);
+  });
+
+  it('should handle fetch conversations error', async () => {
+    (inboxApi.getConversations as jest.Mock).mockRejectedValue(
+      new Error('Network error')
+    );
+
+    await store.dispatch(fetchConversations(1));
+
+    const state = store.getState().conversations;
+    expect(state.error).toBe('Network error');
+    expect(state.loading).toBe(false);
+  });
+});
+```
+
+---
+
+## 8. File Upload & Document Handling
 
 ### 7.1 Upload Constraints
 

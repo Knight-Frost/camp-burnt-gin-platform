@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\Medical\EmergencyContactController;
 use App\Http\Controllers\Api\Medical\FeedingPlanController;
 use App\Http\Controllers\Api\Medical\MedicalRecordController;
 use App\Http\Controllers\Api\Medical\MedicationController;
+use App\Http\Controllers\Api\Inbox\ConversationController;
+use App\Http\Controllers\Api\Inbox\MessageController;
 use App\Http\Controllers\Api\System\HealthController;
 use App\Http\Controllers\Api\System\NotificationController;
 use App\Http\Controllers\Api\System\ReportController;
@@ -384,5 +386,78 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/{activityPermission}', [ActivityPermissionController::class, 'show'])->name('activity-permissions.show');
         Route::put('/{activityPermission}', [ActivityPermissionController::class, 'update'])->name('activity-permissions.update');
         Route::delete('/{activityPermission}', [ActivityPermissionController::class, 'destroy'])->name('activity-permissions.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Inbox Messaging Routes
+    |--------------------------------------------------------------------------
+    |
+    | Internal messaging system for secure communication between parents,
+    | administrators, and medical providers. All messages are HIPAA-compliant
+    | with full audit trails. Rate limiting prevents abuse.
+    |
+    */
+    Route::prefix('inbox')->group(function () {
+        /*
+        | Conversation Routes
+        */
+        Route::prefix('conversations')->group(function () {
+            Route::get('/', [ConversationController::class, 'index'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.conversations.index');
+            Route::post('/', [ConversationController::class, 'store'])
+                ->middleware('throttle:5,60')
+                ->name('inbox.conversations.store');
+            Route::get('/{conversation}', [ConversationController::class, 'show'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.conversations.show');
+            Route::post('/{conversation}/archive', [ConversationController::class, 'archive'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.archive');
+            Route::post('/{conversation}/unarchive', [ConversationController::class, 'unarchive'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.unarchive');
+            Route::post('/{conversation}/participants', [ConversationController::class, 'addParticipant'])
+                ->middleware('throttle:10,60')
+                ->name('inbox.conversations.add-participant');
+            Route::delete('/{conversation}/participants/{user}', [ConversationController::class, 'removeParticipant'])
+                ->middleware('throttle:10,60')
+                ->name('inbox.conversations.remove-participant');
+            Route::post('/{conversation}/leave', [ConversationController::class, 'leave'])
+                ->middleware('throttle:10,60')
+                ->name('inbox.conversations.leave');
+            Route::delete('/{conversation}', [ConversationController::class, 'destroy'])
+                ->middleware('admin')
+                ->name('inbox.conversations.destroy');
+
+            /*
+            | Messages within Conversation Routes
+            */
+            Route::get('/{conversation}/messages', [MessageController::class, 'index'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.conversations.messages.index');
+            Route::post('/{conversation}/messages', [MessageController::class, 'store'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.messages.store');
+        });
+
+        /*
+        | Message Routes
+        */
+        Route::prefix('messages')->group(function () {
+            Route::get('/unread-count', [MessageController::class, 'unreadCount'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.messages.unread-count');
+            Route::get('/{message}', [MessageController::class, 'show'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.messages.show');
+            Route::get('/{message}/attachments/{document}', [MessageController::class, 'downloadAttachment'])
+                ->middleware('throttle:10,60')
+                ->name('inbox.messages.download-attachment');
+            Route::delete('/{message}', [MessageController::class, 'destroy'])
+                ->middleware('admin')
+                ->name('inbox.messages.destroy');
+        });
     });
 });

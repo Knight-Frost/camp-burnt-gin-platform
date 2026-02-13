@@ -26,7 +26,8 @@
 15. [Document Endpoints](#document-endpoints)
 16. [Medical Provider Link Endpoints](#medical-provider-link-endpoints)
 17. [Notification Endpoints](#notification-endpoints)
-18. [Report Endpoints](#report-endpoints)
+18. [Inbox Endpoints](#inbox-endpoints)
+19. [Report Endpoints](#report-endpoints)
 
 ---
 
@@ -3143,6 +3144,907 @@ Mark all notifications as read.
   "message": "All notifications marked as read."
 }
 ```
+
+---
+
+## Inbox Endpoints
+
+The Inbox Messaging System provides HIPAA-compliant internal messaging for secure communication between parents, administrators, and medical providers. All messages are immutable for audit trail integrity, and access is strictly controlled via role-based authorization policies.
+
+### System Characteristics
+
+- **Message Immutability:** Messages cannot be edited or permanently deleted (HIPAA compliance)
+- **Audit Logging:** All operations are logged with full request context
+- **Idempotent Message Sending:** Duplicate prevention via optional idempotency keys
+- **Automatic Read Tracking:** Messages are marked as read when viewed
+- **File Attachments:** Up to 5 attachments per message (10MB each)
+- **Participant Management:** Admin-controlled participant addition/removal
+
+### Authorization Rules
+
+| Operation | Parent | Admin | Medical Provider |
+|-----------|--------|-------|------------------|
+| Create conversation with admin | Yes | Yes | No |
+| Create conversation with parent | No | Yes | No |
+| Create conversation with medical provider | No | Yes | No |
+| View own conversations | Yes | Yes | Yes |
+| View all conversations | No | Yes | No |
+| Send message in conversation | Yes (if participant) | Yes | Yes (if participant) |
+| Archive conversation (creator) | Yes | Yes | Yes |
+| Delete conversation | No | Yes | No |
+| Add participant | No | Yes | No |
+| Remove participant | No | Yes | No |
+| Leave conversation | Yes (except creator) | Yes (except creator) | Yes (except creator) |
+
+---
+
+### GET /inbox/conversations
+
+List conversations for the authenticated user. Returns paginated results ordered by most recent activity.
+
+**Authentication Required:** Yes
+**Authorization:** Any authenticated user (sees only their own conversations)
+**Rate Limiting:** `throttle:60,1` (60/min)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `include_archived` | boolean | No | Include archived conversations (default: false) |
+| `per_page` | integer | No | Results per page (default: 25, max: 100) |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "subject": "Questions about Emily's medical form",
+      "created_by_id": 1,
+      "application_id": 5,
+      "camper_id": 3,
+      "camp_session_id": 2,
+      "last_message_at": "2024-03-16T14:30:00.000000Z",
+      "is_archived": false,
+      "created_at": "2024-03-15T10:00:00.000000Z",
+      "updated_at": "2024-03-16T14:30:00.000000Z",
+      "creator": {
+        "id": 1,
+        "name": "John Smith",
+        "email": "john.smith@example.com"
+      },
+      "participants": [
+        {
+          "id": 1,
+          "name": "John Smith",
+          "role": {
+            "id": 2,
+            "name": "parent"
+          }
+        },
+        {
+          "id": 2,
+          "name": "Admin User",
+          "role": {
+            "id": 1,
+            "name": "admin"
+          }
+        }
+      ],
+      "lastMessage": {
+        "id": 42,
+        "body": "I've reviewed the form and it looks complete.",
+        "sender_id": 2,
+        "created_at": "2024-03-16T14:30:00.000000Z",
+        "sender": {
+          "id": 2,
+          "name": "Admin User"
+        }
+      },
+      "unread_count": 1
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 3,
+    "per_page": 25,
+    "total": 67,
+    "unread_count": 5
+  }
+}
+```
+
+---
+
+### POST /inbox/conversations
+
+Create a new conversation. Parents can only create conversations with administrators. Admins can create conversations with any users. Medical providers cannot initiate conversations.
+
+**Authentication Required:** Yes
+**Authorization:** Admin (anyone), Parent (admins only), Medical Provider (never)
+**Rate Limiting:** `throttle:5,60` (5/min)
+
+#### Request Body
+
+```json
+{
+  "subject": "Questions about Emily's medical form",
+  "participant_ids": [2, 3],
+  "application_id": 5,
+  "camper_id": 3,
+  "camp_session_id": 2
+}
+```
+
+#### Validation Rules
+
+| Field | Rules | Description |
+|-------|-------|-------------|
+| `subject` | Required, string, max 255 characters | Conversation subject line |
+| `participant_ids` | Required, array, min 1, max 10 | User IDs of participants (excluding creator) |
+| `participant_ids.*` | Required, integer, exists in users table, distinct | Individual participant validation |
+| `application_id` | Nullable, integer, exists in applications table | Optional link to application |
+| `camper_id` | Nullable, integer, exists in campers table | Optional link to camper |
+| `camp_session_id` | Nullable, integer, exists in camp_sessions table | Optional link to camp session |
+
+#### Business Rules
+
+- Creator is automatically added as a participant
+- Cannot create conversation with only yourself
+- Maximum 10 participants per conversation
+- Parents can only add admin participants
+- Medical providers can only be added to camper-related conversations (by admins)
+
+#### Success Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "Conversation created successfully",
+  "data": {
+    "id": 1,
+    "subject": "Questions about Emily's medical form",
+    "created_by_id": 1,
+    "application_id": 5,
+    "camper_id": 3,
+    "camp_session_id": 2,
+    "last_message_at": null,
+    "is_archived": false,
+    "created_at": "2024-03-15T10:00:00.000000Z",
+    "updated_at": "2024-03-15T10:00:00.000000Z",
+    "creator": {
+      "id": 1,
+      "name": "John Smith"
+    },
+    "participants": [
+      {
+        "id": 1,
+        "name": "John Smith"
+      },
+      {
+        "id": 2,
+        "name": "Admin User"
+      }
+    ]
+  }
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Parent attempting to message non-admin
+```json
+{
+  "success": false,
+  "error": "You do not have permission to perform this action"
+}
+```
+
+**422 Unprocessable Entity** - Validation failed
+```json
+{
+  "success": false,
+  "errors": {
+    "participant_ids": ["Maximum 10 participants allowed per conversation"],
+    "subject": ["The subject field is required."]
+  }
+}
+```
+
+---
+
+### GET /inbox/conversations/{conversation}
+
+Get details of a specific conversation including participants and metadata.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation participants + Admin
+**Rate Limiting:** `throttle:60,1` (60/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "subject": "Questions about Emily's medical form",
+    "created_by_id": 1,
+    "application_id": 5,
+    "camper_id": 3,
+    "camp_session_id": 2,
+    "last_message_at": "2024-03-16T14:30:00.000000Z",
+    "is_archived": false,
+    "created_at": "2024-03-15T10:00:00.000000Z",
+    "updated_at": "2024-03-16T14:30:00.000000Z",
+    "creator": {
+      "id": 1,
+      "name": "John Smith",
+      "email": "john.smith@example.com"
+    },
+    "participants": [
+      {
+        "id": 1,
+        "name": "John Smith",
+        "role": {
+          "id": 2,
+          "name": "parent"
+        }
+      },
+      {
+        "id": 2,
+        "name": "Admin User",
+        "role": {
+          "id": 1,
+          "name": "admin"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": 42,
+      "body": "I've reviewed the form and it looks complete.",
+      "sender_id": 2,
+      "created_at": "2024-03-16T14:30:00.000000Z",
+      "sender": {
+        "id": 2,
+        "name": "Admin User"
+      }
+    }
+  },
+  "meta": {
+    "unread_count": 1
+  }
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not a participant
+```json
+{
+  "success": false,
+  "error": "You do not have permission to view this conversation"
+}
+```
+
+**404 Not Found** - Conversation does not exist
+```json
+{
+  "message": "Resource not found."
+}
+```
+
+---
+
+### POST /inbox/conversations/{conversation}/archive
+
+Archive a conversation. Archived conversations are hidden from default listings but remain accessible.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation creator + Admin
+**Rate Limiting:** `throttle:20,1` (20/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Conversation archived successfully",
+  "data": {
+    "id": 1,
+    "subject": "Questions about Emily's medical form",
+    "is_archived": true,
+    "updated_at": "2024-03-17T09:00:00.000000Z"
+  }
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not creator or admin
+```json
+{
+  "success": false,
+  "error": "Only the conversation creator or an administrator can archive this conversation"
+}
+```
+
+**Note:** Archived conversations cannot receive new messages. They must be unarchived first.
+
+---
+
+### POST /inbox/conversations/{conversation}/unarchive
+
+Unarchive a conversation, returning it to active status.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation creator + Admin
+**Rate Limiting:** `throttle:20,1` (20/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Conversation unarchived successfully",
+  "data": {
+    "id": 1,
+    "subject": "Questions about Emily's medical form",
+    "is_archived": false,
+    "updated_at": "2024-03-17T10:00:00.000000Z"
+  }
+}
+```
+
+---
+
+### POST /inbox/conversations/{conversation}/participants
+
+Add a participant to an existing conversation. Admin only.
+
+**Authentication Required:** Yes
+**Authorization:** Admin only
+**Rate Limiting:** `throttle:10,60` (10/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Request Body
+
+```json
+{
+  "user_id": 5
+}
+```
+
+#### Validation Rules
+
+| Field | Rules | Description |
+|-------|-------|-------------|
+| `user_id` | Required, integer, exists in users table | User ID to add as participant |
+
+#### Business Rules
+
+- User cannot already be a participant
+- Medical providers can only be added to camper-linked conversations
+- Maximum 10 participants per conversation (enforced at creation)
+- User will receive notification of being added
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Participant added successfully"
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not admin
+```json
+{
+  "success": false,
+  "error": "Only administrators can add participants"
+}
+```
+
+**400 Bad Request** - User already participant
+```json
+{
+  "success": false,
+  "error": "User is already a participant in this conversation"
+}
+```
+
+**400 Bad Request** - Medical provider on non-camper conversation
+```json
+{
+  "success": false,
+  "error": "Medical providers can only be added to camper-related conversations"
+}
+```
+
+---
+
+### DELETE /inbox/conversations/{conversation}/participants/{user}
+
+Remove a participant from a conversation. Admin only. Cannot remove conversation creator.
+
+**Authentication Required:** Yes
+**Authorization:** Admin only
+**Rate Limiting:** `throttle:10,60` (10/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+- `user`: User ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Participant removed successfully"
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not admin
+```json
+{
+  "success": false,
+  "error": "Only administrators can remove participants"
+}
+```
+
+**400 Bad Request** - Attempting to remove creator
+```json
+{
+  "success": false,
+  "error": "Cannot remove the conversation creator"
+}
+```
+
+**Note:** Removed participants lose access to all conversation messages and cannot rejoin without admin intervention.
+
+---
+
+### POST /inbox/conversations/{conversation}/leave
+
+Leave a conversation as a participant. Creator cannot leave their own conversation.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation participants (except creator)
+**Rate Limiting:** `throttle:10,60` (10/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Left conversation successfully"
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not a participant
+```json
+{
+  "success": false,
+  "error": "You are not a participant in this conversation"
+}
+```
+
+**403 Forbidden** - Creator attempting to leave
+```json
+{
+  "success": false,
+  "error": "Conversation creator cannot leave. Please archive the conversation instead."
+}
+```
+
+**Note:** After leaving, you lose access to all conversation messages. You cannot rejoin without admin intervention.
+
+---
+
+### DELETE /inbox/conversations/{conversation}
+
+Soft delete a conversation. Admin only. Conversation remains in database for audit purposes but is hidden from all users.
+
+**Authentication Required:** Yes
+**Authorization:** Admin only
+**Rate Limiting:** `throttle:api` (60/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Conversation deleted successfully"
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not admin
+```json
+{
+  "success": false,
+  "error": "Only administrators can delete conversations"
+}
+```
+
+**Note:** Soft deletion preserves conversation for HIPAA compliance. Permanent deletion is not allowed.
+
+---
+
+### GET /inbox/conversations/{conversation}/messages
+
+List messages in a conversation. Returns paginated results ordered from oldest to newest.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation participants + Admin
+**Rate Limiting:** `throttle:60,1` (60/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `per_page` | integer | No | Results per page (default: 25, max: 100) |
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "conversation_id": 1,
+      "sender_id": 1,
+      "body": "I have a question about the medical form requirements.",
+      "idempotency_key": "msg_abc123def456",
+      "created_at": "2024-03-15T10:15:00.000000Z",
+      "updated_at": "2024-03-15T10:15:00.000000Z",
+      "sender": {
+        "id": 1,
+        "name": "John Smith",
+        "role": {
+          "id": 2,
+          "name": "parent"
+        }
+      },
+      "attachments": [
+        {
+          "id": 5,
+          "file_name": "medical_form_question.pdf",
+          "file_size": 156789,
+          "mime_type": "application/pdf",
+          "created_at": "2024-03-15T10:15:00.000000Z"
+        }
+      ],
+      "is_read": true,
+      "read_at": "2024-03-15T11:00:00.000000Z"
+    },
+    {
+      "id": 2,
+      "conversation_id": 1,
+      "sender_id": 2,
+      "body": "I've reviewed the form and it looks complete. Let me know if you need anything else.",
+      "idempotency_key": "msg_xyz789uvw012",
+      "created_at": "2024-03-16T14:30:00.000000Z",
+      "updated_at": "2024-03-16T14:30:00.000000Z",
+      "sender": {
+        "id": 2,
+        "name": "Admin User",
+        "role": {
+          "id": 1,
+          "name": "admin"
+        }
+      },
+      "attachments": [],
+      "is_read": false,
+      "read_at": null
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 25,
+    "total": 2,
+    "unread_count": 1
+  }
+}
+```
+
+---
+
+### POST /inbox/conversations/{conversation}/messages
+
+Send a new message in a conversation. Supports optional file attachments and idempotency protection.
+
+**Authentication Required:** Yes
+**Authorization:** Active conversation participants
+**Rate Limiting:** `throttle:20,1` (20/min)
+
+#### URL Parameters
+
+- `conversation`: Conversation ID (integer)
+
+#### Request Body (multipart/form-data)
+
+```
+body: "I have a question about the medical form requirements."
+attachments[]: [binary file data] (optional, max 5 files)
+idempotency_key: "msg_abc123def456" (optional)
+```
+
+#### Validation Rules
+
+| Field | Rules | Description |
+|-------|-------|-------------|
+| `body` | Required, string, max 65535 characters | Message content |
+| `attachments` | Nullable, array, max 5 files | File attachments |
+| `attachments.*` | File, max 10MB, mimes: pdf,jpeg,png,gif,doc,docx | Individual file validation |
+| `idempotency_key` | Nullable, string, max 64 characters | Duplicate prevention key |
+
+#### Business Rules
+
+- Cannot send messages to archived conversations
+- Must be an active participant
+- Attachments are scanned for malware
+- Duplicate messages (same idempotency_key) return original message
+- All participants are notified of new messages
+
+#### Success Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "Message sent successfully",
+  "data": {
+    "id": 1,
+    "conversation_id": 1,
+    "sender_id": 1,
+    "body": "I have a question about the medical form requirements.",
+    "idempotency_key": "msg_abc123def456",
+    "created_at": "2024-03-15T10:15:00.000000Z",
+    "updated_at": "2024-03-15T10:15:00.000000Z",
+    "sender": {
+      "id": 1,
+      "name": "John Smith"
+    },
+    "attachments": [
+      {
+        "id": 5,
+        "file_name": "medical_form_question.pdf",
+        "file_size": 156789,
+        "mime_type": "application/pdf",
+        "created_at": "2024-03-15T10:15:00.000000Z"
+      }
+    ]
+  }
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not a participant
+```json
+{
+  "success": false,
+  "error": "You are not a participant in this conversation"
+}
+```
+
+**403 Forbidden** - Conversation archived
+```json
+{
+  "success": false,
+  "error": "Cannot send messages to archived conversations"
+}
+```
+
+**422 Unprocessable Entity** - File too large
+```json
+{
+  "success": false,
+  "error": "File size exceeds 10MB limit"
+}
+```
+
+**Note:** Messages are immutable after creation. They cannot be edited or permanently deleted.
+
+---
+
+### GET /inbox/messages/{message}
+
+Get details of a specific message. Automatically marks message as read for the requesting user.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation participants + Admin
+**Rate Limiting:** `throttle:60,1` (60/min)
+
+#### URL Parameters
+
+- `message`: Message ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "conversation_id": 1,
+    "sender_id": 1,
+    "body": "I have a question about the medical form requirements.",
+    "idempotency_key": "msg_abc123def456",
+    "created_at": "2024-03-15T10:15:00.000000Z",
+    "updated_at": "2024-03-15T10:15:00.000000Z",
+    "sender": {
+      "id": 1,
+      "name": "John Smith",
+      "email": "john.smith@example.com",
+      "role": {
+        "id": 2,
+        "name": "parent"
+      }
+    },
+    "attachments": [
+      {
+        "id": 5,
+        "documentable_type": "App\\Models\\Message",
+        "documentable_id": 1,
+        "document_type": "Message Attachment",
+        "file_name": "medical_form_question.pdf",
+        "file_size": 156789,
+        "mime_type": "application/pdf",
+        "uploaded_by": 1,
+        "scan_passed": true,
+        "created_at": "2024-03-15T10:15:00.000000Z"
+      }
+    ]
+  }
+}
+```
+
+**Note:** This endpoint automatically marks the message as read for the requesting user. The read receipt is recorded with timestamp in the `message_reads` table.
+
+---
+
+### GET /inbox/messages/unread-count
+
+Get total count of unread messages for the authenticated user across all conversations.
+
+**Authentication Required:** Yes
+**Authorization:** Any authenticated user
+**Rate Limiting:** `throttle:60,1` (60/min)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "unread_count": 12
+}
+```
+
+**Note:** Unread count includes only messages in active (non-archived) conversations where the user is an active participant.
+
+---
+
+### GET /inbox/messages/{message}/attachments/{document}
+
+Download a message attachment. Enforces security checks before allowing download.
+
+**Authentication Required:** Yes
+**Authorization:** Conversation participants + Admin
+**Rate Limiting:** `throttle:10,60` (10/min)
+
+#### URL Parameters
+
+- `message`: Message ID (integer)
+- `document`: Document ID (integer)
+
+#### Success Response (200 OK)
+
+Returns the file as a binary stream with appropriate headers:
+- `Content-Type`: Original file MIME type
+- `Content-Disposition`: attachment; filename="original_filename.pdf"
+
+#### Error Responses
+
+**403 Forbidden** - Not a participant
+```json
+{
+  "success": false,
+  "error": "You do not have permission to access this attachment"
+}
+```
+
+**404 Not Found** - Attachment not found
+```json
+{
+  "success": false,
+  "error": "Attachment not found"
+}
+```
+
+**403 Forbidden** - Failed security check
+```json
+{
+  "success": false,
+  "error": "Document failed security check and cannot be downloaded"
+}
+```
+
+**Note:** All attachments are scanned for malware before being allowed for download.
+
+---
+
+### DELETE /inbox/messages/{message}
+
+Soft delete a message. Admin only. Message remains in database for audit purposes but is hidden from participants.
+
+**Authentication Required:** Yes
+**Authorization:** Admin only
+**Rate Limiting:** `throttle:api` (60/min)
+
+#### URL Parameters
+
+- `message`: Message ID (integer)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Message deleted successfully"
+}
+```
+
+#### Error Responses
+
+**403 Forbidden** - Not admin
+```json
+{
+  "success": false,
+  "error": "Only administrators can delete messages"
+}
+```
+
+**Note:** Messages cannot be edited or permanently deleted for HIPAA compliance. Soft deletion is used for moderation purposes only.
 
 ---
 

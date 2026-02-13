@@ -34,6 +34,7 @@ This document provides the formal declaration of backend completion for the Camp
 | Notification System | Complete |
 | Document Management | Complete |
 | Medical Provider Integration | Complete |
+| Inbox Messaging System | Complete |
 | Reporting System | Complete |
 | Test Coverage | Complete |
 | Security Audit | Complete (Feb 2026) |
@@ -164,6 +165,26 @@ This document provides the formal declaration of backend completion for the Camp
 | Notification List | View notification history | Complete |
 | Mark as Read | Individual and bulk read marking | Complete |
 
+### Inbox Messaging
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Conversation Management | Create, list, view conversations | Complete |
+| Multi-Participant Support | Up to 10 participants per conversation | Complete |
+| Message Sending | Send messages with idempotency protection | Complete |
+| Message Attachments | Attach documents (5 files, 10MB each) | Complete |
+| Read Receipts | Track message read status | Complete |
+| Unread Counts | Global and per-conversation unread counts | Complete |
+| Archive/Unarchive | Archive inactive conversations | Complete |
+| Participant Management | Add/remove participants, leave conversations | Complete |
+| Context Linking | Link to applications, campers, sessions | Complete |
+| Message Immutability | No editing after creation | Complete |
+| Soft Delete | Admin soft delete for moderation | Complete |
+| Audit Logging | Complete audit trail for all operations | Complete |
+| Policy Authorization | Role-based access control | Complete |
+| Attachment Security | MIME validation, virus scanning, audit logging | Complete |
+| Idempotency | Duplicate send prevention | Complete |
+
 ### Reporting
 
 | Feature | Description | Status |
@@ -205,7 +226,7 @@ This document provides the formal declaration of backend completion for the Camp
 | Security Documentation | 270-line secret management guide added | Complete |
 
 **Audit Summary:**
-- 228/228 tests passing (430+ assertions)
+- 286/286 tests passing (654 assertions)
 - Zero security vulnerabilities remaining
 - 100% HIPAA-compliant PHI handling
 - Enterprise-grade security controls
@@ -215,7 +236,7 @@ This document provides the formal declaration of backend completion for the Camp
 
 ## Component Summary
 
-### Controllers (16 - Domain-Organized)
+### Controllers (18 - Domain-Organized)
 
 | Controller | Domain | Responsibility |
 |------------|--------|----------------|
@@ -229,6 +250,8 @@ This document provides the formal declaration of backend completion for the Camp
 | Camper\UserProfileController | Camper | Profile management, pre-fill |
 | Document\DocumentController | Document | Document upload/download |
 | Document\MedicalProviderLinkController | Document | Provider link management |
+| Inbox\ConversationController | Inbox | Conversation CRUD and management |
+| Inbox\MessageController | Inbox | Message operations and attachments |
 | Medical\MedicalRecordController | Medical | Medical record CRUD |
 | Medical\AllergyController | Medical | Allergy CRUD |
 | Medical\MedicationController | Medical | Medication CRUD |
@@ -236,7 +259,7 @@ This document provides the formal declaration of backend completion for the Camp
 | System\NotificationController | System | Notification management |
 | System\ReportController | System | Report generation |
 
-### Services (10 - Domain-Organized)
+### Services (12 - Domain-Organized)
 
 | Service | Domain | Responsibility |
 |---------|--------|----------------|
@@ -245,13 +268,15 @@ This document provides the formal declaration of backend completion for the Camp
 | Auth\PasswordResetService | Auth | Password reset logic |
 | Camper\ApplicationService | Camper | Application approval workflow |
 | Document\DocumentEnforcementService | Document | Document compliance validation |
+| Inbox\InboxService | Inbox | Conversation management, participants |
+| Inbox\MessageService | Inbox | Message sending, read receipts |
 | Medical\MedicalProviderLinkService | Medical | Provider link lifecycle |
 | Medical\SpecialNeedsRiskAssessmentService | Medical | CYSHCN complexity assessment |
 | System\ReportService | System | Report data aggregation |
 | System\LetterService | System | Acceptance/rejection letter generation |
 | System\HealthCheckService | System | Health monitoring |
 
-### Policies (8)
+### Policies (10)
 
 | Policy | Protected Resource |
 |--------|-------------------|
@@ -263,8 +288,10 @@ This document provides the formal declaration of backend completion for the Camp
 | EmergencyContactPolicy | Emergency contacts |
 | DocumentPolicy | Documents |
 | MedicalProviderLinkPolicy | Provider links |
+| ConversationPolicy | Conversation operations |
+| MessagePolicy | Message operations |
 
-### Models (12)
+### Models (16)
 
 | Model | Database Table |
 |-------|----------------|
@@ -280,6 +307,10 @@ This document provides the formal declaration of backend completion for the Camp
 | EmergencyContact | emergency_contacts |
 | Document | documents |
 | MedicalProviderLink | medical_provider_links |
+| Conversation | conversations |
+| ConversationParticipant | conversation_participants |
+| Message | messages |
+| MessageRead | message_reads |
 
 ### Enums (2)
 
@@ -349,16 +380,17 @@ Email and database notification classes for all system events.
 | Emergency Contacts | 5 |
 | Documents | 5 |
 | Provider Links | 5 |
+| Inbox | 15 |
 | Notifications | 3 |
 | Reports | 5 |
 
-**Total Endpoints:** 70+
+**Total Endpoints:** 83
 
 ---
 
 ## Database Schema Summary
 
-### Tables (16)
+### Tables (20)
 
 | Table | Purpose | Records |
 |-------|---------|---------|
@@ -376,6 +408,10 @@ Email and database notification classes for all system events.
 | emergency_contacts | Contact information | Variable |
 | documents | File metadata | Variable |
 | medical_provider_links | Provider tokens | Variable |
+| conversations | Message thread containers | Variable |
+| conversation_participants | User-conversation membership | Variable |
+| messages | Individual messages (immutable) | Variable |
+| message_reads | Message read receipts | Variable |
 | notifications | Notification history | Variable |
 | personal_access_tokens | API tokens | Variable |
 
@@ -400,9 +436,9 @@ Strategic indexes on:
 
 | Metric | Value |
 |--------|-------|
-| Total Tests | 228 |
-| Passing Tests | 228 (100%) |
-| Total Assertions | 430+ |
+| Total Tests | 286 |
+| Passing Tests | 286 (100%) |
+| Total Assertions | 654 |
 | Test Runtime | < 3 seconds |
 | Code Coverage | Comprehensive |
 
@@ -415,6 +451,7 @@ Strategic indexes on:
 | Regression Tests | tests/Feature/Regression/ | 42 | Queue reliability, audit resilience, index performance, workflow integrity |
 | Validation Tests | tests/Feature/Api/ValidationTest.php | 26 | Input validation rules |
 | Integration Tests | tests/Feature/Api/ | 30+ | End-to-end API workflows |
+| Inbox Tests | tests/Feature/Inbox/ | 32 | Conversation creation, message sending, read receipts, attachments, participant management, role restrictions |
 
 ### Test Traits
 

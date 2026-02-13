@@ -375,6 +375,8 @@ Each model has a corresponding policy:
 | EmergencyContact | EmergencyContactPolicy | `app/Policies/EmergencyContactPolicy.php` |
 | Document | DocumentPolicy | `app/Policies/DocumentPolicy.php` |
 | MedicalProviderLink | MedicalProviderLinkPolicy | `app/Policies/MedicalProviderLinkPolicy.php` |
+| Conversation | ConversationPolicy | `app/Policies/ConversationPolicy.php` |
+| Message | MessagePolicy | `app/Policies/MessagePolicy.php` |
 
 ### Policy Methods
 
@@ -391,6 +393,11 @@ Standard policy methods:
 Custom policy methods (application-specific):
 - `review` - Review applications (admin only)
 - `revoke` - Revoke medical provider links
+- `archive` - Archive conversations (participant only)
+- `addParticipant` - Add participants to conversations
+- `removeParticipant` - Remove participants from conversations
+- `leave` - Leave conversations
+- `viewAttachments` - View message attachments (participant only)
 
 ---
 
@@ -437,6 +444,144 @@ class CamperPolicy
     }
 }
 ```
+
+### Example: ConversationPolicy and MessagePolicy
+
+The Inbox Messaging System implements participant-based authorization where users must be active participants in a conversation to access its contents.
+
+**ConversationPolicy Authorization:**
+
+```php
+class ConversationPolicy
+{
+    public function view(User $user, Conversation $conversation): bool
+    {
+        // Admins can view all conversations
+        // Users must be active participants
+        return $user->isAdmin() || $conversation->hasParticipant($user);
+    }
+
+    public function create(User $user, bool $hasNonAdminParticipants = false): bool
+    {
+        // Medical providers cannot create conversations
+        if ($user->isMedicalProvider()) {
+            return false;
+        }
+
+        // Admins can create any conversation
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Parents can only create conversations with admins (no parent-to-parent)
+        if ($user->isParent()) {
+            return !$hasNonAdminParticipants;
+        }
+
+        return false;
+    }
+
+    public function archive(User $user, Conversation $conversation): bool
+    {
+        // Only active participants can archive conversations
+        return $conversation->hasParticipant($user);
+    }
+
+    public function addParticipant(User $user, Conversation $conversation, User $newParticipant): bool
+    {
+        // Admins can add participants to any conversation
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Regular users must be participants to add others
+        return $conversation->hasParticipant($user);
+    }
+
+    public function leave(User $user, Conversation $conversation): bool
+    {
+        // Users can leave conversations they participate in
+        return $conversation->hasParticipant($user);
+    }
+
+    public function delete(User $user, Conversation $conversation): bool
+    {
+        // Only admins can soft delete conversations
+        return $user->isAdmin();
+    }
+}
+```
+
+**MessagePolicy Authorization:**
+
+```php
+class MessagePolicy
+{
+    public function viewAny(User $user, Conversation $conversation): bool
+    {
+        // Users must be participants to view messages
+        return $conversation->hasParticipant($user);
+    }
+
+    public function view(User $user, Message $message): bool
+    {
+        // Users must be participants in the conversation
+        return $message->conversation->hasParticipant($user);
+    }
+
+    public function create(User $user, Conversation $conversation): bool
+    {
+        // Users must be participants to send messages
+        // Conversation must not be archived
+        return $conversation->hasParticipant($user) && !$conversation->is_archived;
+    }
+
+    public function update(User $user, Message $message): bool
+    {
+        // Messages are immutable - no editing allowed
+        return false;
+    }
+
+    public function delete(User $user, Message $message): bool
+    {
+        // Only admins can soft delete messages
+        return $user->isAdmin();
+    }
+
+    public function forceDelete(User $user, Message $message): bool
+    {
+        // Force delete disabled for HIPAA compliance
+        return false;
+    }
+
+    public function viewAttachments(User $user, Message $message): bool
+    {
+        // Users must be participants to download attachments
+        return $message->conversation->hasParticipant($user);
+    }
+}
+```
+
+**Inbox Authorization Rules Summary:**
+
+| Action | Admin | Parent | Medical Provider |
+|--------|-------|--------|------------------|
+| Create conversation | Yes (any) | Yes (admin-only participants) | No |
+| View conversation | Yes (all) | Yes (if participant) | No |
+| Send message | Yes (if participant) | Yes (if participant) | No |
+| Edit message | No | No | No |
+| Delete message | Yes (soft delete) | No | No |
+| Archive conversation | Yes (if participant) | Yes (if participant) | No |
+| Add participant | Yes (any) | Yes (own conversations) | No |
+| Leave conversation | Yes | Yes | No |
+
+**Key Design Principles:**
+
+1. **Participant-Based Access**: All message operations require active participant status in the conversation
+2. **Message Immutability**: Messages cannot be edited after creation to maintain audit integrity
+3. **Parent Restrictions**: Parents can only create conversations with admins (no parent-to-parent messaging)
+4. **Admin Moderation**: Admins can soft delete messages and conversations without destroying audit trail
+5. **No Force Delete**: Permanent deletion disabled to comply with HIPAA retention requirements
 
 ### Controller Authorization
 

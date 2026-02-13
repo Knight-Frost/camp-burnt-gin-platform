@@ -6,7 +6,7 @@ This document describes the database schema, entity relationships, and data mode
 
 ## Database Tables
 
-The system implements 16 database tables:
+The system implements 20 database tables:
 
 | Table | Records | Description |
 |-------|---------|-------------|
@@ -20,8 +20,12 @@ The system implements 16 database tables:
 | `allergies` | Variable | Allergy records with severity |
 | `medications` | Variable | Medication records |
 | `emergency_contacts` | Variable | Emergency contact information |
-| `documents` | Variable | File upload metadata (polymorphic) |
+| `documents` | Variable | File upload metadata (polymorphic - includes message attachments) |
 | `medical_provider_links` | Variable | Secure provider access tokens |
+| `conversations` | Variable | Message thread containers |
+| `conversation_participants` | Variable | User-conversation membership tracking |
+| `messages` | Variable | Individual messages (immutable) |
+| `message_reads` | Variable | Message read receipt tracking |
 | `notifications` | Variable | User notification history |
 | `personal_access_tokens` | Variable | Sanctum API tokens |
 | `sessions` | Variable | Laravel session storage |
@@ -74,6 +78,35 @@ The system implements 16 database tables:
                 ├─── 1:N ──► documents (polymorphic)
                 │
                 └─── 1:N ──► medical_provider_links
+
+
+        Inbox Messaging System Entities:
+
+┌─────────────┐        1:N         ┌──────────────────┐
+│   users     │◄────────────────────│ conversations    │
+└──────┬──────┘                     └────────┬─────────┘
+       │                                     │
+       │ N:M                                │ 1:N
+       ▼                                     ▼
+┌──────────────────────┐            ┌──────────────────┐
+│ conversation_        │            │  messages        │
+│ participants         │            └────────┬─────────┘
+└──────────────────────┘                     │
+                                             │ 1:N
+                                             ▼
+                                      ┌──────────────┐
+                                      │ message_reads│
+                                      └──────────────┘
+
+        (conversations can link to)
+                │
+                ├─── N:1 ──► applications (optional FK)
+                ├─── N:1 ──► campers (optional FK)
+                └─── N:1 ──► camp_sessions (optional FK)
+
+        (messages can have)
+                │
+                └─── 1:N ──► documents (polymorphic attachments)
 ```
 
 ---
@@ -226,6 +259,112 @@ The system implements 16 database tables:
 **Relationships:**
 - belongs to: `campers`
 
+### conversations
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | bigint | PK, auto-increment | Conversation identifier |
+| `created_by_id` | bigint | FK to users, not null | Conversation creator |
+| `subject` | varchar(255) | not null | Conversation subject |
+| `application_id` | bigint | FK to applications, nullable | Linked application |
+| `camper_id` | bigint | FK to campers, nullable | Linked camper |
+| `camp_session_id` | bigint | FK to camp_sessions, nullable | Linked session |
+| `last_message_at` | timestamp | not null | Last message timestamp |
+| `is_archived` | boolean | default false | Archive status |
+| `created_at` | timestamp | not null | Creation timestamp |
+| `updated_at` | timestamp | not null | Last update timestamp |
+| `deleted_at` | timestamp | nullable | Soft delete timestamp |
+
+**Indexes:**
+- PRIMARY KEY (`id`)
+- KEY (`created_by_id`)
+- KEY (`application_id`)
+- KEY (`camper_id`)
+- KEY (`camp_session_id`)
+- KEY (`is_archived`)
+- KEY (`last_message_at`)
+- KEY (`deleted_at`)
+- COMPOSITE KEY (`is_archived`, `deleted_at`, `last_message_at`)
+
+**Relationships:**
+- belongs to: `users` (creator)
+- belongs to: `applications` (optional)
+- belongs to: `campers` (optional)
+- belongs to: `camp_sessions` (optional)
+- has many: `messages`
+- has many: `conversation_participants`
+- has many through: `participants` (users via conversation_participants)
+
+### conversation_participants
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | bigint | PK, auto-increment | Participant record identifier |
+| `conversation_id` | bigint | FK to conversations, not null | Conversation |
+| `user_id` | bigint | FK to users, not null | Participant user |
+| `joined_at` | timestamp | not null | Join timestamp |
+| `left_at` | timestamp | nullable | Leave timestamp |
+| `created_at` | timestamp | not null | Creation timestamp |
+| `updated_at` | timestamp | not null | Last update timestamp |
+
+**Indexes:**
+- PRIMARY KEY (`id`)
+- UNIQUE KEY (`conversation_id`, `user_id`)
+- KEY (`user_id`)
+- KEY (`left_at`)
+
+**Relationships:**
+- belongs to: `conversations`
+- belongs to: `users`
+
+### messages
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | bigint | PK, auto-increment | Message identifier |
+| `conversation_id` | bigint | FK to conversations, not null | Conversation |
+| `sender_id` | bigint | FK to users, not null | Message sender |
+| `body` | text | not null | Message content |
+| `idempotency_key` | varchar(64) | unique, not null | Duplicate prevention |
+| `created_at` | timestamp | not null | Send timestamp |
+| `updated_at` | timestamp | not null | Last update timestamp |
+| `deleted_at` | timestamp | nullable | Soft delete timestamp |
+
+**Indexes:**
+- PRIMARY KEY (`id`)
+- UNIQUE KEY (`idempotency_key`)
+- KEY (`conversation_id`)
+- KEY (`sender_id`)
+- KEY (`created_at`)
+- KEY (`deleted_at`)
+
+**Relationships:**
+- belongs to: `conversations`
+- belongs to: `users` (sender)
+- has many: `message_reads`
+- has many (polymorphic): `documents` (attachments via documentable_type/documentable_id)
+
+### message_reads
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | bigint | PK, auto-increment | Read receipt identifier |
+| `message_id` | bigint | FK to messages, not null | Message |
+| `user_id` | bigint | FK to users, not null | Reader user |
+| `read_at` | timestamp | not null | Read timestamp |
+| `created_at` | timestamp | not null | Creation timestamp |
+| `updated_at` | timestamp | not null | Last update timestamp |
+
+**Indexes:**
+- PRIMARY KEY (`id`)
+- UNIQUE KEY (`message_id`, `user_id`)
+- KEY (`user_id`)
+- KEY (`read_at`)
+
+**Relationships:**
+- belongs to: `messages`
+- belongs to: `users`
+
 ### Other Tables
 
 Refer to database migrations in `database/migrations/` for complete schema definitions of:
@@ -239,12 +378,22 @@ Refer to database migrations in `database/migrations/` for complete schema defin
 
 - User → Campers
 - User → Notifications
+- User → Conversations (created_by)
+- User → Messages (sender)
+- User → Message Reads
 - Camper → Applications
 - Camper → Allergies
 - Camper → Medications
 - Camper → Emergency Contacts
 - Camp → Camp Sessions
 - Camp Session → Applications
+- Conversation → Messages
+- Conversation → Conversation Participants
+- Message → Message Reads
+
+### Many-to-Many
+
+- User ↔ Conversation (through conversation_participants)
 
 ### One-to-One
 
@@ -252,7 +401,7 @@ Refer to database migrations in `database/migrations/` for complete schema defin
 
 ### Polymorphic
 
-- Documents → Documentable (camper, application, etc.)
+- Documents → Documentable (camper, application, message, etc.)
 
 ---
 
