@@ -11,6 +11,7 @@ use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Notifications\ApplicationStatusChangedNotification;
 use App\Notifications\ApplicationSubmittedNotification;
+use App\Services\DocumentEnforcementService;
 use App\Services\LetterService;
 use App\Traits\QueuesNotifications;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,8 @@ class ApplicationController extends Controller
     use QueuesNotifications;
 
     public function __construct(
-        protected LetterService $letterService
+        protected LetterService $letterService,
+        protected DocumentEnforcementService $documentEnforcement
     ) {}
 
     /**
@@ -229,6 +231,7 @@ class ApplicationController extends Controller
      * Review and update the status of an application.
      *
      * Only administrators can review applications.
+     * Enforces medical document compliance before approval.
      * Sends acceptance/rejection letters as appropriate.
      * Implements FR-15, FR-18: Admin review and letters.
      */
@@ -236,10 +239,31 @@ class ApplicationController extends Controller
     {
         $this->authorize('review', $application);
 
+        $newStatus = ApplicationStatus::from($request->validated('status'));
         $previousStatus = $application->status->value;
 
+        // CRITICAL SAFETY CHECK: Enforce document compliance before approval
+        if ($newStatus === ApplicationStatus::Approved) {
+            $application->load('camper');
+            $compliance = $this->documentEnforcement->checkCompliance($application->camper);
+
+            if (! $compliance['is_compliant']) {
+                return response()->json([
+                    'message' => 'Application cannot be approved due to incomplete medical documentation.',
+                    'errors' => [
+                        'compliance' => 'Required medical documents are missing, expired, or unverified.',
+                    ],
+                    'compliance_details' => [
+                        'missing_documents' => $compliance['missing_documents'],
+                        'expired_documents' => $compliance['expired_documents'],
+                        'unverified_documents' => $compliance['unverified_documents'],
+                    ],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
         $application->update([
-            'status' => $request->validated('status'),
+            'status' => $newStatus,
             'notes' => $request->validated('notes'),
             'reviewed_at' => now(),
             'reviewed_by' => $request->user()->id,

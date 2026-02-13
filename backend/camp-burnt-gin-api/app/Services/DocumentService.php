@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -67,11 +68,38 @@ class DocumentService
     }
 
     /**
-     * Validate file MIME type against allowed types.
+     * Validate file MIME type against allowed types using content inspection.
+     *
+     * This method performs both client-reported MIME type validation and
+     * content-based verification using PHP's fileinfo extension to prevent
+     * MIME type spoofing attacks.
      */
     protected function validateMimeType(UploadedFile $file): bool
     {
-        return in_array($file->getMimeType(), Document::ALLOWED_MIME_TYPES);
+        $reportedMime = $file->getMimeType();
+
+        // Verify reported MIME type is in whitelist
+        if (! in_array($reportedMime, Document::ALLOWED_MIME_TYPES)) {
+            return false;
+        }
+
+        // Perform content-based MIME type detection using magic bytes
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $detectedMime = finfo_file($finfo, $file->getRealPath());
+        finfo_close($finfo);
+
+        // Verify detected MIME type matches reported type or is in allowed list
+        // This prevents uploading executables disguised as PDFs
+        if (! in_array($detectedMime, Document::ALLOWED_MIME_TYPES)) {
+            Log::warning('MIME type mismatch detected', [
+                'reported' => $reportedMime,
+                'detected' => $detectedMime,
+                'filename' => $file->getClientOriginalName(),
+            ]);
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -83,11 +111,28 @@ class DocumentService
     }
 
     /**
-     * Generate a unique filename for storage.
+     * Generate a unique filename for storage with validated extension.
+     *
+     * Uses validated extension from MIME type mapping to prevent
+     * extension spoofing attacks.
      */
     protected function generateFilename(UploadedFile $file): string
     {
-        $extension = $file->getClientOriginalExtension();
+        // Map MIME types to safe extensions to prevent extension spoofing
+        $mimeToExtension = [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        ];
+
+        $detectedMime = $file->getMimeType();
+        $extension = $mimeToExtension[$detectedMime] ?? $file->getClientOriginalExtension();
+
+        // Additional sanitization: ensure extension contains only alphanumeric characters
+        $extension = preg_replace('/[^a-z0-9]/i', '', $extension);
 
         return Str::uuid().'.'.$extension;
     }
@@ -194,14 +239,25 @@ class DocumentService
     }
 
     /**
-     * Download a document.
+     * Download a document with security headers.
+     *
+     * Implements HIPAA-compliant download with security headers to prevent
+     * MIME type confusion attacks and ensure sensitive documents are not cached.
      */
     public function download(Document $document): StreamedResponse
     {
-        return Storage::disk($document->disk)->download(
+        $response = Storage::disk($document->disk)->download(
             $document->path,
             $document->original_filename
         );
+
+        // Add security headers to prevent MIME type confusion and caching
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('Expires', '0');
+
+        return $response;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DocumentVerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,10 @@ class Document extends Model
         'is_scanned',
         'scan_passed',
         'scanned_at',
+        'verification_status',
+        'verified_by',
+        'verified_at',
+        'expiration_date',
     ];
 
     /**
@@ -53,6 +58,9 @@ class Document extends Model
             'is_scanned' => 'boolean',
             'scan_passed' => 'boolean',
             'scanned_at' => 'datetime',
+            'verification_status' => DocumentVerificationStatus::class,
+            'verified_at' => 'datetime',
+            'expiration_date' => 'date',
         ];
     }
 
@@ -90,6 +98,14 @@ class Document extends Model
     }
 
     /**
+     * Get the user who verified this document.
+     */
+    public function verifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    /**
      * Get the full storage path for this document.
      */
     public function getFullPathAttribute(): string
@@ -111,5 +127,46 @@ class Document extends Model
     public function isPendingScan(): bool
     {
         return ! $this->is_scanned;
+    }
+
+    /**
+     * Check if the document is verified and approved.
+     */
+    public function isVerified(): bool
+    {
+        return $this->verification_status?->isApproved() ?? false;
+    }
+
+    /**
+     * Check if the document verification is pending.
+     */
+    public function isPendingVerification(): bool
+    {
+        return $this->verification_status?->isPending() ?? true;
+    }
+
+    /**
+     * Check if the document has expired.
+     */
+    public function isExpired(): bool
+    {
+        if ($this->expiration_date === null) {
+            return false;
+        }
+
+        return $this->expiration_date->isPast();
+    }
+
+    /**
+     * Check if the document is valid for compliance purposes.
+     *
+     * A document is valid if it is verified, passed security scan,
+     * and has not expired.
+     */
+    public function isValid(): bool
+    {
+        return $this->isVerified()
+            && $this->isSecure()
+            && ! $this->isExpired();
     }
 }

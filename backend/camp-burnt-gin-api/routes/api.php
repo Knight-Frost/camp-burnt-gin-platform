@@ -1,13 +1,18 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityPermissionController;
 use App\Http\Controllers\Api\AllergyController;
 use App\Http\Controllers\Api\ApplicationController;
+use App\Http\Controllers\Api\AssistiveDeviceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BehavioralProfileController;
 use App\Http\Controllers\Api\CampController;
 use App\Http\Controllers\Api\CamperController;
 use App\Http\Controllers\Api\CampSessionController;
+use App\Http\Controllers\Api\DiagnosisController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\EmergencyContactController;
+use App\Http\Controllers\Api\FeedingPlanController;
 use App\Http\Controllers\Api\MedicalProviderLinkController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\MedicationController;
@@ -186,6 +191,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/{camper}', [CamperController::class, 'show'])->name('campers.show');
         Route::put('/{camper}', [CamperController::class, 'update'])->name('campers.update');
         Route::delete('/{camper}', [CamperController::class, 'destroy'])->name('campers.destroy');
+        Route::get('/{camper}/risk-summary', [CamperController::class, 'riskSummary'])->name('campers.risk-summary');
+        Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
     });
 
     /*
@@ -288,5 +295,82 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/{medication}', [MedicationController::class, 'show'])->name('medications.show');
         Route::put('/{medication}', [MedicationController::class, 'update'])->name('medications.update');
         Route::delete('/{medication}', [MedicationController::class, 'destroy'])->name('medications.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | CYSHCN (Special Health Care Needs) Routes
+    |--------------------------------------------------------------------------
+    |
+    | Endpoints for managing special health care needs information including
+    | diagnoses, behavioral profiles, feeding plans, assistive devices, and
+    | activity permissions. All routes contain PHI and require strict access
+    | controls for HIPAA compliance.
+    |
+    */
+
+    /*
+    | Diagnosis Routes
+    */
+    Route::prefix('diagnoses')->group(function () {
+        Route::get('/', [DiagnosisController::class, 'index'])
+            ->middleware('role:admin,medical')
+            ->name('diagnoses.index');
+        Route::post('/', [DiagnosisController::class, 'store'])->name('diagnoses.store');
+        Route::get('/{diagnosis}', [DiagnosisController::class, 'show'])->name('diagnoses.show');
+        Route::put('/{diagnosis}', [DiagnosisController::class, 'update'])->name('diagnoses.update');
+        Route::delete('/{diagnosis}', [DiagnosisController::class, 'destroy'])->name('diagnoses.destroy');
+    });
+
+    /*
+    | Behavioral Profile Routes
+    */
+    Route::prefix('behavioral-profiles')->group(function () {
+        Route::get('/', [BehavioralProfileController::class, 'index'])
+            ->middleware('role:admin,medical')
+            ->name('behavioral-profiles.index');
+        Route::post('/', [BehavioralProfileController::class, 'store'])->name('behavioral-profiles.store');
+        Route::get('/{behavioralProfile}', [BehavioralProfileController::class, 'show'])->name('behavioral-profiles.show');
+        Route::put('/{behavioralProfile}', [BehavioralProfileController::class, 'update'])->name('behavioral-profiles.update');
+        Route::delete('/{behavioralProfile}', [BehavioralProfileController::class, 'destroy'])->name('behavioral-profiles.destroy');
+    });
+
+    /*
+    | Feeding Plan Routes
+    */
+    Route::prefix('feeding-plans')->group(function () {
+        Route::get('/', [FeedingPlanController::class, 'index'])
+            ->middleware('role:admin,medical')
+            ->name('feeding-plans.index');
+        Route::post('/', [FeedingPlanController::class, 'store'])->name('feeding-plans.store');
+        Route::get('/{feedingPlan}', [FeedingPlanController::class, 'show'])->name('feeding-plans.show');
+        Route::put('/{feedingPlan}', [FeedingPlanController::class, 'update'])->name('feeding-plans.update');
+        Route::delete('/{feedingPlan}', [FeedingPlanController::class, 'destroy'])->name('feeding-plans.destroy');
+    });
+
+    /*
+    | Assistive Device Routes
+    */
+    Route::prefix('assistive-devices')->group(function () {
+        Route::get('/', [AssistiveDeviceController::class, 'index'])
+            ->middleware('role:admin,medical')
+            ->name('assistive-devices.index');
+        Route::post('/', [AssistiveDeviceController::class, 'store'])->name('assistive-devices.store');
+        Route::get('/{assistiveDevice}', [AssistiveDeviceController::class, 'show'])->name('assistive-devices.show');
+        Route::put('/{assistiveDevice}', [AssistiveDeviceController::class, 'update'])->name('assistive-devices.update');
+        Route::delete('/{assistiveDevice}', [AssistiveDeviceController::class, 'destroy'])->name('assistive-devices.destroy');
+    });
+
+    /*
+    | Activity Permission Routes
+    */
+    Route::prefix('activity-permissions')->group(function () {
+        Route::get('/', [ActivityPermissionController::class, 'index'])
+            ->middleware('role:admin,medical')
+            ->name('activity-permissions.index');
+        Route::post('/', [ActivityPermissionController::class, 'store'])->name('activity-permissions.store');
+        Route::get('/{activityPermission}', [ActivityPermissionController::class, 'show'])->name('activity-permissions.show');
+        Route::put('/{activityPermission}', [ActivityPermissionController::class, 'update'])->name('activity-permissions.update');
+        Route::delete('/{activityPermission}', [ActivityPermissionController::class, 'destroy'])->name('activity-permissions.destroy');
     });
 });

@@ -33,6 +33,10 @@ class MedicalRecord extends Model
         'special_needs',
         'dietary_restrictions',
         'notes',
+        'has_seizures',
+        'last_seizure_date',
+        'seizure_description',
+        'has_neurostimulator',
     ];
 
     /**
@@ -52,6 +56,10 @@ class MedicalRecord extends Model
             'special_needs' => 'encrypted',
             'dietary_restrictions' => 'encrypted',
             'notes' => 'encrypted',
+            'has_seizures' => 'boolean',
+            'last_seizure_date' => 'date',
+            'seizure_description' => 'encrypted',
+            'has_neurostimulator' => 'boolean',
         ];
     }
 
@@ -78,5 +86,16 @@ class MedicalRecord extends Model
     public function hasPhysician(): bool
     {
         return $this->physician_name !== null;
+    }
+
+    /**
+     * Determine if the camper requires a seizure action plan.
+     *
+     * Seizure action plans are mandatory when a camper has a history of
+     * seizures, ensuring staff have appropriate emergency protocols.
+     */
+    public function requiresSeizurePlan(): bool
+    {
+        return $this->has_seizures === true;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SupervisionLevel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,8 @@ class Camper extends Model
         'last_name',
         'date_of_birth',
         'gender',
+        'supervision_level',
+        'record_retention_until',
     ];
 
     /**
@@ -46,6 +49,8 @@ class Camper extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'supervision_level' => SupervisionLevel::class,
+            'record_retention_until' => 'date',
         ];
     }
 
@@ -119,6 +124,46 @@ class Camper extends Model
     public function medicalProviderLinks(): HasMany
     {
         return $this->hasMany(MedicalProviderLink::class);
+    }
+
+    /**
+     * Get all diagnoses for this camper.
+     */
+    public function diagnoses(): HasMany
+    {
+        return $this->hasMany(Diagnosis::class);
+    }
+
+    /**
+     * Get the behavioral profile for this camper.
+     */
+    public function behavioralProfile(): HasOne
+    {
+        return $this->hasOne(BehavioralProfile::class);
+    }
+
+    /**
+     * Get the feeding plan for this camper.
+     */
+    public function feedingPlan(): HasOne
+    {
+        return $this->hasOne(FeedingPlan::class);
+    }
+
+    /**
+     * Get all assistive devices for this camper.
+     */
+    public function assistiveDevices(): HasMany
+    {
+        return $this->hasMany(AssistiveDevice::class);
+    }
+
+    /**
+     * Get all activity permissions for this camper.
+     */
+    public function activityPermissions(): HasMany
+    {
+        return $this->hasMany(ActivityPermission::class);
     }
 
     /**

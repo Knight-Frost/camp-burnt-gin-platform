@@ -33,6 +33,13 @@ class AuditPhiAccess
         'applications.store',
         'applications.review',
         'campers.show',
+        'campers.risk-summary',
+        'campers.compliance-status',
+        'diagnoses.*',
+        'behavioral-profiles.*',
+        'feeding-plans.*',
+        'assistive-devices.*',
+        'activity-permissions.*',
     ];
 
     /**

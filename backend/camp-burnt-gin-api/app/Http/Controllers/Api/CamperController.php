@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Camper\StoreCamperRequest;
 use App\Http\Requests\Camper\UpdateCamperRequest;
 use App\Models\Camper;
+use App\Services\DocumentEnforcementService;
+use App\Services\SpecialNeedsRiskAssessmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -111,6 +113,53 @@ class CamperController extends Controller
 
         return response()->json([
             'message' => 'Camper deleted successfully.',
+        ]);
+    }
+
+    /**
+     * Get risk assessment summary for the specified camper.
+     *
+     * Returns medical complexity risk score, supervision level,
+     * complexity tier, and active risk flags for care planning
+     * and staffing ratio determination.
+     */
+    public function riskSummary(Camper $camper, SpecialNeedsRiskAssessmentService $riskService): JsonResponse
+    {
+        $this->authorize('view', $camper);
+
+        $assessment = $riskService->assessCamper($camper);
+
+        return response()->json([
+            'data' => [
+                'risk_score' => $assessment['risk_score'],
+                'supervision_level' => $assessment['supervision_level']->value,
+                'supervision_label' => $assessment['supervision_level']->label(),
+                'staffing_ratio' => $assessment['supervision_level']->getStaffingRatio(),
+                'medical_complexity_tier' => $assessment['medical_complexity_tier']->value,
+                'complexity_label' => $assessment['medical_complexity_tier']->label(),
+                'flags' => $assessment['flags'],
+            ],
+        ]);
+    }
+
+    /**
+     * Get medical document compliance status for the specified camper.
+     *
+     * Returns compliance status including required documents, missing documents,
+     * expired documents, and unverified documents. Used by parents to understand
+     * what documentation is needed and by administrators to verify application
+     * readiness for approval.
+     *
+     * Authorization: Admin, valid medical provider link, or parent (own camper only).
+     */
+    public function complianceStatus(Camper $camper, DocumentEnforcementService $documentEnforcement): JsonResponse
+    {
+        $this->authorize('view', $camper);
+
+        $compliance = $documentEnforcement->checkCompliance($camper);
+
+        return response()->json([
+            'data' => $compliance,
         ]);
     }
 }

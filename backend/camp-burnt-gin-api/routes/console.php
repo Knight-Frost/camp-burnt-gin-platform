@@ -16,6 +16,7 @@ Artisan::command('inspire', function () {
 | Tasks that run on a schedule to handle background operations.
 | FR-29: Incomplete application reminders (weekly)
 | FR-23: Provider link expiration handling (daily)
+| Record retention compliance (daily)
 |
 */
 
@@ -29,3 +30,15 @@ Schedule::command('provider-links:handle-expired')
     ->daily()
     ->at('06:00')
     ->description('Process expired medical provider links');
+
+Schedule::command('campers:calculate-retention')
+    ->daily()
+    ->at('02:00')
+    ->withoutOverlapping()
+    ->description('Calculate and update medical record retention dates');
+
+Schedule::command('records:identify-expired')
+    ->weekly()
+    ->sundays()
+    ->at('03:00')
+    ->description('Identify campers past retention period for archival review');
