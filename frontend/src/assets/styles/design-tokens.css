@@ -1,0 +1,226 @@
+/* Camp Burnt Gin Design Tokens - Dark Mode Only (Figma Authoritative Source) */
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Typography */
+  --font-headline: 'Crimson Pro', Georgia, serif;
+  --font-body: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-size: 16px;
+
+  /* Typography Scale - Figma Exact Values */
+  --text-xs: 0.9375rem;   /* 15px */
+  --text-sm: 1.0625rem;   /* 17px */
+  --text-base: 1.25rem;   /* 20px - LARGER BASE */
+  --text-lg: 1.625rem;    /* 26px */
+  --text-xl: 2.25rem;     /* 36px */
+  --text-2xl: 4rem;       /* 64px - HERO */
+
+  /* Spacing Scale */
+  --spacing-xs: 0.5rem;   /* 8px */
+  --spacing-sm: 1rem;     /* 16px */
+  --spacing-md: 1.5rem;   /* 24px */
+  --spacing-lg: 2rem;     /* 32px */
+  --spacing-xl: 3rem;     /* 48px */
+
+  /* Border Radius */
+  --radius: 0.625rem;     /* 10px */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ============================================================
+     JET BLACK DARK MODE — PERMANENT / ONLY MODE
+     All variables defined here unconditionally.
+     ============================================================ */
+
+  /* Base Colors */
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: rgba(10, 10, 10, 0.85);
+  --card-foreground: #ffffff;
+  --popover: rgba(5, 5, 5, 0.98);
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: rgba(244, 114, 66, 0.2);
+  --secondary-foreground: #ffffff;
+  --muted: rgba(20, 20, 20, 0.8);
+  --muted-foreground: rgba(255, 255, 255, 0.7);
+  --accent: rgba(251, 191, 36, 0.25);
+  --accent-foreground: #ffffff;
+  --destructive: rgba(248, 113, 113, 0.9);
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.15);
+  --input: rgba(20, 20, 20, 0.6);
+  --input-background: rgba(20, 20, 20, 0.6);
+  --ring: rgba(255, 255, 255, 0.3);
+
+  /* Navigation Colors */
+  --nav-text: rgba(255, 255, 255, 0.9);
+  --nav-text-active: rgba(255, 255, 255, 1);
+
+  /* Luminous Accent Colors */
+  --ember-orange: #f47242;
+  --warm-amber: #fbbf24;
+  --forest-green: #10b981;
+  --night-sky-blue: #60a5fa;
+
+  /* Font Weights */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Opacity Variants */
+  --overlay-light: rgba(26, 26, 26, 0.95);
+  --overlay-medium: rgba(26, 26, 26, 0.85);
+  --overlay-subtle: rgba(26, 26, 26, 0.75);
+  --overlay-primary: rgba(244, 114, 66, 0.25);
+  --overlay-secondary: rgba(15, 15, 15, 0.8);
+  --overlay-nav: rgba(8, 8, 8, 0.95);
+  --overlay-nav-subtle: rgba(5, 5, 5, 0.75);
+
+  /* Glass Surfaces */
+  --glass-overlay: rgba(10, 10, 10, 0.85);
+  --glass-strong: rgba(15, 15, 15, 0.9);
+  --glass-medium: rgba(255, 255, 255, 0.08);
+  --glass-dark-strong: rgba(255, 255, 255, 0.95);
+  --glass-dark-medium: rgba(255, 255, 255, 0.9);
+  --glass-icon-bg: rgba(251, 191, 36, 0.2);
+  --glass-mission-bg: rgba(232, 215, 187, 0.9);
+  --glass-footer-dark: rgba(30, 41, 59, 0.4);
+  --glass-footer-light: rgba(255, 255, 255, 0.35);
+
+  /* Borders */
+  --border-ember: rgba(244, 114, 66, 0.4);
+  --border-glass: rgba(255, 255, 255, 0.15);
+  --button-border-dark: rgba(244, 114, 66, 0.4);
+  --button-border-light: rgba(255, 255, 255, 0.15);
+
+  /* Text Overlays */
+  --text-overlay-dark: rgba(26, 26, 26, 0.85);
+  --text-overlay-light: rgba(255, 255, 255, 0.9);
+
+  /* Navigation Accent */
+  --nav-shadow-ember: rgba(244, 114, 66, 0.2);
+
+  /* Elevation System */
+  --shadow-hero-panel: 0 20px 80px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-ember-primary: 0 8px 32px rgba(244, 114, 66, 0.5), 0 0 40px rgba(244, 114, 66, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --shadow-ember-secondary: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.15);
+  --shadow-amber-glow: 0 12px 32px rgba(251, 191, 36, 0.35), 0 0 24px rgba(251, 191, 36, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --shadow-light-button-primary: 0 8px 32px rgba(244, 114, 66, 0.5), 0 0 40px rgba(244, 114, 66, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --shadow-light-button-secondary: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --shadow-light-icon: 0 8px 24px rgba(251, 191, 36, 0.35), 0 0 0 1px rgba(251, 191, 36, 0.25);
+}
+
+/* Dark class mirrors :root since dark is the only mode */
+.dark {
+  color-scheme: dark;
+}
+
+/* Smooth theme transitions */
+:root,
+.dark {
+  transition: background-color 1.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              color 1.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Scoped transitions - only apply to common UI elements */
+body, section, article, aside, nav, header, footer, main,
+div[class*="bg-"], div[class*="border-"], div[class*="text-"] {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 1.2s;
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+button,
+a,
+input,
+textarea {
+  transition-duration: 0.5s;
+}
+
+/* Base Styles */
+@layer base {
+  html {
+    font-size: var(--font-size);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    line-height: 1.65;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-headline);
+    letter-spacing: -0.022em;
+  }
+
+  /* Dark mode text glow for premium readability */
+  .dark h1,
+  .dark h2 {
+    text-shadow: 0 0 40px rgba(255, 255, 255, 0.15), 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  p {
+    line-height: 1.7;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  button {
+    font-family: var(--font-headline);
+    font-size: var(--text-base);
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+  }
+
+  input, textarea {
+    font-size: var(--text-base);
+    font-weight: 400;
+    line-height: 1.5;
+  }
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+}
