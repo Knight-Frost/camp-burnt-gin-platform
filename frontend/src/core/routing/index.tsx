@@ -5,11 +5,47 @@ import { SuperAdminLayout } from '@/ui/layout/SuperAdminLayout';
 import { AdminLayout } from '@/ui/layout/AdminLayout';
 import { ParentLayout } from '@/ui/layout/ParentLayout';
 import { MedicalLayout } from '@/ui/layout/MedicalLayout';
+import { PublicLayout } from '@/app/layouts/PublicLayout';
 
-// Landing page (lazy-loaded, code-split)
+// Public pages (lazy-loaded, code-split)
 const LandingPage = lazy(() =>
   import('@/features/public/landing/pages/LandingPage').then((module) => ({
     default: module.LandingPage,
+  }))
+);
+const AboutPage = lazy(() =>
+  import('@/app/pages/AboutPage').then((module) => ({
+    default: module.AboutPage,
+  }))
+);
+const ProgramsPage = lazy(() =>
+  import('@/app/pages/ProgramsPage').then((module) => ({
+    default: module.ProgramsPage,
+  }))
+);
+const CampersPage = lazy(() =>
+  import('@/app/pages/CampersPage').then((module) => ({
+    default: module.CampersPage,
+  }))
+);
+const ApplyPage = lazy(() =>
+  import('@/app/pages/ApplyPage').then((module) => ({
+    default: module.ApplyPage,
+  }))
+);
+const StoriesPage = lazy(() =>
+  import('@/app/pages/StoriesPage').then((module) => ({
+    default: module.StoriesPage,
+  }))
+);
+const GetInvolvedPage = lazy(() =>
+  import('@/app/pages/GetInvolvedPage').then((module) => ({
+    default: module.GetInvolvedPage,
+  }))
+);
+const CbgNMePage = lazy(() =>
+  import('@/app/pages/CbgNMePage').then((module) => ({
+    default: module.CbgNMePage,
   }))
 );
 
@@ -50,14 +86,75 @@ function withLayout(
 }
 
 export const router = createBrowserRouter([
-  // Public routes
+  // Public routes — all share the PublicLayout (LivingBackground + Nav + Footer)
   {
-    path: '/',
-    element: (
-      <Suspense fallback={<LandingPageSkeleton />}>
-        <LandingPage />
-      </Suspense>
-    ),
+    element: <PublicLayout />,
+    children: [
+      {
+        path: '/',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <LandingPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/about',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <AboutPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/programs',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <ProgramsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/campers',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <CampersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/apply',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <ApplyPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/testimonials',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <StoriesPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/get-involved',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <GetInvolvedPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/virtual-program',
+        element: (
+          <Suspense fallback={<LandingPageSkeleton />}>
+            <CbgNMePage />
+          </Suspense>
+        ),
+      },
+    ],
   },
   {
     path: '/login',

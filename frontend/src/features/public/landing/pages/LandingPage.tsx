@@ -1,13 +1,9 @@
 import { Helmet } from 'react-helmet-async';
-import { LivingBackground } from '../components/LivingBackground';
-import { LandingNav } from '../components/LandingNav';
 import { HeroSection } from '../components/HeroSection';
 import { MissionSection } from '../components/MissionSection';
 import { ImageSection } from '../components/ImageSection';
-import { SessionsSection } from '../components/SessionsSection';
 import { FAQSection } from '../components/FAQSection';
 import { CTASection } from '../components/CTASection';
-import { LandingFooter } from '../components/LandingFooter';
 
 export function LandingPage() {
   const siteUrl = 'https://www.campburntgin.org';
@@ -64,19 +60,11 @@ export function LandingPage() {
         </script>
       </Helmet>
 
-      <LivingBackground />
-
-      <LandingNav />
-
-      <main className="relative z-10">
-        <HeroSection />
-        <MissionSection />
-        <ImageSection />
-        <SessionsSection />
-        <FAQSection />
-        <CTASection />
-        <LandingFooter />
-      </main>
+      <HeroSection />
+      <MissionSection />
+      <ImageSection />
+      <FAQSection />
+      <CTASection />
     </>
   );
 }
