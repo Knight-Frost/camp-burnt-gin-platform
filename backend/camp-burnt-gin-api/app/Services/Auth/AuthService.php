@@ -33,7 +33,7 @@ class AuthService
     /**
      * Authenticate a user with email and password.
      *
-     * Implements account lockout after 5 failed attempts for 15 minutes.
+     * Implements account lockout after 10 failed attempts for 5 minutes.
      * Prevents brute force attacks on authentication endpoint.
      *
      * @param  array<string, mixed>  $credentials
@@ -80,7 +80,7 @@ class AuthService
             return [
                 'success' => false,
                 'message' => 'Invalid credentials.',
-                'attempts_remaining' => max(0, 5 - $user->failed_login_attempts),
+                'attempts_remaining' => max(0, 10 - $user->failed_login_attempts),
             ];
         }
 

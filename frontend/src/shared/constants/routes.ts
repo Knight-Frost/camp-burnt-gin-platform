@@ -1,48 +1,66 @@
+/**
+ * routes.ts
+ * All application route paths as typed constants.
+ * Import from here instead of hardcoding path strings.
+ */
 export const ROUTES = {
   // Public
-  LANDING: '/',
+  HOME: '/',
+  ABOUT: '/about',
+  PROGRAMS: '/programs',
+  CAMPERS: '/campers',
+  APPLY: '/apply',
+  STORIES: '/testimonials',
+  GET_INVOLVED: '/get-involved',
+  VIRTUAL_PROGRAM: '/virtual-program',
+
+  // Auth
   LOGIN: '/login',
   REGISTER: '/register',
+  MFA_VERIFY: '/mfa-verify',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
-  MEDICAL_PROVIDER_LINK: '/medical-link/:token',
-
-  // Auth flows
-  MFA_SETUP: '/mfa/setup',
-  MFA_VERIFY: '/mfa/verify',
-
-  // Universal authenticated
-  DASHBOARD: '/dashboard',
-  INBOX: '/inbox',
-  NOTIFICATIONS: '/notifications',
-  SETTINGS: '/settings',
 
   // Parent
-  CAMPERS: '/campers',
-  CAMPERS_NEW: '/campers/new',
-  CAMPERS_DETAIL: '/campers/:id',
-  APPLICATIONS: '/applications',
-  APPLICATIONS_NEW: '/applications/new',
-  APPLICATIONS_DETAIL: '/applications/:id',
-  MEDICAL: '/medical/:camperId',
-  DOCUMENTS: '/documents',
+  PARENT_DASHBOARD: '/parent/dashboard',
+  PARENT_APPLICATIONS: '/parent/applications',
+  PARENT_APPLICATION_NEW: '/parent/applications/new',
+  PARENT_APPLICATION_DETAIL: (id: number | string) =>
+    `/parent/applications/${id}`,
+  PARENT_CALENDAR: '/parent/calendar',
 
   // Admin
-  ADMIN_DASHBOARD: '/admin',
-  ADMIN_CAMPS: '/admin/camps',
+  ADMIN_DASHBOARD: '/admin/dashboard',
+  ADMIN_CAMPERS: '/admin/campers',
+  ADMIN_CAMPER_DETAIL: (id: number | string) => `/admin/campers/${id}`,
+  ADMIN_APPLICATIONS: '/admin/applications',
+  ADMIN_APPLICATION_DETAIL: (id: number | string) =>
+    `/admin/applications/${id}`,
   ADMIN_SESSIONS: '/admin/sessions',
-  ADMIN_REVIEW: '/admin/review',
+  ADMIN_CAMPS: '/admin/camps',
   ADMIN_REPORTS: '/admin/reports',
+  ADMIN_ANNOUNCEMENTS: '/admin/announcements',
+  ADMIN_CALENDAR: '/admin/calendar',
+
+  // Medical
+  MEDICAL_DASHBOARD: '/medical/dashboard',
+  MEDICAL_RECORDS: '/medical/records',
+  MEDICAL_RECORD_DETAIL: (id: number | string) => `/medical/records/${id}`,
 
   // Super Admin
-  SUPER_ADMIN_DASHBOARD: '/super-admin',
+  SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',
   SUPER_ADMIN_USERS: '/super-admin/users',
-  SUPER_ADMIN_ROLES: '/super-admin/roles',
-  SUPER_ADMIN_AUDIT: '/super-admin/audit-logs',
-  SUPER_ADMIN_SECURITY: '/super-admin/security',
-  SUPER_ADMIN_CONFIG: '/super-admin/config',
+  SUPER_ADMIN_AUDIT: '/super-admin/audit',
+  SUPER_ADMIN_FORMS: '/super-admin/forms',
 
-  // Error pages
+  // Shared authenticated
+  INBOX: '/inbox',
+  PROFILE: '/profile',
+
+  // Provider access (standalone — no auth)
+  PROVIDER_ACCESS: (token: string) => `/provider-access/${token}`,
+
+  // Errors
   FORBIDDEN: '/forbidden',
-  NOT_FOUND: '/404',
+  NOT_FOUND: '*',
 } as const;

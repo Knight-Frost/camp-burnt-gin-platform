@@ -1,33 +1,57 @@
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
-import authReducer from '@/features/auth/store/authSlice';
+/**
+ * store/index.ts
+ * Redux store configuration with redux-persist and HIPAA-required middleware.
+ */
+
+import { configureStore } from '@reduxjs/toolkit';
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
+import { authReducer } from '@/features/auth/store/authSlice';
 import { phiProtectionMiddleware } from './middleware/phiProtection';
-import { correlationIdMiddleware } from './middleware/correlationId';
-import { persistConfig } from './persistConfig';
 
-const rootReducer = combineReducers({
-  auth: authReducer,
-});
+// ---------------------------------------------------------------------------
+// Persist config — only the auth slice is persisted
+// ---------------------------------------------------------------------------
 
-const persistedReducer = persistReducer(persistConfig as any, rootReducer);
+const authPersistConfig = {
+  key: 'auth',
+  storage,
+  whitelist: ['user', 'token', 'tokenExpiry', 'mfaRequired', 'mfaVerified', 'sessionId'],
+};
+
+const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
 
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer: {
+    auth: persistedAuthReducer,
+  },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore redux-persist actions
-        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER, 'auth/setToken', 'auth/setUser'],
-        // Ignore these paths in the state for serialization checks
-        ignoredPaths: ['auth.token', 'auth.tokenExpiry', '_persist'],
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    })
-      .prepend(correlationIdMiddleware)
-      .concat(phiProtectionMiddleware),
+    }).concat(phiProtectionMiddleware),
   devTools: import.meta.env.VITE_ENABLE_DEVTOOLS === 'true',
 });
 
 export const persistor = persistStore(store);
 
-export type RootState = ReturnType<typeof rootReducer>;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

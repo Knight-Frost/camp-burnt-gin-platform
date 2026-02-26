@@ -1,5 +1,15 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User } from '@/shared/types/user.types';
+/**
+ * authSlice.ts
+ * Redux slice for authentication state.
+ * Manages user, token, MFA state, and session metadata.
+ */
+
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { User } from '@/shared/types';
+
+// ---------------------------------------------------------------------------
+// State shape
+// ---------------------------------------------------------------------------
 
 interface AuthState {
   user: User | null;
@@ -18,55 +28,74 @@ const initialState: AuthState = {
   token: null,
   tokenExpiry: null,
   isAuthenticated: false,
-  isLoading: true, // Start as loading to prevent false redirects
+  isLoading: true, // starts true — ProtectedRoute shows loader until resolved
   mfaRequired: false,
   mfaVerified: false,
   sessionId: null,
   lastActivity: null,
 };
 
+// ---------------------------------------------------------------------------
+// Slice
+// ---------------------------------------------------------------------------
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setUser: (state, action: PayloadAction<User | null>) => {
+    /** Set the authenticated user and mark as authenticated */
+    setUser(state, action: PayloadAction<User | null>) {
       state.user = action.payload;
-      state.isAuthenticated = !!action.payload;
+      state.isAuthenticated = action.payload !== null;
     },
-    setToken: (state, action: PayloadAction<{ token: string; expiresIn: number }>) => {
+
+    /** Store the Bearer token and compute its expiry timestamp */
+    setToken(
+      state,
+      action: PayloadAction<{ token: string; expiresIn?: number }>
+    ) {
       state.token = action.payload.token;
-      state.tokenExpiry = Date.now() + action.payload.expiresIn * 1000;
+      state.tokenExpiry = action.payload.expiresIn
+        ? Date.now() + action.payload.expiresIn * 1000
+        : null;
     },
-    setMfaRequired: (state, action: PayloadAction<boolean>) => {
+
+    /** Signal that MFA is required before accessing the app */
+    setMfaRequired(state, action: PayloadAction<boolean>) {
       state.mfaRequired = action.payload;
     },
-    setMfaVerified: (state, action: PayloadAction<boolean>) => {
+
+    /** Signal that the user has completed MFA verification */
+    setMfaVerified(state, action: PayloadAction<boolean>) {
       state.mfaVerified = action.payload;
     },
-    setSessionId: (state, action: PayloadAction<string | null>) => {
+
+    /** Store the current session identifier */
+    setSessionId(state, action: PayloadAction<string | null>) {
       state.sessionId = action.payload;
     },
-    updateLastActivity: (state) => {
+
+    /** Update the last activity timestamp (for session timeout tracking) */
+    updateLastActivity(state) {
       state.lastActivity = Date.now();
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
+
+    /** Manually control the loading flag */
+    setLoading(state, action: PayloadAction<boolean>) {
       state.isLoading = action.payload;
     },
-    hydrateAuth: (state) => {
-      // This will be called after persistence rehydration
-      // If we have a token but no user, we should fetch user profile
+
+    /**
+     * Called after redux-persist rehydration completes.
+     * Sets isLoading to false so ProtectedRoute can evaluate auth state.
+     */
+    hydrateAuth(state) {
       state.isLoading = false;
     },
-    clearAuth: (state) => {
-      state.user = null;
-      state.token = null;
-      state.tokenExpiry = null;
-      state.isAuthenticated = false;
-      state.isLoading = false;
-      state.mfaRequired = false;
-      state.mfaVerified = false;
-      state.sessionId = null;
-      state.lastActivity = null;
+
+    /** Full state reset — called on logout or 401 */
+    clearAuth() {
+      return { ...initialState, isLoading: false };
     },
   },
 });
@@ -83,4 +112,4 @@ export const {
   clearAuth,
 } = authSlice.actions;
 
-export default authSlice.reducer;
+export const authReducer = authSlice.reducer;

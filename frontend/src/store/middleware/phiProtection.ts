@@ -84,7 +84,7 @@ export const phiProtectionMiddleware: Middleware =
     const typedAction = action as { type: string; payload?: unknown };
 
     /**
-     * 1️⃣ Allow redux-persist internal framework lifecycle actions.
+     * Step 1: Allow redux-persist internal framework lifecycle actions.
      *
      * These do NOT contain PHI payloads.
      * They are required for app bootstrapping.
@@ -97,7 +97,7 @@ export const phiProtectionMiddleware: Middleware =
     }
 
     /**
-     * 2️⃣ Development-only PHI monitoring.
+     * Step 2: Development-only PHI monitoring.
      *
      * Warn if an action payload contains PHI fields.
      * This does NOT block execution — only logs.
@@ -113,7 +113,7 @@ export const phiProtectionMiddleware: Middleware =
     }
 
     /**
-     * 3️⃣ Block custom persistence attempts.
+     * Step 3: Block custom persistence attempts.
      *
      * If any action tries to manually dispatch persist/*
      * that is NOT part of redux-persist framework,

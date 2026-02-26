@@ -1,138 +1,155 @@
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { store } from '@/store';
-import { clearAuth } from '@/features/auth/store/authSlice';
-import { generateCorrelationId } from '@/shared/utils/correlationId';
-import { phiSanitizer } from '@/shared/utils/phiSanitizer';
+/**
+ * axios.config.ts
+ * Configured Axios instance for all API calls.
+ *
+ * Features:
+ * - Base URL from env var
+ * - Automatic Bearer token injection from Redux store
+ * - X-Request-ID correlation header on every request
+ * - Structured error handling with typed returns
+ * - PHI sanitization before error logging
+ */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import axios, {
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+  type AxiosResponse,
+  type AxiosError,
+} from 'axios';
+import { phiSanitizer as sanitizePhi } from '@/shared/utils/phiSanitizer';
 
-export const axiosInstance: AxiosInstance = axios.create({
-  baseURL: `${BASE_URL}/api`,
-  timeout: 30000,
+// ---------------------------------------------------------------------------
+// Instance
+// ---------------------------------------------------------------------------
+
+const axiosInstance: AxiosInstance = axios.create({
+  baseURL: `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api`,
+  timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
-  withCredentials: true,
 });
 
-// Request interceptor: attach token and correlation ID
+// ---------------------------------------------------------------------------
+// Request interceptor — inject auth token and correlation ID
+// ---------------------------------------------------------------------------
+
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Attach Bearer token from Redux store
-    const state = store.getState();
-    const token = state.auth?.token;
-
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Inject Bearer token from localStorage (set there by redux-persist)
+    const persistedAuth = localStorage.getItem('persist:auth');
+    if (persistedAuth) {
+      try {
+        const parsed = JSON.parse(persistedAuth);
+        const token = parsed.token ? JSON.parse(parsed.token) : null;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch {
+        // Silently ignore malformed persisted auth
+      }
     }
 
-    // Attach correlation ID for audit trail
-    const correlationId = generateCorrelationId();
-    if (config.headers) {
-      config.headers['X-Request-ID'] = correlationId;
-    }
+    // Correlation ID for request tracing
+    config.headers['X-Request-ID'] = crypto.randomUUID();
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: AxiosError) => Promise.reject(error)
 );
 
-// Response interceptor: handle errors globally
+// ---------------------------------------------------------------------------
+// Response interceptor — normalize errors
+// ---------------------------------------------------------------------------
+
 axiosInstance.interceptors.response.use(
-  (response) => {
-    // Check for deprecation headers
-    if (import.meta.env.DEV) {
-      const deprecation = response.headers['x-api-deprecation'];
-      if (deprecation) {
-        console.warn(`API Deprecation Warning: ${deprecation}`);
+  (response: AxiosResponse) => response,
+  (error: AxiosError<{
+    message?: string;
+    errors?: Record<string, string[]>;
+    lockout?: boolean;
+    retry_after?: number;
+    attempts_remaining?: number;
+    status?: number;
+  }>) => {
+    const status = error.response?.status;
+    const responseData = error.response?.data;
+
+    if (status === 401) {
+      const url = error.config?.url ?? '';
+      // Auth endpoints returning 401 mean wrong credentials, not session expiry.
+      // Don't hijack those — let the page handle them with the real backend message.
+      const isPublicAuthEndpoint =
+        url.endsWith('/auth/login') ||
+        url.endsWith('/auth/register') ||
+        url.endsWith('/auth/forgot-password') ||
+        url.endsWith('/auth/reset-password');
+
+      if (!isPublicAuthEndpoint) {
+        // Token expired or invalid on a protected endpoint
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        return Promise.reject({ message: 'Session expired. Please log in again.' });
       }
-    }
 
-    return response;
-  },
-  async (error: AxiosError) => {
-    const { response } = error;
-
-    if (!response) {
-      // Network error
+      // Pass the real backend message and any lockout data through
       return Promise.reject({
-        message: 'Network error. Please check your connection.',
-        originalError: error,
+        message: responseData?.message ?? 'Invalid credentials.',
+        ...(responseData?.lockout && {
+          lockout: true,
+          retryAfter: responseData?.retry_after ?? 300,
+        }),
+        ...(responseData?.attempts_remaining !== undefined && {
+          attemptsRemaining: responseData.attempts_remaining,
+        }),
       });
     }
 
-    // Handle specific status codes
-    switch (response.status) {
-      case 401:
-        // Unauthorized: clear auth and redirect to login
-        store.dispatch(clearAuth());
-        window.location.href = '/login';
+    if (status === 403) {
+      if (responseData?.lockout) {
         return Promise.reject({
-          message: 'Your session has expired. Please log in again.',
-          status: 401,
-        });
-
-      case 403: {
-        // Forbidden: permission denied
-        const lockout = (response.data as Record<string, unknown>)?.lockout;
-        if (lockout) {
-          return Promise.reject({
-            message: 'Account temporarily locked due to too many failed attempts.',
-            lockout: true,
-            retryAfter: (response.data as Record<string, unknown>)?.retry_after,
-            status: 403,
-          });
-        }
-        return Promise.reject({
-          message: 'You do not have permission to perform this action.',
-          status: 403,
+          lockout: true,
+          retryAfter: responseData.retry_after ?? 60,
         });
       }
-
-      case 422:
-        // Validation errors: return field-level errors
-        return Promise.reject({
-          message: (response.data as Record<string, unknown>)?.message || 'Validation failed.',
-          errors: (response.data as Record<string, unknown>)?.errors || {},
-          status: 422,
-        });
-
-      case 429: {
-        // Rate limited: extract retry-after
-        const retryAfter = response.headers['retry-after'];
-        return Promise.reject({
-          message: `Too many requests. Please wait ${retryAfter || 60} seconds.`,
-          retryAfter: retryAfter ? parseInt(retryAfter) : 60,
-          status: 429,
-        });
-      }
-
-      case 500:
-      case 502:
-      case 503: {
-        // Server errors: sanitize PHI and log
-        const sanitized = phiSanitizer(error);
-
-        if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
-          // TODO: Send to Sentry in production
-          console.error('Server error:', sanitized);
-        }
-
-        return Promise.reject({
-          message: 'A server error occurred. Please try again later.',
-          status: response.status,
-        });
-      }
-
-      default:
-        return Promise.reject({
-          message:
-            (response.data as Record<string, unknown>)?.message ||
-            'An unexpected error occurred.',
-          status: response.status,
-          data: response.data,
-        });
+      return Promise.reject({ message: 'You do not have permission to perform this action.' });
     }
+
+    if (status === 422) {
+      return Promise.reject({
+        message: responseData?.message ?? 'Validation failed.',
+        errors: responseData?.errors ?? {},
+      });
+    }
+
+    if (status === 429) {
+      return Promise.reject({
+        retryAfter: responseData?.retry_after ?? 60,
+      });
+    }
+
+    if (status && status >= 500) {
+      // Sanitize PHI before logging server errors
+      const sanitized = sanitizePhi(responseData);
+      console.error('[API] Server error:', status, sanitized);
+      return Promise.reject({
+        message: 'A server error occurred. Please try again later.',
+        status,
+      });
+    }
+
+    if (!error.response) {
+      return Promise.reject({
+        message: 'Network error. Please check your connection and try again.',
+      });
+    }
+
+    return Promise.reject({
+      message: responseData?.message ?? 'An unexpected error occurred.',
+      status,
+    });
   }
 );
+
+export { axiosInstance };
+export default axiosInstance;

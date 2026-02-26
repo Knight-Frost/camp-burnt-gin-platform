@@ -1,92 +1,116 @@
-import { ButtonHTMLAttributes, forwardRef } from 'react';
+/**
+ * Button.tsx
+ * Primary UI button with variant, size, loading state, and polymorphic `as` support.
+ * Uses CTA design tokens for primary variant; glass tokens for secondary.
+ */
+
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type ElementType,
+} from 'react';
+import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  isLoading?: boolean;
+  loading?: boolean;
   fullWidth?: boolean;
+  icon?: ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  as?: ElementType<any>;
+  to?: string;
 }
+
+const variantStyles: Record<ButtonVariant, string> = {
+  primary: 'text-cta-primary-color border-cta-primary-border',
+  secondary: 'text-on-image-text border-on-image-border',
+  ghost: 'border-transparent text-on-image-muted hover:text-on-image-text',
+  destructive: 'border-destructive/50 text-destructive',
+};
+
+const sizeStyles: Record<ButtonSize, string> = {
+  sm: 'px-4 py-2 text-sm',
+  md: 'px-6 py-3 text-base',
+  lg: 'px-8 py-4 text-lg',
+};
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       variant = 'primary',
       size = 'md',
-      isLoading = false,
+      loading = false,
       fullWidth = false,
       disabled,
       className,
       children,
+      icon,
+      as: Component,
       ...props
     },
     ref
   ) => {
-    const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
+    const isDisabled = disabled || loading;
+    const isPrimary = variant === 'primary';
 
-    const variants = {
-      primary:
-        'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700',
-      secondary:
-        'bg-neutral-100 text-neutral-900 hover:bg-neutral-200 active:bg-neutral-300 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700',
-      ghost:
-        'bg-transparent text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-800',
-      danger:
-        'bg-danger-500 text-white hover:bg-danger-600 active:bg-danger-700',
-    };
+    const sharedClassName = cn(
+      'relative inline-flex items-center justify-center gap-2',
+      'rounded-xl border font-headline font-medium',
+      'transition-all duration-button cursor-pointer',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ember-orange/60',
+      'disabled:opacity-50 disabled:cursor-not-allowed',
+      variantStyles[variant],
+      sizeStyles[size],
+      fullWidth && 'w-full',
+      className
+    );
 
-    const sizes = {
-      sm: 'h-8 px-3 text-sm rounded-md',
-      md: 'h-10 px-4 text-base rounded-lg',
-      lg: 'h-12 px-6 text-lg rounded-lg',
-    };
+    const sharedStyle =
+      isPrimary
+        ? { background: 'var(--cta-primary-bg)', boxShadow: 'var(--shadow-ember-primary)' }
+        : variant === 'secondary'
+        ? { background: 'var(--cta-secondary-bg)', boxShadow: 'var(--shadow-ember-secondary)' }
+        : undefined;
+
+    const content = (
+      <>
+        {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+        {!loading && icon}
+        {children}
+      </>
+    );
+
+    if (Component) {
+      return (
+        <Component
+          className={sharedClassName}
+          style={sharedStyle}
+          {...props}
+        >
+          {content}
+        </Component>
+      );
+    }
 
     return (
-      <button
+      <motion.button
         ref={ref}
-        disabled={disabled || isLoading}
-        className={cn(
-          baseStyles,
-          variants[variant],
-          sizes[size],
-          fullWidth && 'w-full',
-          className
-        )}
-        {...props}
+        whileHover={isDisabled ? undefined : { scale: 1.03 }}
+        whileTap={isDisabled ? undefined : { scale: 0.98 }}
+        className={sharedClassName}
+        style={sharedStyle}
+        disabled={isDisabled}
+        {...(props as object)}
       >
-        {isLoading ? (
-          <span className="flex items-center gap-2">
-            <svg
-              className="animate-spin h-4 w-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <span>Loading...</span>
-          </span>
-        ) : (
-          children
-        )}
-      </button>
+        {content}
+      </motion.button>
     );
   }
 );

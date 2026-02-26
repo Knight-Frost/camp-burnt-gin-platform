@@ -1,9 +1,11 @@
-/* Camp Burnt Gin Design Tokens - Dark Mode Only (Figma Authoritative Source) */
+/* Camp Burnt Gin Design Tokens — Light Mode (permanent) */
 
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
+  color-scheme: light;
+
   /* Typography */
   --font-headline: 'Crimson Pro', Georgia, serif;
   --font-body: 'Outfit', system-ui, -apple-system, sans-serif;
@@ -32,115 +34,160 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* ============================================================
-     JET BLACK DARK MODE — PERMANENT / ONLY MODE
-     All variables defined here unconditionally.
+     BASE THEME: Light mode — permanent
      ============================================================ */
 
   /* Base Colors */
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: rgba(10, 10, 10, 0.85);
-  --card-foreground: #ffffff;
-  --popover: rgba(5, 5, 5, 0.98);
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
-  --secondary: rgba(244, 114, 66, 0.2);
-  --secondary-foreground: #ffffff;
-  --muted: rgba(20, 20, 20, 0.8);
-  --muted-foreground: rgba(255, 255, 255, 0.7);
-  --accent: rgba(251, 191, 36, 0.25);
-  --accent-foreground: #ffffff;
-  --destructive: rgba(248, 113, 113, 0.9);
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #111827;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(22, 101, 52, 0.10);
+  --secondary-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: rgba(22, 101, 52, 0.12);
+  --accent-foreground: #111827;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.15);
-  --input: rgba(20, 20, 20, 0.6);
-  --input-background: rgba(20, 20, 20, 0.6);
-  --ring: rgba(255, 255, 255, 0.3);
+  --border: rgba(0, 0, 0, 0.08);
+  --input: #f9fafb;
+  --input-background: #f9fafb;
+  --ring: rgba(22, 101, 52, 0.35);
 
   /* Navigation Colors */
-  --nav-text: rgba(255, 255, 255, 0.9);
-  --nav-text-active: rgba(255, 255, 255, 1);
+  --nav-text: rgba(17, 24, 39, 0.80);
+  --nav-text-active: #111827;
 
-  /* Luminous Accent Colors */
-  --ember-orange: #f47242;
-  --warm-amber: #fbbf24;
-  --forest-green: #10b981;
-  --night-sky-blue: #60a5fa;
+  /* Brand Accent Colors — emerald green */
+  --ember-orange: #166534;        /* Dark emerald — primary brand accent */
+  --warm-amber: #059669;          /* Medium emerald — secondary accent */
+  --forest-green: #059669;
+  --night-sky-blue: #2563eb;
 
   /* Font Weights */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
 
-  /* Opacity Variants */
-  --overlay-light: rgba(26, 26, 26, 0.95);
-  --overlay-medium: rgba(26, 26, 26, 0.85);
-  --overlay-subtle: rgba(26, 26, 26, 0.75);
-  --overlay-primary: rgba(244, 114, 66, 0.25);
-  --overlay-secondary: rgba(15, 15, 15, 0.8);
-  --overlay-nav: rgba(8, 8, 8, 0.95);
-  --overlay-nav-subtle: rgba(5, 5, 5, 0.75);
+  /* Overlays */
+  --overlay-light: rgba(255, 255, 255, 0.97);
+  --overlay-medium: rgba(255, 255, 255, 0.92);
+  --overlay-subtle: rgba(255, 255, 255, 0.80);
+  --overlay-primary: rgba(22, 101, 52, 0.10);
+  --overlay-secondary: rgba(248, 249, 250, 0.95);
+  --overlay-nav: rgba(255, 255, 255, 0.97);
+  --overlay-nav-subtle: rgba(255, 255, 255, 0.85);
 
   /* Glass Surfaces */
-  --glass-overlay: rgba(10, 10, 10, 0.85);
-  --glass-strong: rgba(15, 15, 15, 0.9);
-  --glass-medium: rgba(255, 255, 255, 0.08);
-  --glass-dark-strong: rgba(255, 255, 255, 0.95);
-  --glass-dark-medium: rgba(255, 255, 255, 0.9);
-  --glass-icon-bg: rgba(251, 191, 36, 0.2);
-  --glass-mission-bg: rgba(232, 215, 187, 0.9);
-  --glass-footer-dark: rgba(30, 41, 59, 0.4);
-  --glass-footer-light: rgba(255, 255, 255, 0.35);
+  --glass-overlay: rgba(0, 0, 0, 0.03);
+  --glass-strong: rgba(255, 255, 255, 0.95);
+  --glass-medium: rgba(255, 255, 255, 0.85);
+  --glass-light: rgba(255, 255, 255, 0.60);
+  --glass-dark-strong: #111827;
+  --glass-dark-medium: rgba(17, 24, 39, 0.85);
+  --glass-icon-bg: rgba(22, 101, 52, 0.12);
+  --glass-mission-bg: rgba(0, 0, 0, 0.02);
+  --glass-footer-dark: rgba(17, 24, 39, 0.97);
+  --glass-footer-light: rgba(255, 255, 255, 0.95);
 
   /* Borders */
-  --border-ember: rgba(244, 114, 66, 0.4);
-  --border-glass: rgba(255, 255, 255, 0.15);
-  --button-border-dark: rgba(244, 114, 66, 0.4);
-  --button-border-light: rgba(255, 255, 255, 0.15);
+  --border-ember: rgba(22, 101, 52, 0.25);
+  --border-glass: rgba(0, 0, 0, 0.10);
+  --button-border-dark: rgba(22, 101, 52, 0.25);
+  --button-border-light: rgba(0, 0, 0, 0.10);
 
   /* Text Overlays */
-  --text-overlay-dark: rgba(26, 26, 26, 0.85);
-  --text-overlay-light: rgba(255, 255, 255, 0.9);
+  --text-overlay-dark: rgba(17, 24, 39, 0.90);
+  --text-overlay-light: rgba(255, 255, 255, 0.95);
 
   /* Navigation Accent */
-  --nav-shadow-ember: rgba(244, 114, 66, 0.2);
+  --nav-shadow-ember: rgba(22, 101, 52, 0.12);
 
   /* Elevation System */
-  --shadow-hero-panel: 0 20px 80px rgba(0, 0, 0, 0.6);
-  --shadow-card: 0 20px 60px rgba(0, 0, 0, 0.5);
-  --shadow-ember-primary: 0 8px 32px rgba(244, 114, 66, 0.5), 0 0 40px rgba(244, 114, 66, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  --shadow-ember-secondary: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.15);
-  --shadow-amber-glow: 0 12px 32px rgba(251, 191, 36, 0.35), 0 0 24px rgba(251, 191, 36, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  --shadow-light-button-primary: 0 8px 32px rgba(244, 114, 66, 0.5), 0 0 40px rgba(244, 114, 66, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  --shadow-light-button-secondary: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  --shadow-light-icon: 0 8px 24px rgba(251, 191, 36, 0.35), 0 0 0 1px rgba(251, 191, 36, 0.25);
+  --shadow-hero-panel: 0 20px 80px rgba(0, 0, 0, 0.12);
+
+  /* Card shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.10), 0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-card-prominent: 0 4px 20px rgba(0, 0, 0, 0.10), 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-card-subtle: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --shadow-card-glass: 0 4px 24px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.90), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* Button shadows */
+  --shadow-ember-primary: 0 4px 16px rgba(22, 101, 52, 0.30), 0 0 24px rgba(22, 101, 52, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --shadow-ember-secondary: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.60), 0 0 0 1px rgba(0, 0, 0, 0.08);
+
+  /* Accent glows */
+  --shadow-amber-glow: 0 4px 16px rgba(22, 101, 52, 0.20), 0 0 12px rgba(22, 101, 52, 0.12);
+  --shadow-light-button-primary: 0 4px 16px rgba(22, 101, 52, 0.30), 0 0 24px rgba(22, 101, 52, 0.15);
+  --shadow-light-button-secondary: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.60);
+  --shadow-light-icon: 0 4px 12px rgba(22, 101, 52, 0.20), 0 0 0 1px rgba(22, 101, 52, 0.12);
+
+  /* On-Image Content Tokens */
+  --on-image-text:         rgba(17, 24, 39, 0.97);
+  --on-image-muted:        rgba(17, 24, 39, 0.65);
+  --on-image-surface:      rgba(255, 255, 255, 0.85);
+  --on-image-border:       rgba(0, 0, 0, 0.10);
+  --on-image-pill-bg:      rgba(0, 0, 0, 0.06);
+  --on-image-pill-text:    rgba(17, 24, 39, 0.85);
+  --on-image-pill-border:  rgba(0, 0, 0, 0.12);
+  --on-image-shadow:       0 4px 24px rgba(0, 0, 0, 0.12);
+
+  /* Readability scrim */
+  --scrim-bg:              rgba(255, 255, 255, 0.15);
+
+  /* Accent label */
+  --accent-label:          #166534;
+
+  /* CTA button tokens */
+  --cta-primary-bg:        #166534;
+  --cta-primary-color:     #ffffff;
+  --cta-primary-border:    #15803D;
+  --cta-primary-shadow:    0 4px 16px rgba(22, 101, 52, 0.35), 0 0 24px rgba(22, 101, 52, 0.15);
+
+  --cta-secondary-bg:      rgba(255, 255, 255, 0.95);
+  --cta-secondary-color:   #111827;
+  --cta-secondary-border:  rgba(0, 0, 0, 0.12);
+  --cta-secondary-shadow:  0 2px 8px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.80);
+
+  /* Dashboard surfaces */
+  --dash-bg: #f8f9fa;
+  --dash-sidebar-bg: #ffffff;
+  --dash-header-bg: rgba(255, 255, 255, 0.97);
+  --dash-sidebar-border: rgba(0, 0, 0, 0.07);
+  --dash-nav-active-bg: rgba(22, 101, 52, 0.08);
+  --dash-nav-hover-bg: rgba(0, 0, 0, 0.04);
 }
 
-/* Dark class mirrors :root since dark is the only mode */
-.dark {
-  color-scheme: dark;
+/* ══════════════════════════════════════════════════════════════
+   FONT SCALING — applied via data-font-scale attribute
+   ══════════════════════════════════════════════════════════════ */
+
+[data-font-scale='small'] { --font-size: 14px; }
+[data-font-scale='default'] { --font-size: 16px; }
+[data-font-scale='large'] { --font-size: 18px; }
+[data-font-scale='xlarge'] { --font-size: 20px; }
+
+/* High contrast mode */
+[data-high-contrast='true'] {
+  --muted-foreground: var(--foreground);
+  --border: rgba(0, 0, 0, 0.25);
 }
 
-/* Smooth theme transitions */
-:root,
-.dark {
-  transition: background-color 1.5s cubic-bezier(0.25, 0.1, 0.25, 1),
-              color 1.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+/* ══════════════════════════════════════════════════════════════
+   ACCENT SHIMMER — utility class for animated underline effects
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes accent-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
 }
 
-/* Scoped transitions - only apply to common UI elements */
-body, section, article, aside, nav, header, footer, main,
-div[class*="bg-"], div[class*="border-"], div[class*="text-"] {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 1.2s;
-  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-button,
-a,
-input,
-textarea {
-  transition-duration: 0.5s;
+.accent-shimmer {
+  background-size: 200% 100%;
 }
 
 /* Base Styles */
@@ -163,12 +210,6 @@ textarea {
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headline);
     letter-spacing: -0.022em;
-  }
-
-  /* Dark mode text glow for premium readability */
-  .dark h1,
-  .dark h2 {
-    text-shadow: 0 0 40px rgba(255, 255, 255, 0.15), 0 0 20px rgba(255, 255, 255, 0.1);
   }
 
   h1 {
@@ -222,5 +263,5 @@ textarea {
 
 /* Selection color */
 ::selection {
-  background-color: rgba(59, 130, 246, 0.3);
+  background-color: rgba(22, 101, 52, 0.20);
 }

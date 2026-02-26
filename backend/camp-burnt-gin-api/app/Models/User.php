@@ -196,14 +196,14 @@ class User extends Authenticatable
     public function recordFailedLogin(): void
     {
         $attempts = $this->failed_login_attempts + 1;
-        $lockoutMinutes = 15;
+        $lockoutMinutes = 5;
 
         $data = [
             'failed_login_attempts' => $attempts,
             'last_failed_login_at' => now(),
         ];
 
-        if ($attempts >= 5) {
+        if ($attempts >= 10) {
             $data['lockout_until'] = now()->addMinutes($lockoutMinutes);
         }
 

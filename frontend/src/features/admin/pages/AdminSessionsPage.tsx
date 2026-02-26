@@ -1,0 +1,454 @@
+/**
+ * AdminSessionsPage.tsx
+ *
+ * CRUD management for camps and sessions.
+ * Route: /admin/sessions
+ */
+
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users } from 'lucide-react';
+import { format } from 'date-fns';
+
+import {
+  getCamps, createCamp, updateCamp, deleteCamp,
+  getSessions, createSession, updateSession, deleteSession,
+} from '@/features/admin/api/admin.api';
+import { Button } from '@/ui/components/Button';
+import { Skeletons } from '@/ui/components/Skeletons';
+import { EmptyState } from '@/ui/components/EmptyState';
+import { pageEntry, staggerContainer, staggerChild, modalBackdrop, modalContent } from '@/shared/constants/motion';
+import type { Camp, CampSession } from '@/features/admin/types/admin.types';
+
+// ---------------------------------------------------------------------------
+// Camp form modal
+// ---------------------------------------------------------------------------
+
+interface CampModalProps {
+  camp: Camp | null;
+  onClose: () => void;
+  onSaved: (camp: Camp) => void;
+}
+
+function CampModal({ camp, onClose, onSaved }: CampModalProps) {
+  const { t } = useTranslation();
+  const [name, setName]             = useState(camp?.name ?? '');
+  const [location, setLocation]     = useState(camp?.location ?? '');
+  const [description, setDesc]      = useState(camp?.description ?? '');
+  const [saving, setSaving]         = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const saved = camp
+        ? await updateCamp(camp.id, { name, location, description })
+        : await createCamp({ name, location, description });
+      onSaved(saved);
+      toast.success(t(camp ? 'admin.sessions.camp_updated' : 'admin.sessions.camp_created'));
+    } catch {
+      toast.error(t('common.save_error'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <motion.div
+      variants={modalBackdrop}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        variants={modalContent}
+        className="w-full max-w-md rounded-2xl border p-6"
+        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
+            {t(camp ? 'admin.sessions.edit_camp' : 'admin.sessions.new_camp')}
+          </h2>
+          <button onClick={onClose} style={{ color: 'var(--muted-foreground)' }}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {[
+            { label: t('admin.sessions.camp_name'), value: name, set: setName, required: true },
+            { label: t('admin.sessions.camp_location'), value: location, set: setLocation, required: true },
+            { label: t('admin.sessions.camp_description'), value: description, set: setDesc, required: false },
+          ].map(({ label, value, set, required }) => (
+            <div key={label}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+                {label}
+              </label>
+              <input
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                required={required}
+                className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+          ))}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" variant="primary" loading={saving} className="flex-1">
+              {t('common.save')}
+            </Button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Session form modal
+// ---------------------------------------------------------------------------
+
+interface SessionModalProps {
+  session: CampSession | null;
+  camps: Camp[];
+  onClose: () => void;
+  onSaved: (session: CampSession) => void;
+}
+
+function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
+  const { t } = useTranslation();
+  const [campId, setCampId]         = useState<number>(session?.camp_id ?? camps[0]?.id ?? 0);
+  const [name, setName]             = useState(session?.name ?? '');
+  const [startDate, setStartDate]   = useState(session?.start_date ?? '');
+  const [endDate, setEndDate]       = useState(session?.end_date ?? '');
+  const [capacity, setCapacity]     = useState<number>(session?.capacity ?? 20);
+  const [saving, setSaving]         = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = { camp_id: campId, name, start_date: startDate, end_date: endDate, capacity };
+      const saved = session
+        ? await updateSession(session.id, payload)
+        : await createSession(payload);
+      onSaved(saved);
+      toast.success(t(session ? 'admin.sessions.session_updated' : 'admin.sessions.session_created'));
+    } catch {
+      toast.error(t('common.save_error'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <motion.div
+      variants={modalBackdrop}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        variants={modalContent}
+        className="w-full max-w-md rounded-2xl border p-6"
+        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
+            {t(session ? 'admin.sessions.edit_session' : 'admin.sessions.new_session')}
+          </h2>
+          <button onClick={onClose} style={{ color: 'var(--muted-foreground)' }}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('admin.sessions.camp')}
+            </label>
+            <select
+              value={campId}
+              onChange={(e) => setCampId(Number(e.target.value))}
+              required
+              className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            >
+              {camps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('admin.sessions.session_name')}
+            </label>
+            <input
+              value={name} onChange={(e) => setName(e.target.value)} required
+              className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+                {t('admin.sessions.start_date')}
+              </label>
+              <input
+                type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required
+                className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+                {t('admin.sessions.end_date')}
+              </label>
+              <input
+                type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required
+                className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('admin.sessions.capacity')}
+            </label>
+            <input
+              type="number" min={1} value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} required
+              className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} className="flex-1">{t('common.cancel')}</Button>
+            <Button type="submit" variant="primary" loading={saving} className="flex-1">{t('common.save')}</Button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+export function AdminSessionsPage() {
+  const { t } = useTranslation();
+
+  const [camps, setCamps]             = useState<Camp[]>([]);
+  const [sessions, setSessions]       = useState<CampSession[]>([]);
+  const [loading, setLoading]         = useState(true);
+
+  const [campModal, setCampModal]     = useState<{ open: boolean; camp: Camp | null }>({ open: false, camp: null });
+  const [sessionModal, setSessionModal] = useState<{ open: boolean; session: CampSession | null }>({ open: false, session: null });
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [campsData, sessionsData] = await Promise.all([getCamps(), getSessions()]);
+      setCamps(campsData);
+      setSessions(sessionsData);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void fetchData(); }, [fetchData]);
+
+  async function handleDeleteCamp(id: number) {
+    if (!window.confirm(t('admin.sessions.confirm_delete_camp'))) return;
+    await deleteCamp(id);
+    setCamps((prev) => prev.filter((c) => c.id !== id));
+    toast.success(t('admin.sessions.camp_deleted'));
+  }
+
+  async function handleDeleteSession(id: number) {
+    if (!window.confirm(t('admin.sessions.confirm_delete_session'))) return;
+    await deleteSession(id);
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    toast.success(t('admin.sessions.session_deleted'));
+  }
+
+  return (
+    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-7xl">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        {/* Camps */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
+              {t('admin.sessions.camps_title')}
+            </h2>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => setCampModal({ open: true, camp: null })}
+            >
+              {t('admin.sessions.new_camp')}
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeletons.Card key={i} />)}</div>
+          ) : camps.length === 0 ? (
+            <EmptyState title={t('admin.sessions.no_camps')} description={t('admin.sessions.no_camps_desc')} />
+          ) : (
+            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+              {camps.map((camp) => (
+                <motion.div
+                  key={camp.id}
+                  variants={staggerChild}
+                  className="rounded-xl border p-4"
+                  style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{camp.name}</p>
+                      <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
+                        <MapPin className="h-3 w-3" /> {camp.location}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCampModal({ open: true, camp })}
+                        className="p-1.5 rounded transition-colors"
+                        style={{ color: 'var(--muted-foreground)' }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCamp(camp.id)}
+                        className="p-1.5 rounded transition-colors"
+                        style={{ color: 'var(--muted-foreground)' }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </div>
+
+        {/* Sessions */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
+              {t('admin.sessions.sessions_title')}
+            </h2>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => setSessionModal({ open: true, session: null })}
+              disabled={camps.length === 0}
+            >
+              {t('admin.sessions.new_session')}
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeletons.Card key={i} />)}</div>
+          ) : sessions.length === 0 ? (
+            <EmptyState title={t('admin.sessions.no_sessions')} description={t('admin.sessions.no_sessions_desc')} />
+          ) : (
+            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+              {sessions.map((session) => (
+                <motion.div
+                  key={session.id}
+                  variants={staggerChild}
+                  className="rounded-xl border p-4"
+                  style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{session.name}</p>
+                      <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(session.start_date), 'MMM d')} — {format(new Date(session.end_date), 'MMM d, yyyy')}
+                      </p>
+                      <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
+                        <Users className="h-3 w-3" />
+                        {session.enrolled_count ?? 0} / {session.capacity} {t('admin.sessions.enrolled')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSessionModal({ open: true, session })}
+                        className="p-1.5 rounded transition-colors"
+                        style={{ color: 'var(--muted-foreground)' }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSession(session.id)}
+                        className="p-1.5 rounded transition-colors"
+                        style={{ color: 'var(--muted-foreground)' }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {campModal.open && (
+          <CampModal
+            camp={campModal.camp}
+            onClose={() => setCampModal({ open: false, camp: null })}
+            onSaved={(saved) => {
+              setCamps((prev) =>
+                campModal.camp
+                  ? prev.map((c) => (c.id === saved.id ? saved : c))
+                  : [...prev, saved]
+              );
+              setCampModal({ open: false, camp: null });
+            }}
+          />
+        )}
+        {sessionModal.open && (
+          <SessionModal
+            session={sessionModal.session}
+            camps={camps}
+            onClose={() => setSessionModal({ open: false, session: null })}
+            onSaved={(saved) => {
+              setSessions((prev) =>
+                sessionModal.session
+                  ? prev.map((s) => (s.id === saved.id ? saved : s))
+                  : [...prev, saved]
+              );
+              setSessionModal({ open: false, session: null });
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}

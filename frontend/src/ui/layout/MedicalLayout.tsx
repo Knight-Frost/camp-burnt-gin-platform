@@ -1,45 +1,38 @@
-import { ReactNode } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { Navigate } from 'react-router-dom';
-import { useAppSelector } from '@/store/hooks';
-import { FullPageLoader } from '@/ui/components';
-
-interface MedicalLayoutProps {
-  children: ReactNode;
-  title?: string;
-}
-
 /**
- * Medical Layout
- *
- * Role-based layout for medical provider users.
- * Enforces medical role access control.
- * Read-only access to medical records.
+ * MedicalLayout.tsx
+ * Layout for medical-role authenticated routes.
+ * Role mismatch → redirects to the user's correct dashboard (never FORBIDDEN dead-end).
  */
-export function MedicalLayout({ children, title }: MedicalLayoutProps) {
-  const { user, isLoading } = useAppSelector((state) => state.auth);
 
-  // Show loader during auth hydration to prevent false redirects
-  if (isLoading) {
-    return <FullPageLoader />;
-  }
+import { Outlet, Navigate } from 'react-router-dom';
+import { LayoutDashboard, User, Settings } from 'lucide-react';
+import { useAppSelector } from '@/store/hooks';
+import { DashboardShell } from './DashboardShell';
+import { ROUTES } from '@/shared/constants/routes';
+import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
+import type { NavItem } from './DashboardSidebar';
 
-  if (!user || user.role.name !== 'medical') {
-    return <Navigate to="/forbidden" replace />;
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', to: ROUTES.MEDICAL_DASHBOARD, icon: LayoutDashboard },
+  { label: 'Profile',   to: '/medical/profile',        icon: User },
+  { label: 'Settings',  to: '/medical/settings',       icon: Settings },
+];
+
+export function MedicalLayout() {
+  const user = useAppSelector((state) => state.auth.user);
+  const hasAccess = user?.roles.some((r) =>
+    ['medical', 'admin', 'super_admin'].includes(r.name)
+  );
+
+  if (!hasAccess) {
+    // Redirect to the user's actual dashboard instead of a dead-end Forbidden page
+    const role = getPrimaryRole(user?.roles ?? []);
+    return <Navigate to={getDashboardRoute(role)} replace />;
   }
 
   return (
-    <>
-      <Helmet>
-        <title>{title ? `${title} | Camp Burnt Gin Medical` : 'Camp Burnt Gin Medical'}</title>
-      </Helmet>
-
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
-        {/* Medical provider navigation will go here */}
-        <main className="mx-auto max-w-7xl px-4 py-8">
-          {children}
-        </main>
-      </div>
-    </>
+    <DashboardShell navItems={NAV_ITEMS} pageTitle="Medical Dashboard">
+      <Outlet />
+    </DashboardShell>
   );
 }

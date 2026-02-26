@@ -1,45 +1,57 @@
-import { ReactNode } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { Navigate } from 'react-router-dom';
-import { useAppSelector } from '@/store/hooks';
-import { FullPageLoader } from '@/ui/components';
-
-interface SuperAdminLayoutProps {
-  children: ReactNode;
-  title?: string;
-}
-
 /**
- * Super Admin Layout
- *
- * Role-based layout for super_admin users ONLY.
- * Enforces super_admin role access control.
- * Highest privilege tier - system governance and delegation.
+ * SuperAdminLayout.tsx
+ * Layout for super_admin role authenticated routes.
+ * Role mismatch → redirects to the user's correct dashboard (never FORBIDDEN dead-end).
  */
-export function SuperAdminLayout({ children, title }: SuperAdminLayoutProps) {
-  const { user, isLoading } = useAppSelector((state) => state.auth);
 
-  // Show loader during auth hydration to prevent false redirects
-  if (isLoading) {
-    return <FullPageLoader />;
-  }
+import { Outlet, Navigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Users,
+  Shield,
+  ScrollText,
+  FileText,
+  CalendarDays,
+  BarChart3,
+  MessageSquare,
+  Settings,
+  Megaphone,
+  ClipboardList,
+} from 'lucide-react';
+import { useAppSelector } from '@/store/hooks';
+import { DashboardShell } from './DashboardShell';
+import { ROUTES } from '@/shared/constants/routes';
+import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
+import type { NavItem } from './DashboardSidebar';
 
-  if (!user || user.role.name !== 'super_admin') {
-    return <Navigate to="/forbidden" replace />;
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard',        to: ROUTES.SUPER_ADMIN_DASHBOARD,  icon: LayoutDashboard },
+  { label: 'User Management',  to: ROUTES.SUPER_ADMIN_USERS,      icon: Users },
+  { label: 'Audit Log',        to: ROUTES.SUPER_ADMIN_AUDIT,      icon: ScrollText },
+  { label: 'Form Templates',   to: ROUTES.SUPER_ADMIN_FORMS,      icon: ClipboardList },
+  { label: 'Applications',     to: '/super-admin/applications',   icon: FileText },
+  { label: 'Campers',          to: '/super-admin/campers',        icon: Shield },
+  { label: 'Sessions & Camps', to: '/super-admin/sessions',       icon: CalendarDays },
+  { label: 'Announcements',    to: '/super-admin/announcements',  icon: Megaphone },
+  { label: 'Calendar',         to: '/super-admin/calendar',       icon: CalendarDays },
+  { label: 'Reports',          to: '/super-admin/reports',        icon: BarChart3 },
+  { label: 'Inbox',            to: '/super-admin/inbox',          icon: MessageSquare },
+  { label: 'Settings',         to: '/super-admin/settings',       icon: Settings },
+];
+
+export function SuperAdminLayout() {
+  const user = useAppSelector((state) => state.auth.user);
+  const hasAccess = user?.roles.some((r) => r.name === 'super_admin');
+
+  if (!hasAccess) {
+    // Redirect to the user's actual dashboard instead of a dead-end Forbidden page
+    const role = getPrimaryRole(user?.roles ?? []);
+    return <Navigate to={getDashboardRoute(role)} replace />;
   }
 
   return (
-    <>
-      <Helmet>
-        <title>{title ? `${title} | Camp Burnt Gin Super Admin` : 'Camp Burnt Gin Super Admin'}</title>
-      </Helmet>
-
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
-        {/* Super admin navigation will go here */}
-        <main className="mx-auto max-w-7xl px-4 py-8">
-          {children}
-        </main>
-      </div>
-    </>
+    <DashboardShell navItems={NAV_ITEMS} pageTitle="Super Admin">
+      <Outlet />
+    </DashboardShell>
   );
 }

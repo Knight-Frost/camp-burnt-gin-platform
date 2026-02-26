@@ -17,7 +17,7 @@ export function RoleGuard({
   redirectTo = '/forbidden',
 }: RoleGuardProps) {
   const user = useAppSelector((state) => state.auth.user);
-  const roleName = user?.role?.name;
+  const roleName = user?.role ?? user?.roles?.[0]?.name;
 
   if (!user || !roleName) {
     return <Navigate to="/login" replace />;

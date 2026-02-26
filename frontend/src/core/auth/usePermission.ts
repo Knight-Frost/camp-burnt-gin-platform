@@ -4,7 +4,7 @@ import { RoleName } from '@/shared/constants/roles';
 
 export function usePermission() {
   const user = useAppSelector((state) => state.auth.user);
-  const roleName = user?.role?.name;
+  const roleName = user?.role ?? user?.roles?.[0]?.name;
 
   const permissions = roleName && roleName in ROLE_PERMISSIONS
     ? ROLE_PERMISSIONS[roleName as RoleName]

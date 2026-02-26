@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\Inbox\MessageController;
 use App\Http\Controllers\Api\System\HealthController;
 use App\Http\Controllers\Api\System\NotificationController;
 use App\Http\Controllers\Api\System\ReportController;
+use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\CalendarEventController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -398,6 +400,26 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | with full audit trails. Rate limiting prevents abuse.
     |
     */
+
+    // ─── Announcements ─────────────────────────────────────────────────────────
+    Route::prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
+        Route::post('/', [AnnouncementController::class, 'store'])->middleware('admin')->name('announcements.store');
+        Route::put('/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::delete('/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::post('/{announcement}/pin', [AnnouncementController::class, 'togglePin'])->middleware('admin')->name('announcements.pin');
+    });
+
+    // ─── Calendar Events ───────────────────────────────────────────────────────
+    Route::prefix('calendar')->group(function () {
+        Route::get('/', [CalendarEventController::class, 'index'])->name('calendar.index');
+        Route::get('/{calendarEvent}', [CalendarEventController::class, 'show'])->name('calendar.show');
+        Route::post('/', [CalendarEventController::class, 'store'])->middleware('admin')->name('calendar.store');
+        Route::put('/{calendarEvent}', [CalendarEventController::class, 'update'])->middleware('admin')->name('calendar.update');
+        Route::delete('/{calendarEvent}', [CalendarEventController::class, 'destroy'])->middleware('admin')->name('calendar.destroy');
+    });
+
     Route::prefix('inbox')->group(function () {
         /*
         | Conversation Routes
