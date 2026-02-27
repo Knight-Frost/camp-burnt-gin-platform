@@ -144,5 +144,10 @@ When a user goes to their `/settings` page and tries to change their current pas
 ![before-pressing-update](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/newpassword-show.png)
 ![error-message](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/error-message.png)
 
+## Issue #3 - Enabling MFA on one account enables it on all accounts. 
+### 1. Page / Location
 
+
+## Issue #4 - Disabling MFA 
+### 1. Page / Location
 
