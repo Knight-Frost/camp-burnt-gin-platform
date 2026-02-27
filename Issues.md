@@ -76,6 +76,7 @@ A new account under the name 'test' was used as an example for registration:
 ![registration-example](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/registration-credentials-example.png)
 
 However, once the user presses enter, the user will be taken to `/parent/dashboard`, which looks like this:
+![create-account-button-press](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/create-account-button-press.png)
 ![expected-behavior](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/expected-behavior.png)
 
 
@@ -88,5 +89,6 @@ An Application Error message appears on `/parent/dashboard` rather than the dash
 - [ ] Medium (affects usability)
 - [ ] High (breaks functionality)
 - [x] Critical (system unusable)
+
 
 
