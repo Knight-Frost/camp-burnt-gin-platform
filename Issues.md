@@ -49,3 +49,38 @@ Explain what ACTUALLY happens.
 Attach screenshot or paste link here.
 
 ---
+
+## Issue #1 - Registration attempt outputs "Unexpected Application Error!"
+### 1. Page / Location
+`/login` and `/parent/dashboard`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [ ] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [x] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When a user creates a new account on the `/login` page and clicks on "Create account", the user is taken to the `/parent/dashboard` page. However, instead of showing the parent's dashboard, an error screen appears. 
+Despite this error, the newly-created account is stored on the backend MySQL Database(Name, Email, and hashed password). 
+
+
+### 5. Expected Behavior
+What should happen is that the page should show the user's dashboard.
+![expected-behavior](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/expected-behavior.png)
+
+
+### 6. Actual Behavior
+An Application Error message appears on `/parent/dashboard` rather than the dashboard content itself.
+![actual-behavior](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/error-screenshot.png)
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [x] Critical (system unusable)
+
