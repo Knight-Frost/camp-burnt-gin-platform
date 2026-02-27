@@ -57,17 +57,22 @@ Attach screenshot or paste link here.
 ### 2. Type of Issue
 - [ ] UI Design
 - [ ] UX Problem
-- [ ] Functional Bug
+- [x] Functional Bug
 - [ ] Validation Issue
 - [ ] Broken Link
 - [ ] Performance Issue
-- [x] Accessibility Issue
+- [ ] Accessibility Issue
 - [ ] Other: ________
 
 ### 3. Description
 When a user creates a new account on the `/login` page and clicks on "Create account", the user is taken to the `/parent/dashboard` page. However, instead of showing the parent's dashboard, an error screen appears. 
 Despite this error, the newly-created account is stored on the backend MySQL Database(Name, Email, and hashed password). 
 
+### 4. Steps to reproduce
+1. Go to the `/login/` page
+2. Click on `Create a new one now` button to create a new account
+3. Go through the account creation process(email, confirm email, password, confirm password)
+4. Click on `Create account`
 
 ### 5. Expected Behavior
 What should happen is that the page should show the user's dashboard.
@@ -93,6 +98,51 @@ An Application Error message appears on `/parent/dashboard` rather than the dash
 - [ ] High (breaks functionality)
 - [x] Critical (system unusable)
 
+
+## Issue #2 - User Password Change Attempt Results in "Endpoint not found" Error
+### 1. Page / Location
+Several types of users have the same type of error:
+- `super_admin` at `/admin/settings`
+- `parent` at `/parent/dashboard`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When a user goes to their `/settings` page and tries to change their current password to a new one, and click "Update Password", the website outputs a message on the top right with the error: "Endpoint not found"
+
+### 4. Steps to reproduce
+1. Login with a parent or admin account
+2. On the dashboard, go to Settings > Security
+3. Enter current password and new password
+4. Click on "Update Password"
+
+### 5. Expected Behavior
+- Password should be changed with no errors(unless the original/current password was written wrong by user)
+- Potentially log user out or keep logged in(taken back to dashboard).
+- Change should be reflected on the Backend database(new password hash).
+- Upon logout and login, the new password should allow the user to log in.
+
+### 6. Actual Behavior
+- Password change is not reflected on backend database.
+- Error message "Endpoint not found" pops up as a message on top right of the screen.
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [x] High (breaks functionality)
+- [ ] Critical (system unusable)
+
+### 8. Screenshots
+![before-pressing-update](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/newpassword-show.png)
+![error-message](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/error-message.png)
 
 
 
