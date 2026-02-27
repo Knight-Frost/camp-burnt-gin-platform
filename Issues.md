@@ -79,6 +79,9 @@ However, once the user presses enter, the user will be taken to `/parent/dashboa
 ![create-account-button-press](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/create-account-button-press.png)
 ![expected-behavior](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/expected-behavior.png)
 
+The newly-created account is stored on the MySQL Database on the backend though.
+![registered-account-presence-on-database](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%231/registered-account-on-database.png)
+
 
 ### 6. Actual Behavior
 An Application Error message appears on `/parent/dashboard` rather than the dashboard content itself.
@@ -89,6 +92,7 @@ An Application Error message appears on `/parent/dashboard` rather than the dash
 - [ ] Medium (affects usability)
 - [ ] High (breaks functionality)
 - [x] Critical (system unusable)
+
 
 
 
