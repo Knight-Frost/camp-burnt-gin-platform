@@ -218,7 +218,7 @@ Clearly describe what is wrong.
 2FA Should be disabled so that on the next login, the user whom 2FA was disabled on can login only using their username and password.
 
 ### 6. Actual Behavior
-2FA is not disabled on `/parent/profile`, requiring the user to authenticate via 6-digit 2FA on `/mfa-verify`
+2FA is not disabled on `/parent/profile`, requiring the user to authenticate via 6-digit 2FA on `/mfa-verify`. Specifically, when attempting to disable 2FA via the Disable 2FA button, the following error message appears: "Something went wrong. Please try again."
 
 ### 7. Severity
 - [ ] Low (minor visual issue)
@@ -227,7 +227,7 @@ Clearly describe what is wrong.
 - [x] Critical (system unusable)
 
 ### 8. Screenshot (if available)
-Attach screenshot or paste link here.
+N/A
 
 
 ## Issue #5 - Missing QR Code on 2FA Setup but does show key
@@ -249,16 +249,21 @@ The Enable 2FA setup does not include a QR code, but instead only shows the key(
 The setup of 2FA is much more complex since one wrong letter entered into the Authenticator will not allow the user to login using 2FA because the 6-digit codes will always be wrong.
 
 ### 4. Steps to Reproduce
-1. Go to ___
-2. Click ___
-3. Enter ___
-4. Observe ___
+1. Login to a parent account
+2. Go to `/parent/profile`
+3. Click on Enable 2FA
+
+During the setup of keys there should be 2 options for doing so:
+- QR Code scan on the authenticator app
+- Manual key entry on the authenticator app
+
+However, the QR code is not shown on the QR code box. Only the manual key is present.
 
 ### 5. Expected Behavior
-Explain what SHOULD happen.
+The QR Code should be shown along with the key.
 
 ### 6. Actual Behavior
-Explain what ACTUALLY happens.
+The QR Code is not present when setting up 2FA.
 
 ### 7. Severity
 - [x] Low (minor visual issue)
@@ -286,19 +291,23 @@ Attach screenshot or paste link here.
 - [ ] Other: ________
 
 ### 3. Description
-Clearly describe what is wrong.
+The user(a parent account was used) gets the "Session Expired. Please log in again" error when attempting to login using 2FA(which was previously enabled).
 
 ### 4. Steps to Reproduce
-1. Go to ___
-2. Click ___
-3. Enter ___
-4. Observe ___
+1. Login to a parent account
+2. Go to `/parent/profile`
+3. Click on Enable 2FA
+4. Go through the 2FA setup process(either entering QR code or key) on the authenticator app(Google authenticator was used)
+5. Logout of account and log back into the same user on which 2FA was enabled with username and password
+6. On `/mfa-verify` enter the 6-digit code when prompted for 2FA
+
+Once the user types the 6-digit code, the following message outputs on screen: "Session Expired. Please log in again"
 
 ### 5. Expected Behavior
-Explain what SHOULD happen.
+User should be able to login after entering the valid 6-digit code from the authenticator app.
 
 ### 6. Actual Behavior
-Explain what ACTUALLY happens.
+User is unable to login after entering the valid 6-digit code from the authenticator app, with the webpage outputting the error message: "Session Expired. Please log in again."
 
 ### 7. Severity
 - [ ] Low (minor visual issue)
@@ -307,7 +316,8 @@ Explain what ACTUALLY happens.
 - [x] Critical (system unusable)
 
 ### 8. Screenshot (if available)
-Attach screenshot or paste link here.
+N/A
+
 
 
 
