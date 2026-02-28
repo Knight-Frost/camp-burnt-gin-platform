@@ -4,7 +4,7 @@
  * Clean institutional design: confirm email, always-visible criteria, icons.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,7 +34,7 @@ function inputCls(hasError: boolean, extra = '') {
   ].join(' ');
 }
 
-function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
   return (
     <label htmlFor={htmlFor} className="font-semibold text-[#1e293b]" style={{ fontSize: '0.9375rem' }}>
       {children}
@@ -295,7 +295,7 @@ export function RegisterPage() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15 }}
                 className="flex items-center gap-1.5 text-sm"
-                style={{ color: confirmMatchState === 'match' ? '#16a34a' : '#ef4444' }}
+                style={{ color: confirmMatchState === 'match' ? 'var(--forest-green)' : 'var(--destructive)' }}
               >
                 {confirmMatchState === 'match'
                   ? <><Check style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} /> Passwords match</>

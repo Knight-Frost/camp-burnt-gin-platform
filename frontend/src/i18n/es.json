@@ -482,7 +482,12 @@
       "step1_title": "Escanea este código QR",
       "step1_desc": "Abre tu aplicación autenticadora y escanea el código QR a continuación.",
       "step2_title": "Ingresa el código de 6 dígitos",
-      "verify": "Verificar y Habilitar"
+      "verify": "Verificar y Habilitar",
+      "disable_confirm": "Para confirmar, ingresa tu código de autenticación y contraseña.",
+      "disable_code_label": "Código de Autenticación",
+      "disable_password_label": "Contraseña de la Cuenta",
+      "disable_submit": "Confirmar y Desactivar",
+      "disable_error": "No se pudo desactivar 2FA. Verifica tu código y contraseña."
     }
   },
   "provider": {
@@ -511,7 +516,13 @@
       "col_submitted": "Enviada",
       "col_action": "Acción",
       "empty_title": "Sin solicitudes aún",
-      "empty_desc": "Las solicitudes de campistas aparecerán aquí una vez que los padres las envíen."
+      "empty_desc": "Las solicitudes de campistas aparecerán aquí una vez que los padres las envíen.",
+      "filter_all": "Todos los estados",
+      "filter_pending": "Pendiente",
+      "filter_submitted": "Enviada",
+      "filter_under_review": "En revisión",
+      "filter_accepted": "Aceptada",
+      "filter_rejected": "Rechazada"
     },
     "campers": {
       "title": "Campistas",
@@ -548,7 +559,9 @@
       "confirm_delete_camp": "¿Eliminar este campamento? También se eliminarán todas las sesiones.",
       "confirm_delete_session": "¿Eliminar esta sesión?",
       "camp_deleted": "Campamento eliminado.",
-      "session_deleted": "Sesión eliminada."
+      "session_deleted": "Sesión eliminada.",
+      "edit_camp": "Editar Campamento",
+      "edit_session": "Editar Sesión"
     },
     "reports": {
       "title": "Informes",

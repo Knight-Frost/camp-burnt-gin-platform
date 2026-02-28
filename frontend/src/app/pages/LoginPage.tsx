@@ -1,25 +1,32 @@
 /**
  * LoginPage.tsx
- * Login form — wired to POST /api/auth/login.
- * Handles MFA redirect, 422 field errors, 429 rate limiting, lockout.
+ * Two-phase login form:
+ *   Phase 1 — email + password → POST /api/auth/login
+ *   Phase 2 — MFA code input   → POST /api/auth/login again with mfa_code
+ *
+ * When the backend returns { mfa_required: true }, credentials are kept in
+ * component state (never persisted) and the form switches to the MFA step.
+ * On MFA submit, we call login({ email, password, mfa_code }) to get a full token.
  */
 
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/auth.schema';
 import { login } from '@/features/auth/api/auth.api';
-import { setUser, setToken, setMfaRequired } from '@/features/auth/store/authSlice';
+import { setUser, setToken } from '@/features/auth/store/authSlice';
 import { useAppDispatch } from '@/store/hooks';
 import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
 import { isValidationError, isLockoutError, isRateLimitError } from '@/shared/types';
 import { AuthCard } from '@/features/auth/components/AuthCard';
+
+const CODE_LENGTH = 6;
 
 function inputCls(hasError: boolean, extra = '') {
   return [
@@ -37,8 +44,17 @@ export function LoginPage() {
   const location = useLocation();
   const from     = (location.state as { from?: string })?.from ?? null;
 
+  // Phase 1 state
   const [showPassword,   setShowPassword]   = useState(false);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
+
+  // Phase 2: MFA state — credentials held in ref (not Redux, not localStorage)
+  const mfaCredentials  = useRef<{ email: string; password: string } | null>(null);
+  const inputRefs       = useRef<(HTMLInputElement | null)[]>([]);
+  const [mfaStep,       setMfaStep]         = useState(false);
+  const [mfaDigits,     setMfaDigits]       = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const [mfaError,      setMfaError]        = useState<string | null>(null);
+  const [mfaSubmitting, setMfaSubmitting]   = useState(false);
 
   const {
     register,
@@ -47,14 +63,20 @@ export function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
 
+  // ── Phase 1: Credentials submit ─────────────────────────────────────────────
+
   const onSubmit = async (values: LoginFormValues) => {
     try {
       const response = await login(values);
 
       const topLevel = response as unknown as { mfa_required?: boolean };
       if (topLevel.mfa_required) {
-        dispatch(setMfaRequired(true));
-        navigate(ROUTES.MFA_VERIFY);
+        // Store credentials in memory only, switch to MFA step
+        mfaCredentials.current = { email: values.email, password: values.password };
+        setMfaStep(true);
+        setMfaDigits(Array(CODE_LENGTH).fill(''));
+        setMfaError(null);
+        setTimeout(() => inputRefs.current[0]?.focus(), 120);
         return;
       }
 
@@ -85,6 +107,141 @@ export function LoginPage() {
       toast.error((error as { message: string }).message ?? 'Login failed. Please try again.');
     }
   };
+
+  // ── Phase 2: MFA digit input handlers ───────────────────────────────────────
+
+  const handleMfaChange = (index: number, value: string) => {
+    if (!/^\d?$/.test(value)) return;
+    setMfaError(null);
+    const updated = [...mfaDigits];
+    updated[index] = value;
+    setMfaDigits(updated);
+    if (value && index < CODE_LENGTH - 1) inputRefs.current[index + 1]?.focus();
+    if (updated.every((d) => d !== '') && value) void handleMfaVerify(updated.join(''));
+  };
+
+  const handleMfaKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !mfaDigits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleMfaPaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH);
+    if (!pasted) return;
+    const updated = Array(CODE_LENGTH).fill('');
+    pasted.split('').forEach((char, i) => { updated[i] = char; });
+    setMfaDigits(updated);
+    inputRefs.current[Math.min(pasted.length, CODE_LENGTH - 1)]?.focus();
+    if (pasted.length === CODE_LENGTH) void handleMfaVerify(pasted);
+  };
+
+  const handleMfaVerify = async (code: string) => {
+    if (!mfaCredentials.current) return;
+    setMfaSubmitting(true);
+    setMfaError(null);
+    try {
+      const response = await login({ ...mfaCredentials.current, mfa_code: code });
+      const { user, token, expires_in } = response.data;
+      mfaCredentials.current = null; // clear from memory
+      dispatch(setToken({ token, expiresIn: expires_in }));
+      dispatch(setUser(user));
+      toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
+      const role = getPrimaryRole(user.roles ?? []);
+      navigate(from ?? getDashboardRoute(role), { replace: true });
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? 'Invalid code. Please try again.';
+      setMfaError(msg);
+      setMfaDigits(Array(CODE_LENGTH).fill(''));
+      setTimeout(() => inputRefs.current[0]?.focus(), 60);
+    } finally {
+      setMfaSubmitting(false);
+    }
+  };
+
+  const mfaCode = mfaDigits.join('');
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (mfaStep) {
+    return (
+      <AuthCard
+        title="Two-factor authentication"
+        subtitle="Enter the 6-digit code from your authenticator app."
+      >
+        <div className="flex flex-col items-center gap-8">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center justify-center w-16 h-16 rounded-2xl"
+            style={{ background: 'rgba(30,58,110,0.08)' }}
+          >
+            <ShieldCheck className="h-8 w-8" style={{ color: '#1e3a6e' }} />
+          </motion.div>
+
+          {/* Digit inputs */}
+          <div className="flex gap-3" role="group" aria-label="MFA code">
+            {mfaDigits.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => { inputRefs.current[index] = el; }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleMfaChange(index, e.target.value)}
+                onKeyDown={(e) => handleMfaKeyDown(index, e)}
+                onPaste={handleMfaPaste}
+                aria-label={`Digit ${index + 1}`}
+                className="w-12 h-14 text-center text-xl font-semibold rounded-xl border outline-none transition-all duration-200 focus:ring-2 focus:ring-[#1e3a6e]/30"
+                style={{
+                  background: '#f8fafc',
+                  color: '#1e293b',
+                  borderColor: mfaError ? '#f87171' : digit ? '#1e3a6e' : '#d1dce8',
+                  fontSize: '1.375rem',
+                }}
+              />
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {mfaError && (
+              <motion.p
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                role="alert"
+                className="text-sm text-center text-red-500"
+              >
+                {mfaError}
+              </motion.p>
+            )}
+          </AnimatePresence>
+
+          <button
+            type="button"
+            disabled={mfaCode.length < CODE_LENGTH || mfaSubmitting}
+            onClick={() => void handleMfaVerify(mfaCode)}
+            className="w-full py-3.5 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: '#1e3a6e', fontSize: '1rem' }}
+          >
+            {mfaSubmitting ? 'Verifying…' : 'Verify identity'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setMfaStep(false); mfaCredentials.current = null; setMfaDigits(Array(CODE_LENGTH).fill('')); }}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to login
+          </button>
+        </div>
+      </AuthCard>
+    );
+  }
 
   return (
     <AuthCard

@@ -18,25 +18,35 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { AuditLogEntry } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
+interface LogFilters {
+  search:   string;
+  dateFrom: string;
+  dateTo:   string;
+  page:     number;
+}
+
 export function AuditLogPage() {
   const { t } = useTranslation();
 
   const [response, setResponse] = useState<PaginatedResponse<AuditLogEntry> | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
-  const [search, setSearch]     = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo]     = useState('');
-  const [page, setPage]         = useState(1);
+  const [filters, setFilters]   = useState<LogFilters>({ search: '', dateFrom: '', dateTo: '', page: 1 });
+
+  const setSearch   = (search: string)   => setFilters((f) => ({ ...f, search,   page: 1 }));
+  const setDateFrom = (dateFrom: string) => setFilters((f) => ({ ...f, dateFrom, page: 1 }));
+  const setDateTo   = (dateTo: string)   => setFilters((f) => ({ ...f, dateTo,   page: 1 }));
+  const setPage     = (page: number)     => setFilters((f) => ({ ...f, page }));
 
   const fetchLog = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const data = await getAuditLog({
-        page,
-        from: dateFrom || undefined,
-        to: dateTo || undefined,
+        page:   filters.page,
+        search: filters.search || undefined,
+        from:   filters.dateFrom || undefined,
+        to:     filters.dateTo || undefined,
       });
       setResponse(data);
     } catch {
@@ -44,15 +54,14 @@ export function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, dateFrom, dateTo]);
+  }, [filters]);
 
   useEffect(() => { void fetchLog(); }, [fetchLog]);
-  useEffect(() => { setPage(1); }, [search, dateFrom, dateTo]);
 
   const ACTION_COLORS: Record<string, string> = {
     created:  'var(--forest-green)',
     updated:  'var(--night-sky-blue)',
-    deleted:  '#f87171',
+    deleted:  'var(--destructive)',
     reviewed: 'var(--ember-orange)',
     login:    'var(--warm-amber)',
   };
@@ -83,7 +92,7 @@ export function AuditLogPage() {
         >
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
           <input
-            value={search}
+            value={filters.search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('superadmin.audit.search_placeholder')}
             className="flex-1 bg-transparent text-sm outline-none"
@@ -91,12 +100,12 @@ export function AuditLogPage() {
           />
         </div>
         <input
-          type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+          type="date" value={filters.dateFrom} onChange={(e) => setDateFrom(e.target.value)}
           className="rounded-lg px-3 py-2 text-sm border outline-none"
           style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
         />
         <input
-          type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+          type="date" value={filters.dateTo} onChange={(e) => setDateTo(e.target.value)}
           className="rounded-lg px-3 py-2 text-sm border outline-none"
           style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
         />
@@ -129,7 +138,7 @@ export function AuditLogPage() {
               >
                 <div
                   className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 mt-0.5"
-                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                  style={{ background: 'var(--muted)' }}
                 >
                   <Activity className="h-3.5 w-3.5" style={{ color: getActionColor(entry.action) }} />
                 </div>
@@ -168,20 +177,20 @@ export function AuditLogPage() {
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {t('common.pagination', {
-                  from: (page - 1) * response.meta.per_page + 1,
-                  to: Math.min(page * response.meta.per_page, response.meta.total),
+                  from: (filters.page - 1) * response.meta.per_page + 1,
+                  to: Math.min(filters.page * response.meta.per_page, response.meta.total),
                   total: response.meta.total,
                 })}
               </p>
               <div className="flex items-center gap-2">
-                <button onClick={() => setPage((p) => p - 1)} disabled={page === 1}
+                <button onClick={() => setPage(filters.page - 1)} disabled={filters.page === 1}
                   className="p-1.5 rounded-lg border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}>
                   <ChevronLeft className="h-4 w-4" style={{ color: 'var(--foreground)' }} />
                 </button>
                 <span className="text-sm px-2" style={{ color: 'var(--foreground)' }}>
-                  {page} / {response.meta.last_page}
+                  {filters.page} / {response.meta.last_page}
                 </span>
-                <button onClick={() => setPage((p) => p + 1)} disabled={page === response.meta.last_page}
+                <button onClick={() => setPage(filters.page + 1)} disabled={filters.page === response.meta.last_page}
                   className="p-1.5 rounded-lg border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}>
                   <ChevronRight className="h-4 w-4" style={{ color: 'var(--foreground)' }} />
                 </button>

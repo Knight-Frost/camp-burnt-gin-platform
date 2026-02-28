@@ -38,8 +38,11 @@ export function ParentDashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([getCampers(), getApplications(), getNotifications(), getAnnouncements(5)])
       .then(([c, a, n, ann]) => {
         setCampers(c);
@@ -49,7 +52,7 @@ export function ParentDashboardPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [retryKey]);
 
   const firstName = user?.name.split(' ')[0] ?? 'there';
   const pendingCount = applications.filter(
@@ -57,9 +60,7 @@ export function ParentDashboardPage() {
   ).length;
 
   if (error) {
-    return (
-      <ErrorState onRetry={() => { setError(false); setLoading(true); }} />
-    );
+    return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
   }
 
   return (
@@ -102,8 +103,8 @@ export function ParentDashboardPage() {
                 key={ann.id}
                 className="rounded-xl border px-5 py-4"
                 style={{
-                  background: ann.is_urgent ? 'rgba(239,68,68,0.05)' : 'var(--card)',
-                  borderColor: ann.is_urgent ? 'rgba(239,68,68,0.25)' : 'var(--border)',
+                  background: ann.is_urgent ? 'rgba(220,38,38,0.05)' : 'var(--card)',
+                  borderColor: ann.is_urgent ? 'rgba(220,38,38,0.25)' : 'var(--border)',
                 }}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -117,7 +118,7 @@ export function ParentDashboardPage() {
                       </p>
                       {ann.is_urgent && (
                         <span className="flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                          style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}>
                           Urgent
                         </span>
                       )}
@@ -190,7 +191,7 @@ export function ParentDashboardPage() {
             <div
               className="rounded-2xl border p-6"
               style={{
-                background: 'rgba(255,255,255,0.03)',
+                background: 'var(--card)',
                 borderColor: 'var(--border)',
               }}
             >
@@ -225,7 +226,7 @@ export function ParentDashboardPage() {
                     <div
                       className="rounded-2xl border p-5 flex items-center justify-between gap-4"
                       style={{
-                        background: 'rgba(255,255,255,0.03)',
+                        background: 'var(--card)',
                         borderColor: 'var(--border)',
                       }}
                     >
@@ -233,7 +234,7 @@ export function ParentDashboardPage() {
                         <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-headline font-semibold text-sm"
                           style={{
-                            background: 'rgba(34,197,94,0.12)',
+                            background: 'rgba(22,101,52,0.12)',
                             color: 'var(--ember-orange)',
                           }}
                         >
@@ -303,8 +304,8 @@ export function ParentDashboardPage() {
                   variants={staggerChildVariants}
                   className="rounded-xl border p-4"
                   style={{
-                    background: n.read_at ? 'rgba(255,255,255,0.02)' : 'rgba(34,197,94,0.06)',
-                    borderColor: n.read_at ? 'var(--border)' : 'rgba(34,197,94,0.15)',
+                    background: n.read_at ? 'var(--card)' : 'rgba(22,101,52,0.06)',
+                    borderColor: n.read_at ? 'var(--border)' : 'rgba(22,101,52,0.15)',
                   }}
                 >
                   <p

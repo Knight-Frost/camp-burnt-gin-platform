@@ -15,7 +15,7 @@ export function Skeleton({ className, style }: SkeletonProps) {
   return (
     <div
       className={cn('animate-pulse rounded-lg', className)}
-      style={{ background: 'rgba(255,255,255,0.06)', ...style }}
+      style={{ background: 'rgba(0,0,0,0.06)', ...style }}
       aria-hidden="true"
     />
   );
@@ -26,7 +26,7 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
     <div
       className="rounded-2xl border p-6 flex flex-col gap-3"
       style={{
-        background: 'rgba(255,255,255,0.03)',
+        background: 'var(--card)',
         borderColor: 'var(--border)',
       }}
       aria-hidden="true"
@@ -47,7 +47,7 @@ export function SkeletonRow() {
   return (
     <div
       className="flex items-center gap-4 px-4 py-3 rounded-xl"
-      style={{ background: 'rgba(255,255,255,0.02)' }}
+      style={{ background: 'var(--muted)' }}
       aria-hidden="true"
     >
       <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />

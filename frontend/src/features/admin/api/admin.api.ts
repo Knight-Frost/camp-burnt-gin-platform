@@ -63,11 +63,22 @@ export async function deleteSession(id: number): Promise<void> { await axiosInst
 
 type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 'id-labels';
 export async function downloadReport(type: ReportType): Promise<void> {
-  const response = await axiosInstance.get(`/reports/${type}`, { responseType: 'blob' });
-  const url = URL.createObjectURL(response.data as Blob);
+  const response = await axiosInstance.get(`/reports/${type}`, {
+    responseType: 'blob',
+    headers: { Accept: 'text/csv, application/octet-stream, */*' },
+  });
+  const blob = response.data as Blob;
+  // Guard: if server returned JSON error instead of CSV, throw rather than download garbage
+  if (blob.type && blob.type.includes('application/json')) {
+    throw new Error('Server returned an error response instead of CSV.');
+  }
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `${type}-report.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  a.href = url;
+  a.download = `${type}-report.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
@@ -89,7 +100,7 @@ export async function updateUserRole(id: number, role: string): Promise<User> {
 export async function deactivateUser(id: number): Promise<void> { await axiosInstance.post(`/users/${id}/deactivate`); }
 export async function reactivateUser(id: number): Promise<void> { await axiosInstance.post(`/users/${id}/reactivate`); }
 
-export async function getAuditLog(params?: { page?: number; user_id?: number; action?: string; from?: string; to?: string }): Promise<PaginatedResponse<AuditLogEntry>> {
+export async function getAuditLog(params?: { page?: number; search?: string; user_id?: number; action?: string; from?: string; to?: string }): Promise<PaginatedResponse<AuditLogEntry>> {
   const { data } = await axiosInstance.get<PaginatedResponse<AuditLogEntry>>('/audit-log', { params }); return data;
 }
 

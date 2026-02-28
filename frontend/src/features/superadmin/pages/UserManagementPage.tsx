@@ -22,31 +22,39 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 const ROLES = ['parent', 'admin', 'medical', 'super_admin'];
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  super_admin: { bg: 'rgba(34,197,94,0.12)', text: 'var(--ember-orange)' },
+  super_admin: { bg: 'rgba(22,101,52,0.12)', text: 'var(--ember-orange)' },
   admin:       { bg: 'rgba(96,165,250,0.12)', text: 'var(--night-sky-blue)' },
-  medical:     { bg: 'rgba(16,185,129,0.12)', text: 'var(--forest-green)' },
-  parent:      { bg: 'rgba(34,197,94,0.1)',  text: 'var(--ember-orange)' },
+  medical:     { bg: 'rgba(5,150,105,0.12)', text: 'var(--forest-green)' },
+  parent:      { bg: 'rgba(22,101,52,0.1)',  text: 'var(--ember-orange)' },
 };
+
+interface UserFilters {
+  search:     string;
+  roleFilter: string;
+  page:       number;
+}
 
 export function UserManagementPage() {
   const { t } = useTranslation();
 
-  const [response, setResponse]     = useState<PaginatedResponse<User> | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(false);
-  const [search, setSearch]         = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [page, setPage]             = useState(1);
-  const [updating, setUpdating]     = useState<number | null>(null);
+  const [response, setResponse] = useState<PaginatedResponse<User> | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(false);
+  const [filters, setFilters]   = useState<UserFilters>({ search: '', roleFilter: '', page: 1 });
+  const [updating, setUpdating] = useState<number | null>(null);
+
+  const setSearch     = (search: string)     => setFilters((f) => ({ ...f, search,     page: 1 }));
+  const setRoleFilter = (roleFilter: string) => setFilters((f) => ({ ...f, roleFilter, page: 1 }));
+  const setPage       = (page: number)       => setFilters((f) => ({ ...f, page }));
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const data = await getUsers({
-        page,
-        search: search || undefined,
-        role: roleFilter || undefined,
+        page:   filters.page,
+        search: filters.search || undefined,
+        role:   filters.roleFilter || undefined,
       });
       setResponse(data);
     } catch {
@@ -54,10 +62,9 @@ export function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter]);
+  }, [filters]);
 
   useEffect(() => { void fetchUsers(); }, [fetchUsers]);
-  useEffect(() => { setPage(1); }, [search, roleFilter]);
 
   async function handleRoleChange(userId: number, role: string) {
     setUpdating(userId);
@@ -111,7 +118,7 @@ export function UserManagementPage() {
         >
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
           <input
-            value={search}
+            value={filters.search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('superadmin.users.search_placeholder')}
             className="flex-1 bg-transparent text-sm outline-none"
@@ -119,7 +126,7 @@ export function UserManagementPage() {
           />
         </div>
         <select
-          value={roleFilter}
+          value={filters.roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
           className="rounded-lg px-3 py-2 text-sm border outline-none"
           style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
@@ -210,7 +217,7 @@ export function UserManagementPage() {
                       title={user.email_verified_at ? t('superadmin.users.deactivate') : t('superadmin.users.activate')}
                     >
                       {user.email_verified_at
-                        ? <UserX className="h-4 w-4" style={{ color: '#f87171' }} />
+                        ? <UserX className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
                         : <UserCheck className="h-4 w-4" style={{ color: 'var(--forest-green)' }} />
                       }
                     </button>
@@ -224,20 +231,20 @@ export function UserManagementPage() {
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {t('common.pagination', {
-                  from: (page - 1) * response.meta.per_page + 1,
-                  to: Math.min(page * response.meta.per_page, response.meta.total),
+                  from: (filters.page - 1) * response.meta.per_page + 1,
+                  to: Math.min(filters.page * response.meta.per_page, response.meta.total),
                   total: response.meta.total,
                 })}
               </p>
               <div className="flex items-center gap-2">
-                <button onClick={() => setPage((p) => p - 1)} disabled={page === 1}
+                <button onClick={() => setPage(filters.page - 1)} disabled={filters.page === 1}
                   className="p-1.5 rounded-lg border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}>
                   <ChevronLeft className="h-4 w-4" style={{ color: 'var(--foreground)' }} />
                 </button>
                 <span className="text-sm px-2" style={{ color: 'var(--foreground)' }}>
-                  {page} / {response.meta.last_page}
+                  {filters.page} / {response.meta.last_page}
                 </span>
-                <button onClick={() => setPage((p) => p + 1)} disabled={page === response.meta.last_page}
+                <button onClick={() => setPage(filters.page + 1)} disabled={filters.page === response.meta.last_page}
                   className="p-1.5 rounded-lg border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}>
                   <ChevronRight className="h-4 w-4" style={{ color: 'var(--foreground)' }} />
                 </button>

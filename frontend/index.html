@@ -7,11 +7,33 @@
       name="description"
       content="Camp Burnt Gin - Camp registration and management platform"
     />
-    <!-- CSP disabled for development - configure via server middleware in production -->
-    <!-- <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' http://localhost:8000 ws://localhost:5173; frame-src 'none'; object-src 'none';"
-    /> -->
+    <!--
+      CONTENT SECURITY POLICY — MUST be configured at the reverse-proxy level
+      (nginx/Apache) via HTTP response headers for full coverage. Meta tags do
+      not support frame-ancestors, upgrade-insecure-requests, or report-uri.
+
+      Recommended production nginx snippet:
+      ────────────────────────────────────────────────────────────────────────
+      add_header Content-Security-Policy "
+        default-src 'none';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data: https:;
+        connect-src 'self' https://api.campburntgin.org;
+        worker-src 'self' blob:;
+        frame-src 'none';
+        frame-ancestors 'none';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        upgrade-insecure-requests;
+      " always;
+      ────────────────────────────────────────────────────────────────────────
+      Note: style-src requires 'unsafe-inline' because the app uses extensive
+      inline styles for the CSS variable design system (framer-motion, theme
+      tokens). Migrate to CSS classes to eventually remove this.
+    -->
 
     <!-- Figma Design Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

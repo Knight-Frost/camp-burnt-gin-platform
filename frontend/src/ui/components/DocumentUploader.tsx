@@ -141,7 +141,7 @@ export function DocumentUploader({
           isDragging ? 'border-ember-orange' : 'border-on-image-border hover:border-ember-orange/60'
         )}
         style={{
-          background: isDragging ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
+          background: isDragging ? 'rgba(22,101,52,0.06)' : 'var(--card)',
         }}
         role="button"
         tabIndex={0}
@@ -191,11 +191,11 @@ export function DocumentUploader({
                 exit={{ opacity: 0, y: -8 }}
                 className="flex items-center gap-3 rounded-xl border px-4 py-3"
                 style={{
-                  background: 'rgba(255,255,255,0.03)',
+                  background: 'var(--card)',
                   borderColor: f.status === 'error'
-                    ? 'rgba(248,113,113,0.3)'
+                    ? 'rgba(220,38,38,0.3)'
                     : f.status === 'success'
-                    ? 'rgba(16,185,129,0.3)'
+                    ? 'rgba(22,101,52,0.3)'
                     : 'var(--border)',
                 }}
               >

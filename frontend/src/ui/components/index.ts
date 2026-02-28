@@ -13,5 +13,4 @@ export * from './NotificationPanel';
 export * from './Skeletons';
 export * from './StatCard';
 export * from './StatusBadge';
-export * from './ThemeControls';
 export * from './LanguageSwitcher';

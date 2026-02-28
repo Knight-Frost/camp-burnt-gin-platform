@@ -29,8 +29,11 @@ export function AdminDashboardPage() {
   const [unread, setUnread]             = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([
       getAdminApplications().then((res) => res.data),
       getCamps().catch(() => [] as Camp[]),
@@ -43,7 +46,7 @@ export function AdminDashboardPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [retryKey]);
 
   const stats = {
     total: applications.length,
@@ -66,7 +69,7 @@ export function AdminDashboardPage() {
     }))
   ).slice(0, 8);
 
-  if (error) return <ErrorState onRetry={() => { setError(false); setLoading(true); }} />;
+  if (error) return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
 
   return (
     <div className="flex flex-col gap-8 max-w-6xl">
@@ -82,7 +85,7 @@ export function AdminDashboardPage() {
           <StatCard label="Accepted" value={stats.accepted} icon={CheckCircle} color="var(--forest-green)" delay={0.2} />
           <StatCard label="Rejected" value={stats.rejected} icon={XCircle} color="var(--destructive)" delay={0.3} />
           {/* Unread messages stat card */}
-          <Link to={ROUTES.INBOX} className="block">
+          <Link to="/admin/inbox" className="block">
             <div
               className="rounded-2xl border px-5 py-4 flex flex-col gap-1 transition-shadow hover:shadow-md"
               style={{ background: '#ffffff', borderColor: 'var(--border)' }}

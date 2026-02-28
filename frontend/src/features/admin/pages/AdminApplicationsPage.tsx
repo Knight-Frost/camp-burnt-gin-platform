@@ -20,26 +20,35 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { Application } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
-const STATUS_FILTERS = ['all', 'pending', 'under_review', 'accepted', 'rejected'] as const;
+const STATUS_FILTERS = ['all', 'pending', 'submitted', 'under_review', 'accepted', 'rejected'] as const;
+
+interface Filters {
+  search: string;
+  status: string;
+  page: number;
+}
 
 export function AdminApplicationsPage() {
   const { t } = useTranslation();
 
-  const [response, setResponse]     = useState<PaginatedResponse<Application> | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(false);
-  const [search, setSearch]         = useState('');
-  const [statusFilter, setStatus]   = useState<string>('all');
-  const [page, setPage]             = useState(1);
+  const [response, setResponse] = useState<PaginatedResponse<Application> | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(false);
+  const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', page: 1 });
+
+  // Helpers — reset page to 1 whenever a non-pagination filter changes
+  const setSearch = (search: string) => setFilters((f) => ({ ...f, search, page: 1 }));
+  const setStatus = (status: string) => setFilters((f) => ({ ...f, status, page: 1 }));
+  const setPage   = (page: number)   => setFilters((f) => ({ ...f, page }));
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const data = await getApplications({
-        page,
-        search: search || undefined,
-        status: statusFilter === 'all' ? undefined : statusFilter,
+        page: filters.page,
+        search: filters.search || undefined,
+        status: filters.status === 'all' ? undefined : filters.status,
       });
       setResponse(data);
     } catch {
@@ -47,12 +56,9 @@ export function AdminApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [filters]);
 
   useEffect(() => { void fetchApplications(); }, [fetchApplications]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter]);
 
   return (
     <motion.div
@@ -79,7 +85,7 @@ export function AdminApplicationsPage() {
         >
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
           <input
-            value={search}
+            value={filters.search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('admin.applications.search_placeholder')}
             className="flex-1 bg-transparent text-sm outline-none"
@@ -93,7 +99,7 @@ export function AdminApplicationsPage() {
         >
           <Filter className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
           <select
-            value={statusFilter}
+            value={filters.status}
             onChange={(e) => setStatus(e.target.value)}
             className="bg-transparent text-sm outline-none"
             style={{ color: 'var(--foreground)' }}
@@ -208,19 +214,19 @@ export function AdminApplicationsPage() {
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setPage((p) => p - 1)}
-                  disabled={page === 1}
+                  onClick={() => setPage(filters.page - 1)}
+                  disabled={filters.page === 1}
                   className="p-1.5 rounded-lg border disabled:opacity-40 transition-colors"
                   style={{ borderColor: 'var(--border)' }}
                 >
                   <ChevronLeft className="h-4 w-4" style={{ color: 'var(--foreground)' }} />
                 </button>
                 <span className="text-sm px-2" style={{ color: 'var(--foreground)' }}>
-                  {page} / {response.meta.last_page}
+                  {filters.page} / {response.meta.last_page}
                 </span>
                 <button
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={page === response.meta.last_page}
+                  onClick={() => setPage(filters.page + 1)}
+                  disabled={filters.page === response.meta.last_page}
                   className="p-1.5 rounded-lg border disabled:opacity-40 transition-colors"
                   style={{ borderColor: 'var(--border)' }}
                 >

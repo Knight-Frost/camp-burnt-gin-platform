@@ -22,9 +22,9 @@ export function ForbiddenPage() {
       >
         <div
           className="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-5"
-          style={{ background: 'rgba(248,113,113,0.1)' }}
+          style={{ background: 'rgba(220,38,38,0.1)' }}
         >
-          <ShieldOff className="h-7 w-7" style={{ color: '#f87171' }} />
+          <ShieldOff className="h-7 w-7" style={{ color: 'var(--destructive)' }} />
         </div>
         <h1 className="font-headline text-xl font-semibold mb-3" style={{ color: 'var(--on-image-text)' }}>
           {t('errors.forbidden_title')}

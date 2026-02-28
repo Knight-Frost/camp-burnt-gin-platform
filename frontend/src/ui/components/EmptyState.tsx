@@ -38,7 +38,7 @@ export function EmptyState({
     >
       <div
         className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-        style={{ background: 'rgba(255,255,255,0.05)' }}
+        style={{ background: 'var(--muted)' }}
       >
         <Icon className="h-6 w-6" style={{ color: 'var(--muted-foreground)' }} />
       </div>
@@ -89,7 +89,7 @@ export function ErrorState({
     >
       <div
         className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-        style={{ background: 'rgba(248,113,113,0.08)' }}
+        style={{ background: 'rgba(220,38,38,0.08)' }}
       >
         <AlertCircle className="h-6 w-6" style={{ color: 'var(--destructive)' }} />
       </div>

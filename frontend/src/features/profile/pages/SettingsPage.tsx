@@ -4,7 +4,8 @@
  * Available to all roles via /[role]/settings.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, type ReactNode, type ComponentType } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,7 +20,13 @@ import {
   getSavedHighContrast,
   getSavedReducedMotion,
   type FontScale,
-} from '@/theme/ThemeEngine';
+} from '@/theme/themePreferences';
+import {
+  getNotificationPreferences,
+  updateNotificationPreference,
+  type NotificationPreferences,
+} from '@/features/admin/api/notifications.api';
+import { getProfileRoute, getPrimaryRole } from '@/shared/constants/roles';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/ui/components/Button';
 import { FormField } from '@/ui/components/FormField';
@@ -42,7 +49,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 type Tab = 'appearance' | 'account' | 'security' | 'notifications';
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const TABS: { id: Tab; label: string; icon: ComponentType<{ className?: string }> }[] = [
   { id: 'appearance',    label: 'Appearance',    icon: Sun },
   { id: 'account',       label: 'Account',       icon: User },
   { id: 'security',      label: 'Security',      icon: Shield },
@@ -58,6 +65,13 @@ const FONT_SCALES: { id: FontScale; label: string; size: string }[] = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
+  application_updates: true,
+  announcements: true,
+  messages: true,
+  deadlines: true,
+};
+
 export function SettingsPage() {
   const user = useAppSelector((state) => state.auth.user);
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
@@ -67,6 +81,9 @@ export function SettingsPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
+  const [notifLoaded, setNotifLoaded] = useState(false);
+  const [savingNotif, setSavingNotif] = useState<keyof NotificationPreferences | null>(null);
 
   const {
     register,
@@ -91,6 +108,35 @@ export function SettingsPage() {
     setReducedMotionState(val);
     applyReducedMotion(val);
     toast.success(val ? 'Reduced motion enabled.' : 'Animations enabled.');
+  };
+
+  // Load notification preferences once when the tab is first opened
+  useEffect(() => {
+    if (activeTab === 'notifications' && !notifLoaded) {
+      getNotificationPreferences()
+        .then((prefs) => {
+          setNotifPrefs(prefs);
+          setNotifLoaded(true);
+        })
+        .catch(() => {
+          setNotifLoaded(true); // use defaults on failure
+        });
+    }
+  }, [activeTab, notifLoaded]);
+
+  const handleNotifToggle = async (key: keyof NotificationPreferences, value: boolean) => {
+    setSavingNotif(key);
+    const prev = notifPrefs;
+    setNotifPrefs({ ...notifPrefs, [key]: value }); // optimistic update
+    try {
+      const updated = await updateNotificationPreference(key, value);
+      setNotifPrefs(updated);
+    } catch {
+      setNotifPrefs(prev); // revert on error
+      toast.error('Failed to save notification preference.');
+    } finally {
+      setSavingNotif(null);
+    }
   };
 
   const onPasswordSubmit = async (values: PasswordFormValues) => {
@@ -136,6 +182,7 @@ export function SettingsPage() {
             return (
               <button
                 key={tab.id}
+                role="tab"
                 onClick={() => setActiveTab(tab.id)}
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left"
                 style={{
@@ -239,7 +286,13 @@ export function SettingsPage() {
                 </div>
                 <p className="text-xs mt-4" style={{ color: 'var(--muted-foreground)' }}>
                   To update your name or email, go to{' '}
-                  <a href="./profile" className="text-ember-orange hover:underline">Profile</a>.
+                  <Link
+                    to={getProfileRoute(getPrimaryRole(user?.roles ?? []))}
+                    className="hover:underline"
+                    style={{ color: 'var(--ember-orange)' }}
+                  >
+                    Profile
+                  </Link>.
                 </p>
               </div>
             </div>
@@ -258,11 +311,12 @@ export function SettingsPage() {
                 <form onSubmit={handleSubmit(onPasswordSubmit)} className="flex flex-col gap-4">
                   {/* Current password */}
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                    <label htmlFor="settings-current-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                       Current Password
                     </label>
                     <div className="relative">
                       <input
+                        id="settings-current-password"
                         type={showCurrent ? 'text' : 'password'}
                         className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
                         style={{
@@ -290,11 +344,12 @@ export function SettingsPage() {
 
                   {/* New password */}
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                    <label htmlFor="settings-new-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                       New Password
                     </label>
                     <div className="relative">
                       <input
+                        id="settings-new-password"
                         type={showNew ? 'text' : 'password'}
                         className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
                         style={{
@@ -346,12 +401,14 @@ export function SettingsPage() {
                 Email Notifications
               </h3>
               <div className="flex flex-col gap-4">
-                {[
-                  { key: 'application_updates', label: 'Application status updates' },
-                  { key: 'announcements',        label: 'New announcements' },
-                  { key: 'messages',             label: 'New messages in inbox' },
-                  { key: 'deadlines',            label: 'Upcoming deadline reminders' },
-                ].map((pref) => (
+                {(
+                  [
+                    { key: 'application_updates' as keyof NotificationPreferences, label: 'Application status updates' },
+                    { key: 'announcements'        as keyof NotificationPreferences, label: 'New announcements' },
+                    { key: 'messages'             as keyof NotificationPreferences, label: 'New messages in inbox' },
+                    { key: 'deadlines'            as keyof NotificationPreferences, label: 'Upcoming deadline reminders' },
+                  ]
+                ).map((pref) => (
                   <div
                     key={pref.key}
                     className="flex items-center justify-between py-3 border-b last:border-b-0"
@@ -359,16 +416,17 @@ export function SettingsPage() {
                   >
                     <span className="text-sm" style={{ color: 'var(--foreground)' }}>{pref.label}</span>
                     <ToggleSwitch
-                      checked={true}
-                      onChange={() => toast.info('Notification preferences coming soon.')}
+                      checked={notifPrefs[pref.key]}
+                      onChange={(val) => handleNotifToggle(pref.key, val)}
                       label={pref.label}
                       hideLabel
+                      disabled={savingNotif === pref.key}
                     />
                   </div>
                 ))}
               </div>
               <p className="text-xs mt-4" style={{ color: 'var(--muted-foreground)' }}>
-                Notification preferences will be saved to your account.
+                Preferences are saved to your account and applied across all devices.
               </p>
             </div>
           )}
@@ -386,10 +444,10 @@ function SettingsCard({
   description,
   children,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div
@@ -399,7 +457,7 @@ function SettingsCard({
       <div className="flex items-start gap-3 mb-1">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(34,197,94,0.10)', color: 'var(--ember-orange)' }}
+          style={{ background: 'rgba(22,101,52,0.10)', color: 'var(--ember-orange)' }}
         >
           <Icon className="h-4 w-4" />
         </div>
@@ -418,14 +476,16 @@ function ToggleSwitch({
   onChange,
   label,
   hideLabel = false,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (val: boolean) => void;
   label: string;
   hideLabel?: boolean;
+  disabled?: boolean;
 }) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer mt-3">
+    <label className={`flex items-center gap-3 mt-3 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
       {!hideLabel && (
         <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
       )}
@@ -436,13 +496,14 @@ function ToggleSwitch({
           onChange={(e) => onChange(e.target.checked)}
           className="sr-only"
           aria-label={label}
+          disabled={disabled}
         />
         <div
+          role="presentation"
           className="w-10 h-6 rounded-full transition-colors duration-300"
           style={{
             background: checked ? 'var(--ember-orange)' : 'var(--border)',
           }}
-          onClick={() => onChange(!checked)}
         />
         <div
           className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-300"

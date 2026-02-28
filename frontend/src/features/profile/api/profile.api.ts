@@ -15,7 +15,12 @@ export interface ProfileUpdatePayload {
 
 export interface MfaSetupResponse {
   secret: string;
-  qr_code: string;
+  qr_code_url: string;
+}
+
+export interface DisableMfaPayload {
+  code: string;
+  password: string;
 }
 
 export interface PreFillData {
@@ -48,8 +53,8 @@ export async function verifyMfaSetup(code: string): Promise<void> {
   await axiosInstance.post('/mfa/verify', { code });
 }
 
-export async function disableMfa(): Promise<void> {
-  await axiosInstance.post('/mfa/disable');
+export async function disableMfa(payload: DisableMfaPayload): Promise<void> {
+  await axiosInstance.post('/mfa/disable', payload);
 }
 
 export async function getPreFillData(): Promise<PreFillData> {

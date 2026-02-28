@@ -3,7 +3,7 @@
  * Admin calendar — all event types, create/edit/delete events.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ChevronLeft, ChevronRight, X, Calendar, Clock, Trash2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
@@ -19,7 +19,7 @@ import { Button } from '@/ui/components/Button';
 import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants, modalBackdrop, modalContent } from '@/shared/constants/motion';
 
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; label: string }> = {
-  deadline:    { bg: 'rgba(220,38,38,0.10)',   text: '#dc2626',  dot: '#dc2626',  label: 'Deadline'    },
+  deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)',  label: 'Deadline'    },
   session:     { bg: 'rgba(22,101,52,0.10)',    text: '#166534',  dot: '#166534',  label: 'Session'     },
   orientation: { bg: 'rgba(37,99,235,0.10)',    text: '#2563eb',  dot: '#2563eb',  label: 'Orientation' },
   staff:       { bg: 'rgba(124,58,237,0.10)',   text: '#7c3aed',  dot: '#7c3aed',  label: 'Staff'       },
@@ -53,12 +53,12 @@ function inputStyle(hasErr = false) {
     width: '100%',
     padding: '8px 12px',
     borderRadius: '8px',
-    border: `1px solid ${hasErr ? '#dc2626' : 'rgba(0,0,0,0.12)'}`,
+    border: `1px solid ${hasErr ? 'var(--destructive)' : 'rgba(0,0,0,0.12)'}`,
     fontSize: '0.9375rem',
     background: '#f9fafb',
     color: 'var(--foreground)',
     outline: 'none',
-  } as React.CSSProperties;
+  } as CSSProperties;
 }
 
 export function AdminCalendarPage() {
@@ -226,12 +226,15 @@ export function AdminCalendarPage() {
                   return (
                     <div
                       key={day.toISOString()}
+                      role="button"
+                      tabIndex={0}
                       className="h-20 border-b border-r p-1.5 flex flex-col gap-0.5 overflow-hidden cursor-pointer transition-colors"
                       style={{
                         borderColor: 'var(--border)',
                         background: today ? 'rgba(22,101,52,0.04)' : '#ffffff',
                       }}
                       onClick={() => openNewEvent(day)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNewEvent(day); } }}
                       onMouseEnter={(e) => { if (!today) e.currentTarget.style.background = 'rgba(0,0,0,0.02)'; }}
                       onMouseLeave={(e) => { if (!today) e.currentTarget.style.background = '#ffffff'; }}
                     >
@@ -249,10 +252,13 @@ export function AdminCalendarPage() {
                         return (
                           <div
                             key={ev.id}
+                            role="button"
+                            tabIndex={0}
                             className="rounded px-1 text-[10px] font-medium truncate leading-4"
                             style={{ background: s.bg, color: s.text }}
                             title={ev.title}
                             onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
                           >
                             {ev.title}
                           </div>
@@ -378,8 +384,9 @@ export function AdminCalendarPage() {
 
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
+                  <label htmlFor="cal-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
                   <input
+                    id="cal-title"
                     style={inputStyle(!form.title)}
                     placeholder="Event title"
                     value={form.title}
@@ -388,8 +395,9 @@ export function AdminCalendarPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Description</label>
+                  <label htmlFor="cal-description" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Description</label>
                   <textarea
+                    id="cal-description"
                     style={{ ...inputStyle(), height: 72, resize: 'none' }}
                     placeholder="Optional description"
                     value={form.description}
@@ -399,8 +407,9 @@ export function AdminCalendarPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Type</label>
+                    <label htmlFor="cal-type" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Type</label>
                     <select
+                      id="cal-type"
                       style={inputStyle()}
                       value={form.event_type}
                       onChange={(e) => setForm((f) => ({ ...f, event_type: e.target.value as EventType }))}
@@ -411,8 +420,9 @@ export function AdminCalendarPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
+                    <label htmlFor="cal-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
                     <select
+                      id="cal-audience"
                       style={inputStyle()}
                       value={form.audience}
                       onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as EventFormState['audience'] }))}
@@ -427,8 +437,9 @@ export function AdminCalendarPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Start *</label>
+                    <label htmlFor="cal-starts-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Start *</label>
                     <input
+                      id="cal-starts-at"
                       type="datetime-local"
                       style={inputStyle(!form.starts_at)}
                       value={form.starts_at}
@@ -436,8 +447,9 @@ export function AdminCalendarPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>End</label>
+                    <label htmlFor="cal-ends-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>End</label>
                     <input
+                      id="cal-ends-at"
                       type="datetime-local"
                       style={inputStyle()}
                       value={form.ends_at}

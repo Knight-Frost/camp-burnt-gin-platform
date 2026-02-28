@@ -297,7 +297,7 @@ export function ApplicationFormPage() {
       <div
         className="rounded-2xl border p-6 lg:p-8"
         style={{
-          background: 'rgba(255,255,255,0.02)',
+          background: 'var(--card)',
           borderColor: 'var(--border)',
         }}
       >
@@ -410,7 +410,7 @@ export function ApplicationFormPage() {
                             selected ? 'border-ember-orange' : 'hover:border-ember-orange/40'
                           )}
                           style={{
-                            background: selected ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
+                            background: selected ? 'rgba(22,101,52,0.06)' : 'var(--card)',
                             borderColor: selected ? 'var(--ember-orange)' : 'var(--border)',
                           }}
                         >
@@ -500,7 +500,7 @@ export function ApplicationFormPage() {
                       <div
                         key={field.id}
                         className="rounded-xl border p-4 flex flex-col gap-3"
-                        style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border)' }}
+                        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
                       >
                         <div className="grid grid-cols-2 gap-3">
                           <FormField label="Allergen" {...step3.register(`allergies.${index}.allergen`)} />
@@ -585,7 +585,7 @@ export function ApplicationFormPage() {
                 <div
                   className="rounded-xl border p-4 text-sm leading-relaxed"
                   style={{
-                    background: 'rgba(255,255,255,0.02)',
+                    background: 'var(--card)',
                     borderColor: 'var(--border)',
                     color: 'var(--muted-foreground)',
                   }}
@@ -686,7 +686,7 @@ export function ApplicationFormPage() {
                   key={title}
                   className="rounded-xl border p-4"
                   style={{
-                    background: 'rgba(255,255,255,0.02)',
+                    background: 'var(--card)',
                     borderColor: 'var(--border)',
                   }}
                 >

@@ -67,7 +67,7 @@ export function ParentApplicationsPage() {
       <div
         className="rounded-2xl border overflow-hidden"
         style={{
-          background: 'rgba(255,255,255,0.02)',
+          background: 'var(--card)',
           borderColor: 'var(--border)',
         }}
       >

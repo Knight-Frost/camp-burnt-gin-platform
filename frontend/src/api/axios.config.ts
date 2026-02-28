@@ -17,10 +17,20 @@ import axios, {
   type AxiosError,
 } from 'axios';
 import { phiSanitizer as sanitizePhi } from '@/shared/utils/phiSanitizer';
+import { store } from '@/store';
 
 // ---------------------------------------------------------------------------
 // Instance
 // ---------------------------------------------------------------------------
+
+// In production builds VITE_API_BASE_URL must be defined.
+// A missing value in production means all API calls will hit localhost and fail silently.
+if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
+  throw new Error(
+    '[Config] VITE_API_BASE_URL is not set. ' +
+    'Add it to your .env.production file before building.'
+  );
+}
 
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api`,
@@ -37,18 +47,11 @@ const axiosInstance: AxiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Inject Bearer token from localStorage (set there by redux-persist)
-    const persistedAuth = localStorage.getItem('persist:auth');
-    if (persistedAuth) {
-      try {
-        const parsed = JSON.parse(persistedAuth);
-        const token = parsed.token ? JSON.parse(parsed.token) : null;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch {
-        // Silently ignore malformed persisted auth
-      }
+    // Inject Bearer token from Redux store (synchronous in-memory read,
+    // avoids the redux-persist async localStorage write race condition)
+    const token = store.getState().auth.token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     // Correlation ID for request tracing

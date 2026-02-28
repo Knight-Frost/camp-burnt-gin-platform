@@ -48,7 +48,7 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
       <div className="flex items-center gap-3 mb-4">
         <div
           className="flex items-center justify-center w-8 h-8 rounded-lg"
-          style={{ background: 'rgba(34,197,94,0.12)' }}
+          style={{ background: 'rgba(22,101,52,0.12)' }}
         >
           <span style={{ color: 'var(--ember-orange)' }}>{icon}</span>
         </div>
@@ -152,7 +152,7 @@ function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelPr
           disabled={!!submitting}
           variant="ghost"
           icon={<XCircle className="h-4 w-4" />}
-          className="text-red-400 hover:text-red-300"
+          style={{ color: 'var(--destructive)' }}
         >
           {t('admin.review.reject')}
         </Button>
@@ -315,9 +315,9 @@ export function ApplicationReviewPage() {
                           key={a.id}
                           className="text-xs px-2.5 py-1 rounded-full border"
                           style={{
-                            background: a.severity === 'life-threatening' ? 'rgba(248,113,113,0.15)' : 'rgba(34,197,94,0.1)',
-                            borderColor: a.severity === 'life-threatening' ? 'rgba(248,113,113,0.4)' : 'rgba(34,197,94,0.3)',
-                            color: a.severity === 'life-threatening' ? '#f87171' : 'var(--warm-amber)',
+                            background: a.severity === 'life-threatening' ? 'rgba(220,38,38,0.15)' : 'rgba(22,101,52,0.1)',
+                            borderColor: a.severity === 'life-threatening' ? 'rgba(220,38,38,0.4)' : 'rgba(22,101,52,0.3)',
+                            color: a.severity === 'life-threatening' ? 'var(--destructive)' : 'var(--warm-amber)',
                           }}
                         >
                           {a.name} — {a.severity}
@@ -358,7 +358,7 @@ export function ApplicationReviewPage() {
                     <div
                       key={doc.id}
                       className="flex items-center justify-between p-3 rounded-lg border"
-                      style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.02)' }}
+                      style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />

@@ -35,7 +35,9 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 500,
-    sourcemap: true,
+    // Source maps expose original TypeScript in browser DevTools.
+    // Enable only in development; never ship to production.
+    sourcemap: process.env.NODE_ENV !== 'production',
   },
   server: {
     port: 5173,

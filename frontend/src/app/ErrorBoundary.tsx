@@ -44,22 +44,46 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-neutral-900 px-4">
-          <div className="w-full max-w-md rounded-lg border border-neutral-700 bg-neutral-800 p-8 shadow-xl">
+        <div
+          className="flex min-h-screen items-center justify-center px-4"
+          style={{ background: 'var(--background)' }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border p-8"
+            style={{
+              background: 'var(--card)',
+              borderColor: 'var(--border)',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
             <div className="mb-6">
-              <h1 className="mb-2 text-2xl font-bold text-white">Something went wrong</h1>
-              <p className="text-sm text-neutral-400">
+              <h1
+                className="mb-2 text-2xl font-bold"
+                style={{ color: 'var(--foreground)', fontFamily: 'var(--font-headline)' }}
+              >
+                Something went wrong
+              </h1>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 We encountered an unexpected error. Please try refreshing the page.
               </p>
             </div>
 
             {import.meta.env.DEV && this.state.error && (
-              <div className="mb-6 rounded border border-red-900 bg-red-950/50 p-4">
-                <p className="mb-2 font-mono text-xs text-red-400">
+              <div
+                className="mb-6 rounded-lg border p-4"
+                style={{
+                  borderColor: 'var(--destructive)',
+                  background: 'rgba(220, 38, 38, 0.06)',
+                }}
+              >
+                <p className="mb-2 font-mono text-xs" style={{ color: 'var(--destructive)' }}>
                   {this.state.error.toString()}
                 </p>
                 {this.state.errorInfo && (
-                  <pre className="overflow-auto text-xs text-red-300">
+                  <pre
+                    className="overflow-auto text-xs"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
                     {this.state.errorInfo.componentStack}
                   </pre>
                 )}
@@ -69,13 +93,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-neutral-800"
+                className="flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
+                style={{
+                  background: 'var(--ember-orange)',
+                  color: '#ffffff',
+                }}
               >
                 Try Again
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 rounded-md border border-neutral-600 bg-transparent px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-800"
+                className="flex-1 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'transparent',
+                  color: 'var(--foreground)',
+                }}
               >
                 Reload Page
               </button>

@@ -14,7 +14,7 @@ import { SkeletonCard } from '@/ui/components/Skeletons';
 import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 
 const EVENT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  deadline:    { bg: 'rgba(220,38,38,0.10)',   text: '#dc2626',  dot: '#dc2626'  },
+  deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)'  },
   session:     { bg: 'rgba(22,101,52,0.10)',    text: '#166534',  dot: '#166534'  },
   orientation: { bg: 'rgba(37,99,235,0.10)',    text: '#2563eb',  dot: '#2563eb'  },
   staff:       { bg: 'rgba(124,58,237,0.10)',   text: '#7c3aed',  dot: '#7c3aed'  },
@@ -83,9 +83,9 @@ export function ParentCalendarPage() {
           className="rounded-xl border px-4 py-3 flex items-start gap-3"
           style={{ background: 'rgba(220,38,38,0.05)', borderColor: 'rgba(220,38,38,0.20)' }}
         >
-          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#dc2626' }} />
+          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--destructive)' }} />
           <div>
-            <p className="text-sm font-semibold" style={{ color: '#dc2626' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--destructive)' }}>
               {overdue.length} overdue deadline{overdue.length !== 1 ? 's' : ''}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>

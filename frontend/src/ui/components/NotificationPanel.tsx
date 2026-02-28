@@ -72,7 +72,7 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-40 bg-transparent"
             onClick={onClose}
           />
 
@@ -84,7 +84,7 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
             exit="exit"
             className="fixed top-0 right-0 h-full w-full max-w-sm z-50 flex flex-col border-l"
             style={{
-              background: 'rgba(5,5,8,0.97)',
+              background: 'var(--card)',
               borderColor: 'var(--border)',
               backdropFilter: 'blur(20px)',
             }}
@@ -145,7 +145,7 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
                     <div
                       key={i}
                       className="h-16 rounded-xl animate-pulse"
-                      style={{ background: 'rgba(255,255,255,0.05)' }}
+                      style={{ background: 'rgba(0,0,0,0.06)' }}
                     />
                   ))}
                 </div>

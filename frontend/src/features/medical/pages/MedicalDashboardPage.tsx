@@ -101,17 +101,17 @@ export function MedicalDashboardPage() {
                   className="block rounded-xl border p-5 transition-all group"
                   style={{
                     background: 'var(--glass-medium)',
-                    borderColor: hasHighRisk ? 'rgba(248,113,113,0.3)' : 'var(--border)',
+                    borderColor: hasHighRisk ? 'rgba(220,38,38,0.3)' : 'var(--border)',
                     backdropFilter: 'blur(12px)',
                   }}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div
                       className="flex items-center justify-center w-9 h-9 rounded-xl"
-                      style={{ background: hasHighRisk ? 'rgba(248,113,113,0.12)' : 'rgba(34,197,94,0.1)' }}
+                      style={{ background: hasHighRisk ? 'rgba(220,38,38,0.12)' : 'rgba(22,101,52,0.1)' }}
                     >
                       {hasHighRisk
-                        ? <AlertTriangle className="h-4 w-4" style={{ color: '#f87171' }} />
+                        ? <AlertTriangle className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
                         : <Heart className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
                       }
                     </div>
@@ -136,8 +136,8 @@ export function MedicalDashboardPage() {
                       <span
                         className="text-xs px-2 py-0.5 rounded-full"
                         style={{
-                          background: hasHighRisk ? 'rgba(248,113,113,0.12)' : 'rgba(34,197,94,0.1)',
-                          color: hasHighRisk ? '#f87171' : 'var(--warm-amber)',
+                          background: hasHighRisk ? 'rgba(220,38,38,0.12)' : 'rgba(22,101,52,0.1)',
+                          color: hasHighRisk ? 'var(--destructive)' : 'var(--warm-amber)',
                         }}
                       >
                         {allergyCount} {t('medical.dashboard.allergies')}

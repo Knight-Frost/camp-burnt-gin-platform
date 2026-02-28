@@ -5,7 +5,7 @@
  * Charts: applications by status, acceptance rate, applications over time, enrollment per session.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Download, FileText, Users, CheckCircle, XCircle, Tag, TrendingUp } from 'lucide-react';
@@ -38,7 +38,7 @@ const EXPORT_REPORTS = [
   { type: 'id-labels' as ReportType,      label: 'ID Labels',          icon: Tag,        color: '#059669' },
 ];
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div
       className="rounded-2xl border p-6"

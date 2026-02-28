@@ -10,6 +10,7 @@ import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 export interface Conversation {
   id: number;
   subject?: string;
+  category?: MessageCategory;
   participants: ConversationParticipant[];
   last_message?: Message;
   unread_count: number;
@@ -48,7 +49,6 @@ export type MessageCategory = 'general' | 'medical' | 'application' | 'other';
 export interface NewConversationPayload {
   subject?: string;
   participant_ids: number[];
-  message: string;
   category?: MessageCategory;
 }
 

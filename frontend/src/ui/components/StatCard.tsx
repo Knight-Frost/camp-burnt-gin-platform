@@ -60,7 +60,7 @@ export function StatCard({
       transition={{ delay }}
       className="rounded-2xl border p-6 flex items-start gap-4"
       style={{
-        background: 'rgba(255,255,255,0.03)',
+        background: 'var(--card)',
         borderColor: 'var(--border)',
       }}
     >

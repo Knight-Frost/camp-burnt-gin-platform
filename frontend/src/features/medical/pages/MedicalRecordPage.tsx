@@ -77,7 +77,7 @@ function MedSection({ title, icon, color, bg, defaultOpen = true, children, empt
       </button>
 
       {open && (
-        <div className="px-5 py-4 border-t" style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.01)' }}>
+        <div className="px-5 py-4 border-t" style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
           {empty ? (
             <p className="text-sm italic" style={{ color: 'var(--muted-foreground)' }}>{emptyText}</p>
           ) : children}
@@ -93,12 +93,12 @@ function MedSection({ title, icon, color, bg, defaultOpen = true, children, empt
 
 function SeverityBadge({ severity }: { severity: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
-    'life-threatening': { bg: 'rgba(248,113,113,0.15)', text: '#f87171' },
-    'severe':           { bg: 'rgba(34,197,94,0.12)',  text: 'var(--ember-orange)' },
+    'life-threatening': { bg: 'rgba(220,38,38,0.15)', text: 'var(--destructive)' },
+    'severe':           { bg: 'rgba(22,101,52,0.12)',  text: 'var(--ember-orange)' },
     'moderate':         { bg: 'rgba(96,165,250,0.12)',  text: 'var(--night-sky-blue)' },
-    'mild':             { bg: 'rgba(16,185,129,0.12)',  text: 'var(--forest-green)' },
+    'mild':             { bg: 'rgba(5,150,105,0.12)',  text: 'var(--forest-green)' },
   };
-  const style = colors[severity] ?? { bg: 'rgba(255,255,255,0.05)', text: 'var(--muted-foreground)' };
+  const style = colors[severity] ?? { bg: 'var(--muted)', text: 'var(--muted-foreground)' };
 
   return (
     <span
@@ -200,8 +200,8 @@ export function MedicalRecordPage() {
           <MedSection
             title={t('medical.record.allergies')}
             icon={<AlertTriangle className="h-3.5 w-3.5" />}
-            color={allergies.some(a => a.severity === 'life-threatening') ? '#f87171' : 'var(--warm-amber)'}
-            bg={allergies.some(a => a.severity === 'life-threatening') ? 'rgba(248,113,113,0.12)' : 'rgba(34,197,94,0.1)'}
+            color={allergies.some(a => a.severity === 'life-threatening') ? 'var(--destructive)' : 'var(--warm-amber)'}
+            bg={allergies.some(a => a.severity === 'life-threatening') ? 'rgba(220,38,38,0.12)' : 'rgba(22,101,52,0.10)'}
             empty={allergies.length === 0}
             emptyText={t('medical.record.no_allergies')}
           >
@@ -248,7 +248,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.diagnoses')}
             icon={<Clipboard className="h-3.5 w-3.5" />}
             color="var(--ember-orange)"
-            bg="rgba(34,197,94,0.1)"
+            bg="rgba(22,101,52,0.1)"
             empty={diagnoses.length === 0}
             emptyText={t('medical.record.no_diagnoses')}
           >
@@ -258,7 +258,7 @@ export function MedicalRecordPage() {
                   {d.icd_code && (
                     <span
                       className="text-xs px-2 py-0.5 rounded font-mono flex-shrink-0 mt-0.5"
-                      style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--ember-orange)' }}
+                      style={{ background: 'rgba(22,101,52,0.1)', color: 'var(--ember-orange)' }}
                     >
                       {d.icd_code}
                     </span>
@@ -279,7 +279,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.behavioral')}
             icon={<Brain className="h-3.5 w-3.5" />}
             color="var(--forest-green)"
-            bg="rgba(16,185,129,0.1)"
+            bg="rgba(5,150,105,0.1)"
             empty={!behavioral}
             emptyText={t('medical.record.no_behavioral')}
           >
@@ -314,7 +314,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.feeding')}
             icon={<Coffee className="h-3.5 w-3.5" />}
             color="var(--warm-amber)"
-            bg="rgba(34,197,94,0.1)"
+            bg="rgba(22,101,52,0.1)"
             defaultOpen={false}
             empty={!feeding}
             emptyText={t('medical.record.no_feeding')}
@@ -360,7 +360,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.activity_permissions')}
             icon={<Activity className="h-3.5 w-3.5" />}
             color="var(--forest-green)"
-            bg="rgba(16,185,129,0.1)"
+            bg="rgba(5,150,105,0.1)"
             defaultOpen={false}
             empty={permissions.length === 0}
             emptyText={t('medical.record.no_permissions')}
@@ -372,8 +372,8 @@ export function MedicalRecordPage() {
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium"
                     style={{
-                      background: p.permitted ? 'rgba(16,185,129,0.12)' : 'rgba(248,113,113,0.12)',
-                      color: p.permitted ? 'var(--forest-green)' : '#f87171',
+                      background: p.permitted ? 'rgba(5,150,105,0.12)' : 'rgba(220,38,38,0.12)',
+                      color: p.permitted ? 'var(--forest-green)' : 'var(--destructive)',
                     }}
                   >
                     {p.permitted ? t('common.permitted') : t('common.not_permitted')}
@@ -389,8 +389,8 @@ export function MedicalRecordPage() {
           <MedSection
             title={t('medical.record.emergency_contacts')}
             icon={<Phone className="h-3.5 w-3.5" />}
-            color="#f87171"
-            bg="rgba(248,113,113,0.1)"
+            color="var(--destructive)"
+            bg="rgba(220,38,38,0.10)"
             defaultOpen={false}
             empty={contacts.length === 0}
             emptyText={t('medical.record.no_contacts')}

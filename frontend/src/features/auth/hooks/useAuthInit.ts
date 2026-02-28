@@ -3,6 +3,11 @@
  * Runs once on app mount. Validates the persisted auth token against the API.
  * On success: hydrates user state.
  * On failure: clears auth and redirects to login.
+ *
+ * Also installs a global listener for the 'auth:unauthorized' window event,
+ * which the axios interceptor fires when any protected endpoint returns 401
+ * mid-session (e.g. token expiry while browsing). Without this listener the
+ * user is left in a broken state — requests fail but they are never redirected.
  */
 
 import { useEffect, useRef } from 'react';
@@ -15,13 +20,21 @@ export function useAuthInit(): void {
   const token = useAppSelector((state) => state.auth.token);
   const hasRun = useRef(false);
 
+  // Listen for mid-session 401s fired by the axios response interceptor
   useEffect(() => {
-    // Guard: only run once per app lifecycle
+    function handleUnauthorized() {
+      dispatch(clearAuth());
+    }
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, [dispatch]);
+
+  // Validate the persisted token once on mount
+  useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
 
     if (!token) {
-      // No token in storage — skip API call, just finish loading
       dispatch(hydrateAuth());
       return;
     }
@@ -32,7 +45,6 @@ export function useAuthInit(): void {
         dispatch(hydrateAuth());
       })
       .catch(() => {
-        // Token invalid or expired — clear all auth state
         dispatch(clearAuth());
       });
   }, [dispatch, token]);

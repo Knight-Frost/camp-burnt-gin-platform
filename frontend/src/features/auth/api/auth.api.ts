@@ -33,6 +33,7 @@ function normalizeUser(user: User & { role?: Role | string }): User {
 export interface LoginPayload {
   email: string;
   password: string;
+  mfa_code?: string;
 }
 
 export interface RegisterPayload {

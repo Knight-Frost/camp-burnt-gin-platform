@@ -482,7 +482,12 @@
       "step1_title": "Scan this QR code",
       "step1_desc": "Open your authenticator app and scan the QR code below.",
       "step2_title": "Enter the 6-digit code",
-      "verify": "Verify & Enable"
+      "verify": "Verify & Enable",
+      "disable_confirm": "To confirm, enter your authenticator code and account password.",
+      "disable_code_label": "Authenticator Code",
+      "disable_password_label": "Account Password",
+      "disable_submit": "Confirm & Disable",
+      "disable_error": "Failed to disable 2FA. Check your code and password and try again."
     }
   },
   "provider": {
@@ -511,7 +516,13 @@
       "col_submitted": "Submitted",
       "col_action": "Action",
       "empty_title": "No applications yet",
-      "empty_desc": "Camper applications will appear here once parents submit them."
+      "empty_desc": "Camper applications will appear here once parents submit them.",
+      "filter_all": "All Statuses",
+      "filter_pending": "Pending",
+      "filter_submitted": "Submitted",
+      "filter_under_review": "Under Review",
+      "filter_accepted": "Accepted",
+      "filter_rejected": "Rejected"
     },
     "campers": {
       "title": "Campers",
@@ -548,7 +559,9 @@
       "confirm_delete_camp": "Delete this camp? All sessions will also be removed.",
       "confirm_delete_session": "Delete this session?",
       "camp_deleted": "Camp deleted.",
-      "session_deleted": "Session deleted."
+      "session_deleted": "Session deleted.",
+      "edit_camp": "Edit Camp",
+      "edit_session": "Edit Session"
     },
     "reports": {
       "title": "Reports",

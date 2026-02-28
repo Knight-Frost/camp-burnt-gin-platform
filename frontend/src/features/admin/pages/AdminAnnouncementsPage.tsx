@@ -3,7 +3,7 @@
  * Create, schedule, pin, and manage announcements.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Pin, AlertTriangle, X, Trash2, Edit2, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
@@ -49,7 +49,7 @@ function inputStyle() {
     background: '#f9fafb',
     color: 'var(--foreground)',
     outline: 'none',
-  } as React.CSSProperties;
+  } as CSSProperties;
 }
 
 export function AdminAnnouncementsPage() {
@@ -62,20 +62,14 @@ export function AdminAnnouncementsPage() {
   const [deletingId, setDeletingId]       = useState<number | null>(null);
 
   useEffect(() => {
-    loadAnnouncements();
-  }, []);
-
-  async function loadAnnouncements() {
+    let cancelled = false;
     setLoading(true);
-    try {
-      const res = await getAnnouncements(50);
-      setAnnouncements(res.data ?? []);
-    } catch {
-      toast.error('Failed to load announcements.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    getAnnouncements(50)
+      .then((res) => { if (!cancelled) setAnnouncements(res.data ?? []); })
+      .catch(() => { if (!cancelled) toast.error('Failed to load announcements.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   function openCreate() {
     setEditing(null);
@@ -256,31 +250,31 @@ export function AdminAnnouncementsPage() {
 
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
-                  <input style={inputStyle()} placeholder="Announcement title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+                  <label htmlFor="ann-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
+                  <input id="ann-title" style={inputStyle()} placeholder="Announcement title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Body *</label>
-                  <textarea style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder="Announcement body…" value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
+                  <label htmlFor="ann-body" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Body *</label>
+                  <textarea id="ann-body" style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder="Announcement body…" value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
-                  <select style={inputStyle()} value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as CreateAnnouncementPayload['audience'] }))}>
+                  <label htmlFor="ann-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
+                  <select id="ann-audience" style={inputStyle()} value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as CreateAnnouncementPayload['audience'] }))}>
                     {Object.entries(AUDIENCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Schedule Publish Date (optional)</label>
-                  <input type="datetime-local" style={inputStyle()} value={form.published_at ?? ''} onChange={(e) => setForm((f) => ({ ...f, published_at: e.target.value || null }))} />
+                  <label htmlFor="ann-publish-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Schedule Publish Date (optional)</label>
+                  <input id="ann-publish-at" type="datetime-local" style={inputStyle()} value={form.published_at ?? ''} onChange={(e) => setForm((f) => ({ ...f, published_at: e.target.value || null }))} />
                   <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Leave blank to publish immediately.</p>
                 </div>
                 <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_pinned} onChange={(e) => setForm((f) => ({ ...f, is_pinned: e.target.checked }))} />
+                  <label htmlFor="ann-pinned" className="flex items-center gap-2 cursor-pointer">
+                    <input id="ann-pinned" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_pinned} onChange={(e) => setForm((f) => ({ ...f, is_pinned: e.target.checked }))} />
                     <span className="text-sm" style={{ color: 'var(--foreground)' }}>Pin announcement</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_urgent} onChange={(e) => setForm((f) => ({ ...f, is_urgent: e.target.checked }))} />
+                  <label htmlFor="ann-urgent" className="flex items-center gap-2 cursor-pointer">
+                    <input id="ann-urgent" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_urgent} onChange={(e) => setForm((f) => ({ ...f, is_urgent: e.target.checked }))} />
                     <span className="text-sm" style={{ color: 'var(--foreground)' }}>Mark as urgent</span>
                   </label>
                 </div>
@@ -325,7 +319,7 @@ function AnnouncementRow({
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             {ann.is_pinned && <Pin className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />}
             {ann.is_urgent && (
-              <span className="flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}>
+              <span className="flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}>
                 <AlertTriangle className="h-3 w-3" />
                 Urgent
               </span>
@@ -366,7 +360,7 @@ function AnnouncementRow({
             onClick={() => onDelete(ann.id)}
             disabled={deleting}
             className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
-            style={{ color: '#dc2626' }}
+            style={{ color: 'var(--destructive)' }}
             title="Delete"
           >
             {deleting ? (

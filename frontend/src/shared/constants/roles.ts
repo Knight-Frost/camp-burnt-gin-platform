@@ -53,6 +53,11 @@ export function getDashboardRoute(role: RoleName | null): string {
 
 /** Get the profile route for a role */
 export function getProfileRoute(role: RoleName | null): string {
-  const base = getDashboardRoute(role);
-  return base === '/login' ? '/login' : `${base}/profile`;
+  switch (role) {
+    case ROLES.SUPER_ADMIN: return '/super-admin/profile';
+    case ROLES.ADMIN:       return '/admin/profile';
+    case ROLES.MEDICAL:     return '/medical/profile';
+    case ROLES.PARENT:      return '/parent/profile';
+    default:                return '/login';
+  }
 }

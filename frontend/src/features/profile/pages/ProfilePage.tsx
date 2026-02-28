@@ -10,7 +10,8 @@ import { useState, useEffect, type ReactNode, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { User, Mail, Shield, ShieldCheck, ShieldOff, QrCode, Key } from 'lucide-react';
+import { User, Mail, Shield, ShieldCheck, ShieldOff, QrCode, Key, Eye, EyeOff } from 'lucide-react';
+import QRCode from 'react-qr-code';
 
 import {
   getProfile, updateProfile, setupMfa, verifyMfaSetup,
@@ -46,7 +47,7 @@ function ProfileSection({ title, icon, children }: ProfileSectionProps) {
       <div className="flex items-center gap-3 mb-5">
         <div
           className="flex items-center justify-center w-8 h-8 rounded-lg"
-          style={{ background: 'rgba(34,197,94,0.1)' }}
+          style={{ background: 'rgba(22,101,52,0.1)' }}
         >
           <span style={{ color: 'var(--ember-orange)' }}>{icon}</span>
         </div>
@@ -71,10 +72,14 @@ interface MfaSectionProps {
 function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
   const { t } = useTranslation();
 
-  const [setup, setSetup]       = useState<MfaSetupResponse | null>(null);
-  const [code, setCode]         = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [phase, setPhase]       = useState<'idle' | 'setup' | 'verify'>('idle');
+  const [setup, setSetup]                 = useState<MfaSetupResponse | null>(null);
+  const [code, setCode]                   = useState('');
+  const [loading, setLoading]             = useState(false);
+  const [phase, setPhase]                 = useState<'idle' | 'setup' | 'disabling'>('idle');
+  // Disable-MFA form state
+  const [disableCode, setDisableCode]     = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
+  const [showDisablePw, setShowDisablePw] = useState(false);
 
   async function handleStartSetup() {
     setLoading(true);
@@ -107,56 +112,132 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
   }
 
   async function handleDisable() {
-    if (!window.confirm(t('profile.mfa.disable_confirm'))) return;
+    if (disableCode.length !== 6 || !disablePassword) return;
     setLoading(true);
     try {
-      await disableMfa();
+      await disableMfa({ code: disableCode, password: disablePassword });
       toast.success(t('profile.mfa.disabled_success'));
+      setPhase('idle');
+      setDisableCode('');
+      setDisablePassword('');
       onToggle();
     } catch {
-      toast.error(t('common.save_error'));
+      toast.error(t('profile.mfa.disable_error'));
     } finally {
       setLoading(false);
     }
   }
 
+  // ── Enabled: show status + disable button (expands to inline form) ──────────
   if (mfaEnabled) {
     return (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="h-5 w-5" style={{ color: 'var(--forest-green)' }} />
-          <div>
-            <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-              {t('profile.mfa.enabled')}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              {t('profile.mfa.enabled_desc')}
-            </p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-5 w-5" style={{ color: '#166534' }} />
+            <div>
+              <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                {t('profile.mfa.enabled')}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                {t('profile.mfa.enabled_desc')}
+              </p>
+            </div>
           </div>
+          {phase !== 'disabling' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPhase('disabling')}
+              icon={<ShieldOff className="h-4 w-4" />}
+              style={{ color: 'var(--destructive)' }}
+            >
+              {t('profile.mfa.disable')}
+            </Button>
+          )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          loading={loading}
-          onClick={handleDisable}
-          icon={<ShieldOff className="h-4 w-4" />}
-          className="text-red-400 hover:text-red-300"
-        >
-          {t('profile.mfa.disable')}
-        </Button>
+
+        {phase === 'disabling' && (
+          <div
+            className="rounded-xl border p-4 space-y-3"
+            style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.2)' }}
+          >
+            <p className="text-xs font-medium" style={{ color: 'var(--destructive)' }}>
+              {t('profile.mfa.disable_confirm')}
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                {t('profile.mfa.disable_code_label')}
+              </label>
+              <input
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                className="w-32 rounded-lg px-3 py-2 text-sm border outline-none font-mono text-center tracking-widest"
+                style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                {t('profile.mfa.disable_password_label')}
+              </label>
+              <div className="relative w-56">
+                <input
+                  type={showDisablePw ? 'text' : 'password'}
+                  value={disablePassword}
+                  onChange={(e) => setDisablePassword(e.target.value)}
+                  placeholder="Your password"
+                  className="w-full rounded-lg px-3 py-2 pr-9 text-sm border outline-none"
+                  style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2"
+                  style={{ color: 'var(--muted-foreground)' }}
+                  onClick={() => setShowDisablePw((v) => !v)}
+                >
+                  {showDisablePw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                variant="primary"
+                size="sm"
+                loading={loading}
+                onClick={handleDisable}
+                disabled={disableCode.length !== 6 || !disablePassword}
+                style={{ background: 'var(--destructive)' }}
+              >
+                {t('profile.mfa.disable_submit')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setPhase('idle'); setDisableCode(''); setDisablePassword(''); }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
+  // ── Setup flow ───────────────────────────────────────────────────────────────
   if (phase === 'setup' && setup) {
     return (
       <div className="space-y-5">
         <div className="flex items-start gap-4">
           <div
             className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(34,197,94,0.1)' }}
+            style={{ background: 'rgba(22,101,52,0.1)' }}
           >
-            <span className="text-sm font-bold" style={{ color: 'var(--warm-amber)' }}>1</span>
+            <span className="text-sm font-bold" style={{ color: '#166534' }}>1</span>
           </div>
           <div>
             <p className="text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>
@@ -168,17 +249,18 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
           </div>
         </div>
 
-        {/* QR Code */}
+        {/* QR Code — rendered from otpauth:// URL via react-qr-code */}
         <div className="flex justify-center">
           <div
             className="p-4 rounded-xl border"
-            style={{ background: '#fff', borderColor: 'var(--border)' }}
+            style={{ background: '#ffffff', borderColor: 'var(--border)' }}
           >
-              <img src={setup.qr_code} alt="MFA QR Code" className="w-36 h-36" />
+            <QRCode value={setup.qr_code_url} size={144} />
           </div>
         </div>
 
-        <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+        {/* Manual entry secret */}
+        <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--muted)' }}>
           <Key className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
           <p className="text-xs font-mono break-all" style={{ color: 'var(--muted-foreground)' }}>
             {setup.secret}
@@ -188,9 +270,9 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
         <div className="flex items-start gap-4">
           <div
             className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(34,197,94,0.1)' }}
+            style={{ background: 'rgba(22,101,52,0.1)' }}
           >
-            <span className="text-sm font-bold" style={{ color: 'var(--warm-amber)' }}>2</span>
+            <span className="text-sm font-bold" style={{ color: '#166534' }}>2</span>
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
@@ -214,6 +296,7 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
     );
   }
 
+  // ── Idle: not enabled ────────────────────────────────────────────────────────
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -255,6 +338,7 @@ export function ProfilePage() {
         setName(p.name);
         setEmail(p.email);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

@@ -237,7 +237,7 @@ export function FormManagementPage() {
                   onClick={() => handleDelete(tmpl.id)}
                   disabled={deletingId === tmpl.id}
                   className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
-                  style={{ color: '#dc2626' }}
+                  style={{ color: 'var(--destructive)' }}
                   title="Delete"
                 >
                   {deletingId === tmpl.id ? (
@@ -281,8 +281,9 @@ export function FormManagementPage() {
 
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Form Name *</label>
+                  <label htmlFor="form-name-input" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Form Name *</label>
                   <input
+                    id="form-name-input"
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9375rem', background: '#f9fafb', color: 'var(--foreground)', outline: 'none' }}
                     placeholder="e.g. Summer 2026 Application Form"
                     value={formName}
@@ -291,11 +292,14 @@ export function FormManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>File (PDF or Word) *</label>
+                  <label htmlFor="form-file-input" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>File (PDF or Word) *</label>
                   <div
+                    role="button"
+                    tabIndex={0}
                     className="rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors"
                     style={{ borderColor: file ? '#166534' : 'rgba(0,0,0,0.15)' }}
                     onClick={() => document.getElementById('form-file-input')?.click()}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('form-file-input')?.click(); } }}
                   >
                     {file ? (
                       <>
@@ -323,8 +327,9 @@ export function FormManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Assign to Session (optional)</label>
+                  <label htmlFor="form-session-id" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Assign to Session (optional)</label>
                   <input
+                    id="form-session-id"
                     type="number"
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9375rem', background: '#f9fafb', color: 'var(--foreground)', outline: 'none' }}
                     placeholder="Session ID"
