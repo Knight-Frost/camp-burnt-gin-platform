@@ -16,7 +16,7 @@ import {
 } from '@/features/admin/api/announcements.api';
 import { Button } from '@/ui/components/Button';
 import { SkeletonCard } from '@/ui/components/Skeletons';
-import { EmptyState } from '@/ui/components/EmptyState';
+import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
 import {
   scrollRevealVariants, staggerContainerVariants, staggerChildVariants,
   modalBackdrop, modalContent,
@@ -55,6 +55,8 @@ function inputStyle() {
 export function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(false);
+  const [retryKey, setRetryKey]           = useState(0);
   const [showModal, setShowModal]         = useState(false);
   const [editing, setEditing]             = useState<Announcement | null>(null);
   const [form, setForm]                   = useState<CreateAnnouncementPayload>(DEFAULT_FORM);
@@ -64,12 +66,13 @@ export function AdminAnnouncementsPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     getAnnouncements(50)
       .then((res) => { if (!cancelled) setAnnouncements(res.data ?? []); })
-      .catch(() => { if (!cancelled) toast.error('Failed to load announcements.'); })
+      .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [retryKey]);
 
   function openCreate() {
     setEditing(null);
@@ -165,7 +168,9 @@ export function AdminAnnouncementsPage() {
         </div>
       </motion.div>
 
-      {loading ? (
+      {error ? (
+        <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
+      ) : loading ? (
         <div className="flex flex-col gap-3">
           {[1,2,3].map((i) => <SkeletonCard key={i} lines={2} />)}
         </div>

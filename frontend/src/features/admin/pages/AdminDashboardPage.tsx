@@ -156,7 +156,7 @@ export function AdminDashboardPage() {
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: 'rgba(22,101,52,0.1)' }}
+                          style={{ background: 'rgba(22,163,74,0.1)' }}
                         >
                           <Users className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
                         </div>

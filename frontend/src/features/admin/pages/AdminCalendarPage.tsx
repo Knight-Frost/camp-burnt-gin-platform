@@ -20,7 +20,7 @@ import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants, m
 
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; label: string }> = {
   deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)',  label: 'Deadline'    },
-  session:     { bg: 'rgba(22,101,52,0.10)',    text: '#166534',  dot: '#166534',  label: 'Session'     },
+  session:     { bg: 'rgba(22,163,74,0.10)',    text: '#16a34a',  dot: '#16a34a',  label: 'Session'     },
   orientation: { bg: 'rgba(37,99,235,0.10)',    text: '#2563eb',  dot: '#2563eb',  label: 'Orientation' },
   staff:       { bg: 'rgba(124,58,237,0.10)',   text: '#7c3aed',  dot: '#7c3aed',  label: 'Staff'       },
   internal:    { bg: 'rgba(107,114,128,0.10)',  text: '#6b7280',  dot: '#6b7280',  label: 'Internal'    },
@@ -231,7 +231,7 @@ export function AdminCalendarPage() {
                       className="h-20 border-b border-r p-1.5 flex flex-col gap-0.5 overflow-hidden cursor-pointer transition-colors"
                       style={{
                         borderColor: 'var(--border)',
-                        background: today ? 'rgba(22,101,52,0.04)' : '#ffffff',
+                        background: today ? 'rgba(22,163,74,0.04)' : '#ffffff',
                       }}
                       onClick={() => openNewEvent(day)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNewEvent(day); } }}
@@ -241,7 +241,7 @@ export function AdminCalendarPage() {
                       <span
                         className="text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0"
                         style={{
-                          background: today ? '#166534' : 'transparent',
+                          background: today ? '#16a34a' : 'transparent',
                           color: today ? '#ffffff' : 'var(--foreground)',
                         }}
                       >

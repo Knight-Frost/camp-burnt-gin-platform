@@ -241,7 +241,7 @@ export function ProviderAccessPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl mx-auto mb-4"
-            style={{ background: 'rgba(22,101,52,0.1)' }}>
+            style={{ background: 'rgba(22,163,74,0.1)' }}>
             <Heart className="h-5 w-5" style={{ color: 'var(--ember-orange)' }} />
           </div>
           <h1 className="font-headline text-2xl font-semibold mb-1" style={{ color: '#1a1a22' }}>
@@ -316,7 +316,7 @@ export function ProviderAccessPage() {
                 </p>
                 <label
                   className="flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed py-6 cursor-pointer transition-colors"
-                  style={{ borderColor: 'rgba(22,101,52,0.25)' }}
+                  style={{ borderColor: 'rgba(22,163,74,0.25)' }}
                 >
                   <Upload className="h-6 w-6 mb-2" style={{ color: 'var(--ember-orange)' }} />
                   <p className="text-sm" style={{ color: '#555' }}>{t('provider.upload_label')}</p>

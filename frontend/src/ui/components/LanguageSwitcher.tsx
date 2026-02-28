@@ -59,7 +59,7 @@ export function LanguageSwitcher() {
             onClick={() => handleSelect('en')}
             className="w-full px-4 py-3 text-left transition-all duration-200"
             style={{
-              backgroundColor: currentLanguage === 'en' ? 'rgba(22, 101, 52, 0.10)' : 'transparent',
+              backgroundColor: currentLanguage === 'en' ? 'rgba(22, 163, 74, 0.10)' : 'transparent',
               color: currentLanguage === 'en' ? 'var(--ember-orange)' : 'rgba(26, 20, 16, 0.85)',
             }}
           >
@@ -69,7 +69,7 @@ export function LanguageSwitcher() {
             onClick={() => handleSelect('es')}
             className="w-full px-4 py-3 text-left transition-all duration-200"
             style={{
-              backgroundColor: currentLanguage === 'es' ? 'rgba(22, 101, 52, 0.10)' : 'transparent',
+              backgroundColor: currentLanguage === 'es' ? 'rgba(22, 163, 74, 0.10)' : 'transparent',
               color: currentLanguage === 'es' ? 'var(--ember-orange)' : 'rgba(26, 20, 16, 0.85)',
             }}
           >

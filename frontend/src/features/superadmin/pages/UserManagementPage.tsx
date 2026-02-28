@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Search, ChevronLeft, ChevronRight, UserCheck, UserX } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { getUsers, updateUserRole, deactivateUser, reactivateUser } from '@/features/admin/api/admin.api';
@@ -22,10 +22,10 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 const ROLES = ['parent', 'admin', 'medical', 'super_admin'];
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  super_admin: { bg: 'rgba(22,101,52,0.12)', text: 'var(--ember-orange)' },
+  super_admin: { bg: 'rgba(22,163,74,0.12)', text: 'var(--ember-orange)' },
   admin:       { bg: 'rgba(96,165,250,0.12)', text: 'var(--night-sky-blue)' },
   medical:     { bg: 'rgba(5,150,105,0.12)', text: 'var(--forest-green)' },
-  parent:      { bg: 'rgba(22,101,52,0.1)',  text: 'var(--ember-orange)' },
+  parent:      { bg: 'rgba(22,163,74,0.1)',  text: 'var(--ember-orange)' },
 };
 
 interface UserFilters {
@@ -41,7 +41,8 @@ export function UserManagementPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   const [filters, setFilters]   = useState<UserFilters>({ search: '', roleFilter: '', page: 1 });
-  const [updating, setUpdating] = useState<number | null>(null);
+  const [updating, setUpdating]         = useState<number | null>(null);
+  const [confirmUser, setConfirmUser]   = useState<User | null>(null);
 
   const setSearch     = (search: string)     => setFilters((f) => ({ ...f, search,     page: 1 }));
   const setRoleFilter = (roleFilter: string) => setFilters((f) => ({ ...f, roleFilter, page: 1 }));
@@ -211,7 +212,7 @@ export function UserManagementPage() {
                   </div>
                   <div className="col-span-2 flex justify-end">
                     <button
-                      onClick={() => handleToggleActive(user)}
+                      onClick={() => setConfirmUser(user)}
                       disabled={updating === user.id}
                       className="p-1.5 rounded transition-colors disabled:opacity-40"
                       title={user.email_verified_at ? t('superadmin.users.deactivate') : t('superadmin.users.activate')}
@@ -252,6 +253,63 @@ export function UserManagementPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Confirmation dialog */}
+      {confirmUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.40)' }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border p-6 shadow-2xl"
+            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ background: confirmUser.email_verified_at ? 'rgba(220,38,38,0.10)' : 'rgba(22,163,74,0.10)' }}>
+                <AlertTriangle className="h-4.5 w-4.5"
+                  style={{ color: confirmUser.email_verified_at ? 'var(--destructive)' : 'var(--forest-green)' }} />
+              </div>
+              <div>
+                <p id="confirm-dialog-title" className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                  {confirmUser.email_verified_at
+                    ? t('superadmin.users.deactivate_confirm_title', { name: confirmUser.name })
+                    : t('superadmin.users.activate_confirm_title',   { name: confirmUser.name })}
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                  {confirmUser.email_verified_at
+                    ? t('superadmin.users.deactivate_confirm_body')
+                    : t('superadmin.users.activate_confirm_body')}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmUser(null)}
+                className="px-4 py-2 text-sm rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { const u = confirmUser; setConfirmUser(null); void handleToggleActive(u); }}
+                className="px-4 py-2 text-sm rounded-lg font-medium transition-colors"
+                style={{
+                  background: confirmUser.email_verified_at ? 'var(--destructive)' : 'var(--forest-green)',
+                  color: '#ffffff',
+                }}
+              >
+                {confirmUser.email_verified_at ? t('superadmin.users.deactivate') : t('superadmin.users.activate')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </motion.div>
   );

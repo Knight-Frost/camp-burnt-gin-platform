@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function ParentLayout() {
   const user = useAppSelector((state) => state.auth.user);
-  const isParent = user?.roles.some((r) => r.name === 'parent');
+  const isParent = user?.roles?.some((r) => r.name === 'parent') ?? false;
 
   if (!isParent) {
     // Redirect to the user's actual dashboard instead of a dead-end Forbidden page

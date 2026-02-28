@@ -23,8 +23,8 @@ type BadgeVariant =
 // All text colors meet WCAG AA 4.5:1 contrast on their tinted backgrounds.
 const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: string }> = {
   pending: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',   // brand dark emerald
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',   // brand dark emerald
     label: 'Pending',
   },
   draft: {
@@ -38,13 +38,13 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     label: 'Submitted',
   },
   under_review: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',
     label: 'Under Review',
   },
   accepted: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',
     label: 'Accepted',
   },
   rejected: {
@@ -63,8 +63,8 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     label: 'Withdrawn',
   },
   active: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',
     label: 'Active',
   },
   inactive: {
@@ -73,8 +73,8 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     label: 'Inactive',
   },
   open: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',
     label: 'Open',
   },
   closed: {
@@ -88,13 +88,13 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     label: 'Cancelled',
   },
   waitlist: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',
     label: 'Waitlist',
   },
   low: {
-    bg: 'rgba(22,101,52,0.10)',
-    text: '#166534',   // green = safe
+    bg: 'rgba(22,163,74,0.10)',
+    text: '#16a34a',   // green = safe
     label: 'Low Risk',
   },
   moderate: {

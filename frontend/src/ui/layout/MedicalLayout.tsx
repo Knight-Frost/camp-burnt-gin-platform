@@ -20,9 +20,9 @@ const NAV_ITEMS: NavItem[] = [
 
 export function MedicalLayout() {
   const user = useAppSelector((state) => state.auth.user);
-  const hasAccess = user?.roles.some((r) =>
+  const hasAccess = user?.roles?.some((r) =>
     ['medical', 'admin', 'super_admin'].includes(r.name)
-  );
+  ) ?? false;
 
   if (!hasAccess) {
     // Redirect to the user's actual dashboard instead of a dead-end Forbidden page

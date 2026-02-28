@@ -13,10 +13,10 @@ import { useAppSelector } from '@/store/hooks';
 import { pageEntry, staggerContainer, staggerChild, cardHover } from '@/shared/constants/motion';
 
 const QUICK_LINKS = [
-  { to: '/super-admin/users',   icon: Users,    labelKey: 'superadmin.nav.users',     color: 'var(--ember-orange)',   bg: 'rgba(22,101,52,0.1)' },
+  { to: '/super-admin/users',   icon: Users,    labelKey: 'superadmin.nav.users',     color: 'var(--ember-orange)',   bg: 'rgba(22,163,74,0.1)' },
   { to: '/admin/applications',  icon: FileText, labelKey: 'superadmin.nav.apps',      color: 'var(--night-sky-blue)', bg: 'rgba(96,165,250,0.1)' },
   { to: '/admin/campers',       icon: Users,    labelKey: 'superadmin.nav.campers',   color: 'var(--forest-green)',   bg: 'rgba(5,150,105,0.1)' },
-  { to: '/super-admin/audit',   icon: Activity, labelKey: 'superadmin.nav.audit',     color: 'var(--ember-orange)',     bg: 'rgba(22,101,52,0.1)' },
+  { to: '/super-admin/audit',   icon: Activity, labelKey: 'superadmin.nav.audit',     color: 'var(--ember-orange)',     bg: 'rgba(22,163,74,0.1)' },
 ];
 
 export function SuperAdminDashboardPage() {
@@ -80,13 +80,13 @@ export function SuperAdminDashboardPage() {
         transition={{ delay: 0.4, duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
         className="rounded-xl border p-5 flex items-start gap-4"
         style={{
-          background: 'rgba(22,101,52,0.06)',
-          borderColor: 'rgba(22,101,52,0.15)',
+          background: 'rgba(22,163,74,0.06)',
+          borderColor: 'rgba(22,163,74,0.15)',
         }}
       >
         <div
           className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 mt-0.5"
-          style={{ background: 'rgba(22,101,52,0.12)' }}
+          style={{ background: 'rgba(22,163,74,0.12)' }}
         >
           <Shield className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
         </div>

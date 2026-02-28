@@ -57,21 +57,35 @@ export function DashboardShell({
         {/* Header */}
         <DashboardHeader title={currentTitle} />
 
-        {/* Page content */}
-        <main
-          className="flex-1 overflow-y-auto p-6 lg:p-8"
-          id="main-content"
-          tabIndex={-1}
-        >
-          <motion.div
-            key={location.pathname}
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
+        {/* Page content — inbox route gets full bleed (no padding, overflow-hidden) */}
+        {location.pathname.endsWith('/inbox') ? (
+          <div className="flex-1 overflow-hidden" id="main-content" tabIndex={-1}>
+            <motion.div
+              key={location.pathname}
+              variants={fadeVariants}
+              initial="hidden"
+              animate="visible"
+              className="h-full"
+            >
+              {children}
+            </motion.div>
+          </div>
+        ) : (
+          <main
+            className="flex-1 overflow-y-auto p-6 lg:p-8"
+            id="main-content"
+            tabIndex={-1}
           >
-            {children}
-          </motion.div>
-        </main>
+            <motion.div
+              key={location.pathname}
+              variants={fadeVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {children}
+            </motion.div>
+          </main>
+        )}
       </div>
     </div>
   );

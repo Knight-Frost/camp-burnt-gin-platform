@@ -67,6 +67,16 @@ class AuditLogController extends Controller
 
         $entries = $query->paginate($request->integer('per_page', 20));
 
-        return response()->json($entries);
+        return response()->json([
+            'data' => $entries->items(),
+            'meta' => [
+                'current_page' => $entries->currentPage(),
+                'last_page'    => $entries->lastPage(),
+                'per_page'     => $entries->perPage(),
+                'total'        => $entries->total(),
+                'from'         => $entries->firstItem(),
+                'to'           => $entries->lastItem(),
+            ],
+        ]);
     }
 }

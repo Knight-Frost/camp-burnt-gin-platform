@@ -108,7 +108,7 @@ export function MedicalDashboardPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div
                       className="flex items-center justify-center w-9 h-9 rounded-xl"
-                      style={{ background: hasHighRisk ? 'rgba(220,38,38,0.12)' : 'rgba(22,101,52,0.1)' }}
+                      style={{ background: hasHighRisk ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.1)' }}
                     >
                       {hasHighRisk
                         ? <AlertTriangle className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
@@ -136,7 +136,7 @@ export function MedicalDashboardPage() {
                       <span
                         className="text-xs px-2 py-0.5 rounded-full"
                         style={{
-                          background: hasHighRisk ? 'rgba(220,38,38,0.12)' : 'rgba(22,101,52,0.1)',
+                          background: hasHighRisk ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.1)',
                           color: hasHighRisk ? 'var(--destructive)' : 'var(--warm-amber)',
                         }}
                       >

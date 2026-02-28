@@ -619,6 +619,12 @@
       "hipaa_notice_title": "Recordatorio de Seguridad de Datos",
       "hipaa_notice_body": "Tienes acceso a información de salud protegida. Maneja todos los datos con cuidado y sigue las políticas de seguridad de datos de tu organización."
     },
+    "nav": {
+      "users": "Gestión de Usuarios",
+      "apps": "Solicitudes",
+      "campers": "Campistas",
+      "audit": "Registro de Auditoría"
+    },
     "users": {
       "title": "Gestión de Usuarios",
       "subtitle": "Administrar cuentas y asignaciones de roles",
@@ -631,6 +637,12 @@
       "col_actions": "Acciones",
       "activate": "Activar",
       "deactivate": "Desactivar",
+      "activated": "Usuario activado.",
+      "deactivated": "Usuario desactivado.",
+      "activate_confirm_title": "¿Activar a {{name}}?",
+      "activate_confirm_body": "Esto restaurará el acceso del usuario al portal.",
+      "deactivate_confirm_title": "¿Desactivar a {{name}}?",
+      "deactivate_confirm_body": "Esto impedirá que el usuario inicie sesión hasta que sea reactivado.",
       "role_updated": "Rol actualizado exitosamente.",
       "empty_title": "No se encontraron usuarios",
       "empty_desc": "Ajusta tu búsqueda o filtro de rol."

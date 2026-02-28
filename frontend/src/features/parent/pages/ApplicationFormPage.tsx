@@ -285,7 +285,7 @@ export function ApplicationFormPage() {
         {prefill && (
           <div
             className="mt-3 flex items-center gap-2 text-sm px-3 py-2 rounded-lg border"
-            style={{ background: 'rgba(22,101,52,0.08)', borderColor: 'rgba(22,101,52,0.25)', color: 'var(--forest-green)' }}
+            style={{ background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.25)', color: 'var(--forest-green)' }}
           >
             <span>Camper info pre-filled from a previous application. Review and update as needed.</span>
           </div>
@@ -410,7 +410,7 @@ export function ApplicationFormPage() {
                             selected ? 'border-ember-orange' : 'hover:border-ember-orange/40'
                           )}
                           style={{
-                            background: selected ? 'rgba(22,101,52,0.06)' : 'var(--card)',
+                            background: selected ? 'rgba(22,163,74,0.06)' : 'var(--card)',
                             borderColor: selected ? 'var(--ember-orange)' : 'var(--border)',
                           }}
                         >

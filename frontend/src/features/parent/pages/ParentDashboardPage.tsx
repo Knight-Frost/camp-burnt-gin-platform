@@ -234,7 +234,7 @@ export function ParentDashboardPage() {
                         <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-headline font-semibold text-sm"
                           style={{
-                            background: 'rgba(22,101,52,0.12)',
+                            background: 'rgba(22,163,74,0.12)',
                             color: 'var(--ember-orange)',
                           }}
                         >
@@ -304,8 +304,8 @@ export function ParentDashboardPage() {
                   variants={staggerChildVariants}
                   className="rounded-xl border p-4"
                   style={{
-                    background: n.read_at ? 'var(--card)' : 'rgba(22,101,52,0.06)',
-                    borderColor: n.read_at ? 'var(--border)' : 'rgba(22,101,52,0.15)',
+                    background: n.read_at ? 'var(--card)' : 'rgba(22,163,74,0.06)',
+                    borderColor: n.read_at ? 'var(--border)' : 'rgba(22,163,74,0.15)',
                   }}
                 >
                   <p

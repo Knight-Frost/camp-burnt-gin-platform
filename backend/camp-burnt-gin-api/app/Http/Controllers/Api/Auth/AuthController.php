@@ -36,7 +36,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Account created successfully.',
             'data' => [
-                'user' => $user,
+                'user' => $user->load('role'),
                 'token' => $token,
             ],
         ], Response::HTTP_CREATED);

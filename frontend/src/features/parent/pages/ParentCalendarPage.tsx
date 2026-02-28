@@ -15,7 +15,7 @@ import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } 
 
 const EVENT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)'  },
-  session:     { bg: 'rgba(22,101,52,0.10)',    text: '#166534',  dot: '#166534'  },
+  session:     { bg: 'rgba(22,163,74,0.10)',    text: '#16a34a',  dot: '#16a34a'  },
   orientation: { bg: 'rgba(37,99,235,0.10)',    text: '#2563eb',  dot: '#2563eb'  },
   staff:       { bg: 'rgba(124,58,237,0.10)',   text: '#7c3aed',  dot: '#7c3aed'  },
   internal:    { bg: 'rgba(107,114,128,0.10)',  text: '#6b7280',  dot: '#6b7280'  },
@@ -169,13 +169,13 @@ export function ParentCalendarPage() {
                       className="h-20 border-b border-r p-1.5 flex flex-col gap-0.5 overflow-hidden"
                       style={{
                         borderColor: 'var(--border)',
-                        background: today ? 'rgba(22,101,52,0.04)' : inMonth ? '#ffffff' : 'rgba(0,0,0,0.01)',
+                        background: today ? 'rgba(22,163,74,0.04)' : inMonth ? '#ffffff' : 'rgba(0,0,0,0.01)',
                       }}
                     >
                       <span
                         className="text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0"
                         style={{
-                          background: today ? '#166534' : 'transparent',
+                          background: today ? '#16a34a' : 'transparent',
                           color: today ? '#ffffff' : inMonth ? 'var(--foreground)' : 'var(--muted-foreground)',
                         }}
                       >

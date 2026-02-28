@@ -46,25 +46,25 @@
   --popover-foreground: #111827;
   --primary: #111827;
   --primary-foreground: #ffffff;
-  --secondary: rgba(22, 101, 52, 0.10);
+  --secondary: rgba(22, 163, 74, 0.10);
   --secondary-foreground: #111827;
   --muted: #f3f4f6;
   --muted-foreground: #6b7280;
-  --accent: rgba(22, 101, 52, 0.12);
+  --accent: rgba(22, 163, 74, 0.12);
   --accent-foreground: #111827;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.08);
   --input: #f9fafb;
   --input-background: #f9fafb;
-  --ring: rgba(22, 101, 52, 0.35);
+  --ring: rgba(22, 163, 74, 0.35);
 
   /* Navigation Colors */
   --nav-text: rgba(17, 24, 39, 0.80);
   --nav-text-active: #111827;
 
   /* Brand Accent Colors — emerald green */
-  --ember-orange: #166534;        /* Dark emerald — primary brand accent */
+  --ember-orange: #16a34a;        /* Emerald — primary brand accent */
   --warm-amber: #059669;          /* Medium emerald — secondary accent */
   --forest-green: #059669;
   --night-sky-blue: #2563eb;
@@ -77,7 +77,7 @@
   --overlay-light: rgba(255, 255, 255, 0.97);
   --overlay-medium: rgba(255, 255, 255, 0.92);
   --overlay-subtle: rgba(255, 255, 255, 0.80);
-  --overlay-primary: rgba(22, 101, 52, 0.10);
+  --overlay-primary: rgba(22, 163, 74, 0.10);
   --overlay-secondary: rgba(248, 249, 250, 0.95);
   --overlay-nav: rgba(255, 255, 255, 0.97);
   --overlay-nav-subtle: rgba(255, 255, 255, 0.85);
@@ -89,15 +89,15 @@
   --glass-light: rgba(255, 255, 255, 0.60);
   --glass-dark-strong: #111827;
   --glass-dark-medium: rgba(17, 24, 39, 0.85);
-  --glass-icon-bg: rgba(22, 101, 52, 0.12);
+  --glass-icon-bg: rgba(22, 163, 74, 0.12);
   --glass-mission-bg: rgba(0, 0, 0, 0.02);
   --glass-footer-dark: rgba(17, 24, 39, 0.97);
   --glass-footer-light: rgba(255, 255, 255, 0.95);
 
   /* Borders */
-  --border-ember: rgba(22, 101, 52, 0.25);
+  --border-ember: rgba(22, 163, 74, 0.25);
   --border-glass: rgba(0, 0, 0, 0.10);
-  --button-border-dark: rgba(22, 101, 52, 0.25);
+  --button-border-dark: rgba(22, 163, 74, 0.25);
   --button-border-light: rgba(0, 0, 0, 0.10);
 
   /* Text Overlays */
@@ -105,7 +105,7 @@
   --text-overlay-light: rgba(255, 255, 255, 0.95);
 
   /* Navigation Accent */
-  --nav-shadow-ember: rgba(22, 101, 52, 0.12);
+  --nav-shadow-ember: rgba(22, 163, 74, 0.12);
 
   /* Elevation System */
   --shadow-hero-panel: 0 20px 80px rgba(0, 0, 0, 0.12);
@@ -117,14 +117,14 @@
   --shadow-card-glass: 0 4px 24px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.90), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
   /* Button shadows */
-  --shadow-ember-primary: 0 4px 16px rgba(22, 101, 52, 0.30), 0 0 24px rgba(22, 101, 52, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --shadow-ember-primary: 0 4px 16px rgba(22, 163, 74, 0.30), 0 0 24px rgba(22, 163, 74, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   --shadow-ember-secondary: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.60), 0 0 0 1px rgba(0, 0, 0, 0.08);
 
   /* Accent glows */
-  --shadow-amber-glow: 0 4px 16px rgba(22, 101, 52, 0.20), 0 0 12px rgba(22, 101, 52, 0.12);
-  --shadow-light-button-primary: 0 4px 16px rgba(22, 101, 52, 0.30), 0 0 24px rgba(22, 101, 52, 0.15);
+  --shadow-amber-glow: 0 4px 16px rgba(22, 163, 74, 0.20), 0 0 12px rgba(22, 163, 74, 0.12);
+  --shadow-light-button-primary: 0 4px 16px rgba(22, 163, 74, 0.30), 0 0 24px rgba(22, 163, 74, 0.15);
   --shadow-light-button-secondary: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.60);
-  --shadow-light-icon: 0 4px 12px rgba(22, 101, 52, 0.20), 0 0 0 1px rgba(22, 101, 52, 0.12);
+  --shadow-light-icon: 0 4px 12px rgba(22, 163, 74, 0.20), 0 0 0 1px rgba(22, 163, 74, 0.12);
 
   /* On-Image Content Tokens */
   --on-image-text:         rgba(17, 24, 39, 0.97);
@@ -140,13 +140,13 @@
   --scrim-bg:              rgba(255, 255, 255, 0.15);
 
   /* Accent label */
-  --accent-label:          #166534;
+  --accent-label:          #16a34a;
 
   /* CTA button tokens */
-  --cta-primary-bg:        #166534;
+  --cta-primary-bg:        #16a34a;
   --cta-primary-color:     #ffffff;
-  --cta-primary-border:    #15803D;
-  --cta-primary-shadow:    0 4px 16px rgba(22, 101, 52, 0.35), 0 0 24px rgba(22, 101, 52, 0.15);
+  --cta-primary-border:    #15803d;
+  --cta-primary-shadow:    0 4px 16px rgba(22, 163, 74, 0.35), 0 0 24px rgba(22, 163, 74, 0.15);
 
   --cta-secondary-bg:      rgba(255, 255, 255, 0.95);
   --cta-secondary-color:   #111827;
@@ -158,7 +158,7 @@
   --dash-sidebar-bg: #ffffff;
   --dash-header-bg: rgba(255, 255, 255, 0.97);
   --dash-sidebar-border: rgba(0, 0, 0, 0.07);
-  --dash-nav-active-bg: rgba(22, 101, 52, 0.08);
+  --dash-nav-active-bg: rgba(22, 163, 74, 0.08);
   --dash-nav-hover-bg: rgba(0, 0, 0, 0.04);
 }
 
@@ -190,10 +190,10 @@
   --on-image-border: rgba(0, 0, 0, 0.45);
 
   /* Focus ring: wider and darker */
-  --ring: rgba(22, 101, 52, 0.70);
+  --ring: rgba(22, 163, 74, 0.70);
 
   /* Interactive states: more visible hover/active indicators */
-  --dash-nav-active-bg: rgba(22, 101, 52, 0.16);
+  --dash-nav-active-bg: rgba(22, 163, 74, 0.16);
   --dash-nav-hover-bg: rgba(0, 0, 0, 0.10);
 
   /* Inputs: stronger border on form controls */
@@ -287,5 +287,5 @@
 
 /* Selection color */
 ::selection {
-  background-color: rgba(22, 101, 52, 0.20);
+  background-color: rgba(22, 163, 74, 0.20);
 }

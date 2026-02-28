@@ -94,7 +94,7 @@ function MedSection({ title, icon, color, bg, defaultOpen = true, children, empt
 function SeverityBadge({ severity }: { severity: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
     'life-threatening': { bg: 'rgba(220,38,38,0.15)', text: 'var(--destructive)' },
-    'severe':           { bg: 'rgba(22,101,52,0.12)',  text: 'var(--ember-orange)' },
+    'severe':           { bg: 'rgba(22,163,74,0.12)',  text: 'var(--ember-orange)' },
     'moderate':         { bg: 'rgba(96,165,250,0.12)',  text: 'var(--night-sky-blue)' },
     'mild':             { bg: 'rgba(5,150,105,0.12)',  text: 'var(--forest-green)' },
   };
@@ -201,7 +201,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.allergies')}
             icon={<AlertTriangle className="h-3.5 w-3.5" />}
             color={allergies.some(a => a.severity === 'life-threatening') ? 'var(--destructive)' : 'var(--warm-amber)'}
-            bg={allergies.some(a => a.severity === 'life-threatening') ? 'rgba(220,38,38,0.12)' : 'rgba(22,101,52,0.10)'}
+            bg={allergies.some(a => a.severity === 'life-threatening') ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.10)'}
             empty={allergies.length === 0}
             emptyText={t('medical.record.no_allergies')}
           >
@@ -248,7 +248,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.diagnoses')}
             icon={<Clipboard className="h-3.5 w-3.5" />}
             color="var(--ember-orange)"
-            bg="rgba(22,101,52,0.1)"
+            bg="rgba(22,163,74,0.1)"
             empty={diagnoses.length === 0}
             emptyText={t('medical.record.no_diagnoses')}
           >
@@ -258,7 +258,7 @@ export function MedicalRecordPage() {
                   {d.icd_code && (
                     <span
                       className="text-xs px-2 py-0.5 rounded font-mono flex-shrink-0 mt-0.5"
-                      style={{ background: 'rgba(22,101,52,0.1)', color: 'var(--ember-orange)' }}
+                      style={{ background: 'rgba(22,163,74,0.1)', color: 'var(--ember-orange)' }}
                     >
                       {d.icd_code}
                     </span>
@@ -314,7 +314,7 @@ export function MedicalRecordPage() {
             title={t('medical.record.feeding')}
             icon={<Coffee className="h-3.5 w-3.5" />}
             color="var(--warm-amber)"
-            bg="rgba(22,101,52,0.1)"
+            bg="rgba(22,163,74,0.1)"
             defaultOpen={false}
             empty={!feeding}
             emptyText={t('medical.record.no_feeding')}

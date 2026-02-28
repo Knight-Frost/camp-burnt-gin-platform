@@ -48,7 +48,7 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
       <div className="flex items-center gap-3 mb-4">
         <div
           className="flex items-center justify-center w-8 h-8 rounded-lg"
-          style={{ background: 'rgba(22,101,52,0.12)' }}
+          style={{ background: 'rgba(22,163,74,0.12)' }}
         >
           <span style={{ color: 'var(--ember-orange)' }}>{icon}</span>
         </div>
@@ -315,8 +315,8 @@ export function ApplicationReviewPage() {
                           key={a.id}
                           className="text-xs px-2.5 py-1 rounded-full border"
                           style={{
-                            background: a.severity === 'life-threatening' ? 'rgba(220,38,38,0.15)' : 'rgba(22,101,52,0.1)',
-                            borderColor: a.severity === 'life-threatening' ? 'rgba(220,38,38,0.4)' : 'rgba(22,101,52,0.3)',
+                            background: a.severity === 'life-threatening' ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.1)',
+                            borderColor: a.severity === 'life-threatening' ? 'rgba(220,38,38,0.4)' : 'rgba(22,163,74,0.3)',
                             color: a.severity === 'life-threatening' ? 'var(--destructive)' : 'var(--warm-amber)',
                           }}
                         >

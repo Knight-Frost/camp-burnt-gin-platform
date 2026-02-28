@@ -25,16 +25,16 @@ type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 
 const CHART_COLORS = {
   pending: '#f59e0b',
   under_review: '#3b82f6',
-  accepted: '#166534',
+  accepted: '#16a34a',
   rejected: '#dc2626',
   submitted: '#8b5cf6',
 };
 
 const EXPORT_REPORTS = [
   { type: 'applications' as ReportType,   label: 'All Applications',   icon: FileText,   color: '#3b82f6' },
-  { type: 'accepted' as ReportType,       label: 'Accepted Only',      icon: CheckCircle, color: '#166534' },
+  { type: 'accepted' as ReportType,       label: 'Accepted Only',      icon: CheckCircle, color: '#16a34a' },
   { type: 'rejected' as ReportType,       label: 'Rejected Only',      icon: XCircle,    color: '#dc2626' },
-  { type: 'mailing-labels' as ReportType, label: 'Mailing Labels',     icon: Users,      color: '#166534' },
+  { type: 'mailing-labels' as ReportType, label: 'Mailing Labels',     icon: Users,      color: '#16a34a' },
   { type: 'id-labels' as ReportType,      label: 'ID Labels',          icon: Tag,        color: '#059669' },
 ];
 
@@ -84,7 +84,7 @@ export function AdminReportsPage() {
   const rate     = total > 0 ? Math.round((accepted / total) * 100) : 0;
 
   const acceptancePieData = [
-    { name: 'Accepted', value: accepted,          color: '#166534' },
+    { name: 'Accepted', value: accepted,          color: '#16a34a' },
     { name: 'Rejected', value: rejected,          color: '#dc2626' },
     { name: 'Pending',  value: total - accepted - rejected, color: '#e5e7eb' },
   ].filter((d) => d.value > 0);
@@ -150,9 +150,9 @@ export function AdminReportsPage() {
         >
           {[
             { label: 'Total',    value: total,    color: '#3b82f6' },
-            { label: 'Accepted', value: accepted, color: '#166534' },
+            { label: 'Accepted', value: accepted, color: '#16a34a' },
             { label: 'Rejected', value: rejected, color: '#dc2626' },
-            { label: 'Rate',     value: `${rate}%`, color: '#166534' },
+            { label: 'Rate',     value: `${rate}%`, color: '#16a34a' },
           ].map(({ label, value, color }) => (
             <motion.div
               key={label}
@@ -231,7 +231,7 @@ export function AdminReportsPage() {
                   </ResponsiveContainer>
                   <div className="flex flex-col gap-3">
                     <div className="text-center">
-                      <p className="text-3xl font-headline font-bold" style={{ color: '#166534' }}>{rate}%</p>
+                      <p className="text-3xl font-headline font-bold" style={{ color: '#16a34a' }}>{rate}%</p>
                       <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>acceptance rate</p>
                     </div>
                     {acceptancePieData.map((d) => (
@@ -263,9 +263,9 @@ export function AdminReportsPage() {
                     <Line
                       type="monotone"
                       dataKey="count"
-                      stroke="#166534"
+                      stroke="#16a34a"
                       strokeWidth={2.5}
-                      dot={{ fill: '#166534', r: 4 }}
+                      dot={{ fill: '#16a34a', r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -288,8 +288,8 @@ export function AdminReportsPage() {
                     <Tooltip
                       contentStyle={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, fontSize: 13 }}
                     />
-                    <Bar dataKey="capacity" fill="rgba(22,101,52,0.15)" radius={[0, 4, 4, 0]} name="Capacity" />
-                    <Bar dataKey="enrolled" fill="#166534" radius={[0, 4, 4, 0]} name="Enrolled" />
+                    <Bar dataKey="capacity" fill="rgba(22,163,74,0.15)" radius={[0, 4, 4, 0]} name="Capacity" />
+                    <Bar dataKey="enrolled" fill="#16a34a" radius={[0, 4, 4, 0]} name="Enrolled" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

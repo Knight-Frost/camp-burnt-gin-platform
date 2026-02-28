@@ -56,7 +56,7 @@ export interface NewConversationPayload {
 // Conversations
 // ---------------------------------------------------------------------------
 
-export async function getConversations(params?: { page?: number; archived?: boolean }): Promise<PaginatedResponse<Conversation>> {
+export async function getConversations(params?: { page?: number; include_archived?: true }): Promise<PaginatedResponse<Conversation>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Conversation>>('/inbox/conversations', { params });
   return data;
 }

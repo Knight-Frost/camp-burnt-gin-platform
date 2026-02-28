@@ -80,7 +80,7 @@ export function AuditLogPage() {
           {t('superadmin.audit.title')}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-          {response && t('superadmin.audit.subtitle', { total: response.meta.total })}
+          {response?.meta && t('superadmin.audit.subtitle', { total: response.meta.total })}
         </p>
       </div>
 
@@ -173,13 +173,13 @@ export function AuditLogPage() {
             ))}
           </motion.div>
 
-          {response.meta.last_page > 1 && (
+          {(response?.meta?.last_page ?? 0) > 1 && (
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {t('common.pagination', {
-                  from: (filters.page - 1) * response.meta.per_page + 1,
-                  to: Math.min(filters.page * response.meta.per_page, response.meta.total),
-                  total: response.meta.total,
+                  from: (filters.page - 1) * (response.meta?.per_page ?? 20) + 1,
+                  to: Math.min(filters.page * (response.meta?.per_page ?? 20), response.meta?.total ?? 0),
+                  total: response.meta?.total ?? 0,
                 })}
               </p>
               <div className="flex items-center gap-2">

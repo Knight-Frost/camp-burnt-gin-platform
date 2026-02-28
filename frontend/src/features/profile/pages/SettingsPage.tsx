@@ -280,7 +280,7 @@ export function SettingsPage() {
                   <div>
                     <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Role</p>
                     <p className="text-sm" style={{ color: 'var(--foreground)' }}>
-                      {user?.roles.map((r) => r.name).join(', ') ?? '—'}
+                      {user?.roles?.map((r) => r.name).join(', ') ?? '—'}
                     </p>
                   </div>
                 </div>
@@ -457,7 +457,7 @@ function SettingsCard({
       <div className="flex items-start gap-3 mb-1">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(22,101,52,0.10)', color: 'var(--ember-orange)' }}
+          style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--ember-orange)' }}
         >
           <Icon className="h-4 w-4" />
         </div>

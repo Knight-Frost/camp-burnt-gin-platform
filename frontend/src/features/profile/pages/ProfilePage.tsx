@@ -47,7 +47,7 @@ function ProfileSection({ title, icon, children }: ProfileSectionProps) {
       <div className="flex items-center gap-3 mb-5">
         <div
           className="flex items-center justify-center w-8 h-8 rounded-lg"
-          style={{ background: 'rgba(22,101,52,0.1)' }}
+          style={{ background: 'rgba(22,163,74,0.1)' }}
         >
           <span style={{ color: 'var(--ember-orange)' }}>{icon}</span>
         </div>
@@ -87,8 +87,8 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
       const res = await setupMfa();
       setSetup(res);
       setPhase('setup');
-    } catch {
-      toast.error(t('profile.mfa.setup_error'));
+    } catch (err) {
+      toast.error((err as { message?: string })?.message ?? t('profile.mfa.setup_error'));
     } finally {
       setLoading(false);
     }
@@ -104,8 +104,8 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
       setSetup(null);
       setCode('');
       onToggle();
-    } catch {
-      toast.error(t('profile.mfa.verify_error'));
+    } catch (err) {
+      toast.error((err as { message?: string })?.message ?? t('profile.mfa.verify_error'));
     } finally {
       setLoading(false);
     }
@@ -121,8 +121,8 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
       setDisableCode('');
       setDisablePassword('');
       onToggle();
-    } catch {
-      toast.error(t('profile.mfa.disable_error'));
+    } catch (err) {
+      toast.error((err as { message?: string })?.message ?? t('profile.mfa.disable_error'));
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="h-5 w-5" style={{ color: '#166534' }} />
+            <ShieldCheck className="h-5 w-5" style={{ color: '#16a34a' }} />
             <div>
               <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 {t('profile.mfa.enabled')}
@@ -235,9 +235,9 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
         <div className="flex items-start gap-4">
           <div
             className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(22,101,52,0.1)' }}
+            style={{ background: 'rgba(22,163,74,0.1)' }}
           >
-            <span className="text-sm font-bold" style={{ color: '#166534' }}>1</span>
+            <span className="text-sm font-bold" style={{ color: '#16a34a' }}>1</span>
           </div>
           <div>
             <p className="text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>
@@ -270,9 +270,9 @@ function MfaSection({ mfaEnabled, onToggle }: MfaSectionProps) {
         <div className="flex items-start gap-4">
           <div
             className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(22,101,52,0.1)' }}
+            style={{ background: 'rgba(22,163,74,0.1)' }}
           >
-            <span className="text-sm font-bold" style={{ color: '#166534' }}>2</span>
+            <span className="text-sm font-bold" style={{ color: '#16a34a' }}>2</span>
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>

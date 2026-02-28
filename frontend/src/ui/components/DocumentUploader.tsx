@@ -141,7 +141,7 @@ export function DocumentUploader({
           isDragging ? 'border-ember-orange' : 'border-on-image-border hover:border-ember-orange/60'
         )}
         style={{
-          background: isDragging ? 'rgba(22,101,52,0.06)' : 'var(--card)',
+          background: isDragging ? 'rgba(22,163,74,0.06)' : 'var(--card)',
         }}
         role="button"
         tabIndex={0}
@@ -195,7 +195,7 @@ export function DocumentUploader({
                   borderColor: f.status === 'error'
                     ? 'rgba(220,38,38,0.3)'
                     : f.status === 'success'
-                    ? 'rgba(22,101,52,0.3)'
+                    ? 'rgba(22,163,74,0.3)'
                     : 'var(--border)',
                 }}
               >

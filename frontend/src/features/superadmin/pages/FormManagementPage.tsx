@@ -200,8 +200,8 @@ export function FormManagementPage() {
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium"
                     style={{
-                      background: tmpl.is_active ? 'rgba(22,101,52,0.10)' : 'rgba(107,114,128,0.10)',
-                      color: tmpl.is_active ? '#166534' : '#6b7280',
+                      background: tmpl.is_active ? 'rgba(22,163,74,0.10)' : 'rgba(107,114,128,0.10)',
+                      color: tmpl.is_active ? '#16a34a' : '#6b7280',
                     }}
                   >
                     {tmpl.is_active ? 'Active' : 'Inactive'}
@@ -228,7 +228,7 @@ export function FormManagementPage() {
                 <button
                   onClick={() => handleToggle(tmpl)}
                   className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
-                  style={{ color: tmpl.is_active ? '#166534' : 'var(--muted-foreground)' }}
+                  style={{ color: tmpl.is_active ? '#16a34a' : 'var(--muted-foreground)' }}
                   title={tmpl.is_active ? 'Deactivate' : 'Activate'}
                 >
                   {tmpl.is_active ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
@@ -297,14 +297,14 @@ export function FormManagementPage() {
                     role="button"
                     tabIndex={0}
                     className="rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors"
-                    style={{ borderColor: file ? '#166534' : 'rgba(0,0,0,0.15)' }}
+                    style={{ borderColor: file ? '#16a34a' : 'rgba(0,0,0,0.15)' }}
                     onClick={() => document.getElementById('form-file-input')?.click()}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('form-file-input')?.click(); } }}
                   >
                     {file ? (
                       <>
-                        <FileText className="h-8 w-8 mx-auto mb-2" style={{ color: '#166534' }} />
-                        <p className="text-sm font-medium" style={{ color: '#166534' }}>{file.name}</p>
+                        <FileText className="h-8 w-8 mx-auto mb-2" style={{ color: '#16a34a' }} />
+                        <p className="text-sm font-medium" style={{ color: '#16a34a' }}>{file.name}</p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                           {(file.size / 1024).toFixed(0)} KB
                         </p>

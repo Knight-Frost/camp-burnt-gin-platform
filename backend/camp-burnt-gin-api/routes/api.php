@@ -26,6 +26,8 @@ use App\Http\Controllers\Api\System\HealthController;
 use App\Http\Controllers\Api\System\NotificationController;
 use App\Http\Controllers\Api\System\AuditLogController;
 use App\Http\Controllers\Api\System\ReportController;
+use App\Http\Controllers\Api\System\UserController;
+use App\Http\Controllers\Api\System\FormTemplateController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\CalendarEventController;
 use Illuminate\Support\Facades\Route;
@@ -420,6 +422,23 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/audit-log', [AuditLogController::class, 'index'])
         ->middleware('role:super_admin')
         ->name('audit-log.index');
+
+    // ─── User Management (Super Admin only) ───────────────────────────────────
+    Route::middleware('role:super_admin')->prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('users.index');
+        Route::put('/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
+        Route::post('/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+        Route::post('/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
+    });
+
+    // ─── Form Templates (Super Admin only) ────────────────────────────────────
+    Route::middleware('role:super_admin')->prefix('form-templates')->group(function () {
+        Route::get('/', [FormTemplateController::class, 'index'])->name('form-templates.index');
+        Route::post('/', [FormTemplateController::class, 'store'])->name('form-templates.store');
+        Route::patch('/{formTemplate}', [FormTemplateController::class, 'update'])->name('form-templates.update');
+        Route::delete('/{formTemplate}', [FormTemplateController::class, 'destroy'])->name('form-templates.destroy');
+        Route::get('/{formTemplate}/download', [FormTemplateController::class, 'download'])->name('form-templates.download');
+    });
 
     // ─── Calendar Events ───────────────────────────────────────────────────────
     Route::prefix('calendar')->group(function () {

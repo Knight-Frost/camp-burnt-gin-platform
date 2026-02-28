@@ -619,6 +619,12 @@
       "hipaa_notice_title": "Data Security Reminder",
       "hipaa_notice_body": "You have access to protected health information. Handle all data with care and follow your organization's data security policies."
     },
+    "nav": {
+      "users": "User Management",
+      "apps": "Applications",
+      "campers": "Campers",
+      "audit": "Audit Log"
+    },
     "users": {
       "title": "User Management",
       "subtitle": "Manage accounts and role assignments",
@@ -631,6 +637,12 @@
       "col_actions": "Actions",
       "activate": "Activate",
       "deactivate": "Deactivate",
+      "activated": "User activated.",
+      "deactivated": "User deactivated.",
+      "activate_confirm_title": "Activate {{name}}?",
+      "activate_confirm_body": "This will restore the user's access to the portal.",
+      "deactivate_confirm_title": "Deactivate {{name}}?",
+      "deactivate_confirm_body": "This will remove the user's ability to log in until reactivated.",
       "role_updated": "Role updated successfully.",
       "empty_title": "No users found",
       "empty_desc": "Try adjusting your search or role filter."
