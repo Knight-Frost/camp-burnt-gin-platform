@@ -38,6 +38,7 @@ class User extends Authenticatable
         'failed_login_attempts',
         'lockout_until',
         'last_failed_login_at',
+        'notification_preferences',
     ];
 
     /**
@@ -65,6 +66,7 @@ class User extends Authenticatable
             'mfa_verified_at' => 'datetime',
             'lockout_until' => 'datetime',
             'last_failed_login_at' => 'datetime',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -203,7 +205,7 @@ class User extends Authenticatable
             'last_failed_login_at' => now(),
         ];
 
-        if ($attempts >= 10) {
+        if ($attempts >= 5) {
             $data['lockout_until'] = now()->addMinutes($lockoutMinutes);
         }
 

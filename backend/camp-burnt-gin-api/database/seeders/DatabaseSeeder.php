@@ -44,36 +44,49 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Create test parent user for development
-        $parentRole = Role::where('name', 'parent')->first();
+        // Test users are only created in non-production environments.
+        if (! app()->environment('production')) {
+            $parentRole = Role::where('name', 'parent')->first();
 
-        User::firstOrCreate(
-            ['email' => 'parent@example.com'],
-            [
-                'name' => 'Test Parent',
-                'role_id' => $parentRole->id,
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
+            User::firstOrCreate(
+                ['email' => 'parent@example.com'],
+                [
+                    'name' => 'Test Parent',
+                    'role_id' => $parentRole->id,
+                    'password' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                ]
+            );
 
-        // Create test admin user for development
-        $adminRole = Role::where('name', 'admin')->first();
+            $adminRole = Role::where('name', 'admin')->first();
 
-        User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Test Admin',
-                'role_id' => $adminRole->id,
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
+            User::firstOrCreate(
+                ['email' => 'admin@example.com'],
+                [
+                    'name' => 'Test Admin',
+                    'role_id' => $adminRole->id,
+                    'password' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                ]
+            );
 
-        $this->command->info('✓ Database seeding completed successfully.');
+            $medicalRole = Role::where('name', 'medical')->first();
+
+            User::firstOrCreate(
+                ['email' => 'medical@example.com'],
+                [
+                    'name' => 'Test Medical Staff',
+                    'role_id' => $medicalRole->id,
+                    'password' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                ]
+            );
+        }
+
+        $this->command->info('Database seeding completed successfully.');
         $this->command->newLine();
-        $this->command->warn('⚠️  SECURITY WARNING: Change the super admin password immediately!');
-        $this->command->warn('    Email: admin@campburntgin.org');
-        $this->command->warn('    Default password: ChangeThisPassword123!');
+        $this->command->warn('SECURITY WARNING: Change the super admin password immediately!');
+        $this->command->warn('  Email: admin@campburntgin.org');
+        $this->command->warn('  Default password: ChangeThisPassword123!');
     }
 }

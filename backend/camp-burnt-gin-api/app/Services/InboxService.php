@@ -39,11 +39,12 @@ class InboxService
      */
     public function createConversation(
         User $creator,
-        string $subject,
+        ?string $subject,
         array $participantIds,
         ?int $applicationId = null,
         ?int $camperId = null,
-        ?int $campSessionId = null
+        ?int $campSessionId = null,
+        string $category = 'general'
     ): Conversation {
         // Validate participant list
         if (empty($participantIds)) {
@@ -68,12 +69,14 @@ class InboxService
             $participantIds,
             $applicationId,
             $camperId,
-            $campSessionId
+            $campSessionId,
+            $category
         ) {
             // Create conversation
             $conversation = Conversation::create([
                 'created_by_id' => $creator->id,
                 'subject' => $subject,
+                'category' => $category,
                 'application_id' => $applicationId,
                 'camper_id' => $camperId,
                 'camp_session_id' => $campSessionId,
@@ -119,7 +122,7 @@ class InboxService
                 'created_at' => now(),
             ]);
 
-            return $conversation->load(['participants', 'creator']);
+            return $conversation->load(['participants.role', 'creator']);
         });
     }
 
@@ -284,7 +287,7 @@ class InboxService
     ): LengthAwarePaginator {
         $query = Conversation::query()
             ->forUser($user)
-            ->with(['creator', 'lastMessage.sender', 'activeParticipantRecords.user'])
+            ->with(['creator', 'lastMessage.sender.role', 'participants.role'])
             ->recentActivity();
 
         if (!$includeArchived) {

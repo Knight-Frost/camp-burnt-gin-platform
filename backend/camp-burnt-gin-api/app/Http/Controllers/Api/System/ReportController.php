@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Api\System;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Services\System\ReportService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Controller for report generation.
  *
- * Provides administrative reports for applications, labels, and letters.
+ * Provides administrative reports as downloadable CSV files.
  * Implements FR-16, FR-17, FR-18: Report generation requirements.
  */
 class ReportController extends Controller
@@ -21,60 +21,106 @@ class ReportController extends Controller
     ) {}
 
     /**
-     * Generate applications report.
+     * Build a CSV StreamedResponse from headers and rows.
+     *
+     * @param  list<string>          $headers
+     * @param  list<list<mixed>>     $rows
      */
-    public function applications(Request $request): JsonResponse
+    private function csvResponse(array $headers, array $rows, string $filename): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($headers, $rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers);
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Download applications report as CSV.
+     */
+    public function applications(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
         $filters = $request->only(['status', 'camp_session_id', 'date_from', 'date_to']);
-
         $report = $this->reportService->generateApplicationsReport($filters);
 
-        return response()->json([
-            'data' => $report['data'],
-            'summary' => $report['summary'],
-        ]);
+        $headers = ['ID', 'Camper Name', 'Parent Name', 'Parent Email', 'Camp Session', 'Camp Name', 'Status', 'Submitted At', 'Reviewed At', 'Reviewer'];
+        $rows = collect($report['data'])->map(fn ($r) => [
+            $r['id'],
+            $r['camper_name'],
+            $r['parent_name'],
+            $r['parent_email'],
+            $r['camp_session'],
+            $r['camp_name'],
+            $r['status'],
+            $r['submitted_at'] ?? '',
+            $r['reviewed_at'] ?? '',
+            $r['reviewer'] ?? '',
+        ])->toArray();
+
+        return $this->csvResponse($headers, $rows, 'applications-'.now()->format('Y-m-d').'.csv');
     }
 
     /**
-     * Generate list of accepted applicants.
+     * Download accepted applicants report as CSV.
      */
-    public function acceptedApplicants(Request $request): JsonResponse
+    public function acceptedApplicants(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
         $filters = $request->only(['camp_session_id']);
-
         $report = $this->reportService->generateAcceptedApplicantsReport($filters);
 
-        return response()->json([
-            'data' => $report['data'],
-            'total' => $report['total'],
-        ]);
+        $headers = ['Camper ID', 'Camper Name', 'Date of Birth', 'Age', 'Parent Name', 'Parent Email', 'Camp Session', 'Session Dates', 'Approved At'];
+        $rows = collect($report['data'])->map(fn ($r) => [
+            $r['camper_id'],
+            $r['camper_name'],
+            $r['date_of_birth'],
+            $r['age'],
+            $r['parent_name'],
+            $r['parent_email'],
+            $r['camp_session'],
+            $r['session_dates'],
+            $r['approved_at'] ?? '',
+        ])->toArray();
+
+        return $this->csvResponse($headers, $rows, 'accepted-applicants-'.now()->format('Y-m-d').'.csv');
     }
 
     /**
-     * Generate list of rejected applicants.
+     * Download rejected applicants report as CSV.
      */
-    public function rejectedApplicants(Request $request): JsonResponse
+    public function rejectedApplicants(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
         $filters = $request->only(['camp_session_id']);
-
         $report = $this->reportService->generateRejectedApplicantsReport($filters);
 
-        return response()->json([
-            'data' => $report['data'],
-            'total' => $report['total'],
-        ]);
+        $headers = ['Camper ID', 'Camper Name', 'Parent Name', 'Parent Email', 'Camp Session', 'Rejected At', 'Notes'];
+        $rows = collect($report['data'])->map(fn ($r) => [
+            $r['camper_id'],
+            $r['camper_name'],
+            $r['parent_name'],
+            $r['parent_email'],
+            $r['camp_session'],
+            $r['rejected_at'] ?? '',
+            $r['notes'] ?? '',
+        ])->toArray();
+
+        return $this->csvResponse($headers, $rows, 'rejected-applicants-'.now()->format('Y-m-d').'.csv');
     }
 
     /**
-     * Generate mailing labels data.
+     * Download mailing labels as CSV.
      */
-    public function mailingLabels(Request $request): JsonResponse
+    public function mailingLabels(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
@@ -85,28 +131,38 @@ class ReportController extends Controller
 
         $labels = $this->reportService->generateMailingLabels($request->only(['status', 'camp_session_id']));
 
-        return response()->json([
-            'data' => $labels,
-            'total' => count($labels),
-        ]);
+        $headers = ['Recipient Name', 'Camper Name', 'Email'];
+        $rows = array_map(fn ($r) => [$r['recipient_name'], $r['camper_name'], $r['email']], $labels);
+
+        return $this->csvResponse($headers, $rows, 'mailing-labels-'.now()->format('Y-m-d').'.csv');
     }
 
     /**
-     * Generate identification labels data.
+     * Download identification labels as CSV.
+     *
+     * camp_session_id is optional; omitting it returns labels for all approved campers.
      */
-    public function idLabels(Request $request): JsonResponse
+    public function idLabels(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
         $request->validate([
-            'camp_session_id' => ['required', 'exists:camp_sessions,id'],
+            'camp_session_id' => ['nullable', 'exists:camp_sessions,id'],
         ]);
 
-        $labels = $this->reportService->generateIdLabels($request->camp_session_id);
+        $campSessionId = $request->integer('camp_session_id') ?: null;
+        $labels = $this->reportService->generateIdLabels($campSessionId);
 
-        return response()->json([
-            'data' => $labels,
-            'total' => count($labels),
-        ]);
+        $headers = ['Camper Name', 'Date of Birth', 'Age', 'Session Name', 'Has Severe Allergies', 'Severe Allergies'];
+        $rows = array_map(fn ($r) => [
+            $r['camper_name'],
+            $r['date_of_birth'],
+            $r['age'],
+            $r['session_name'],
+            $r['has_severe_allergies'] ? 'Yes' : 'No',
+            implode('; ', $r['severe_allergies']),
+        ], $labels);
+
+        return $this->csvResponse($headers, $rows, 'id-labels-'.now()->format('Y-m-d').'.csv');
     }
 }

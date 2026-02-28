@@ -20,9 +20,11 @@ use App\Http\Controllers\Api\Medical\FeedingPlanController;
 use App\Http\Controllers\Api\Medical\MedicalRecordController;
 use App\Http\Controllers\Api\Medical\MedicationController;
 use App\Http\Controllers\Api\Inbox\ConversationController;
+use App\Http\Controllers\Api\Inbox\InboxUserController;
 use App\Http\Controllers\Api\Inbox\MessageController;
 use App\Http\Controllers\Api\System\HealthController;
 use App\Http\Controllers\Api\System\NotificationController;
+use App\Http\Controllers\Api\System\AuditLogController;
 use App\Http\Controllers\Api\System\ReportController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\CalendarEventController;
@@ -105,6 +107,9 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/', [UserProfileController::class, 'show'])->name('profile.show');
         Route::put('/', [UserProfileController::class, 'update'])->name('profile.update');
         Route::get('/prefill', [UserProfileController::class, 'prefillData'])->name('profile.prefill');
+        Route::get('/notification-preferences', [UserProfileController::class, 'getNotificationPreferences'])->name('profile.notification-preferences.show');
+        Route::put('/notification-preferences', [UserProfileController::class, 'updateNotificationPreferences'])->name('profile.notification-preferences.update');
+        Route::put('/password', [UserProfileController::class, 'changePassword'])->name('profile.password.update');
     });
 
     /*
@@ -411,6 +416,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/{announcement}/pin', [AnnouncementController::class, 'togglePin'])->middleware('admin')->name('announcements.pin');
     });
 
+    // ─── Audit Log (Super Admin only) ─────────────────────────────────────────
+    Route::get('/audit-log', [AuditLogController::class, 'index'])
+        ->middleware('role:super_admin')
+        ->name('audit-log.index');
+
     // ─── Calendar Events ───────────────────────────────────────────────────────
     Route::prefix('calendar')->group(function () {
         Route::get('/', [CalendarEventController::class, 'index'])->name('calendar.index');
@@ -421,6 +431,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     });
 
     Route::prefix('inbox')->group(function () {
+        /*
+        | User Search Route (for compose recipient autocomplete)
+        */
+        Route::get('/users', [InboxUserController::class, 'index'])
+            ->middleware('throttle:30,1')
+            ->name('inbox.users.index');
+
         /*
         | Conversation Routes
         */

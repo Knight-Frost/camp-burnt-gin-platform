@@ -79,9 +79,20 @@ class CalendarEventController extends Controller
 
     /**
      * Show a single event.
+     *
+     * Non-admins are restricted to all-audience events — consistent with
+     * the audience gate applied in index().
      */
-    public function show(CalendarEvent $calendarEvent): JsonResponse
+    public function show(Request $request, CalendarEvent $calendarEvent): JsonResponse
     {
+        if (! $request->user()->isAdmin()) {
+            abort_unless(
+                $calendarEvent->audience === 'all',
+                Response::HTTP_FORBIDDEN,
+                'Not authorized to view this event.'
+            );
+        }
+
         $calendarEvent->load('creator:id,name', 'targetSession:id,name');
 
         return response()->json(['data' => $calendarEvent]);

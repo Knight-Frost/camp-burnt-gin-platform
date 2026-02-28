@@ -79,9 +79,24 @@ class AnnouncementController extends Controller
 
     /**
      * Show a single announcement.
+     *
+     * Non-admins are restricted to published, all-audience announcements —
+     * consistent with the audience gate applied in index().
      */
-    public function show(Announcement $announcement): JsonResponse
+    public function show(Request $request, Announcement $announcement): JsonResponse
     {
+        $user = $request->user();
+
+        if (! $user->isAdmin()) {
+            abort_unless(
+                $announcement->published_at !== null &&
+                $announcement->published_at <= now() &&
+                $announcement->audience === 'all',
+                Response::HTTP_FORBIDDEN,
+                'Not authorized to view this announcement.'
+            );
+        }
+
         $announcement->load('author:id,name', 'targetSession:id,name');
 
         return response()->json(['data' => $announcement]);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Inbox;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ConversationResource;
 use App\Models\Conversation;
 use App\Models\User;
 use App\Services\InboxService;
@@ -51,7 +52,7 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $conversations->items(),
+            'data' => ConversationResource::collection($conversations->items())->resolve($request),
             'meta' => [
                 'current_page' => $conversations->currentPage(),
                 'last_page' => $conversations->lastPage(),
@@ -74,7 +75,8 @@ class ConversationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'subject' => 'required|string|max:255',
+            'subject' => 'nullable|string|max:255',
+            'category' => 'nullable|string|in:general,medical,application,other',
             'participant_ids' => 'required|array|min:1|max:10', // Limit participants for security
             'participant_ids.*' => 'required|integer|exists:users,id|distinct', // Prevent duplicates
             'application_id' => 'nullable|integer|exists:applications,id',
@@ -101,16 +103,17 @@ class ConversationController extends Controller
 
         $conversation = $this->inboxService->createConversation(
             $user,
-            $validated['subject'],
+            $validated['subject'] ?? null,
             $validated['participant_ids'],
             $validated['application_id'] ?? null,
             $validated['camper_id'] ?? null,
-            $validated['camp_session_id'] ?? null
+            $validated['camp_session_id'] ?? null,
+            $validated['category'] ?? 'general'
         );
 
         return response()->json([
             'success' => true,
-            'data' => $conversation,
+            'data' => (new ConversationResource($conversation))->resolve($request),
             'message' => 'Conversation created successfully',
         ], 201);
     }
@@ -128,15 +131,13 @@ class ConversationController extends Controller
     {
         Gate::authorize('view', $conversation);
 
-        $conversation->load(['participants', 'creator', 'lastMessage']);
-
-        $unreadCount = $conversation->getUnreadCountForUser($request->user());
+        $conversation->load(['participants.role', 'creator', 'lastMessage.sender.role']);
 
         return response()->json([
             'success' => true,
-            'data' => $conversation,
+            'data' => (new ConversationResource($conversation))->resolve($request),
             'meta' => [
-                'unread_count' => $unreadCount,
+                'unread_count' => $conversation->getUnreadCountForUser($request->user()),
             ],
         ]);
     }

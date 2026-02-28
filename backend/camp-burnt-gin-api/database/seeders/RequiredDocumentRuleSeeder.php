@@ -172,7 +172,15 @@ class RequiredDocumentRuleSeeder extends Seeder
         ];
 
         foreach ($rules as $rule) {
-            RequiredDocumentRule::create($rule);
+            RequiredDocumentRule::firstOrCreate(
+                [
+                    'medical_complexity_tier' => $rule['medical_complexity_tier'],
+                    'supervision_level'       => $rule['supervision_level'],
+                    'condition_flag'          => $rule['condition_flag'],
+                    'document_type'           => $rule['document_type'],
+                ],
+                $rule
+            );
         }
     }
 }

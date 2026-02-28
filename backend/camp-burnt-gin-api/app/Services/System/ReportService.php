@@ -173,22 +173,25 @@ class ReportService
     }
 
     /**
-     * Generate identification labels for a camp session.
+     * Generate identification labels for a camp session, or all sessions when null.
      *
      * @return array<array<string, mixed>>
      */
-    public function generateIdLabels(int $campSessionId): array
+    public function generateIdLabels(?int $campSessionId): array
     {
-        $applications = Application::with([
+        $query = Application::with([
             'camper.user',
             'camper.allergies',
             'camper.medications',
             'camper.medicalRecord',
             'campSession',
-        ])
-            ->where('camp_session_id', $campSessionId)
-            ->where('status', ApplicationStatus::Approved)
-            ->get();
+        ])->where('status', ApplicationStatus::Approved);
+
+        if ($campSessionId !== null) {
+            $query->where('camp_session_id', $campSessionId);
+        }
+
+        $applications = $query->get();
 
         return $applications->map(function ($app) {
             $severeAllergies = $app->camper->allergies

@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Http\Resources;
+
+use App\Models\Conversation;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * Transforms a Conversation model into a consistent API response shape.
+ *
+ * Handles:
+ * - Flat participants array with string role (frontend expects `role: string`)
+ * - Per-conversation unread_count for the authenticated user
+ * - category field
+ * - archived_at mapped from is_archived boolean
+ * - Sender role in last_message
+ */
+class ConversationResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        $user = $request->user();
+
+        /** @var Conversation $this */
+        return [
+            'id'             => $this->id,
+            'subject'        => $this->subject,
+            'category'       => $this->category ?? 'general',
+            'created_by_id'  => $this->created_by_id,
+            'creator'        => $this->when(
+                $this->relationLoaded('creator') && $this->creator,
+                fn () => [
+                    'id'   => $this->creator->id,
+                    'name' => $this->creator->name,
+                ]
+            ),
+            'participants'   => $this->buildParticipants(),
+            'last_message'   => $this->buildLastMessage(),
+            'last_message_at' => $this->last_message_at?->toISOString(),
+            'unread_count'   => $user ? $this->getUnreadCountForUser($user) : 0,
+            'is_archived'    => $this->is_archived,
+            'archived_at'    => $this->is_archived ? $this->updated_at?->toISOString() : null,
+            'created_at'     => $this->created_at?->toISOString(),
+            'updated_at'     => $this->updated_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * Build flat participants array: [{id, name, email, role}].
+     *
+     * Works whether participants were loaded via `participants.role`
+     * (HasManyThrough → User with role) or via `activeParticipantRecords.user.role`.
+     */
+    protected function buildParticipants(): array
+    {
+        // Prefer the HasManyThrough `participants` relation (User objects with role loaded)
+        if ($this->relationLoaded('participants')) {
+            return $this->participants->map(fn ($user) => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+                'role'  => $user->relationLoaded('role') ? ($user->role?->name ?? 'unknown') : 'unknown',
+            ])->values()->all();
+        }
+
+        // Fallback: activeParticipantRecords.user.role
+        if ($this->relationLoaded('activeParticipantRecords')) {
+            return $this->activeParticipantRecords->map(fn ($record) => [
+                'id'    => $record->user?->id,
+                'name'  => $record->user?->name,
+                'email' => $record->user?->email,
+                'role'  => $record->user?->role?->name ?? 'unknown',
+            ])->filter(fn ($p) => $p['id'] !== null)->values()->all();
+        }
+
+        return [];
+    }
+
+    /**
+     * Build last_message with sender.role as string.
+     */
+    protected function buildLastMessage(): ?array
+    {
+        if (!$this->relationLoaded('lastMessage') || !$this->lastMessage) {
+            return null;
+        }
+
+        $msg    = $this->lastMessage;
+        $sender = null;
+
+        if ($msg->relationLoaded('sender') && $msg->sender) {
+            $sender = [
+                'id'    => $msg->sender->id,
+                'name'  => $msg->sender->name,
+                'email' => $msg->sender->email,
+                'role'  => $msg->sender->relationLoaded('role')
+                    ? ($msg->sender->role?->name ?? 'unknown')
+                    : 'unknown',
+            ];
+        }
+
+        return [
+            'id'             => $msg->id,
+            'conversation_id' => $msg->conversation_id,
+            'sender_id'      => $msg->sender_id,
+            'sender'         => $sender,
+            'body'           => $msg->body,
+            'read_at'        => null,
+            'created_at'     => $msg->created_at?->toISOString(),
+            'attachments'    => [],
+        ];
+    }
+}

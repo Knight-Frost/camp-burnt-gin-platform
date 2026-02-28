@@ -29,6 +29,7 @@ class Conversation extends Model
     protected $fillable = [
         'created_by_id',
         'subject',
+        'category',
         'application_id',
         'camper_id',
         'camp_session_id',

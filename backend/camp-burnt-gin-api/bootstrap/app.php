@@ -3,6 +3,7 @@
 use App\Http\Middleware\AddRequestId;
 use App\Http\Middleware\AuditPhiAccess;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsMedicalProvider;
 use Illuminate\Auth\AuthenticationException;
@@ -74,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->append(SecurityHeaders::class);
         $middleware->append(AddRequestId::class);
         $middleware->append(AuditPhiAccess::class);
 

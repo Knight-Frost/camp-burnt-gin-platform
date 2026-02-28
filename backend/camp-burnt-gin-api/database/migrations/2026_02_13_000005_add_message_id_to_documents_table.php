@@ -36,7 +36,7 @@ return new class extends Migration
     {
         Schema::table('documents', function (Blueprint $table) {
             $table->dropForeign(['message_id']);
-            $table->dropIndex(['message_id', 'deleted_at']);
+            $table->dropIndex(['message_id']);
             $table->dropColumn('message_id');
         });
     }
