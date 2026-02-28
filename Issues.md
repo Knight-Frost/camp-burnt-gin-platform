@@ -193,6 +193,57 @@ A new user or current user who doesn't have 2FA enabled gets prompted for a 6-di
 
 ## Issue #4 - Unable to Disable MFA
 ### 1. Page / Location
+Example: Login Page / Dashboard / Registration Form
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [ ] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+Clearly describe what is wrong.
+
+### 4. Steps to Reproduce
+1. Go to ___
+2. Click ___
+3. Enter ___
+4. Observe ___
+
+### 5. Expected Behavior
+Explain what SHOULD happen.
+
+### 6. Actual Behavior
+Explain what ACTUALLY happens.
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [ ] Critical (system unusable)
+
+### 8. Screenshot (if available)
+Attach screenshot or paste link here.
+
+---
+
+## Issue #1 - Registration attempt outputs "Unexpected Application Error!"
+### 1. Page / Location
+`/login` and `/parent/dashboard`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
 
 
 ## Issue #5 - Missing QR Code on 2FA Setup
@@ -232,6 +283,50 @@ Explain what ACTUALLY happens.
 
 ### 8. Screenshot (if available)
 Attach screenshot or paste link here.
+
+
+## Issue #6 – Login with 2FA 6-digit code outputs "Session Expired. Please log in again"
+
+### 1. Page / Location
+`/mfa-verify`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+Clearly describe what is wrong.
+
+### 4. Steps to Reproduce
+1. Go to ___
+2. Click ___
+3. Enter ___
+4. Observe ___
+
+### 5. Expected Behavior
+Explain what SHOULD happen.
+
+### 6. Actual Behavior
+Explain what ACTUALLY happens.
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [x] Critical (system unusable)
+
+### 8. Screenshot (if available)
+Attach screenshot or paste link here.
+
+
+
+
 
 
 
