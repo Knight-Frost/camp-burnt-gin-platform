@@ -144,7 +144,7 @@ When a user goes to their `/settings` page and tries to change their current pas
 ![before-pressing-update](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/newpassword-show.png)
 ![error-message](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/error-message.png)
 
-## Issue #3 - Enabling MFA on one account prompts MFA verification on all other accounts despite MFA status
+## Issue #3 - Enabling MFA on one account prompts MFA verification on all Parent other accounts despite MFA status
 ### 1. Page / Location
 `/mfa-verify`
 
@@ -162,7 +162,7 @@ When a user goes to their `/settings` page and tries to change their current pas
 When a user sets up 2FA on their account, logs out, and tries to log back in
 
 ### 4. Steps to Reproduce
-1. Login as a parent, admin, or super admin
+1. Login as a parent
 2. Go to Profile and click on Enable 2FA
 3. Go through the 2FA setup process(write key or use QR code on Authenticator App(like Google Authenticator)
 4. Once 2FA is enabled on current account, log/sign out, and login as another user or create a new account(registration)
@@ -173,6 +173,8 @@ When a user sets up 2FA on their account, logs out, and tries to log back in
 
 ### 5. Expected Behavior
 A new user or current user who doesn't have 2FA enabled should log in using only their username and password, thus redirecting them to `/parent/dashboard`
+NOTE: This has been tested on the super admin account and the super account can still be logged onto without 2FA prompt when disabled. 
+NOTE: This has not been tested on the admin account.
 
 ### 6. Actual Behavior
 A new user or current user who doesn't have 2FA enabled gets prompted for a 6-digit code on `/mfa-verify` after entering username and password on `/login`. That is, after entering their credentials on `/login`, the user gets redirected to `/mfa-verify` to insert a 6-digit code.
@@ -229,4 +231,5 @@ Explain what ACTUALLY happens.
 
 ### 8. Screenshot (if available)
 Attach screenshot or paste link here.
+
 
