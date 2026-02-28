@@ -144,10 +144,89 @@ When a user goes to their `/settings` page and tries to change their current pas
 ![before-pressing-update](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/newpassword-show.png)
 ![error-message](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%232/error-message.png)
 
-## Issue #3 - Enabling MFA on one account enables it on all accounts. 
+## Issue #3 - Enabling MFA on one account prompts MFA verification on all other accounts despite MFA status
+### 1. Page / Location
+`/mfa-verify`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When a user sets up 2FA on their account, logs out, and tries to log back in
+
+### 4. Steps to Reproduce
+1. Login as a parent, admin, or super admin
+2. Go to Profile and click on Enable 2FA
+3. Go through the 2FA setup process(write key or use QR code on Authenticator App(like Google Authenticator)
+4. Once 2FA is enabled on current account, log/sign out, and login as another user or create a new account(registration)
+
+- Even if you login as a user who doesn't have 2FA enabled, the login screen will redirect you to `/mfa-verify`
+- Even if you create a new account(which has 2FA disabled by default), the login screen will redirect you to `/mfa-verify`
+
+
+### 5. Expected Behavior
+A new user or current user who doesn't have 2FA enabled should log in using only their username and password, thus redirecting them to `/parent/dashboard`
+
+### 6. Actual Behavior
+A new user or current user who doesn't have 2FA enabled gets prompted for a 6-digit code on `/mfa-verify` after entering username and password on `/login`. That is, after entering their credentials on `/login`, the user gets redirected to `/mfa-verify` to insert a 6-digit code.
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [x] Critical (system unusable)
+
+### 8. Screenshot (if available)
+![account-with-2fa](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%233/account-with-2fa.png)
+![account-without-2fa](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%233/account-without-2fa-login.png)
+![error-screenshot](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%233/error-screenshot.png)
+
+## Issue #4 - Unable to Disable MFA
 ### 1. Page / Location
 
 
-## Issue #4 - Disabling MFA 
+## Issue #5 - Missing QR Code on 2FA Setup
 ### 1. Page / Location
+Example: Login Page / Dashboard / Registration Form
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [ ] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+Clearly describe what is wrong.
+
+### 4. Steps to Reproduce
+1. Go to ___
+2. Click ___
+3. Enter ___
+4. Observe ___
+
+### 5. Expected Behavior
+Explain what SHOULD happen.
+
+### 6. Actual Behavior
+Explain what ACTUALLY happens.
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [ ] Critical (system unusable)
+
+### 8. Screenshot (if available)
+Attach screenshot or paste link here.
 
