@@ -198,7 +198,7 @@ Example: Login Page / Dashboard / Registration Form
 ### 2. Type of Issue
 - [ ] UI Design
 - [ ] UX Problem
-- [ ] Functional Bug
+- [x] Functional Bug
 - [ ] Validation Issue
 - [ ] Broken Link
 - [ ] Performance Issue
@@ -209,31 +209,30 @@ Example: Login Page / Dashboard / Registration Form
 Clearly describe what is wrong.
 
 ### 4. Steps to Reproduce
-1. Go to ___
-2. Click ___
-3. Enter ___
-4. Observe ___
+1. Create a new parent account(and login into) or login to an existing one
+2. Once logged on the account, go to `/parent/profile` and setup 2FA
+3. Go through the 2FA setup of setting the manual key or QR code on the Authenticator App(Google Authenticator was used)
+4. Once 2FA is set, go to `/parent/profile` again and click on Disable 2FA
 
 ### 5. Expected Behavior
-Explain what SHOULD happen.
+2FA Should be disabled so that on the next login, the user whom 2FA was disabled on can login only using their username and password.
 
 ### 6. Actual Behavior
-Explain what ACTUALLY happens.
+2FA is not disabled on `/parent/profile`, requiring the user to authenticate via 6-digit 2FA on `/mfa-verify`
 
 ### 7. Severity
 - [ ] Low (minor visual issue)
 - [ ] Medium (affects usability)
 - [ ] High (breaks functionality)
-- [ ] Critical (system unusable)
+- [x] Critical (system unusable)
 
 ### 8. Screenshot (if available)
 Attach screenshot or paste link here.
 
----
 
-## Issue #1 - Registration attempt outputs "Unexpected Application Error!"
+## Issue #5 - Missing QR Code on 2FA Setup but does show key
 ### 1. Page / Location
-`/login` and `/parent/dashboard`
+`/parent/profile`
 
 ### 2. Type of Issue
 - [ ] UI Design
@@ -245,23 +244,9 @@ Attach screenshot or paste link here.
 - [ ] Accessibility Issue
 - [ ] Other: ________
 
-
-## Issue #5 - Missing QR Code on 2FA Setup
-### 1. Page / Location
-Example: Login Page / Dashboard / Registration Form
-
-### 2. Type of Issue
-- [ ] UI Design
-- [ ] UX Problem
-- [ ] Functional Bug
-- [ ] Validation Issue
-- [ ] Broken Link
-- [ ] Performance Issue
-- [ ] Accessibility Issue
-- [ ] Other: ________
-
 ### 3. Description
-Clearly describe what is wrong.
+The Enable 2FA setup does not include a QR code, but instead only shows the key(anothe rmethod of setting up 2FA on the authenticator app). This makes
+The setup of 2FA is much more complex since one wrong letter entered into the Authenticator will not allow the user to login using 2FA because the 6-digit codes will always be wrong.
 
 ### 4. Steps to Reproduce
 1. Go to ___
@@ -276,7 +261,7 @@ Explain what SHOULD happen.
 Explain what ACTUALLY happens.
 
 ### 7. Severity
-- [ ] Low (minor visual issue)
+- [x] Low (minor visual issue)
 - [ ] Medium (affects usability)
 - [ ] High (breaks functionality)
 - [ ] Critical (system unusable)
@@ -323,6 +308,7 @@ Explain what ACTUALLY happens.
 
 ### 8. Screenshot (if available)
 Attach screenshot or paste link here.
+
 
 
 
