@@ -173,7 +173,8 @@ When a user sets up 2FA on their account, logs out, and tries to log back in
 
 ### 5. Expected Behavior
 A new user or current user who doesn't have 2FA enabled should log in using only their username and password, thus redirecting them to `/parent/dashboard`
-NOTE: This has been tested on the super admin account and the super account can still be logged onto without 2FA prompt when disabled. 
+NOTE: This has been tested on the super admin account and the super account can still be logged onto without the 2FA `/mfa-verify` being prompted(redirects to `/super-admin/dashboard`
+
 NOTE: This has not been tested on the admin account.
 
 ### 6. Actual Behavior
@@ -231,5 +232,6 @@ Explain what ACTUALLY happens.
 
 ### 8. Screenshot (if available)
 Attach screenshot or paste link here.
+
 
 
