@@ -21,9 +21,10 @@ import { cn } from '@/shared/utils/cn';
 interface NotificationPanelProps {
   open: boolean;
   onClose: () => void;
+  onUnreadChange?: (count: number) => void;
 }
 
-export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
+export function NotificationPanel({ open, onClose, onUnreadChange }: NotificationPanelProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -39,11 +40,13 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
   const handleMarkRead = async (id: number) => {
     try {
       await markNotificationRead(id);
-      setNotifications((prev) =>
-        prev.map((n) =>
+      setNotifications((prev) => {
+        const next = prev.map((n) =>
           n.id === id ? { ...n, read_at: new Date().toISOString() } : n
-        )
-      );
+        );
+        onUnreadChange?.(next.filter((n) => !n.read_at).length);
+        return next;
+      });
     } catch {
       // ignore — state was optimistically not updated
     }
@@ -52,9 +55,8 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
   const handleMarkAllRead = async () => {
     try {
       await markAllNotificationsRead();
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, read_at: new Date().toISOString() }))
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
+      onUnreadChange?.(0);
     } catch {
       // ignore — state was optimistically not updated
     }

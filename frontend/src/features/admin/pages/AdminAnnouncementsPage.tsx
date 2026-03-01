@@ -23,7 +23,7 @@ import {
 } from '@/shared/constants/motion';
 
 const AUDIENCE_LABELS: Record<string, string> = {
-  all:      'All Parents',
+  all:      'All Applicants',
   accepted: 'Accepted Only',
   staff:    'Staff Only',
   session:  'Specific Session',
@@ -158,7 +158,7 @@ export function AdminAnnouncementsPage() {
               Announcements
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Create, schedule, and manage announcements for parents and staff.
+              Create, schedule, and manage announcements for applicants and staff.
             </p>
           </div>
           <Button variant="primary" size="sm" onClick={openCreate}>
@@ -178,7 +178,7 @@ export function AdminAnnouncementsPage() {
         <div className="rounded-2xl border p-8" style={{ borderColor: 'var(--border)' }}>
           <EmptyState
             title="No announcements yet"
-            description="Create your first announcement to notify parents and staff."
+            description="Create your first announcement to notify applicants and staff."
             action={{ label: 'New Announcement', onClick: openCreate }}
           />
         </div>

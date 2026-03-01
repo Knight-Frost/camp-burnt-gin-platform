@@ -218,6 +218,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
       <NotificationPanel
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
+        onUnreadChange={setUnreadCount}
       />
     </>
   );

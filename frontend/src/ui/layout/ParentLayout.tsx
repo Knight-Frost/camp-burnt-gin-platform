@@ -12,6 +12,7 @@ import {
   User,
   Settings,
   CalendarDays,
+  Megaphone,
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
@@ -20,12 +21,13 @@ import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',    to: ROUTES.PARENT_DASHBOARD,    icon: LayoutDashboard },
-  { label: 'Applications', to: ROUTES.PARENT_APPLICATIONS, icon: FileText },
-  { label: 'Calendar',     to: ROUTES.PARENT_CALENDAR,     icon: CalendarDays },
-  { label: 'Inbox',        to: '/parent/inbox',             icon: MessageSquare },
-  { label: 'Profile',      to: '/parent/profile',           icon: User },
-  { label: 'Settings',     to: '/parent/settings',          icon: Settings },
+  { group: 'My Portal',     label: 'Dashboard',     to: ROUTES.PARENT_DASHBOARD,     icon: LayoutDashboard },
+  { group: 'My Portal',     label: 'Applications',  to: ROUTES.PARENT_APPLICATIONS,  icon: FileText },
+  { group: 'Communication', label: 'Inbox',         to: '/parent/inbox',             icon: MessageSquare },
+  { group: 'Communication', label: 'Announcements', to: ROUTES.PARENT_ANNOUNCEMENTS, icon: Megaphone },
+  { group: 'Operations',    label: 'Calendar',      to: ROUTES.PARENT_CALENDAR,      icon: CalendarDays },
+  { group: 'Account',       label: 'Profile',       to: '/parent/profile',           icon: User },
+  { group: 'Account',       label: 'Settings',      to: '/parent/settings',          icon: Settings },
 ];
 
 export function ParentLayout() {

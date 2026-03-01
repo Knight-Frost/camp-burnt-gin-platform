@@ -3,14 +3,19 @@
  * Fixed sidebar navigation for all authenticated dashboard layouts.
  *
  * Features:
- * - Framer Motion stagger entry on mount
- * - Shared layout animation for active nav indicator (layoutId="dashNav")
+ * - Static (no entry animation) — layout-stable across all route changes
+ * - Active indicator via plain CSS — no layoutId, no FLIP animation
  * - Role label pill
  * - User info + logout at bottom
- * - Collapsible on mobile
+ * - Collapsible on mobile (animated drawer)
+ *
+ * Stability rules:
+ * - No SidebarContent inner component — inlining prevents React re-mount on parent re-render
+ * - React.memo prevents re-render when navItems reference is stable (module-level const)
+ * - scrollbar-gutter: stable prevents scrollbar layout shift
  */
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Menu, X, type LucideIcon } from 'lucide-react';
@@ -21,12 +26,7 @@ import { clearAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { ROLE_LABELS, getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
-import {
-  sidebarVariants,
-  fastStaggerContainerVariants,
-  fastStaggerChildVariants,
-  fadeVariants,
-} from '@/shared/constants/motion';
+import { fadeVariants } from '@/shared/constants/motion';
 import { cn } from '@/shared/utils/cn';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +37,8 @@ export interface NavItem {
   label: string;
   to: string;
   icon: LucideIcon;
+  /** Optional section group label (e.g. 'Primary', 'Communication', 'Operations', 'System') */
+  group?: string;
 }
 
 interface DashboardSidebarProps {
@@ -47,7 +49,7 @@ interface DashboardSidebarProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
+export const DashboardSidebar = memo(function DashboardSidebar({ navItems }: DashboardSidebarProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
@@ -70,49 +72,68 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
     }
   };
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      {/* Logo / Brand */}
-      <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--ember-orange)' }}
+  // ---------------------------------------------------------------------------
+  // JSX fragments — these are React Elements (plain objects), NOT component
+  // functions. They do NOT cause re-mount on re-render. Defined here so they
+  // can be shared between desktop and mobile renders without duplication.
+  // ---------------------------------------------------------------------------
+
+  const brandHeader = (
+    <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center gap-3">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: 'var(--ember-orange)' }}
+        >
+          <span className="text-white font-headline font-bold text-sm">CB</span>
+        </div>
+        <div>
+          <p
+            className="text-sm font-headline font-semibold leading-tight"
+            style={{ color: 'var(--foreground)' }}
           >
-            <span className="text-white font-headline font-bold text-sm">CB</span>
-          </div>
-          <div>
-            <p
-              className="text-sm font-headline font-semibold leading-tight"
-              style={{ color: 'var(--foreground)' }}
+            Camp Burnt Gin
+          </p>
+          {roleLabel && (
+            <span
+              className="inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 font-medium"
+              style={{
+                background: 'var(--overlay-primary)',
+                color: 'var(--ember-orange)',
+              }}
             >
-              Camp Burnt Gin
-            </p>
-            {roleLabel && (
-              <span
-                className="inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 font-medium"
-                style={{
-                  background: 'var(--overlay-primary)',
-                  color: 'var(--ember-orange)',
-                }}
-              >
-                {roleLabel}
-              </span>
-            )}
-          </div>
+              {roleLabel}
+            </span>
+          )}
         </div>
       </div>
+    </div>
+  );
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Dashboard navigation">
-        <motion.ul
-          variants={fastStaggerContainerVariants}
-          initial="hidden"
-          animate="visible"
-          className="flex flex-col gap-1"
-        >
-          {navItems.map((item) => (
-            <motion.li key={item.to} variants={fastStaggerChildVariants}>
+  const navList = (
+    <nav
+      className="flex-1 px-3 py-4 overflow-y-auto"
+      style={{ scrollbarGutter: 'stable' }}
+      aria-label="Dashboard navigation"
+    >
+      <ul className="flex flex-col gap-1">
+        {navItems.map((item, i) => {
+          const showHeader = item.group && item.group !== navItems[i - 1]?.group;
+          return (
+            <li key={item.to}>
+              {showHeader && (
+                <div
+                  className="px-3 pt-4 pb-1 select-none pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--muted-foreground)', opacity: 0.45 }}
+                  >
+                    {item.group}
+                  </span>
+                </div>
+              )}
               <NavLink
                 to={item.to}
                 end={item.to.split('/').length <= 2}
@@ -120,10 +141,8 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
                 className={({ isActive }) =>
                   cn(
                     'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm',
-                    'transition-colors duration-200 group',
-                    isActive
-                      ? 'font-medium'
-                      : 'font-normal'
+                    'transition-colors duration-150 group',
+                    isActive ? 'font-medium' : 'font-normal hover:bg-[var(--dash-nav-hover-bg)]'
                   )
                 }
                 style={({ isActive }) =>
@@ -134,13 +153,11 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
               >
                 {({ isActive }) => (
                   <>
-                    {/* Active background */}
+                    {/* Active background — plain div, no animation */}
                     {isActive && (
-                      <motion.div
-                        layoutId="dashNav"
+                      <div
                         className="absolute inset-0 rounded-xl"
                         style={{ background: 'var(--dash-nav-active-bg)' }}
-                        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                       />
                     )}
 
@@ -154,7 +171,7 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
 
                     <item.icon
                       className={cn(
-                        'relative z-10 h-4 w-4 flex-shrink-0 transition-colors',
+                        'relative z-10 h-4 w-4 flex-shrink-0',
                         isActive ? 'text-ember-orange' : 'text-current'
                       )}
                     />
@@ -162,63 +179,60 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
                   </>
                 )}
               </NavLink>
-            </motion.li>
-          ))}
-        </motion.ul>
-      </nav>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
 
-      {/* User info + logout */}
-      <div
-        className="px-3 py-4 border-t"
-        style={{ borderColor: 'var(--border)' }}
-      >
-        <div className="flex items-center gap-3 px-3 py-2 mb-1">
-          {/* Avatar */}
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-medium"
-            style={{
-              background: 'var(--overlay-primary)',
-              color: 'var(--ember-orange)',
-            }}
-          >
-            {user?.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p
-              className="text-sm font-medium truncate"
-              style={{ color: 'var(--foreground)' }}
-            >
-              {user?.name}
-            </p>
-            <p
-              className="text-xs truncate"
-              style={{ color: 'var(--muted-foreground)' }}
-            >
-              {user?.email}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 hover:bg-[var(--dash-nav-hover-bg)]"
-          style={{ color: 'var(--muted-foreground)' }}
+  const userFooter = (
+    <div
+      className="px-3 py-4 border-t"
+      style={{ borderColor: 'var(--border)' }}
+    >
+      <div className="flex items-center gap-3 px-3 py-2 mb-1">
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-medium"
+          style={{
+            background: 'var(--overlay-primary)',
+            color: 'var(--ember-orange)',
+          }}
         >
-          <LogOut className="h-4 w-4 flex-shrink-0" />
-          <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
-        </button>
+          {user?.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-sm font-medium truncate"
+            style={{ color: 'var(--foreground)' }}
+          >
+            {user?.name}
+          </p>
+          <p
+            className="text-xs truncate"
+            style={{ color: 'var(--muted-foreground)' }}
+          >
+            {user?.email}
+          </p>
+        </div>
       </div>
+
+      <button
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors duration-150 hover:bg-[var(--dash-nav-hover-bg)]"
+        style={{ color: 'var(--muted-foreground)' }}
+      >
+        <LogOut className="h-4 w-4 flex-shrink-0" />
+        <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
+      </button>
     </div>
   );
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <motion.aside
-        variants={sidebarVariants}
-        initial="hidden"
-        animate="visible"
+      {/* Desktop sidebar — static, never animates on route change */}
+      <aside
         className="hidden lg:flex flex-col w-[280px] flex-shrink-0 border-r h-screen sticky top-0"
         style={{
           background: 'var(--dash-sidebar-bg)',
@@ -226,12 +240,15 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
         }}
         aria-label="Sidebar"
       >
-        <SidebarContent />
-      </motion.aside>
+        <div className="flex flex-col h-full">
+          {brandHeader}
+          {navList}
+          {userFooter}
+        </div>
+      </aside>
 
       {/* Mobile toggle button */}
-      <motion.button
-        whileTap={{ scale: 0.95 }}
+      <button
         onClick={() => setMobileOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-40 p-2 rounded-xl border"
         style={{
@@ -242,9 +259,9 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
         aria-label="Open navigation"
       >
         <Menu className="h-5 w-5" />
-      </motion.button>
+      </button>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile sidebar overlay — animated on demand, does not affect desktop stability */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -280,11 +297,15 @@ export function DashboardSidebar({ navItems }: DashboardSidebarProps) {
               >
                 <X className="h-4 w-4" />
               </button>
-              <SidebarContent />
+              <div className="flex flex-col h-full">
+                {brandHeader}
+                {navList}
+                {userFooter}
+              </div>
             </motion.aside>
           </>
         )}
       </AnimatePresence>
     </>
   );
-}
+});

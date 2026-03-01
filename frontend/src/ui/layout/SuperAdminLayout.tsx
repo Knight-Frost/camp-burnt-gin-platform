@@ -25,18 +25,18 @@ import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',        to: ROUTES.SUPER_ADMIN_DASHBOARD,  icon: LayoutDashboard },
-  { label: 'User Management',  to: ROUTES.SUPER_ADMIN_USERS,      icon: Users },
-  { label: 'Audit Log',        to: ROUTES.SUPER_ADMIN_AUDIT,      icon: ScrollText },
-  { label: 'Form Templates',   to: ROUTES.SUPER_ADMIN_FORMS,      icon: ClipboardList },
-  { label: 'Applications',     to: '/super-admin/applications',   icon: FileText },
-  { label: 'Campers',          to: '/super-admin/campers',        icon: Shield },
-  { label: 'Sessions & Camps', to: '/super-admin/sessions',       icon: CalendarDays },
-  { label: 'Announcements',    to: '/super-admin/announcements',  icon: Megaphone },
-  { label: 'Calendar',         to: '/super-admin/calendar',       icon: CalendarDays },
-  { label: 'Reports',          to: '/super-admin/reports',        icon: BarChart3 },
-  { label: 'Inbox',            to: '/super-admin/inbox',          icon: MessageSquare },
-  { label: 'Settings',         to: '/super-admin/settings',       icon: Settings },
+  { group: 'Primary',       label: 'Dashboard',        to: ROUTES.SUPER_ADMIN_DASHBOARD, icon: LayoutDashboard },
+  { group: 'Primary',       label: 'Applications',     to: '/super-admin/applications',  icon: FileText },
+  { group: 'Primary',       label: 'Campers',          to: '/super-admin/campers',       icon: Shield },
+  { group: 'Primary',       label: 'Sessions & Camps', to: '/super-admin/sessions',      icon: CalendarDays },
+  { group: 'Communication', label: 'Inbox',            to: '/super-admin/inbox',         icon: MessageSquare },
+  { group: 'Communication', label: 'Announcements',    to: '/super-admin/announcements', icon: Megaphone },
+  { group: 'Operations',    label: 'Calendar',         to: '/super-admin/calendar',      icon: CalendarDays },
+  { group: 'Operations',    label: 'Reports',          to: '/super-admin/reports',       icon: BarChart3 },
+  { group: 'System',        label: 'Manage Users & Permissions', to: ROUTES.SUPER_ADMIN_USERS, icon: Users },
+  { group: 'System',        label: 'Audit Log',        to: ROUTES.SUPER_ADMIN_AUDIT,     icon: ScrollText },
+  { group: 'System',        label: 'Form Templates',   to: ROUTES.SUPER_ADMIN_FORMS,     icon: ClipboardList },
+  { group: 'System',        label: 'Settings',         to: '/super-admin/settings',      icon: Settings },
 ];
 
 export function SuperAdminLayout() {

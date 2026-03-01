@@ -58,26 +58,26 @@ export function StatCard({
       whileInView="visible"
       viewport={scrollViewport}
       transition={{ delay }}
-      className="rounded-2xl border p-6 flex items-start gap-4"
+      className="rounded-2xl border p-7 flex items-start gap-5"
       style={{
         background: 'var(--card)',
         borderColor: 'var(--border)',
       }}
     >
       <div
-        className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+        className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
         style={{ background: `${color}18` }}
       >
         <Icon className="h-5 w-5" style={{ color }} />
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p
-          className="text-2xl font-headline font-semibold"
+          className="text-3xl font-headline font-semibold"
           style={{ color: 'var(--foreground)' }}
         >
           {count.toLocaleString()}{suffix}
         </p>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="text-sm mt-1 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
           {label}
         </p>
       </div>

@@ -289,3 +289,17 @@
 ::selection {
   background-color: rgba(22, 163, 74, 0.20);
 }
+
+/* ─── Reduced Motion ────────────────────────────────────────────────────── */
+/* Framer Motion: handled by MotionConfig reducedMotion="user" in providers  */
+/* CSS transitions: scoped to [data-cbg-app] only — avoids nuking third-party */
+@media (prefers-reduced-motion: reduce) {
+  [data-cbg-app] *,
+  [data-cbg-app] *::before,
+  [data-cbg-app] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

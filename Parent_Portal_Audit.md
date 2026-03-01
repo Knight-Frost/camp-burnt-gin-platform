@@ -168,7 +168,7 @@ Recurring patterns include:
 - No global error boundary  
 - Possible session rehydration gaps  
 
-### Required Foundation
+## Required Foundation
 
 - Centralized API abstraction  
 - Retry logic with exponential backoff  

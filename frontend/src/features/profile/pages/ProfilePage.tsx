@@ -10,7 +10,7 @@ import { useState, useEffect, type ReactNode, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { User, Mail, Shield, ShieldCheck, ShieldOff, QrCode, Key, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Shield, ShieldCheck, ShieldOff, QrCode, Key, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 import {
@@ -403,9 +403,22 @@ export function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
-                  {t('profile.email_label')}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                    {t('profile.email_label')}
+                  </label>
+                  {profile?.email_verified_at ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--ember-orange)' }}>
+                      <CheckCircle className="h-3 w-3" /> Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(217,119,6,0.10)', color: '#b45309' }}>
+                      <AlertCircle className="h-3 w-3" /> Not verified
+                    </span>
+                  )}
+                </div>
                 <div
                   className="flex items-center gap-2 rounded-lg border px-3 py-2"
                   style={{ background: 'var(--input)', borderColor: 'var(--border)' }}

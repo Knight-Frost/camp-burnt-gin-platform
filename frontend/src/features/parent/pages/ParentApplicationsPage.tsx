@@ -84,7 +84,7 @@ export function ParentApplicationsPage() {
             icon={FileText}
             action={{
               label: 'Start your first application',
-              onClick: () => {},
+              onClick: () => navigate(ROUTES.PARENT_APPLICATION_NEW),
             }}
           />
         ) : (

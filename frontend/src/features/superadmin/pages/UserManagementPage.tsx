@@ -13,6 +13,7 @@ import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle } fr
 import { format } from 'date-fns';
 
 import { getUsers, updateUserRole, deactivateUser, reactivateUser } from '@/features/admin/api/admin.api';
+import { useAppSelector } from '@/store/hooks';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
@@ -36,6 +37,7 @@ interface UserFilters {
 
 export function UserManagementPage() {
   const { t } = useTranslation();
+  const currentUserId = useAppSelector((state) => state.auth.user?.id);
 
   const [response, setResponse] = useState<PaginatedResponse<User> | null>(null);
   const [loading, setLoading]   = useState(true);
@@ -68,6 +70,7 @@ export function UserManagementPage() {
   useEffect(() => { void fetchUsers(); }, [fetchUsers]);
 
   async function handleRoleChange(userId: number, role: string) {
+    if (userId === currentUserId) return;
     setUpdating(userId);
     try {
       const updated = await updateUserRole(userId, role);
@@ -194,8 +197,15 @@ export function UserManagementPage() {
                       <select
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                        disabled={user.id === currentUserId}
+                        title={user.id === currentUserId ? t('superadmin.users.self_role_tooltip') : undefined}
                         className="text-xs px-2 py-1 rounded-full border-0 outline-none font-medium"
-                        style={{ background: roleStyle.bg, color: roleStyle.text, cursor: 'pointer' }}
+                        style={{
+                          background: roleStyle.bg,
+                          color: roleStyle.text,
+                          cursor: user.id === currentUserId ? 'not-allowed' : 'pointer',
+                          opacity: user.id === currentUserId ? 0.6 : 1,
+                        }}
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r} style={{ background: 'var(--card)', color: 'var(--foreground)' }}>
@@ -211,17 +221,24 @@ export function UserManagementPage() {
                     </p>
                   </div>
                   <div className="col-span-2 flex justify-end">
-                    <button
-                      onClick={() => setConfirmUser(user)}
-                      disabled={updating === user.id}
-                      className="p-1.5 rounded transition-colors disabled:opacity-40"
-                      title={user.email_verified_at ? t('superadmin.users.deactivate') : t('superadmin.users.activate')}
-                    >
-                      {user.email_verified_at
-                        ? <UserX className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
-                        : <UserCheck className="h-4 w-4" style={{ color: 'var(--forest-green)' }} />
-                      }
-                    </button>
+                    {user.id === currentUserId ? (
+                      <span className="text-xs px-2 py-1 rounded"
+                        style={{ color: 'var(--muted-foreground)', background: 'var(--glass-medium)' }}>
+                        You
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmUser(user)}
+                        disabled={updating === user.id}
+                        className="p-1.5 rounded transition-colors disabled:opacity-40"
+                        title={user.email_verified_at ? t('superadmin.users.deactivate') : t('superadmin.users.activate')}
+                      >
+                        {user.email_verified_at
+                          ? <UserX className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
+                          : <UserCheck className="h-4 w-4" style={{ color: 'var(--forest-green)' }} />
+                        }
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               );

@@ -42,10 +42,12 @@ const ForgotPasswordPage = withSuspense(lazy(() => import('@/app/pages/ForgotPas
 const ResetPasswordPage  = withSuspense(lazy(() => import('@/app/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 
 // ─── Parent pages ─────────────────────────────────────────────────────────────
-const ParentDashboardPage    = withSuspense(lazy(() => import('@/features/parent/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage }))));
-const ParentApplicationsPage = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationsPage').then(m => ({ default: m.ParentApplicationsPage }))));
-const ApplicationFormPage    = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationFormPage').then(m => ({ default: m.ApplicationFormPage }))));
-const ParentCalendarPage     = withSuspense(lazy(() => import('@/features/parent/pages/ParentCalendarPage').then(m => ({ default: m.ParentCalendarPage }))));
+const ParentDashboardPage          = withSuspense(lazy(() => import('@/features/parent/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage }))));
+const ParentApplicationsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationsPage').then(m => ({ default: m.ParentApplicationsPage }))));
+const ApplicationFormPage          = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationFormPage').then(m => ({ default: m.ApplicationFormPage }))));
+const ParentApplicationDetailPage  = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationDetailPage').then(m => ({ default: m.ParentApplicationDetailPage }))));
+const ParentCalendarPage           = withSuspense(lazy(() => import('@/features/parent/pages/ParentCalendarPage').then(m => ({ default: m.ParentCalendarPage }))));
+const ParentAnnouncementsPage      = withSuspense(lazy(() => import('@/features/parent/pages/ParentAnnouncementsPage').then(m => ({ default: m.ParentAnnouncementsPage }))));
 
 // ─── Admin pages ──────────────────────────────────────────────────────────────
 const AdminDashboardPage      = withSuspense(lazy(() => import('@/features/admin/pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage }))));
@@ -107,8 +109,10 @@ export const router = createBrowserRouter([
       children: [
         { path: '/parent',                    element: <Navigate to="/parent/dashboard" replace /> },
         { path: '/parent/dashboard',          element: <ParentDashboardPage /> },
-        { path: '/parent/applications',       element: <ParentApplicationsPage /> },
+        { path: '/parent/applications',         element: <ParentApplicationsPage /> },
         { path: '/parent/applications/new',   element: <ApplicationFormPage /> },
+        { path: '/parent/applications/:id',   element: <ParentApplicationDetailPage /> },
+        { path: '/parent/announcements',      element: <ParentAnnouncementsPage /> },
         { path: '/parent/calendar',           element: <ParentCalendarPage /> },
         { path: '/parent/inbox',              element: <InboxPage /> },
         { path: '/parent/profile',            element: <ProfilePage /> },

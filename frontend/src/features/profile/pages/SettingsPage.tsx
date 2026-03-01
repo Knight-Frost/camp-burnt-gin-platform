@@ -11,14 +11,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Sun, Type, Contrast, Activity, Shield, Bell, User, Eye, EyeOff } from 'lucide-react';
+import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff } from 'lucide-react';
 import {
   applyFontScale,
   applyHighContrast,
-  applyReducedMotion,
   getSavedFontScale,
   getSavedHighContrast,
-  getSavedReducedMotion,
   type FontScale,
 } from '@/theme/themePreferences';
 import {
@@ -77,7 +75,6 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
   const [fontScale, setFontScaleState] = useState<FontScale>(getSavedFontScale);
   const [highContrast, setHighContrastState] = useState(getSavedHighContrast);
-  const [reducedMotion, setReducedMotionState] = useState(getSavedReducedMotion);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
@@ -104,12 +101,6 @@ export function SettingsPage() {
     toast.success(val ? 'High contrast enabled.' : 'High contrast disabled.');
   };
 
-  const handleReducedMotion = (val: boolean) => {
-    setReducedMotionState(val);
-    applyReducedMotion(val);
-    toast.success(val ? 'Reduced motion enabled.' : 'Animations enabled.');
-  };
-
   // Load notification preferences once when the tab is first opened
   useEffect(() => {
     if (activeTab === 'notifications' && !notifLoaded) {
@@ -131,6 +122,7 @@ export function SettingsPage() {
     try {
       const updated = await updateNotificationPreference(key, value);
       setNotifPrefs(updated);
+      toast.success('Preference saved.');
     } catch {
       setNotifPrefs(prev); // revert on error
       toast.error('Failed to save notification preference.');
@@ -243,18 +235,6 @@ export function SettingsPage() {
                 />
               </SettingsCard>
 
-              {/* Reduced motion */}
-              <SettingsCard
-                icon={Activity}
-                title="Reduced Motion"
-                description="Minimize animations and transitions."
-              >
-                <ToggleSwitch
-                  checked={reducedMotion}
-                  onChange={handleReducedMotion}
-                  label="Reduce motion and animations"
-                />
-              </SettingsCard>
             </div>
           )}
 

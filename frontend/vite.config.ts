@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Allow triple-slash reference to vitest globals (test, expect, describe, vi)
+/// <reference types="vitest" />
+
 export default defineConfig({
   plugins: [
     react(),
@@ -46,6 +49,16 @@ export default defineConfig({
       overlay: false,
     },
   },
+  // ─── Vitest ──────────────────────────────────────────────────────────────────
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/__tests__/setup.ts'],
+    globals: true,
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+
   optimizeDeps: {
     include: [
       'react',

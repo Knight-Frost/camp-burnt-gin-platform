@@ -7,7 +7,7 @@
  * A subtle noise texture overlay provides depth without distraction.
  */
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -36,13 +36,12 @@ export function DashboardShell({
   children,
 }: DashboardShellProps) {
   const location = useLocation();
-  const [currentTitle, setCurrentTitle] = useState(pageTitle);
 
-  // Update title when route changes
-  useEffect(() => {
-    const derived = deriveTitleFromPath(location.pathname);
-    setCurrentTitle(derived || pageTitle);
-  }, [location.pathname, pageTitle]);
+  // Derive title synchronously — no state cycle, no extra render
+  const currentTitle = useMemo(
+    () => deriveTitleFromPath(location.pathname) || pageTitle,
+    [location.pathname, pageTitle]
+  );
 
   return (
     <div

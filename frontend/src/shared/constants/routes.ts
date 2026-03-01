@@ -28,6 +28,7 @@ export const ROUTES = {
   PARENT_APPLICATION_DETAIL: (id: number | string) =>
     `/parent/applications/${id}`,
   PARENT_CALENDAR: '/parent/calendar',
+  PARENT_ANNOUNCEMENTS: '/parent/announcements',
 
   // Admin
   ADMIN_DASHBOARD: '/admin/dashboard',

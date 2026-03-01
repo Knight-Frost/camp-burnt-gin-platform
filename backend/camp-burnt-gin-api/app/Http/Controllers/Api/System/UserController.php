@@ -72,7 +72,7 @@ class UserController extends Controller
     public function updateRole(Request $request, User $user): JsonResponse
     {
         if ($user->id === $request->user()->id) {
-            return response()->json(['message' => 'Cannot change your own role.'], 422);
+            return response()->json(['message' => 'You cannot modify your own role.'], 403);
         }
 
         $request->validate([
@@ -98,7 +98,7 @@ class UserController extends Controller
     public function deactivate(Request $request, User $user): JsonResponse
     {
         if ($user->id === $request->user()->id) {
-            return response()->json(['message' => 'Cannot deactivate yourself.'], 422);
+            return response()->json(['message' => 'You cannot deactivate your own account.'], 403);
         }
 
         $user->email_verified_at = null;
@@ -112,8 +112,12 @@ class UserController extends Controller
      *
      * POST /api/users/{user}/reactivate
      */
-    public function reactivate(User $user): JsonResponse
+    public function reactivate(Request $request, User $user): JsonResponse
     {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot modify your own account status.'], 403);
+        }
+
         $user->email_verified_at = now();
         $user->save();
 

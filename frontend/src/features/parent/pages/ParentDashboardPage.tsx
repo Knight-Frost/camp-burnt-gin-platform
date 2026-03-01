@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin } from 'lucide-react';
 
@@ -31,6 +31,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 
 export function ParentDashboardPage() {
+  const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [campers, setCampers] = useState<Camper[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -200,7 +201,7 @@ export function ParentDashboardPage() {
                 description="Register your first camper to start an application."
                 action={{
                   label: 'Start an application',
-                  onClick: () => {},
+                  onClick: () => navigate(ROUTES.PARENT_APPLICATION_NEW),
                 }}
               />
             </div>

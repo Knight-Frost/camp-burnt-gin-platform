@@ -14,7 +14,7 @@ export type RoleName = (typeof ROLES)[keyof typeof ROLES];
 export const ROLE_LABELS: Record<RoleName, string> = {
   super_admin: 'Super Admin',
   admin: 'Admin',
-  parent: 'Parent',
+  parent: 'Applicant',
   medical: 'Medical',
 };
 
