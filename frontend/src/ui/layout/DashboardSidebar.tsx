@@ -112,7 +112,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems }: Das
 
   const navList = (
     <nav
-      className="flex-1 px-3 py-4 overflow-y-auto"
+      className="flex-1 min-h-0 px-3 py-4 overflow-y-auto"
       style={{ scrollbarGutter: 'stable' }}
       aria-label="Dashboard navigation"
     >

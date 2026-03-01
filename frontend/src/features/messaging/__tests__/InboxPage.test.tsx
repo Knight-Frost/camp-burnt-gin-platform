@@ -199,11 +199,12 @@ describe('RichTextEditor source structure', () => {
     expect(editorSrc).not.toMatch(/(?<![a-zA-Z])prompt\s*\(/);
   });
 
-  test('uses LinkPopover component (not window.prompt for links)', () => {
-    expect(editorSrc).toContain('LinkPopover');
+  test('has Bold toolbar button', () => {
+    expect(editorSrc).toContain("title=\"Bold\"");
   });
 
-  test('uses EmojiPicker component (not window.prompt for emoji)', () => {
-    expect(editorSrc).toContain('EmojiPicker');
+  test('has list toolbar buttons (no window.prompt for lists)', () => {
+    expect(editorSrc).toContain("title=\"Bullet list\"");
+    expect(editorSrc).toContain("title=\"Numbered list\"");
   });
 });

@@ -5,12 +5,12 @@
  *
  *   useRichEditor(opts)  — creates and returns the TipTap Editor instance
  *   EditorBody           — renders just the editable content area + placeholder styles
- *   EditorToolbar        — renders formatting buttons + Link/Emoji popovers (self-contained)
+ *   EditorToolbar        — renders formatting buttons (Bold, Italic, Underline, lists)
  *   RichTextEditor       — combined wrapper (toolbar on top) for reply-box use in ThreadView
  *
  * FloatingCompose uses useRichEditor + EditorBody + EditorToolbar separately so the
  * toolbar lives in the footer bar (Gmail-style, bottom of compose panel).
- * onMouseDown preventDefault on all toolbar buttons preserves editor selection.
+ * onMouseDown preventDefault on toolbar buttons preserves editor selection.
  */
 
 import { type ElementType } from 'react';
