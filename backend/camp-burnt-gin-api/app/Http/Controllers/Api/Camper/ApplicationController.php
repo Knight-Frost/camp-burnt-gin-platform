@@ -11,6 +11,7 @@ use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
 use App\Services\Camper\ApplicationService;
+use App\Services\SystemNotificationService;
 use App\Traits\QueuesNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,8 @@ class ApplicationController extends Controller
     use QueuesNotifications;
 
     public function __construct(
-        protected ApplicationService $applicationService
+        protected ApplicationService $applicationService,
+        protected SystemNotificationService $systemNotifications,
     ) {}
 
     /**
@@ -150,6 +152,11 @@ class ApplicationController extends Controller
                 $this->queueNotification(
                     $application->camper->user,
                     new ApplicationSubmittedNotification($application)
+                );
+                // System inbox notification
+                $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+                $this->systemNotifications->applicationSubmitted(
+                    $application->camper->user, $application->id, $camperName
                 );
             }
 

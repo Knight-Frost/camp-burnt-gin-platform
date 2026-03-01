@@ -166,8 +166,8 @@ export interface AuditLogEntry {
   user_id: number;
   user?: { id: number; name: string; email: string };
   action: string;
-  auditable_type: string;
-  auditable_id: number;
+  auditable_type: string | null;
+  auditable_id: number | null;
   old_values?: Record<string, unknown>;
   new_values?: Record<string, unknown>;
   ip_address?: string;

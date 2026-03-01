@@ -276,14 +276,16 @@ class InboxService
      * Get conversations for a user with pagination.
      *
      * @param User $user
-     * @param bool $includeArchived
-     * @param int $perPage
+     * @param bool $includeArchived  When true returns archived conversations only
+     * @param int  $perPage
+     * @param bool|null $systemOnly  true = system notifications only, false = user convs only, null = all
      * @return LengthAwarePaginator
      */
     public function getUserConversations(
         User $user,
         bool $includeArchived = false,
-        int $perPage = 25
+        int $perPage = 25,
+        ?bool $systemOnly = null
     ): LengthAwarePaginator {
         $query = Conversation::query()
             ->forUser($user)
@@ -292,6 +294,12 @@ class InboxService
 
         if (!$includeArchived) {
             $query->active();
+        }
+
+        if ($systemOnly === true) {
+            $query->systemGenerated();
+        } elseif ($systemOnly === false) {
+            $query->userConversations();
         }
 
         return $query->paginate($perPage);
@@ -310,10 +318,13 @@ class InboxService
         return Conversation::forUser($user)
             ->active()
             ->whereHas('messages', function ($query) use ($user) {
-                $query->where('sender_id', '!=', $user->id)
-                    ->whereDoesntHave('reads', function ($q) use ($user) {
-                        $q->where('user_id', $user->id);
-                    });
+                $query->whereDoesntHave('reads', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->where(function ($q) use ($user) {
+                    // Include system messages (sender_id = null) as unread
+                    $q->whereNull('sender_id')
+                      ->orWhere('sender_id', '!=', $user->id);
+                });
             })
             ->count();
     }

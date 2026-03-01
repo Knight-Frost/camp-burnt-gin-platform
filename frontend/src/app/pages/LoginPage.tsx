@@ -86,7 +86,10 @@ export function LoginPage() {
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
 
       const role = getPrimaryRole(user.roles ?? []);
-      navigate(from ?? getDashboardRoute(role), { replace: true });
+      const dashRoute = getDashboardRoute(role);
+      const portalPrefix = '/' + dashRoute.split('/')[1];
+      const safeFrom = from && from.startsWith(portalPrefix) ? from : null;
+      navigate(safeFrom ?? dashRoute, { replace: true });
 
     } catch (error) {
       if (isLockoutError(error)) {
@@ -149,7 +152,10 @@ export function LoginPage() {
       dispatch(setUser(user));
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
       const role = getPrimaryRole(user.roles ?? []);
-      navigate(from ?? getDashboardRoute(role), { replace: true });
+      const dashRoute = getDashboardRoute(role);
+      const portalPrefix = '/' + dashRoute.split('/')[1];
+      const safeFrom = from && from.startsWith(portalPrefix) ? from : null;
+      navigate(safeFrom ?? dashRoute, { replace: true });
     } catch (err) {
       const msg = (err as { message?: string })?.message ?? 'Invalid code. Please try again.';
       setMfaError(msg);

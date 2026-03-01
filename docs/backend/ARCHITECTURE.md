@@ -15,7 +15,7 @@ Provide a secure, scalable, and maintainable API backend that enables:
 - Protected storage and access of medical information (PHI)
 - Role-based authorization for parents, administrators, and medical providers
 - Comprehensive audit logging for compliance
-- Integration with future frontend applications
+- Integration with the React 18/TypeScript frontend application
 
 ### Key Goals
 

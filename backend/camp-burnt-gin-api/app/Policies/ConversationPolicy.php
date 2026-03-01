@@ -90,11 +90,17 @@ class ConversationPolicy
     /**
      * Determine if the user can archive the conversation.
      *
+     * System-generated notifications cannot be archived — they live in the
+     * System tab indefinitely for audit purposes.
      * Creators can archive their own conversations.
-     * Admins can archive any conversation.
+     * Admins can archive any user conversation.
      */
     public function archive(User $user, Conversation $conversation): bool
     {
+        if ($conversation->is_system_generated) {
+            return false;
+        }
+
         return $user->isAdmin() || $conversation->created_by_id === $user->id;
     }
 
@@ -177,11 +183,18 @@ class ConversationPolicy
     /**
      * Determine if the user can leave the conversation.
      *
+     * System-generated notifications cannot be left — the user remains
+     * a participant so they can always access their notification history.
      * Participants can leave conversations except the creator.
      * Admins can always leave.
      */
     public function leave(User $user, Conversation $conversation): bool
     {
+        // System notifications cannot be left
+        if ($conversation->is_system_generated) {
+            return false;
+        }
+
         // Must be a participant
         if (!$conversation->hasParticipant($user)) {
             return false;

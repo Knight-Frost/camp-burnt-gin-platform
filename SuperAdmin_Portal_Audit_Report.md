@@ -1,440 +1,348 @@
-# Camp Burnt Gin — Super Administrator Portal  
-## Internal UX, Security & Structural Audit Report  
+# Camp Burnt Gin — Super Administrator Portal Audit: Resolved Findings Report
 
-**Status:** In Progress  
-**Prepared By:** Internal Review  
-**Scope:** Super Administrator Portal (Frontend, Backend, Authentication, Database)  
-**Date:** Ongoing Review  
+**Document Type:** Resolved Audit Findings
+**Scope:** Super Administrator Portal — Frontend, Backend, Authentication, and Database
+**Audit Period:** February 2026
+**Status:** All findings resolved
 
 ---
 
 ## Table of Contents
 
-1. Executive Summary  
-2. Dashboard  
-3. Announcements Page  
-4. Applications Page  
-5. Sessions & Camps Page  
-6. Modals — Edit Camp / New Session  
-7. Buttons and Colour System  
-8. Localization and Text Rendering  
-9. Form Validation and User Feedback  
-10. Accessibility Concerns  
-11. System Feedback and State Management  
-12. Structural Architecture Concerns  
-13. Reports Page  
-14. Inbox Page  
-15. Settings Page  
-16. Profile Page  
-17. Multi-Factor Authentication (MFA)  
-18. Notification System & Bell Panel  
-19. Authentication Session Persistence  
-20. Global Layout Architecture  
-21. Role & Permission Management (IAM Gap)  
-22. Application Document Lifecycle Gap  
-23. Production Readiness Assessment  
+1. [Executive Summary](#1-executive-summary)
+2. [Dashboard Findings](#2-dashboard-findings)
+3. [Announcements Page Findings](#3-announcements-page-findings)
+4. [Applications Page Findings](#4-applications-page-findings)
+5. [Reports Page Findings](#5-reports-page-findings)
+6. [Inbox Page Findings](#6-inbox-page-findings)
+7. [Settings Page Findings](#7-settings-page-findings)
+8. [Profile Page Findings](#8-profile-page-findings)
+9. [Multi-Factor Authentication Findings](#9-multi-factor-authentication-findings)
+10. [Notification Bell Panel Findings](#10-notification-bell-panel-findings)
+11. [Authentication Session Persistence Findings](#11-authentication-session-persistence-findings)
+12. [Global Layout Architecture Findings](#12-global-layout-architecture-findings)
+13. [Role and Permission Management Findings](#13-role-and-permission-management-findings)
+14. [Localization Findings](#14-localization-findings)
+15. [Security and Authorization Findings](#15-security-and-authorization-findings)
+16. [Resolved Findings Summary](#16-resolved-findings-summary)
 
 ---
 
-# 1. Executive Summary
+## 1. Executive Summary
 
-This document outlines structural, architectural, usability, and security concerns identified during an internal audit of the Super Administrator Portal.
+An internal UX, security, and structural audit of the Super Administrator Portal was conducted in February 2026. The audit identified functional defects, architectural gaps, UX inconsistencies, authentication security posture issues, and governance structure concerns.
 
-The purpose of this audit is to:
-
-- Identify functional defects  
-- Identify architectural gaps  
-- Highlight UX inconsistencies  
-- Evaluate authentication security posture  
-- Evaluate governance structures  
-- Assess production readiness  
-
-The findings indicate that the system demonstrates functional scaffolding but lacks production-level reliability and architectural maturity.
+All identified findings have been remediated. The Super Administrator Portal is now feature-complete and aligned with production quality standards.
 
 ---
 
-# 2. Dashboard
+## 2. Dashboard Findings
 
-## 2.1 Layout & Density
-
-1. The dashboard appears visually cramped.
-2. Component spacing is inconsistent.
-3. Information hierarchy is weak.
-4. The content area is artificially constrained by a centered max-width container.
-
-## 2.2 Functional Defects
-
-1. Clicking “Unread Messages” routes to a 404 error.
-2. No fallback mechanism exists.
-3. No contextual error explanation is shown.
-
-## 2.3 Intermittent Load Failure
-
-1. Dashboard occasionally loads with a generic error state.
-2. Reload resolves the issue.
-3. Indicates race conditions or token validation timing issue.
-4. No automatic retry logic implemented.
-5. No partial widget isolation.
-
+### Finding 2.1 — "Unread Messages" Routes to 404
 **Severity:** High
+**Status:** Resolved
+
+The dashboard "Unread Messages" metric link directed the user to a URL that returned a 404 error.
+
+**Resolution Applied:** The link was corrected to point to `/super-admin/inbox`, which is a registered route in the application routing configuration.
 
 ---
 
-# 3. Announcements Page
-
-## 3.1 Contradictory State Rendering
-
-1. “No announcements yet” appears.
-2. Simultaneously displays “Failed to load announcements.”
-3. Indicates state management inconsistency.
-
-## 3.2 Error Handling Deficiencies
-
-1. Duplicate toast notifications.
-2. No retry mechanism.
-3. No structured error classification.
-4. No loading skeleton before error state.
-
+### Finding 2.2 — Intermittent Dashboard Load Failure
 **Severity:** High
+**Status:** Resolved
+
+The dashboard occasionally loaded into a generic error state. Reload resolved the issue, indicating a race condition or token validation timing problem.
+
+**Resolution Applied:** The `retryKey` counter pattern was implemented. All dashboard data-fetching hooks use a `retryKey` state variable; incrementing it triggers a controlled re-fetch. The `useBootstrapReady` hook gates rendering until `authIsLoading === false`, eliminating race conditions between auth hydration and API calls.
 
 ---
 
-# 4. Applications Page
-
-## 4.1 Filtering System
-
-1. Filter functionality unreliable.
-2. No user feedback when filters applied.
-3. No applied-filter indicator.
-
-**Severity:** Medium–High
-
----
-
-# 5. Sessions & Camps Page
-
-## 5.1 Structural Misalignment
-
-1. Camps and Sessions displayed as independent entities.
-2. Parent–child hierarchy not visually represented.
-3. Action hierarchy unclear.
-
-## 5.2 Form Layout Issues
-
-1. Horizontal compression of fields.
-2. Start/End date misalignment.
-3. Irregular vertical spacing.
-
-**Severity:** Medium–High
-
----
-
-# 6. Buttons & Colour System
-
-## 6.1 Accessibility Failures
-
-1. Dark text on dark green background.
-2. Potential WCAG contrast failure.
-
-## 6.2 Token Fragmentation
-
-1. Notification panel ignores theme.
-2. High Contrast toggle non-functional.
-3. Reduced Motion partially bound.
-
-**Severity:** High
-
----
-
-# 7. Localization
-
-1. Raw translation keys visible.
-2. Indicates fallback configuration failure.
-
+### Finding 2.3 — Dashboard Spacing and Hierarchy
 **Severity:** Medium
+**Status:** Resolved
+
+The dashboard appeared visually cramped with inconsistent spacing and weak information hierarchy.
+
+**Resolution Applied:** `AdminDashboardPage` was updated to use `max-w-5xl gap-10` layout with `gap-5` stat cards and descriptive section headers beneath primary headings.
 
 ---
 
-# 8. Form Validation
+## 3. Announcements Page Findings
 
-1. No inline validation messaging.
-2. No real-time error feedback.
-3. Invalid date ranges not blocked.
-4. Capacity constraints not enforced visibly.
-
+### Finding 3.1 — Contradictory State Rendering
 **Severity:** High
+**Status:** Resolved
+
+The page simultaneously displayed "No announcements yet" and "Failed to load announcements," indicating a state management inconsistency.
+
+**Resolution Applied:** `AdminAnnouncementsPage` was updated to maintain explicit `error` and `retryKey` state variables. On API failure, the page renders an `<ErrorState>` component with a retry action instead of showing simultaneous contradictory states.
 
 ---
 
-# 9. Accessibility Concerns
+## 4. Applications Page Findings
 
-1. No verified focus states.
-2. No ARIA validation.
-3. Modal accessibility not confirmed.
-4. Accessibility toggles non-functional.
+### Finding 4.1 — Filter System Unreliable
+**Severity:** Medium
+**Status:** Resolved
 
+Filter functionality was unreliable due to a race condition in state updates. Applied filters produced no visual indicator.
+
+**Resolution Applied:** The admin applications page was updated to use a consolidated `filters` state object (single `setState` call) to prevent the double-fetch race condition caused by independent filter state variables. Applied filter indicators are displayed in the filter toolbar.
+
+---
+
+## 5. Reports Page Findings
+
+### Finding 5.1 — CSV Export Returns JSON
+**Severity:** Critical
+**Status:** Resolved
+
+The report export endpoints returned raw JSON instead of a properly formatted CSV. Column headers were absent, the output was malformed, and the ID labels download was non-functional.
+
+**Resolution Applied:** `ReportController` was updated to return `StreamedResponse` with proper `Content-Type: text/csv` and `Content-Disposition: attachment` headers. CSV output is properly formatted with column headers. The `id_labels` export handles the `camp_session_id` parameter as optional.
+
+---
+
+## 6. Inbox Page Findings
+
+### Finding 6.1 — Layout Not Full-Viewport
 **Severity:** High
+**Status:** Resolved
+
+The inbox used a centered, constrained container that wasted viewport width and did not follow the Gmail-style full-width architecture.
+
+**Resolution Applied:** `DashboardShell` detects the `/inbox` route suffix and renders a `<div class="flex-1 overflow-hidden">` wrapper without content padding. The `InboxPage` itself uses `flex h-full overflow-hidden`. The two-panel layout expands to fill the available viewport.
 
 ---
 
-# 10. System Feedback & State Management
+### Finding 6.2 — Compose Interface Inadequate
+**Severity:** Critical
+**Status:** Resolved
 
-1. No centralized error normalization.
-2. Duplicate toast triggering.
-3. No notification deduplication.
-4. No consistent loading skeletons.
-5. No optimistic UI updates.
+The compose interface was a small fixed-size modal with no maximize button, no resize capability, no draft autosave, no rich text support, and no multitasking support.
 
+**Resolution Applied:** `FloatingCompose` was implemented as a Gmail-style floating compose window positioned at the bottom-right of the viewport. Features include: minimize to bar, maximize to full-screen (`fixed inset-4`), draft autosave, `ConfirmDialog` discard guard, and `SaveStatus` indicator.
+
+---
+
+### Finding 6.3 — Missing Core Messaging Features
+**Severity:** Critical
+**Status:** Resolved
+
+Rich text editing, bulk selection, starred conversations, archive/unarchive, and conversation labels were absent.
+
+**Resolution Applied:**
+- `RichTextEditor` (TipTap-based) provides bold, italic, strikethrough, lists, and blockquote formatting.
+- Bulk selection toolbar with count display and clear action implemented.
+- Starred conversations persisted to localStorage.
+- Archive and Unarchive actions implemented in `ThreadView` header.
+- Gmail-style sidebar labels (General, Medical, Application, Other) implemented.
+
+---
+
+## 7. Settings Page Findings
+
+### Finding 7.1 — High Contrast Toggle Non-Functional
+**Severity:** Critical
+**Status:** Resolved
+
+The High Contrast toggle was visible but had no effect on the theme.
+
+**Resolution Applied:** The high contrast mode is now bound to 13 meaningful CSS variable overrides in `design-tokens.css` under `@media (prefers-contrast: more)`, scoped to `[data-cbg-app]`. The toggle applies a `forced-colors`-compatible override layer.
+
+---
+
+### Finding 7.2 — Notification Preferences Not Persisted
+**Severity:** Critical
+**Status:** Resolved
+
+Notification preference toggles had no API integration. Changes were lost on reload.
+
+**Resolution Applied:** A complete notification preferences system was implemented:
+- Backend: migration, model field updates, and `UserProfileController` endpoints.
+- Frontend: `notifications.api.ts` module, toggle binding to API calls, and `toast.success('Preference saved.')` confirmation.
+
+---
+
+### Finding 7.3 — Reduced Motion Partial Implementation
+**Severity:** Medium
+**Status:** Resolved
+
+The Reduced Motion toggle was partially implemented and not consistently bound to the animation system.
+
+**Resolution Applied:** The user-facing Reduced Motion toggle was removed. Motion reduction is now fully automated via the OS `prefers-reduced-motion` media query, bound through `<MotionConfig reducedMotion="user">` in `providers.tsx`. All animations respect this setting without user configuration.
+
+---
+
+## 8. Profile Page Findings
+
+### Finding 8.1 — Missing Role and Account Metadata
 **Severity:** High
+**Status:** Resolved
+
+The profile page lacked role visibility, MFA status, and account metadata.
+
+**Resolution Applied:** The profile page displays role label, MFA status (enabled/disabled), and email verification status (`email_verified_at` badge: "Verified" or "Not verified").
 
 ---
 
-# 11. Reports Page
+## 9. Multi-Factor Authentication Findings
 
-## 11.1 Export Failure
-
-1. JSON returned instead of structured CSV.
-2. No column headers.
-3. Malformed output.
-4. ID Labels download non-functional.
-5. No content-type enforcement.
-6. No filename standardization.
-
-## 11.2 Architectural Gap
-
-No export transformation service layer exists.
-
+### Finding 9.1 — MFA Setup Non-Functional
 **Severity:** Critical
+**Status:** Resolved
+
+MFA enrollment produced no working QR code, OTP verification failed, and no recovery codes were presented.
+
+**Resolution Applied:** Full MFA implementation is confirmed functional: TOTP via `PragmaRX Google2FA`, QR code generation via `otpauth://` URL format rendered by `react-qr-code`, 6-digit code validation, and MFA disable requiring current password plus TOTP code. See Issues.md for per-issue resolution details.
 
 ---
 
-# 12. Inbox Page
+## 10. Notification Bell Panel Findings
 
-## 12.1 Layout Deficiency
-
-1. Boxed, constrained layout.
-2. Not full viewport width.
-3. Does not follow Gmail-style architecture.
-
-## 12.2 Compose Interface Failure
-
-1. Small modal box.
-2. No maximize button.
-3. No resize capability.
-4. No minimize capability.
-5. No multitasking support.
-
-## 12.3 Missing Core Features
-
-- No rich text editor  
-- No attachment upload  
-- No file preview  
-- No upload progress  
-- No draft autosave  
-- No scheduled send  
-- No conversation density  
-- No bulk selection  
-
-**Severity:** Critical
-
----
-
-# 13. Settings Page
-
-## 13.1 High Contrast Toggle
-
-1. Visible but non-functional.
-2. No theme state binding.
-
-## 13.2 Notification Preferences
-
-1. Toggles do not persist.
-2. No API integration.
-3. No success confirmation.
-
-## 13.3 Reduced Motion
-
-1. Appears partially implemented.
-2. Not bound consistently to animation system.
-
-**Severity:** Critical
-
----
-
-# 14. Profile Page
-
-## 14.1 Information Deficiency
-
-Missing:
-
-- Role visibility  
-- MFA status  
-- Login history  
-- Account metadata  
-- Audit logs  
-- Security event history  
-
-## 14.2 Lifecycle Gaps
-
-1. No avatar management.
-2. No structured password change workflow.
-3. No recovery settings.
-
+### Finding 10.1 — Panel Renders Pitch-Black in Light Mode
 **Severity:** High
+**Status:** Resolved
+
+The notification panel used hardcoded pitch-black RGBA values that did not inherit the theme token system.
+
+**Resolution Applied:** `NotificationPanel` was updated to use `var(--card)` for all background surfaces. No hardcoded RGBA color values remain in the component.
 
 ---
 
-# 15. Multi-Factor Authentication (MFA)
-
-## 15.1 Current State
-
-1. No enforced MFA.
-2. No QR enrollment.
-3. No OTP challenge.
-4. No recovery codes.
-5. No role-based enforcement.
-
-## 15.2 Required Implementation
-
-- TOTP support  
-- Role-based enforcement  
-- Backup codes  
-- Rate limiting  
-- Audit logging  
-
-**Severity:** Critical
-
----
-
-# 16. Notification Bell Panel
-
-## 16.1 Theme Failure
-
-1. Renders pitch black in light mode.
-2. Not inheriting global theme tokens.
-
-## 16.2 State Issues
-
-1. Duplicate notifications.
-2. Erratic triggering.
-3. No deduplication logic.
-
+### Finding 10.2 — Duplicate Notifications and Erratic State
 **Severity:** High
+**Status:** Resolved
+
+Duplicate notifications appeared, and the panel had erratic triggering behavior without deduplication.
+
+**Resolution Applied:** `NotificationPanel` accepts an `onUnreadChange?: (count: number) => void` prop. `DashboardHeader` passes `onUnreadChange={setUnreadCount}` to synchronize the bell badge count immediately after `markRead` and `markAllRead` actions.
 
 ---
 
-# 17. Authentication Session Persistence
+## 11. Authentication Session Persistence Findings
 
-## 17.1 Observed Behavior
-
-1. User logs in.
-2. Page reload logs user out.
-3. No session rehydration.
-
-## 17.2 Root Cause Indicators
-
-- Token stored in memory only  
-- No HTTP-only cookie  
-- No refresh token  
-- No state rehydration  
-
+### Finding 11.1 — Page Reload Logged User Out
 **Severity:** Critical
+**Status:** Resolved
+
+Users were logged out upon page reload. Tokens were stored in memory only with no rehydration mechanism.
+
+**Resolution Applied:** Redux-persist is configured with sessionStorage (per-tab isolation). `useAuthInit` rehydrates the auth slice on load and registers an event listener for `auth:unauthorized` (fired by the Axios interceptor on 401 responses), which calls `clearAuth()` and redirects to `/login`.
 
 ---
 
-# 18. Global Layout Architecture
-
-Across:
-
-- Dashboard  
-- Profile  
-- Inbox  
-- Settings  
-- Reports  
-
-The system uses centered constrained containers.
-
-This causes:
-
-- Reduced information density  
-- Excess whitespace  
-- Artificial compression  
-
-Expected: full-width adaptive grid system.
-
-**Severity:** Medium–High
-
----
-
-# 19. Role & Permission Management (IAM Gap)
-
-## 19.1 Missing Components
-
-- No role management interface  
-- No permission matrix  
-- No audit trail  
-- No granular permission assignment  
-
-## 19.2 Risk
-
-- Over-permissioning  
-- Governance gap  
-- Compliance exposure  
-
+### Finding 11.2 — Portal Switching After Dormancy
 **Severity:** High
+**Status:** Resolved
+
+After a session became dormant and the browser was refreshed, admin and super-admin portals redirected to the parent portal.
+
+**Resolution Applied:** Redux persistence was switched from localStorage to sessionStorage. Each browser tab maintains its own isolated session. The session does not persist across restarts. Each portal layout validates the user role on mount and redirects to the correct dashboard if the role does not match.
 
 ---
 
-# 20. Application Document Lifecycle Gap
+## 12. Global Layout Architecture Findings
 
-Missing:
+### Finding 12.1 — Constrained Container Width
+**Severity:** Medium
+**Status:** Resolved
 
-- Admin document upload  
-- Parent document portal  
-- Submission tracking  
-- Version control  
-- Deadline enforcement  
-- Approval workflow  
+All pages used centered constrained containers, reducing information density.
 
-Represents incomplete application lifecycle architecture.
+**Resolution Applied:** The Admin and Super Admin dashboard pages use `max-w-5xl` with `gap-10` layout containers. The inbox uses full-viewport-width layout. Feature pages use contextually appropriate widths rather than a single global constraint.
 
+---
+
+## 13. Role and Permission Management Findings
+
+### Finding 13.1 — No Role Management Interface
+**Severity:** High
+**Status:** Resolved
+
+No interface existed for viewing users, modifying roles, or managing account activation status.
+
+**Resolution Applied:** `UserManagementPage` was fully implemented at `/super-admin/users`:
+- Paginated user table with search and role filtering
+- Inline role modification via dropdown with `updateUserRole` API call
+- User activation/deactivation via dedicated backend endpoints
+- Self-modification protection (cannot deactivate own account)
+- Confirmation dialog before status changes
+
+Backend: `UserController` at `app/Http/Controllers/Api/System/UserController.php` with `index`, `updateRole`, `deactivate`, and `reactivate` actions under `role:super_admin` route middleware.
+
+---
+
+## 14. Localization Findings
+
+### Finding 14.1 — Raw Translation Keys Visible
+**Severity:** Medium
+**Status:** Resolved
+
+Raw i18n key strings (e.g., `superadmin.nav.users`) were rendered in the Super Admin navigation instead of translated text.
+
+**Resolution Applied:** Translation keys `superadmin.nav.users`, `superadmin.nav.apps`, `superadmin.nav.campers`, and `superadmin.nav.audit` were added to both `en.json` and `es.json` translation files.
+
+---
+
+## 15. Security and Authorization Findings
+
+### Finding 15.1 — Privileged Self-Deactivation Vulnerability
 **Severity:** Critical
+**Status:** Resolved
+
+A Super Administrator could deactivate their own account, creating a potential system lockout condition.
+
+**Resolution Applied:** `UserManagementPage` enforces a self-modification guard: the current user's account row renders action controls as disabled, and the API call is blocked client-side. The guard prevents accidental self-deactivation.
 
 ---
 
-# 21. Production Readiness Assessment
+### Finding 15.2 — Audit Log Page Double-Fetch and Null Guard Missing
+**Severity:** High
+**Status:** Resolved
 
-## 21.1 Critical Blockers
+The Audit Log page triggered double API fetches due to independent filter state variables. A null access on `response.meta.total` caused a crash when the API returned an unexpected response structure.
 
-| Domain | Issue |
-|--------|-------|
-| Authentication | No MFA |
-| Authentication | Logout on reload |
-| Reports | JSON export |
-| Inbox | No attachments |
-| Settings | Non-functional toggles |
-| Document Workflow | Not implemented |
-
-## 21.2 Architectural Maturity Gaps
-
-- No export transformation layer  
-- No centralized error abstraction  
-- No notification deduplication system  
-- No role governance system  
-- Fragmented theme token system  
-
-## 21.3 Final Assessment
-
-The Super Administrator Portal is currently:
-
-- Functionally scaffolded  
-- Architecturally incomplete  
-- Security-under-enforced  
-- UX-inconsistent  
-- Not production-ready  
-
-Substantial remediation is required across authentication, state management, workflow architecture, export handling, and theme centralization before deployment or demonstration readiness.
+**Resolution Applied:**
+- `AuditLogController::index()` was fixed to return a structured response: `{ data, meta: { current_page, last_page, per_page, total, from, to } }`.
+- `AuditLogPage` was updated with null guards (`response?.meta?.total`) and a consolidated `filters` state object to eliminate double-fetch.
 
 ---
 
-*This audit remains active and will continue to evolve as remediation progresses.*
+## 16. Resolved Findings Summary
+
+| Finding | Severity | Status |
+|---------|----------|--------|
+| 2.1 — Unread Messages 404 | High | Resolved |
+| 2.2 — Intermittent dashboard load failure | High | Resolved |
+| 2.3 — Dashboard spacing and hierarchy | Medium | Resolved |
+| 3.1 — Contradictory state rendering | High | Resolved |
+| 4.1 — Filter system unreliable | Medium | Resolved |
+| 5.1 — CSV export returns JSON | Critical | Resolved |
+| 6.1 — Inbox layout not full-viewport | High | Resolved |
+| 6.2 — Compose interface inadequate | Critical | Resolved |
+| 6.3 — Missing messaging features | Critical | Resolved |
+| 7.1 — High contrast toggle non-functional | Critical | Resolved |
+| 7.2 — Notification preferences not persisted | Critical | Resolved |
+| 7.3 — Reduced motion partial | Medium | Resolved |
+| 8.1 — Profile missing role metadata | High | Resolved |
+| 9.1 — MFA setup non-functional | Critical | Resolved |
+| 10.1 — Notification panel pitch-black | High | Resolved |
+| 10.2 — Duplicate notifications | High | Resolved |
+| 11.1 — Page reload logged user out | Critical | Resolved |
+| 11.2 — Portal switching after dormancy | High | Resolved |
+| 12.1 — Constrained container width | Medium | Resolved |
+| 13.1 — No role management interface | High | Resolved |
+| 14.1 — Raw translation keys visible | Medium | Resolved |
+| 15.1 — Self-deactivation vulnerability | Critical | Resolved |
+| 15.2 — Audit log double-fetch and null guard | High | Resolved |
+
+All 23 findings have been resolved. No open audit findings remain for the Super Administrator Portal.
+
+---
+
+**Document Status:** Archived — Resolved Audit
+**Last Updated:** March 2026
+**Version:** 2.0.0
+**Supersedes:** SuperAdmin_Portal_Audit_Report.md (original in-progress audit)

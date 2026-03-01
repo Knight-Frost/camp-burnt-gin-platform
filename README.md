@@ -1,166 +1,216 @@
-# Camp Burnt Gin API Documentation
+# Camp Burnt Gin — System Documentation
 
-This directory contains the complete technical documentation for the Camp Burnt Gin API backend system. This documentation serves as the authoritative reference for developers, system administrators, security auditors, and technical stakeholders.
-
----
-
-## Documentation Overview
-
-The Camp Burnt Gin API is a Laravel 12-based RESTful API backend designed to manage camp registration, medical records, internal messaging, staff workflows, and administrative operations. The system handles Protected Health Information (PHI) and implements HIPAA-compliant security controls.
-
-**Current Status:** Production-ready backend with 308 passing tests and zero security vulnerabilities.
+This repository contains the complete Camp Burnt Gin camp management system: a HIPAA-conscious, full-stack web application for managing camp registrations, medical records, internal communications, and administrative operations.
 
 ---
 
-## Documentation Structure
+## Table of Contents
 
-### System Overview and Architecture
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [SYSTEM_OVERVIEW.md](docs/backend/SYSTEM_OVERVIEW.md) | High-level system description, capabilities, and scope | All stakeholders |
-| [ARCHITECTURE.md](docs/backend/ARCHITECTURE.md) | Technical architecture, design patterns, and component organization | Developers, architects |
-| [DATA_MODEL.md](docs/backend/DATA_MODEL.md) | Database schema, relationships, and entity descriptions | Developers, DBAs |
-| [BUSINESS_RULES.md](docs/backend/BUSINESS_RULES.md) | Business logic, validation rules, and workflow constraints | Developers, product team |
-
-### API Documentation
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [API_OVERVIEW.md](docs/backend/API_OVERVIEW.md) | API capabilities and endpoint organization | All developers |
-| [API_REFERENCE.md](docs/backend/API_REFERENCE.md) | Complete endpoint reference with request/response examples | Frontend developers, integrators |
-| [AUTHENTICATION_AND_AUTHORIZATION.md](docs/backend/AUTHENTICATION_AND_AUTHORIZATION.md) | Authentication mechanisms, token management, and session handling | Security team, developers |
-| [ROLES_AND_PERMISSIONS.md](docs/backend/ROLES_AND_PERMISSIONS.md) | RBAC system, role definitions, and permission matrix | Security team, developers |
-
-### Security and Compliance
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [SECURITY.md](docs/backend/SECURITY.md) | Security architecture, controls, and HIPAA compliance | Security auditors, compliance team |
-| [SECURITY_AUDIT_FINAL_REPORT.md](docs/archive/backend/SECURITY_AUDIT_FINAL_REPORT.md) | Security audit findings and remediation summary (archived) | Security team, management |
-| [SECURITY_INCIDENTS/](docs/archive/backend/SECURITY_INCIDENTS/) | Historical security incident reports (archived) | Security team, compliance team |
-| [AUDIT_LOGGING.md](docs/backend/AUDIT_LOGGING.md) | Audit trail implementation and PHI access logging | Compliance team, security auditors |
-
-### Workflows and Operations
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [APPLICATION_WORKFLOWS.md](docs/backend/APPLICATION_WORKFLOWS.md) | Application lifecycle, state transitions, and business processes | Developers, business analysts |
-| [FILE_UPLOADS.md](docs/backend/FILE_UPLOADS.md) | Document management, upload security, and validation | Developers, security team |
-| [ERROR_HANDLING.md](docs/backend/ERROR_HANDLING.md) | Error handling patterns, status codes, and error responses | Frontend developers, support team |
-
-### Internal Communication
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [INBOX_SYSTEM_DOCUMENTATION.md](docs/backend/INBOX_SYSTEM_DOCUMENTATION.md) | Inbox messaging system: architecture, implementation, security audit, and policy registration | Developers, architects, security team |
-
-### Configuration and Deployment
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [SETUP.md](docs/backend/SETUP.md) | Development environment setup and local installation | Developers |
-| [CONFIGURATION.md](docs/backend/CONFIGURATION.md) | Configuration reference and environment variables | DevOps team, system administrators |
-| [DEPLOYMENT.md](docs/backend/DEPLOYMENT.md) | Production deployment procedures and operations | DevOps team, system administrators |
-
-### Testing and Quality Assurance
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [TESTING.md](docs/backend/TESTING.md) | Testing strategy, test execution, and quality assurance | Developers, QA team |
-
-### Performance and Reliability
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [PERFORMANCE_AND_SCALABILITY.md](docs/backend/PERFORMANCE_AND_SCALABILITY.md) | Performance optimization, scalability considerations, and benchmarks | Developers, architects |
-
-### Maintenance and Support
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [TROUBLESHOOTING.md](docs/backend/TROUBLESHOOTING.md) | Common issues, solutions, and diagnostic procedures | Support team, system administrators |
-| [CONTRIBUTING.md](docs/backend/CONTRIBUTING.md) | Contribution guidelines and development standards | Developers, contributors |
-
-### Project Management
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [REQUIREMENTS_AND_TRACEABILITY.md](docs/backend/REQUIREMENTS_AND_TRACEABILITY.md) | Functional requirements and implementation traceability | Product team, stakeholders |
-| [BACKEND_COMPLETION_STATUS.md](docs/archive/backend/BACKEND_COMPLETION_STATUS.md) | Backend completion status and frontend handoff (archived) | Management, frontend team |
-| [BACKEND_CHANGELOG.md](docs/governance/BACKEND_CHANGELOG.md) | Backend version history and change log | All stakeholders |
-| [FUTURE_WORK.md](docs/backend/FUTURE_WORK.md) | Deferred features and roadmap | Product team, management |
+1. [System Overview](#1-system-overview)
+2. [Repository Structure](#2-repository-structure)
+3. [Portal Architecture](#3-portal-architecture)
+4. [Quick Start](#4-quick-start)
+5. [Documentation Map](#5-documentation-map)
+6. [Current Build Status](#6-current-build-status)
+7. [Version Information](#7-version-information)
 
 ---
 
-## Quick Start
+## 1. System Overview
 
-### For Developers
+Camp Burnt Gin is a specialized camp management platform designed for the CYSHCN (Children and Youth with Special Health Care Needs) program. The system replaces legacy workflows with a structured, auditable, role-based platform.
 
-1. **Setup:** Read [SETUP.md](docs/backend/SETUP.md) for local development environment installation
-2. **Architecture:** Review [ARCHITECTURE.md](docs/backend/ARCHITECTURE.md) to understand system design
-3. **API:** Reference [API_REFERENCE.md](docs/backend/API_REFERENCE.md) for endpoint documentation
-4. **Security:** Understand [AUTHENTICATION_AND_AUTHORIZATION.md](docs/backend/AUTHENTICATION_AND_AUTHORIZATION.md) for auth implementation
+### Core Capabilities
 
-### For Security Auditors
+| Domain | Description |
+|--------|-------------|
+| Registration | Multi-section application form with auto-save, document uploads, and digital signatures |
+| Medical Records | PHI-protected medical profiles with conditional logic and provider access links |
+| Inbox | Gmail-style threaded messaging with rich text editor and floating compose |
+| Administration | Application review, session management, camper management, and reporting |
+| Audit Logging | Full audit trail for all administrative and PHI-access events |
+| User Management | Role-based access control with super-admin governance interface |
 
-1. **Security:** Start with [SECURITY.md](docs/backend/SECURITY.md) for comprehensive security documentation
-2. **Audit Report:** Review [SECURITY_AUDIT_FINAL_REPORT.md](docs/archive/backend/SECURITY_AUDIT_FINAL_REPORT.md) for audit findings
-3. **Logging:** Check [AUDIT_LOGGING.md](docs/backend/AUDIT_LOGGING.md) for PHI access audit trails
-4. **Compliance:** Verify HIPAA compliance sections in [SECURITY.md](docs/backend/SECURITY.md)
+### Technology Stack
 
-### For System Administrators
-
-1. **Deployment:** Follow [DEPLOYMENT.md](docs/backend/DEPLOYMENT.md) for production deployment
-2. **Configuration:** Reference [CONFIGURATION.md](docs/backend/CONFIGURATION.md) for environment variables
-3. **Troubleshooting:** Use [TROUBLESHOOTING.md](docs/backend/TROUBLESHOOTING.md) for common issues
-4. **Security:** Implement secret rotation per [SECURITY.md](docs/backend/SECURITY.md#secret-management-and-rotation)
-
-### For Frontend Developers
-
-1. **API:** Start with [API_OVERVIEW.md](docs/backend/API_OVERVIEW.md) for API capabilities
-2. **Reference:** Use [API_REFERENCE.md](docs/backend/API_REFERENCE.md) for detailed endpoint specs
-3. **Auth:** Implement authentication per [AUTHENTICATION_AND_AUTHORIZATION.md](docs/backend/AUTHENTICATION_AND_AUTHORIZATION.md)
-4. **Errors:** Handle errors per [ERROR_HANDLING.md](docs/backend/ERROR_HANDLING.md)
+| Layer | Technology |
+|-------|-----------|
+| Backend | Laravel 12, PHP 8.2+, MySQL 8.0, Laravel Sanctum 4.2 |
+| Frontend | React 18, TypeScript 5 (strict mode), Tailwind CSS 3, Vite 5 |
+| State Management | Redux Toolkit 2 + redux-persist (session storage) |
+| Animation | Framer Motion 12 |
+| Internationalization | i18next 25 (English and Spanish) |
+| Testing | PHPUnit (backend), Vitest (frontend) |
 
 ---
 
-## Documentation Standards
+## 2. Repository Structure
 
-All documentation in this directory adheres to the following standards:
-
-1. **Accuracy** - Documentation reflects actual backend implementation
-2. **Completeness** - No undocumented features or placeholder sections
-3. **Clarity** - Professional language without informal expressions
-4. **Consistency** - Cross-references are accurate and terminology is consistent
-5. **Currency** - Documentation is maintained and updated with code changes
-
----
-
-## Frontend Status
-
-**Important:** The frontend application has **not been developed**. The backend exposes a complete RESTful API ready for frontend integration. Frontend development is a separate effort that will consume the documented API endpoints.
-
-See [BACKEND_COMPLETION_STATUS.md](docs/archive/backend/BACKEND_COMPLETION_STATUS.md) for frontend integration readiness information.
-
----
-
-## Version Information
-
-- **Backend Version:** 1.0.0
-- **Laravel Framework:** 12.x
-- **PHP Version:** 8.2+
-- **Database:** MySQL 8.0+
-- **Documentation Last Updated:** February 2026
-
----
-
-## Contact and Support
-
-For technical questions regarding this backend system, contact the development team through the project repository issue tracker.
-
-For security concerns, follow the security reporting procedures outlined in [SECURITY.md](docs/backend/SECURITY.md).
+```
+Camp_Burnt_Gin_Project/
+├── README.md                              # This file
+├── frontend/                              # React + TypeScript application
+│   ├── FRONTEND_GUIDE.md                  # Frontend development reference
+│   └── src/
+│       ├── app/                           # Entry point and providers
+│       ├── api/                           # Axios configuration and interceptors
+│       ├── core/                          # Auth, routing, and role guards
+│       ├── features/                      # Domain feature modules
+│       ├── ui/                            # Layout components and overlays
+│       ├── shared/                        # Constants, types, hooks, utilities
+│       ├── i18n/                          # Translation files (en/es)
+│       └── assets/styles/                 # Design tokens and global CSS
+├── backend/
+│   └── camp-burnt-gin-api/                # Laravel 12 API
+│       ├── app/                           # Application code
+│       ├── database/                      # Migrations and seeders
+│       ├── routes/                        # API route definitions
+│       └── tests/                         # PHPUnit test suites
+├── docs/                                  # Canonical project documentation
+│   ├── backend/                           # Backend reference documentation
+│   ├── frontend/                          # Frontend reference documentation
+│   ├── governance/                        # Architecture decisions and changelog
+│   ├── archive/                           # Historical documents (read-only)
+│   ├── DOCUMENTATION_INDEX.md             # Complete documentation catalog
+│   └── DOCUMENTATION_GOVERNANCE.md       # Documentation standards
+├── design/
+│   └── DESIGN_SYSTEM.md                   # Design system specification
+└── DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md  # Database schema reference
+```
 
 ---
 
-**Documentation Status:** Complete and authoritative as of February 2026.
+## 3. Portal Architecture
+
+The system provides four distinct role-based portals, each with its own layout, navigation, and feature set.
+
+```mermaid
+graph LR
+    A["/ (root)"] -->|redirect| B["/login"]
+    B -->|parent role| C["/parent/dashboard"]
+    B -->|admin role| D["/admin/dashboard"]
+    B -->|medical role| E["/medical/dashboard"]
+    B -->|super_admin role| F["/super-admin/dashboard"]
+```
+
+| Portal | URL Prefix | Role | Access Scope |
+|--------|-----------|------|--------------|
+| Applicant | `/parent` | `parent` | Own campers, applications, inbox, profile |
+| Admin | `/admin` | `admin`, `super_admin` | All applications, campers, sessions, reports, inbox |
+| Medical | `/medical` | `medical` | Medical records browser (read access) |
+| Super Admin | `/super-admin` | `super_admin` | All admin features plus user management and audit log |
+
+---
+
+## 4. Quick Start
+
+### Backend
+
+```bash
+cd backend/camp-burnt-gin-api
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+```
+
+Full setup instructions: [docs/backend/SETUP.md](docs/backend/SETUP.md)
+
+### Frontend
+
+```bash
+cd frontend
+cp .env.example .env.local
+# Set VITE_API_BASE_URL=http://localhost:8000
+pnpm install
+pnpm run dev
+```
+
+Full development reference: [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md)
+
+---
+
+## 5. Documentation Map
+
+### Backend
+
+| Document | Purpose |
+|----------|---------|
+| [docs/backend/SYSTEM_OVERVIEW.md](docs/backend/SYSTEM_OVERVIEW.md) | High-level system description |
+| [docs/backend/ARCHITECTURE.md](docs/backend/ARCHITECTURE.md) | Technical architecture and design patterns |
+| [docs/backend/API_REFERENCE.md](docs/backend/API_REFERENCE.md) | Complete endpoint reference |
+| [docs/backend/AUTHENTICATION_AND_AUTHORIZATION.md](docs/backend/AUTHENTICATION_AND_AUTHORIZATION.md) | Auth and session management |
+| [docs/backend/ROLES_AND_PERMISSIONS.md](docs/backend/ROLES_AND_PERMISSIONS.md) | RBAC system and permission matrix |
+| [docs/backend/SECURITY.md](docs/backend/SECURITY.md) | Security architecture and HIPAA compliance |
+| [docs/backend/AUDIT_LOGGING.md](docs/backend/AUDIT_LOGGING.md) | PHI access audit trail implementation |
+| [docs/backend/DATA_MODEL.md](docs/backend/DATA_MODEL.md) | Database schema and entity relationships |
+| [docs/backend/APPLICATION_WORKFLOWS.md](docs/backend/APPLICATION_WORKFLOWS.md) | Application lifecycle and state transitions |
+| [docs/backend/INBOX_SYSTEM_DOCUMENTATION.md](docs/backend/INBOX_SYSTEM_DOCUMENTATION.md) | Messaging system architecture |
+| [docs/backend/SETUP.md](docs/backend/SETUP.md) | Development environment setup |
+| [docs/backend/DEPLOYMENT.md](docs/backend/DEPLOYMENT.md) | Production deployment procedures |
+| [docs/backend/TESTING.md](docs/backend/TESTING.md) | Test strategy and execution |
+
+### Frontend
+
+| Document | Purpose |
+|----------|---------|
+| [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md) | Frontend development reference (canonical) |
+| [docs/frontend/DESIGN_SYSTEM.md](docs/frontend/DESIGN_SYSTEM.md) | Design system architecture |
+| [docs/frontend/COMPONENT_GUIDE.md](docs/frontend/COMPONENT_GUIDE.md) | Component library reference |
+| [docs/frontend/README.md](docs/frontend/README.md) | Frontend module overview |
+
+### Governance
+
+| Document | Purpose |
+|----------|---------|
+| [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) | Complete documentation catalog |
+| [docs/DOCUMENTATION_GOVERNANCE.md](docs/DOCUMENTATION_GOVERNANCE.md) | Documentation standards and procedures |
+| [docs/governance/ARCHITECTURE_DECISIONS.md](docs/governance/ARCHITECTURE_DECISIONS.md) | Architectural decision records |
+| [docs/governance/BACKEND_CHANGELOG.md](docs/governance/BACKEND_CHANGELOG.md) | Backend version history |
+
+### Database
+
+| Document | Purpose |
+|----------|---------|
+| [DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md](DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md) | Complete database schema documentation |
+
+---
+
+## 6. Current Build Status
+
+Both the backend and frontend are complete and functional.
+
+| Component | Status | Detail |
+|-----------|--------|--------|
+| Backend API | Complete | 308 passing tests, 0 security vulnerabilities |
+| Frontend application | Complete | All four portals fully implemented and wired to API |
+| Authentication | Complete | Login, registration, MFA, password reset |
+| Applicant portal | Complete | Dashboard, application form, camper view, inbox, profile, settings |
+| Admin portal | Complete | Dashboard, applications, campers, sessions, reports, calendar, announcements, inbox |
+| Medical portal | Complete | Dashboard, medical records browser |
+| Super Admin portal | Complete | Dashboard, user management, audit log, form templates |
+| Messaging system | Complete | Gmail-style two-panel inbox, floating compose, rich text editor |
+| RBAC | Complete | Four roles enforced at route, middleware, and policy layers |
+| i18n | Complete | English and Spanish translations |
+| Type safety | Complete | TypeScript strict mode, 0 type errors |
+
+---
+
+## 7. Version Information
+
+| Component | Version |
+|-----------|---------|
+| Backend | 1.0.0 |
+| Frontend | 1.0.0 |
+| Laravel | 12.x |
+| PHP | 8.2+ |
+| React | 18.3 |
+| TypeScript | 5.7 |
+| MySQL | 8.0+ |
+
+---
+
+**Document Status:** Authoritative
+**Last Updated:** March 2026
+**Version:** 2.0.0

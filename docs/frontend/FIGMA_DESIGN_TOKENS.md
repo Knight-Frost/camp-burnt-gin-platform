@@ -1,9 +1,11 @@
 # Figma Design Token Specification
 
-**Document Version:** 1.0
-**Last Updated:** 2026-02-14
-**Source:** Figma Designs/Landing page/src/styles/theme.css
-**Figma Project URL:** https://www.figma.com/design/XVB5QdkYFpD53UzKKr8exy/Experiential-Camp-Website-Design
+**Document Version:** 1.1
+**Last Updated:** 2026-03-01
+**Source:** `frontend/src/assets/styles/design-tokens.css` (canonical implementation)
+**Figma Reference:** Figma Designs/Landing page/src/styles/theme.css
+
+> **Note:** The authoritative implementation of all design tokens is the CSS file `frontend/src/assets/styles/design-tokens.css`. This document provides Figma-source context. For the current token values, always refer to the CSS file directly.
 
 ---
 

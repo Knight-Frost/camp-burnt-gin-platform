@@ -81,8 +81,8 @@ The following contributions require explicit justification and enhanced review:
 
 | Responsibility | Owner |
 |----------------|-------|
-| Backend API, business logic, database | Backend team (this repository) |
-| User interface, client-side logic | Frontend team (separate repository) |
+| Backend API, business logic, database | Backend team (`backend/` directory) |
+| User interface, client-side logic | Frontend team (`frontend/` directory) |
 | Infrastructure, deployment, hosting | DevOps/Infrastructure team |
 
 Contributors must not introduce frontend concerns (views, client-side code, Blade templates) into this repository.

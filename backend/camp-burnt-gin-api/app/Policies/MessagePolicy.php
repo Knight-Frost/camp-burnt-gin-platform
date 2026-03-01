@@ -42,6 +42,11 @@ class MessagePolicy
      */
     public function create(User $user, Conversation $conversation): bool
     {
+        // System-generated conversations are read-only — no replies allowed
+        if ($conversation->is_system_generated) {
+            return false;
+        }
+
         // User must be an active participant
         if (!$conversation->hasParticipant($user)) {
             return false;

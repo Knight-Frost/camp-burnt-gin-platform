@@ -12,7 +12,7 @@
 
 import { useRef, useState, type MouseEvent } from 'react';
 import {
-  Archive, Trash2, MoreHorizontal, Star, CheckSquare, Square,
+  Archive, Trash2, MoreHorizontal, Star, CheckSquare, Square, Bot,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
@@ -33,7 +33,30 @@ const BADGE_STYLES: Record<string, { bg: string; color: string; label: string }>
   announcements: { bg: 'rgba(245,158,11,0.12)', color: '#d97706',  label: 'Announcements'},
 };
 
-function CategoryBadge({ category }: { category?: string }) {
+const SYSTEM_CATEGORY_STYLES: Record<string, { bg: string; color: string; label: string }> = {
+  application: { bg: 'rgba(22,163,74,0.12)',  color: BRAND,     label: 'Application' },
+  security:    { bg: 'rgba(239,68,68,0.12)',   color: '#dc2626', label: 'Security'    },
+  role:        { bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed', label: 'Role Change' },
+  medical:     { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb', label: 'Medical'     },
+};
+
+function CategoryBadge({ category, isSystem, systemCategory }: {
+  category?: string;
+  isSystem?: boolean;
+  systemCategory?: string;
+}) {
+  if (isSystem) {
+    const s = SYSTEM_CATEGORY_STYLES[systemCategory ?? ''] ?? { bg: 'rgba(107,114,128,0.12)', color: '#6b7280', label: 'System' };
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+        style={{ background: s.bg, color: s.color }}
+      >
+        <Bot className="h-3 w-3 flex-shrink-0" />
+        {s.label}
+      </span>
+    );
+  }
   const s = BADGE_STYLES[category ?? 'other'] ?? BADGE_STYLES.other;
   return (
     <span
@@ -117,9 +140,12 @@ export function MessageRow({
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
 
+  const isSystem   = conv.is_system_generated === true;
   const isUnread   = (conv.unread_count ?? 0) > 0;
   const others     = conv.participants.filter((p) => p.id !== currentUserId);
-  const senderName = conv.last_message?.sender?.name ?? (others[0]?.name ?? 'Unknown');
+  const senderName = isSystem
+    ? 'Camp Burnt Gin'
+    : (conv.last_message?.sender?.name ?? (others[0]?.name ?? 'Unknown'));
   const preview    = conv.last_message?.body
     ? conv.last_message.body.replace(/<[^>]*>/g, '').slice(0, 90)
     : '—';
@@ -175,8 +201,17 @@ export function MessageRow({
         />
       </button>
 
-      {/* Avatar */}
-      <Avatar name={senderName} size={36} />
+      {/* Avatar — system convs show Bot icon */}
+      {isSystem ? (
+        <div
+          className="flex items-center justify-center rounded-full flex-shrink-0"
+          style={{ width: 36, height: 36, background: 'rgba(22,163,74,0.12)' }}
+        >
+          <Bot className="h-4.5 w-4.5" style={{ color: BRAND }} />
+        </div>
+      ) : (
+        <Avatar name={senderName} size={36} />
+      )}
 
       {/* Content */}
       <div className="flex-1 min-w-0">
@@ -203,11 +238,15 @@ export function MessageRow({
 
       {/* Right side: badge + (timestamp/dot or action icons) */}
       <div className="flex items-center gap-2.5 flex-shrink-0">
-        <CategoryBadge category={conv.category} />
+        <CategoryBadge
+          category={conv.category}
+          isSystem={isSystem}
+          systemCategory={conv.system_event_category}
+        />
 
         {/* Timestamp + unread dot — hidden on hover */}
         <div className="relative flex items-center gap-2.5">
-          <div className="flex items-center gap-2.5 group-hover:opacity-0 transition-opacity duration-150">
+          <div className={`flex items-center gap-2.5 transition-opacity duration-150 ${!isSystem ? 'group-hover:opacity-0' : ''}`}>
             <time
               className="text-xs w-14 text-right tabular-nums"
               style={{ color: 'var(--muted-foreground)' }}
@@ -220,95 +259,99 @@ export function MessageRow({
             />
           </div>
 
-          {/* Action icons — visible on hover */}
-          <div
-            className="absolute right-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={(e) => onArchive(conv.id, e)}
-              title="Archive"
-              aria-label="Archive conversation"
-              className="p-1 rounded transition-colors hover:bg-[var(--border)]"
-              style={{ color: 'var(--muted-foreground)' }}
-              data-testid="row-archive-btn"
+          {/* Action icons — visible on hover, suppressed for system convs */}
+          {!isSystem && (
+            <div
+              className="absolute right-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Archive className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => onDelete(conv.id, e)}
-              title="Delete"
-              aria-label="Delete conversation"
-              className="p-1 rounded transition-colors hover:bg-[var(--border)]"
-              style={{ color: 'var(--muted-foreground)' }}
-              data-testid="row-delete-btn"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              ref={moreButtonRef}
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setMoreOpen((v) => !v); }}
-              title="More options"
-              aria-label="More options"
-              className="p-1 rounded transition-colors hover:bg-[var(--border)]"
-              style={{ color: 'var(--muted-foreground)' }}
-              data-testid="row-more-btn"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={(e) => onArchive(conv.id, e)}
+                title="Archive"
+                aria-label="Archive conversation"
+                className="p-1 rounded transition-colors hover:bg-[var(--border)]"
+                style={{ color: 'var(--muted-foreground)' }}
+                data-testid="row-archive-btn"
+              >
+                <Archive className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => onDelete(conv.id, e)}
+                title="Delete"
+                aria-label="Delete conversation"
+                className="p-1 rounded transition-colors hover:bg-[var(--border)]"
+                style={{ color: 'var(--muted-foreground)' }}
+                data-testid="row-delete-btn"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                ref={moreButtonRef}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setMoreOpen((v) => !v); }}
+                title="More options"
+                aria-label="More options"
+                className="p-1 rounded transition-colors hover:bg-[var(--border)]"
+                style={{ color: 'var(--muted-foreground)' }}
+                data-testid="row-more-btn"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* More menu popover */}
-      <Popover
-        open={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        anchorRef={moreButtonRef}
-        placement="bottom-right"
-      >
-        <div className="py-1 min-w-[168px]">
-          {isUnread ? (
+      {/* More menu popover — only for non-system convs */}
+      {!isSystem && (
+        <Popover
+          open={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          anchorRef={moreButtonRef}
+          placement="bottom-right"
+        >
+          <div className="py-1 min-w-[168px]">
+            {isUnread ? (
+              <button
+                type="button"
+                onClick={() => { onMarkRead?.(conv.id); setMoreOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Mark as read
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { onMarkUnread?.(conv.id); setMoreOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Mark as unread
+              </button>
+            )}
+            <div className="my-1 border-t" style={{ borderColor: 'var(--border)' }} />
             <button
               type="button"
-              onClick={() => { onMarkRead?.(conv.id); setMoreOpen(false); }}
+              onClick={(e) => { onArchive(conv.id, e); setMoreOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
               style={{ color: 'var(--foreground)' }}
             >
-              Mark as read
+              Archive
             </button>
-          ) : (
             <button
               type="button"
-              onClick={() => { onMarkUnread?.(conv.id); setMoreOpen(false); }}
+              onClick={(e) => { onDelete(conv.id, e); setMoreOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-              style={{ color: 'var(--foreground)' }}
+              style={{ color: 'var(--destructive)' }}
             >
-              Mark as unread
+              Delete
             </button>
-          )}
-          <div className="my-1 border-t" style={{ borderColor: 'var(--border)' }} />
-          <button
-            type="button"
-            onClick={(e) => { onArchive(conv.id, e); setMoreOpen(false); }}
-            className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-            style={{ color: 'var(--foreground)' }}
-          >
-            Archive
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { onDelete(conv.id, e); setMoreOpen(false); }}
-            className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-            style={{ color: 'var(--destructive)' }}
-          >
-            Delete
-          </button>
-        </div>
-      </Popover>
+          </div>
+        </Popover>
+      )}
     </div>
   );
 }

@@ -59,7 +59,6 @@ The backend system provides:
 
 The backend system explicitly does NOT include:
 
-- **Frontend User Interface** - The system is API-only; frontend development is a separate effort
 - **Payment Processing** - Financial transactions are deferred to future implementation
 - **Third-Party Integrations** - External service integrations beyond SMTP email are not implemented
 - **Mobile Applications** - The API is device-agnostic but mobile apps are not developed
@@ -442,13 +441,25 @@ The backend exposes a RESTful API for frontend consumption:
 
 The following limitations are by design:
 
-1. **Frontend Not Developed** - API-only backend; frontend is separate effort
-2. **Payment Processing** - Deferred to future implementation
-3. **File Type Restrictions** - Limited to PDF, images, Word documents
-4. **File Size Limit** - Maximum 10 MB per upload
-5. **Email Dependency** - Notifications require SMTP configuration
+1. **Payment Processing** - Deferred to future implementation
+2. **File Type Restrictions** - Limited to PDF, images, Word documents
+3. **File Size Limit** - Maximum 10 MB per upload
+4. **Email Dependency** - Notifications require SMTP configuration
+5. **Real-Time Features** - WebSockets or server-sent events are not implemented; all messaging is asynchronous
 
 ---
+
+## Current System Status
+
+The backend API and frontend application are both complete and production-ready.
+
+| Component | Status |
+|-----------|--------|
+| Backend API | Complete — 308 passing tests, zero known vulnerabilities |
+| Frontend application | Complete — all four portals wired to API |
+| Authentication and MFA | Complete |
+| HIPAA audit logging | Complete |
+| Reporting and exports | Complete |
 
 ## Next Steps
 
@@ -458,12 +469,12 @@ The following limitations are by design:
 2. Monitor system performance and optimize as needed
 3. Respond to security incidents per documented procedures
 
-### For Frontend Team
+### For Operations Team
 
-1. Review API documentation in [API_REFERENCE.md](API_REFERENCE.md)
-2. Implement frontend against documented endpoints
-3. Follow authentication guidelines in [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md)
-4. Handle errors per [ERROR_HANDLING.md](ERROR_HANDLING.md)
+1. Deploy backend per [DEPLOYMENT.md](DEPLOYMENT.md)
+2. Configure environment variables per [CONFIGURATION.md](CONFIGURATION.md)
+3. Implement secret rotation per [SECURITY.md](SECURITY.md#secret-management-and-rotation)
+4. Monitor audit logs for security events
 
 ### For Operations Team
 

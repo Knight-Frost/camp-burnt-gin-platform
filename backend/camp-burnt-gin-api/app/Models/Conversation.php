@@ -35,6 +35,12 @@ class Conversation extends Model
         'camp_session_id',
         'last_message_at',
         'is_archived',
+        // System notification fields
+        'is_system_generated',
+        'system_event_type',
+        'system_event_category',
+        'related_entity_type',
+        'related_entity_id',
     ];
 
     /**
@@ -45,8 +51,9 @@ class Conversation extends Model
     protected function casts(): array
     {
         return [
-            'last_message_at' => 'datetime',
-            'is_archived' => 'boolean',
+            'last_message_at'    => 'datetime',
+            'is_archived'        => 'boolean',
+            'is_system_generated' => 'boolean',
         ];
     }
 
@@ -166,6 +173,9 @@ class Conversation extends Model
 
     /**
      * Get unread message count for a specific user.
+     *
+     * Handles NULL sender_id for system-generated messages —
+     * they are always "unread" until the user opens the thread.
      */
     public function getUnreadCountForUser(User $user): int
     {
@@ -173,7 +183,10 @@ class Conversation extends Model
             ->whereDoesntHave('reads', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
-            ->where('sender_id', '!=', $user->id)
+            ->where(function ($q) use ($user) {
+                $q->whereNull('sender_id')
+                  ->orWhere('sender_id', '!=', $user->id);
+            })
             ->count();
     }
 
@@ -233,5 +246,29 @@ class Conversation extends Model
     public function scopeForCampSession($query, int $campSessionId)
     {
         return $query->where('camp_session_id', $campSessionId);
+    }
+
+    /**
+     * Scope: only system-generated (automated) notifications.
+     */
+    public function scopeSystemGenerated($query)
+    {
+        return $query->where('is_system_generated', true);
+    }
+
+    /**
+     * Scope: only user-to-user conversations (not system-generated).
+     */
+    public function scopeUserConversations($query)
+    {
+        return $query->where('is_system_generated', false);
+    }
+
+    /**
+     * Determine if this is a system-generated notification (non-replyable).
+     */
+    public function isSystemGenerated(): bool
+    {
+        return (bool) $this->is_system_generated;
     }
 }

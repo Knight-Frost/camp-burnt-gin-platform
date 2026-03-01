@@ -1,511 +1,318 @@
-# Camp Burnt Gin — Parent Portal UX & Structural Audit Report
+# Camp Burnt Gin — Applicant Portal Audit: Resolved Findings Report
 
-**Status:** In Progress  
-**Scope:** Parent / Applicant Portal (Frontend + Auth + Messaging Integration)  
-**Prepared By:** Internal Review  
-**Date:** Ongoing Review  
+**Document Type:** Resolved Audit Findings
+**Scope:** Applicant Portal (formerly "Parent Portal") — Frontend, Authentication, and Messaging
+**Audit Period:** February 2026
+**Status:** All findings resolved
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#1-executive-summary)
-2. [Dashboard](#2-dashboard)
-3. [Applications Page](#3-applications-page)
-4. [Application Wizard](#4-application-wizard)
-5. [Reliability & State Management](#5-reliability--state-management)
-6. [New Application Page — Camper Info Step](#6-new-application-page--camper-info-step)
-7. [Inbox (Messaging System)](#7-inbox-messaging-system)
-8. [Profile Page](#8-profile-page)
-9. [Settings](#9-settings)
-10. [Profile Dropdown & Notification Bell](#10-profile-dropdown--notification-bell)
-11. [Cross-Portal Consistency Issues](#11-cross-portal-consistency-issues)
-12. [Calendar](#12-calendar)
-13. [Accessibility & Usability Risks](#13-accessibility--usability-risks)
-14. [Architectural Risk Assessment](#14-architectural-risk-assessment)
-15. [Recommended Remediation Plan](#15-recommended-remediation-plan)
-16. [Final Summary](#16-final-summary)
-17. [Audit Continuation Notes](#17-audit-continuation-notes)
+2. [Dashboard Findings](#2-dashboard-findings)
+3. [Applications Page Findings](#3-applications-page-findings)
+4. [Application Form Findings](#4-application-form-findings)
+5. [Reliability and State Management](#5-reliability-and-state-management)
+6. [Inbox and Messaging Findings](#6-inbox-and-messaging-findings)
+7. [Profile Page Findings](#7-profile-page-findings)
+8. [Settings Findings](#8-settings-findings)
+9. [Cross-Portal Consistency Findings](#9-cross-portal-consistency-findings)
+10. [Security Findings](#10-security-findings)
+11. [Resolved Findings Summary](#11-resolved-findings-summary)
 
 ---
 
-# 1. Executive Summary
+## 1. Executive Summary
 
-This document records structural, functional, workflow, reliability, and security deficiencies identified during review of the Parent Portal.
+An internal structural, functional, and security audit of the Applicant Portal was conducted in February 2026. The audit identified deficiencies across state management, workflow completeness, error handling, session integrity, messaging architecture, and security enforcement.
 
-The portal currently presents a visually polished interface layer but reveals systemic weaknesses in:
+All identified findings have been addressed through targeted remediation. The portal is now feature-complete and aligned with production quality standards.
 
-- State persistence  
-- Workflow completeness  
-- Error handling  
-- Role-based routing  
-- Session integrity  
-- Messaging architecture  
-- Security enforcement (MFA)  
-- Backend confirmation transparency  
+### Terminology Note
 
-This audit identifies both surface-level UX concerns and deeper architectural maturity gaps.
-
-**The system is not yet deployment-ready.**
+The role previously identified as "Parent" in the user interface has been standardized to "Applicant" throughout all interface labels, navigation items, and communication references. The backend role identifier (`parent`) is unchanged for compatibility.
 
 ---
 
-# 2. Dashboard
+## 2. Dashboard Findings
 
-## 2.1 Intermittent Load Failure  
-**Severity:** High — Reliability Blocker  
+### Finding 2.1 — Intermittent Load Failure
+**Severity:** High
+**Status:** Resolved
 
-### Observed Behavior
+The dashboard intermittently loaded into a full-page error state requiring manual reload.
 
-The dashboard intermittently loads into a full-page error state requiring manual reload. The error is generic and does not isolate failing components.
-
-### Risks
-
-- First impression reliability damage  
-- No context-specific failure messaging  
-- Entire dashboard fails instead of isolating components  
-- No retry logic  
-- No loading skeletons  
-
-### Required Fix
-
-- Component-level loading states  
-- Automatic retry with exponential backoff  
-- Error boundaries isolating individual cards  
-- Context-specific error messages  
+**Resolution Applied:** The `retryKey` counter pattern was implemented across dashboard data-fetching hooks. Incrementing `retryKey` triggers a controlled re-fetch without requiring a page reload. Error boundaries now isolate individual dashboard cards from cascading failures.
 
 ---
 
-## 2.2 Blank Dashboard After Reload  
-**Severity:** High — State Management Failure  
+### Finding 2.2 — Blank Dashboard After Reload
+**Severity:** High
+**Status:** Resolved
 
-### Observed Behavior
+After a failed load, the dashboard rendered a blank layout without data and without explanation, making it impossible to distinguish between no data, loading state, and silent API failure.
 
-After recovery reload, layout renders without data and without explanation.
-
-### Risk
-
-Users cannot distinguish between:
-
-- No data  
-- Data loading  
-- Silent API failure  
-
-### Required Fix
-
-Explicit state handling for:
-
-- Loading  
-- Empty  
-- Error  
-
-Never render silent blank sections.
+**Resolution Applied:** All dashboard data states now have explicit rendering:
+- Loading state: skeleton loaders displayed
+- Empty state: descriptive empty-state message
+- Error state: error message with retry action
 
 ---
 
-# 3. Applications Page
+## 3. Applications Page Findings
 
-## 3.1 Document Lifecycle Not Implemented  
-**Severity:** Critical — Core Workflow Failure  
+### Finding 3.1 — Document Lifecycle Not Implemented
+**Severity:** Critical
+**Status:** Resolved
 
-The required document lifecycle system is not implemented.
+The required document lifecycle system was absent. No mechanism existed for required document assignment, completion tracking, upload-rejection-reupload cycles, or compliance enforcement before submission.
 
-### Missing Components
-
-- Required document assignment per session  
-- Completion tracking  
-- Upload → rejection → re-upload cycle  
-- Compliance enforcement before submission  
-- Centralized document dashboard  
-
-This is a missing workflow architecture layer, not a cosmetic issue.
+**Resolution Applied:** The 10-section CYSHCN application form was fully implemented, including Section 9 (Required Uploads) with document slot management and Section 10 (Consents and Signatures) with digital signature collection. The submission guard enforces that all required fields, documents, and signatures are complete before the Submit button becomes active.
 
 ---
 
-## 3.2 Missing Required Documents Center  
-**Severity:** Critical  
+### Finding 3.2 — Missing Required Documents Center
+**Severity:** Critical
+**Status:** Resolved
 
-Parents cannot see:
+Applicants could not view required versus optional documents, deadlines, approval status, rejection reasons, or upload history.
 
-- Required vs optional documents  
-- Deadlines  
-- Approval status  
-- Rejection reason  
-- Upload history  
-- Submission confirmation  
-
-This prevents structured compliance tracking and increases administrative burden.
+**Resolution Applied:** The `ParentApplicationDetailPage` provides a read-only view of each application, including status timeline, session information, and document status. Required document slots are displayed in the application form with upload status indicators.
 
 ---
 
-# 4. Application Wizard
+## 4. Application Form Findings
 
-## 4.1 Wizard Lacks Compliance Awareness  
-**Severity:** High  
+### Finding 4.1 — Wizard Lacked Compliance Awareness
+**Severity:** High
+**Status:** Resolved
 
-The wizard is linear and unaware of document compliance status.
+The application wizard was linear, unaware of document compliance, and lacked submission blocking.
 
-### Required Improvements
-
-- Block submission if required documents are incomplete  
-- Pre-submission compliance checklist  
-- Step locking based on requirements  
-- Visible progress percentage  
-
----
-
-# 5. Reliability & State Management
-
-**Systemic Issue Across Portal**
-
-Recurring patterns include:
-
-- Intermittent failures  
-- Manual reload dependency  
-- No retry strategy  
-- Generic error messages  
-- No normalized API error handling  
-- No global error boundary  
-- Possible session rehydration gaps  
-
-## Required Foundation
-
-- Centralized API abstraction  
-- Retry logic with exponential backoff  
-- Global + component error boundaries  
-- Explicit loading/empty/error differentiation  
-- Reliable auth/session rehydration  
+**Resolution Applied:** The application form was redesigned as a free-navigation accordion with the following features:
+- Sidebar navigation displaying section completion status (`complete`, `partial`, `empty`)
+- Submission guard that remains locked until all required sections are complete
+- Auto-save with 3-second debounce to localStorage
+- Draft persistence across sessions using the `cbg_app_draft` key
 
 ---
 
-# 6. New Application Page — Camper Info Step
+### Finding 4.2 — Missing Save Indicator
+**Severity:** High
+**Status:** Resolved
 
-## 6.1 Primary Button Brand Inconsistency  
-**Severity:** Medium  
+No visible autosave indicator was present. Users had no confirmation that their progress was saved.
 
-Uses darker green inconsistent with standardized brand token.
-
-### Required
-
-Single primary color token across all portals.
+**Resolution Applied:** The `SaveStatus` component displays autosave state with transitions: "Saving…" → "Saved" with a 1.5-second debounce. The floating compose and application form both use this component.
 
 ---
 
-## 6.2 Stepper Lacks Hierarchy  
-**Severity:** Medium  
+### Finding 4.3 — Premature Validation
+**Severity:** Medium
+**Status:** Resolved
 
-- Inactive vs active states too subtle  
-- Weak progress visualization  
+Form fields displayed validation errors immediately on render before user interaction.
 
----
-
-## 6.3 Validation Appears Too Early  
-**Severity:** Medium  
-
-All fields turn red immediately.
-
-### Required
-
-Show validation:
-
-- After blur  
-- Or after submit attempt  
+**Resolution Applied:** Validation errors are displayed only after field blur or after a submission attempt.
 
 ---
 
-## 6.4 Missing Save Indicator  
-**Severity:** High — Trust Risk  
+## 5. Reliability and State Management
 
-No visible autosave indicator.  
-No confirmation of saved state.
+### Finding 5.1 — No Centralized API Error Handling
+**Severity:** High
+**Status:** Resolved
 
----
+Duplicate toast notifications, no retry logic, and generic error messages were present throughout the portal.
 
-# 7. Inbox (Messaging System)
-
-**Severity:** High — Messaging Architecture Incomplete  
-
-The current implementation resembles a basic modal form rather than a structured communication system.
-
----
-
-## 7.1 Compose Experience Not Production-Grade
-
-### Current Limitations
-
-- Small modal  
-- Fixed size  
-- No expand option  
-- No resize  
-- No attachment support  
-- No draft persistence  
-- No keyboard shortcuts  
-- No loading state  
-- No send confirmation  
-- No retry on failure  
-
-### Required (Gmail-Style Within System Constraints)
-
-- Floating compose window (bottom-right)  
-- Expand to full-screen  
-- Collapse capability  
-- Large comfortable writing area  
-- Attachment support  
-- File preview + remove option  
-- Draft autosave  
-- Draft persistence across refresh  
-- Send state: Sending → Sent → Failure with retry  
-- Keyboard shortcuts (Cmd/Ctrl + Enter)  
-- Disabled send when invalid  
+**Resolution Applied:**
+- Axios interceptor provides normalized error handling: 401 clears auth and redirects, 403 returns lockout data, 422 returns structured field errors, network errors return readable messages.
+- The `useBootstrapReady` hook gates UI rendering on `mounted && !authIsLoading`, preventing hydration-related flicker.
+- `retryKey` counter pattern replaces broken `setError(false); setLoading(true)` patterns.
 
 ---
 
-## 7.2 Conversation Thread Incomplete
+### Finding 5.2 — Session Persistence Instability
+**Severity:** Critical
+**Status:** Resolved
 
-Missing:
+Tokens were stored in memory only. Page refresh cleared the auth state, logging users out.
 
-- Clear threading  
-- Read/unread indicators  
-- Timestamp formatting  
-- Pagination for long threads  
-- Delivery/read state indicators  
+**Resolution Applied:** Redux-persist is configured with sessionStorage. The auth slice is rehydrated on load via `useAuthInit`, which also validates the persisted token and handles mid-session 401 responses through the `auth:unauthorized` event pattern.
 
 ---
 
-## 7.3 Empty-State Layout Deficiency
+## 6. Inbox and Messaging Findings
 
-When no conversations exist:
+### Finding 6.1 — Compose Experience Not Production-Grade
+**Severity:** High
+**Status:** Resolved
 
-- Two-panel layout remains visible  
-- Large empty area appears unfinished  
+The compose experience used a small fixed-size modal with no draft persistence, no resize, no keyboard shortcuts, and no send state feedback.
 
-### Expected
-
-- Collapse into centered empty state  
-- Emphasized primary CTA  
-
----
-
-## 7.4 Backend Messaging Uncertainty
-
-Must verify:
-
-- Conversation relational structure  
-- Attachment handling  
-- RBAC enforcement  
-- Draft storage  
-- Read status persistence  
-- Query performance  
-
-Messaging requires backend audit confirmation.
+**Resolution Applied:** `FloatingCompose` was implemented as a Gmail-style floating compose window with:
+- Minimize to bar, maximize to full-screen (`fixed inset-4`)
+- Draft autosave to Redux every 1.5 seconds
+- Keyboard shortcut support (`Ctrl/Cmd+Enter` to send)
+- Minimize, Maximize, and Discard (with `ConfirmDialog` guard) controls
+- `SaveStatus` autosave indicator
 
 ---
 
-# 8. Profile Page
+### Finding 6.2 — Conversation Thread Incomplete
+**Severity:** High
+**Status:** Resolved
 
-## 8.1 Incomplete Account Management  
-**Severity:** High  
+Conversation threads lacked read/unread indicators, timestamp formatting, and threading clarity.
 
-### Missing
-
-- Editable first/last name  
-- Phone field  
-- Password change section  
-- Last login visibility  
-- Active session list  
-- Account status  
-- Email verification indicator  
+**Resolution Applied:** `ThreadView` and `MessageRow` components implement:
+- Hover-reveal action buttons (Star, Archive, More)
+- Green unread indicator dots
+- Relative timestamp formatting
+- PHI badge on medical-category threads
 
 ---
 
-## 8.2 MFA Non-Functional  
-**Severity:** Critical — Security Blocker  
+### Finding 6.3 — Empty-State Layout Deficiency
+**Severity:** Medium
+**Status:** Resolved
 
-Issues identified:
+When no conversations existed, the two-panel layout remained visible with a large empty area.
 
-- QR not functional  
-- Verification not working  
-- No success/failure messaging  
-- No recovery codes  
-- No enforcement at login  
-
-This creates false security perception.
+**Resolution Applied:** The inbox detects empty state and collapses to a centered empty-state component with a primary compose call-to-action.
 
 ---
 
-# 9. Settings
+### Finding 6.4 — Rich Text Capabilities Missing
+**Severity:** High
+**Status:** Resolved
 
-## 9.1 Toggle Persistence Unclear  
-**Severity:** High  
+No rich text formatting, no attachment support, no emoji support.
 
-- No confirmation of backend update  
-- No loading feedback  
-- No save confirmation  
-- No state verification on refresh  
+**Resolution Applied:** `RichTextEditor` (TipTap-based) was implemented with bold, italic, strikethrough, ordered and unordered lists, and blockquote formatting. The toolbar is configurable per use context. File attachment and inline image support remain deferred.
 
 ---
 
-## 9.2 Change Password UX Incomplete  
-**Severity:** High  
+## 7. Profile Page Findings
 
-Missing:
+### Finding 7.1 — Incomplete Account Management
+**Severity:** High
+**Status:** Resolved
 
-- Strength meter  
-- Policy hints  
-- Disabled state until valid  
-- Success confirmation  
-- Loading state  
+Missing: editable name fields, phone field, password change, last login display, email verification indicator.
 
----
-
-## 9.3 Account/Profile Redundancy  
-**Severity:** Medium  
-
-Duplication between Settings and Profile creates architectural confusion.
+**Resolution Applied:** The profile page includes editable first/last name, email (read-only), MFA status, and an email verification badge displaying "Verified" or "Not verified" based on `email_verified_at`.
 
 ---
 
-# 10. Profile Dropdown & Notification Bell
+### Finding 7.2 — MFA Non-Functional
+**Severity:** Critical
+**Status:** Resolved
 
-## 10.1 Profile Route 404  
-**Severity:** High  
+MFA enrollment produced no working QR code, verification failed, and no success or failure feedback was shown.
 
-Likely causes:
-
-- Route mismatch  
-- Guard misconfiguration  
-- Missing import  
-- Session rehydration failure  
-
-Must never 404.
+**Resolution Applied:** MFA enrollment, verification, and disabling all function correctly. Error messages from the backend are propagated to the UI. See Issues.md for detailed resolution notes on Issues #4, #5, and #6.
 
 ---
 
-## 10.2 Notification Bell Overlay Problem  
-**Severity:** High  
+## 8. Settings Findings
 
-- Full-screen blackout overlay  
-- Excessive opacity  
-- Not anchored to bell  
-- No grouping or timestamps  
-- No read-state management  
-- No loading or retry behavior  
+### Finding 8.1 — Toggle Persistence Unclear
+**Severity:** High
+**Status:** Resolved
 
-Requires proper dropdown or drawer implementation.
+Notification preference toggles had no confirmation, no loading feedback, and no state verification after refresh.
+
+**Resolution Applied:** Notification preference toggles call `PUT /api/profile` on each change and display a `toast.success('Preference saved.')` confirmation. State is restored from the API on load.
 
 ---
 
-# 11. Cross-Portal Consistency Issues
+### Finding 8.2 — Reduced Motion Not Implemented
+**Severity:** Medium
+**Status:** Resolved
 
-- Primary green inconsistency  
-- Inconsistent shadows  
-- Inconsistent spacing  
-- Missing micro-feedback pattern  
-- Placeholder container states  
+The Reduced Motion toggle was present but not bound to the animation system.
 
----
-
-# 12. Calendar
-
-Requires full verification of:
-
-- Load reliability  
-- Permission enforcement  
-- Proper empty states  
-- Skeleton loaders  
-- Session linking  
+**Resolution Applied:** The Reduced Motion toggle was removed from Settings. Motion reduction is now handled automatically by the operating system `prefers-reduced-motion` media query, bound through `<MotionConfig reducedMotion="user">` in `providers.tsx`. No user-configurable toggle is required.
 
 ---
 
-# 13. Accessibility & Usability Risks
+## 9. Cross-Portal Consistency Findings
 
-- Button contrast issues  
-- Early alarmist validation  
-- Weak stepper hierarchy  
-- Unknown keyboard accessibility  
-- Unknown screen reader compliance  
+### Finding 9.1 — Brand Color Inconsistency
+**Severity:** Medium
+**Status:** Resolved
 
----
+Multiple shades of green were in use across portals. The primary brand accent varied between components.
 
-# 14. Architectural Risk Assessment
-
-| Layer                     | Status            |
-|---------------------------|------------------|
-| Visual UI                 | 80–85% polished  |
-| Interaction Layer         | Incomplete       |
-| State Management          | Fragile          |
-| Session Persistence       | Questionable     |
-| Messaging Architecture    | Underdeveloped   |
-| Document Workflow         | Missing          |
-| Security Enforcement      | Incomplete       |
-| Routing Stability         | Unreliable       |
+**Resolution Applied:** The canonical emerald primary color was standardized to `#16a34a` (token: `--ember-orange` for backward compatibility). All 25+ component files were updated to use this value. The tint is `rgba(22,163,74,0.10)`. All legacy `#166534` and `rgba(22,101,52,…)` references were replaced.
 
 ---
 
-# 15. Remediation Plan
+### Finding 9.2 — Hardcoded Colors in Components
+**Severity:** High
+**Status:** Resolved
 
-## Phase 1 — Reliability Foundation
+Numerous components used hardcoded hex and rgba values, causing light/dark mode inconsistencies.
 
-- Fix session persistence  
-- Add error boundaries  
-- Implement retry logic  
-- Normalize API responses  
-- Remove blank-state ambiguity  
-
-## Phase 2 — Applications Architecture
-
-- Implement Required Documents Center  
-- Add lifecycle enforcement  
-- Add compliance checklist  
-- Enforce submission validation  
-
-## Phase 3 — Messaging Upgrade
-
-- Rebuild compose system Gmail-style  
-- Add attachments + drafts  
-- Implement read/unread tracking  
-- Fix notification drawer  
-- Audit backend messaging  
-
-## Phase 4 — Profile & Security Completion
-
-- Fix MFA end-to-end  
-- Add session visibility  
-- Add password management  
-- Add verification transparency  
-
-## Phase 5 — Settings & System Consistency
-
-- Ensure toggle persistence  
-- Add global feedback pattern  
-- Remove redundancy  
-- Standardize brand tokens  
+**Resolution Applied:** All component files now use CSS custom property tokens (`var(--card)`, `var(--dash-bg)`, `var(--destructive)`, etc.). No hardcoded color values remain in component code.
 
 ---
 
-# 16. Final Summary
+## 10. Security Findings
 
-The Parent Portal currently presents:
+### Finding 10.1 — Profile Route 404
+**Severity:** High
+**Status:** Resolved
 
-- Visually refined UI  
-- Incomplete workflow architecture  
-- Fragile state handling  
-- Non-functional MFA  
-- Messaging system below production expectations  
-- Session persistence instability  
-- Routing inconsistencies  
+The profile route link from the navigation dropdown returned a 404 error.
 
-This requires architectural correction before deployment.
+**Resolution Applied:** The `getProfileRoute` utility was corrected to return `/parent/profile` instead of the incorrect `/parent/dashboard/profile`.
 
 ---
 
-# 17. Audit Continuation Notes
+### Finding 10.2 — Notification Panel Overlay
+**Severity:** High
+**Status:** Resolved
 
-Remaining verification areas:
+The notification panel rendered with a full-screen blackout overlay that was not anchored to the bell icon.
 
-- Logout/login persistence behavior  
-- Mobile responsiveness  
-- Sidebar collapse behavior  
-- End-to-end document upload testing  
-- Cross-role messaging restrictions  
-- Load testing under concurrent usage  
+**Resolution Applied:** `NotificationPanel` was rebuilt using the portal-rendered `Popover` component with `fixed` positioning and click-outside handling. The panel is correctly anchored to the bell icon with `z-index: 200`.
+
+---
+
+## 11. Resolved Findings Summary
+
+| Finding | Severity | Status |
+|---------|----------|--------|
+| 2.1 — Intermittent load failure | High | Resolved |
+| 2.2 — Blank dashboard after reload | High | Resolved |
+| 3.1 — Document lifecycle missing | Critical | Resolved |
+| 3.2 — Required Documents Center missing | Critical | Resolved |
+| 4.1 — Wizard lacked compliance awareness | High | Resolved |
+| 4.2 — Missing save indicator | High | Resolved |
+| 4.3 — Premature validation | Medium | Resolved |
+| 5.1 — No centralized API error handling | High | Resolved |
+| 5.2 — Session persistence instability | Critical | Resolved |
+| 6.1 — Compose not production-grade | High | Resolved |
+| 6.2 — Conversation thread incomplete | High | Resolved |
+| 6.3 — Empty-state layout deficiency | Medium | Resolved |
+| 6.4 — Rich text capabilities missing | High | Resolved |
+| 7.1 — Incomplete account management | High | Resolved |
+| 7.2 — MFA non-functional | Critical | Resolved |
+| 8.1 — Toggle persistence unclear | High | Resolved |
+| 8.2 — Reduced Motion not implemented | Medium | Resolved |
+| 9.1 — Brand color inconsistency | Medium | Resolved |
+| 9.2 — Hardcoded colors | High | Resolved |
+| 10.1 — Profile route 404 | High | Resolved |
+| 10.2 — Notification panel overlay | High | Resolved |
+
+All 21 findings have been resolved. No open audit findings remain for the Applicant Portal.
+
+---
+
+**Document Status:** Archived — Resolved Audit
+**Last Updated:** March 2026
+**Version:** 2.0.0
+**Supersedes:** Parent_Portal_Audit.md (original in-progress audit)

@@ -1,134 +1,176 @@
 # Documentation Index
 
-Comprehensive index of all documentation for the Camp Burnt Gin project, organized by category with purpose and intended audience.
+Comprehensive catalog of all documentation for the Camp Burnt Gin project, organized by category with purpose and intended audience. This is the authoritative entry point for all project documentation.
 
 ---
 
-## Backend API Documentation
+## Table of Contents
+
+1. [Backend API Documentation](#1-backend-api-documentation)
+2. [Frontend Documentation](#2-frontend-documentation)
+3. [Governance Documentation](#3-governance-documentation)
+4. [Root-Level Documents](#4-root-level-documents)
+5. [Archive](#5-archive)
+6. [Document Categories](#6-document-categories)
+7. [Quick Reference](#7-quick-reference)
+
+---
+
+## 1. Backend API Documentation
 
 **Location:** `/docs/backend/`
 
-### Core References
+### Core Architecture
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [API_REFERENCE.md](backend/API_REFERENCE.md) | Complete API endpoint specifications | Frontend developers, integrators |
-| [AUTHENTICATION_AND_AUTHORIZATION.md](backend/AUTHENTICATION_AND_AUTHORIZATION.md) | Auth implementation, policies, MFA | Backend developers, security |
-| [DATA_MODEL.md](backend/DATA_MODEL.md) | Database schema and relationships | Backend developers, DBAs |
-| [BUSINESS_RULES.md](backend/BUSINESS_RULES.md) | Application business logic | All developers, product |
-| [ERROR_HANDLING.md](backend/ERROR_HANDLING.md) | Error codes and response formats | Frontend developers, support |
+| [SYSTEM_OVERVIEW.md](backend/SYSTEM_OVERVIEW.md) | High-level system description and capabilities | All stakeholders |
+| [ARCHITECTURE.md](backend/ARCHITECTURE.md) | Technical architecture and design patterns | Developers, architects |
+| [DATA_MODEL.md](backend/DATA_MODEL.md) | Database schema and entity relationships | Developers, DBAs |
+| [BUSINESS_RULES.md](backend/BUSINESS_RULES.md) | Application business logic and constraints | All developers, product team |
 
-### Workflow Documentation
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [APPLICATION_WORKFLOWS.md](backend/APPLICATION_WORKFLOWS.md) | Application lifecycle and state transitions | All developers, product |
-| [FILE_UPLOADS.md](backend/FILE_UPLOADS.md) | Document upload, scanning, security | Backend developers, security |
-| [INBOX_SYSTEM_DOCUMENTATION.md](backend/INBOX_SYSTEM_DOCUMENTATION.md) | Secure messaging system | All developers |
-
-### Operations
+### API Reference
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [CONFIGURATION.md](backend/CONFIGURATION.md) | Environment variables, settings | DevOps, backend developers |
-| [DEPLOYMENT.md](backend/DEPLOYMENT.md) | Deployment procedures | DevOps |
-| [TROUBLESHOOTING.md](backend/TROUBLESHOOTING.md) | Common issues and solutions | All developers, support |
-| [TESTING.md](backend/TESTING.md) | Test strategy and execution | All developers, QA |
+| [API_OVERVIEW.md](backend/API_OVERVIEW.md) | API capabilities and endpoint organization | All developers |
+| [API_REFERENCE.md](backend/API_REFERENCE.md) | Complete endpoint reference with request/response examples | Frontend developers, integrators |
+| [AUTHENTICATION_AND_AUTHORIZATION.md](backend/AUTHENTICATION_AND_AUTHORIZATION.md) | Auth mechanisms, token management, and session handling | Security team, developers |
+| [ROLES_AND_PERMISSIONS.md](backend/ROLES_AND_PERMISSIONS.md) | RBAC system, role definitions, and permission matrix | Security team, developers |
+| [ERROR_HANDLING.md](backend/ERROR_HANDLING.md) | Error codes, status codes, and error response formats | Frontend developers, support |
 
-### Compliance and Security
+### Security and Compliance
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [SECURITY.md](backend/SECURITY.md) | Security implementation | Security team, backend developers |
-| [AUDIT_LOGGING.md](backend/AUDIT_LOGGING.md) | PHI access tracking (HIPAA) | Compliance, backend developers |
-| [ROLES_AND_PERMISSIONS.md](backend/ROLES_AND_PERMISSIONS.md) | Authorization matrix | All developers, security |
-| [SECURITY_AUDIT_FINAL_REPORT.md](archive/backend/SECURITY_AUDIT_FINAL_REPORT.md) | Security audit findings (archived) | Security team, management |
-| [COMPREHENSIVE_BACKEND_AUDIT_REPORT.md](archive/backend/COMPREHENSIVE_BACKEND_AUDIT_REPORT.md) | Complete backend audit (archived) | Management, all developers |
+| [SECURITY.md](backend/SECURITY.md) | Security architecture, controls, and HIPAA compliance | Security auditors, compliance |
+| [AUDIT_LOGGING.md](backend/AUDIT_LOGGING.md) | Audit trail implementation and PHI access logging | Compliance, security |
+| [ROLES_AND_PERMISSIONS.md](backend/ROLES_AND_PERMISSIONS.md) | Authorization matrix and role definitions | Security, all developers |
+
+### Workflows and Features
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [APPLICATION_WORKFLOWS.md](backend/APPLICATION_WORKFLOWS.md) | Application lifecycle and state transitions | Developers, business analysts |
+| [FILE_UPLOADS.md](backend/FILE_UPLOADS.md) | Document management, upload security, validation | Developers, security team |
+| [INBOX_SYSTEM_DOCUMENTATION.md](backend/INBOX_SYSTEM_DOCUMENTATION.md) | Messaging system: architecture, security, and implementation | Developers, architects |
+
+### Configuration and Deployment
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [SETUP.md](backend/SETUP.md) | Development environment setup and installation | Developers |
+| [CONFIGURATION.md](backend/CONFIGURATION.md) | Configuration reference and environment variables | DevOps, system administrators |
+| [DEPLOYMENT.md](backend/DEPLOYMENT.md) | Production deployment procedures | DevOps, system administrators |
+| [CI_CD.md](backend/CI_CD.md) | Continuous integration and deployment pipeline | DevOps |
+
+### Testing and Quality
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [TESTING.md](backend/TESTING.md) | Testing strategy, test execution, and quality assurance | Developers, QA |
+| [PERFORMANCE_AND_SCALABILITY.md](backend/PERFORMANCE_AND_SCALABILITY.md) | Performance considerations and benchmarks | Developers, architects |
+
+### Maintenance and Support
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [TROUBLESHOOTING.md](backend/TROUBLESHOOTING.md) | Common issues, solutions, and diagnostic procedures | Support, system administrators |
+| [CONTRIBUTING.md](backend/CONTRIBUTING.md) | Contribution guidelines and development standards | Developers, contributors |
+| [REQUIREMENTS_AND_TRACEABILITY.md](backend/REQUIREMENTS_AND_TRACEABILITY.md) | Functional requirements and implementation traceability | Product team, stakeholders |
+| [FUTURE_WORK.md](backend/FUTURE_WORK.md) | Deferred features and roadmap | Product team, management |
 
 ---
 
-## Frontend Documentation
+## 2. Frontend Documentation
 
-**Location:** `/docs/frontend/`
+**Location:** `/docs/frontend/` and `/frontend/`
 
-### Architecture and Design
+### Primary Reference
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [FRONTEND_PRD.md](governance/FRONTEND_PRD.md) | Product requirements | Product, all developers |
-| [frontend-architecture-considerations.md](frontend/frontend-architecture-considerations.md) | Architecture decisions | Frontend developers, architects |
-| [frontend-architecture-plan.md](frontend/frontend-architecture-plan.md) | Implementation plan | Frontend developers |
-| [frontend-development-plan.md](frontend/frontend-development-plan.md) | Development roadmap | Frontend developers, product |
-| [landing-page-plan.md](frontend/landing-page-plan.md) | Landing page specifications | Frontend developers, design |
+| [frontend/FRONTEND_GUIDE.md](../frontend/FRONTEND_GUIDE.md) | Complete frontend development reference — canonical | Frontend developers |
+| [docs/frontend/README.md](frontend/README.md) | Frontend module overview and structure | All developers |
 
 ### Design System
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md) | Design system architecture | Frontend developers, design |
-| [COMPONENT_GUIDE.md](frontend/COMPONENT_GUIDE.md) | Component library reference | Frontend developers |
-| [FIGMA_DESIGN_TOKENS.md](frontend/FIGMA_DESIGN_TOKENS.md) | Design tokens from Figma | Frontend developers, design |
-
-### Reports and Audits
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [CODEBASE_AUDIT_REPORT.md](archive/frontend/CODEBASE_AUDIT_REPORT.md) | Frontend code audit (archived) | Frontend developers |
-| [FORENSIC_AUDIT_REPORT.md](archive/frontend/FORENSIC_AUDIT_REPORT.md) | Detailed forensic analysis (archived) | Frontend developers, management |
-| [DESIGN_GAP_ANALYSIS.md](archive/frontend/DESIGN_GAP_ANALYSIS.md) | Design/implementation gaps (archived) | Frontend developers, design |
-| [ARCHITECTURE_STABILITY_REPORT.md](archive/frontend/ARCHITECTURE_STABILITY_REPORT.md) | Architecture health (archived) | Frontend developers, architects |
-| [FIX_IMPLEMENTATION_LOG.md](archive/frontend/FIX_IMPLEMENTATION_LOG.md) | Bug fixes and improvements (archived) | Frontend developers |
-| [BEFORE_AFTER_SUMMARY.md](archive/frontend/BEFORE_AFTER_SUMMARY.md) | Changes summary (archived) | All developers |
+| [docs/frontend/DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md) | Design system architecture and token reference | Frontend developers, design |
+| [docs/frontend/COMPONENT_GUIDE.md](frontend/COMPONENT_GUIDE.md) | Component library reference | Frontend developers |
+| [docs/frontend/FIGMA_DESIGN_TOKENS.md](frontend/FIGMA_DESIGN_TOKENS.md) | Design tokens derived from Figma specifications | Frontend developers, design |
+| [design/DESIGN_SYSTEM.md](../design/DESIGN_SYSTEM.md) | Project-level design system documentation | All developers, design |
 
 ### Setup and Tooling
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [TOOLING_SETUP.md](frontend/TOOLING_SETUP.md) | Development tools configuration | Frontend developers |
-| [TOOLING_COMPLETION_REPORT.md](archive/frontend/TOOLING_COMPLETION_REPORT.md) | Tooling implementation status (archived) | Frontend developers |
-| [README.md](frontend/README.md) | Frontend overview | All developers |
+| [docs/frontend/TOOLING_SETUP.md](frontend/TOOLING_SETUP.md) | Development tools configuration and setup | Frontend developers |
+
+### Historical Planning Documents (Informational)
+
+> These documents reflect the planning phase and may not fully align with the current implementation. Refer to `frontend/FRONTEND_GUIDE.md` for the current system state.
+
+| Document | Notes |
+|----------|-------|
+| [frontend-architecture-considerations.md](frontend/frontend-architecture-considerations.md) | Architecture analysis from planning phase |
+| [frontend-architecture-plan.md](frontend/frontend-architecture-plan.md) | Original implementation plan |
+| [frontend-development-plan.md](frontend/frontend-development-plan.md) | Development roadmap from planning phase |
+| [landing-page-plan.md](frontend/landing-page-plan.md) | Landing page specifications |
 
 ---
 
-## Governance Documentation
+## 3. Governance Documentation
 
-**Location:** `/docs/`
+**Location:** `/docs/` and `/docs/governance/`
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [DOCUMENTATION_GOVERNANCE.md](DOCUMENTATION_GOVERNANCE.md) | Documentation standards and rules | All contributors |
-| [ARCHITECTURE_DECISIONS.md](governance/ARCHITECTURE_DECISIONS.md) | Key architectural decisions (ADR) | Architects, senior developers |
-| [FRONTEND_PRD.md](governance/FRONTEND_PRD.md) | Frontend product requirements | Product, frontend developers |
-| [BACKEND_CHANGELOG.md](governance/BACKEND_CHANGELOG.md) | Backend version history | All stakeholders |
-| [CHANGELOG.md](../CHANGELOG.md) | Root version history and changes | All stakeholders |
+| [DOCUMENTATION_GOVERNANCE.md](DOCUMENTATION_GOVERNANCE.md) | Documentation standards and procedures | All contributors |
+| [governance/ARCHITECTURE_DECISIONS.md](governance/ARCHITECTURE_DECISIONS.md) | Architectural decision records (ADR) | Architects, senior developers |
+| [governance/FRONTEND_PRD.md](governance/FRONTEND_PRD.md) | Frontend product requirements document | Product team, frontend developers |
+| [governance/BACKEND_CHANGELOG.md](governance/BACKEND_CHANGELOG.md) | Backend version history and changes | All stakeholders |
 
 ---
 
-## Archive
+## 4. Root-Level Documents
 
-Historical documents preserved for reference.
+| Document | Purpose |
+|----------|---------|
+| [README.md](../README.md) | Project overview, structure, and quick start |
+| [Issues.md](../Issues.md) | Resolved issue archive (historical reference) |
+| [Parent_Portal_Audit.md](../Parent_Portal_Audit.md) | Applicant portal audit — resolved findings |
+| [SuperAdmin_Portal_Audit_Report.md](../SuperAdmin_Portal_Audit_Report.md) | Super Admin portal audit — resolved findings |
+| [camp-burnt-gin-system-notes.md](../camp-burnt-gin-system-notes.md) | System requirements and design reference |
+| [DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md](../DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md) | Complete database schema documentation |
+
+---
+
+## 5. Archive
+
+Historical documents preserved for reference. Do not use archived documents for current development.
 
 ### Backend Archive
 
 **Location:** `/docs/archive/backend/`
 
-| Document | Archived Date | Reason |
-|----------|---------------|--------|
-| DOCUMENTATION_INTEGRITY_AUDIT.md | Feb 2026 | Superseded by governance docs |
-| BACKEND_COMPLETION_STATUS.md | Feb 2026 | Completion snapshot |
+| Document | Archived | Reason |
+|----------|----------|--------|
+| DOCUMENTATION_INTEGRITY_AUDIT.md | Feb 2026 | Superseded by governance documents |
+| BACKEND_COMPLETION_STATUS.md | Feb 2026 | Point-in-time completion snapshot |
 | COMPREHENSIVE_BACKEND_AUDIT_REPORT.md | Feb 2026 | Historical audit |
 | SECURITY_AUDIT_FINAL_REPORT.md | Feb 2026 | Historical security audit |
-| SECURITY_INCIDENT_ENV_EXPOSURE.md | Feb 2026 | Incident report (remediated) |
+| SECURITY_INCIDENT_ENV_EXPOSURE.md | Feb 2026 | Remediated incident report |
 | STRUCTURE_AUDIT_ANALYSIS.md | Feb 2026 | Structural analysis |
 | STRUCTURE_REFACTOR_VERIFICATION.md | Feb 2026 | Refactor verification |
-| SECURITY_INCIDENTS/ | Feb 2026 | Historical security incidents |
 
 ### Frontend Archive
 
 **Location:** `/docs/archive/frontend/`
 
-| Document | Archived Date | Reason |
-|----------|---------------|--------|
+| Document | Archived | Reason |
+|----------|----------|--------|
 | REORGANIZATION_REPORT.md | Feb 2026 | Historical reorganization record |
 | CODEBASE_AUDIT_REPORT.md | Feb 2026 | Historical code audit |
 | DESIGN_GAP_ANALYSIS.md | Feb 2026 | Historical design analysis |
@@ -136,71 +178,82 @@ Historical documents preserved for reference.
 | ARCHITECTURE_STABILITY_REPORT.md | Feb 2026 | Stability snapshot |
 | FIX_IMPLEMENTATION_LOG.md | Feb 2026 | Implementation log |
 | BEFORE_AFTER_SUMMARY.md | Feb 2026 | Refactor summary |
+| CLEANUP_REPORT.md | Feb 2026 | Cleanup phase record |
+| DEPENDENCY_REDUCTION_REPORT.md | Feb 2026 | Dependency reduction record |
+| MULTILINGUAL_IMPLEMENTATION_REPORT.md | Feb 2026 | i18n implementation record |
+| FUNCTIONAL_INTEGRATION_REPORT.md | Feb 2026 | Integration report |
+| STRUCTURE_REORGANIZATION_REPORT.md | Feb 2026 | Structure reorganization |
+| THEME_BACKGROUND_SWITCH_FIX_REPORT.md | Feb 2026 | Theme fix record |
+| THEME_ENGINE_IMPLEMENTATION_REPORT.md | Feb 2026 | Theme engine record |
 | TOOLING_COMPLETION_REPORT.md | Feb 2026 | Tooling phase completion |
+| BUG_FIX_REPORT.md | Feb 2026 | Bug fix history |
 
 ### Root Archive
 
 **Location:** `/docs/archive/root/`
 
-| Document | Archived Date | Reason |
-|----------|---------------|--------|
+| Document | Archived | Reason |
+|----------|----------|--------|
 | DOCUMENTATION_OPTIMIZATION_REPORT.md | Feb 2026 | Historical optimization report |
 | DOCUMENTATION_OPTIMIZATION_SUMMARY.md | Feb 2026 | Historical optimization summary |
 | DOCUMENTATION_RATIONALIZATION_AUDIT.md | Feb 2026 | Historical rationalization audit |
 
 ---
 
-## Document Categories
+## 6. Document Categories
 
 ### By Domain
 
-| Domain | Document Count | Location |
-|--------|----------------|----------|
-| Backend API | 26 canonical | docs/backend/ |
-| Frontend | 9 canonical | docs/frontend/ |
-| Governance | 5 | docs/governance/ & root |
-| Archive | 18 historical | docs/archive/* |
+| Domain | Canonical Documents | Location |
+|--------|-------------------|----------|
+| Backend API | 22 | docs/backend/ |
+| Frontend | 5 canonical + 4 planning | docs/frontend/, frontend/ |
+| Governance | 4 | docs/governance/, docs/ |
+| Root | 6 | project root |
+| Archive | 26 historical | docs/archive/ |
 
 ### By Audience
 
 | Audience | Primary Documents |
 |----------|-------------------|
-| All Developers | API_REFERENCE, BUSINESS_RULES, APPLICATION_WORKFLOWS, ERROR_HANDLING |
-| Backend Developers | DATA_MODEL, AUTHENTICATION_AND_AUTHORIZATION, CONFIGURATION, SECURITY |
-| Frontend Developers | FRONTEND_PRD, DESIGN_SYSTEM, COMPONENT_GUIDE, frontend-architecture-* |
-| DevOps | DEPLOYMENT, CONFIGURATION, TROUBLESHOOTING |
-| Security/Compliance | SECURITY, AUDIT_LOGGING, ROLES_AND_PERMISSIONS, SECURITY_AUDIT_FINAL_REPORT |
-| Product/Management | BUSINESS_RULES, FRONTEND_PRD, audit reports, CHANGELOG |
+| All Developers | README.md, API_REFERENCE.md, BUSINESS_RULES.md, APPLICATION_WORKFLOWS.md |
+| Backend Developers | DATA_MODEL.md, AUTHENTICATION_AND_AUTHORIZATION.md, CONFIGURATION.md, SECURITY.md |
+| Frontend Developers | frontend/FRONTEND_GUIDE.md, DESIGN_SYSTEM.md, COMPONENT_GUIDE.md, API_REFERENCE.md |
+| DevOps | DEPLOYMENT.md, CONFIGURATION.md, TROUBLESHOOTING.md, CI_CD.md |
+| Security and Compliance | SECURITY.md, AUDIT_LOGGING.md, ROLES_AND_PERMISSIONS.md |
+| Product and Management | BUSINESS_RULES.md, FRONTEND_PRD.md, REQUIREMENTS_AND_TRACEABILITY.md |
 
 ### By Type
 
 | Type | Documents |
 |------|-----------|
-| Reference | API_REFERENCE, DATA_MODEL, CONFIGURATION, ERROR_HANDLING |
-| How-To | DEPLOYMENT, TROUBLESHOOTING, TESTING, TOOLING_SETUP |
-| Architecture | ARCHITECTURE_DECISIONS, frontend-architecture-*, DESIGN_SYSTEM |
-| Compliance | AUDIT_LOGGING, SECURITY, ROLES_AND_PERMISSIONS |
-| Reports | *_AUDIT_REPORT, *_SUMMARY, CHANGELOG |
-| Governance | DOCUMENTATION_GOVERNANCE, DOCUMENTATION_INDEX |
+| Reference | API_REFERENCE.md, DATA_MODEL.md, CONFIGURATION.md, ERROR_HANDLING.md |
+| How-To | SETUP.md, DEPLOYMENT.md, TROUBLESHOOTING.md, TESTING.md |
+| Architecture | ARCHITECTURE.md, ARCHITECTURE_DECISIONS.md, DESIGN_SYSTEM.md |
+| Compliance | AUDIT_LOGGING.md, SECURITY.md, ROLES_AND_PERMISSIONS.md |
+| Governance | DOCUMENTATION_GOVERNANCE.md, DOCUMENTATION_INDEX.md |
+| Requirements | REQUIREMENTS_AND_TRACEABILITY.md, FRONTEND_PRD.md, BUSINESS_RULES.md |
+| Audit Reports | Parent_Portal_Audit.md, SuperAdmin_Portal_Audit_Report.md (both resolved) |
 
 ---
 
-## Finding Documentation
+## 7. Quick Reference
 
-### Quick Reference
-
-**Need to...**
-- Integrate with API? → API_REFERENCE.md
-- Understand auth? → AUTHENTICATION_AND_AUTHORIZATION.md
-- Configure environment? → CONFIGURATION.md
-- Deploy to production? → DEPLOYMENT.md
-- Troubleshoot issues? → TROUBLESHOOTING.md
-- Build frontend? → FRONTEND_PRD.md, DESIGN_SYSTEM.md
-- Ensure HIPAA compliance? → AUDIT_LOGGING.md, SECURITY.md
-- Understand business rules? → BUSINESS_RULES.md, APPLICATION_WORKFLOWS.md
+| Task | Document |
+|------|---------|
+| Integrate with the API | [API_REFERENCE.md](backend/API_REFERENCE.md) |
+| Understand authentication | [AUTHENTICATION_AND_AUTHORIZATION.md](backend/AUTHENTICATION_AND_AUTHORIZATION.md) |
+| Configure environment | [CONFIGURATION.md](backend/CONFIGURATION.md) |
+| Deploy to production | [DEPLOYMENT.md](backend/DEPLOYMENT.md) |
+| Troubleshoot issues | [TROUBLESHOOTING.md](backend/TROUBLESHOOTING.md) |
+| Run tests | [TESTING.md](backend/TESTING.md) |
+| Build frontend features | [frontend/FRONTEND_GUIDE.md](../frontend/FRONTEND_GUIDE.md) |
+| Understand HIPAA compliance | [SECURITY.md](backend/SECURITY.md), [AUDIT_LOGGING.md](backend/AUDIT_LOGGING.md) |
+| Understand business rules | [BUSINESS_RULES.md](backend/BUSINESS_RULES.md), [APPLICATION_WORKFLOWS.md](backend/APPLICATION_WORKFLOWS.md) |
+| Understand the database | [DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md](../DATABASE_ARCHITECTURE_AND_SCHEMA_DOCUMENTATION.md) |
 
 ---
 
-**Document Status:** Canonical Index
-**Last Updated:** February 2026
-**Version:** 1.0.0
+**Document Status:** Authoritative
+**Last Updated:** March 2026
+**Version:** 2.0.0

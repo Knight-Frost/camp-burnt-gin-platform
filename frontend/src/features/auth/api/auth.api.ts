@@ -11,18 +11,38 @@ import type {
   MFAVerifyResponse,
   User,
   Role,
+  RoleName,
   ApiResponse,
 } from '@/shared/types';
 
 /**
  * Normalize a user object from the backend.
- * The backend returns `user.role` (single BelongsTo object) but the frontend
- * expects `user.roles` (array). Convert if needed.
+ *
+ * The backend returns `user.role` as a BelongsTo object but the frontend
+ * expects `user.roles` (Role[]) for RBAC checks in layout guards.
+ *
+ * Handles three shapes:
+ *  1. Already normalized (roles array populated) — no-op.
+ *  2. role is an embedded Role object (normal login/getUser response) —
+ *     extract name string into `user.role` and build `roles` array.
+ *  3. role is a flat string (defensive fallback) —
+ *     build a minimal `roles` entry so guards don't fail.
  */
 function normalizeUser(user: User & { role?: Role | string }): User {
-  if (!user.roles?.length && user.role && typeof user.role === 'object') {
-    return { ...user, roles: [user.role as Role] };
+  if (user.roles?.length) return user; // already normalized
+
+  if (user.role && typeof user.role === 'object') {
+    const roleObj = user.role as Role;
+    // Flatten role to string AND populate roles array
+    return { ...user, role: roleObj.name, roles: [roleObj] };
   }
+
+  if (user.role && typeof user.role === 'string') {
+    // Backend returned flat string — build a minimal roles entry
+    const name = user.role as RoleName;
+    return { ...user, roles: [{ id: 0, name, display_name: name }] };
+  }
+
   return user;
 }
 

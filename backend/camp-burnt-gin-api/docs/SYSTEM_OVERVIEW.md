@@ -59,7 +59,6 @@ The backend system provides:
 
 The backend system explicitly does NOT include:
 
-- **Frontend User Interface** - The system is API-only; frontend development is a separate effort
 - **Payment Processing** - Financial transactions are deferred to future implementation
 - **Third-Party Integrations** - External service integrations beyond SMTP email are not implemented
 - **Mobile Applications** - The API is device-agnostic but mobile apps are not developed
@@ -442,11 +441,10 @@ The backend exposes a RESTful API for frontend consumption:
 
 The following limitations are by design:
 
-1. **Frontend Not Developed** - API-only backend; frontend is separate effort
-2. **Payment Processing** - Deferred to future implementation
-3. **File Type Restrictions** - Limited to PDF, images, Word documents
-4. **File Size Limit** - Maximum 10 MB per upload
-5. **Email Dependency** - Notifications require SMTP configuration
+1. **Payment Processing** - Deferred to future implementation
+2. **File Type Restrictions** - Limited to PDF, images, Word documents
+3. **File Size Limit** - Maximum 10 MB per upload
+4. **Email Dependency** - Notifications require SMTP configuration
 
 ---
 

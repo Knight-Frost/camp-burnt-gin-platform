@@ -25,17 +25,30 @@ Closes #
 
 <!-- Describe the tests you ran to verify your changes -->
 
+**Backend:**
 - [ ] All existing tests pass (`php artisan test`)
 - [ ] Added new tests for this change
-- [ ] Manual testing completed
 - [ ] Security testing performed (if applicable)
 - [ ] Performance testing performed (if applicable)
+
+**Frontend (if applicable):**
+- [ ] All existing tests pass (`pnpm test run`)
+- [ ] TypeScript type-check passes (`pnpm run type-check`)
+- [ ] Lint passes (`pnpm run lint`)
+- [ ] Manual testing in browser completed
+- [ ] Tested across all affected portals (parent / admin / super-admin / medical)
+
+**Manual Testing:**
+- [ ] Tested the happy path
+- [ ] Tested error conditions and edge cases
 
 ### Test Environment
 
 - PHP Version:
 - MySQL Version:
 - Laravel Version:
+- Node Version:
+- pnpm Version:
 
 ## Security Checklist
 
@@ -65,9 +78,11 @@ Closes #
 
 - [ ] Code is self-documenting with clear variable/method names
 - [ ] Complex logic includes comments
-- [ ] PHPDoc blocks added for public methods
+- [ ] PHPDoc blocks added for public methods (backend)
+- [ ] JSDoc/TSDoc added for public functions (frontend)
 - [ ] README or docs updated (if applicable)
 - [ ] API documentation updated (if applicable)
+- [ ] `frontend/FRONTEND_GUIDE.md` updated (if frontend conventions changed)
 
 ## Code Quality
 

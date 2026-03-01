@@ -17,6 +17,7 @@ import { fadeVariants } from '@/shared/constants/motion';
 
 interface DashboardShellProps {
   navItems: NavItem[];
+  pinnedBottomItems?: NavItem[];
   pageTitle: string;
   children: ReactNode;
 }
@@ -32,6 +33,7 @@ function deriveTitleFromPath(pathname: string): string {
 
 export function DashboardShell({
   navItems,
+  pinnedBottomItems,
   pageTitle,
   children,
 }: DashboardShellProps) {
@@ -49,7 +51,7 @@ export function DashboardShell({
       style={{ background: 'var(--dash-bg)' }}
     >
       {/* Sidebar */}
-      <DashboardSidebar navItems={navItems} />
+      <DashboardSidebar navItems={navItems} pinnedBottomItems={pinnedBottomItems} />
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

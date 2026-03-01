@@ -41,6 +41,12 @@ class ConversationResource extends JsonResource
             'unread_count'   => $user ? $this->getUnreadCountForUser($user) : 0,
             'is_archived'    => $this->is_archived,
             'archived_at'    => $this->is_archived ? $this->updated_at?->toISOString() : null,
+            // System notification fields
+            'is_system_generated'   => (bool) $this->is_system_generated,
+            'system_event_type'     => $this->system_event_type,
+            'system_event_category' => $this->system_event_category,
+            'related_entity_type'   => $this->related_entity_type,
+            'related_entity_id'     => $this->related_entity_id,
             'created_at'     => $this->created_at?->toISOString(),
             'updated_at'     => $this->updated_at?->toISOString(),
         ];

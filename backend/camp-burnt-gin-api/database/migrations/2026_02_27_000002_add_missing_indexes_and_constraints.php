@@ -24,12 +24,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('required_document_rules', function (Blueprint $table) {
-            $table->unique(
-                ['medical_complexity_tier', 'supervision_level', 'condition_flag', 'document_type'],
-                'rdr_unique_rule'
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            // MySQL with utf8mb4: 4 × varchar(255) × 4 bytes = 4080 bytes > 3072 limit.
+            // Use prefix lengths (100 chars each) → 4 × 100 × 4 = 1600 bytes.
+            \Illuminate\Support\Facades\DB::statement(
+                'ALTER TABLE required_document_rules '
+                . 'ADD UNIQUE INDEX rdr_unique_rule ('
+                . 'medical_complexity_tier(100), supervision_level(100), '
+                . 'condition_flag(100), document_type(100))'
             );
-        });
+        } else {
+            // SQLite (tests) and other drivers have no key-length limit.
+            Schema::table('required_document_rules', function (Blueprint $table) {
+                $table->unique(
+                    ['medical_complexity_tier', 'supervision_level', 'condition_flag', 'document_type'],
+                    'rdr_unique_rule'
+                );
+            });
+        }
 
         Schema::table('camp_sessions', function (Blueprint $table) {
             $table->index(

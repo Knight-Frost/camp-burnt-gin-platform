@@ -35,7 +35,11 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AdminLayout() {
   const user = useAppSelector((state) => state.auth.user);
-  const hasAccess = user?.roles?.some((r) => ['admin', 'super_admin'].includes(r.name)) ?? false;
+  // Check roles array (normalized) OR flat role string (fallback for stale state)
+  const hasAccess = Boolean(
+    user?.roles?.some((r) => ['admin', 'super_admin'].includes(r.name)) ||
+    ['admin', 'super_admin'].includes(user?.role ?? '')
+  );
 
   if (!hasAccess) {
     // Redirect to the user's actual dashboard instead of a dead-end Forbidden page

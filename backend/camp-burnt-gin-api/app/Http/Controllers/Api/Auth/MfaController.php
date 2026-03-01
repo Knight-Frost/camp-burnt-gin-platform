@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\Auth\MfaService;
+use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,8 @@ use Symfony\Component\HttpFoundation\Response;
 class MfaController extends Controller
 {
     public function __construct(
-        protected MfaService $mfaService
+        protected MfaService $mfaService,
+        protected SystemNotificationService $systemNotifications,
     ) {}
 
     /**
@@ -61,6 +63,8 @@ class MfaController extends Controller
             ], Response::HTTP_UNAUTHORIZED);
         }
 
+        $this->systemNotifications->mfaEnabled($user);
+
         return response()->json([
             'message' => 'MFA has been enabled successfully.',
             'data' => [
@@ -87,6 +91,8 @@ class MfaController extends Controller
                 'message' => $result['message'],
             ], Response::HTTP_BAD_REQUEST);
         }
+
+        $this->systemNotifications->mfaDisabled($user);
 
         return response()->json([
             'message' => 'MFA has been disabled.',

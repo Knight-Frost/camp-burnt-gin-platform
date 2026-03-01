@@ -1,8 +1,33 @@
 # Camp Burnt Gin Platform — Design Specification
 
-**Version:** 2.0  
-**Last Updated:** February 21, 2026  
-**Flagship Mode:** Jet-Black Dark Mode  
+> **Document Status: Informational — Historical Design Concept (Superseded)**
+>
+> This document captures the pre-implementation design concept and was the working specification during initial UI/UX planning. The final implemented system diverged significantly from this concept in several key areas:
+>
+> | Aspect | This Document (Concept) | Implemented System |
+> |--------|------------------------|-------------------|
+> | Color theme | Jet-black dark mode as flagship | Permanent light mode (no dark mode) |
+> | Brand accent | Ember orange `#f47242` | Emerald green `#16a34a` |
+> | Application type | Public landing page + auth pages | Portal-only (no landing page; `/` → `/login`) |
+> | Background | Animated LivingBackground with particles | Static dashboard surfaces |
+> | Navigation | Global floating nav bar | Role-based sidebar navigation within portals |
+> | Theme switching | User-controlled dark/light toggle | Not implemented (light mode only) |
+> | Tailwind version | v4 (Tailwind v4) | v3.4 |
+> | Routing | React Router v7 Data Mode | React Router v6 declarative |
+>
+> **Authoritative references for the implemented design system:**
+> - Token definitions: `frontend/src/assets/styles/design-tokens.css`
+> - Design system documentation: `docs/frontend/DESIGN_SYSTEM.md`
+> - Component catalog: `docs/frontend/COMPONENT_GUIDE.md`
+> - Frontend implementation guide: `frontend/FRONTEND_GUIDE.md`
+>
+> This document is retained for historical reference and traceability of design decisions.
+
+---
+
+**Version:** 2.0
+**Last Updated:** February 21, 2026
+**Flagship Mode:** Jet-Black Dark Mode (concept — not implemented; see note above)
 **Design Philosophy:** Calm, human, cinematic; emotionally safe with reduced cognitive load
 
 ---

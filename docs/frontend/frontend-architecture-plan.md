@@ -1,13 +1,15 @@
 # Frontend Architecture Plan
 ## Camp Burnt Gin Application Software
 
-**Document Type:** Authoritative Technical Architecture Reference
+**Document Type:** Technical Architecture Plan — Planning Phase Reference
 **Project:** Camp Burnt Gin Application Software — Frontend
 **Backend API:** Laravel 12.0 REST API (PHP 8.2+)
 **Version:** 1.0.0
 **Date:** February 13, 2026
-**Status:** Active — Authoritative
+**Status:** Informational — Planning Reference
 **Compliance Scope:** HIPAA, WCAG 2.1 AA, RBAC, MFA
+
+> **Note:** This document was produced during the architecture planning phase. The implementation has been completed. For the current system state, refer to [frontend/FRONTEND_GUIDE.md](../../frontend/FRONTEND_GUIDE.md). This document is preserved for traceability and academic reference.
 
 ---
 

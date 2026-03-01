@@ -1,12 +1,16 @@
 # Landing Page Plan
 ## Camp Burnt Gin Application Software
 
-**Document Type:** Authoritative Landing Page Architecture & Development Plan
+**Document Type:** Landing Page Architecture Plan — Planning Phase Reference
 **Project:** Camp Burnt Gin — Public Marketing Surface
 **Companion Documents:** Frontend Architecture Plan v1.0.0 | Frontend Development Plan v1.0.0
 **Version:** 1.0.0
 **Date:** February 13, 2026
-**Status:** Active — Authoritative
+**Status:** Informational — Planning Reference
+
+> **Note:** This document was produced during the design planning phase. The implementation has been completed. For the current system state, refer to [frontend/FRONTEND_GUIDE.md](../../frontend/FRONTEND_GUIDE.md). This document is preserved for traceability and academic reference.
+>
+> **Note:** The system no longer includes a public-facing landing page. The application is portal-only; `/` redirects to `/login`.
 
 ---
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Camper;
 
 use App\Http\Controllers\Controller;
+use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -110,6 +111,9 @@ class UserProfileController extends Controller
         }
 
         $user->update(['password' => Hash::make($request->password)]);
+
+        // System inbox notification: security event
+        app(SystemNotificationService::class)->passwordChanged($user);
 
         return response()->json([
             'message' => 'Password updated successfully.',

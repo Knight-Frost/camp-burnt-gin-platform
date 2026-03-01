@@ -385,6 +385,173 @@ Create new ADR when making decisions about:
 
 ---
 
+## ADR-011: Feature-Driven Architecture (Frontend)
+
+**Status:** Accepted
+**Date:** 2026-01
+**Decision Makers:** Frontend Team
+
+### Decision
+
+Organize the frontend source code using a Feature-Driven Architecture (FDA) pattern, grouping code by business domain rather than by technical layer.
+
+### Context
+
+The application serves four distinct user roles across multiple feature domains (auth, messaging, applications, medical records). Flat layer-based organization (all components in one folder, all services in another) would not scale and would create cross-feature coupling.
+
+### Consequences
+
+**Positive:**
+- Each feature domain (`auth`, `messaging`, `parent`, `admin`, `medical`, `superadmin`) is self-contained
+- Developers can reason about a feature without navigating the entire codebase
+- Feature removal or refactoring is isolated
+- API modules co-located with the feature that consumes them
+
+**Negative:**
+- Shared utilities and cross-cutting concerns require a separate `shared/` directory
+- Risk of feature sprawl if domain boundaries are not maintained
+
+**Mitigations:**
+- `shared/` directory for constants, types, hooks, and utilities
+- `ui/` directory for layout and overlay components used across features
+- `core/` directory for routing and auth logic
+
+---
+
+## ADR-012: Redux Toolkit with Session Storage Persistence (Frontend)
+
+**Status:** Accepted
+**Date:** 2026-01
+**Decision Makers:** Frontend Team
+
+### Decision
+
+Use Redux Toolkit for global state management with `redux-persist` configured to use `sessionStorage` (not `localStorage`).
+
+### Context
+
+The auth slice (user object and token) must persist across page refreshes within a session, but must not persist across browser restarts or be shared between tabs. `localStorage` shares state across tabs and survives browser restarts, which creates security concerns for a PHI-handling application.
+
+### Consequences
+
+**Positive:**
+- Token survives page refresh within the same browser session
+- Per-tab isolation: each tab maintains an independent session
+- State is cleared when the browser is closed
+- No cross-tab session bleeding
+
+**Negative:**
+- Users must re-authenticate in each new tab
+- Shared-computer users cannot share sessions between tabs (this is the intended behavior)
+
+**Mitigations:**
+- `useAuthInit` rehydrates auth state on load and validates the persisted token
+
+---
+
+## ADR-013: CSS Custom Properties as Design Tokens (Frontend)
+
+**Status:** Accepted
+**Date:** 2026-01
+**Decision Makers:** Frontend Team
+
+### Decision
+
+Define all design tokens as CSS custom properties in `design-tokens.css` and consume them via Tailwind CSS configuration, rather than using a JavaScript-based token system.
+
+### Context
+
+The application is permanently light mode with no dark mode. Theme switching complexity is not required. Tokens must be consistently available in both Tailwind utility classes and inline styles.
+
+### Consequences
+
+**Positive:**
+- Tokens are available to all CSS contexts (Tailwind, inline styles, media queries)
+- No JavaScript runtime is required to resolve token values
+- High contrast mode overrides can be scoped to `[data-cbg-app]` with `@media (prefers-contrast: more)`
+- Easy to audit: all tokens are defined in a single file
+
+**Negative:**
+- Token names are not type-checked (unlike TypeScript-based token systems)
+- Tailwind config must be kept in sync with `design-tokens.css`
+
+**Mitigations:**
+- `design-tokens.css` is the single source of truth; Tailwind config references only the token names
+- Naming convention documented in `frontend/FRONTEND_GUIDE.md`
+
+---
+
+## ADR-014: TipTap for Rich Text Editing (Frontend)
+
+**Status:** Accepted
+**Date:** 2026-02
+**Decision Makers:** Frontend Team
+
+### Decision
+
+Use TipTap (ProseMirror-based) as the rich text editor framework for the inbox compose experience.
+
+### Context
+
+The messaging system requires rich text formatting (bold, italic, lists) with a composable, extensible API. The editor must produce structured JSON output for storage and rendering, not raw HTML strings.
+
+### Consequences
+
+**Positive:**
+- Composable extension system allows precise control over enabled formatting options
+- JSON output (`getJSON()`) is safe to store and render without XSS risk
+- Headless architecture integrates cleanly with Tailwind styling
+- Link and emoji extensions available as first-class extensions
+
+**Negative:**
+- Larger bundle size than basic `contentEditable` editors
+- ProseMirror learning curve for custom extensions
+
+**Mitigations:**
+- Only required extensions are loaded (no kitchen-sink approach)
+- Link insertion uses TipTap JSON API; no HTML string manipulation
+
+---
+
+## Decision Review Process
+
+### When to Create ADR
+
+Create a new ADR when making decisions about:
+- Architectural patterns or structural organization
+- Technology selections affecting multiple features
+- Security implementations
+- Compliance approaches
+- Cross-cutting concerns affecting the entire application
+
+### ADR Template
+
+```markdown
+## ADR-###: [Title]
+
+**Status:** [Proposed|Accepted|Deprecated|Superseded]
+**Date:** [YYYY-MM]
+**Decision Makers:** [Team/Role]
+
+### Decision
+[What was decided]
+
+### Context
+[Why this decision was required]
+
+### Consequences
+**Positive:**
+- [Benefits]
+
+**Negative:**
+- [Drawbacks]
+
+**Mitigations:**
+- [How drawbacks are addressed]
+```
+
+---
+
 **Document Status:** Authoritative
-**Last Updated:** February 2026
-**Version:** 1.0.0
+**Last Updated:** March 2026
+**Version:** 2.0.0

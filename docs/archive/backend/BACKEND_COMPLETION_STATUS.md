@@ -1,6 +1,8 @@
 # Backend Completion Status
 
-This document provides the formal declaration of backend completion for the Camp Burnt Gin API system. It serves as the authoritative handoff document for transitioning to frontend development.
+> **Archived Document** — This document was the formal backend completion declaration and handoff checklist created at the time the backend reached v1.0.0. It is retained for historical reference. The frontend application referenced as "pending" has since been fully implemented. For current system status, see `docs/backend/SYSTEM_OVERVIEW.md`.
+
+This document provides the formal declaration of backend completion for the Camp Burnt Gin API system. It served as the authoritative handoff document for transitioning to frontend development.
 
 ---
 

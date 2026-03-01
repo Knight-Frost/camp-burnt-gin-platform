@@ -43,13 +43,19 @@ export interface NavItem {
 
 interface DashboardSidebarProps {
   navItems: NavItem[];
+  /**
+   * Optional nav items pinned at the bottom of the sidebar (above user footer),
+   * always visible regardless of viewport height. Use for critical System links
+   * (e.g. User Management, Audit Log) so they are never hidden by scrolling.
+   */
+  pinnedBottomItems?: NavItem[];
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export const DashboardSidebar = memo(function DashboardSidebar({ navItems }: DashboardSidebarProps) {
+export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinnedBottomItems }: DashboardSidebarProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
@@ -186,6 +192,70 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems }: Das
     </nav>
   );
 
+  // Pinned bottom nav — always visible above user footer, never scrolls off screen
+  const pinnedNav = pinnedBottomItems && pinnedBottomItems.length > 0 ? (
+    <div
+      className="flex-shrink-0 px-3 py-2 border-t"
+      style={{ borderColor: 'var(--border)' }}
+    >
+      <div className="px-3 pb-1 select-none pointer-events-none" aria-hidden="true">
+        <span
+          className="text-[10px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--muted-foreground)', opacity: 0.45 }}
+        >
+          System
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {pinnedBottomItems.map((item) => (
+          <li key={item.to}>
+            <NavLink
+              to={item.to}
+              end={item.to.split('/').length <= 2}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm',
+                  'transition-colors duration-150 group',
+                  isActive ? 'font-medium' : 'font-normal hover:bg-[var(--dash-nav-hover-bg)]'
+                )
+              }
+              style={({ isActive }) =>
+                isActive
+                  ? { color: 'var(--foreground)' }
+                  : { color: 'var(--muted-foreground)' }
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <div
+                      className="absolute inset-0 rounded-xl"
+                      style={{ background: 'var(--dash-nav-active-bg)' }}
+                    />
+                  )}
+                  {isActive && (
+                    <div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
+                      style={{ background: 'var(--ember-orange)' }}
+                    />
+                  )}
+                  <item.icon
+                    className={cn(
+                      'relative z-10 h-4 w-4 flex-shrink-0',
+                      isActive ? 'text-ember-orange' : 'text-current'
+                    )}
+                  />
+                  <span className="relative z-10">{item.label}</span>
+                </>
+              )}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : null;
+
   const userFooter = (
     <div
       className="px-3 py-4 border-t"
@@ -243,6 +313,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems }: Das
         <div className="flex flex-col h-full">
           {brandHeader}
           {navList}
+          {pinnedNav}
           {userFooter}
         </div>
       </aside>
@@ -300,6 +371,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems }: Das
               <div className="flex flex-col h-full">
                 {brandHeader}
                 {navList}
+                {pinnedNav}
                 {userFooter}
               </div>
             </motion.aside>

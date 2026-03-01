@@ -44,10 +44,16 @@ class ConversationController extends Controller
         $includeArchived = $request->boolean('include_archived', false);
         $perPage = min($request->integer('per_page', 25), 100);
 
+        // system_only=1 → system notifications only; system_only=0 → user convs only; absent → all
+        $systemOnly = $request->has('system_only')
+            ? $request->boolean('system_only')
+            : null;
+
         $conversations = $this->inboxService->getUserConversations(
             $user,
             $includeArchived,
-            $perPage
+            $perPage,
+            $systemOnly
         );
 
         return response()->json([

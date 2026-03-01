@@ -11,9 +11,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { ArrowLeft, Archive, Lock, Paperclip, Send, X } from 'lucide-react';
+import { ArrowLeft, Archive, Lock, Paperclip, Send, X, Download, Bot } from 'lucide-react';
 import {
-  getMessages, sendMessage, archiveConversation, unarchiveConversation,
+  getMessages, sendMessage, archiveConversation, unarchiveConversation, downloadAttachment,
   type Conversation, type Message,
 } from '@/features/messaging/api/messaging.api';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -33,7 +33,30 @@ const BADGE_STYLES: Record<string, { bg: string; color: string; label: string }>
   announcements: { bg: 'rgba(245,158,11,0.12)', color: '#d97706',  label: 'Announcements'},
 };
 
-function CategoryBadge({ category }: { category?: string }) {
+const SYSTEM_CATEGORY_STYLES: Record<string, { bg: string; color: string; label: string }> = {
+  application: { bg: 'rgba(22,163,74,0.12)',  color: BRAND,     label: 'Application' },
+  security:    { bg: 'rgba(239,68,68,0.12)',   color: '#dc2626', label: 'Security'    },
+  role:        { bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed', label: 'Role Change' },
+  medical:     { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb', label: 'Medical'     },
+};
+
+function CategoryBadge({ category, isSystem, systemCategory }: {
+  category?: string;
+  isSystem?: boolean;
+  systemCategory?: string;
+}) {
+  if (isSystem) {
+    const s = SYSTEM_CATEGORY_STYLES[systemCategory ?? ''] ?? { bg: 'rgba(107,114,128,0.12)', color: '#6b7280', label: 'System' };
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+        style={{ background: s.bg, color: s.color }}
+      >
+        <Bot className="h-3 w-3 flex-shrink-0" />
+        {s.label}
+      </span>
+    );
+  }
   const s = BADGE_STYLES[category ?? 'other'] ?? BADGE_STYLES.other;
   return (
     <span
@@ -83,6 +106,8 @@ interface ThreadViewProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ThreadView({ conversation, currentUserId, onBack, onArchive }: ThreadViewProps) {
+  const isSystem = conversation.is_system_generated === true;
+
   const [messages, setMessages]       = useState<Message[]>([]);
   const [loading, setLoading]         = useState(true);
   const [replyHtml, setReplyHtml]     = useState('');
@@ -111,10 +136,14 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
 
   async function handleSend() {
     const plainText = replyHtml.replace(/<[^>]*>/g, '').trim();
-    if (!plainText) return;
+    if (!plainText && attachments.length === 0) return;
     setSending(true);
     try {
-      const msg = await sendMessage(conversation.id, replyHtml);
+      const msg = await sendMessage(
+        conversation.id,
+        replyHtml,
+        attachments.length > 0 ? attachments : undefined,
+      );
       setMessages((p) => [...p, msg]);
       setReplyHtml('');
       setAttachments([]);
@@ -144,7 +173,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
   }
 
   const others      = conversation.participants.filter((p) => p.id !== currentUserId);
-  const displayName = others.length > 0 ? others[0].name : 'Conversation';
+  const displayName = isSystem ? 'Camp Burnt Gin' : (others.length > 0 ? others[0].name : 'Conversation');
 
   return (
     <div className="flex flex-col h-full">
@@ -162,20 +191,33 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
           <ArrowLeft className="h-4 w-4" style={{ color: 'var(--foreground)' }} />
         </button>
 
-        <Avatar name={displayName} size={32} />
+        {isSystem ? (
+          <div
+            className="flex items-center justify-center rounded-full flex-shrink-0"
+            style={{ width: 32, height: 32, background: 'rgba(22,163,74,0.12)' }}
+          >
+            <Bot className="h-4 w-4" style={{ color: BRAND }} />
+          </div>
+        ) : (
+          <Avatar name={displayName} size={32} />
+        )}
 
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm truncate" style={{ color: 'var(--foreground)' }}>
             {conversation.subject ?? displayName}
           </p>
           <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
-            {conversation.participants.map((p) => p.name).join(', ')}
+            {isSystem ? 'Automated system notification' : conversation.participants.map((p) => p.name).join(', ')}
           </p>
         </div>
 
-        <CategoryBadge category={conversation.category} />
+        <CategoryBadge
+          category={conversation.category}
+          isSystem={isSystem}
+          systemCategory={conversation.system_event_category}
+        />
 
-        {conversation.category === 'medical' && (
+        {!isSystem && conversation.category === 'medical' && (
           <span
             className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0"
             style={{ background: 'rgba(239,68,68,0.10)', color: '#dc2626' }}
@@ -185,15 +227,17 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
           </span>
         )}
 
-        <button
-          onClick={() => void handleArchive()}
-          disabled={archiving}
-          title={conversation.archived_at ? 'Restore to inbox' : 'Archive'}
-          aria-label={conversation.archived_at ? 'Restore to inbox' : 'Archive conversation'}
-          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)] disabled:opacity-40"
-        >
-          <Archive className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-        </button>
+        {!isSystem && (
+          <button
+            onClick={() => void handleArchive()}
+            disabled={archiving}
+            title={conversation.archived_at ? 'Restore to inbox' : 'Archive'}
+            aria-label={conversation.archived_at ? 'Restore to inbox' : 'Archive conversation'}
+            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)] disabled:opacity-40"
+          >
+            <Archive className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          </button>
+        )}
       </div>
 
       {/* ── Message list ───────────────────────────────────────────────────── */}
@@ -208,32 +252,70 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
           </p>
         ) : (
           messages.map((msg) => {
-            const isMine     = msg.sender_id === currentUserId;
-            const senderName = msg.sender?.name ?? 'Unknown';
+            const isSystemMsg = msg.sender_id === null;
+            const isMine      = !isSystemMsg && msg.sender_id === currentUserId;
+            const senderName  = isSystemMsg ? 'Camp Burnt Gin' : (msg.sender?.name ?? 'Unknown');
             return (
-              <div key={msg.id} className={`flex gap-2.5 ${isMine ? 'flex-row-reverse' : ''}`}>
-                {!isMine && <Avatar name={senderName} size={30} />}
-                <div className={`max-w-[75%] flex flex-col gap-1 ${isMine ? 'items-end' : ''}`}>
-                  {!isMine && (
-                    <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
-                      {senderName.split(' ')[0]}
-                    </p>
-                  )}
+              <div
+                key={msg.id}
+                className={isSystemMsg ? 'flex justify-center' : `flex gap-2.5 ${isMine ? 'flex-row-reverse' : ''}`}
+              >
+                {/* System message: centered notification style */}
+                {isSystemMsg ? (
                   <div
-                    className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed"
+                    className="w-full max-w-lg px-4 py-3 rounded-xl text-sm leading-relaxed"
                     style={{
-                      background: isMine ? BRAND : 'var(--glass-medium)',
-                      color: isMine ? '#fff' : 'var(--foreground)',
-                      borderBottomRightRadius: isMine ? 4 : undefined,
-                      borderBottomLeftRadius:  isMine ? undefined : 4,
+                      background: 'rgba(22,163,74,0.06)',
+                      border: '1px solid rgba(22,163,74,0.18)',
+                      color: 'var(--foreground)',
                     }}
                     // msg.body comes from our own server — sanitized at API layer
                     dangerouslySetInnerHTML={{ __html: msg.body }}
                   />
-                  <time className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                    {format(new Date(msg.created_at), 'h:mm a · MMM d')}
-                  </time>
-                </div>
+                ) : (
+                  <>
+                    {!isMine && <Avatar name={senderName} size={30} />}
+                    <div className={`max-w-[75%] flex flex-col gap-1 ${isMine ? 'items-end' : ''}`}>
+                      {!isMine && (
+                        <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                          {senderName.split(' ')[0]}
+                        </p>
+                      )}
+                      <div
+                        className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed"
+                        style={{
+                          background: isMine ? BRAND : 'var(--glass-medium)',
+                          color: isMine ? '#fff' : 'var(--foreground)',
+                          borderBottomRightRadius: isMine ? 4 : undefined,
+                          borderBottomLeftRadius:  isMine ? undefined : 4,
+                        }}
+                        // msg.body comes from our own server — sanitized at API layer
+                        dangerouslySetInnerHTML={{ __html: msg.body }}
+                      />
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-1">
+                          {msg.attachments.map((att) => (
+                            <button
+                              key={att.id}
+                              type="button"
+                              onClick={() => void downloadAttachment(msg.id, att.id, att.name)}
+                              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                              style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                              title={`Download ${att.name}`}
+                            >
+                              <Paperclip className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate max-w-[180px]">{att.name}</span>
+                              <Download className="h-3 w-3 flex-shrink-0 ml-auto" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <time className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        {format(new Date(msg.created_at), 'h:mm a · MMM d')}
+                      </time>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })
@@ -241,8 +323,18 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Reply box / archived notice ────────────────────────────────────── */}
-      {conversation.archived_at ? (
+      {/* ── Reply box / system notice / archived notice ───────────────────── */}
+      {isSystem ? (
+        <div
+          className="flex items-center justify-center gap-2 px-4 py-3 border-t"
+          style={{ borderColor: 'var(--border)', background: 'rgba(22,163,74,0.04)' }}
+        >
+          <Bot className="h-3.5 w-3.5 flex-shrink-0" style={{ color: BRAND }} />
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            This is an automated system notification. Replies are not supported.
+          </p>
+        </div>
+      ) : conversation.archived_at ? (
         <div
           className="flex items-center justify-center gap-2 px-4 py-3 border-t"
           style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
@@ -332,3 +424,4 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
     </div>
   );
 }
+

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
 use App\Services\Document\DocumentEnforcementService;
 use App\Services\System\LetterService;
+use App\Services\SystemNotificationService;
 use App\Traits\QueuesNotifications;
 
 /**
@@ -22,7 +23,8 @@ class ApplicationService
 
     public function __construct(
         protected DocumentEnforcementService $documentEnforcement,
-        protected LetterService $letterService
+        protected LetterService $letterService,
+        protected SystemNotificationService $systemNotifications,
     ) {}
 
     /**
@@ -69,12 +71,28 @@ class ApplicationService
             'reviewed_by' => $reviewedBy->id,
         ]);
 
-        // Send status change notification
+        // Send status change notification (email + database)
         $application->loadMissing('camper.user');
+        $parentUser  = $application->camper->user;
+        $camperName  = $application->camper->first_name . ' ' . $application->camper->last_name;
+
         $this->queueNotification(
-            $application->camper->user,
+            $parentUser,
             new ApplicationStatusChangedNotification($application, $previousStatus)
         );
+
+        // Send in-app system notification in the inbox System tab
+        match ($newStatus) {
+            ApplicationStatus::Approved => $this->systemNotifications->applicationApproved(
+                $parentUser, $application->id, $camperName
+            ),
+            ApplicationStatus::Rejected => $this->systemNotifications->applicationRejected(
+                $parentUser, $application->id, $camperName, $notes
+            ),
+            default => $this->systemNotifications->applicationStatusChanged(
+                $parentUser, $application->id, $camperName, $newStatus->value
+            ),
+        };
 
         // Send appropriate letter based on status
         if ($application->status === ApplicationStatus::Approved) {

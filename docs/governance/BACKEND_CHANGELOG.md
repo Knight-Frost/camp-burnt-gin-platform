@@ -6,7 +6,40 @@ All notable changes to the Camp Burnt Gin API project are documented in this fil
 
 ## [Unreleased]
 
-Changes that have been committed but not yet released.
+No changes pending release.
+
+---
+
+## [1.1.0] - 2026-03-01
+
+### Overview
+
+Patch and feature release addressing bugs identified during structured QA testing, completing the announcement and calendar systems, adding form template management, and extending the audit logging and user management APIs.
+
+### Added
+
+- `UserController` at `app/Http/Controllers/Api/System/UserController.php` — paginated user listing, role update, account deactivation, and account reactivation under `role:super_admin` middleware
+- `FormTemplateController` at `app/Http/Controllers/Api/System/FormTemplateController.php` — CRUD operations and download endpoint for uploaded PDF/Word form templates; files stored at `storage/app/form-templates/`
+- `FormTemplate` model and migration (`2026_02_28_000001_create_form_templates_table.php`)
+- `AuditLogController` at `app/Http/Controllers/Api/System/AuditLogController.php` — `GET /api/audit-log` with search parameter support, under `role:super_admin` middleware
+- Notification preferences backend: migration (`2026_02_27_115413_add_notification_preferences_to_users_table.php`), model fields, and controller endpoints on `UserProfileController`
+- `CalendarEventsController` — `GET/POST/PUT/DELETE /api/calendar` endpoints for camp event management
+- Announcements pin and urgent flags on `AnnouncementsController`
+- `GET /api/users` and `PUT /api/users/{id}/role` routes registered under `role:super_admin`
+
+### Fixed
+
+- `AuditLogController::index()` response structure corrected to return `{ data, meta: { current_page, last_page, per_page, total, from, to } }` (previously returned flat paginator)
+- `AuthController::register()` now calls `->load('role')` before returning the user object, resolving the null role crash on first login
+- `ReportController` updated to return `StreamedResponse` with `Content-Type: text/csv`; `id_labels` export handles `camp_session_id` as optional
+- Account lockout threshold corrected to 5 attempts (was incorrectly set to 10 in `User.php` and `AuthService.php`)
+- `ProfilePage` MFA handlers now propagate actual backend error messages instead of generic fallback strings
+
+### Testing
+
+- Test suite expanded to 308 passing tests with 708 assertions
+- Feature tests added for `UserController`, `FormTemplateController`, `AuditLogController`, and `CalendarEventsController`
+- Account lockout threshold tests corrected to match implementation
 
 ---
 
@@ -263,4 +296,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this 
 
 **Document Status:** Authoritative
 **Maintained By:** Development Team
-**Last Updated:** February 2026
+**Last Updated:** March 2026

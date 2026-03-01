@@ -33,15 +33,23 @@ const NAV_ITEMS: NavItem[] = [
   { group: 'Communication', label: 'Announcements',    to: '/super-admin/announcements', icon: Megaphone },
   { group: 'Operations',    label: 'Calendar',         to: '/super-admin/calendar',      icon: CalendarDays },
   { group: 'Operations',    label: 'Reports',          to: '/super-admin/reports',       icon: BarChart3 },
-  { group: 'System',        label: 'Manage Users & Permissions', to: ROUTES.SUPER_ADMIN_USERS, icon: Users },
-  { group: 'System',        label: 'Audit Log',        to: ROUTES.SUPER_ADMIN_AUDIT,     icon: ScrollText },
-  { group: 'System',        label: 'Form Templates',   to: ROUTES.SUPER_ADMIN_FORMS,     icon: ClipboardList },
-  { group: 'System',        label: 'Settings',         to: '/super-admin/settings',      icon: Settings },
+];
+
+// System items are pinned to the bottom of the sidebar — always visible regardless of viewport height.
+const SYSTEM_NAV_ITEMS: NavItem[] = [
+  { label: 'Manage Users & Permissions', to: ROUTES.SUPER_ADMIN_USERS, icon: Users },
+  { label: 'Audit Log',                  to: ROUTES.SUPER_ADMIN_AUDIT, icon: ScrollText },
+  { label: 'Form Templates',             to: ROUTES.SUPER_ADMIN_FORMS, icon: ClipboardList },
+  { label: 'Settings',                   to: '/super-admin/settings',  icon: Settings },
 ];
 
 export function SuperAdminLayout() {
   const user = useAppSelector((state) => state.auth.user);
-  const hasAccess = user?.roles?.some((r) => r.name === 'super_admin') ?? false;
+  // Check roles array (normalized) OR flat role string (fallback for stale state)
+  const hasAccess = Boolean(
+    user?.roles?.some((r) => r.name === 'super_admin') ||
+    user?.role === 'super_admin'
+  );
 
   if (!hasAccess) {
     // Redirect to the user's actual dashboard instead of a dead-end Forbidden page
@@ -50,7 +58,7 @@ export function SuperAdminLayout() {
   }
 
   return (
-    <DashboardShell navItems={NAV_ITEMS} pageTitle="Super Admin">
+    <DashboardShell navItems={NAV_ITEMS} pinnedBottomItems={SYSTEM_NAV_ITEMS} pageTitle="Super Admin">
       <Outlet />
     </DashboardShell>
   );

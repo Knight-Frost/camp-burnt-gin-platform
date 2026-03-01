@@ -89,10 +89,16 @@ class Message extends Model
 
     /**
      * Mark this message as read by a user.
+     *
+     * System messages (sender_id = null) are also marked read.
      */
     public function markAsReadBy(User $user): void
     {
-        if (!$this->isReadBy($user) && $this->sender_id !== $user->id) {
+        // Never create a read receipt if the user sent the message
+        if ($this->sender_id !== null && $this->sender_id === $user->id) {
+            return;
+        }
+        if (!$this->isReadBy($user)) {
             $this->reads()->create([
                 'user_id' => $user->id,
                 'read_at' => now(),
@@ -118,12 +124,18 @@ class Message extends Model
 
     /**
      * Scope to filter unread messages for a user.
+     *
+     * Includes system messages (sender_id = null) as they have no sender
+     * and should always appear as unread until explicitly opened.
      */
     public function scopeUnreadBy($query, User $user)
     {
         return $query->whereDoesntHave('reads', function ($q) use ($user) {
             $q->where('user_id', $user->id);
-        })->where('sender_id', '!=', $user->id);
+        })->where(function ($q) use ($user) {
+            $q->whereNull('sender_id')
+              ->orWhere('sender_id', '!=', $user->id);
+        });
     }
 
     /**

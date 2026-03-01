@@ -7,6 +7,8 @@
 import { axiosInstance } from '@/api/axios.config';
 import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 
+export type SystemEventCategory = 'application' | 'security' | 'role' | 'medical';
+
 export interface Conversation {
   id: number;
   subject?: string;
@@ -17,6 +19,12 @@ export interface Conversation {
   archived_at?: string;
   created_at: string;
   updated_at: string;
+  // System notification fields (populated when is_system_generated === true)
+  is_system_generated: boolean;
+  system_event_type?: string;
+  system_event_category?: SystemEventCategory;
+  related_entity_type?: string;
+  related_entity_id?: number;
 }
 
 export interface ConversationParticipant {
@@ -29,7 +37,7 @@ export interface ConversationParticipant {
 export interface Message {
   id: number;
   conversation_id: number;
-  sender_id: number;
+  sender_id: number | null;  // null for system-generated messages
   sender?: ConversationParticipant;
   body: string;
   read_at?: string;
@@ -56,9 +64,17 @@ export interface NewConversationPayload {
 // Conversations
 // ---------------------------------------------------------------------------
 
-export async function getConversations(params?: { page?: number; include_archived?: true }): Promise<PaginatedResponse<Conversation>> {
+export async function getConversations(params?: {
+  page?: number;
+  include_archived?: true;
+  system_only?: 0 | 1;
+}): Promise<PaginatedResponse<Conversation>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Conversation>>('/inbox/conversations', { params });
   return data;
+}
+
+export async function getSystemConversations(params?: { page?: number }): Promise<PaginatedResponse<Conversation>> {
+  return getConversations({ ...params, system_only: 1 });
 }
 
 export async function getConversation(id: number): Promise<Conversation> {
@@ -83,6 +99,10 @@ export async function leaveConversation(id: number): Promise<void> {
   await axiosInstance.post(`/inbox/conversations/${id}/leave`);
 }
 
+export async function deleteConversation(id: number): Promise<void> {
+  await axiosInstance.delete(`/inbox/conversations/${id}`);
+}
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
@@ -95,10 +115,25 @@ export async function getMessages(conversationId: number, params?: { page?: numb
   return data;
 }
 
-export async function sendMessage(conversationId: number, body: string): Promise<Message> {
+export async function sendMessage(
+  conversationId: number,
+  body: string,
+  attachments?: File[],
+): Promise<Message> {
+  if (attachments && attachments.length > 0) {
+    const form = new FormData();
+    form.append('body', body);
+    attachments.forEach((file) => form.append('attachments[]', file));
+    const { data } = await axiosInstance.post<ApiResponse<Message>>(
+      `/inbox/conversations/${conversationId}/messages`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return data.data;
+  }
   const { data } = await axiosInstance.post<ApiResponse<Message>>(
     `/inbox/conversations/${conversationId}/messages`,
-    { body }
+    { body },
   );
   return data.data;
 }

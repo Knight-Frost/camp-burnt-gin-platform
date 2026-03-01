@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\System;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -79,10 +80,16 @@ class UserController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
+        $oldRoleName = $user->role?->name ?? 'parent';
         $role = Role::where('name', $request->string('role'))->firstOrFail();
         $user->role_id = $role->id;
         $user->save();
         $user->load('role');
+
+        // System inbox notification: role changed
+        app(SystemNotificationService::class)->roleChanged(
+            $user, $oldRoleName, $role->name, $request->user()
+        );
 
         return response()->json([
             'message' => 'Role updated.',

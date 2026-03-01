@@ -155,7 +155,9 @@ export function AuditLogPage() {
                       {entry.action}
                     </span>
                     <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      {entry.auditable_type.replace('App\\Models\\', '')} #{entry.auditable_id}
+                      {entry.auditable_type
+                        ? `${entry.auditable_type.replace('App\\Models\\', '')} #${entry.auditable_id}`
+                        : '—'}
                     </span>
                   </div>
                   {entry.user && (

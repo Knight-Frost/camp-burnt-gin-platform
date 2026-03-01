@@ -2,21 +2,30 @@
 
 Product requirements, user stories, and acceptance criteria for the Camp Burnt Gin frontend application.
 
+> **Implementation Status:** All core requirements in this document have been implemented. This document serves as a requirements traceability reference. See [frontend/FRONTEND_GUIDE.md](../../frontend/FRONTEND_GUIDE.md) for the current system state.
+
 ---
 
 ## Product Vision
 
-Build an accessible, user-friendly web application enabling parents to register children with special healthcare needs for Camp Burnt Gin, while providing administrators with efficient tools to review applications and manage camp operations.
+Build an accessible, user-friendly web application enabling applicants (parents, guardians, and caregivers) to register children with special healthcare needs for Camp Burnt Gin, while providing administrators with efficient tools to review applications and manage camp operations.
+
+---
+
+## Terminology Note
+
+The user interface uses "Applicant" as the standard identifier for the role that submits camp applications. This term encompasses parents, legal guardians, foster caregivers, and other authorized individuals. The backend role identifier is `parent` for system compatibility.
 
 ---
 
 ## User Roles and Goals
 
-| Role | Goals |
-|------|-------|
-| Parent/Guardian | Register camper, complete application, track status, communicate with staff |
-| Administrator | Review applications, manage sessions, communicate with parents |
-| Medical Provider | Submit camper medical information via secure link |
+| Role | Interface Label | Goals |
+|------|----------------|-------|
+| `parent` | Applicant | Register camper, complete application, track status, communicate with staff |
+| `admin` | Administrator | Review applications, manage sessions, communicate with applicants |
+| `medical` | Medical Provider | View medical records, access secure medical review interface |
+| `super_admin` | Super Administrator | All admin functions plus user management and audit log |
 
 ---
 
@@ -259,6 +268,6 @@ Automatic Notification Sent to Parent
 
 ---
 
-**Document Status:** Authoritative
-**Last Updated:** February 2026
-**Version:** 1.0.0
+**Document Status:** Authoritative — Requirements Reference
+**Last Updated:** March 2026
+**Version:** 2.0.0
