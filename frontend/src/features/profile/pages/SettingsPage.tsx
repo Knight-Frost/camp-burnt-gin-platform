@@ -178,7 +178,7 @@ export function SettingsPage() {
       toast.success(message);
       dispatch(clearAuth());
     } catch (err) {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to delete account. Please try again.');
+      toast.error((err as { message?: string })?.message ?? 'Failed to delete account. Please try again.');
     } finally {
       setDeletingAccount(false);
     }
