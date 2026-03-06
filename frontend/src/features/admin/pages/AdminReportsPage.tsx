@@ -15,8 +15,8 @@ import {
   LineChart, Line,
 } from 'recharts';
 
-import { getApplications, getCamps, downloadReport } from '@/features/admin/api/admin.api';
-import type { Application, Camp } from '@/features/admin/types/admin.types';
+import { getReportsSummary, downloadReport } from '@/features/admin/api/admin.api';
+import type { ReportsSummary } from '@/features/admin/api/admin.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 
@@ -53,60 +53,48 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
 }
 
 export function AdminReportsPage() {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [camps, setCamps]               = useState<Camp[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [downloading, setDownloading]   = useState<ReportType | null>(null);
+  const [summary, setSummary]         = useState<ReportsSummary | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [downloading, setDownloading] = useState<ReportType | null>(null);
 
   useEffect(() => {
-    Promise.all([getApplications({ page: 1 }), getCamps()])
-      .then(([appsRes, campsData]) => {
-        setApplications(appsRes.data);
-        setCamps(campsData);
-      })
+    getReportsSummary()
+      .then(setSummary)
       .catch(() => toast.error('Failed to load report data.'))
       .finally(() => setLoading(false));
   }, []);
 
   // ── Chart data ───────────────────────────────────────────────────────────────
 
+  const byStatus = summary?.applications_by_status ?? {};
   const statusCounts = [
-    { name: 'Submitted',    value: applications.filter((a) => a.status === 'submitted').length,    color: CHART_COLORS.submitted },
-    { name: 'Under Review', value: applications.filter((a) => a.status === 'under_review').length, color: CHART_COLORS.under_review },
-    { name: 'Accepted',     value: applications.filter((a) => a.status === 'accepted').length,     color: CHART_COLORS.accepted },
-    { name: 'Rejected',     value: applications.filter((a) => a.status === 'rejected').length,     color: CHART_COLORS.rejected },
-    { name: 'Pending',      value: applications.filter((a) => a.status === 'pending').length,      color: CHART_COLORS.pending },
+    { name: 'Submitted',    value: byStatus['submitted']    ?? 0, color: CHART_COLORS.submitted },
+    { name: 'Under Review', value: byStatus['under_review'] ?? 0, color: CHART_COLORS.under_review },
+    { name: 'Accepted',     value: byStatus['accepted']     ?? 0, color: CHART_COLORS.accepted },
+    { name: 'Rejected',     value: byStatus['rejected']     ?? 0, color: CHART_COLORS.rejected },
+    { name: 'Pending',      value: byStatus['pending']      ?? 0, color: CHART_COLORS.pending },
   ].filter((s) => s.value > 0);
 
-  const total    = applications.length;
-  const accepted = applications.filter((a) => a.status === 'accepted').length;
-  const rejected = applications.filter((a) => a.status === 'rejected').length;
+  const total    = summary?.total_applications ?? 0;
+  const accepted = summary?.accepted_applications ?? 0;
+  const rejected = summary?.rejected_applications ?? 0;
   const rate     = total > 0 ? Math.round((accepted / total) * 100) : 0;
 
   const acceptancePieData = [
-    { name: 'Accepted', value: accepted,          color: '#16a34a' },
-    { name: 'Rejected', value: rejected,          color: '#dc2626' },
-    { name: 'Pending',  value: total - accepted - rejected, color: '#e5e7eb' },
+    { name: 'Accepted', value: accepted,                        color: '#16a34a' },
+    { name: 'Rejected', value: rejected,                        color: '#dc2626' },
+    { name: 'Pending',  value: Math.max(0, total - accepted - rejected), color: '#e5e7eb' },
   ].filter((d) => d.value > 0);
 
-  // Applications over time — group by month
-  const monthMap: Record<string, number> = {};
-  for (const app of applications) {
-    const month = new Date(app.created_at).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    monthMap[month] = (monthMap[month] ?? 0) + 1;
-  }
-  const timelineData = Object.entries(monthMap)
-    .map(([month, count]) => ({ month, count }))
-    .slice(-8);
+  // Timeline data is not available from the summary endpoint — omit for now
+  const timelineData: { month: string; count: number }[] = [];
 
-  // Enrollment per session — use camps data
-  const sessionData = camps
-    .flatMap((c) => (c.sessions ?? []).map((s) => ({
-      name: `${c.name} – ${s.name ?? s.id}`,
-      enrolled: s.enrolled_count ?? 0,
-      capacity: s.capacity ?? 0,
-    })))
-    .slice(0, 8);
+  // Enrollment per session
+  const sessionData = (summary?.sessions ?? []).map((s) => ({
+    name:     s.name,
+    enrolled: s.enrolled,
+    capacity: s.capacity,
+  })).slice(0, 8);
 
   async function handleDownload(type: ReportType) {
     setDownloading(type);
@@ -149,10 +137,10 @@ export function AdminReportsPage() {
           className="grid grid-cols-2 sm:grid-cols-4 gap-4"
         >
           {[
-            { label: 'Total',    value: total,    color: '#3b82f6' },
-            { label: 'Accepted', value: accepted, color: '#16a34a' },
-            { label: 'Rejected', value: rejected, color: '#dc2626' },
-            { label: 'Rate',     value: `${rate}%`, color: '#16a34a' },
+            { label: 'Campers',  value: summary?.total_campers ?? 0, color: '#3b82f6' },
+            { label: 'Accepted', value: accepted,                    color: '#16a34a' },
+            { label: 'Rejected', value: rejected,                    color: '#dc2626' },
+            { label: 'Rate',     value: `${rate}%`,                  color: '#16a34a' },
           ].map(({ label, value, color }) => (
             <motion.div
               key={label}

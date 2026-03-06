@@ -58,6 +58,7 @@ const AdminDashboardPage      = withSuspense(lazy(() => import('@/features/admin
 const AdminApplicationsPage   = withSuspense(lazy(() => import('@/features/admin/pages/AdminApplicationsPage').then(m => ({ default: m.AdminApplicationsPage }))));
 const ApplicationReviewPage   = withSuspense(lazy(() => import('@/features/admin/pages/ApplicationReviewPage').then(m => ({ default: m.ApplicationReviewPage }))));
 const AdminCampersPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminCampersPage').then(m => ({ default: m.AdminCampersPage }))));
+const CamperDetailPage        = withSuspense(lazy(() => import('@/features/admin/pages/CamperDetailPage').then(m => ({ default: m.CamperDetailPage }))));
 const AdminSessionsPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminSessionsPage').then(m => ({ default: m.AdminSessionsPage }))));
 const AdminReportsPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminReportsPage').then(m => ({ default: m.AdminReportsPage }))));
 const AdminAnnouncementsPage  = withSuspense(lazy(() => import('@/features/admin/pages/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage }))));
@@ -137,6 +138,7 @@ export const router = createBrowserRouter([
           { path: '/admin/applications',        element: <AdminApplicationsPage /> },
           { path: '/admin/applications/:id',    element: <ApplicationReviewPage /> },
           { path: '/admin/campers',             element: <AdminCampersPage /> },
+          { path: '/admin/campers/:id',         element: <CamperDetailPage /> },
           { path: '/admin/sessions',            element: <AdminSessionsPage /> },
           { path: '/admin/reports',             element: <AdminReportsPage /> },
           { path: '/admin/announcements',       element: <AdminAnnouncementsPage /> },
@@ -183,6 +185,7 @@ export const router = createBrowserRouter([
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
           { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },
           { path: '/super-admin/campers',              element: <AdminCampersPage /> },
+          { path: '/super-admin/campers/:id',          element: <CamperDetailPage /> },
           { path: '/super-admin/sessions',             element: <AdminSessionsPage /> },
           { path: '/super-admin/reports',              element: <AdminReportsPage /> },
           { path: '/super-admin/announcements',        element: <AdminAnnouncementsPage /> },

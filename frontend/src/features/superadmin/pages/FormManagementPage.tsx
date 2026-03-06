@@ -10,6 +10,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 import axiosInstance from '@/api/axios.config';
+import { getSessions } from '@/features/admin/api/admin.api';
+import type { CampSession } from '@/features/admin/types/admin.types';
 import { Button } from '@/ui/components/Button';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
@@ -28,18 +30,22 @@ interface FormTemplate {
 }
 
 export function FormManagementPage() {
-  const [templates, setTemplates] = useState<FormTemplate[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [templates, setTemplates]   = useState<FormTemplate[]>([]);
+  const [sessions, setSessions]     = useState<CampSession[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [showModal, setShowModal]   = useState(false);
+  const [uploading, setUploading]   = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const [formName, setFormName]   = useState('');
-  const [file, setFile]           = useState<File | null>(null);
-  const [sessionId, setSessionId] = useState('');
+  const [formName, setFormName]     = useState('');
+  const [file, setFile]             = useState<File | null>(null);
+  const [sessionId, setSessionId]   = useState('');
+  const [nameError, setNameError]   = useState('');
+  const [fileError, setFileError]   = useState('');
 
   useEffect(() => {
     loadTemplates();
+    getSessions().then(setSessions).catch(() => {/* sessions optional */});
   }, []);
 
   async function loadTemplates() {
@@ -55,26 +61,33 @@ export function FormManagementPage() {
     }
   }
 
+  function openModal() {
+    setFormName('');
+    setFile(null);
+    setSessionId('');
+    setNameError('');
+    setFileError('');
+    setShowModal(true);
+  }
+
   async function handleUpload() {
-    if (!formName.trim()) { toast.error('Form name is required.'); return; }
-    if (!file)            { toast.error('Please select a file.'); return; }
+    let valid = true;
+    if (!formName.trim()) { setNameError('Form name is required.'); valid = false; } else { setNameError(''); }
+    if (!file)            { setFileError('Please select a file.'); valid = false; } else { setFileError(''); }
+    if (!valid) return;
 
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append('name', formName.trim());
-      fd.append('file', file);
+      fd.append('file', file!);
       if (sessionId) fd.append('session_id', sessionId);
 
-      const res = await axiosInstance.post<{ data: FormTemplate }>('/form-templates', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // Do NOT set Content-Type manually — axios auto-sets multipart/form-data with boundary
+      const res = await axiosInstance.post<{ data: FormTemplate }>('/form-templates', fd);
       setTemplates((prev) => [res.data.data, ...prev]);
       toast.success('Form template uploaded.');
       setShowModal(false);
-      setFormName('');
-      setFile(null);
-      setSessionId('');
     } catch {
       toast.error('Failed to upload template.');
     } finally {
@@ -140,7 +153,7 @@ export function FormManagementPage() {
               Upload, activate, and assign application form templates to sessions.
             </p>
           </div>
-          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+          <Button variant="primary" size="sm" onClick={openModal}>
             <Plus className="h-4 w-4" />
             Upload Template
           </Button>
@@ -181,7 +194,7 @@ export function FormManagementPage() {
           <EmptyState
             title="No form templates yet"
             description="Upload a PDF or Word document to use as an application template."
-            action={{ label: 'Upload Template', onClick: () => setShowModal(true) }}
+            action={{ label: 'Upload Template', onClick: openModal }}
           />
         </div>
       ) : (
@@ -212,7 +225,7 @@ export function FormManagementPage() {
                 </div>
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                   {TYPE_LABELS[tmpl.file_type] ?? tmpl.file_type} · {tmpl.file_name}
-                  {tmpl.session_id && ` · Session #${tmpl.session_id}`}
+                  {tmpl.session_id && ` · ${sessions.find((s) => s.id === tmpl.session_id)?.name ?? `Session #${tmpl.session_id}`}`}
                   {' · '}Updated {format(new Date(tmpl.updated_at), 'MMM d, yyyy')}
                 </p>
               </div>
@@ -262,7 +275,7 @@ export function FormManagementPage() {
             exit="hidden"
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ background: 'rgba(0,0,0,0.35)' }}
-            onClick={() => setShowModal(false)}
+            onClick={() => { setShowModal(false); }}
           >
             <motion.div
               variants={modalContent}
@@ -284,11 +297,12 @@ export function FormManagementPage() {
                   <label htmlFor="form-name-input" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Form Name *</label>
                   <input
                     id="form-name-input"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9375rem', background: '#f9fafb', color: 'var(--foreground)', outline: 'none' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${nameError ? '#dc2626' : 'rgba(0,0,0,0.12)'}`, fontSize: '0.9375rem', background: '#f9fafb', color: 'var(--foreground)', outline: 'none' }}
                     placeholder="e.g. Summer 2026 Application Form"
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
+                    onChange={(e) => { setFormName(e.target.value); if (e.target.value.trim()) setNameError(''); }}
                   />
+                  {nameError && <p className="text-xs mt-1" style={{ color: '#dc2626' }}>{nameError}</p>}
                 </div>
 
                 <div>
@@ -322,20 +336,31 @@ export function FormManagementPage() {
                     type="file"
                     accept=".pdf,.doc,.docx"
                     className="hidden"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => { setFile(e.target.files?.[0] ?? null); if (e.target.files?.[0]) setFileError(''); }}
                   />
+                  {fileError && <p className="text-xs mt-1" style={{ color: '#dc2626' }}>{fileError}</p>}
                 </div>
 
                 <div>
-                  <label htmlFor="form-session-id" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Assign to Session (optional)</label>
-                  <input
+                  <label htmlFor="form-session-id" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                    Assign to Session <span style={{ color: 'var(--muted-foreground)', fontWeight: 400 }}>(optional)</span>
+                  </label>
+                  <select
                     id="form-session-id"
-                    type="number"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9375rem', background: '#f9fafb', color: 'var(--foreground)', outline: 'none' }}
-                    placeholder="Session ID"
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9375rem', background: '#f9fafb', color: sessionId ? 'var(--foreground)' : 'var(--muted-foreground)', outline: 'none' }}
                     value={sessionId}
                     onChange={(e) => setSessionId(e.target.value)}
-                  />
+                  >
+                    <option value="">No session assignment</option>
+                    {sessions.map((s) => (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.name} ({s.start_date} – {s.end_date})
+                      </option>
+                    ))}
+                  </select>
+                  {sessions.length === 0 && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>No sessions found — template will be unassigned.</p>
+                  )}
                 </div>
               </div>
 

@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api\System;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\Camper;
+use App\Models\CampSession;
 use App\Services\System\ReportService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -19,6 +22,39 @@ class ReportController extends Controller
     public function __construct(
         protected ReportService $reportService
     ) {}
+
+    /**
+     * Summary statistics for the Reports dashboard.
+     *
+     * Returns aggregate counts for campers, applications (by status),
+     * and session enrollment — consumed by AdminReportsPage.
+     */
+    public function summary(): JsonResponse
+    {
+        $this->authorize('viewAny', Application::class);
+
+        $apps = Application::selectRaw('status, COUNT(*) as count')->groupBy('status')->pluck('count', 'status');
+
+        $sessions = CampSession::withCount('applications')->get()->map(fn ($s) => [
+            'id'         => $s->id,
+            'name'       => $s->name,
+            'capacity'   => $s->capacity,
+            'enrolled'   => $s->applications_count,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_campers'              => Camper::count(),
+                'total_applications'         => Application::count(),
+                'applications_by_status'     => $apps,
+                'accepted_applications'      => $apps['accepted'] ?? 0,
+                'pending_applications'       => ($apps['pending'] ?? 0) + ($apps['submitted'] ?? 0) + ($apps['under_review'] ?? 0),
+                'rejected_applications'      => $apps['rejected'] ?? 0,
+                'sessions'                   => $sessions,
+            ],
+        ]);
+    }
 
     /**
      * Build a CSV StreamedResponse from headers and rows.

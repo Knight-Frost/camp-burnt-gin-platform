@@ -189,6 +189,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('admin')->prefix('reports')->group(function () {
+        Route::get('/summary', [ReportController::class, 'summary'])->name('reports.summary');
         Route::get('/applications', [ReportController::class, 'applications'])->name('reports.applications');
         Route::get('/accepted', [ReportController::class, 'acceptedApplicants'])->name('reports.accepted');
         Route::get('/rejected', [ReportController::class, 'rejectedApplicants'])->name('reports.rejected');

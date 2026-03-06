@@ -61,6 +61,21 @@ export async function updateSession(id: number, payload: Partial<Omit<CampSessio
 }
 export async function deleteSession(id: number): Promise<void> { await axiosInstance.delete(`/sessions/${id}`); }
 
+export interface ReportsSummary {
+  total_campers: number;
+  total_applications: number;
+  accepted_applications: number;
+  pending_applications: number;
+  rejected_applications: number;
+  applications_by_status: Record<string, number>;
+  sessions: { id: number; name: string; capacity: number; enrolled: number }[];
+}
+
+export async function getReportsSummary(): Promise<ReportsSummary> {
+  const { data } = await axiosInstance.get<ApiResponse<ReportsSummary>>('/reports/summary');
+  return data.data;
+}
+
 type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 'id-labels';
 export async function downloadReport(type: ReportType): Promise<void> {
   const response = await axiosInstance.get(`/reports/${type}`, {
