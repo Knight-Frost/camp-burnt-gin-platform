@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\Camper\ApplicationController;
 use App\Http\Controllers\Api\Camper\CamperController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
 use App\Http\Controllers\Api\Document\DocumentController;
-use App\Http\Controllers\Api\Document\MedicalProviderLinkController;
 use App\Http\Controllers\Api\Medical\ActivityPermissionController;
 use App\Http\Controllers\Api\Medical\AllergyController;
 use App\Http\Controllers\Api\Medical\AssistiveDeviceController;
@@ -79,21 +78,6 @@ Route::middleware(['auth:sanctum'])->post('/auth/email/resend', [EmailVerificati
     ->middleware('throttle:6,1')
     ->name('verification.resend');
 
-/*
-|--------------------------------------------------------------------------
-| Medical Provider Link Access Routes (Token-based, No Auth Required)
-|--------------------------------------------------------------------------
-|
-| Routes for medical providers to access forms via secure, expiring links.
-| Authentication is via the secure token, not user credentials.
-| Strict rate limiting prevents token brute-force attempts.
-|
-*/
-Route::prefix('provider-access')->middleware('throttle:provider-link')->group(function () {
-    Route::get('/{token}', [MedicalProviderLinkController::class, 'accessForm'])->name('provider-access.form');
-    Route::post('/{token}/submit', [MedicalProviderLinkController::class, 'submitForm'])->name('provider-access.submit');
-    Route::post('/{token}/upload', [MedicalProviderLinkController::class, 'uploadDocument'])->name('provider-access.upload');
-});
 
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     /*
@@ -178,20 +162,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Medical Provider Link Management Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('provider-links')->middleware('throttle:sensitive')->group(function () {
-        Route::get('/', [MedicalProviderLinkController::class, 'index'])->name('provider-links.index');
-        Route::post('/', [MedicalProviderLinkController::class, 'store'])->name('provider-links.store');
-        Route::get('/{providerLink}', [MedicalProviderLinkController::class, 'show'])->name('provider-links.show');
-        Route::post('/{providerLink}/revoke', [MedicalProviderLinkController::class, 'revoke'])->name('provider-links.revoke');
-        Route::post('/{providerLink}/resend', [MedicalProviderLinkController::class, 'resend'])
-            ->middleware('admin')
-            ->name('provider-links.resend');
-    });
 
     /*
     |--------------------------------------------------------------------------

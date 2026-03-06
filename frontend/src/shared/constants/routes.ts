@@ -58,9 +58,6 @@ export const ROUTES = {
   INBOX: '/inbox',
   PROFILE: '/profile',
 
-  // Provider access (standalone — no auth)
-  PROVIDER_ACCESS: (token: string) => `/provider-access/${token}`,
-
   // Errors
   FORBIDDEN: '/forbidden',
   NOT_FOUND: '*',

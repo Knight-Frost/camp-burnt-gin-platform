@@ -21,7 +21,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Search, Plus, RefreshCw, Archive, ArchiveRestore, Star, Trash2,
-  MailOpen, X, ChevronDown, CheckSquare, Square, Bot,
+  MailOpen, X, ChevronDown, CheckSquare, Square, Bell,
 } from 'lucide-react';
 
 import {
@@ -700,7 +700,7 @@ export function InboxPage() {
                           {activeTab === 'archive'
                             ? <Archive className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
                             : activeTab === 'system'
-                              ? <Bot className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
+                              ? <Bell className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
                               : <MailOpen className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
                           }
                         </div>
