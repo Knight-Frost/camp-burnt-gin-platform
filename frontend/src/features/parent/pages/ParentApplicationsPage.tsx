@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplications } from '@/features/parent/api/parent.api';
+import { getApplications } from '@/features/parent/api/applicant.api';
 import type { Application, ApplicationStatus } from '@/shared/types';
 import type { CamperInfoValues } from '@/features/parent/schemas/application.schema';
 import { ROUTES } from '@/shared/constants/routes';

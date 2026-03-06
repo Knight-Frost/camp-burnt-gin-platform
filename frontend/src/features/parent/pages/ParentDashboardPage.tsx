@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin } from 'lucide-react';
 
-import { getCampers, getApplications } from '@/features/parent/api/parent.api';
+import { getCampers, getApplications } from '@/features/parent/api/applicant.api';
 import { getNotifications } from '@/features/admin/api/notifications.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application, Notification } from '@/shared/types';

@@ -19,7 +19,7 @@ import { ROLES } from '@/shared/constants/roles';
 import { AuthLayout }       from '@/app/layouts/AuthLayout';
 import { AdminLayout }      from '@/ui/layout/AdminLayout';
 import { SuperAdminLayout } from '@/ui/layout/SuperAdminLayout';
-import { ParentLayout }     from '@/ui/layout/ParentLayout';
+import { ApplicantLayout }  from '@/ui/layout/ApplicantLayout';
 import { MedicalLayout }    from '@/ui/layout/MedicalLayout';
 
 function withSuspense<T extends object>(Component: ComponentType<T>) {
@@ -106,7 +106,7 @@ export const router = createBrowserRouter([
     children: [{
       element: <RoleGuard allowedRoles={[ROLES.PARENT]}><Outlet /></RoleGuard>,
       children: [{
-        element: <ParentLayout />,
+        element: <ApplicantLayout />,
         children: [
           { path: '/applicant',                     element: <Navigate to="/applicant/dashboard" replace /> },
           { path: '/applicant/dashboard',           element: <ParentDashboardPage /> },

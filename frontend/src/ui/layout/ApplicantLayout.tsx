@@ -1,5 +1,5 @@
 /**
- * ParentLayout.tsx
+ * ApplicantLayout.tsx
  * Layout for applicant-role authenticated routes.
  * Role mismatch → redirects to the user's correct dashboard (never FORBIDDEN dead-end).
  */
@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { group: 'Account',       label: 'Settings',      to: '/applicant/settings',       icon: Settings },
 ];
 
-export function ParentLayout() {
+export function ApplicantLayout() {
   const user = useAppSelector((state) => state.auth.user);
   const isApplicant = user?.roles?.some((r) => r.name === 'applicant') ?? false;
 

@@ -76,7 +76,7 @@ Camp_Burnt_Gin_Project/
 | Feature | File |
 |---|---|
 | Auth | `src/features/auth/api/auth.api.ts` |
-| Parent | `src/features/parent/api/parent.api.ts` |
+| Applicant | `src/features/parent/api/applicant.api.ts` |
 | Admin | `src/features/admin/api/admin.api.ts` |
 | Medical | `src/features/medical/api/medical.api.ts` |
 | Profile | `src/features/profile/api/profile.api.ts` |

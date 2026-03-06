@@ -1,5 +1,5 @@
 /**
- * parent.api.ts
+ * applicant.api.ts
  * API calls for applicant-role users: sessions, campers, applications, documents.
  */
 

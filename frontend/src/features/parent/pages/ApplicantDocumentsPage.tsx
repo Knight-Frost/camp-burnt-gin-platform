@@ -24,7 +24,7 @@ import {
   deleteDocument,
   uploadDocument,
   type Document,
-} from '@/features/parent/api/parent.api';
+} from '@/features/parent/api/applicant.api';
 import { Button } from '@/ui/components/Button';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplication } from '@/features/parent/api/parent.api';
+import { getApplication } from '@/features/parent/api/applicant.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard } from '@/ui/components/Skeletons';

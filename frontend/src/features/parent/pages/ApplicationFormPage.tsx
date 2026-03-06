@@ -61,7 +61,7 @@ import {
   createActivityPermission,
   uploadDocument,
   signApplication,
-} from '@/features/parent/api/parent.api';
+} from '@/features/parent/api/applicant.api';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Session } from '@/shared/types';
 import { Button } from '@/ui/components/Button';
