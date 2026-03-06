@@ -154,12 +154,15 @@
 **Title:** Applicant portal has no standalone Documents section
 **Module:** Applicant Portal — Documents
 **Severity:** High
-**Status:** Open
+**Status:** Resolved — Phase 3
 **Description:** There is no `/parent/documents` route or page. Applicants cannot upload, manage, or review documents independently of the application form. Documents are only visible inside the application detail view as read-only. The application form (Section 9) handles document uploads inline but there is no persistent document management area for applicants.
+**Resolution:** Created `ApplicantDocumentsPage.tsx` at `/applicant/documents` with upload (drag & drop), PDF/image preview modal, and delete. Added `getDocuments`, `deleteDocument`, `uploadDocument` to `parent.api.ts`. Added route and "Documents" nav item to `ParentLayout`.
 **Affected Files:**
-- `frontend/src/core/routing/index.tsx` (no `/parent/documents` route)
-- `frontend/src/features/parent/pages/` (ParentDocumentsPage missing)
-- `frontend/src/features/parent/api/parent.api.ts` (no document functions)
+- `frontend/src/core/routing/index.tsx`
+- `frontend/src/features/parent/pages/ApplicantDocumentsPage.tsx`
+- `frontend/src/features/parent/api/parent.api.ts`
+- `frontend/src/ui/layout/ParentLayout.tsx`
+- `frontend/src/shared/constants/routes.ts`
 
 ---
 
@@ -167,8 +170,9 @@
 **Title:** ApplicationFormPage header comment incorrectly states sections 6-10 are Phase 2 / not yet implemented
 **Module:** Applicant Application Form
 **Severity:** Low
-**Status:** Open
+**Status:** Resolved — Phase 3
 **Description:** The file comment at the top of `ApplicationFormPage.tsx` says "Phase 1 (current): Scaffold + Sections 1–5" and "Phase 2: Sections 6–10 + submission guard + final API submit." In fact, all 10 sections are fully defined in `FormState` and rendered in the file, and `handleSubmit()` exists with full submit logic. The comment is stale and misleading. It should be removed.
+**Resolution:** Removed stale Phase 1/2 header comments. Removed `phase` field from `SectionDef` and SECTIONS array. Removed dead `if (s.phase === 2) return 'unavailable'` guard from `getSectionStatus`. Updated route comment to `/applicant/applications/new`.
 **Affected Files:**
 - `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
 
@@ -178,8 +182,9 @@
 **Title:** No explicit "Save Draft" button — draft behavior is implicit auto-save only
 **Module:** Applicant Application Form
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved — Phase 3
 **Description:** The application form auto-saves to localStorage every 3 seconds but there is no visible "Save Draft" button that clearly communicates to users that their progress is being saved. Users may be unsure whether progress is persisted. Per Phase 3 requirements, an explicit Save Draft button should be added to the UI.
+**Resolution:** Added `handleSaveDraft()` function and a "Save Draft" `Button` (variant="secondary") in the page header. Triggers immediate `persistDraft(form)` + `toast.success`. Auto-save remains intact.
 **Affected Files:**
 - `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
 

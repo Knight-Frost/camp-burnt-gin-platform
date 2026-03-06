@@ -8,6 +8,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
+  FolderOpen,
   MessageSquare,
   User,
   Settings,
@@ -23,6 +24,7 @@ import type { NavItem } from './DashboardSidebar';
 const NAV_ITEMS: NavItem[] = [
   { group: 'My Portal',     label: 'Dashboard',     to: ROUTES.PARENT_DASHBOARD,     icon: LayoutDashboard },
   { group: 'My Portal',     label: 'Applications',  to: ROUTES.PARENT_APPLICATIONS,  icon: FileText },
+  { group: 'My Portal',     label: 'Documents',     to: ROUTES.PARENT_DOCUMENTS,     icon: FolderOpen },
   { group: 'Communication', label: 'Inbox',         to: '/applicant/inbox',          icon: MessageSquare },
   { group: 'Communication', label: 'Announcements', to: ROUTES.PARENT_ANNOUNCEMENTS, icon: Megaphone },
   { group: 'Operations',    label: 'Calendar',      to: ROUTES.PARENT_CALENDAR,      icon: CalendarDays },

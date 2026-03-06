@@ -4,10 +4,7 @@
  * Full Camp Burnt Gin CYSHCN Camper Application — 10-section accordion form.
  * Replaces the legacy 6-step wizard with a free-navigation, auto-saving system.
  *
- * Phase 1 (current): Scaffold + Sections 1–5
- * Phase 2: Sections 6–10 + submission guard + final API submit
- *
- * Route: /parent/applications/new
+ * Route: /applicant/applications/new
  *
  * Architecture:
  * - State: single FormState object, mirrored to localStorage on every change
@@ -49,7 +46,22 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-import axiosInstance from '@/api/axios.config';
+import {
+  getSessions,
+  createCamper,
+  createApplication,
+  createEmergencyContact,
+  createMedicalRecord,
+  createDiagnosis,
+  createAllergy,
+  createBehavioralProfile,
+  createAssistiveDevice,
+  createFeedingPlan,
+  createMedication,
+  createActivityPermission,
+  uploadDocument,
+  signApplication,
+} from '@/features/parent/api/parent.api';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Session } from '@/shared/types';
 import { Button } from '@/ui/components/Button';
@@ -430,32 +442,28 @@ interface SectionDef {
   label: string;
   shortLabel: string;
   icon: typeof User;
-  phase: 1 | 2;
 }
 
 const SECTIONS: SectionDef[] = [
-  { id: 0, key: 's1', label: 'General Information',        shortLabel: 'General Info',   icon: User,          phase: 1 },
-  { id: 1, key: 's2', label: 'Health & Medical',            shortLabel: 'Health',         icon: Heart,         phase: 1 },
-  { id: 2, key: 's3', label: 'Development & Behavior',      shortLabel: 'Behavior',       icon: Brain,         phase: 1 },
-  { id: 3, key: 's4', label: 'Equipment & Mobility',        shortLabel: 'Equipment',      icon: Accessibility, phase: 1 },
-  { id: 4, key: 's5', label: 'Diet & Feeding',              shortLabel: 'Diet',           icon: Utensils,      phase: 1 },
-  { id: 5, key: 's6', label: 'Personal Care',               shortLabel: 'Personal Care',  icon: ShieldCheck,   phase: 1 },
-  { id: 6, key: 's7', label: 'Activities & Permissions',    shortLabel: 'Activities',     icon: Activity,      phase: 1 },
-  { id: 7, key: 's8', label: 'Medications',                 shortLabel: 'Medications',    icon: Pill,          phase: 1 },
-  { id: 8, key: 's9', label: 'Required Documents',          shortLabel: 'Documents',      icon: Upload,        phase: 1 },
-  { id: 9, key: 's10', label: 'Consents & Signatures',      shortLabel: 'Consents',       icon: PenLine,       phase: 1 },
+  { id: 0, key: 's1', label: 'General Information',        shortLabel: 'General Info',   icon: User          },
+  { id: 1, key: 's2', label: 'Health & Medical',            shortLabel: 'Health',         icon: Heart         },
+  { id: 2, key: 's3', label: 'Development & Behavior',      shortLabel: 'Behavior',       icon: Brain         },
+  { id: 3, key: 's4', label: 'Equipment & Mobility',        shortLabel: 'Equipment',      icon: Accessibility },
+  { id: 4, key: 's5', label: 'Diet & Feeding',              shortLabel: 'Diet',           icon: Utensils      },
+  { id: 5, key: 's6', label: 'Personal Care',               shortLabel: 'Personal Care',  icon: ShieldCheck   },
+  { id: 6, key: 's7', label: 'Activities & Permissions',    shortLabel: 'Activities',     icon: Activity      },
+  { id: 7, key: 's8', label: 'Medications',                 shortLabel: 'Medications',    icon: Pill          },
+  { id: 8, key: 's9', label: 'Required Documents',          shortLabel: 'Documents',      icon: Upload        },
+  { id: 9, key: 's10', label: 'Consents & Signatures',      shortLabel: 'Consents',       icon: PenLine       },
 ];
 
 // ---------------------------------------------------------------------------
-// Section completion — Phase 1 sections only
+// Section completion
 // ---------------------------------------------------------------------------
 
-type SectionStatus = 'complete' | 'partial' | 'empty' | 'unavailable';
+type SectionStatus = 'complete' | 'partial' | 'empty';
 
 function getSectionStatus(sectionId: number, form: FormState): SectionStatus {
-  const s = SECTIONS[sectionId];
-  if (s.phase === 2) return 'unavailable';
-
   switch (sectionId) {
     case 0: {
       const { s1 } = form;
@@ -2631,10 +2639,7 @@ export function ApplicationFormPage() {
   // ── Load sessions ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    axiosInstance
-      .get<{ data: Session[] }>('/sessions')
-      .then((r) => setSessions(r.data.data ?? []))
-      .catch(() => {});
+    getSessions().then(setSessions).catch(() => {});
   }, []);
 
   // ── Auto-save to localStorage ──────────────────────────────────────────────
@@ -2681,6 +2686,11 @@ export function ApplicationFormPage() {
     toast.success('Draft cleared.');
   }
 
+  function handleSaveDraft() {
+    persistDraft(form);
+    toast.success('Draft saved.');
+  }
+
   async function handleSubmit() {
     if (countMissing(form) > 0) {
       toast.error('Please complete all sections before submitting.');
@@ -2696,42 +2706,41 @@ export function ApplicationFormPage() {
 
     try {
       // ── Step 1: Create camper ─────────────────────────────────────────────
-      const { data: camperData } = await axiosInstance.post<{ data: { id: number } }>('/campers', {
-        first_name: form.s1.camper_first_name,
-        last_name:  form.s1.camper_last_name,
+      const camper = await createCamper({
+        first_name:    form.s1.camper_first_name,
+        last_name:     form.s1.camper_last_name,
         date_of_birth: form.s1.camper_dob,
-        gender: form.s1.camper_gender,
+        gender:        form.s1.camper_gender,
+        tshirt_size:   '',
       });
-      const camperId = camperData.data.id;
+      const camperId = camper.id;
 
       // ── Step 2: Emergency contact ─────────────────────────────────────────
       if (form.s1.ec_name.trim()) {
-        await axiosInstance.post('/emergency-contacts', {
-          camper_id:    camperId,
-          name:         form.s1.ec_name,
-          relationship: form.s1.ec_relationship,
-          phone_primary: form.s1.ec_phone,
-          is_primary: true,
+        await createEmergencyContact({
+          camper_id:            camperId,
+          name:                 form.s1.ec_name,
+          relationship:         form.s1.ec_relationship,
+          phone_primary:        form.s1.ec_phone,
+          is_primary:           true,
           is_authorized_pickup: false,
         });
       }
 
       // ── Step 3: Medical record ────────────────────────────────────────────
-      const { data: mrData } = await axiosInstance.post<{ data: { id: number } }>('/medical-records', {
-        camper_id:            camperId,
-        physician_name:       form.s2.physician_name,
-        physician_phone:      form.s2.physician_phone,
-        insurance_provider:   form.s2.insurance_provider,
+      await createMedicalRecord({
+        camper_id:               camperId,
+        physician_name:          form.s2.physician_name,
+        physician_phone:         form.s2.physician_phone,
+        insurance_provider:      form.s2.insurance_provider,
         insurance_policy_number: form.s2.insurance_policy,
-        special_needs:        form.s3.behavior_notes || undefined,
+        special_needs:           form.s3.behavior_notes || undefined,
       });
-      const medicalRecordId = mrData.data.id;
-      void medicalRecordId; // used implicitly via camper_id associations below
 
       // ── Step 4: Diagnoses ─────────────────────────────────────────────────
       for (const dx of form.s2.diagnoses) {
         if (!dx.condition.trim()) continue;
-        await axiosInstance.post('/diagnoses', {
+        await createDiagnosis({
           camper_id:      camperId,
           name:           dx.condition,
           severity_level: 'moderate',
@@ -2742,18 +2751,17 @@ export function ApplicationFormPage() {
       // ── Step 5: Allergies ─────────────────────────────────────────────────
       for (const al of form.s2.allergies) {
         if (!al.allergen.trim()) continue;
-        const sev = al.severity || 'moderate';
-        await axiosInstance.post('/allergies', {
+        await createAllergy({
           camper_id: camperId,
           allergen:  al.allergen,
-          severity:  sev,
+          severity:  al.severity || 'moderate',
           reaction:  al.reaction || undefined,
           treatment: al.epi_pen ? 'Epi-pen available' : undefined,
         });
       }
 
       // ── Step 6: Behavioral profile ────────────────────────────────────────
-      await axiosInstance.post('/behavioral-profiles', {
+      await createBehavioralProfile({
         camper_id:              camperId,
         aggression:             form.s3.aggression === true,
         self_abuse:             form.s3.self_abuse  === true,
@@ -2768,28 +2776,28 @@ export function ApplicationFormPage() {
       // ── Step 7: Assistive devices ─────────────────────────────────────────
       for (const dev of form.s4.devices) {
         if (!dev.device_type.trim()) continue;
-        await axiosInstance.post('/assistive-devices', {
-          camper_id:                 camperId,
-          device_type:               dev.device_type,
+        await createAssistiveDevice({
+          camper_id:                    camperId,
+          device_type:                  dev.device_type,
           requires_transfer_assistance: dev.requires_transfer,
-          notes: dev.notes || undefined,
+          notes:                        dev.notes || undefined,
         });
       }
 
       // ── Step 8: Feeding plan ──────────────────────────────────────────────
       if (form.s5.special_diet || form.s5.g_tube) {
-        await axiosInstance.post('/feeding-plans', {
-          camper_id:        camperId,
-          special_diet:     form.s5.special_diet,
-          diet_description: form.s5.diet_description || undefined,
-          g_tube:           form.s5.g_tube,
-          formula:          form.s5.formula || undefined,
+        await createFeedingPlan({
+          camper_id:          camperId,
+          special_diet:       form.s5.special_diet,
+          diet_description:   form.s5.diet_description || undefined,
+          g_tube:             form.s5.g_tube,
+          formula:            form.s5.formula || undefined,
           amount_per_feeding: form.s5.amount_per_feeding || undefined,
-          feedings_per_day: form.s5.feedings_per_day
-                              ? parseInt(form.s5.feedings_per_day, 10) : undefined,
-          feeding_times:    form.s5.feeding_times
-                              ? form.s5.feeding_times.split(',').map((t) => t.trim()).filter(Boolean)
-                              : undefined,
+          feedings_per_day:   form.s5.feedings_per_day
+                                ? parseInt(form.s5.feedings_per_day, 10) : undefined,
+          feeding_times:      form.s5.feeding_times
+                                ? form.s5.feeding_times.split(',').map((t) => t.trim()).filter(Boolean)
+                                : undefined,
         });
       }
 
@@ -2797,16 +2805,16 @@ export function ApplicationFormPage() {
       if (!form.s8.no_medications) {
         for (const med of form.s8.medications) {
           if (!med.name.trim()) continue;
-          await axiosInstance.post('/medications', {
-            camper_id:           camperId,
-            name:                med.name,
-            dosage:              med.dosage,
-            frequency:           med.frequency,
-            purpose:             med.reason || undefined,
+          await createMedication({
+            camper_id:             camperId,
+            name:                  med.name,
+            dosage:                med.dosage,
+            frequency:             med.frequency,
+            purpose:               med.reason || undefined,
             prescribing_physician: med.physician || undefined,
             notes: [
-              med.route       ? `Route: ${med.route}` : '',
-              med.self_admin  ? 'Self-administers' : '',
+              med.route         ? `Route: ${med.route}` : '',
+              med.self_admin    ? 'Self-administers' : '',
               med.refrigeration ? 'Requires refrigeration' : '',
               med.notes,
             ].filter(Boolean).join('; ') || undefined,
@@ -2833,29 +2841,29 @@ export function ApplicationFormPage() {
         const entry = form.s7[key as keyof typeof form.s7];
         if (!entry.level) continue;
         const permLevel = levelMap[entry.level] ?? 'yes';
-        await axiosInstance.post('/activity-permissions', {
+        await createActivityPermission({
           camper_id:        camperId,
           activity_name:    activityName,
           permission_level: permLevel,
-          restriction_notes: entry.notes || undefined,
+          notes:            entry.notes || undefined,
         });
       }
 
       // ── Step 11: Create application ───────────────────────────────────────
-      const { data: appData } = await axiosInstance.post<{ data: { id: number } }>('/applications', {
+      const application = await createApplication({
         camper_id:  camperId,
         session_id: Number(form.s1.session_id),
       });
-      const applicationId = appData.data.id;
+      const applicationId = application.id;
 
       // ── Step 12: Upload documents ─────────────────────────────────────────
       const docTypeLabels: Record<string, string> = {
-        immunization:  'Immunization Record',
-        medical_exam:  'Medical Examination',
+        immunization:   'Immunization Record',
+        medical_exam:   'Medical Examination',
         insurance_card: 'Insurance Card',
-        cpap_waiver:   'CPAP Waiver',
-        seizure_plan:  'Seizure Action Plan',
-        gtube_plan:    'G-Tube Care Plan',
+        cpap_waiver:    'CPAP Waiver',
+        seizure_plan:   'Seizure Action Plan',
+        gtube_plan:     'G-Tube Care Plan',
       };
       for (const [key, slot] of Object.entries(form.s9)) {
         if (!slot) continue;
@@ -2866,15 +2874,11 @@ export function ApplicationFormPage() {
         fd.append('documentable_type', 'App\\Models\\Application');
         fd.append('documentable_id', String(applicationId));
         fd.append('document_type', docTypeLabels[key] ?? key);
-        await axiosInstance.post('/documents', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await uploadDocument(fd);
       }
 
       // ── Step 13: Sign application ─────────────────────────────────────────
-      await axiosInstance.post(`/applications/${applicationId}/sign`, {
-        signature_name: form.s10.signed_name,
-      });
+      await signApplication(applicationId, form.s10.signed_name);
 
       // ── Success ───────────────────────────────────────────────────────────
       toast.dismiss(tid);
@@ -2927,6 +2931,15 @@ export function ApplicationFormPage() {
                 Saved {lastSavedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
               </span>
             )}
+            <Button
+              onClick={handleSaveDraft}
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-1.5"
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save Draft
+            </Button>
             <button
               type="button"
               onClick={handleClearDraft}

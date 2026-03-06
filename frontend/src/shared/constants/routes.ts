@@ -27,6 +27,7 @@ export const ROUTES = {
   PARENT_APPLICATION_NEW: '/applicant/applications/new',
   PARENT_APPLICATION_DETAIL: (id: number | string) =>
     `/applicant/applications/${id}`,
+  PARENT_DOCUMENTS: '/applicant/documents',
   PARENT_CALENDAR: '/applicant/calendar',
   PARENT_ANNOUNCEMENTS: '/applicant/announcements',
 

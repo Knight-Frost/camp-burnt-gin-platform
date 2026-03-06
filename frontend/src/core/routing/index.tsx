@@ -45,6 +45,7 @@ const ResetPasswordPage  = withSuspense(lazy(() => import('@/app/pages/ResetPass
 const VerifyEmailPage    = withSuspense(lazy(() => import('@/app/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage }))));
 
 // ─── Applicant pages ──────────────────────────────────────────────────────────
+const ApplicantDocumentsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantDocumentsPage').then(m => ({ default: m.ApplicantDocumentsPage }))));
 const ParentDashboardPage          = withSuspense(lazy(() => import('@/features/parent/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage }))));
 const ParentApplicationsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationsPage').then(m => ({ default: m.ParentApplicationsPage }))));
 const ApplicationFormPage          = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationFormPage').then(m => ({ default: m.ApplicationFormPage }))));
@@ -112,6 +113,7 @@ export const router = createBrowserRouter([
           { path: '/applicant/applications',        element: <ParentApplicationsPage /> },
           { path: '/applicant/applications/new',    element: <ApplicationFormPage /> },
           { path: '/applicant/applications/:id',    element: <ParentApplicationDetailPage /> },
+          { path: '/applicant/documents',           element: <ApplicantDocumentsPage /> },
           { path: '/applicant/announcements',       element: <ParentAnnouncementsPage /> },
           { path: '/applicant/calendar',            element: <ParentCalendarPage /> },
           { path: '/applicant/inbox',               element: <InboxPage /> },
