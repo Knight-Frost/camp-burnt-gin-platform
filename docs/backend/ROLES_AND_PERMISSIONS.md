@@ -8,7 +8,7 @@ This document defines the role-based access control (RBAC) system implemented in
 
 The system implements a four-tier role hierarchy:
 
-**Hierarchy:** super_admin > admin > parent > medical
+**Hierarchy:** super_admin > admin > applicant > medical
 
 ### Super Administrator
 
@@ -54,9 +54,9 @@ The system implements a four-tier role hierarchy:
 - **Cannot** manage role definitions
 - **Cannot** promote users to admin or super_admin
 
-### Parent
+### Applicant
 
-**Role Code:** `parent`
+**Role Code:** `applicant`
 
 **Purpose:** Self-service for parents/guardians
 
@@ -79,20 +79,26 @@ The system implements a four-tier role hierarchy:
 
 **Role Code:** `medical`
 
-**Purpose:** Medical data review for authenticated medical staff
+**Purpose:** Full medical workflow access for authenticated on-site camp medical staff
 
-**Target Audience:** Internal medical staff with system accounts
+**Target Audience:** On-site camp nurses and medical staff with system accounts
 
 **Capabilities:**
-- View medical records for all campers (read-only, with audit logging)
-- View allergies and medications (read-only)
-- View emergency contacts (read-only)
+- View medical records for all campers (with audit logging)
+- Update medical records (notes, special needs, dietary restrictions)
+- Create, view, and update allergies, medications, and diagnoses
+- View and update behavioral profiles, feeding plans, assistive devices, and activity permissions
+- View emergency contacts (read-only — contact management is a parent/admin responsibility)
+- Record treatment log entries (first aid, medication administration, observations, emergencies)
+- Update own treatment log entries
+- View and upload medical documents for any camper
 - **Cannot** create or modify applications
 - **Cannot** access administrative functions
 - **Cannot** modify camper profiles
-- **Cannot** delete any records
+- **Cannot** delete any records (allergies, medications, treatments, documents)
+- **Cannot** manage other staff's treatment log entries (own entries only)
 
-**Note:** External medical providers use unauthenticated token links, not the Medical Provider role.
+**Note:** External medical providers (outside parties with shared token access) use the `MedicalProviderLink` token system and are distinct from the `medical` role used for on-site staff accounts.
 
 ---
 
@@ -103,10 +109,12 @@ The system implements a four-tier role hierarchy:
 | Operation | Admin | Parent | Medical |
 |-----------|-------|--------|---------|
 | List all campers | Yes | Own only | No |
-| View any camper | Yes | Own only | No |
+| View any camper | Yes | Own only | Yes (read-only, for clinical context) |
 | Create camper | Yes | Yes | No |
 | Update any camper | Yes | Own only | No |
 | Delete any camper | Yes | Own only | No |
+
+**Note:** Medical staff can view camper profiles (name, DOB) to support clinical workflows — recording treatments, reviewing records, and uploading documents. They cannot list, create, update, or delete camper profiles.
 
 ### Application Management
 
@@ -168,11 +176,21 @@ The system implements a four-tier role hierarchy:
 
 | Operation | Admin | Parent | Medical |
 |-----------|-------|--------|---------|
-| List all documents | Yes | Own only | No |
-| View any document | Yes | Own only | No |
-| Upload document | Yes | Yes | No |
-| Download document | Yes | Own only | No |
+| List all documents | Yes | Own only | Camper + Medical Record docs |
+| View any document | Yes | Own only | Camper + Medical Record docs |
+| Upload document | Yes | Yes | Yes (camper + medical record) |
+| Download document | Yes | Own only | Camper + Medical Record docs |
 | Delete document | Yes | Own only | No |
+
+### Treatment Logs
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List treatment logs | Yes | No | Yes (all campers) |
+| View any treatment log | Yes | No | Yes |
+| Create treatment log | Yes | No | Yes |
+| Update treatment log | Yes | No | Own entries only |
+| Delete treatment log | Yes | No | No |
 
 ### Medical Provider Links
 
@@ -266,7 +284,7 @@ if ($user->isAdmin()) {
 
 Roles are assigned at user creation:
 
-- **Default Role:** Parent (self-registration)
+- **Default Role:** Applicant (self-registration)
 - **Super Admin Assignment:** Created via database seeder or manual database insert
 - **Admin Assignment:** Super admin via role management or database seeder
 - **Medical Assignment:** Super admin via role management or manual database assignment
@@ -311,4 +329,4 @@ This command:
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** February 2026
+**Last Updated:** March 2026 (Phase 10 — Documentation)

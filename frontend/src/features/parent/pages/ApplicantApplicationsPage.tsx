@@ -33,20 +33,23 @@ import {
   cardHoverMotion,
 } from '@/shared/constants/motion';
 
+const LOCAL_DRAFT_KEY = 'cbg_app_draft';
+
 type ViewMode = 'all' | 'active' | 'past';
 type SortOrder = 'newest' | 'oldest';
 
-const ACTIVE_STATUSES: ApplicationStatus[] = ['draft', 'submitted', 'under_review', 'waitlisted'];
-const PAST_STATUSES: ApplicationStatus[]   = ['accepted', 'rejected', 'withdrawn'];
+const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review', 'waitlisted'];
+const PAST_STATUSES: ApplicationStatus[]   = ['approved', 'rejected', 'withdrawn', 'cancelled'];
 
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft:        'Draft',
-  submitted:    'Submitted',
+  pending:      'Pending',
   under_review: 'Under Review',
-  accepted:     'Accepted',
+  approved:     'Approved',
   rejected:     'Rejected',
   waitlisted:   'Waitlisted',
   withdrawn:    'Withdrawn',
+  cancelled:    'Cancelled',
 };
 
 function sortApps(apps: Application[], order: SortOrder): Application[] {
@@ -93,7 +96,7 @@ function AppCard({ app }: { app: Application }) {
         </Link>
         <div className="flex items-center gap-3 flex-shrink-0">
           <StatusBadge status={app.status} />
-          {(app.status === 'accepted' || app.status === 'rejected') && app.camper && (
+          {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled') && app.camper && (
             <button
               onClick={() =>
                 navigate(ROUTES.PARENT_APPLICATION_NEW, {
@@ -162,6 +165,36 @@ function AppGroup({
   );
 }
 
+function LocalDraftCard({ camperName }: { camperName: string | null }) {
+  const navigate = useNavigate();
+  return (
+    <div
+      className="flex items-center justify-between gap-4 px-6 py-4 rounded-2xl border"
+      style={{ background: 'var(--card)', borderColor: 'var(--ember-orange)' }}
+    >
+      <div className="flex items-center gap-4 min-w-0">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(22,101,52,0.10)' }}
+        >
+          <FileText className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+            {camperName ? `Draft — ${camperName}` : 'Application draft (in progress)'}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+            Saved locally · Not yet submitted
+          </p>
+        </div>
+      </div>
+      <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW)}>
+        Continue
+      </Button>
+    </div>
+  );
+}
+
 export function ApplicantApplicationsPage() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState<Application[]>([]);
@@ -170,6 +203,18 @@ export function ApplicantApplicationsPage() {
   const [view, setView]                 = useState<ViewMode>('all');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('');
   const [sortOrder, setSortOrder]       = useState<SortOrder>('newest');
+  const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { s1?: { camper_first_name?: string; camper_last_name?: string } };
+      const first = (parsed.s1?.camper_first_name ?? '').trim();
+      const last  = (parsed.s1?.camper_last_name  ?? '').trim();
+      setLocalDraft({ camperName: first || last ? `${first} ${last}`.trim() : null });
+    } catch { /* ignore corrupt draft */ }
+  }, []);
 
   const load = () => {
     setLoading(true);
@@ -184,18 +229,25 @@ export function ApplicantApplicationsPage() {
 
   const filtered = useMemo(() => {
     let list = applications;
-    if (statusFilter) {
-      list = list.filter((a) => a.status === statusFilter);
+    if (statusFilter === 'draft') {
+      // Drafts are stored with is_draft=true, not a separate status value
+      list = list.filter((a) => a.is_draft === true);
+    } else if (statusFilter) {
+      list = list.filter((a) => a.status === statusFilter && !a.is_draft);
     } else if (view === 'active') {
-      list = list.filter((a) => ACTIVE_STATUSES.includes(a.status));
+      list = list.filter((a) => ACTIVE_STATUSES.includes(a.status) && !a.is_draft);
     } else if (view === 'past') {
       list = list.filter((a) => PAST_STATUSES.includes(a.status));
     }
     return sortApps(list, sortOrder);
   }, [applications, statusFilter, view, sortOrder]);
 
+  const draftApps = useMemo(
+    () => filtered.filter((a) => a.is_draft === true),
+    [filtered]
+  );
   const activeApps = useMemo(
-    () => filtered.filter((a) => ACTIVE_STATUSES.includes(a.status)),
+    () => filtered.filter((a) => ACTIVE_STATUSES.includes(a.status) && !a.is_draft),
     [filtered]
   );
   const pastApps = useMemo(
@@ -296,7 +348,7 @@ export function ApplicantApplicationsPage() {
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <ErrorState onRetry={load} />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !(statusFilter === 'draft' && localDraft) ? (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <EmptyState
             title={applications.length === 0 ? 'No applications yet' : 'No matching applications'}
@@ -318,9 +370,49 @@ export function ApplicantApplicationsPage() {
           <div className="flex flex-col gap-4">
             {view === 'all' && !statusFilter ? (
               <>
+                {(draftApps.length > 0 || localDraft) && (
+                  <div className="flex flex-col gap-3">
+                    <div className="px-1">
+                      <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
+                        Drafts
+                      </span>
+                    </div>
+                    {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
+                    {draftApps.length > 0 && (
+                      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                        <motion.ul
+                          variants={staggerContainerVariants}
+                          initial="hidden"
+                          animate="visible"
+                          className="divide-y"
+                          style={{ borderColor: 'var(--border)' }}
+                        >
+                          {draftApps.map((app) => <AppCard key={app.id} app={app} />)}
+                        </motion.ul>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <AppGroup title="Active Applications" apps={activeApps} />
                 <AppGroup title="Past Applications" apps={pastApps} />
               </>
+            ) : statusFilter === 'draft' ? (
+              <div className="flex flex-col gap-3">
+                {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
+                {filtered.length > 0 && (
+                  <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                    <motion.ul
+                      variants={staggerContainerVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className="divide-y"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      {filtered.map((app) => <AppCard key={app.id} app={app} />)}
+                    </motion.ul>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                 <motion.ul

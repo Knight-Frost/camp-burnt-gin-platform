@@ -27,6 +27,9 @@ class ConversationParticipant extends Model
         'user_id',
         'joined_at',
         'left_at',
+        'is_starred',
+        'is_important',
+        'trashed_at',
     ];
 
     /**
@@ -37,8 +40,11 @@ class ConversationParticipant extends Model
     protected function casts(): array
     {
         return [
-            'joined_at' => 'datetime',
-            'left_at' => 'datetime',
+            'joined_at'    => 'datetime',
+            'left_at'      => 'datetime',
+            'is_starred'   => 'boolean',
+            'is_important' => 'boolean',
+            'trashed_at'   => 'datetime',
         ];
     }
 
@@ -88,6 +94,66 @@ class ConversationParticipant extends Model
     public function rejoin(): void
     {
         $this->update(['left_at' => null]);
+    }
+
+    /**
+     * Toggle the starred state and return the new value.
+     */
+    public function toggleStar(): bool
+    {
+        $newValue = ! $this->is_starred;
+        $this->update(['is_starred' => $newValue]);
+        return $newValue;
+    }
+
+    /**
+     * Toggle the important state and return the new value.
+     */
+    public function toggleImportant(): bool
+    {
+        $newValue = ! $this->is_important;
+        $this->update(['is_important' => $newValue]);
+        return $newValue;
+    }
+
+    /**
+     * Move this conversation to the user's trash.
+     */
+    public function trash(): void
+    {
+        $this->update(['trashed_at' => now()]);
+    }
+
+    /**
+     * Restore from trash.
+     */
+    public function restore(): void
+    {
+        $this->update(['trashed_at' => null]);
+    }
+
+    /**
+     * Determine if this conversation is trashed for this user.
+     */
+    public function isTrashed(): bool
+    {
+        return $this->trashed_at !== null;
+    }
+
+    /**
+     * Scope: only trashed participant records.
+     */
+    public function scopeTrashed($query)
+    {
+        return $query->whereNotNull('trashed_at');
+    }
+
+    /**
+     * Scope: only non-trashed participant records.
+     */
+    public function scopeNotTrashed($query)
+    {
+        return $query->whereNull('trashed_at');
     }
 
     /**

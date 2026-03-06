@@ -24,11 +24,18 @@ class ApplicationSubmittedNotification extends Notification
     /**
      * Get the notification's delivery channels.
      *
+     * Respects the user's notification_preferences for application_updates.
+     * The database channel is always included for in-app Recent Updates.
+     * Email is gated by the user's preference (default: enabled).
+     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $prefs = $notifiable->notification_preferences ?? [];
+        $emailEnabled = $prefs['application_updates'] ?? true;
+
+        return $emailEnabled ? ['mail', 'database'] : ['database'];
     }
 
     /**
@@ -51,16 +58,24 @@ class ApplicationSubmittedNotification extends Notification
     /**
      * Get the array representation of the notification.
      *
+     * Stored in the database notifications table for in-app display.
+     * The title and message fields are used by the Recent Updates widget.
+     *
      * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
     {
+        $camperName  = $this->application->camper->full_name;
+        $sessionName = $this->application->campSession->name;
+
         return [
-            'type' => 'application_submitted',
+            'type'          => 'application_submitted',
+            'title'         => "Application submitted for {$camperName}",
+            'message'       => "Your application for {$camperName} ({$sessionName}) has been received and is now pending review.",
             'application_id' => $this->application->id,
-            'camper_name' => $this->application->camper->full_name,
-            'camp_session' => $this->application->campSession->name,
-            'submitted_at' => $this->application->submitted_at->toIso8601String(),
+            'camper_name'   => $camperName,
+            'camp_session'  => $sessionName,
+            'submitted_at'  => $this->application->submitted_at->toIso8601String(),
         ];
     }
 }

@@ -51,7 +51,7 @@ export function AdminDashboardPage() {
   const stats = {
     total: applications.length,
     pending: applications.filter((a) => a.status === 'pending').length,
-    accepted: applications.filter((a) => a.status === 'accepted').length,
+    accepted: applications.filter((a) => a.status === 'approved').length,
     rejected: applications.filter((a) => a.status === 'rejected').length,
   };
 

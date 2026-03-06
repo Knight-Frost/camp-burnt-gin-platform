@@ -28,11 +28,18 @@ class NewMessageNotification extends Notification
     /**
      * Get the notification's delivery channels.
      *
+     * Respects the user's notification_preferences for messages.
+     * The database channel is always included for in-app Recent Updates.
+     * Email is gated by the user's preference (default: enabled).
+     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $prefs = $notifiable->notification_preferences ?? [];
+        $emailEnabled = $prefs['messages'] ?? true;
+
+        return $emailEnabled ? ['mail', 'database'] : ['database'];
     }
 
     /**
@@ -66,21 +73,29 @@ class NewMessageNotification extends Notification
      * Get the array representation of the notification.
      *
      * Stored in database notifications table for in-app display.
+     * The title and message fields are used by the Recent Updates widget.
      *
      * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
     {
+        $senderName   = $this->message->sender->name;
+        $subject      = $this->conversation->subject;
+        $attachments  = $this->message->hasAttachments();
+        $attachNote   = $attachments ? ' (includes attachment)' : '';
+
         return [
-            'type' => 'new_message',
-            'message_id' => $this->message->id,
-            'conversation_id' => $this->conversation->id,
-            'conversation_subject' => $this->conversation->subject,
-            'sender_name' => $this->message->sender->name,
-            'sender_id' => $this->message->sender->id,
-            'has_attachments' => $this->message->hasAttachments(),
-            'attachment_count' => $this->message->attachmentCount(),
-            'created_at' => $this->message->created_at->toIso8601String(),
+            'type'                 => 'new_message',
+            'title'                => "New message from {$senderName}",
+            'message'              => "You have a new message in \"{$subject}\"{$attachNote}.",
+            'message_id'           => $this->message->id,
+            'conversation_id'      => $this->conversation->id,
+            'conversation_subject' => $subject,
+            'sender_name'          => $senderName,
+            'sender_id'            => $this->message->sender->id,
+            'has_attachments'      => $attachments,
+            'attachment_count'     => $this->message->attachmentCount(),
+            'created_at'           => $this->message->created_at->toIso8601String(),
         ];
     }
 }

@@ -59,7 +59,7 @@ import { resendVerificationEmail } from '@/features/auth/api/auth.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setUser } from '@/features/auth/store/authSlice';
 import type { User as UserType, UserEmergencyContact } from '@/shared/types/user.types';
 
@@ -233,7 +233,7 @@ function AvatarSection({
           )}
         </div>
         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-          JPG, PNG or WebP · max 2 MB
+          JPG, PNG or WebP · max 8 MB
         </p>
       </div>
     </div>
@@ -644,6 +644,7 @@ function MfaSection({
 export function ProfilePage() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const authUser = useAppSelector((state) => state.auth.user);
 
   const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -695,7 +696,7 @@ export function ProfilePage() {
         phone: phone || null,
       });
       setProfile(updated);
-      dispatch(setUser(updated));
+      dispatch(setUser({ ...authUser, ...updated } as UserType));
       toast.success(t('profile.save_success'));
     } catch {
       toast.error(t('common.save_error'));
@@ -717,7 +718,7 @@ export function ProfilePage() {
         country: country || null,
       });
       setProfile(updated);
-      dispatch(setUser(updated));
+      dispatch(setUser({ ...authUser, ...updated } as UserType));
       toast.success('Address saved.');
     } catch {
       toast.error(t('common.save_error'));
@@ -730,10 +731,11 @@ export function ProfilePage() {
     try {
       const { avatar_url } = await uploadAvatar(file);
       setProfile((p) => p ? { ...p, avatar_url } : p);
-      dispatch(setUser({ ...profile!, avatar_url }));
+      dispatch(setUser({ ...authUser, avatar_url } as UserType));
       toast.success('Profile photo updated.');
-    } catch {
-      toast.error('Failed to upload photo. Please try again.');
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ? `Upload failed: ${msg}` : 'Failed to upload photo. Please try again.');
     }
   }
 
@@ -741,7 +743,7 @@ export function ProfilePage() {
     try {
       await removeAvatar();
       setProfile((p) => p ? { ...p, avatar_url: null, avatar_path: null } : p);
-      dispatch(setUser({ ...profile!, avatar_url: null }));
+      dispatch(setUser({ ...authUser, ...profile!, avatar_url: null } as UserType));
       toast.success('Profile photo removed.');
     } catch {
       toast.error('Failed to remove photo. Please try again.');

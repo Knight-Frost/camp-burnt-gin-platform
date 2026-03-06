@@ -36,9 +36,17 @@ class Camper extends Model
         'last_name',
         'date_of_birth',
         'gender',
+        'tshirt_size',
         'supervision_level',
         'record_retention_until',
     ];
+
+    /**
+     * Attributes to append to the model's array/JSON representation.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['full_name'];
 
     /**
      * Get the attributes that should be cast.

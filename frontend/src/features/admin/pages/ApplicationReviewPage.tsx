@@ -7,16 +7,18 @@
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import {
   ArrowLeft, User, FileText, Heart, Pill, AlertTriangle,
   CheckCircle, XCircle, Clock, Download, ChevronRight,
 } from 'lucide-react';
 
-import { getApplication, reviewApplication } from '@/features/admin/api/admin.api';
+import { getApplication, reviewApplication, getCamperComplianceStatus } from '@/features/admin/api/admin.api';
+import type { ComplianceStatus, ComplianceDocument } from '@/features/admin/api/admin.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -67,97 +69,238 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
 
 interface ReviewPanelProps {
   applicationId: number;
+  camperId: number;
   currentStatus: Application['status'];
   onReviewed: (updated: Application) => void;
 }
 
-function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelProps) {
+function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: ReviewPanelProps) {
   const { t } = useTranslation();
   const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState<'accepted' | 'rejected' | 'under_review' | null>(null);
+  const [submitting, setSubmitting] = useState<'approved' | 'rejected' | 'under_review' | null>(null);
+  const [bypassDialog, setBypassDialog] = useState<{ open: boolean; details: ComplianceStatus | null }>({
+    open: false,
+    details: null,
+  });
 
-  async function handleReview(status: 'accepted' | 'rejected' | 'under_review') {
+  async function doReview(status: 'approved' | 'rejected' | 'under_review') {
     setSubmitting(status);
     try {
       const updated = await reviewApplication(applicationId, { status, notes });
       onReviewed(updated);
       toast.success(t('admin.review.success', { status }));
-    } catch {
-      toast.error(t('admin.review.error'));
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ?? t('admin.review.error'));
     } finally {
       setSubmitting(null);
     }
   }
 
+  async function handleReview(status: 'approved' | 'rejected' | 'under_review') {
+    if (status === 'approved') {
+      try {
+        const compliance = await getCamperComplianceStatus(camperId);
+        if (!compliance.is_compliant) {
+          setBypassDialog({ open: true, details: compliance });
+          return;
+        }
+      } catch {
+        // If compliance check itself fails, proceed without blocking approval
+      }
+    }
+    await doReview(status);
+  }
+
   return (
-    <div
-      className="rounded-xl p-6 border sticky top-6"
-      style={{
-        background: 'var(--glass-medium)',
-        borderColor: 'var(--border)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
-      <h3 className="font-headline font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-        {t('admin.review.title')}
-      </h3>
+    <>
+      <div
+        className="rounded-xl p-6 border sticky top-6"
+        style={{
+          background: 'var(--glass-medium)',
+          borderColor: 'var(--border)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <h3 className="font-headline font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+          {t('admin.review.title')}
+        </h3>
 
-      <div className="mb-4">
-        <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
-          {t('admin.review.current_status')}
-        </p>
-        <StatusBadge status={currentStatus} />
+        <div className="mb-4">
+          <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            {t('admin.review.current_status')}
+          </p>
+          <StatusBadge status={currentStatus} />
+        </div>
+
+        <div className="mb-5">
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+            {t('admin.review.notes_label')}
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            placeholder={t('admin.review.notes_placeholder')}
+            className="w-full rounded-lg px-3 py-2 text-sm resize-none border outline-none focus:ring-2 transition-all"
+            style={{
+              background: 'var(--input)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+            }}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={() => handleReview('approved')}
+            loading={submitting === 'approved'}
+            disabled={!!submitting}
+            variant="primary"
+            icon={<CheckCircle className="h-4 w-4" />}
+          >
+            {t('admin.review.accept')}
+          </Button>
+          <Button
+            onClick={() => handleReview('under_review')}
+            loading={submitting === 'under_review'}
+            disabled={!!submitting}
+            variant="secondary"
+            icon={<Clock className="h-4 w-4" />}
+          >
+            {t('admin.review.mark_under_review')}
+          </Button>
+          <Button
+            onClick={() => handleReview('rejected')}
+            loading={submitting === 'rejected'}
+            disabled={!!submitting}
+            variant="ghost"
+            icon={<XCircle className="h-4 w-4" />}
+            style={{ color: 'var(--destructive)' }}
+          >
+            {t('admin.review.reject')}
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-5">
-        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
-          {t('admin.review.notes_label')}
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={4}
-          placeholder={t('admin.review.notes_placeholder')}
-          className="w-full rounded-lg px-3 py-2 text-sm resize-none border outline-none focus:ring-2 transition-all"
-          style={{
-            background: 'var(--input)',
-            borderColor: 'var(--border)',
-            color: 'var(--foreground)',
-          }}
-        />
-      </div>
+      {/* Incomplete application bypass dialog */}
+      {bypassDialog.open && bypassDialog.details && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setBypassDialog({ open: false, details: null })}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-6 border shadow-2xl"
+            style={{
+              background: 'var(--card)',
+              borderColor: 'var(--border)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div
+                className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 mt-0.5"
+                style={{ background: 'rgba(234,179,8,0.15)' }}
+              >
+                <AlertTriangle className="h-5 w-5" style={{ color: 'var(--warm-amber)' }} />
+              </div>
+              <div>
+                <h2 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+                  This application is incomplete
+                </h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Some required fields have not been submitted. Accepting this application will bypass normal validation requirements. Are you sure?
+                </p>
+              </div>
+            </div>
 
-      <div className="flex flex-col gap-2">
-        <Button
-          onClick={() => handleReview('accepted')}
-          loading={submitting === 'accepted'}
-          disabled={!!submitting}
-          variant="primary"
-          icon={<CheckCircle className="h-4 w-4" />}
-        >
-          {t('admin.review.accept')}
-        </Button>
-        <Button
-          onClick={() => handleReview('under_review')}
-          loading={submitting === 'under_review'}
-          disabled={!!submitting}
-          variant="secondary"
-          icon={<Clock className="h-4 w-4" />}
-        >
-          {t('admin.review.mark_under_review')}
-        </Button>
-        <Button
-          onClick={() => handleReview('rejected')}
-          loading={submitting === 'rejected'}
-          disabled={!!submitting}
-          variant="ghost"
-          icon={<XCircle className="h-4 w-4" />}
-          style={{ color: 'var(--destructive)' }}
-        >
-          {t('admin.review.reject')}
-        </Button>
-      </div>
-    </div>
+            {/* Detail lists */}
+            {bypassDialog.details.missing_documents.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Missing documents
+                </p>
+                <ul className="space-y-0.5">
+                  {bypassDialog.details.missing_documents.map((d, i) => {
+                    const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
+                    return (
+                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--destructive)' }} />
+                        {label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            {bypassDialog.details.expired_documents.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Expired documents
+                </p>
+                <ul className="space-y-0.5">
+                  {bypassDialog.details.expired_documents.map((d, i) => {
+                    const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
+                    return (
+                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--warm-amber)' }} />
+                        {label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            {bypassDialog.details.unverified_documents.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Unverified documents
+                </p>
+                <ul className="space-y-0.5">
+                  {bypassDialog.details.unverified_documents.map((d, i) => {
+                    const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
+                    return (
+                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--muted-foreground)' }} />
+                        {label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors"
+                style={{
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)',
+                  background: 'var(--card)',
+                }}
+                onClick={() => setBypassDialog({ open: false, details: null })}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: 'var(--ember-orange)',
+                  color: '#fff',
+                }}
+                onClick={() => {
+                  setBypassDialog({ open: false, details: null });
+                  void doReview('approved');
+                }}
+              >
+                Proceed Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -169,6 +312,8 @@ export function ApplicationReviewPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const applicationsPath = location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : '/admin/applications';
 
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
@@ -237,7 +382,7 @@ export function ApplicationReviewPage() {
     >
       {/* Back navigation */}
       <Link
-        to="/admin/applications"
+        to={applicationsPath}
         className="inline-flex items-center gap-2 text-sm mb-6 transition-colors"
         style={{ color: 'var(--muted-foreground)' }}
       >
@@ -274,9 +419,9 @@ export function ApplicationReviewPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {[
                   [t('admin.review.field_name'), camper?.full_name],
-                  [t('admin.review.field_dob'), camper?.date_of_birth],
+                  [t('admin.review.field_dob'), camper?.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : undefined],
                   [t('admin.review.field_gender'), camper?.gender],
-                  [t('admin.review.field_shirt'), camper?.t_shirt_size],
+                  [t('admin.review.field_shirt'), camper?.tshirt_size],
                   [t('admin.review.field_session'), application.session?.name],
                   [t('admin.review.field_camp'), application.session?.camp?.name],
                 ].map(([label, value]) => (
@@ -403,6 +548,7 @@ export function ApplicationReviewPage() {
         <div>
           <ReviewPanel
             applicationId={application.id}
+            camperId={application.camper_id}
             currentStatus={application.status}
             onReviewed={setApplication}
           />

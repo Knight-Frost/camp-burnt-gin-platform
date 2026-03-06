@@ -1,7 +1,6 @@
 /**
  * auth.api.ts
- * All authentication API calls.
- * Each function returns typed data or throws a typed error.
+ * Authentication API calls with deterministic role normalization.
  */
 
 import axiosInstance from '@/api/axios.config';
@@ -16,34 +15,45 @@ import type {
 } from '@/shared/types';
 
 /**
- * Normalize a user object from the backend.
+ * Normalize role names so frontend RBAC always receives valid values.
  *
- * The backend returns `user.role` as a BelongsTo object but the frontend
- * expects `user.roles` (Role[]) for RBAC checks in layout guards.
+ * Backend may return:
+ * - role object
+ * - role string
+ * - roles array
  *
- * Handles three shapes:
- *  1. Already normalized (roles array populated) — no-op.
- *  2. role is an embedded Role object (normal login/getUser response) —
- *     extract name string into `user.role` and build `roles` array.
- *  3. role is a flat string (defensive fallback) —
- *     build a minimal `roles` entry so guards don't fail.
+ * This function guarantees:
+ * user.role → string
+ * user.roles → Role[]
  */
 function normalizeUser(user: User & { role?: Role | string }): User {
-  if (user.roles?.length) return user; // already normalized
+  let roleName: RoleName | null = null;
 
-  if (user.role && typeof user.role === 'object') {
-    const roleObj = user.role as Role;
-    // Flatten role to string AND populate roles array
-    return { ...user, role: roleObj.name, roles: [roleObj] };
+  // Extract role name
+  if (typeof user.role === 'object' && user.role !== null) {
+    roleName = user.role.name as RoleName;
+  } else if (typeof user.role === 'string') {
+    roleName = user.role as RoleName;
+  } else if (user.roles?.length) {
+    roleName = user.roles[0].name as RoleName;
   }
 
-  if (user.role && typeof user.role === 'string') {
-    // Backend returned flat string — build a minimal roles entry
-    const name = user.role as RoleName;
-    return { ...user, roles: [{ id: 0, name, display_name: name }] };
+  // Normalize legacy 'parent' role name from backend → 'applicant'
+  // Cast to string for comparison since 'parent' is not in the RoleName union
+  if ((roleName as string) === 'parent') {
+    roleName = 'applicant';
   }
 
-  return user;
+  // Ensure roles array exists
+  const roles: Role[] = roleName
+    ? [{ id: user.roles?.[0]?.id ?? 0, name: roleName, display_name: roleName }]
+    : [];
+
+  return {
+    ...user,
+    role: roleName as RoleName,
+    roles,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -80,9 +90,11 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
     '/auth/login',
     payload
   );
+
   if (data.data?.user) {
     data.data.user = normalizeUser(data.data.user);
   }
+
   return data;
 }
 
@@ -94,15 +106,18 @@ export async function register(
     '/auth/register',
     payload
   );
+
   if (data.data?.user) {
     data.data.user = normalizeUser(data.data.user);
   }
+
   return data;
 }
 
 /** POST /api/logout */
 export async function logout(): Promise<void> {
   await axiosInstance.post('/logout');
+  sessionStorage.removeItem('auth_token');
 }
 
 /** POST /api/auth/forgot-password */
@@ -127,7 +142,7 @@ export async function resetPassword(
   return data;
 }
 
-/** GET /api/user — verify persisted token is still valid */
+/** GET /api/user */
 export async function getAuthenticatedUser(): Promise<User> {
   const { data } = await axiosInstance.get<ApiResponse<User>>('/user');
   return normalizeUser(data.data);

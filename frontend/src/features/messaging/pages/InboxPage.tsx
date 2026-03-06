@@ -1,37 +1,45 @@
 /**
  * InboxPage.tsx
  *
- * Orchestration layer — uses extracted components.
- * InboxPage is responsible for state, data fetching, and routing between views.
- * All visual sub-components live in features/messaging/components/.
+ * Phase 8 — Gmail-style 3-pane inbox.
  *
- *   - Bootstrap stability gate: skeleton until auth resolved + data loaded
- *   - AnimatePresence mode="wait": opacity crossfade between list and thread views
- *   - Keyboard shortcuts: c = compose, / = focus search, Esc = close compose
- *   - Scroll restoration: saves/restores list scroll position when opening/closing threads
- *   - MessageRow: extracted component with Gmail hover-reveal actions
+ * Layout:
+ *   [ Folder Nav (220px, collapsible) ] [ Conversation List (380px) ] [ Thread Pane (flex-1) ]
  *
- * Route: /parent/inbox  /admin/inbox  /super-admin/inbox
+ * Folder nav:
+ *   Inbox · Starred · Important | Sent · Archive · Trash | System · Announcements
+ *   Collapses to icon-only strip (52px). State persisted in localStorage.
+ *
+ * Conversation list:
+ *   Search bar · Compose button · Bulk actions toolbar · Paginated rows
+ *   Stars and Important now backed by API (per-user in DB) with optimistic updates.
+ *
+ * Thread pane:
+ *   Shows ThreadView for selected conversation; placeholder when nothing selected.
+ *
+ * Route: /parent/inbox  /admin/inbox  /medical/inbox  /super-admin/inbox
  */
 
 import {
-  useState, useEffect, useRef, useCallback, type ElementType, type MouseEvent,
+  useState, useEffect, useRef, type ElementType, type MouseEvent,
 } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Search, Plus, RefreshCw, Archive, ArchiveRestore, Star, Trash2,
-  MailOpen, X, ChevronDown, CheckSquare, Square, Bell,
+  Mail, Star, AlertCircle, Send, Archive, Trash2, Bot, Megaphone,
+  Search, Plus, RefreshCw, ArchiveRestore, MailOpen, X,
+  ChevronLeft, ChevronRight, CheckSquare, Square, AlertTriangle, Pin,
 } from 'lucide-react';
 
 import {
-  getConversations, archiveConversation, unarchiveConversation, leaveConversation, deleteConversation,
-  type Conversation,
+  getConversations,
+  archiveConversation, unarchiveConversation,
+  leaveConversation, deleteConversation,
+  starConversation, markImportant, trashConversation, restoreConversation,
+  type Conversation, type InboxFolder,
 } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import { format } from 'date-fns';
-import { Megaphone, Pin, AlertTriangle } from 'lucide-react';
-import { Skeletons } from '@/ui/components/Skeletons';
 import { useAppSelector } from '@/store/hooks';
 import { useBootstrapReady } from '@/shared/hooks/useBootstrapReady';
 import { MessageRow } from '@/features/messaging/components/MessageRow';
@@ -42,44 +50,40 @@ import { FloatingCompose } from '@/features/messaging/components/FloatingCompose
 
 const BRAND   = '#16a34a';
 const BRAND_T = 'rgba(22,163,74,0.10)';
+const LEFT_COLLAPSE_KEY = 'inbox_left_collapsed';
+const LEFT_FOLDER_KEY   = 'inbox_active_folder';
 
-// ─── Filter tabs ──────────────────────────────────────────────────────────────
+// ─── Folder definitions ───────────────────────────────────────────────────────
 
-type FilterTab = 'all' | 'application' | 'medical' | 'system' | 'announcements' | 'archive';
+type FolderDef = { id: InboxFolder; label: string; icon: ElementType };
+type FolderItem = FolderDef | 'divider';
 
-const TABS: { id: FilterTab; label: string }[] = [
-  { id: 'all',           label: 'All' },
-  { id: 'application',   label: 'Applicants' },
-  { id: 'medical',       label: 'Medical Team' },
-  { id: 'system',        label: 'System' },
-  { id: 'announcements', label: 'Announcements' },
-  { id: 'archive',       label: 'Archive' },
+const FOLDER_DEFS: FolderItem[] = [
+  { id: 'inbox',         label: 'Inbox',         icon: Mail          },
+  { id: 'starred',       label: 'Starred',       icon: Star          },
+  { id: 'important',     label: 'Important',     icon: AlertCircle   },
+  'divider',
+  { id: 'sent',          label: 'Sent',          icon: Send          },
+  { id: 'archive',       label: 'Archive',       icon: Archive       },
+  { id: 'trash',         label: 'Trash',         icon: Trash2        },
+  'divider',
+  { id: 'system',        label: 'System',        icon: Bot           },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone     },
 ];
 
-// ─── Starred persistence ──────────────────────────────────────────────────────
+// ─── Framer variants ──────────────────────────────────────────────────────────
 
-const STARRED_KEY = 'inbox_starred_ids';
-function loadStarred(): Set<number> {
-  try { return new Set<number>(JSON.parse(localStorage.getItem(STARRED_KEY) ?? '[]') as number[]); }
-  catch { return new Set(); }
-}
-function saveStarred(ids: Set<number>) {
-  try { localStorage.setItem(STARRED_KEY, JSON.stringify([...ids])); } catch { /**/ }
-}
-
-// ─── View crossfade variants ──────────────────────────────────────────────────
-
-const viewVariants = {
+const threadVariants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.15, ease: 'easeInOut' as const } },
-  exit:    { opacity: 0, transition: { duration: 0.15, ease: 'easeInOut' as const } },
+  animate: { opacity: 1, transition: { duration: 0.12 } },
+  exit:    { opacity: 0, transition: { duration: 0.1 }  },
 };
 
 // ─── BulkButton helper ────────────────────────────────────────────────────────
 
-function BulkButton({
-  icon: Icon, title, onClick,
-}: { icon: ElementType; title: string; onClick: () => void }) {
+function BulkButton({ icon: Icon, title, onClick, destructive }: {
+  icon: ElementType; title: string; onClick: () => void; destructive?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -88,110 +92,260 @@ function BulkButton({
       aria-label={title}
       className="p-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
     >
-      <Icon className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+      <Icon
+        className="h-4 w-4"
+        style={{ color: destructive ? 'var(--destructive)' : 'var(--muted-foreground)' }}
+      />
     </button>
+  );
+}
+
+// ─── FolderNav ────────────────────────────────────────────────────────────────
+
+function FolderNav({
+  collapsed, onToggle, folder, onFolderChange, inboxUnread,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  folder: InboxFolder;
+  onFolderChange: (f: InboxFolder) => void;
+  inboxUnread: number;
+}) {
+  return (
+    <div
+      className="flex flex-col border-r flex-shrink-0 transition-all duration-200"
+      style={{
+        width: collapsed ? 52 : 220,
+        background: 'var(--card)',
+        borderColor: 'var(--border)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Toggle button */}
+      <div
+        className="flex items-center px-2 py-3 border-b flex-shrink-0"
+        style={{ borderColor: 'var(--border)', minHeight: 52 }}
+      >
+        <button
+          onClick={onToggle}
+          title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)] flex-shrink-0"
+        >
+          {collapsed
+            ? <ChevronRight className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+            : <ChevronLeft  className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          }
+        </button>
+        {!collapsed && (
+          <span className="ml-2 font-headline font-bold text-base truncate" style={{ color: 'var(--foreground)' }}>
+            Inbox
+          </span>
+        )}
+      </div>
+
+      {/* Folder list */}
+      <nav className="flex flex-col py-2 flex-1 overflow-y-auto">
+        {FOLDER_DEFS.map((item, i) => {
+          if (item === 'divider') {
+            return <div key={`div-${i}`} className="my-1 mx-2 border-t" style={{ borderColor: 'var(--border)' }} />;
+          }
+          const Icon    = item.icon;
+          const active  = folder === item.id;
+          const badge   = item.id === 'inbox' && inboxUnread > 0 ? inboxUnread : 0;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onFolderChange(item.id)}
+              title={collapsed ? item.label : undefined}
+              aria-label={item.label}
+              className="flex items-center gap-2.5 transition-colors rounded-lg mx-1.5 my-0.5 flex-shrink-0"
+              style={{
+                padding: collapsed ? '8px 12px' : '8px 10px',
+                background: active ? BRAND_T : 'transparent',
+                color: active ? BRAND : 'var(--foreground)',
+                fontWeight: active ? 600 : 400,
+                justifyContent: collapsed ? 'center' : undefined,
+              }}
+            >
+              <div className="relative flex-shrink-0">
+                <Icon className="h-4 w-4" style={{ color: active ? BRAND : 'var(--muted-foreground)' }} />
+                {/* Collapsed badge dot */}
+                {collapsed && badge > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
+                    style={{ background: BRAND }}
+                  />
+                )}
+              </div>
+              {!collapsed && (
+                <>
+                  <span className="text-sm flex-1 text-left truncate">{item.label}</span>
+                  {badge > 0 && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full font-semibold leading-none flex-shrink-0"
+                      style={{
+                        background: active ? BRAND : 'rgba(107,114,128,0.14)',
+                        color: active ? '#fff' : '#6b7280',
+                        fontSize: 10,
+                      }}
+                    >
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
 
 // ─── InboxPage ────────────────────────────────────────────────────────────────
 
 export function InboxPage() {
-  // Bootstrap stability gate — prevents premature empty state on auth rehydration
   const bootstrapReady = useBootstrapReady();
   const currentUserId  = useAppSelector((s) => s.auth.user?.id);
-  // Role-aware: super_admin and admin can hard-delete conversations
   const userRoleName   = useAppSelector((s) => {
     const u = s.auth.user;
     return u?.roles?.[0]?.name ?? (typeof u?.role === 'string' ? u.role : '') ?? '';
   });
   const isAdmin = ['admin', 'super_admin'].includes(userRoleName);
 
-  const [conversations, setConversations]       = useState<Conversation[]>([]);
-  const [loading, setLoading]                   = useState(true);
-  const [error, setError]                       = useState(false);
-  const [activeTab, setActiveTab]               = useState<FilterTab>('all');
-  const [announcements, setAnnouncements]       = useState<Announcement[]>([]);
-  const [announcementsLoading, setAnnounceLoad] = useState(false);
-  const [announcementsError, setAnnounceError]  = useState(false);
-  const [archivedConvs, setArchivedConvs]       = useState<Conversation[]>([]);
-  const [archivedLoading, setArchiveLoad]       = useState(false);
-  const [archivedError, setArchiveError]        = useState(false);
-  const [search, setSearch]               = useState('');
-  const [selected, setSelected]           = useState<Set<number>>(new Set());
-  const [starred, setStarred]             = useState<Set<number>>(loadStarred);
-  const [selectedConv, setSelectedConv]   = useState<Conversation | null>(null);
-  const [showCompose, setShowCompose]     = useState(false);
-  const [refreshKey, setRefreshKey]       = useState(0);
+  // ── Persisted UI state
+  const [leftCollapsed, setLeftCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(LEFT_COLLAPSE_KEY) === 'true'; } catch { return false; }
+  });
+  const [folder, setFolder] = useState<InboxFolder>(() => {
+    try {
+      const saved = localStorage.getItem(LEFT_FOLDER_KEY) as InboxFolder | null;
+      return saved ?? 'inbox';
+    } catch { return 'inbox'; }
+  });
 
-  // Scroll restoration
-  const listScrollRef  = useRef<HTMLDivElement>(null);
-  const savedScrollPos = useRef(0);
+  // ── Data state
+  const [conversations,  setConversations]  = useState<Conversation[]>([]);
+  const [announcements,  setAnnouncements]  = useState<Announcement[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(false);
+  const [inboxUnread,    setInboxUnread]    = useState(0);
+  const [refreshKey,     setRefreshKey]     = useState(0);
 
-  // Keyboard shortcut targets
-  const searchRef = useRef<HTMLInputElement>(null);
+  // ── Interaction state
+  const [search,       setSearch]       = useState('');
+  const [selected,     setSelected]     = useState<Set<number>>(new Set());
+  const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
+  const [showCompose,  setShowCompose]  = useState(false);
 
-  // Per-tab fetch keys — track which refreshKey we last fetched at.
-  // Prevents re-fetching cached data when switching back to a tab that already loaded.
-  // Value of -1 means "never fetched"; matches refreshKey once data has been loaded.
-  const announcementsFetchKey = useRef<number>(-1);
-  const archiveFetchKey       = useRef<number>(-1);
+  // ── Refs
+  const searchRef      = useRef<HTMLInputElement>(null);
+  const listRef        = useRef<HTMLDivElement>(null);
+  const savedScroll    = useRef(0);
+  // Tracks the active fetch token. Updated synchronously in changeFolder so
+  // any in-flight fetch from a previous folder sees the mismatch immediately,
+  // before React's useEffect cleanup has a chance to run.
+  const activeFetchRef = useRef<symbol | null>(null);
 
-  // isDataLoading: true until BOTH bootstrap ready AND data fetched
-  const isDataLoading = !bootstrapReady || (activeTab === 'archive' ? archivedLoading : loading);
-  const hasError      = activeTab === 'archive' ? archivedError : error;
+  // ─── Persist left pane state ─────────────────────────────────────────────
 
-  // ─── Data loading ──────────────────────────────────────────────────────────
+  function toggleLeftCollapse() {
+    setLeftCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem(LEFT_COLLAPSE_KEY, String(next)); } catch { /**/ }
+      return next;
+    });
+  }
 
-  const load = useCallback(async () => {
+  function changeFolder(f: InboxFolder) {
+    // Invalidate any in-flight fetch synchronously, before React paints or runs
+    // effect cleanups. This closes the race window where a stale fetch completes
+    // after the click but before the useEffect cleanup sets its local `cancelled` flag.
+    activeFetchRef.current = null;
+
+    setFolder(f);
+    // Do NOT clear conversations/announcements immediately — keep stale content
+    // visible during the brief loading window so the transition is smooth rather
+    // than jarring (blank → skeleton → content). The effect will replace the
+    // stale list atomically when fresh data arrives.
     setLoading(true);
     setError(false);
-    try {
-      const res = await getConversations();
-      setConversations(res.data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setSelected(new Set());
+    setSelectedConv(null);
+    setSearch('');
+    try { localStorage.setItem(LEFT_FOLDER_KEY, f); } catch { /**/ }
+  }
+
+  // ─── Data loading ─────────────────────────────────────────────────────────
+  // Each fetch run gets a unique Symbol token assigned to activeFetchRef.
+  // changeFolder() sets activeFetchRef.current = null synchronously (pre-paint),
+  // so any in-flight fetch from a previous folder finds a token mismatch the
+  // moment it resumes and discards its result without touching state.
 
   useEffect(() => {
     if (!bootstrapReady) return;
-    void load();
-  }, [load, refreshKey, bootstrapReady]);
 
-  // Fetch announcements — only on first visit per refreshKey cycle.
-  // Skips re-fetch when switching back to a tab that already has data.
-  useEffect(() => {
-    if (!bootstrapReady || activeTab !== 'announcements') return;
-    if (announcementsFetchKey.current === refreshKey) return; // already cached
-    announcementsFetchKey.current = refreshKey;
-    setAnnounceLoad(true);
-    setAnnounceError(false);
-    getAnnouncements(20)
-      .then((res) => setAnnouncements(res.data))
-      .catch(() => setAnnounceError(true))
-      .finally(() => setAnnounceLoad(false));
-  }, [activeTab, bootstrapReady, refreshKey]);
+    const token = Symbol();
+    activeFetchRef.current = token;
 
-  // Fetch archived conversations — only on first visit per refreshKey cycle.
-  useEffect(() => {
-    if (!bootstrapReady || activeTab !== 'archive') return;
-    if (archiveFetchKey.current === refreshKey) return; // already cached
-    archiveFetchKey.current = refreshKey;
-    setArchiveLoad(true);
-    setArchiveError(false);
-    getConversations({ include_archived: true })
-      .then((res) => setArchivedConvs(res.data.filter((c) => c.archived_at !== null)))
-      .catch(() => setArchiveError(true))
-      .finally(() => setArchiveLoad(false));
-  }, [activeTab, bootstrapReady, refreshKey]);
+    const isMine = () => activeFetchRef.current === token;
+
+    // loading=true and error=false are already set synchronously by changeFolder()
+    // or by the refresh button handler. Setting them here again causes an extra
+    // render cycle (even as no-ops) which produces the visible folder-switch glitch.
+
+    async function fetchFolder() {
+      if (folder === 'announcements') {
+        try {
+          const res = await getAnnouncements(50);
+          if (!isMine()) return;
+          // Atomically swap: clear stale data and set new data in one batch
+          setConversations([]);
+          setAnnouncements(res.data);
+        } catch {
+          if (!isMine()) return;
+          setAnnouncements([]);
+          setError(true);
+        } finally {
+          if (isMine()) setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const res = await getConversations({ folder });
+        if (!isMine()) return;
+        // Atomically swap: clear stale data and set new data in one batch
+        setAnnouncements([]);
+        setConversations(res.data);
+        if (folder === 'inbox') {
+          setInboxUnread((res.meta as { unread_count?: number }).unread_count ?? 0);
+        }
+      } catch {
+        if (!isMine()) return;
+        setConversations([]);
+        setError(true);
+      } finally {
+        if (isMine()) setLoading(false);
+      }
+    }
+
+    void fetchFolder();
+
+    return () => {
+      // Also clear on cleanup (unmount / strict-mode double-invoke)
+      if (activeFetchRef.current === token) activeFetchRef.current = null;
+    };
+  }, [folder, refreshKey, bootstrapReady]);
 
   // ─── Keyboard shortcuts ────────────────────────────────────────────────────
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
+      const target  = e.target as HTMLElement;
       const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       if (e.key === 'Escape') {
@@ -199,82 +353,30 @@ export function InboxPage() {
         return;
       }
       if (inInput) return;
-      if (e.key === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setShowCompose(true);
-      } else if (e.key === '/') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
+      if (e.key === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) setShowCompose(true);
+      if (e.key === '/') { e.preventDefault(); searchRef.current?.focus(); }
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showCompose]);
 
-  // ─── Filtered list ─────────────────────────────────────────────────────────
+  // ─── Filtered list ────────────────────────────────────────────────────────
 
-  const sourceList = activeTab === 'archive' ? archivedConvs : conversations;
-  const filtered = sourceList.filter((c) => {
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const matchSubject = c.subject?.toLowerCase().includes(q);
-      const matchSender  = c.last_message?.sender?.name.toLowerCase().includes(q);
-      const matchBody    = c.last_message?.body.toLowerCase().includes(q);
-      if (!matchSubject && !matchSender && !matchBody) return false;
-    }
-    switch (activeTab) {
-      case 'application':   return c.category === 'application' && !c.is_system_generated;
-      case 'medical':       return c.category === 'medical' && !c.is_system_generated;
-      case 'system':        return c.is_system_generated === true;
-      case 'announcements': return false;
-      case 'archive':       return true; // archivedConvs already pre-filtered
-      default:              return !c.is_system_generated; // 'all' shows only user conversations
-    }
+  const filtered = conversations.filter((c) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      c.subject?.toLowerCase().includes(q) ||
+      c.last_message?.sender?.name.toLowerCase().includes(q) ||
+      c.last_message?.body.toLowerCase().includes(q)
+    );
   });
 
-  function unreadForTab(tab: FilterTab): number {
-    if (tab === 'announcements' || tab === 'archive') return 0;
-    return conversations.filter((c) => {
-      if (!c.unread_count) return false;
-      switch (tab) {
-        case 'application': return c.category === 'application' && !c.is_system_generated;
-        case 'medical':     return c.category === 'medical' && !c.is_system_generated;
-        case 'system':      return c.is_system_generated === true;
-        default:            return !c.is_system_generated;
-      }
-    }).reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
-  }
+  const allSelected  = filtered.length > 0 && selected.size === filtered.length;
+  const someSelected = selected.size > 0;
+  const isReadOnly   = folder === 'system' || folder === 'announcements';
 
-  // ─── Tab switching ─────────────────────────────────────────────────────────
-
-  function handleTabChange(tab: FilterTab) {
-    // Pre-set loading flags in the same React 18 batch as setActiveTab.
-    // Without this, the first render after a tab switch would see the new activeTab
-    // but the old (false) loading flag, producing a 1-frame flash of empty state
-    // before the useEffect fires to set loading=true.
-    //
-    // Only pre-set when data hasn't been fetched yet for this refreshKey cycle.
-    // If data is already cached, we skip this so the cached content shows instantly.
-    if (tab === 'announcements' && announcementsFetchKey.current !== refreshKey) {
-      setAnnounceLoad(true);
-    }
-    if (tab === 'archive' && archiveFetchKey.current !== refreshKey) {
-      setArchiveLoad(true);
-    }
-    setSelected(new Set()); // Clear stale selection when switching tabs
-    setActiveTab(tab);
-  }
-
-  // ─── Selection ─────────────────────────────────────────────────────────────
-
-  function toggleStar(id: number, e: MouseEvent) {
-    e.stopPropagation();
-    setStarred((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      saveStarred(next);
-      return next;
-    });
-  }
+  // ─── Selection ────────────────────────────────────────────────────────────
 
   function toggleSelect(id: number, e: MouseEvent) {
     e.stopPropagation();
@@ -286,21 +388,60 @@ export function InboxPage() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === filtered.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(filtered.map((c) => c.id)));
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map((c) => c.id)));
+  }
+
+  // ─── Row actions ──────────────────────────────────────────────────────────
+
+  async function handleStar(id: number, e: MouseEvent) {
+    e.stopPropagation();
+    // Optimistic update
+    setConversations((prev) =>
+      prev.map((c) => c.id === id ? { ...c, is_starred: !c.is_starred } : c)
+    );
+    if (selectedConv?.id === id) {
+      setSelectedConv((prev) => prev ? { ...prev, is_starred: !prev.is_starred } : prev);
+    }
+    try {
+      await starConversation(id);
+      // If we're in the starred folder and just unstarred, remove from list
+      if (folder === 'starred') {
+        setConversations((prev) => prev.filter((c) => c.id !== id || c.is_starred));
+      }
+    } catch {
+      // Revert
+      setConversations((prev) =>
+        prev.map((c) => c.id === id ? { ...c, is_starred: !c.is_starred } : c)
+      );
+      toast.error('Failed to update star.');
     }
   }
 
-  // ─── Row-level actions ─────────────────────────────────────────────────────
+  async function handleImportant(id: number) {
+    setConversations((prev) =>
+      prev.map((c) => c.id === id ? { ...c, is_important: !c.is_important } : c)
+    );
+    try {
+      await markImportant(id);
+      if (folder === 'important') {
+        setConversations((prev) => prev.filter((c) => c.id !== id || c.is_important));
+      }
+    } catch {
+      setConversations((prev) =>
+        prev.map((c) => c.id === id ? { ...c, is_important: !c.is_important } : c)
+      );
+      toast.error('Failed to update importance.');
+    }
+  }
 
-  function handleRowArchive(id: number, e: MouseEvent) {
+  function handleArchive(id: number, e: MouseEvent) {
     e.stopPropagation();
-    if (activeTab === 'archive') {
+    if (folder === 'archive') {
       unarchiveConversation(id)
         .then(() => {
-          setArchivedConvs((prev) => prev.filter((c) => c.id !== id));
+          setConversations((prev) => prev.filter((c) => c.id !== id));
+          if (selectedConv?.id === id) setSelectedConv(null);
           toast.success('Conversation restored to inbox.');
         })
         .catch(() => toast.error('Restore failed.'));
@@ -308,450 +449,382 @@ export function InboxPage() {
       archiveConversation(id)
         .then(() => {
           setConversations((prev) => prev.filter((c) => c.id !== id));
+          if (selectedConv?.id === id) setSelectedConv(null);
           toast.success('Conversation archived.');
         })
         .catch(() => toast.error('Archive failed.'));
     }
   }
 
-  function handleRowDelete(id: number, e: MouseEvent) {
+  function handleDelete(id: number, e: MouseEvent) {
     e.stopPropagation();
-    const action = isAdmin ? deleteConversation(id) : leaveConversation(id);
-    action
-      .then(() => {
-        setConversations((prev) => prev.filter((c) => c.id !== id));
-        toast.success(isAdmin ? 'Conversation deleted.' : 'Conversation removed.');
-      })
-      .catch(() => toast.error('Delete failed.'));
+    if (folder === 'trash') {
+      // Permanently delete (admin) or leave (applicant) from trash
+      const action = isAdmin ? deleteConversation(id) : leaveConversation(id);
+      action
+        .then(() => {
+          setConversations((prev) => prev.filter((c) => c.id !== id));
+          if (selectedConv?.id === id) setSelectedConv(null);
+          toast.success(isAdmin ? 'Conversation deleted.' : 'Conversation removed.');
+        })
+        .catch(() => toast.error('Delete failed.'));
+    } else {
+      // Move to trash
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (selectedConv?.id === id) setSelectedConv(null);
+      trashConversation(id)
+        .then(() => toast.success('Moved to trash.'))
+        .catch(() => {
+          setRefreshKey((k) => k + 1);
+          toast.error('Failed to move to trash.');
+        });
+    }
   }
 
-  // ─── Bulk actions ──────────────────────────────────────────────────────────
+  function handleRestoreFromTrash(id: number, e: MouseEvent) {
+    e.stopPropagation();
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (selectedConv?.id === id) setSelectedConv(null);
+    restoreConversation(id)
+      .then(() => toast.success('Conversation restored.'))
+      .catch(() => {
+        setRefreshKey((k) => k + 1);
+        toast.error('Restore failed.');
+      });
+  }
+
+  // ─── Bulk actions ─────────────────────────────────────────────────────────
 
   async function handleBulkArchive() {
     const ids = [...selected];
-    try {
-      await Promise.all(ids.map((id) => archiveConversation(id)));
-      setConversations((prev) =>
-        prev.map((c) => ids.includes(c.id) ? { ...c, archived_at: new Date().toISOString() } : c)
-      );
-      setSelected(new Set());
-      toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} archived.`);
-    } catch {
-      toast.error('Archive failed.');
-    }
-  }
-
-  async function handleBulkDelete() {
-    const ids = [...selected];
-    try {
-      await Promise.all(ids.map((id) => isAdmin ? deleteConversation(id) : leaveConversation(id)));
+    await Promise.all(ids.map((id) =>
+      folder === 'archive' ? unarchiveConversation(id) : archiveConversation(id)
+    )).then(() => {
       setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
       setSelected(new Set());
-      toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} ${isAdmin ? 'deleted' : 'removed'}.`);
-    } catch {
-      toast.error('Delete failed.');
-    }
+      toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} ${folder === 'archive' ? 'restored' : 'archived'}.`);
+    }).catch(() => toast.error('Bulk action failed.'));
+  }
+
+  async function handleBulkTrash() {
+    const ids = [...selected];
+    await Promise.all(ids.map((id) =>
+      folder === 'trash' ? deleteConversation(id) : trashConversation(id)
+    )).then(() => {
+      setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
+      setSelected(new Set());
+      toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} ${folder === 'trash' ? 'deleted' : 'moved to trash'}.`);
+    }).catch(() => toast.error('Bulk action failed.'));
   }
 
   async function handleBulkRestore() {
     const ids = [...selected];
-    try {
-      await Promise.all(ids.map((id) => unarchiveConversation(id)));
-      setArchivedConvs((prev) => prev.filter((c) => !ids.includes(c.id)));
-      setSelected(new Set());
-      toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} restored.`);
-    } catch {
-      toast.error('Restore failed.');
-    }
+    await Promise.all(ids.map((id) => restoreConversation(id)))
+      .then(() => {
+        setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
+        setSelected(new Set());
+        toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} restored.`);
+      })
+      .catch(() => toast.error('Bulk restore failed.'));
+  }
+
+  async function handleBulkStar() {
+    const ids = [...selected];
+    setConversations((prev) =>
+      prev.map((c) => ids.includes(c.id) ? { ...c, is_starred: true } : c)
+    );
+    await Promise.all(ids.map((id) => starConversation(id))).catch(() => {
+      setRefreshKey((k) => k + 1);
+      toast.error('Failed to star conversations.');
+    });
+    setSelected(new Set());
   }
 
   // ─── Conversation navigation ───────────────────────────────────────────────
 
   function openConversation(conv: Conversation) {
-    savedScrollPos.current = listScrollRef.current?.scrollTop ?? 0;
+    savedScroll.current = listRef.current?.scrollTop ?? 0;
     setSelectedConv(conv);
   }
 
   function handleBack() {
     setSelectedConv(null);
     requestAnimationFrame(() => {
-      if (listScrollRef.current) {
-        listScrollRef.current.scrollTop = savedScrollPos.current;
-      }
+      if (listRef.current) listRef.current.scrollTop = savedScroll.current;
     });
   }
 
   function handleConvArchived(id: number) {
-    if (activeTab === 'archive') {
-      setArchivedConvs((prev) => prev.filter((c) => c.id !== id));
-    } else {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-    }
-    handleBack();
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    setSelectedConv(null);
   }
 
   function handleConvCreated(conv: Conversation) {
-    setConversations((prev) => [conv, ...prev]);
+    if (folder === 'inbox' || folder === 'sent') {
+      setConversations((prev) => [conv, ...prev]);
+    }
     setShowCompose(false);
     openConversation(conv);
   }
 
-  const allSelected  = filtered.length > 0 && selected.size === filtered.length;
-  const someSelected = selected.size > 0;
-  // System tab is read-only — no toolbar, compose, archive, or delete actions
-  const isSystemTab  = activeTab === 'system';
-  const showToolbar  = !isDataLoading && !hasError && filtered.length > 0 && activeTab !== 'announcements' && !isSystemTab;
+  // ─── Empty state content ──────────────────────────────────────────────────
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  const emptyIcons: Partial<Record<InboxFolder, ElementType>> = {
+    inbox:         Mail,
+    starred:       Star,
+    important:     AlertCircle,
+    sent:          Send,
+    archive:       Archive,
+    trash:         Trash2,
+    system:        Bot,
+    announcements: Megaphone,
+  };
+  const emptyMessages: Partial<Record<InboxFolder, string>> = {
+    inbox:         'Your inbox is clear',
+    starred:       'No starred conversations',
+    important:     'No important conversations',
+    sent:          'No sent conversations',
+    archive:       'No archived conversations',
+    trash:         'Trash is empty',
+    system:        'No system notifications',
+    announcements: 'No announcements yet',
+  };
+  const EmptyIcon = emptyIcons[folder] ?? MailOpen;
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <AnimatePresence mode="wait">
+    <div className="flex h-full overflow-hidden" style={{ background: 'var(--background)' }}>
 
-        {/* ── Thread view ────────────────────────────────────────────────────── */}
-        {selectedConv ? (
-          <motion.div key="thread" {...viewVariants} className="flex flex-col h-full overflow-hidden">
-            <ThreadView
-              conversation={selectedConv}
-              currentUserId={currentUserId}
-              onBack={handleBack}
-              onArchive={handleConvArchived}
+      {/* ── Left pane: folder navigation ───────────────────────────────────── */}
+      <FolderNav
+        collapsed={leftCollapsed}
+        onToggle={toggleLeftCollapse}
+        folder={folder}
+        onFolderChange={changeFolder}
+        inboxUnread={inboxUnread}
+      />
+
+      {/* ── Center pane: conversation list ─────────────────────────────────── */}
+      <div
+        className="flex flex-col border-r flex-shrink-0 overflow-hidden"
+        style={{
+          width: 380,
+          borderColor: 'var(--border)',
+          background: 'var(--card)',
+        }}
+      >
+        {/* Top bar: search + compose */}
+        <div
+          className="flex items-center gap-2 px-3 py-2.5 border-b flex-shrink-0"
+          style={{ borderColor: 'var(--border)', minHeight: 52 }}
+        >
+          <div
+            className="flex items-center gap-1.5 flex-1 rounded-lg px-2.5 py-1.5 border"
+            style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
+          >
+            <Search className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…  (/)"
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{ color: 'var(--foreground)' }}
             />
-          </motion.div>
+            {search && (
+              <button onClick={() => setSearch('')} aria-label="Clear search" className="flex-shrink-0">
+                <X className="h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+            )}
+          </div>
+          {!isReadOnly && (
+            <button
+              onClick={() => setShowCompose(true)}
+              title="Compose (c)"
+              aria-label="Compose new message"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-white flex-shrink-0 transition-opacity hover:opacity-90"
+              style={{ background: BRAND }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Compose</span>
+            </button>
+          )}
+        </div>
 
-        ) : (
+        {/* Bulk toolbar */}
+        {!loading && !error && filtered.length > 0 && !isReadOnly && (
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 border-b flex-shrink-0"
+            style={{
+              borderColor: 'var(--border)',
+              background: someSelected ? BRAND_T : 'rgba(248,249,250,0.6)',
+              minHeight: 36,
+            }}
+          >
+            <button
+              onClick={toggleSelectAll}
+              title={allSelected ? 'Deselect all' : 'Select all'}
+              className="p-1 rounded transition-colors flex-shrink-0 hover:bg-[var(--dash-nav-hover-bg)]"
+            >
+              {allSelected
+                ? <CheckSquare className="h-3.5 w-3.5" style={{ color: BRAND }} />
+                : <Square className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
+              }
+            </button>
 
-          /* ── List view ───────────────────────────────────────────────────── */
-          <motion.div key="list" {...viewVariants} className="flex flex-col h-full overflow-hidden">
-            <div ref={listScrollRef} className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-6 pt-6 pb-10 flex flex-col gap-5">
-
-                {/* ── Row 1: Title + Search + Compose ── */}
-                <div className="flex items-center gap-3">
-                  <h1 className="font-headline text-2xl font-bold flex-shrink-0" style={{ color: 'var(--foreground)' }}>
-                    Inbox
-                  </h1>
-                  <div
-                    className="flex items-center gap-2 flex-1 rounded-xl px-3.5 py-2.5 border"
-                    style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
-                  >
-                    <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-                    <input
-                      ref={searchRef}
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search conversations…  (/)"
-                      className="flex-1 bg-transparent text-sm outline-none"
-                      style={{ color: 'var(--foreground)' }}
-                    />
-                    {search && (
-                      <button onClick={() => setSearch('')} className="flex-shrink-0" aria-label="Clear search">
-                        <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
-                      </button>
-                    )}
-                  </div>
-                  {!isSystemTab && (
-                    <button
-                      onClick={() => setShowCompose(true)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex-shrink-0 transition-opacity hover:opacity-90"
-                      style={{ background: BRAND }}
-                      title="Compose (c)"
-                      aria-label="Compose new message"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Compose
-                    </button>
-                  )}
-                </div>
-
-                {/* ── Row 2: Message panel ── */}
-                <div
-                  className="rounded-xl border overflow-hidden"
-                  style={{ background: 'var(--card)', borderColor: 'var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+            {someSelected ? (
+              <>
+                <span className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
+                  {selected.size} selected
+                </span>
+                <button
+                  onClick={() => setSelected(new Set())}
+                  title="Clear selection"
+                  className="p-0.5 rounded"
                 >
-
-                  {/* ── Tabs row ── */}
-                  <div
-                    className="flex items-center border-b"
-                    style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
-                  >
-                    <div className="flex items-center flex-1 px-2">
-                      {TABS.map((tab) => {
-                        const count  = unreadForTab(tab.id);
-                        const active = activeTab === tab.id;
-                        return (
-                          <button
-                            key={tab.id}
-                            onClick={() => handleTabChange(tab.id)}
-                            className="relative flex items-center gap-1.5 px-3 py-3 text-sm transition-colors flex-shrink-0 select-none"
-                            style={{
-                              fontWeight: active ? 600 : 400,
-                              color: active ? BRAND : 'var(--muted-foreground)',
-                              borderBottom: active ? `2px solid ${BRAND}` : '2px solid transparent',
-                              marginBottom: -1,
-                            }}
-                          >
-                            {tab.label}
-                            {count > 0 && (
-                              <span
-                                className="text-xs px-1.5 py-0.5 rounded-full font-semibold leading-none"
-                                style={{
-                                  background: active ? BRAND : 'rgba(107,114,128,0.14)',
-                                  color: active ? '#fff' : '#6b7280',
-                                  fontSize: 10,
-                                }}
-                              >
-                                {count > 99 ? '99+' : count}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {showToolbar && (
-                      <div className="flex items-center pr-3">
-                        <button
-                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                          style={{ color: 'var(--muted-foreground)' }}
-                        >
-                          Newest <ChevronDown className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Toolbar ── */}
-                  {showToolbar && (
-                    <div
-                      className="flex items-center gap-2 px-3 py-1.5 border-b"
-                      style={{
-                        borderColor: 'var(--border)',
-                        background: someSelected ? BRAND_T : 'rgba(248,249,250,0.6)',
-                      }}
-                    >
-                      {/* Select-all */}
-                      <button
-                        onClick={toggleSelectAll}
-                        className="p-1 rounded transition-colors flex-shrink-0 hover:bg-[var(--dash-nav-hover-bg)]"
-                        title={allSelected ? 'Deselect all' : 'Select all'}
-                        aria-label={allSelected ? 'Deselect all' : 'Select all'}
-                      >
-                        {allSelected
-                          ? <CheckSquare className="h-4 w-4" style={{ color: BRAND }} />
-                          : <Square className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-                        }
-                      </button>
-
-                      {someSelected ? (
-                        <>
-                          <span className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-                            {selected.size} selected
-                          </span>
-                          {/* Clear selection */}
-                          <button
-                            type="button"
-                            onClick={() => setSelected(new Set())}
-                            title="Clear selection"
-                            aria-label="Clear selection"
-                            className="p-1 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                          >
-                            <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
-                          </button>
-                          <div className="flex items-center gap-0.5">
-                            <BulkButton icon={MailOpen} title="Mark as read"  onClick={() => setSelected(new Set())} />
-                            {activeTab === 'archive'
-                              ? <BulkButton icon={ArchiveRestore} title="Restore to inbox" onClick={() => void handleBulkRestore()} />
-                              : <BulkButton icon={Archive}        title="Archive"           onClick={() => void handleBulkArchive()} />
-                            }
-                            <BulkButton icon={Trash2}   title="Delete"        onClick={() => void handleBulkDelete()} />
-                            <BulkButton icon={Star}     title="Star"          onClick={() => {
-                              setStarred((prev) => {
-                                const next = new Set(prev);
-                                selected.forEach((id) => next.add(id));
-                                saveStarred(next);
-                                return next;
-                              });
-                            }} />
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          {filtered.length} conversation{filtered.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-
-                      <div className="ml-auto">
-                        <button
-                          onClick={() => setRefreshKey((k) => k + 1)}
-                          title="Refresh"
-                          aria-label="Refresh inbox"
-                          className="p-1.5 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                        >
-                          <RefreshCw
-                            className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
-                            style={{ color: 'var(--muted-foreground)' }}
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Content area — stable min-height prevents layout shift ── */}
-                  <div className="min-h-[360px] flex flex-col">
-
-                    {/* ── Announcements tab — read-only broadcast list ── */}
-                    {activeTab === 'announcements' ? (
-                      announcementsLoading ? (
-                        <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-                          {Array.from({ length: 4 }).map((_, i) => <Skeletons.Row key={i} />)}
-                        </div>
-                      ) : announcementsError ? (
-                        <div className="flex flex-col items-center justify-center flex-1 py-16">
-                          <p className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
-                            Could not load announcements
-                          </p>
-                          <button
-                            onClick={() => setRefreshKey((k) => k + 1)}
-                            className="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                            style={{ color: BRAND }}
-                          >
-                            Try again
-                          </button>
-                        </div>
-                      ) : announcements.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center flex-1 py-16 px-8">
-                          <div
-                            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-                            style={{ background: 'rgba(107,114,128,0.08)' }}
-                          >
-                            <Megaphone className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
-                          </div>
-                          <p className="text-sm font-semibold mb-2 text-center" style={{ color: 'var(--foreground)' }}>
-                            No announcements yet
-                          </p>
-                          <p className="text-sm text-center max-w-xs leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                            Broadcast messages from staff will appear here.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-                          {announcements.map((ann) => (
-                            <div
-                              key={ann.id}
-                              className="px-4 py-3.5 flex flex-col gap-1.5"
-                              style={{ background: ann.is_urgent ? 'rgba(239,68,68,0.04)' : undefined }}
-                            >
-                              <div className="flex items-start gap-2 flex-wrap">
-                                {ann.is_pinned && (
-                                  <Pin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: BRAND }} />
-                                )}
-                                {ann.is_urgent && (
-                                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: '#dc2626' }} />
-                                )}
-                                <p className="text-sm font-semibold flex-1" style={{ color: 'var(--foreground)' }}>
-                                  {ann.title}
-                                </p>
-                                <time className="text-xs flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
-                                  {format(new Date(ann.published_at ?? ann.created_at), 'MMM d, h:mm a')}
-                                </time>
-                              </div>
-                              <p
-                                className="text-sm leading-relaxed line-clamp-3"
-                                style={{ color: 'var(--muted-foreground)' }}
-                                // Announcement body from our own server — sanitized at API layer
-                                dangerouslySetInnerHTML={{ __html: ann.body }}
-                              />
-                              {ann.author && (
-                                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                  From {ann.author.name}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )
-
-                    ) : isDataLoading ? (
-                      <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-                        {Array.from({ length: 6 }).map((_, i) => <Skeletons.Row key={i} />)}
-                      </div>
-
-                    ) : hasError ? (
-                      <div className="flex flex-col items-center justify-center flex-1 py-16">
-                        <p className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
-                          Could not load messages
-                        </p>
-                        <button
-                          onClick={() => setRefreshKey((k) => k + 1)}
-                          className="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                          style={{ color: BRAND }}
-                        >
-                          Try again
-                        </button>
-                      </div>
-
-                    ) : filtered.length === 0 ? (
-                      /* Empty state — only shown when load is fully complete and there are genuinely no results */
-                      <div className="flex flex-col items-center justify-center flex-1 py-16 px-8">
-                        <div
-                          className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-                          style={{ background: 'rgba(107,114,128,0.08)' }}
-                        >
-                          {activeTab === 'archive'
-                            ? <Archive className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
-                            : activeTab === 'system'
-                              ? <Bell className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
-                              : <MailOpen className="h-7 w-7" style={{ color: 'var(--muted-foreground)' }} />
-                          }
-                        </div>
-                        <p className="text-sm font-semibold mb-2 text-center" style={{ color: 'var(--foreground)' }}>
-                          {search
-                            ? 'No results found'
-                            : activeTab === 'archive'
-                              ? 'No archived conversations'
-                              : activeTab === 'system'
-                                ? 'No system notifications'
-                                : 'Your inbox is clear'}
-                        </p>
-                        <p className="text-sm text-center max-w-xs leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                          {search
-                            ? 'Try adjusting your search term or switching tabs.'
-                            : activeTab === 'archive'
-                              ? 'Conversations you archive will appear here.'
-                              : activeTab === 'system'
-                                ? 'Automated notifications from the platform will appear here.'
-                                : 'New conversations will appear here when someone messages you.'}
-                        </p>
-                      </div>
-
-                    ) : (
-                      /* Message list — uses extracted MessageRow component */
-                      <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-                        {filtered.map((conv) => (
-                          <MessageRow
-                            key={conv.id}
-                            conversation={conv}
-                            isSelected={selected.has(conv.id)}
-                            isStarred={starred.has(conv.id)}
-                            currentUserId={currentUserId}
-                            onSelect={toggleSelect}
-                            onStar={toggleStar}
-                            onArchive={handleRowArchive}
-                            onDelete={handleRowDelete}
-                            onClick={openConversation}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <X className="h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
+                </button>
+                <div className="flex items-center gap-0.5">
+                  <BulkButton icon={MailOpen}      title="Mark as read"  onClick={() => setSelected(new Set())} />
+                  <BulkButton icon={Star}           title="Star all"      onClick={() => void handleBulkStar()} />
+                  {folder === 'trash'
+                    ? <BulkButton icon={ArchiveRestore} title="Restore all"   onClick={() => void handleBulkRestore()} />
+                    : folder === 'archive'
+                      ? <BulkButton icon={ArchiveRestore} title="Restore to inbox" onClick={() => void handleBulkArchive()} />
+                      : <BulkButton icon={Archive}        title="Archive all"  onClick={() => void handleBulkArchive()} />
+                  }
+                  <BulkButton
+                    icon={Trash2}
+                    title={folder === 'trash' ? 'Delete permanently' : 'Move to trash'}
+                    onClick={() => void handleBulkTrash()}
+                    destructive
+                  />
                 </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </>
+            ) : (
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                {filtered.length} conversation{filtered.length !== 1 ? 's' : ''}
+              </span>
+            )}
 
-      {/* Floating compose overlay — always available regardless of view */}
+            <div className="ml-auto">
+              <button
+                onClick={() => { setLoading(true); setError(false); setRefreshKey((k) => k + 1); }}
+                title="Refresh"
+                aria-label="Refresh inbox"
+                className="p-1 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
+                  style={{ color: 'var(--muted-foreground)' }}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Conversation list (scrollable) — loading bar overlays stale content */}
+        <div className="flex-1 overflow-y-auto relative" ref={listRef}>
+
+          {/* Top loading bar: visible while fetching, never causes layout shift */}
+          {loading && (
+            <div className="absolute top-0 left-0 right-0 z-10" style={{ height: 2, background: 'var(--card)' }}>
+              <div
+                className="h-full animate-pulse"
+                style={{ background: BRAND, width: '60%', transition: 'width 0.8s ease' }}
+              />
+            </div>
+          )}
+
+          {/* ── Announcements folder ── */}
+          {folder === 'announcements' && (
+            error ? (
+              <ErrorState onRetry={() => { setLoading(true); setError(false); setRefreshKey((k) => k + 1); }} />
+            ) : !loading && announcements.length === 0 ? (
+              <EmptyFolderState EmptyIcon={EmptyIcon} message={emptyMessages[folder] ?? 'Empty'} />
+            ) : (
+              <AnnouncementList announcements={announcements} />
+            )
+          )}
+
+          {/* ── All other folders ── */}
+          {folder !== 'announcements' && (
+            error ? (
+              <ErrorState onRetry={() => { setLoading(true); setError(false); setRefreshKey((k) => k + 1); }} />
+            ) : !loading && filtered.length === 0 ? (
+              <EmptyFolderState EmptyIcon={EmptyIcon} message={search ? 'No results' : (emptyMessages[folder] ?? 'Empty')} />
+            ) : (
+              <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+                {filtered.map((conv) => (
+                  <MessageRow
+                    key={conv.id}
+                    conversation={conv}
+                    isSelected={selected.has(conv.id)}
+                    isStarred={conv.is_starred}
+                    isActive={selectedConv?.id === conv.id}
+                    currentUserId={currentUserId}
+                    onSelect={toggleSelect}
+                    onStar={(id, e) => void handleStar(id, e)}
+                    onArchive={handleArchive}
+                    onDelete={handleDelete}
+                    onRestore={folder === 'trash' ? handleRestoreFromTrash : undefined}
+                    onMarkImportant={handleImportant}
+                    onClick={openConversation}
+                  />
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* ── Right pane: thread viewer ───────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--background)' }}>
+        <AnimatePresence mode="wait">
+          {selectedConv ? (
+            <motion.div key={selectedConv.id} {...threadVariants} className="flex flex-col h-full overflow-hidden">
+              <ThreadView
+                conversation={selectedConv}
+                currentUserId={currentUserId}
+                onBack={handleBack}
+                onArchive={handleConvArchived}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty-thread"
+              {...threadVariants}
+              className="flex flex-col items-center justify-center h-full gap-3"
+            >
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'rgba(22,163,74,0.08)' }}
+              >
+                <Mail className="h-7 w-7" style={{ color: BRAND }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                Select a conversation
+              </p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                Choose a message from the list to read it.
+              </p>
+              {!isReadOnly && (
+                <button
+                  onClick={() => setShowCompose(true)}
+                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ background: BRAND }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Compose  (c)
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Floating compose ────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showCompose && (
           <FloatingCompose
@@ -760,6 +833,72 @@ export function InboxPage() {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Helper sub-components ────────────────────────────────────────────────────
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6 gap-3">
+      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+        Could not load messages
+      </p>
+      <button
+        onClick={onRetry}
+        className="text-sm font-medium px-4 py-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+        style={{ color: '#16a34a' }}
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+function EmptyFolderState({ EmptyIcon, message }: { EmptyIcon: ElementType; message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6 gap-3">
+      <div
+        className="w-12 h-12 rounded-2xl flex items-center justify-center"
+        style={{ background: 'rgba(107,114,128,0.08)' }}
+      >
+        <EmptyIcon className="h-5 w-5" style={{ color: 'var(--muted-foreground)' }} />
+      </div>
+      <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
+        {message}
+      </p>
+    </div>
+  );
+}
+
+function AnnouncementList({ announcements }: { announcements: Announcement[] }) {
+  return (
+    <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+      {announcements.map((ann) => (
+        <div
+          key={ann.id}
+          className="px-4 py-3 flex flex-col gap-1"
+          style={{ background: ann.is_urgent ? 'rgba(239,68,68,0.04)' : undefined }}
+        >
+          <div className="flex items-start gap-1.5 flex-wrap">
+            {ann.is_pinned && <Pin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: '#16a34a' }} />}
+            {ann.is_urgent && <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: '#dc2626' }} />}
+            <p className="text-sm font-semibold flex-1 leading-tight" style={{ color: 'var(--foreground)' }}>
+              {ann.title}
+            </p>
+            <time className="text-xs flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
+              {format(new Date(ann.published_at ?? ann.created_at), 'MMM d')}
+            </time>
+          </div>
+          <p
+            className="text-xs leading-relaxed line-clamp-2"
+            style={{ color: 'var(--muted-foreground)' }}
+            // Announcement body from our own server — sanitized at API layer
+            dangerouslySetInnerHTML={{ __html: ann.body }}
+          />
+        </div>
+      ))}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AllergySeverity;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,6 +47,26 @@ class Allergy extends Model
             'reaction' => 'encrypted',
             'treatment' => 'encrypted',
         ];
+    }
+
+    /**
+     * Attributes appended to JSON/array output.
+     *
+     * Exposes 'name' as an alias for 'allergen' so the frontend
+     * can consistently read allergy.name without a field-name mismatch.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['name'];
+
+    /**
+     * Alias allergen as 'name' for frontend compatibility.
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->allergen,
+        );
     }
 
     /**

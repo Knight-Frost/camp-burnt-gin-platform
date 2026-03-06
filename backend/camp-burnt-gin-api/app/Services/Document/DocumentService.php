@@ -30,14 +30,14 @@ class DocumentService
         if (! $this->validateMimeType($file)) {
             return [
                 'success' => false,
-                'message' => 'File type not allowed.',
+                'message' => 'Unsupported file type. Allowed types: PDF, JPG, PNG.',
             ];
         }
 
         if (! $this->validateFileSize($file)) {
             return [
                 'success' => false,
-                'message' => 'File size exceeds maximum allowed size.',
+                'message' => 'File size exceeds the 10 MB limit. Please upload a smaller file.',
             ];
         }
 

@@ -41,12 +41,8 @@ class EmergencyContactPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Medical providers require valid, non-revoked, unexpired provider link
-            return \App\Models\MedicalProviderLink::where('camper_id', $emergencyContact->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct read access to emergency contacts for emergency response.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($emergencyContact->camper)) {

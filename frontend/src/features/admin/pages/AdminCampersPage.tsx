@@ -6,10 +6,11 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
 
 import { getCampers } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -20,6 +21,8 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 
 export function AdminCampersPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const camperBase = location.pathname.startsWith('/super-admin') ? '/super-admin/campers' : '/admin/campers';
 
   const [response, setResponse]   = useState<PaginatedResponse<Camper> | null>(null);
   const [loading, setLoading]     = useState(true);
@@ -118,7 +121,9 @@ export function AdminCampersPage() {
                   </div>
                   <div className="col-span-2">
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                      {camper.date_of_birth}
+                      {camper.date_of_birth
+                        ? format(new Date(camper.date_of_birth), 'MMM d, yyyy')
+                        : t('common.not_provided')}
                     </p>
                   </div>
                   <div className="col-span-2">
@@ -128,7 +133,7 @@ export function AdminCampersPage() {
                   </div>
                   <div className="col-span-2">
                     <Link
-                      to={`/admin/campers/${camper.id}/risk`}
+                      to={`${camperBase}/${camper.id}`}
                       className="inline-flex items-center gap-1 text-xs"
                       style={{ color: 'var(--night-sky-blue)' }}
                     >
@@ -144,7 +149,7 @@ export function AdminCampersPage() {
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <Link
-                      to={`/admin/campers/${camper.id}`}
+                      to={`${camperBase}/${camper.id}`}
                       className="text-xs px-2.5 py-1 rounded border transition-colors"
                       style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
                     >

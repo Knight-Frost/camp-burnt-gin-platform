@@ -2,10 +2,11 @@
  * roles.ts
  * Role name constants and helpers.
  */
+
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
-  PARENT: 'applicant',
+  APPLICANT: 'applicant',
   MEDICAL: 'medical',
 } as const;
 
@@ -19,45 +20,73 @@ export const ROLE_LABELS: Record<RoleName, string> = {
 };
 
 /** Roles that have admin-level access */
-export const ADMIN_ROLES: RoleName[] = [ROLES.ADMIN, ROLES.SUPER_ADMIN];
+export const ADMIN_ROLES: RoleName[] = [
+  ROLES.ADMIN,
+  ROLES.SUPER_ADMIN,
+];
 
-/** Map a user's roles array to their primary role (highest privilege) */
-export function getPrimaryRole(roles: { name: RoleName }[]): RoleName | null {
-  const order: RoleName[] = [
+/**
+ * Determine a user's primary role.
+ * Always returns the highest privilege role if one exists.
+ */
+export function getPrimaryRole(
+  roles?: { name: RoleName }[]
+): RoleName | null {
+
+  if (!roles || roles.length === 0) {
+    return null;
+  }
+
+  const priority: RoleName[] = [
     ROLES.SUPER_ADMIN,
     ROLES.ADMIN,
     ROLES.MEDICAL,
-    ROLES.PARENT,
+    ROLES.APPLICANT,
   ];
-  for (const role of order) {
-    if (roles.some((r) => r.name === role)) return role;
+
+  for (const role of priority) {
+    if (roles.some((r) => r.name === role)) {
+      return role;
+    }
   }
+
   return null;
 }
 
-/** Get the default dashboard route for a role */
+/**
+ * Get dashboard route for role
+ */
 export function getDashboardRoute(role: RoleName | null): string {
-  switch (role) {
-    case ROLES.SUPER_ADMIN:
-      return '/super-admin/dashboard';
-    case ROLES.ADMIN:
-      return '/admin/dashboard';
-    case ROLES.MEDICAL:
-      return '/medical/dashboard';
-    case ROLES.PARENT:
-      return '/applicant/dashboard';
-    default:
-      return '/login';
+
+  if (!role) {
+    return '/login';
   }
+
+  const routes: Record<RoleName, string> = {
+    super_admin: '/super-admin/dashboard',
+    admin: '/admin/dashboard',
+    medical: '/medical/dashboard',
+    applicant: '/applicant/dashboard',
+  };
+
+  return routes[role];
 }
 
-/** Get the profile route for a role */
+/**
+ * Get profile route for role
+ */
 export function getProfileRoute(role: RoleName | null): string {
-  switch (role) {
-    case ROLES.SUPER_ADMIN: return '/super-admin/profile';
-    case ROLES.ADMIN:       return '/admin/profile';
-    case ROLES.MEDICAL:     return '/medical/profile';
-    case ROLES.PARENT:      return '/applicant/profile';
-    default:                return '/login';
+
+  if (!role) {
+    return '/login';
   }
+
+  const routes: Record<RoleName, string> = {
+    super_admin: '/super-admin/profile',
+    admin: '/admin/profile',
+    medical: '/medical/profile',
+    applicant: '/applicant/profile',
+  };
+
+  return routes[role];
 }

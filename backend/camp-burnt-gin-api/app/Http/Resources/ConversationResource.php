@@ -22,6 +22,14 @@ class ConversationResource extends JsonResource
     {
         $user = $request->user();
 
+        // Resolve the current user's participant record for per-user state fields.
+        // Uses eagerly-loaded activeParticipantRecords (filtered in memory) to avoid N+1.
+        $participantRecord = null;
+        if ($user && $this->relationLoaded('activeParticipantRecords')) {
+            $participantRecord = $this->activeParticipantRecords
+                ->firstWhere('user_id', $user->id);
+        }
+
         /** @var Conversation $this */
         return [
             'id'             => $this->id,
@@ -41,6 +49,10 @@ class ConversationResource extends JsonResource
             'unread_count'   => $user ? $this->getUnreadCountForUser($user) : 0,
             'is_archived'    => $this->is_archived,
             'archived_at'    => $this->is_archived ? $this->updated_at?->toISOString() : null,
+            // Per-user state (from conversation_participants pivot)
+            'is_starred'     => (bool) ($participantRecord?->is_starred ?? false),
+            'is_important'   => (bool) ($participantRecord?->is_important ?? false),
+            'is_trashed'     => $participantRecord?->trashed_at !== null,
             // System notification fields
             'is_system_generated'   => (bool) $this->is_system_generated,
             'system_event_type'     => $this->system_event_type,

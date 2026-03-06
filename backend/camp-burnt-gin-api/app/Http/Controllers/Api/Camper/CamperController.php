@@ -37,8 +37,16 @@ class CamperController extends Controller
         } elseif ($user->isApplicant()) {
             $campers = $user->campers()->paginate(15);
         } else {
-            $this->authorize('viewAny', Camper::class);
-            $campers = collect()->paginate(15);
+            // User has no recognised role — return empty result.
+            return response()->json([
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page'    => 1,
+                    'per_page'     => 15,
+                    'total'        => 0,
+                ],
+            ]);
         }
 
         return response()->json([

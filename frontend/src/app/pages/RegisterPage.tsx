@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas/auth.schema';
 import { register as registerUser } from '@/features/auth/api/auth.api';
-import { setUser, setToken } from '@/features/auth/store/authSlice';
+import { setUser, setToken, hydrateAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { isValidationError } from '@/shared/types';
@@ -120,9 +120,10 @@ export function RegisterPage() {
 
     try {
       const response = await registerUser(values);
-      const { user, token, expires_in } = response.data;
-      dispatch(setToken({ token, expiresIn: expires_in }));
+      const { user, token } = response.data!;
+      dispatch(setToken({ token }));
       dispatch(setUser(user));
+      dispatch(hydrateAuth());
       toast.success('Account created. Welcome to Camp Burnt Gin.');
       navigate(ROUTES.PARENT_DASHBOARD, { replace: true });
     } catch (error) {

@@ -23,8 +23,8 @@ type BadgeVariant =
 // All text colors meet WCAG AA 4.5:1 contrast on their tinted backgrounds.
 const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: string }> = {
   pending: {
-    bg: 'rgba(22,163,74,0.10)',
-    text: '#16a34a',   // brand dark emerald
+    bg: 'rgba(107,114,128,0.12)',
+    text: '#374151',   // gray-700
     label: 'Pending',
   },
   draft: {
@@ -38,9 +38,14 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     label: 'Submitted',
   },
   under_review: {
+    bg: 'rgba(234,179,8,0.15)',
+    text: '#854d0e',   // yellow-800 — WCAG AA on yellow tint
+    label: 'Under Review',
+  },
+  approved: {
     bg: 'rgba(22,163,74,0.10)',
     text: '#16a34a',
-    label: 'Under Review',
+    label: 'Approved',
   },
   accepted: {
     bg: 'rgba(22,163,74,0.10)',

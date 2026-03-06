@@ -10,39 +10,58 @@ use Illuminate\Http\Request;
  * Controller for user notification management.
  *
  * Handles listing, reading, and managing notifications.
+ * Formats database notifications into a frontend-consumable shape,
+ * extracting the human-readable title and message from each record's
+ * data payload so the Recent Updates widget can render them directly.
+ *
  * Implements FR-27, FR-28, FR-29: Notification requirements.
  */
 class NotificationController extends Controller
 {
     /**
      * List notifications for the current user.
+     *
+     * Returns a formatted list of notifications with title, message, and
+     * read status extracted from the stored notification data.
      */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        $query = $user->notifications();
+        $query = $request->boolean('unread_only')
+            ? $user->unreadNotifications()
+            : $user->notifications();
 
-        if ($request->has('unread_only') && $request->boolean('unread_only')) {
-            $query = $user->unreadNotifications();
-        }
+        $paginated = $query->latest()->paginate(15);
 
-        $notifications = $query->latest()->paginate(15);
+        $items = collect($paginated->items())->map(function ($notification) {
+            $data = $notification->data ?? [];
+
+            return [
+                'id'         => $notification->id,
+                'type'       => $data['type'] ?? class_basename($notification->type),
+                'title'      => $data['title'] ?? '',
+                'message'    => $data['message'] ?? '',
+                'data'       => $data,
+                'read_at'    => $notification->read_at?->toIso8601String(),
+                'created_at' => $notification->created_at->toIso8601String(),
+            ];
+        })->values()->all();
 
         return response()->json([
-            'data' => $notifications->items(),
+            'data' => $items,
             'meta' => [
-                'current_page' => $notifications->currentPage(),
-                'last_page' => $notifications->lastPage(),
-                'per_page' => $notifications->perPage(),
-                'total' => $notifications->total(),
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
                 'unread_count' => $user->unreadNotifications()->count(),
             ],
         ]);
     }
 
     /**
-     * Mark a notification as read.
+     * Mark a single notification as read.
      */
     public function markAsRead(Request $request, string $notification): JsonResponse
     {

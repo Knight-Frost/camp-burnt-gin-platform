@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Medical\EmergencyContactController;
 use App\Http\Controllers\Api\Medical\FeedingPlanController;
 use App\Http\Controllers\Api\Medical\MedicalRecordController;
 use App\Http\Controllers\Api\Medical\MedicationController;
+use App\Http\Controllers\Api\Medical\TreatmentLogController;
 use App\Http\Controllers\Api\Inbox\ConversationController;
 use App\Http\Controllers\Api\Inbox\InboxUserController;
 use App\Http\Controllers\Api\Inbox\MessageController;
@@ -384,6 +385,26 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     });
 
     /*
+    |--------------------------------------------------------------------------
+    | Treatment Log Routes
+    |--------------------------------------------------------------------------
+    |
+    | Treatment logs allow camp medical staff to record interventions,
+    | medication administrations, first aid, and clinical observations.
+    | Only medical staff and administrators may access these records.
+    |
+    */
+    Route::prefix('treatment-logs')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [TreatmentLogController::class, 'index'])->name('treatment-logs.index');
+        Route::post('/', [TreatmentLogController::class, 'store'])->name('treatment-logs.store');
+        Route::get('/{treatmentLog}', [TreatmentLogController::class, 'show'])->name('treatment-logs.show');
+        Route::put('/{treatmentLog}', [TreatmentLogController::class, 'update'])->name('treatment-logs.update');
+        Route::delete('/{treatmentLog}', [TreatmentLogController::class, 'destroy'])
+            ->middleware('admin')
+            ->name('treatment-logs.destroy');
+    });
+
+    /*
     | Activity Permission Routes
     */
     Route::prefix('activity-permissions')->group(function () {
@@ -418,9 +439,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     });
 
     // ─── Audit Log (Super Admin only) ─────────────────────────────────────────
-    Route::get('/audit-log', [AuditLogController::class, 'index'])
-        ->middleware('role:super_admin')
-        ->name('audit-log.index');
+    Route::middleware('role:super_admin')->prefix('audit-log')->group(function () {
+        Route::get('/',       [AuditLogController::class, 'index'])->name('audit-log.index');
+        Route::get('/export', [AuditLogController::class, 'export'])->name('audit-log.export');
+    });
 
     // ─── User Management (Super Admin only) ───────────────────────────────────
     Route::middleware('role:super_admin')->prefix('users')->group(function () {
@@ -484,6 +506,18 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::post('/{conversation}/leave', [ConversationController::class, 'leave'])
                 ->middleware('throttle:10,60')
                 ->name('inbox.conversations.leave');
+            Route::post('/{conversation}/star', [ConversationController::class, 'star'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.conversations.star');
+            Route::post('/{conversation}/important', [ConversationController::class, 'important'])
+                ->middleware('throttle:60,1')
+                ->name('inbox.conversations.important');
+            Route::post('/{conversation}/trash', [ConversationController::class, 'trash'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.trash');
+            Route::post('/{conversation}/restore-trash', [ConversationController::class, 'restoreFromTrash'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.restore-trash');
             Route::delete('/{conversation}', [ConversationController::class, 'destroy'])
                 ->middleware('admin')
                 ->name('inbox.conversations.destroy');

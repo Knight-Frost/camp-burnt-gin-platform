@@ -34,7 +34,11 @@ const NAV_ITEMS: NavItem[] = [
 
 export function ApplicantLayout() {
   const user = useAppSelector((state) => state.auth.user);
-  const isApplicant = user?.roles?.some((r) => r.name === 'applicant') ?? false;
+  // Check normalized roles array first; fall back to flat role string (mirrors AdminLayout pattern)
+  const isApplicant = Boolean(
+    user?.roles?.some((r) => r.name === 'applicant') ||
+    user?.role === 'applicant'
+  );
 
   if (!isApplicant) {
     // Redirect to the user's actual dashboard instead of a dead-end Forbidden page

@@ -25,9 +25,10 @@
 14. [Emergency Contact Endpoints](#emergency-contact-endpoints)
 15. [Document Endpoints](#document-endpoints)
 16. [Medical Provider Link Endpoints](#medical-provider-link-endpoints)
-17. [Notification Endpoints](#notification-endpoints)
-18. [Inbox Endpoints](#inbox-endpoints)
-19. [Report Endpoints](#report-endpoints)
+17. [Treatment Log Endpoints](#treatment-log-endpoints)
+18. [Notification Endpoints](#notification-endpoints)
+19. [Inbox Endpoints](#inbox-endpoints)
+20. [Report Endpoints](#report-endpoints)
 
 ---
 
@@ -50,7 +51,7 @@ Tokens are issued upon successful login or registration. Tokens expire after 60 
 | **Super Admin** | Full system access, delegation authority |
 | **Admin** | Operational access, camp management, application review, reporting |
 | **Parent** | Own campers, applications, documents only |
-| **Medical Provider** | View-only access to medical records |
+| **Medical Provider** | Full read/write access to medical records, treatment logs, and documents; no delete rights |
 
 ### Endpoint Notation
 
@@ -1237,6 +1238,104 @@ Submit provider form.
 **Success (200):** Submission confirmation
 
 **Note:** Link becomes single-use after successful submission.
+
+---
+
+## Treatment Log Endpoints
+
+### GET /treatment-logs
+
+List treatment log entries with optional filters.
+
+**Auth:** Yes | **Role:** `admin`, `medical` | **Rate Limit:** `api`
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| camper_id | integer | Filter by camper |
+| from | date (Y-m-d) | Filter entries on or after this date |
+| to | date (Y-m-d) | Filter entries on or before this date |
+| type | string | Filter by `TreatmentType` value |
+
+**Success (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "camper_id": 12,
+      "recorded_by": 5,
+      "treatment_date": "2026-07-14",
+      "treatment_time": "09:30:00",
+      "type": "first_aid",
+      "title": "Minor abrasion — right knee",
+      "description": "...",
+      "outcome": "...",
+      "follow_up_required": false,
+      "follow_up_notes": null,
+      "recorder": { "id": 5, "name": "..." },
+      "camper": { "id": 12, "first_name": "...", "last_name": "..." },
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ]
+}
+```
+
+---
+
+### POST /treatment-logs
+
+Record a new treatment log entry. `recorded_by` is automatically set to the authenticated user.
+
+**Auth:** Yes | **Role:** `admin`, `medical` | **Rate Limit:** `api`
+
+**Request Body:**
+
+| Parameter | Type | Required | Validation |
+|-----------|------|----------|------------|
+| camper_id | integer | Yes | Exists in campers |
+| treatment_date | date | Yes | `before_or_equal:today` |
+| treatment_time | time | No | H:i format |
+| type | string | Yes | One of: `medication_administered`, `first_aid`, `observation`, `emergency`, `other` |
+| title | string | Yes | Max 255 |
+| description | string | Yes | Max 5000 |
+| outcome | string | No | Max 5000 |
+| follow_up_required | boolean | No | Default false |
+| follow_up_notes | string | No | Max 5000 |
+
+**Success (201):** Created treatment log resource
+
+---
+
+### GET /treatment-logs/{id}
+
+View a single treatment log entry.
+
+**Auth:** Yes | **Role:** `admin`, `medical` | **Rate Limit:** `api`
+
+**Success (200):** Treatment log resource with `recorder` and `camper` relationships loaded.
+
+---
+
+### PUT /treatment-logs/{id}
+
+Update a treatment log entry. All fields optional (partial update). Medical staff may only update their own entries.
+
+**Auth:** Yes | **Role:** `admin`, `medical` | **Rate Limit:** `api`
+
+**Success (200):** Updated treatment log resource
+
+---
+
+### DELETE /treatment-logs/{id}
+
+Delete a treatment log entry. Admin only.
+
+**Auth:** Yes | **Role:** `admin` | **Rate Limit:** `api`
+
+**Success (200):** `{ "message": "Treatment log deleted." }`
 
 ---
 

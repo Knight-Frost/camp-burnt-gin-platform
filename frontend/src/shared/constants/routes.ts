@@ -48,6 +48,10 @@ export const ROUTES = {
   MEDICAL_DASHBOARD: '/medical/dashboard',
   MEDICAL_RECORDS: '/medical/records',
   MEDICAL_RECORD_DETAIL: (id: number | string) => `/medical/records/${id}`,
+  MEDICAL_TREATMENT_LOGS: '/medical/treatments',
+  MEDICAL_ANNOUNCEMENTS: '/medical/announcements',
+  MEDICAL_RECORD_TREATMENTS: (id: number | string) => `/medical/records/${id}/treatments`,
+  MEDICAL_RECORD_DOCUMENTS: (id: number | string) => `/medical/records/${id}/documents`,
 
   // Super Admin
   SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',

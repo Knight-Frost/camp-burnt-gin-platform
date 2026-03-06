@@ -456,7 +456,17 @@
     "status": "Estado",
     "date": "Fecha",
     "name": "Nombre",
-    "email": "Correo electrónico"
+    "email": "Correo electrónico",
+    "review": "Revisar Solicitud",
+    "not_provided": "No proporcionado",
+    "none": "Ninguno",
+    "view": "Ver",
+    "not_submitted": "No enviado",
+    "notes": "Notas",
+    "description": "Descripción",
+    "download": "Descargar",
+    "permitted": "Permitido",
+    "not_permitted": "No Permitido"
   },
   "profile": {
     "title": "Tu Perfil",
@@ -668,7 +678,8 @@
       "empty_desc": "Los campistas inscritos con registros médicos aparecerán aquí."
     },
     "record": {
-      "back": "Volver",
+      "back": "Volver al Panel",
+      "back_to_record": "Volver al Registro Médico",
       "unknown": "Desconocido",
       "allergies": "Alergias",
       "no_allergies": "Sin alergias registradas.",
@@ -684,15 +695,58 @@
       "no_permissions": "Sin restricciones de actividad registradas.",
       "behavioral": "Perfil Conductual",
       "triggers": "Disparadores",
-      "de_escalation": "Desescalada",
-      "communication": "Comunicación",
+      "de_escalation": "Estrategias de Desescalada",
+      "communication": "Estilo de Comunicación",
       "no_behavioral": "Sin perfil conductual registrado.",
       "feeding": "Plan de Alimentación",
-      "method": "Método",
+      "method": "Método de Alimentación",
       "restrictions": "Restricciones",
       "no_feeding": "Sin plan de alimentación registrado.",
       "devices": "Dispositivos de Apoyo",
-      "no_devices": "Sin dispositivos de apoyo registrados."
+      "no_devices": "Sin dispositivos de apoyo registrados.",
+      "notes": "Notas Clínicas",
+      "no_notes": "Sin notas clínicas registradas.",
+      "special_needs": "Necesidades Especiales",
+      "dietary_restrictions": "Restricciones Dietéticas",
+      "general_notes": "Notas Generales",
+      "treatment_log": "Registro de Tratamiento",
+      "documents": "Documentos"
+    },
+    "modal": {
+      "add_allergy": "Agregar Alergia",
+      "edit_allergy": "Editar Alergia",
+      "allergen": "Alérgeno",
+      "severity": "Gravedad",
+      "reaction": "Reacción / Síntomas",
+      "add_medication": "Agregar Medicamento",
+      "edit_medication": "Editar Medicamento",
+      "med_name": "Nombre del Medicamento",
+      "add_diagnosis": "Agregar Diagnóstico",
+      "edit_diagnosis": "Editar Diagnóstico",
+      "diagnosis_name": "Nombre del Diagnóstico",
+      "icd_code": "Código CIE (opcional)",
+      "edit_notes": "Editar Notas Clínicas",
+      "add_behavioral": "Agregar Perfil Conductual",
+      "edit_behavioral": "Editar Perfil Conductual",
+      "add_feeding": "Agregar Plan de Alimentación",
+      "edit_feeding": "Editar Plan de Alimentación",
+      "add_device": "Agregar Dispositivo de Apoyo",
+      "edit_device": "Editar Dispositivo de Apoyo",
+      "device_type": "Tipo de Dispositivo"
+    },
+    "treatments": {
+      "title": "Registro de Tratamientos",
+      "add": "Registrar Tratamiento",
+      "empty_title": "Sin registros de tratamiento",
+      "empty_desc": "Los registros de tratamiento de este campista aparecerán aquí."
+    },
+    "documents": {
+      "title": "Documentos del Campista",
+      "drop_hint": "Suelta archivos aquí o",
+      "browse": "haz clic para explorar",
+      "accepted": "PDF, JPG, PNG — hasta 10 MB cada uno",
+      "empty_title": "Sin documentos archivados",
+      "empty_desc": "Sube documentos médicos para este campista aquí."
     }
   },
   "inbox": {

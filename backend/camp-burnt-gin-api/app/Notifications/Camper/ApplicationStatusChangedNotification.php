@@ -26,11 +26,18 @@ class ApplicationStatusChangedNotification extends Notification
     /**
      * Get the notification's delivery channels.
      *
+     * Respects the user's notification_preferences for application_updates.
+     * The database channel is always included for in-app Recent Updates.
+     * Email is gated by the user's preference (default: enabled).
+     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $prefs = $notifiable->notification_preferences ?? [];
+        $emailEnabled = $prefs['application_updates'] ?? true;
+
+        return $emailEnabled ? ['mail', 'database'] : ['database'];
     }
 
     /**
@@ -80,18 +87,28 @@ class ApplicationStatusChangedNotification extends Notification
     /**
      * Get the array representation of the notification.
      *
+     * Stored in the database notifications table for in-app display.
+     * The title and message fields are used by the Recent Updates widget.
+     *
      * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
     {
+        $newStatus     = $this->application->status->value;
+        $statusLabel   = ucfirst(str_replace('_', ' ', $newStatus));
+        $previousLabel = ucfirst(str_replace('_', ' ', $this->previousStatus));
+        $camperName    = $this->application->camper->full_name;
+
         return [
-            'type' => 'application_status_changed',
-            'application_id' => $this->application->id,
-            'camper_name' => $this->application->camper->full_name,
-            'camp_session' => $this->application->campSession->name,
+            'type'            => 'application_status_changed',
+            'title'           => "Application status updated — {$statusLabel}",
+            'message'         => "The application for {$camperName} has been updated from {$previousLabel} to {$statusLabel}.",
+            'application_id'  => $this->application->id,
+            'camper_name'     => $camperName,
+            'camp_session'    => $this->application->campSession->name,
             'previous_status' => $this->previousStatus,
-            'new_status' => $this->application->status->value,
-            'changed_at' => now()->toIso8601String(),
+            'new_status'      => $newStatus,
+            'changed_at'      => now()->toIso8601String(),
         ];
     }
 }

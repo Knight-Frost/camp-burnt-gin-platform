@@ -32,7 +32,8 @@ class CamperPolicy
      *
      * Administrators have full access.
      * Parents can only view their own children.
-     * Medical providers cannot view camper profiles directly.
+     * Medical providers can view camper profiles to support clinical workflows
+     * (recording treatments, reviewing records, uploading documents).
      */
     public function view(User $user, Camper $camper): bool
     {
@@ -41,6 +42,10 @@ class CamperPolicy
         }
 
         if ($user->isApplicant() && $user->ownsCamper($camper)) {
+            return true;
+        }
+
+        if ($user->isMedicalProvider()) {
             return true;
         }
 

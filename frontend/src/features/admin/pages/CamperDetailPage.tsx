@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
+import { format } from 'date-fns';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -224,10 +225,10 @@ export function CamperDetailPage() {
         <motion.div variants={staggerChild}>
           <SectionCard title="Personal Information" icon={<User className="h-4 w-4" />}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Field label="Date of Birth" value={camper.date_of_birth} />
+              <Field label="Date of Birth" value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
               <Field label="Age"           value={age !== null ? `${age} years` : undefined} />
               <Field label="Gender"        value={camper.gender} />
-              <Field label="T-Shirt Size"  value={camper.t_shirt_size} />
+              <Field label="T-Shirt Size"  value={camper.tshirt_size} />
             </div>
           </SectionCard>
         </motion.div>
@@ -243,7 +244,7 @@ export function CamperDetailPage() {
                   <div key={app.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                        {app.session?.name ?? `Session #${app.session_id}`}
+                        {app.session?.name ?? `Session #${app.camp_session_id}`}
                       </p>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                         Submitted {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}

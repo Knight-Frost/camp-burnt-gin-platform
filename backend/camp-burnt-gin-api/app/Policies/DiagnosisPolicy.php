@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\Diagnosis;
-use App\Models\MedicalProviderLink;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -43,11 +42,8 @@ class DiagnosisPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $diagnosis->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct access to all camper diagnosis records.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
@@ -82,11 +78,8 @@ class DiagnosisPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $diagnosis->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff may update diagnosis records during active care.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {

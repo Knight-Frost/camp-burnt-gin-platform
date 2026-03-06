@@ -18,6 +18,7 @@ use App\Models\FeedingPlan;
 use App\Models\MedicalProviderLink;
 use App\Models\MedicalRecord;
 use App\Models\Medication;
+use App\Models\TreatmentLog;
 use App\Models\Message;
 use App\Models\Role;
 use App\Models\UserEmergencyContact;
@@ -44,6 +45,7 @@ use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicationPolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\RolePolicy;
+use App\Policies\TreatmentLogPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -87,6 +89,8 @@ class AppServiceProvider extends ServiceProvider
         Role::class => RolePolicy::class,
         // User profile emergency contacts
         UserEmergencyContact::class => UserEmergencyContactPolicy::class,
+        // Medical staff treatment logs
+        TreatmentLog::class => TreatmentLogPolicy::class,
     ];
 
     /**

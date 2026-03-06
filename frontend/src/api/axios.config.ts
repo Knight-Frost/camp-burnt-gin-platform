@@ -47,9 +47,10 @@ const axiosInstance: AxiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Inject Bearer token from Redux store (synchronous in-memory read,
-    // avoids the redux-persist async localStorage write race condition)
-    const token = store.getState().auth.token;
+    // Inject Bearer token — prefer Redux store (set after login / init validation),
+    // fall back to localStorage for the init validation request itself which fires
+    // before the store is populated on page refresh.
+    const token = store.getState().auth.token ?? sessionStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -34,6 +34,22 @@ class DocumentController extends Controller
             $documents = Document::with('documentable', 'uploader')
                 ->latest()
                 ->paginate(15);
+        } elseif ($user->isMedicalProvider()) {
+            // Camp medical staff can view all documents attached to campers and medical records.
+            $medicalRecordIds = \App\Models\MedicalRecord::pluck('id');
+            $camperIds = \App\Models\Camper::pluck('id');
+            $documents = Document::with('documentable', 'uploader')
+                ->where(function ($query) use ($camperIds, $medicalRecordIds) {
+                    $query->where(function ($q) use ($camperIds) {
+                        $q->where('documentable_type', 'App\\Models\\Camper')
+                            ->whereIn('documentable_id', $camperIds);
+                    })->orWhere(function ($q) use ($medicalRecordIds) {
+                        $q->where('documentable_type', 'App\\Models\\MedicalRecord')
+                            ->whereIn('documentable_id', $medicalRecordIds);
+                    })->orWhere('uploaded_by', $user->id);
+                })
+                ->latest()
+                ->paginate(15);
         } elseif ($user->isApplicant()) {
             $camperIds = $user->campers()->pluck('id');
             $documents = Document::with('documentable', 'uploader')
@@ -53,7 +69,7 @@ class DocumentController extends Controller
         }
 
         return response()->json([
-            'data' => $documents->items(),
+            'data' => array_map([$this, 'transformDocument'], $documents->items()),
             'meta' => [
                 'current_page' => $documents->currentPage(),
                 'last_page' => $documents->lastPage(),
@@ -82,7 +98,7 @@ class DocumentController extends Controller
 
         return response()->json([
             'message' => 'Document uploaded successfully.',
-            'data' => $result['document'],
+            'data' => $this->transformDocument($result['document']),
         ], Response::HTTP_CREATED);
     }
 
@@ -123,6 +139,27 @@ class DocumentController extends Controller
         }
 
         return $this->documentService->download($document);
+    }
+
+    /**
+     * Transform a Document model into the API response shape expected by the frontend.
+     *
+     * Maps internal field names (original_filename, file_size) to the frontend
+     * contract (file_name, size) and appends an authenticated download URL.
+     *
+     * @return array<string, mixed>
+     */
+    private function transformDocument(Document $document): array
+    {
+        return [
+            'id'            => $document->id,
+            'file_name'     => $document->original_filename,
+            'document_type' => $document->document_type,
+            'mime_type'     => $document->mime_type,
+            'size'          => $document->file_size,
+            'created_at'    => $document->created_at,
+            'url'           => url("/api/documents/{$document->id}/download"),
+        ];
     }
 
     /**

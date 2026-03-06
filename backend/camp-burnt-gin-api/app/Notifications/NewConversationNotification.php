@@ -26,11 +26,18 @@ class NewConversationNotification extends Notification
     /**
      * Get the notification's delivery channels.
      *
+     * Respects the user's notification_preferences for messages.
+     * The database channel is always included for in-app Recent Updates.
+     * Email is gated by the user's preference (default: enabled).
+     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $prefs = $notifiable->notification_preferences ?? [];
+        $emailEnabled = $prefs['messages'] ?? true;
+
+        return $emailEnabled ? ['mail', 'database'] : ['database'];
     }
 
     /**
@@ -55,17 +62,23 @@ class NewConversationNotification extends Notification
      * Get the array representation of the notification.
      *
      * Stored in database notifications table for in-app display.
+     * The title and message fields are used by the Recent Updates widget.
      *
      * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
     {
+        $subject   = $this->conversation->subject;
+        $createdBy = $this->conversation->creator?->name ?? 'Camp Staff';
+
         return [
-            'type' => 'new_conversation',
-            'conversation_id' => $this->conversation->id,
-            'conversation_subject' => $this->conversation->subject,
-            'created_by' => $this->conversation->creator->name,
-            'created_at' => $this->conversation->created_at->toIso8601String(),
+            'type'                 => 'new_conversation',
+            'title'                => "New conversation: {$subject}",
+            'message'              => "{$createdBy} has started a conversation with you: \"{$subject}\".",
+            'conversation_id'      => $this->conversation->id,
+            'conversation_subject' => $subject,
+            'created_by'           => $createdBy,
+            'created_at'           => $this->conversation->created_at->toIso8601String(),
         ];
     }
 }

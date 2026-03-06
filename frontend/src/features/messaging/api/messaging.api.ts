@@ -8,15 +8,21 @@ import { axiosInstance } from '@/api/axios.config';
 import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 
 export type SystemEventCategory = 'application' | 'security' | 'role' | 'medical';
+export type InboxFolder = 'inbox' | 'starred' | 'important' | 'sent' | 'archive' | 'trash' | 'system' | 'announcements' | 'all';
 
 export interface Conversation {
   id: number;
   subject?: string;
   category?: MessageCategory;
+  created_by_id?: number;
   participants: ConversationParticipant[];
   last_message?: Message;
   unread_count: number;
   archived_at?: string;
+  // Per-user state (backed by conversation_participants pivot)
+  is_starred: boolean;
+  is_important: boolean;
+  is_trashed: boolean;
   created_at: string;
   updated_at: string;
   // System notification fields (populated when is_system_generated === true)
@@ -66,15 +72,17 @@ export interface NewConversationPayload {
 
 export async function getConversations(params?: {
   page?: number;
-  include_archived?: true;
+  folder?: InboxFolder;
   system_only?: 0 | 1;
+  /** @deprecated use folder='archive' */
+  include_archived?: true;
 }): Promise<PaginatedResponse<Conversation>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Conversation>>('/inbox/conversations', { params });
   return data;
 }
 
 export async function getSystemConversations(params?: { page?: number }): Promise<PaginatedResponse<Conversation>> {
-  return getConversations({ ...params, system_only: 1 });
+  return getConversations({ ...params, folder: 'system' });
 }
 
 export async function getConversation(id: number): Promise<Conversation> {
@@ -101,6 +109,28 @@ export async function leaveConversation(id: number): Promise<void> {
 
 export async function deleteConversation(id: number): Promise<void> {
   await axiosInstance.delete(`/inbox/conversations/${id}`);
+}
+
+/** Toggle starred state. Returns new is_starred value. */
+export async function starConversation(id: number): Promise<boolean> {
+  const { data } = await axiosInstance.post<{ is_starred: boolean }>(`/inbox/conversations/${id}/star`);
+  return data.is_starred;
+}
+
+/** Toggle important state. Returns new is_important value. */
+export async function markImportant(id: number): Promise<boolean> {
+  const { data } = await axiosInstance.post<{ is_important: boolean }>(`/inbox/conversations/${id}/important`);
+  return data.is_important;
+}
+
+/** Move to user's trash (per-user soft delete). */
+export async function trashConversation(id: number): Promise<void> {
+  await axiosInstance.post(`/inbox/conversations/${id}/trash`);
+}
+
+/** Restore from user's trash. */
+export async function restoreConversation(id: number): Promise<void> {
+  await axiosInstance.post(`/inbox/conversations/${id}/restore-trash`);
 }
 
 // ---------------------------------------------------------------------------

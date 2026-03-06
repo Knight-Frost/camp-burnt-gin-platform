@@ -41,12 +41,8 @@ class AllergyPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Medical providers require valid, non-revoked, unexpired provider link
-            return \App\Models\MedicalProviderLink::where('camper_id', $allergy->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct access to all camper allergy records.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
@@ -81,12 +77,8 @@ class AllergyPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Medical providers require valid, non-revoked, unexpired provider link
-            return \App\Models\MedicalProviderLink::where('camper_id', $allergy->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff may update allergy records during active care.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {

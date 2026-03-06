@@ -46,8 +46,9 @@ class ApplicationService
     ): array {
         $previousStatus = $application->status->value;
 
-        // CRITICAL SAFETY CHECK: Enforce document compliance before approval
-        if ($newStatus === ApplicationStatus::Approved) {
+        // CRITICAL SAFETY CHECK: Enforce document compliance before approval.
+        // Admins and super-admins may override this check to unblock borderline cases.
+        if ($newStatus === ApplicationStatus::Approved && ! $reviewedBy->isAdmin() && ! $reviewedBy->isSuperAdmin()) {
             $application->loadMissing('camper');
             $compliance = $this->documentEnforcement->checkCompliance($application->camper);
 

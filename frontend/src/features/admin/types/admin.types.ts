@@ -4,7 +4,7 @@
  */
 
 export interface ApplicationReviewPayload {
-  status: 'accepted' | 'rejected' | 'under_review';
+  status: 'approved' | 'rejected' | 'under_review';
   notes?: string;
 }
 
@@ -33,8 +33,8 @@ export interface CampSession {
 export interface Application {
   id: number;
   camper_id: number;
-  session_id: number;
-  status: 'pending' | 'submitted' | 'under_review' | 'accepted' | 'rejected';
+  camp_session_id: number;
+  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'waitlisted' | 'cancelled';
   notes?: string;
   submitted_at?: string;
   reviewed_at?: string;
@@ -53,7 +53,7 @@ export interface Camper {
   full_name: string;
   date_of_birth: string;
   gender?: string;
-  t_shirt_size?: string;
+  tshirt_size?: string;
   created_at: string;
   medical_record?: MedicalRecord;
   applications?: Application[];
@@ -163,14 +163,22 @@ export interface Notification {
 
 export interface AuditLogEntry {
   id: number;
-  user_id: number;
-  user?: { id: number; name: string; email: string };
+  request_id?: string;
+  user_id: number | null;
+  user?: { id: number; name: string; email: string } | null;
+  event_type?: string;
+  category?: string;
   action: string;
+  description?: string | null;
+  human_description?: string;
   auditable_type: string | null;
   auditable_id: number | null;
-  old_values?: Record<string, unknown>;
-  new_values?: Record<string, unknown>;
-  ip_address?: string;
+  entity_label?: string;
+  old_values?: Record<string, unknown> | null;
+  new_values?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
   created_at: string;
 }
 

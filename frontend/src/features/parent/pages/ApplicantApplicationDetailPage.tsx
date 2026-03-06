@@ -74,9 +74,9 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 // ─── Status timeline ──────────────────────────────────────────────────────────
 
 const STATUS_STEPS: { status: string; label: string; icon: React.ReactNode }[] = [
-  { status: 'submitted',    label: 'Submitted',    icon: <FileText className="h-3.5 w-3.5" /> },
+  { status: 'pending',      label: 'Submitted',    icon: <FileText className="h-3.5 w-3.5" /> },
   { status: 'under_review', label: 'Under review', icon: <Clock className="h-3.5 w-3.5" /> },
-  { status: 'accepted',     label: 'Accepted',     icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  { status: 'approved',     label: 'Approved',     icon: <CheckCircle className="h-3.5 w-3.5" /> },
 ];
 
 function StatusTimeline({ status }: { status: string }) {
@@ -101,7 +101,7 @@ function StatusTimeline({ status }: { status: string }) {
     );
   }
 
-  const stepOrder = ['submitted', 'under_review', 'accepted'];
+  const stepOrder = ['pending', 'under_review', 'approved'];
   const currentIdx = stepOrder.indexOf(status);
 
   return (

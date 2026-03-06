@@ -42,12 +42,8 @@ class MedicationPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Medical providers require valid, non-revoked, unexpired provider link
-            return \App\Models\MedicalProviderLink::where('camper_id', $medication->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct access to all camper medication records.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
@@ -82,12 +78,8 @@ class MedicationPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Medical providers require valid, non-revoked, unexpired provider link
-            return \App\Models\MedicalProviderLink::where('camper_id', $medication->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff may update medication records during active care.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {

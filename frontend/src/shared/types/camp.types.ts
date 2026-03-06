@@ -76,11 +76,12 @@ export interface ComplianceStatus {
 
 export type ApplicationStatus =
   | 'draft'
-  | 'submitted'
+  | 'pending'
   | 'under_review'
-  | 'accepted'
+  | 'approved'
   | 'rejected'
   | 'waitlisted'
+  | 'cancelled'
   | 'withdrawn';
 
 export interface Application {
@@ -90,6 +91,7 @@ export interface Application {
   session_id: number;
   session?: Session;
   status: ApplicationStatus;
+  is_draft?: boolean;
   notes?: string;
   review_notes?: string;
   reviewed_by?: number;
@@ -228,13 +230,13 @@ export interface ProviderLink {
 // ---------------------------------------------------------------------------
 
 export interface Notification {
-  id: number;
-  user_id: number;
+  /** UUID string — Laravel database notifications use UUID primary keys. */
+  id: string;
   type: string;
   title: string;
   message: string;
   data?: Record<string, unknown>;
-  read_at?: string;
+  read_at?: string | null;
   created_at: string;
 }
 

@@ -10,7 +10,7 @@
  */
 
 import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -19,10 +19,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/auth.schema';
 import { login } from '@/features/auth/api/auth.api';
-import { setUser, setToken } from '@/features/auth/store/authSlice';
+import { setUser, setToken, hydrateAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch } from '@/store/hooks';
-import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
+import { getPrimaryRole, getDashboardRoute } from '@/shared/constants/roles';
+import type { User } from '@/shared/types';
 import { isValidationError, isLockoutError, isRateLimitError } from '@/shared/types';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 
@@ -41,8 +42,6 @@ function inputCls(hasError: boolean, extra = '') {
 export function LoginPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
-  const from     = (location.state as { from?: string })?.from ?? null;
 
   // Phase 1 state
   const [showPassword,   setShowPassword]   = useState(false);
@@ -69,8 +68,7 @@ export function LoginPage() {
     try {
       const response = await login(values);
 
-      const topLevel = response as unknown as { mfa_required?: boolean };
-      if (topLevel.mfa_required) {
+      if (response.mfa_required) {
         // Store credentials in memory only, switch to MFA step
         mfaCredentials.current = { email: values.email, password: values.password };
         setMfaStep(true);
@@ -80,16 +78,14 @@ export function LoginPage() {
         return;
       }
 
-      const { user, token, expires_in } = response.data;
-      dispatch(setToken({ token, expiresIn: expires_in }));
+      const { user, token } = response.data!;
+      sessionStorage.setItem('auth_token', token);
+      dispatch(setToken({ token }));
       dispatch(setUser(user));
+      dispatch(hydrateAuth());
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
-
-      const role = getPrimaryRole(user.roles ?? []);
-      const dashRoute = getDashboardRoute(role);
-      const portalPrefix = '/' + dashRoute.split('/')[1];
-      const safeFrom = from && from.startsWith(portalPrefix) ? from : null;
-      navigate(safeFrom ?? dashRoute, { replace: true });
+      const role = getPrimaryRole((user as User).roles ?? []);
+      if (role) navigate(getDashboardRoute(role));
 
     } catch (error) {
       if (isLockoutError(error)) {
@@ -146,16 +142,15 @@ export function LoginPage() {
     setMfaError(null);
     try {
       const response = await login({ ...mfaCredentials.current, mfa_code: code });
-      const { user, token, expires_in } = response.data;
+      const { user, token } = response.data!;
       mfaCredentials.current = null; // clear from memory
-      dispatch(setToken({ token, expiresIn: expires_in }));
+      sessionStorage.setItem('auth_token', token);
+      dispatch(setToken({ token }));
       dispatch(setUser(user));
+      dispatch(hydrateAuth());
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
-      const role = getPrimaryRole(user.roles ?? []);
-      const dashRoute = getDashboardRoute(role);
-      const portalPrefix = '/' + dashRoute.split('/')[1];
-      const safeFrom = from && from.startsWith(portalPrefix) ? from : null;
-      navigate(safeFrom ?? dashRoute, { replace: true });
+      const mfaRole = getPrimaryRole((user as User).roles ?? []);
+      if (mfaRole) navigate(getDashboardRoute(mfaRole));
     } catch (err) {
       const msg = (err as { message?: string })?.message ?? 'Invalid code. Please try again.';
       setMfaError(msg);
@@ -313,15 +308,15 @@ export function LoginPage() {
               style={{ fontSize: '0.9375rem' }}
               {...register('password')}
             />
-            <motion.button
+            <button
               type="button"
-              whileTap={{ scale: 0.9 }}
               onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+              style={{ transform: 'translateY(-50%)' }}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff style={{ width: '1.125rem', height: '1.125rem' }} /> : <Eye style={{ width: '1.125rem', height: '1.125rem' }} />}
-            </motion.button>
+            </button>
           </div>
           {errors.password && (
             <p role="alert" className="text-sm text-red-500">{errors.password.message}</p>

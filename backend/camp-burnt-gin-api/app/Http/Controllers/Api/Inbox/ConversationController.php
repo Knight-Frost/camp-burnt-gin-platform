@@ -41,19 +41,30 @@ class ConversationController extends Controller
     {
         $user = $request->user();
 
-        $includeArchived = $request->boolean('include_archived', false);
         $perPage = min($request->integer('per_page', 25), 100);
 
-        // system_only=1 → system notifications only; system_only=0 → user convs only; absent → all
+        // Folder-based filtering (Phase 8). Falls back to legacy include_archived param.
+        $folder = $request->string('folder', 'inbox')->toString();
+        $validFolders = ['inbox', 'starred', 'important', 'sent', 'archive', 'trash', 'system', 'all'];
+        if (! in_array($folder, $validFolders, true)) {
+            $folder = 'inbox';
+        }
+
+        // Legacy param compat: include_archived=true → archive folder
+        if ($folder === 'inbox' && $request->boolean('include_archived', false)) {
+            $folder = 'archive';
+        }
+
+        // system_only=1 → system notifications only; system_only=0 → user convs only; absent → null
         $systemOnly = $request->has('system_only')
             ? $request->boolean('system_only')
             : null;
 
         $conversations = $this->inboxService->getUserConversations(
             $user,
-            $includeArchived,
             $perPage,
-            $systemOnly
+            $systemOnly,
+            $folder
         );
 
         return response()->json([
@@ -92,7 +103,8 @@ class ConversationController extends Controller
 
         $user = $request->user();
 
-        // Check if participant list contains non-admins (for parent authorization)
+        // Check if participant list contains non-admins (for applicant authorization).
+        // Both 'admin' and 'super_admin' are considered administrative roles.
         $hasNonAdminParticipants = false;
         if ($user->isApplicant()) {
             $participantRoles = \App\Models\User::whereIn('id', $validated['participant_ids'])
@@ -101,7 +113,9 @@ class ConversationController extends Controller
                 ->pluck('role.name')
                 ->unique();
 
-            $hasNonAdminParticipants = $participantRoles->contains(fn($role) => $role !== 'admin');
+            $hasNonAdminParticipants = $participantRoles->contains(
+                fn($role) => !in_array($role, ['admin', 'super_admin'], true)
+            );
         }
 
         // Authorization check with role validation
@@ -265,6 +279,76 @@ class ConversationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Left conversation successfully',
+        ]);
+    }
+
+    /**
+     * Toggle the starred state for the authenticated user.
+     *
+     * POST /api/inbox/conversations/{conversation}/star
+     */
+    public function star(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('view', $conversation);
+
+        $isStarred = $this->inboxService->toggleStar($conversation, $request->user());
+
+        return response()->json([
+            'success'    => true,
+            'is_starred' => $isStarred,
+            'message'    => $isStarred ? 'Conversation starred.' : 'Star removed.',
+        ]);
+    }
+
+    /**
+     * Toggle the important state for the authenticated user.
+     *
+     * POST /api/inbox/conversations/{conversation}/important
+     */
+    public function important(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('view', $conversation);
+
+        $isImportant = $this->inboxService->toggleImportant($conversation, $request->user());
+
+        return response()->json([
+            'success'      => true,
+            'is_important' => $isImportant,
+            'message'      => $isImportant ? 'Marked as important.' : 'Removed from important.',
+        ]);
+    }
+
+    /**
+     * Move a conversation to the authenticated user's trash.
+     *
+     * POST /api/inbox/conversations/{conversation}/trash
+     */
+    public function trash(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('view', $conversation);
+
+        $this->inboxService->trashConversation($conversation, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation moved to trash.',
+        ]);
+    }
+
+    /**
+     * Restore a conversation from the authenticated user's trash.
+     *
+     * POST /api/inbox/conversations/{conversation}/restore-trash
+     */
+    public function restoreFromTrash(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('view', $conversation);
+
+        $this->inboxService->restoreFromTrash($conversation, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation restored.',
         ]);
     }
 

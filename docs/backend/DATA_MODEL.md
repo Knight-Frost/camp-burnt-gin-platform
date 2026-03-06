@@ -6,7 +6,7 @@ This document describes the database schema, entity relationships, and data mode
 
 ## Database Tables
 
-The system implements 20 database tables:
+The system implements 21 database tables:
 
 | Table | Records | Description |
 |-------|---------|-------------|
@@ -22,6 +22,7 @@ The system implements 20 database tables:
 | `emergency_contacts` | Variable | Emergency contact information |
 | `documents` | Variable | File upload metadata (polymorphic - includes message attachments) |
 | `medical_provider_links` | Variable | Secure provider access tokens |
+| `treatment_logs` | Variable | On-site treatment and intervention records (PHI encrypted) |
 | `conversations` | Variable | Message thread containers |
 | `conversation_participants` | Variable | User-conversation membership tracking |
 | `messages` | Variable | Individual messages (immutable) |
@@ -77,7 +78,9 @@ The system implements 20 database tables:
                 │
                 ├─── 1:N ──► documents (polymorphic)
                 │
-                └─── 1:N ──► medical_provider_links
+                ├─── 1:N ──► medical_provider_links
+                │
+                └─── 1:N ──► treatment_logs (recorded_by → users)
 
 
         Inbox Messaging System Entities:

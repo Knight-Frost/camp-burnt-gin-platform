@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\AssistiveDevice;
-use App\Models\MedicalProviderLink;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -35,11 +34,8 @@ class AssistiveDevicePolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $assistiveDevice->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct access to all camper assistive device records.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {
@@ -67,11 +63,8 @@ class AssistiveDevicePolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $assistiveDevice->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff may update assistive device records during active care.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {

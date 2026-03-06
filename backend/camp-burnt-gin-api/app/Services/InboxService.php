@@ -273,36 +273,179 @@ class InboxService
     }
 
     /**
-     * Get conversations for a user with pagination.
+     * Get conversations for a user, filtered by folder.
      *
-     * @param User $user
-     * @param bool $includeArchived  When true returns archived conversations only
-     * @param int  $perPage
-     * @param bool|null $systemOnly  true = system notifications only, false = user convs only, null = all
+     * Folders:
+     *  - inbox        Active non-archived user conversations (default)
+     *  - starred      Conversations the user starred
+     *  - important    Conversations the user marked important
+     *  - sent         Conversations created by the user
+     *  - archive      Archived conversations
+     *  - trash        Conversations the user moved to trash
+     *  - system       System-generated notifications
+     *  - all          Everything not trashed (backwards-compat)
+     *
+     * @param User        $user
+     * @param int         $perPage
+     * @param bool|null   $systemOnly  Deprecated filter — prefer folder param
+     * @param string      $folder
      * @return LengthAwarePaginator
      */
     public function getUserConversations(
         User $user,
-        bool $includeArchived = false,
         int $perPage = 25,
-        ?bool $systemOnly = null
+        ?bool $systemOnly = null,
+        string $folder = 'inbox'
     ): LengthAwarePaginator {
         $query = Conversation::query()
             ->forUser($user)
-            ->with(['creator', 'lastMessage.sender.role', 'participants.role'])
+            ->with(['creator', 'lastMessage.sender.role', 'participants.role', 'activeParticipantRecords'])
             ->recentActivity();
 
-        if (!$includeArchived) {
-            $query->active();
+        switch ($folder) {
+            case 'inbox':
+                $query->active()
+                      ->userConversations()
+                      ->whereHas('participantRecords', function ($q) use ($user) {
+                          $q->where('user_id', $user->id)->whereNull('trashed_at');
+                      });
+                break;
+
+            case 'starred':
+                $query->whereHas('participantRecords', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->where('is_starred', true)
+                      ->whereNull('trashed_at');
+                });
+                break;
+
+            case 'important':
+                $query->whereHas('participantRecords', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->where('is_important', true)
+                      ->whereNull('trashed_at');
+                });
+                break;
+
+            case 'sent':
+                $query->where('created_by_id', $user->id)
+                      ->whereHas('participantRecords', function ($q) use ($user) {
+                          $q->where('user_id', $user->id)->whereNull('trashed_at');
+                      });
+                break;
+
+            case 'archive':
+                $query->archived()
+                      ->whereHas('participantRecords', function ($q) use ($user) {
+                          $q->where('user_id', $user->id)->whereNull('trashed_at');
+                      });
+                break;
+
+            case 'trash':
+                // Bypass the default forUser scope — include left participants too
+                $query->whereHas('participantRecords', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->whereNotNull('trashed_at');
+                });
+                break;
+
+            case 'system':
+                $query->active()
+                      ->systemGenerated()
+                      ->whereHas('participantRecords', function ($q) use ($user) {
+                          $q->where('user_id', $user->id)->whereNull('trashed_at');
+                      });
+                break;
+
+            case 'all':
+            default:
+                $query->whereHas('participantRecords', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->whereNull('trashed_at');
+                });
+                break;
         }
 
-        if ($systemOnly === true) {
+        // Legacy systemOnly filter (used when folder is not 'system')
+        if ($folder !== 'system' && $systemOnly === true) {
             $query->systemGenerated();
         } elseif ($systemOnly === false) {
             $query->userConversations();
         }
 
         return $query->paginate($perPage);
+    }
+
+    /**
+     * Toggle the starred state for a user's participation in a conversation.
+     *
+     * @return bool New is_starred value
+     */
+    public function toggleStar(Conversation $conversation, User $user): bool
+    {
+        $participant = \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        return $participant->toggleStar();
+    }
+
+    /**
+     * Toggle the important state for a user's participation in a conversation.
+     *
+     * @return bool New is_important value
+     */
+    public function toggleImportant(Conversation $conversation, User $user): bool
+    {
+        $participant = \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        return $participant->toggleImportant();
+    }
+
+    /**
+     * Move a conversation to the user's trash.
+     */
+    public function trashConversation(Conversation $conversation, User $user): void
+    {
+        \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', $user->id)
+            ->update(['trashed_at' => now()]);
+
+        AuditLog::create([
+            'request_id'      => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id'         => $user->id,
+            'event_type'      => 'conversation',
+            'auditable_type'  => Conversation::class,
+            'auditable_id'    => $conversation->id,
+            'action'          => 'trashed',
+            'description'     => "User {$user->id} moved conversation to trash: {$conversation->subject}",
+            'ip_address'      => request()->ip(),
+            'user_agent'      => request()->userAgent(),
+            'created_at'      => now(),
+        ]);
+    }
+
+    /**
+     * Restore a conversation from the user's trash.
+     */
+    public function restoreFromTrash(Conversation $conversation, User $user): void
+    {
+        \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', $user->id)
+            ->update(['trashed_at' => null]);
+
+        AuditLog::create([
+            'request_id'      => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id'         => $user->id,
+            'event_type'      => 'conversation',
+            'auditable_type'  => Conversation::class,
+            'auditable_id'    => $conversation->id,
+            'action'          => 'restored_from_trash',
+            'description'     => "User {$user->id} restored conversation from trash: {$conversation->subject}",
+            'ip_address'      => request()->ip(),
+            'user_agent'      => request()->userAgent(),
+            'created_at'      => now(),
+        ]);
     }
 
     /**

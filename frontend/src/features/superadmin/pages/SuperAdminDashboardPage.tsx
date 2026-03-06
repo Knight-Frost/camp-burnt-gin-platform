@@ -13,10 +13,10 @@ import { useAppSelector } from '@/store/hooks';
 import { pageEntry, staggerContainer, staggerChild, cardHover } from '@/shared/constants/motion';
 
 const QUICK_LINKS = [
-  { to: '/super-admin/users',   icon: Users,    labelKey: 'superadmin.nav.users',     color: 'var(--ember-orange)',   bg: 'rgba(22,163,74,0.1)' },
-  { to: '/admin/applications',  icon: FileText, labelKey: 'superadmin.nav.apps',      color: 'var(--night-sky-blue)', bg: 'rgba(96,165,250,0.1)' },
-  { to: '/admin/campers',       icon: Users,    labelKey: 'superadmin.nav.campers',   color: 'var(--forest-green)',   bg: 'rgba(5,150,105,0.1)' },
-  { to: '/super-admin/audit',   icon: Activity, labelKey: 'superadmin.nav.audit',     color: 'var(--ember-orange)',     bg: 'rgba(22,163,74,0.1)' },
+  { to: '/super-admin/users',         icon: Users,    labelKey: 'superadmin.nav.users',     color: 'var(--ember-orange)',   bg: 'rgba(22,163,74,0.1)' },
+  { to: '/super-admin/applications',  icon: FileText, labelKey: 'superadmin.nav.apps',      color: 'var(--night-sky-blue)', bg: 'rgba(96,165,250,0.1)' },
+  { to: '/super-admin/campers',       icon: Users,    labelKey: 'superadmin.nav.campers',   color: 'var(--forest-green)',   bg: 'rgba(5,150,105,0.1)' },
+  { to: '/super-admin/audit',         icon: Activity, labelKey: 'superadmin.nav.audit',     color: 'var(--ember-orange)',   bg: 'rgba(22,163,74,0.1)' },
 ];
 
 export function SuperAdminDashboardPage() {

@@ -26,18 +26,17 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Development seeder — populates the database with realistic demo data.
+ * @deprecated Superseded by the modular seeder stack (Phase 11).
  *
- * Creates a fully functional state for local development and review:
- *   - 1 camp with 3 sessions (upcoming, current, past)
- *   - 5 applicant families with campers, medical records, and applications
- *   - Applications spread across all statuses
- *   - Inbox conversations (user-to-user + system notifications)
- *   - Announcements (pinned, urgent, standard)
- *   - Calendar events across session lifecycle
- *   - Audit log entries
+ * This class is no longer called by DatabaseSeeder. It is retained for
+ * reference only and will be removed in a future cleanup.
  *
- * Run via: php artisan db:seed --class=DevSeeder
+ * Use the modular seeders instead:
+ *   UserSeeder, ApplicantSeeder, CampSeeder, ApplicationSeeder,
+ *   MedicalSeeder, DocumentSeeder, MessageSeeder, AnnouncementSeeder,
+ *   NotificationSeeder
+ *
+ * Run: php artisan migrate:fresh --seed
  */
 class DevSeeder extends Seeder
 {

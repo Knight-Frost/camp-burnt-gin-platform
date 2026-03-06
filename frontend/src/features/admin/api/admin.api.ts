@@ -35,8 +35,21 @@ export async function getCamper(id: number): Promise<Camper> {
 export async function getCamperRiskSummary(id: number): Promise<unknown> {
   const { data } = await axiosInstance.get(`/campers/${id}/risk-summary`); return data.data;
 }
-export async function getCamperComplianceStatus(id: number): Promise<unknown> {
-  const { data } = await axiosInstance.get(`/campers/${id}/compliance-status`); return data.data;
+export interface ComplianceDocument {
+  document_type: string;
+  description: string;
+}
+
+export interface ComplianceStatus {
+  is_compliant: boolean;
+  missing_documents: (string | ComplianceDocument)[];
+  expired_documents: (string | ComplianceDocument)[];
+  unverified_documents: (string | ComplianceDocument)[];
+}
+
+export async function getCamperComplianceStatus(id: number): Promise<ComplianceStatus> {
+  const { data } = await axiosInstance.get<{ data: ComplianceStatus }>(`/campers/${id}/compliance-status`);
+  return data.data;
 }
 
 export async function getCamps(): Promise<Camp[]> {
@@ -115,8 +128,42 @@ export async function updateUserRole(id: number, role: string): Promise<User> {
 export async function deactivateUser(id: number): Promise<void> { await axiosInstance.post(`/users/${id}/deactivate`); }
 export async function reactivateUser(id: number): Promise<void> { await axiosInstance.post(`/users/${id}/reactivate`); }
 
-export async function getAuditLog(params?: { page?: number; search?: string; user_id?: number; action?: string; from?: string; to?: string }): Promise<PaginatedResponse<AuditLogEntry>> {
-  const { data } = await axiosInstance.get<PaginatedResponse<AuditLogEntry>>('/audit-log', { params }); return data;
+export async function getAuditLog(params?: {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  user_id?: number;
+  action?: string;
+  event_type?: string;
+  entity_type?: string;
+  from?: string;
+  to?: string;
+}): Promise<PaginatedResponse<AuditLogEntry>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<AuditLogEntry>>('/audit-log', { params });
+  return data;
+}
+
+export async function exportAuditLog(params: {
+  format: 'csv' | 'json';
+  search?: string;
+  user_id?: number;
+  action?: string;
+  event_type?: string;
+  entity_type?: string;
+  from?: string;
+  to?: string;
+}): Promise<void> {
+  const response = await axiosInstance.get('/audit-log/export', { params, responseType: 'blob' });
+  const ext      = params.format === 'json' ? 'json' : 'csv';
+  const filename = `audit-log-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  const url      = URL.createObjectURL(response.data as Blob);
+  const a        = document.createElement('a');
+  a.href         = url;
+  a.download     = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /** Alias used by AdminDashboardPage */

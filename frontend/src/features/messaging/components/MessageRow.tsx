@@ -12,7 +12,7 @@
 
 import { useRef, useState, type MouseEvent } from 'react';
 import {
-  Archive, Trash2, MoreHorizontal, Star, CheckSquare, Square, Bot,
+  Archive, Trash2, MoreHorizontal, Star, CheckSquare, Square, Bot, AlertCircle,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
@@ -112,11 +112,17 @@ interface MessageRowProps {
   conversation: Conversation;
   isSelected: boolean;
   isStarred: boolean;
+  /** Highlights the row when this conversation is open in the thread pane. */
+  isActive?: boolean;
   currentUserId?: number;
   onSelect: (id: number, e: MouseEvent) => void;
   onStar: (id: number, e: MouseEvent) => void;
   onArchive: (id: number, e: MouseEvent) => void;
   onDelete: (id: number, e: MouseEvent) => void;
+  /** If provided, shows a "Restore" option (for trash folder). */
+  onRestore?: (id: number, e: MouseEvent) => void;
+  /** Toggles the important state. */
+  onMarkImportant?: (id: number) => void;
   onMarkRead?: (id: number) => void;
   onMarkUnread?: (id: number) => void;
   onClick: (conv: Conversation) => void;
@@ -128,11 +134,14 @@ export function MessageRow({
   conversation: conv,
   isSelected,
   isStarred,
+  isActive = false,
   currentUserId,
   onSelect,
   onStar,
   onArchive,
   onDelete,
+  onRestore,
+  onMarkImportant,
   onMarkRead,
   onMarkUnread,
   onClick,
@@ -152,22 +161,21 @@ export function MessageRow({
   const subject  = conv.subject ?? '(No subject)';
   const lastTime = conv.last_message?.created_at ?? conv.created_at;
 
+  const rowBg = isSelected || isActive
+    ? BRAND_T
+    : isUnread ? 'rgba(22,163,74,0.03)' : 'var(--card)';
+
   return (
     <div
       onClick={() => onClick(conv)}
       className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group"
-      style={{
-        background: isSelected
-          ? BRAND_T
-          : isUnread ? 'rgba(22,163,74,0.03)' : 'var(--card)',
-      }}
+      style={{ background: rowBg }}
       onMouseEnter={(e) => {
-        if (!isSelected)
+        if (!isSelected && !isActive)
           (e.currentTarget as HTMLElement).style.background = 'var(--dash-nav-hover-bg)';
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = isSelected
-          ? BRAND_T : isUnread ? 'rgba(22,163,74,0.03)' : 'var(--card)';
+        (e.currentTarget as HTMLElement).style.background = rowBg;
       }}
       data-testid="message-row"
     >
@@ -215,13 +223,16 @@ export function MessageRow({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex items-center gap-1.5 mb-0.5">
           <span
             className="text-sm truncate"
             style={{ fontWeight: isUnread ? 700 : 500, color: 'var(--foreground)' }}
           >
             {senderName}
           </span>
+          {conv.is_important && (
+            <AlertCircle className="h-3 w-3 flex-shrink-0" style={{ color: '#f59e0b' }} />
+          )}
         </div>
         <div className="flex items-baseline gap-1.5">
           <span
@@ -312,7 +323,7 @@ export function MessageRow({
           anchorRef={moreButtonRef}
           placement="bottom-right"
         >
-          <div className="py-1 min-w-[168px]">
+          <div className="py-1 min-w-[180px]">
             {isUnread ? (
               <button
                 type="button"
@@ -332,22 +343,43 @@ export function MessageRow({
                 Mark as unread
               </button>
             )}
+            {onMarkImportant && (
+              <button
+                type="button"
+                onClick={() => { onMarkImportant(conv.id); setMoreOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--foreground)' }}
+              >
+                {conv.is_important ? 'Remove from important' : 'Mark as important'}
+              </button>
+            )}
             <div className="my-1 border-t" style={{ borderColor: 'var(--border)' }} />
-            <button
-              type="button"
-              onClick={(e) => { onArchive(conv.id, e); setMoreOpen(false); }}
-              className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-              style={{ color: 'var(--foreground)' }}
-            >
-              Archive
-            </button>
+            {onRestore ? (
+              <button
+                type="button"
+                onClick={(e) => { onRestore(conv.id, e); setMoreOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Restore
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => { onArchive(conv.id, e); setMoreOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Archive
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => { onDelete(conv.id, e); setMoreOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
               style={{ color: 'var(--destructive)' }}
             >
-              Delete
+              {onRestore ? 'Delete permanently' : 'Move to trash'}
             </button>
           </div>
         </Popover>

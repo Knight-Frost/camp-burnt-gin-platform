@@ -5,7 +5,7 @@
  */
 
 import { Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, User, Settings } from 'lucide-react';
+import { LayoutDashboard, User, Settings, Inbox, ClipboardList, Megaphone } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
@@ -13,9 +13,12 @@ import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', to: ROUTES.MEDICAL_DASHBOARD, icon: LayoutDashboard },
-  { label: 'Profile',   to: '/medical/profile',        icon: User },
-  { label: 'Settings',  to: '/medical/settings',       icon: Settings },
+  { label: 'Dashboard',      to: ROUTES.MEDICAL_DASHBOARD,      icon: LayoutDashboard },
+  { label: 'Treatment Logs', to: '/medical/treatments',          icon: ClipboardList },
+  { label: 'Announcements',  to: ROUTES.MEDICAL_ANNOUNCEMENTS,   icon: Megaphone },
+  { label: 'Inbox',          to: '/medical/inbox',               icon: Inbox },
+  { label: 'Profile',        to: '/medical/profile',             icon: User },
+  { label: 'Settings',       to: '/medical/settings',            icon: Settings },
 ];
 
 export function MedicalLayout() {

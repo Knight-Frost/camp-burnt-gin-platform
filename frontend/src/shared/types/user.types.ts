@@ -72,14 +72,19 @@ export function getUserRole(user: User): RoleName | undefined {
 // Auth responses
 // ---------------------------------------------------------------------------
 
+/**
+ * Login success: { success, message, data: { user, token } }
+ * MFA challenge: { success, message, mfa_required: true }  ← no data object
+ */
 export interface AuthResponse {
+  success: boolean;
   message: string;
-  data: {
+  /** Present only when backend requires MFA before issuing a token. */
+  mfa_required?: boolean;
+  /** Absent on MFA challenge responses. */
+  data?: {
     user: User;
     token: string;
-    token_type: 'Bearer';
-    expires_in?: number;
-    mfa_required?: boolean;
   };
 }
 

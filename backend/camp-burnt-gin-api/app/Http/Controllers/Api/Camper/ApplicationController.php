@@ -106,8 +106,16 @@ class ApplicationController extends Controller
                 ->latest()
                 ->paginate(15);
         } else {
-            $this->authorize('viewAny', Application::class);
-            $applications = collect()->paginate(15);
+            // User has no recognised role — return empty result rather than 403.
+            return response()->json([
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page'    => 1,
+                    'per_page'     => 15,
+                    'total'        => 0,
+                ],
+            ]);
         }
 
         return response()->json([
@@ -176,7 +184,15 @@ class ApplicationController extends Controller
     {
         $this->authorize('view', $application);
 
-        $application->load(['camper', 'campSession.camp', 'reviewer']);
+        $application->load([
+            'camper.medicalRecord.allergies',
+            'camper.medicalRecord.medications',
+            'camper.medicalRecord.diagnoses',
+            'camper.emergencyContacts',
+            'campSession.camp',
+            'reviewer',
+            'documents',
+        ]);
 
         return response()->json([
             'data' => $application,

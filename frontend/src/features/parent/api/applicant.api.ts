@@ -18,7 +18,7 @@ import type {
 
 export async function getCampers(): Promise<Camper[]> {
   const { data } = await axiosInstance.get<PaginatedResponse<Camper>>('/campers');
-  return data.data;
+  return data.data ?? [];
 }
 
 export async function getCamper(id: number): Promise<Camper> {
@@ -52,7 +52,7 @@ export async function getApplications(): Promise<Application[]> {
   const { data } = await axiosInstance.get<PaginatedResponse<Application>>(
     '/applications'
   );
-  return data.data;
+  return data.data ?? [];
 }
 
 export async function getApplication(id: number): Promise<Application> {

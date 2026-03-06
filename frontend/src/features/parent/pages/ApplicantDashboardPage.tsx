@@ -4,13 +4,13 @@
  * quick actions, and recent notifications.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin } from 'lucide-react';
+import { Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin, Bell, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 
 import { getCampers, getApplications } from '@/features/parent/api/applicant.api';
-import { getNotifications } from '@/features/admin/api/notifications.api';
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/features/admin/api/notifications.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application, Notification } from '@/shared/types';
 import { useAppSelector } from '@/store/hooks';
@@ -44,12 +44,20 @@ export function ApplicantDashboardPage() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    Promise.all([getCampers(), getApplications(), getNotifications(), getAnnouncements(5)])
-      .then(([c, a, n, ann]) => {
-        setCampers(c);
-        setApplications(a);
-        setNotifications(n.data.slice(0, 5));
-        setAnnouncements(ann.data ?? []);
+    Promise.allSettled([getCampers(), getApplications(), getNotifications(), getAnnouncements(5)])
+      .then(([cResult, aResult, nResult, annResult]) => {
+        if (cResult.status === 'rejected' && aResult.status === 'rejected') {
+          setError(true);
+          return;
+        }
+        setCampers(cResult.status === 'fulfilled' ? cResult.value : []);
+        setApplications(aResult.status === 'fulfilled' ? aResult.value : []);
+        if (nResult.status === 'fulfilled') {
+          setNotifications((nResult.value.data ?? []).slice(0, 5));
+        }
+        if (annResult.status === 'fulfilled') {
+          setAnnouncements(annResult.value.data ?? []);
+        }
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -57,8 +65,22 @@ export function ApplicantDashboardPage() {
 
   const firstName = user?.name.split(' ')[0] ?? 'there';
   const pendingCount = applications.filter(
-    (a) => a.status === 'submitted' || a.status === 'under_review'
+    (a) => a.status === 'pending' || a.status === 'under_review'
   ).length;
+
+  const handleMarkRead = (id: string) => {
+    markNotificationRead(id).catch(() => {/* non-critical */});
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
+    );
+  };
+
+  const handleMarkAllRead = () => {
+    markAllNotificationsRead().catch(() => {/* non-critical */});
+    setNotifications((prev) =>
+      prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() }))
+    );
+  };
 
   if (error) {
     return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
@@ -277,21 +299,38 @@ export function ApplicantDashboardPage() {
           )}
         </div>
 
-        {/* Recent notifications */}
+        {/* Recent Updates */}
         <div>
-          <h3
-            className="font-headline font-semibold text-base mb-4"
-            style={{ color: 'var(--foreground)' }}
-          >
-            Recent Updates
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3
+              className="font-headline font-semibold text-base"
+              style={{ color: 'var(--foreground)' }}
+            >
+              Recent Updates
+            </h3>
+            {notifications.some((n) => !n.read_at) && (
+              <button
+                onClick={handleMarkAllRead}
+                className="text-xs hover:underline"
+                style={{ color: 'var(--ember-orange)' }}
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
 
           {loading ? (
             <SkeletonTable rows={4} />
           ) : notifications.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              No recent notifications.
-            </p>
+            <div
+              className="rounded-xl border p-5 text-center"
+              style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+            >
+              <Bell className="h-5 w-5 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                No recent updates.
+              </p>
+            </div>
           ) : (
             <motion.ul
               variants={staggerContainerVariants}
@@ -299,30 +338,62 @@ export function ApplicantDashboardPage() {
               animate="visible"
               className="flex flex-col gap-2"
             >
-              {notifications.map((n) => (
-                <motion.li
-                  key={n.id}
-                  variants={staggerChildVariants}
-                  className="rounded-xl border p-4"
-                  style={{
-                    background: n.read_at ? 'var(--card)' : 'rgba(22,163,74,0.06)',
-                    borderColor: n.read_at ? 'var(--border)' : 'rgba(22,163,74,0.15)',
-                  }}
-                >
-                  <p
-                    className="text-sm font-medium mb-0.5"
-                    style={{ color: 'var(--foreground)' }}
+              {notifications.map((n) => {
+                const isUnread = !n.read_at;
+                const Icon = getNotifIcon(n.type);
+                return (
+                  <motion.li
+                    key={n.id}
+                    variants={staggerChildVariants}
+                    className="rounded-xl border p-4 cursor-pointer transition-colors"
+                    style={{
+                      background: isUnread ? 'rgba(22,163,74,0.06)' : 'var(--card)',
+                      borderColor: isUnread ? 'rgba(22,163,74,0.20)' : 'var(--border)',
+                    }}
+                    onClick={() => isUnread && handleMarkRead(n.id)}
                   >
-                    {n.title}
-                  </p>
-                  <p
-                    className="text-xs leading-relaxed"
-                    style={{ color: 'var(--muted-foreground)' }}
-                  >
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                  </p>
-                </motion.li>
-              ))}
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{
+                          background: isUnread ? 'rgba(22,163,74,0.12)' : 'rgba(0,0,0,0.05)',
+                          color: isUnread ? 'var(--ember-orange)' : 'var(--muted-foreground)',
+                        }}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm mb-0.5 ${isUnread ? 'font-semibold' : 'font-medium'}`}
+                          style={{ color: 'var(--foreground)' }}
+                        >
+                          {n.title || 'Notification'}
+                        </p>
+                        {n.message && (
+                          <p
+                            className="text-xs leading-relaxed mb-1"
+                            style={{ color: 'var(--muted-foreground)' }}
+                          >
+                            {n.message}
+                          </p>
+                        )}
+                        <p
+                          className="text-xs"
+                          style={{ color: 'var(--muted-foreground)', opacity: 0.7 }}
+                        >
+                          {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {isUnread && (
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
+                          style={{ background: 'var(--ember-orange)' }}
+                        />
+                      )}
+                    </div>
+                  </motion.li>
+                );
+              })}
             </motion.ul>
           )}
         </div>
@@ -371,4 +442,24 @@ export function ApplicantDashboardPage() {
       </motion.div>
     </div>
   );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getNotifIcon(type: string): ComponentType<{ className?: string }> {
+  switch (type) {
+    case 'application_submitted':
+    case 'application_status_changed':
+      return FileText;
+    case 'new_message':
+    case 'new_conversation':
+      return MessageSquare;
+    case 'application_approved':
+      return CheckCircle;
+    case 'application_status_changed_pending':
+    case 'deadline':
+      return Clock;
+    default:
+      return Bell;
+  }
 }

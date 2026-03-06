@@ -45,7 +45,8 @@ export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> 
   fd.append('avatar', file);
   const { data } = await axiosInstance.post<{ avatar_url: string }>(
     '/profile/avatar',
-    fd
+    fd,
+    { headers: { 'Content-Type': undefined } }
   );
   return data;
 }

@@ -24,7 +24,11 @@ class CampController extends Controller
     {
         $this->authorize('viewAny', Camp::class);
 
-        $query = Camp::with('sessions');
+        $query = Camp::with(['sessions' => function ($q) {
+            $q->withCount(['applications as enrolled_count' => function ($sq) {
+                $sq->where('status', 'approved');
+            }]);
+        }]);
 
         if (! $request->user()->isAdmin()) {
             $query->where('is_active', true);

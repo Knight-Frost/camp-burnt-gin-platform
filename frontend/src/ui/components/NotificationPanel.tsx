@@ -37,7 +37,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
       .finally(() => setLoading(false));
   }, [open]);
 
-  const handleMarkRead = async (id: number) => {
+  const handleMarkRead = async (id: string) => {
     try {
       await markNotificationRead(id);
       setNotifications((prev) => {

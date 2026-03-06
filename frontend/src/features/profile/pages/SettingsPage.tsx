@@ -24,7 +24,7 @@ import {
   updateNotificationPreference,
   type NotificationPreferences,
 } from '@/features/admin/api/notifications.api';
-import { getProfileRoute, getPrimaryRole } from '@/shared/constants/roles';
+import { getProfileRoute, getPrimaryRole, ADMIN_ROLES } from '@/shared/constants/roles';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/ui/components/Button';
 import { FormField } from '@/ui/components/FormField';
@@ -85,6 +85,7 @@ export function SettingsPage() {
   const [savingPw, setSavingPw] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [notifLoaded, setNotifLoaded] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
   const [savingNotif, setSavingNotif] = useState<keyof NotificationPreferences | null>(null);
   // Data & Account
   const [exportingData, setExportingData] = useState(false);
@@ -112,31 +113,40 @@ export function SettingsPage() {
     toast.success(val ? 'High contrast enabled.' : 'High contrast disabled.');
   };
 
-  // Load notification preferences once when the tab is first opened
+  // Load notification preferences eagerly on mount so they are ready before
+  // the user opens the notifications tab — avoids a race condition where an
+  // in-flight load would overwrite an optimistic toggle update.
   useEffect(() => {
-    if (activeTab === 'notifications' && !notifLoaded) {
-      getNotificationPreferences()
-        .then((prefs) => {
-          setNotifPrefs(prefs);
-          setNotifLoaded(true);
-        })
-        .catch(() => {
-          setNotifLoaded(true); // use defaults on failure
-        });
-    }
-  }, [activeTab, notifLoaded]);
+    if (notifLoaded || notifLoading) return;
+    setNotifLoading(true);
+    getNotificationPreferences()
+      .then((prefs) => {
+        setNotifPrefs(prefs);
+        setNotifLoaded(true);
+      })
+      .catch(() => {
+        setNotifLoaded(true); // use defaults on failure
+      })
+      .finally(() => {
+        setNotifLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNotifToggle = async (key: keyof NotificationPreferences, value: boolean) => {
+    // Ignore if this specific key is already saving — prevents duplicate in-flight requests.
+    if (savingNotif === key) return;
+
     setSavingNotif(key);
     const prev = notifPrefs;
-    setNotifPrefs({ ...notifPrefs, [key]: value }); // optimistic update
+    setNotifPrefs((current) => ({ ...current, [key]: value })); // optimistic update
     try {
       const updated = await updateNotificationPreference(key, value);
       setNotifPrefs(updated);
       toast.success('Preference saved.');
     } catch {
       setNotifPrefs(prev); // revert on error
-      toast.error('Failed to save notification preference.');
+      toast.error('Failed to save preference. Please try again.');
     } finally {
       setSavingNotif(null);
     }
@@ -433,7 +443,8 @@ export function SettingsPage() {
                 </Button>
               </div>
 
-              {/* Account deletion */}
+              {/* Account deletion — only available to applicants (parent role) */}
+              {!ADMIN_ROLES.includes(getPrimaryRole(user?.roles ?? [])!) && (
               <div className="rounded-2xl border p-6" style={{ background: 'var(--card)', borderColor: 'rgba(239,68,68,0.25)' }}>
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.10)', color: 'var(--destructive)' }}>
@@ -499,6 +510,7 @@ export function SettingsPage() {
                   </div>
                 )}
               </div>
+              )}
 
             </div>
           )}
@@ -509,36 +521,61 @@ export function SettingsPage() {
               className="rounded-2xl border p-6"
               style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
             >
-              <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+              <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
                 Email Notifications
               </h3>
-              <div className="flex flex-col gap-4">
-                {(
-                  [
-                    { key: 'application_updates' as keyof NotificationPreferences, label: 'Application status updates' },
-                    { key: 'announcements'        as keyof NotificationPreferences, label: 'New announcements' },
-                    { key: 'messages'             as keyof NotificationPreferences, label: 'New messages in inbox' },
-                    { key: 'deadlines'            as keyof NotificationPreferences, label: 'Upcoming deadline reminders' },
-                  ]
-                ).map((pref) => (
-                  <div
-                    key={pref.key}
-                    className="flex items-center justify-between py-3 border-b last:border-b-0"
-                    style={{ borderColor: 'var(--border)' }}
-                  >
-                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>{pref.label}</span>
-                    <ToggleSwitch
-                      checked={notifPrefs[pref.key]}
-                      onChange={(val) => handleNotifToggle(pref.key, val)}
-                      label={pref.label}
-                      hideLabel
-                      disabled={savingNotif === pref.key}
+              <p className="text-xs mb-4" style={{ color: 'var(--muted-foreground)' }}>
+                Choose which events trigger an email to your registered address.
+                In-app notifications are always delivered regardless of these settings.
+              </p>
+
+              {notifLoading ? (
+                <div className="flex flex-col gap-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="h-10 rounded-lg animate-pulse"
+                      style={{ background: 'var(--border)' }}
                     />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-0">
+                  {(
+                    [
+                      { key: 'application_updates' as keyof NotificationPreferences, label: 'Application status updates', description: 'When an application is submitted, approved, or rejected' },
+                      { key: 'announcements'        as keyof NotificationPreferences, label: 'New announcements',          description: 'When camp staff post a new announcement' },
+                      { key: 'messages'             as keyof NotificationPreferences, label: 'New messages in inbox',      description: 'When you receive a new message or are added to a conversation' },
+                      { key: 'deadlines'            as keyof NotificationPreferences, label: 'Upcoming deadline reminders', description: 'Reminders about application and document deadlines' },
+                    ] satisfies { key: keyof NotificationPreferences; label: string; description: string }[]
+                  ).map((pref) => (
+                    <div
+                      key={pref.key}
+                      className="flex items-center justify-between py-3.5 border-b last:border-b-0"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <div className="flex flex-col gap-0.5 pr-4">
+                        <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          {pref.label}
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                          {pref.description}
+                        </span>
+                      </div>
+                      <ToggleSwitch
+                        checked={notifPrefs[pref.key]}
+                        onChange={(val) => handleNotifToggle(pref.key, val)}
+                        label={pref.label}
+                        hideLabel
+                        disabled={savingNotif === pref.key}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <p className="text-xs mt-4" style={{ color: 'var(--muted-foreground)' }}>
-                Preferences are saved to your account and applied across all devices.
+                Preferences are saved to your account and apply across all devices.
               </p>
             </div>
           )}

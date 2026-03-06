@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\ActivityPermission;
-use App\Models\MedicalProviderLink;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -36,11 +35,8 @@ class ActivityPermissionPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $activityPermission->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct access to all camper activity permissions.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($activityPermission->camper)) {
@@ -68,11 +64,8 @@ class ActivityPermissionPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $activityPermission->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff may update activity permissions during active care.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($activityPermission->camper)) {

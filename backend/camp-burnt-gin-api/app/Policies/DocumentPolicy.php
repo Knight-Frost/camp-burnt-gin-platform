@@ -38,18 +38,15 @@ class DocumentPolicy
             return $user->campers()->where('id', $document->documentable_id)->exists();
         }
 
-        if ($document->documentable_type === 'App\\Models\\MedicalRecord' && $user->isMedicalProvider()) {
-            $medicalRecord = \App\Models\MedicalRecord::find($document->documentable_id);
-            if (! $medicalRecord) {
-                return false;
+        if ($user->isMedicalProvider()) {
+            // Camp medical staff can view documents attached to campers or medical records.
+            if ($document->documentable_type === 'App\\Models\\Camper') {
+                return true;
             }
 
-            $camperId = $medicalRecord->camper_id;
-            $hasAccessViaProviderLink = \App\Models\MedicalProviderLink::where('camper_id', $camperId)
-                ->where('is_used', true)
-                ->exists();
-
-            return $hasAccessViaProviderLink;
+            if ($document->documentable_type === 'App\\Models\\MedicalRecord') {
+                return true;
+            }
         }
 
         return false;

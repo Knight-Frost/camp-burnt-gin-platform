@@ -150,7 +150,9 @@ export function FormManagementPage() {
               Form Management
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Upload, activate, and assign application form templates to sessions.
+              Upload supplemental application form templates (PDF or Word) that applicants must complete and submit.
+              Activate a template to make it available to applicants, and optionally assign it to a specific camp session.
+              Admins can download submitted copies from the applicant's document section.
             </p>
           </div>
           <Button variant="primary" size="sm" onClick={openModal}>

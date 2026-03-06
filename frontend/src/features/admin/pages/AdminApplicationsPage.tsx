@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
@@ -20,7 +20,7 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { Application } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
-const STATUS_FILTERS = ['all', 'pending', 'submitted', 'under_review', 'accepted', 'rejected'] as const;
+const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'rejected', 'waitlisted', 'cancelled'] as const;
 
 interface Filters {
   search: string;
@@ -30,6 +30,8 @@ interface Filters {
 
 export function AdminApplicationsPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const reviewBase = location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : '/admin/applications';
 
   const [response, setResponse] = useState<PaginatedResponse<Application> | null>(null);
   const [loading, setLoading]   = useState(true);
@@ -167,7 +169,7 @@ export function AdminApplicationsPage() {
                 </div>
                 <div className="col-span-3">
                   <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    {app.session?.name ?? `Session #${app.session_id}`}
+                    {app.session?.name ?? `Session #${app.camp_session_id}`}
                   </p>
                   {app.session?.camp && (
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -187,7 +189,7 @@ export function AdminApplicationsPage() {
                 </div>
                 <div className="col-span-2 flex justify-end">
                   <Link
-                    to={`/admin/applications/${app.id}`}
+                    to={`${reviewBase}/${app.id}`}
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all"
                     style={{
                       borderColor: 'var(--ember-orange)',

@@ -65,8 +65,10 @@ const AdminAnnouncementsPage  = withSuspense(lazy(() => import('@/features/admin
 const AdminCalendarPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminCalendarPage').then(m => ({ default: m.AdminCalendarPage }))));
 
 // ─── Medical pages ────────────────────────────────────────────────────────────
-const MedicalDashboardPage = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDashboardPage').then(m => ({ default: m.MedicalDashboardPage }))));
-const MedicalRecordPage    = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordPage').then(m => ({ default: m.MedicalRecordPage }))));
+const MedicalDashboardPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDashboardPage').then(m => ({ default: m.MedicalDashboardPage }))));
+const MedicalRecordPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordPage').then(m => ({ default: m.MedicalRecordPage }))));
+const MedicalTreatmentLogPage  = withSuspense(lazy(() => import('@/features/medical/pages/MedicalTreatmentLogPage').then(m => ({ default: m.MedicalTreatmentLogPage }))));
+const MedicalDocumentsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDocumentsPage').then(m => ({ default: m.MedicalDocumentsPage }))));
 
 // ─── Super admin pages ────────────────────────────────────────────────────────
 const SuperAdminDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/SuperAdminDashboardPage').then(m => ({ default: m.SuperAdminDashboardPage }))));
@@ -105,7 +107,7 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [{
-      element: <RoleGuard allowedRoles={[ROLES.PARENT]}><Outlet /></RoleGuard>,
+      element: <RoleGuard allowedRoles={[ROLES.APPLICANT]}><Outlet /></RoleGuard>,
       children: [{
         element: <ApplicantLayout />,
         children: [
@@ -159,11 +161,16 @@ export const router = createBrowserRouter([
       children: [{
         element: <MedicalLayout />,
         children: [
-          { path: '/medical',                   element: <Navigate to="/medical/dashboard" replace /> },
-          { path: '/medical/dashboard',         element: <MedicalDashboardPage /> },
-          { path: '/medical/records/:camperId', element: <MedicalRecordPage /> },
-          { path: '/medical/profile',           element: <ProfilePage /> },
-          { path: '/medical/settings',          element: <SettingsPage /> },
+          { path: '/medical',                                      element: <Navigate to="/medical/dashboard" replace /> },
+          { path: '/medical/dashboard',                          element: <MedicalDashboardPage /> },
+          { path: '/medical/records/:camperId',                  element: <MedicalRecordPage /> },
+          { path: '/medical/records/:camperId/treatments',       element: <MedicalTreatmentLogPage /> },
+          { path: '/medical/records/:camperId/documents',        element: <MedicalDocumentsPage /> },
+          { path: '/medical/treatments',                         element: <MedicalTreatmentLogPage /> },
+          { path: '/medical/announcements',                      element: <ParentAnnouncementsPage /> },
+          { path: '/medical/inbox',                              element: <InboxPage /> },
+          { path: '/medical/profile',                            element: <ProfilePage /> },
+          { path: '/medical/settings',                           element: <SettingsPage /> },
         ],
       }],
     }],

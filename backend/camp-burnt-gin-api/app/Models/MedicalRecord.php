@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * MedicalRecord model representing health information for a camper.
@@ -64,11 +65,59 @@ class MedicalRecord extends Model
     }
 
     /**
+     * Attributes appended to JSON/array output.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['primary_diagnosis'];
+
+    /**
      * Get the camper this medical record belongs to.
      */
     public function camper(): BelongsTo
     {
         return $this->belongsTo(Camper::class);
+    }
+
+    /**
+     * Get allergies for this camper via shared camper_id.
+     *
+     * Allergies belong to the Camper directly, but are exposed here
+     * so the ApplicationReviewPage can read them off medical_record.
+     */
+    public function allergies(): HasMany
+    {
+        return $this->hasMany(Allergy::class, 'camper_id', 'camper_id');
+    }
+
+    /**
+     * Get medications for this camper via shared camper_id.
+     */
+    public function medications(): HasMany
+    {
+        return $this->hasMany(Medication::class, 'camper_id', 'camper_id');
+    }
+
+    /**
+     * Get diagnoses for this camper via shared camper_id.
+     */
+    public function diagnoses(): HasMany
+    {
+        return $this->hasMany(Diagnosis::class, 'camper_id', 'camper_id');
+    }
+
+    /**
+     * Get the primary diagnosis name (first diagnosis by insertion order).
+     *
+     * Returns null if no diagnoses have been recorded.
+     */
+    public function getPrimaryDiagnosisAttribute(): ?string
+    {
+        if ($this->relationLoaded('diagnoses')) {
+            return $this->diagnoses->first()?->name;
+        }
+
+        return $this->diagnoses()->value('name');
     }
 
     /**

@@ -710,7 +710,50 @@ For related documentation, see:
 
 ---
 
+---
+
+## Audit Log API and Export (Phase 9)
+
+### Index Endpoint
+
+```
+GET /api/audit-log
+Authorization: Bearer <super_admin_token>
+
+Query Parameters:
+  page          integer   Page number (default: 1)
+  per_page      integer   Results per page (default: 25)
+  search        string    Free-text search on description / action
+  event_type    string    Filter by event type slug (phi_access, authentication, etc.)
+  entity_type   string    Filter by entity model name (Camper, Application, etc.)
+  user_id       integer   Filter by user ID
+  from          date      Start date (YYYY-MM-DD)
+  to            date      End date (YYYY-MM-DD)
+```
+
+Each entry in the response is enriched with:
+
+| Field | Description |
+|-------|-------------|
+| `human_description` | Plain-English sentence describing the event (e.g., "Super Administrator approved Application #42") |
+| `category` | Display category: Authentication, Messaging, Applications, Notifications, Security, Medical, Administrative, Documents, System |
+| `entity_label` | Short entity name derived from `auditable_type` (e.g., "Camper" from "App\Models\Camper") |
+
+### Export Endpoint
+
+```
+GET /api/audit-log/export?format=csv|json
+Authorization: Bearer <super_admin_token>
+```
+
+- Returns up to 5,000 rows as a file download.
+- Accepts the same filter parameters as the index endpoint.
+- CSV headers match the `AuditLogEntry` field names.
+- JSON format returns an array of enriched entry objects.
+
+---
+
 **Document Status:** Authoritative
-**Last Updated:** February 2026
-**Version:** 1.0.0
+**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 9 additions)
+**Version:** 1.1.0
 **HIPAA Compliance:** Reviewed and approved for §164.312(b) requirements

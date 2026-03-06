@@ -6,6 +6,7 @@ use App\Enums\ApplicationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * Application model representing a camper's registration request.
@@ -63,6 +64,24 @@ class Application extends Model
     ];
 
     /**
+     * Attributes to append to the model's array/JSON representation.
+     *
+     * Aliases the campSession relationship as 'session' so the frontend
+     * can access it consistently via application.session.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['session'];
+
+    /**
+     * Get documents attached to this application.
+     */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /**
      * Get the camper associated with this application.
      */
     public function camper(): BelongsTo
@@ -76,6 +95,17 @@ class Application extends Model
     public function campSession(): BelongsTo
     {
         return $this->belongsTo(CampSession::class);
+    }
+
+    /**
+     * Alias campSession as 'session' for frontend compatibility.
+     *
+     * Returns the loaded campSession relationship value so the JSON
+     * output includes a 'session' key pointing to the same data.
+     */
+    public function getSessionAttribute(): mixed
+    {
+        return $this->getRelationValue('campSession');
     }
 
     /**

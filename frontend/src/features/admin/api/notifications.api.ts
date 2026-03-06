@@ -4,7 +4,32 @@
  */
 
 import axiosInstance from '@/api/axios.config';
-import type { ApiResponse, PaginatedResponse, Notification } from '@/shared/types';
+import type { ApiResponse } from '@/shared/types';
+import type { Notification } from '@/shared/types';
+
+// ---------------------------------------------------------------------------
+// Notification list response
+// ---------------------------------------------------------------------------
+
+/**
+ * The notification list endpoint returns a custom paginated shape.
+ * Each item has been pre-formatted by the server with a human-readable
+ * title and message extracted from the stored notification data.
+ */
+export interface NotificationsResponse {
+  data: Notification[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    unread_count: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Notification preferences
+// ---------------------------------------------------------------------------
 
 export interface NotificationPreferences {
   application_updates: boolean;
@@ -13,29 +38,26 @@ export interface NotificationPreferences {
   deadlines: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// API functions
+// ---------------------------------------------------------------------------
+
 /** GET /api/notifications */
-export async function getNotifications(): Promise<PaginatedResponse<Notification>> {
-  const { data } = await axiosInstance.get<PaginatedResponse<Notification>>(
-    '/notifications'
-  );
+export async function getNotifications(unreadOnly = false): Promise<NotificationsResponse> {
+  const params = unreadOnly ? { unread_only: true } : {};
+  const { data } = await axiosInstance.get<NotificationsResponse>('/notifications', { params });
   return data;
 }
 
 /** PUT /api/notifications/:id/read */
-export async function markNotificationRead(
-  id: number
-): Promise<ApiResponse<Notification>> {
-  const { data } = await axiosInstance.put<ApiResponse<Notification>>(
-    `/notifications/${id}/read`
-  );
+export async function markNotificationRead(id: string): Promise<ApiResponse<null>> {
+  const { data } = await axiosInstance.put<ApiResponse<null>>(`/notifications/${id}/read`);
   return data;
 }
 
 /** PUT /api/notifications/read-all */
 export async function markAllNotificationsRead(): Promise<ApiResponse<null>> {
-  const { data } = await axiosInstance.put<ApiResponse<null>>(
-    '/notifications/read-all'
-  );
+  const { data } = await axiosInstance.put<ApiResponse<null>>('/notifications/read-all');
   return data;
 }
 

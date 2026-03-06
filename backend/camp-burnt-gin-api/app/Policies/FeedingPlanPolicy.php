@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\FeedingPlan;
-use App\Models\MedicalProviderLink;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -35,11 +34,8 @@ class FeedingPlanPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $feedingPlan->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff have direct access to all camper feeding plans.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($feedingPlan->camper)) {
@@ -67,11 +63,8 @@ class FeedingPlanPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            return MedicalProviderLink::where('camper_id', $feedingPlan->camper_id)
-                ->where('is_used', true)
-                ->whereNull('revoked_at')
-                ->where('expires_at', '>', now())
-                ->exists();
+            // Camp medical staff may update feeding plans during active care.
+            return true;
         }
 
         if ($user->isApplicant() && $user->ownsCamper($feedingPlan->camper)) {

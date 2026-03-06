@@ -2,11 +2,40 @@
  * AuthLayout.tsx
  * Layout for unauthenticated auth flows.
  * Institutional gradient background with brand top bar. No navigation.
+ *
+ * Redirects already-authenticated users to their dashboard so login/register
+ * pages are never visible to a logged-in session.
  */
 
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { useAppSelector } from '@/store/hooks';
+import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 
 export function AuthLayout() {
+  const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const isLoading      = useAppSelector((s) => s.auth.isLoading);
+  const user           = useAppSelector((s) => s.auth.user);
+  const location       = useLocation();
+
+  // Once auth is resolved and the user is authenticated, redirect to their
+  // dashboard. This handles both:
+  //  • a fresh login (dispatches from LoginPage trigger this re-render), and
+  //  • visiting /login while already holding a valid session.
+  // The `from` state is passed through so ProtectedRoute can send the user to
+  // the page they originally tried to reach.
+  if (!isLoading && isAuthenticated && user) {
+    const role = getPrimaryRole(user.roles ?? []);
+    // Guard: if role is unresolved, don't redirect — avoids infinite loop when
+    // getDashboardRoute(null) returns '/login' while isAuthenticated is true.
+    if (role !== null) {
+      const intended     = (location.state as { from?: string } | null)?.from;
+      const dashboard    = getDashboardRoute(role);
+      const portalPrefix = '/' + dashboard.split('/')[1];
+      const dest = intended && intended.startsWith(portalPrefix) ? intended : dashboard;
+      return <Navigate to={dest} replace />;
+    }
+  }
+
   return (
     <div
       className="min-h-screen flex flex-col"

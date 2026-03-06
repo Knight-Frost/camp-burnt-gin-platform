@@ -85,7 +85,7 @@ class UserProfileController extends Controller
     public function uploadAvatar(Request $request): JsonResponse
     {
         $request->validate([
-            'avatar' => ['required', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+            'avatar' => ['required', 'image', 'mimes:jpeg,jpg,png,webp', 'max:8192'],
         ]);
 
         $user = $request->user();
@@ -367,6 +367,12 @@ class UserProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        if (! $user->isApplicant()) {
+            return response()->json([
+                'message' => 'Account deletion is not available for administrative accounts.',
+            ], 403);
+        }
 
         if (! Hash::check($request->password, $user->password)) {
             return response()->json([
