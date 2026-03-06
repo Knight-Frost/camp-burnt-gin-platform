@@ -361,7 +361,7 @@ export function ApplicantDashboardPage() {
           </Button>
           <Button
             as={Link}
-            to="/parent/inbox"
+            to="/applicant/inbox"
             variant="secondary"
             size="sm"
           >

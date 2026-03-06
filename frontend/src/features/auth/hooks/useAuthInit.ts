@@ -11,14 +11,14 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppDispatch } from '@/store/hooks';
 import { setUser, clearAuth, hydrateAuth } from '@/features/auth/store/authSlice';
 import { getAuthenticatedUser } from '@/features/auth/api/auth.api';
+import { store, persistor } from '@/store';
 
 export function useAuthInit(): void {
   const dispatch = useAppDispatch();
-  const token = useAppSelector((state) => state.auth.token);
-  const hasRun = useRef(false);
+  const hasValidated = useRef(false);
 
   // Listen for mid-session 401s fired by the axios response interceptor
   useEffect(() => {
@@ -29,23 +29,46 @@ export function useAuthInit(): void {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, [dispatch]);
 
-  // Validate the persisted token once on mount
+  // Validate the persisted token AFTER redux-persist rehydration completes.
+  // We must NOT read token from useAppSelector here — that would cause the
+  // effect to run before rehydration (token=null) and set hasValidated=true,
+  // preventing the actual persisted token from ever being checked.
   useEffect(() => {
-    if (hasRun.current) return;
-    hasRun.current = true;
+    function validate() {
+      if (hasValidated.current) return;
+      hasValidated.current = true;
 
-    if (!token) {
-      dispatch(hydrateAuth());
+      const token = store.getState().auth.token;
+
+      if (!token) {
+        dispatch(hydrateAuth());
+        return;
+      }
+
+      getAuthenticatedUser()
+        .then((user) => {
+          dispatch(setUser(user));
+          dispatch(hydrateAuth());
+        })
+        .catch(() => {
+          dispatch(clearAuth());
+        });
+    }
+
+    // If already bootstrapped (e.g. hot reload with no session change), validate immediately
+    if (persistor.getState().bootstrapped) {
+      validate();
       return;
     }
 
-    getAuthenticatedUser()
-      .then((user) => {
-        dispatch(setUser(user));
-        dispatch(hydrateAuth());
-      })
-      .catch(() => {
-        dispatch(clearAuth());
-      });
-  }, [dispatch, token]);
+    // Otherwise wait for rehydration to complete before reading the token
+    const unsubscribe = persistor.subscribe(() => {
+      if (persistor.getState().bootstrapped) {
+        unsubscribe();
+        validate();
+      }
+    });
+
+    return unsubscribe;
+  }, [dispatch]);
 }
