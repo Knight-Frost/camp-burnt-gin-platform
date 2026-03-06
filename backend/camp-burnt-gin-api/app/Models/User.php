@@ -30,7 +30,16 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $fillable = [
         'name',
+        'preferred_name',
         'email',
+        'phone',
+        'avatar_path',
+        'address_line_1',
+        'address_line_2',
+        'city',
+        'state',
+        'postal_code',
+        'country',
         'password',
         'role_id',
         'is_active',
@@ -110,6 +119,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function campers(): HasMany
     {
         return $this->hasMany(Camper::class);
+    }
+
+    /**
+     * Get the user's personal emergency contacts.
+     */
+    public function userEmergencyContacts(): HasMany
+    {
+        return $this->hasMany(UserEmergencyContact::class)->orderByDesc('is_primary')->orderBy('name');
     }
 
     /**

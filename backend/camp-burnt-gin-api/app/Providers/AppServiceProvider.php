@@ -20,6 +20,7 @@ use App\Models\MedicalRecord;
 use App\Models\Medication;
 use App\Models\Message;
 use App\Models\Role;
+use App\Models\UserEmergencyContact;
 use App\Observers\AssistiveDeviceObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\DiagnosisObserver;
@@ -43,6 +44,7 @@ use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicationPolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\RolePolicy;
+use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -83,6 +85,8 @@ class AppServiceProvider extends ServiceProvider
         Message::class => MessagePolicy::class,
         // Role delegation governance policy
         Role::class => RolePolicy::class,
+        // User profile emergency contacts
+        UserEmergencyContact::class => UserEmergencyContactPolicy::class,
     ];
 
     /**

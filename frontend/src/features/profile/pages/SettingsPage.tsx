@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff } from 'lucide-react';
+import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle } from 'lucide-react';
 import {
   applyFontScale,
   applyHighContrast,
@@ -30,6 +30,9 @@ import { Button } from '@/ui/components/Button';
 import { FormField } from '@/ui/components/FormField';
 import { scrollRevealVariants } from '@/shared/constants/motion';
 import axiosInstance from '@/api/axios.config';
+import { requestDataExport, deleteAccount } from '@/features/profile/api/profile.api';
+import { clearAuth } from '@/features/auth/store/authSlice';
+import { useAppDispatch } from '@/store/hooks';
 
 // ─── Types & schemas ──────────────────────────────────────────────────────────
 
@@ -45,13 +48,14 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
-type Tab = 'appearance' | 'account' | 'security' | 'notifications';
+type Tab = 'appearance' | 'account' | 'security' | 'notifications' | 'data';
 
 const TABS: { id: Tab; label: string; icon: ComponentType<{ className?: string }> }[] = [
   { id: 'appearance',    label: 'Appearance',    icon: Sun },
   { id: 'account',       label: 'Account',       icon: User },
   { id: 'security',      label: 'Security',      icon: Shield },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'data',          label: 'Data & Account', icon: Database },
 ];
 
 const FONT_SCALES: { id: FontScale; label: string; size: string }[] = [
@@ -72,6 +76,7 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
 
 export function SettingsPage() {
   const user = useAppSelector((state) => state.auth.user);
+  const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
   const [fontScale, setFontScaleState] = useState<FontScale>(getSavedFontScale);
   const [highContrast, setHighContrastState] = useState(getSavedHighContrast);
@@ -81,6 +86,12 @@ export function SettingsPage() {
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [notifLoaded, setNotifLoaded] = useState(false);
   const [savingNotif, setSavingNotif] = useState<keyof NotificationPreferences | null>(null);
+  // Data & Account
+  const [exportingData, setExportingData] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeletePw, setShowDeletePw] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const {
     register,
@@ -141,6 +152,35 @@ export function SettingsPage() {
       toast.error((err as { message?: string })?.message ?? 'Failed to update password.');
     } finally {
       setSavingPw(false);
+    }
+  };
+
+  const handleDataExport = async () => {
+    setExportingData(true);
+    try {
+      const { message } = await requestDataExport();
+      toast.success(message);
+    } catch {
+      toast.error('Failed to submit data export request. Please try again.');
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error('Please enter your password to confirm account deletion.');
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      const { message } = await deleteAccount(deletePassword);
+      toast.success(message);
+      dispatch(clearAuth());
+    } catch (err) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to delete account. Please try again.');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -368,6 +408,98 @@ export function SettingsPage() {
                   </Button>
                 </form>
               </div>
+            </div>
+          )}
+
+          {/* ── DATA & ACCOUNT ──────────────────────────────────────────── */}
+          {activeTab === 'data' && (
+            <div className="flex flex-col gap-6">
+
+              {/* Data export */}
+              <div className="rounded-2xl border p-6" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--ember-orange)' }}>
+                    <Database className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Request Data Export</h3>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      Download a copy of your personal data, including profile information, applications, and documents. Delivery takes up to 30 days.
+                    </p>
+                  </div>
+                </div>
+                <Button variant="secondary" size="sm" loading={exportingData} onClick={handleDataExport}>
+                  Request data export
+                </Button>
+              </div>
+
+              {/* Account deletion */}
+              <div className="rounded-2xl border p-6" style={{ background: 'var(--card)', borderColor: 'rgba(239,68,68,0.25)' }}>
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.10)', color: 'var(--destructive)' }}>
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--destructive)' }}>Delete Account</h3>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      Permanently deactivate your account. All sessions will be revoked immediately. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+
+                {!showDeleteConfirm ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    Delete my account
+                  </Button>
+                ) : (
+                  <div className="flex flex-col gap-3 pt-1">
+                    <p className="text-xs font-medium" style={{ color: 'var(--destructive)' }}>
+                      Enter your password to confirm account deletion:
+                    </p>
+                    <div className="relative w-64">
+                      <input
+                        type={showDeletePw ? 'text' : 'password'}
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        placeholder="Your password"
+                        className="w-full rounded-lg px-3 py-2.5 pr-10 text-sm border outline-none"
+                        style={{ background: 'var(--input)', borderColor: 'rgba(239,68,68,0.4)', color: 'var(--foreground)' }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        style={{ color: 'var(--muted-foreground)' }}
+                        onClick={() => setShowDeletePw((v) => !v)}
+                      >
+                        {showDeletePw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        loading={deletingAccount}
+                        disabled={!deletePassword || deletingAccount}
+                        onClick={handleDeleteAccount}
+                      >
+                        Confirm delete
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
 

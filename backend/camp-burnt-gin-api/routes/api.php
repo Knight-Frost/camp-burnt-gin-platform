@@ -104,6 +104,26 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/notification-preferences', [UserProfileController::class, 'getNotificationPreferences'])->name('profile.notification-preferences.show');
         Route::put('/notification-preferences', [UserProfileController::class, 'updateNotificationPreferences'])->name('profile.notification-preferences.update');
         Route::put('/password', [UserProfileController::class, 'changePassword'])->name('profile.password.update');
+
+        // Avatar
+        Route::post('/avatar', [UserProfileController::class, 'uploadAvatar'])
+            ->middleware('throttle:uploads')
+            ->name('profile.avatar.upload');
+        Route::delete('/avatar', [UserProfileController::class, 'removeAvatar'])->name('profile.avatar.remove');
+
+        // Personal emergency contacts (account-level, not camper-level)
+        Route::get('/emergency-contacts', [UserProfileController::class, 'listEmergencyContacts'])->name('profile.emergency-contacts.index');
+        Route::post('/emergency-contacts', [UserProfileController::class, 'storeEmergencyContact'])->name('profile.emergency-contacts.store');
+        Route::put('/emergency-contacts/{contact}', [UserProfileController::class, 'updateEmergencyContact'])->name('profile.emergency-contacts.update');
+        Route::delete('/emergency-contacts/{contact}', [UserProfileController::class, 'destroyEmergencyContact'])->name('profile.emergency-contacts.destroy');
+
+        // Data & account controls
+        Route::post('/data-export', [UserProfileController::class, 'requestDataExport'])
+            ->middleware('throttle:sensitive')
+            ->name('profile.data-export');
+        Route::delete('/account', [UserProfileController::class, 'deleteAccount'])
+            ->middleware('throttle:sensitive')
+            ->name('profile.account.delete');
     });
 
     /*

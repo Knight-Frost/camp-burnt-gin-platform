@@ -30,12 +30,34 @@ export interface Role {
 export interface User {
   id: number;
   name: string;
+  preferred_name?: string | null;
   email: string;
   email_verified_at: string | null;
+  phone?: string | null;
+  avatar_path?: string | null;
+  avatar_url?: string | null;
+  address_line_1?: string | null;
+  address_line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
   mfa_enabled: boolean;
   roles: Role[];
   /** Convenience: primary role name string (first role, or derived from roles array) */
   role?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserEmergencyContact {
+  id: number;
+  user_id: number;
+  name: string;
+  relationship: string;
+  phone: string;
+  email?: string | null;
+  is_primary: boolean;
   created_at: string;
   updated_at: string;
 }

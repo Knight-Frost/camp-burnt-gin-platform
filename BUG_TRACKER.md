@@ -220,15 +220,32 @@
 **Title:** Profile system is minimal — missing most fields from Phase 4 requirements
 **Module:** Profile System
 **Severity:** High
-**Status:** Open
+**Status:** Resolved — Phase 4
 **Description:** The current `ProfilePage` only supports name, email update, and MFA setup/disable. Missing: profile photo/avatar, preferred name, phone number, date of birth, contact address, emergency contacts management, privacy settings, language/locale settings, account activity log (login history), data export, and account deletion. The `SettingsPage` only has appearance, security (password), and notifications tabs. Role-specific settings are entirely missing.
+**Resolution:**
+- Added migration for profile fields: preferred_name, phone, avatar_path, address_line_1, address_line_2, city, state, postal_code, country
+- Added migration + model for user_emergency_contacts table
+- Expanded UserProfileController with: uploadAvatar, removeAvatar, listEmergencyContacts, storeEmergencyContact, updateEmergencyContact, destroyEmergencyContact, requestDataExport, deleteAccount
+- Updated User model fillable + userEmergencyContacts() relationship
+- Added UserEmergencyContactPolicy + registered in AppServiceProvider
+- Added new profile API routes: POST /profile/avatar, DELETE /profile/avatar, CRUD /profile/emergency-contacts, POST /profile/data-export, DELETE /profile/account
+- Expanded ProfilePage.tsx: avatar upload/remove, preferred name, phone, full address form, emergency contacts manager (add/edit/delete/set primary)
+- Added "Data & Account" tab to SettingsPage.tsx: data export request + account deletion with password confirmation
+- Updated profile.api.ts: uploadAvatar, removeAvatar, getEmergencyContacts, createEmergencyContact, updateEmergencyContact, deleteEmergencyContact, requestDataExport, deleteAccount
+- Updated user.types.ts: extended User interface + added UserEmergencyContact type
 **Affected Files:**
 - `frontend/src/features/profile/pages/ProfilePage.tsx`
 - `frontend/src/features/profile/pages/SettingsPage.tsx`
 - `frontend/src/features/profile/api/profile.api.ts`
+- `frontend/src/shared/types/user.types.ts`
 - `backend/.../app/Http/Controllers/Api/Camper/UserProfileController.php`
-- `backend/.../app/Models/User.php` (missing profile columns)
-- `backend/.../database/migrations/` (missing profile fields migration)
+- `backend/.../app/Models/User.php`
+- `backend/.../app/Models/UserEmergencyContact.php`
+- `backend/.../app/Policies/UserEmergencyContactPolicy.php`
+- `backend/.../app/Providers/AppServiceProvider.php`
+- `backend/.../database/migrations/2026_03_06_000002_add_profile_fields_to_users_table.php`
+- `backend/.../database/migrations/2026_03_06_000003_create_user_emergency_contacts_table.php`
+- `backend/.../routes/api.php`
 
 ---
 
