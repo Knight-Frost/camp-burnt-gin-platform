@@ -1,5 +1,5 @@
 /**
- * ParentApplicationDetailPage.tsx
+ * ApplicantApplicationDetailPage.tsx
  * Read-only view of a single application for the parent who submitted it.
  * Shows camper info, session, current status, admin review notes, and uploaded documents.
  * Route: /parent/applications/:id
@@ -148,7 +148,7 @@ function StatusTimeline({ status }: { status: string }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export function ParentApplicationDetailPage() {
+export function ApplicantApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 

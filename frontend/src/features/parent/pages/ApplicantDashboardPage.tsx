@@ -1,5 +1,5 @@
 /**
- * ParentDashboardPage.tsx
+ * ApplicantDashboardPage.tsx
  * Main parent dashboard — shows camper summary cards, application statuses,
  * quick actions, and recent notifications.
  */
@@ -30,7 +30,7 @@ import {
 } from '@/shared/constants/motion';
 import { formatDistanceToNow } from 'date-fns';
 
-export function ParentDashboardPage() {
+export function ApplicantDashboardPage() {
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [campers, setCampers] = useState<Camper[]>([]);

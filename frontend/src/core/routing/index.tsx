@@ -46,10 +46,10 @@ const VerifyEmailPage    = withSuspense(lazy(() => import('@/app/pages/VerifyEma
 
 // ─── Applicant pages ──────────────────────────────────────────────────────────
 const ApplicantDocumentsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantDocumentsPage').then(m => ({ default: m.ApplicantDocumentsPage }))));
-const ParentDashboardPage          = withSuspense(lazy(() => import('@/features/parent/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage }))));
-const ParentApplicationsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationsPage').then(m => ({ default: m.ParentApplicationsPage }))));
+const ApplicantDashboardPage       = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantDashboardPage').then(m => ({ default: m.ApplicantDashboardPage }))));
+const ApplicantApplicationsPage    = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantApplicationsPage').then(m => ({ default: m.ApplicantApplicationsPage }))));
 const ApplicationFormPage          = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationFormPage').then(m => ({ default: m.ApplicationFormPage }))));
-const ParentApplicationDetailPage  = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationDetailPage').then(m => ({ default: m.ParentApplicationDetailPage }))));
+const ApplicantApplicationDetailPage = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantApplicationDetailPage').then(m => ({ default: m.ApplicantApplicationDetailPage }))));
 const ParentCalendarPage           = withSuspense(lazy(() => import('@/features/parent/pages/ParentCalendarPage').then(m => ({ default: m.ParentCalendarPage }))));
 const ParentAnnouncementsPage      = withSuspense(lazy(() => import('@/features/parent/pages/ParentAnnouncementsPage').then(m => ({ default: m.ParentAnnouncementsPage }))));
 
@@ -109,10 +109,10 @@ export const router = createBrowserRouter([
         element: <ApplicantLayout />,
         children: [
           { path: '/applicant',                     element: <Navigate to="/applicant/dashboard" replace /> },
-          { path: '/applicant/dashboard',           element: <ParentDashboardPage /> },
-          { path: '/applicant/applications',        element: <ParentApplicationsPage /> },
+          { path: '/applicant/dashboard',           element: <ApplicantDashboardPage /> },
+          { path: '/applicant/applications',        element: <ApplicantApplicationsPage /> },
           { path: '/applicant/applications/new',    element: <ApplicationFormPage /> },
-          { path: '/applicant/applications/:id',    element: <ParentApplicationDetailPage /> },
+          { path: '/applicant/applications/:id',    element: <ApplicantApplicationDetailPage /> },
           { path: '/applicant/documents',           element: <ApplicantDocumentsPage /> },
           { path: '/applicant/announcements',       element: <ParentAnnouncementsPage /> },
           { path: '/applicant/calendar',            element: <ParentCalendarPage /> },

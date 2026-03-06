@@ -1,5 +1,5 @@
 /**
- * ParentApplicationsPage.tsx
+ * ApplicantApplicationsPage.tsx
  * Lists all applications for the current applicant's campers.
  * Supports filtering by status, sorting by date, and active/past grouping.
  */
@@ -162,7 +162,7 @@ function AppGroup({
   );
 }
 
-export function ParentApplicationsPage() {
+export function ApplicantApplicationsPage() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading]           = useState(true);
