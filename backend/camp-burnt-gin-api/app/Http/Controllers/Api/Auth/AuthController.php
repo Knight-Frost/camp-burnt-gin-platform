@@ -25,16 +25,19 @@ class AuthController extends Controller
     /**
      * Register a new user account.
      *
-     * Creates a parent account by default and returns an API token.
+     * Creates an applicant account and sends an email verification link.
      */
     public function register(RegisterRequest $request): JsonResponse
     {
         $user = $this->authService->register($request->validated());
 
+        // Trigger email verification notification.
+        $user->sendEmailVerificationNotification();
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Account created successfully.',
+            'message' => 'Account created successfully. Please check your email to verify your address.',
             'data' => [
                 'user' => $user->load('role'),
                 'token' => $token,

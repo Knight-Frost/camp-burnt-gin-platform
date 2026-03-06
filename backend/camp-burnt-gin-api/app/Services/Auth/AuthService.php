@@ -50,6 +50,13 @@ class AuthService
             ];
         }
 
+        if (! $user->isActive()) {
+            return [
+                'success' => false,
+                'message' => 'This account has been deactivated. Please contact an administrator.',
+            ];
+        }
+
         if ($user->isLockedOut()) {
             $minutesRemaining = $user->getLockoutMinutesRemaining();
 

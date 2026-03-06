@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Camp\CampController;
@@ -69,7 +70,14 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.reset');
+    // Email verification (no auth required — token is the credential)
+    Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->name('verification.verify');
 });
+
+// Email verification resend — requires auth but not verified email
+Route::middleware(['auth:sanctum'])->post('/auth/email/resend', [EmailVerificationController::class, 'resend'])
+    ->middleware('throttle:6,1')
+    ->name('verification.resend');
 
 /*
 |--------------------------------------------------------------------------

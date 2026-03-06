@@ -17,6 +17,7 @@ import {
   getProfile, updateProfile, setupMfa, verifyMfaSetup,
   disableMfa, type MfaSetupResponse,
 } from '@/features/profile/api/profile.api';
+import { resendVerificationEmail } from '@/features/auth/api/auth.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
@@ -413,10 +414,26 @@ export function ProfilePage() {
                       <CheckCircle className="h-3 w-3" /> Verified
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ background: 'rgba(217,119,6,0.10)', color: '#b45309' }}>
-                      <AlertCircle className="h-3 w-3" /> Not verified
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(217,119,6,0.10)', color: '#b45309' }}>
+                        <AlertCircle className="h-3 w-3" /> Not verified
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await resendVerificationEmail();
+                            toast.success('Verification email sent. Check your inbox.');
+                          } catch {
+                            toast.error('Could not send verification email. Please try again.');
+                          }
+                        }}
+                        className="text-xs text-ember-orange hover:underline"
+                      >
+                        Resend
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div

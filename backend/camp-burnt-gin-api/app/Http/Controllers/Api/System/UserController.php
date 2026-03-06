@@ -98,9 +98,11 @@ class UserController extends Controller
     }
 
     /**
-     * Deactivate a user by clearing their email_verified_at timestamp.
+     * Deactivate a user account.
      *
      * POST /api/users/{user}/deactivate
+     *
+     * Sets is_active = false. Does not affect email_verified_at.
      */
     public function deactivate(Request $request, User $user): JsonResponse
     {
@@ -108,16 +110,21 @@ class UserController extends Controller
             return response()->json(['message' => 'You cannot deactivate your own account.'], 403);
         }
 
-        $user->email_verified_at = null;
+        $user->is_active = false;
         $user->save();
+
+        // Revoke all active tokens so the user is immediately signed out.
+        $user->tokens()->delete();
 
         return response()->json(['message' => 'User deactivated.']);
     }
 
     /**
-     * Reactivate a user by setting their email_verified_at to now.
+     * Reactivate a user account.
      *
      * POST /api/users/{user}/reactivate
+     *
+     * Sets is_active = true.
      */
     public function reactivate(Request $request, User $user): JsonResponse
     {
@@ -125,7 +132,7 @@ class UserController extends Controller
             return response()->json(['message' => 'You cannot modify your own account status.'], 403);
         }
 
-        $user->email_verified_at = now();
+        $user->is_active = true;
         $user->save();
 
         return response()->json(['message' => 'User reactivated.']);
@@ -143,6 +150,7 @@ class UserController extends Controller
             'name'              => $user->name,
             'email'             => $user->email,
             'role'              => $user->role?->name ?? 'applicant',
+            'is_active'         => (bool) $user->is_active,
             'email_verified_at' => $user->email_verified_at?->toISOString(),
             'mfa_enabled'       => (bool) $user->mfa_enabled,
             'created_at'        => $user->created_at->toISOString(),

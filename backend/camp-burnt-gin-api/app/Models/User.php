@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Notifications\Auth\EmailVerificationNotification;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,7 +18,7 @@ use Laravel\Sanctum\HasApiTokens;
  * permissions. Common roles include administrators, staff members,
  * and applicants (parents or guardians of campers).
  */
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
@@ -32,6 +33,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'is_active',
         'mfa_enabled',
         'mfa_secret',
         'mfa_verified_at',
@@ -61,6 +63,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'is_active' => 'boolean',
             'password' => 'hashed',
             'mfa_enabled' => 'boolean',
             'mfa_verified_at' => 'datetime',
@@ -234,5 +237,21 @@ class User extends Authenticatable
         }
 
         return now()->diffInMinutes($this->lockout_until, false);
+    }
+
+    /**
+     * Send the email verification notification using our custom mailer.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new EmailVerificationNotification);
+    }
+
+    /**
+     * Determine if this account is administratively active.
+     */
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
     }
 }

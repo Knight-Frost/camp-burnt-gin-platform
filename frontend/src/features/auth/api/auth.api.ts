@@ -156,3 +156,33 @@ export async function disableMfa(): Promise<ApiResponse<null>> {
   const { data } = await axiosInstance.post<ApiResponse<null>>('/mfa/disable');
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Email verification endpoints
+// ---------------------------------------------------------------------------
+
+export interface VerifyEmailPayload {
+  id: string;
+  hash: string;
+  expires: string;
+  signature: string;
+}
+
+/** POST /api/auth/email/verify */
+export async function verifyEmail(
+  payload: VerifyEmailPayload
+): Promise<ApiResponse<null>> {
+  const { data } = await axiosInstance.post<ApiResponse<null>>(
+    '/auth/email/verify',
+    payload
+  );
+  return data;
+}
+
+/** POST /api/auth/email/resend */
+export async function resendVerificationEmail(): Promise<ApiResponse<null>> {
+  const { data } = await axiosInstance.post<ApiResponse<null>>(
+    '/auth/email/resend'
+  );
+  return data;
+}

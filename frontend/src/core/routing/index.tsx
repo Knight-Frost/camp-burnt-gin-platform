@@ -42,6 +42,7 @@ const RegisterPage       = withSuspense(lazy(() => import('@/app/pages/RegisterP
 const MfaVerifyPage      = withSuspense(lazy(() => import('@/app/pages/MfaVerifyPage').then(m => ({ default: m.MfaVerifyPage }))));
 const ForgotPasswordPage = withSuspense(lazy(() => import('@/app/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
 const ResetPasswordPage  = withSuspense(lazy(() => import('@/app/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
+const VerifyEmailPage    = withSuspense(lazy(() => import('@/app/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage }))));
 
 // ─── Applicant pages ──────────────────────────────────────────────────────────
 const ParentDashboardPage          = withSuspense(lazy(() => import('@/features/parent/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage }))));
@@ -94,6 +95,7 @@ export const router = createBrowserRouter([
       { path: '/mfa-verify',       element: <MfaVerifyPage /> },
       { path: '/forgot-password',  element: <ForgotPasswordPage /> },
       { path: '/reset-password',   element: <ResetPasswordPage /> },
+      { path: '/verify-email',     element: <VerifyEmailPage /> },
     ],
   },
 
