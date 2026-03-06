@@ -43,7 +43,7 @@ class ActivityPermissionPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($activityPermission->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($activityPermission->camper)) {
             return true;
         }
 
@@ -55,7 +55,7 @@ class ActivityPermissionPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider() || $user->isParent();
+        return $user->isAdmin() || $user->isMedicalProvider() || $user->isApplicant();
     }
 
     /**
@@ -75,7 +75,7 @@ class ActivityPermissionPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($activityPermission->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($activityPermission->camper)) {
             return true;
         }
 
@@ -91,7 +91,7 @@ class ActivityPermissionPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($activityPermission->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($activityPermission->camper)) {
             return true;
         }
 

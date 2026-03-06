@@ -204,7 +204,7 @@ class DatabaseIndexPerformanceTest extends TestCase
     public function test_user_role_filtering_works_correctly(): void
     {
         $adminRole = \App\Models\Role::where('name', 'admin')->first();
-        $parentRole = \App\Models\Role::where('name', 'parent')->first();
+        $parentRole = \App\Models\Role::where('name', 'applicant')->first();
 
         User::factory()->count(3)->create(['role_id' => $adminRole->id]);
         User::factory()->count(5)->create(['role_id' => $parentRole->id]);

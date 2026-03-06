@@ -11,7 +11,7 @@ use Illuminate\Database\Seeder;
  * Creates the four core roles required for role-based access control:
  * - super_admin: Absolute system authority
  * - admin: Full operational access
- * - parent: Parent or guardian of campers
+ * - applicant: Parent or guardian registering campers
  * - medical: Medical provider with limited access
  *
  * This seeder is idempotent and safe to run multiple times.
@@ -33,8 +33,8 @@ class RoleSeeder extends Seeder
                 'description' => 'Administrator with full operational access',
             ],
             [
-                'name' => 'parent',
-                'description' => 'Parent or guardian of campers',
+                'name' => 'applicant',
+                'description' => 'Applicant — parent or guardian registering campers',
             ],
             [
                 'name' => 'medical',

@@ -15,7 +15,7 @@ use Laravel\Sanctum\HasApiTokens;
  *
  * Users are assigned roles that determine their access level and
  * permissions. Common roles include administrators, staff members,
- * and parents or guardians of campers.
+ * and applicants (parents or guardians of campers).
  */
 class User extends Authenticatable
 {
@@ -148,11 +148,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Determine if the user is a parent or guardian.
+     * Determine if the user is an applicant (parent or guardian of a camper).
      */
-    public function isParent(): bool
+    public function isApplicant(): bool
     {
-        return $this->hasRole('parent');
+        return $this->hasRole('applicant');
     }
 
     /**

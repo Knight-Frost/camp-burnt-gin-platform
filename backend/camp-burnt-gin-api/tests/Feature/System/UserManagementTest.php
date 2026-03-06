@@ -101,7 +101,7 @@ class UserManagementTest extends TestCase
         $response = $this->getJson('/api/users?role=parent');
         $response->assertOk();
         foreach ($response->json('data') as $user) {
-            $this->assertEquals('parent', $user['role']);
+            $this->assertEquals('applicant', $user['role']);
         }
     }
 

@@ -39,7 +39,7 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_parent_can_view_own_camper_compliance_status(): void
     {
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
@@ -60,8 +60,8 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_parent_cannot_view_other_camper_compliance_status(): void
     {
-        $parent1 = $this->createUserWithRole('parent');
-        $parent2 = $this->createUserWithRole('parent');
+        $parent1 = $this->createUserWithRole('applicant');
+        $parent2 = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent2)->create();
 
         $response = $this->actingAs($parent1)
@@ -73,7 +73,7 @@ class CamperComplianceEndpointTest extends TestCase
     public function test_admin_can_view_any_camper_compliance_status(): void
     {
         $admin = $this->createUserWithRole('admin');
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
@@ -94,7 +94,7 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_compliance_status_shows_missing_documents(): void
     {
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
@@ -119,7 +119,7 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_compliance_status_shows_unverified_documents(): void
     {
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
@@ -158,7 +158,7 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_compliance_status_shows_expired_documents(): void
     {
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
@@ -197,7 +197,7 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_compliance_status_shows_compliant_when_all_valid(): void
     {
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
@@ -250,7 +250,7 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_compliance_response_contains_no_phi(): void
     {
-        $parent = $this->createUserWithRole('parent');
+        $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([
             'has_seizures' => true,

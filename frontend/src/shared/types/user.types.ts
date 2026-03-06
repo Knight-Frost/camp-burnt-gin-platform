@@ -11,7 +11,7 @@
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
-  PARENT: 'parent',
+  PARENT: 'applicant',
   MEDICAL: 'medical',
 } as const;
 

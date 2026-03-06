@@ -35,7 +35,7 @@ class ConversationTest extends TestCase
 
         // Create or get roles
         $this->adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'Administrator']);
-        $this->parentRole = Role::firstOrCreate(['name' => 'parent'], ['description' => 'Parent/Guardian']);
+        $this->parentRole = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
         $this->medicalRole = Role::firstOrCreate(['name' => 'medical'], ['description' => 'Medical Provider']);
 
         // Create users with roles

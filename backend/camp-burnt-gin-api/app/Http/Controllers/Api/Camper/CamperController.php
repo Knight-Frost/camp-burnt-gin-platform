@@ -34,7 +34,7 @@ class CamperController extends Controller
         if ($user->isAdmin()) {
             $this->authorize('viewAny', Camper::class);
             $campers = Camper::with('user')->paginate(15);
-        } elseif ($user->isParent()) {
+        } elseif ($user->isApplicant()) {
             $campers = $user->campers()->paginate(15);
         } else {
             $this->authorize('viewAny', Camper::class);

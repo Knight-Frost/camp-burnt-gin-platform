@@ -18,7 +18,7 @@ class MedicalProviderLinkPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     /**
@@ -38,7 +38,7 @@ class MedicalProviderLinkPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     /**

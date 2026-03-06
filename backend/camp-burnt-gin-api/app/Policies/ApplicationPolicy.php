@@ -40,7 +40,7 @@ class ApplicationPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($application->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
             return true;
         }
 
@@ -55,7 +55,7 @@ class ApplicationPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     /**
@@ -72,7 +72,7 @@ class ApplicationPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($application->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
             return $application->isEditable();
         }
 

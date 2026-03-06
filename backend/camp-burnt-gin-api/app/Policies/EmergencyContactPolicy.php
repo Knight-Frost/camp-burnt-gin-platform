@@ -49,7 +49,7 @@ class EmergencyContactPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($emergencyContact->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($emergencyContact->camper)) {
             return true;
         }
 
@@ -64,7 +64,7 @@ class EmergencyContactPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     /**
@@ -80,7 +80,7 @@ class EmergencyContactPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($emergencyContact->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($emergencyContact->camper)) {
             return true;
         }
 
@@ -100,7 +100,7 @@ class EmergencyContactPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($emergencyContact->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($emergencyContact->camper)) {
             return true;
         }
 

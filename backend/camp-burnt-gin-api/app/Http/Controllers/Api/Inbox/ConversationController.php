@@ -94,7 +94,7 @@ class ConversationController extends Controller
 
         // Check if participant list contains non-admins (for parent authorization)
         $hasNonAdminParticipants = false;
-        if ($user->isParent()) {
+        if ($user->isApplicant()) {
             $participantRoles = \App\Models\User::whereIn('id', $validated['participant_ids'])
                 ->with('role')
                 ->get()

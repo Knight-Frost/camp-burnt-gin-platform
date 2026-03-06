@@ -94,7 +94,7 @@ class ApplicationController extends Controller
             }
 
             $applications = $query->paginate($request->get('per_page', 15));
-        } elseif ($user->isParent()) {
+        } elseif ($user->isApplicant()) {
             $camperIds = $user->campers()->pluck('id');
             $applications = Application::whereIn('camper_id', $camperIds)
                 ->with([

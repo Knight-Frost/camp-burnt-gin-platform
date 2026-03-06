@@ -50,7 +50,7 @@ class MedicationPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($medication->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
             return true;
         }
 
@@ -65,7 +65,7 @@ class MedicationPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider() || $user->isParent();
+        return $user->isAdmin() || $user->isMedicalProvider() || $user->isApplicant();
     }
 
     /**
@@ -90,7 +90,7 @@ class MedicationPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($medication->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
             return true;
         }
 
@@ -122,7 +122,7 @@ class MedicationPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($medication->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
             return true;
         }
 

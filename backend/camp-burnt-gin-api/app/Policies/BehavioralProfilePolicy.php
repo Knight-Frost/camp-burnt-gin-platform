@@ -43,7 +43,7 @@ class BehavioralProfilePolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($behavioralProfile->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($behavioralProfile->camper)) {
             return true;
         }
 
@@ -55,7 +55,7 @@ class BehavioralProfilePolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider() || $user->isParent();
+        return $user->isAdmin() || $user->isMedicalProvider() || $user->isApplicant();
     }
 
     /**
@@ -75,7 +75,7 @@ class BehavioralProfilePolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($behavioralProfile->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($behavioralProfile->camper)) {
             return true;
         }
 
@@ -94,7 +94,7 @@ class BehavioralProfilePolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($behavioralProfile->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($behavioralProfile->camper)) {
             return true;
         }
 

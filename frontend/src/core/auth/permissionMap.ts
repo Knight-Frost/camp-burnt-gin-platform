@@ -22,7 +22,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     PERMISSIONS.DELETE_APPLICATION,
     PERMISSIONS.DELETE_MEDICAL_RECORD,
   ],
-  parent: [
+  applicant: [
     // Self-service permissions
     PERMISSIONS.VIEW_OWN_CAMPERS,
     PERMISSIONS.CREATE_CAMPER,

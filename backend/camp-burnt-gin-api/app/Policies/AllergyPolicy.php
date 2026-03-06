@@ -49,7 +49,7 @@ class AllergyPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($allergy->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
             return true;
         }
 
@@ -64,7 +64,7 @@ class AllergyPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider() || $user->isParent();
+        return $user->isAdmin() || $user->isMedicalProvider() || $user->isApplicant();
     }
 
     /**
@@ -89,7 +89,7 @@ class AllergyPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($allergy->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
             return true;
         }
 
@@ -121,7 +121,7 @@ class AllergyPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($allergy->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
             return true;
         }
 

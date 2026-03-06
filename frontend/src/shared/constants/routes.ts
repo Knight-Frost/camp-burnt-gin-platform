@@ -21,14 +21,14 @@ export const ROUTES = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
 
-  // Parent
-  PARENT_DASHBOARD: '/parent/dashboard',
-  PARENT_APPLICATIONS: '/parent/applications',
-  PARENT_APPLICATION_NEW: '/parent/applications/new',
+  // Applicant (parent/guardian portal)
+  PARENT_DASHBOARD: '/applicant/dashboard',
+  PARENT_APPLICATIONS: '/applicant/applications',
+  PARENT_APPLICATION_NEW: '/applicant/applications/new',
   PARENT_APPLICATION_DETAIL: (id: number | string) =>
-    `/parent/applications/${id}`,
-  PARENT_CALENDAR: '/parent/calendar',
-  PARENT_ANNOUNCEMENTS: '/parent/announcements',
+    `/applicant/applications/${id}`,
+  PARENT_CALENDAR: '/applicant/calendar',
+  PARENT_ANNOUNCEMENTS: '/applicant/announcements',
 
   // Admin
   ADMIN_DASHBOARD: '/admin/dashboard',

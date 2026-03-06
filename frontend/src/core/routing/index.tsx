@@ -4,15 +4,17 @@
  * Portal-only architecture. Entry point: /login.
  * / redirects to /login. No public marketing pages.
  * Every page is React.lazy() wrapped via withSuspense().
- * Protected routes use ProtectedRoute + role-specific layout via nested routes.
+ * Protected routes use ProtectedRoute + RoleGuard + role-specific layout.
  * /role/dashboard aliases each portal root for cleaner URLs post-login.
  */
 
 import { lazy, Suspense, type ComponentType } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 
 import { PageSkeleton } from '@/app/components/PageSkeleton';
 import { ProtectedRoute } from '@/core/auth/ProtectedRoute';
+import { RoleGuard } from '@/core/auth/RoleGuard';
+import { ROLES } from '@/shared/constants/roles';
 
 import { AuthLayout }       from '@/app/layouts/AuthLayout';
 import { AdminLayout }      from '@/ui/layout/AdminLayout';
@@ -41,7 +43,7 @@ const MfaVerifyPage      = withSuspense(lazy(() => import('@/app/pages/MfaVerify
 const ForgotPasswordPage = withSuspense(lazy(() => import('@/app/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
 const ResetPasswordPage  = withSuspense(lazy(() => import('@/app/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 
-// ─── Parent pages ─────────────────────────────────────────────────────────────
+// ─── Applicant pages ──────────────────────────────────────────────────────────
 const ParentDashboardPage          = withSuspense(lazy(() => import('@/features/parent/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage }))));
 const ParentApplicationsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ParentApplicationsPage').then(m => ({ default: m.ParentApplicationsPage }))));
 const ApplicationFormPage          = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationFormPage').then(m => ({ default: m.ApplicationFormPage }))));
@@ -74,16 +76,10 @@ const InboxPage    = withSuspense(lazy(() => import('@/features/messaging/pages/
 const ProfilePage  = withSuspense(lazy(() => import('@/features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage }))));
 const SettingsPage = withSuspense(lazy(() => import('@/features/profile/pages/SettingsPage').then(m => ({ default: m.SettingsPage }))));
 
-// ─── Standalone pages ─────────────────────────────────────────────────────────
-const ProviderAccessPage = withSuspense(lazy(() => import('@/features/provider/pages/ProviderAccessPage').then(m => ({ default: m.ProviderAccessPage }))));
-
 export const router = createBrowserRouter([
 
   // Root → login redirect
   { path: '/', element: <Navigate to="/login" replace /> },
-
-  // Provider access — standalone, no layout
-  { path: '/provider-access/:token', element: <ProviderAccessPage /> },
 
   // Utility pages — standalone
   { path: '/forbidden', element: <ForbiddenPage /> },
@@ -101,23 +97,26 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ─── Parent portal ─────────────────────────────────────────────────────────
+  // ─── Applicant portal ──────────────────────────────────────────────────────
   {
     element: <ProtectedRoute />,
     children: [{
-      element: <ParentLayout />,
-      children: [
-        { path: '/parent',                    element: <Navigate to="/parent/dashboard" replace /> },
-        { path: '/parent/dashboard',          element: <ParentDashboardPage /> },
-        { path: '/parent/applications',         element: <ParentApplicationsPage /> },
-        { path: '/parent/applications/new',   element: <ApplicationFormPage /> },
-        { path: '/parent/applications/:id',   element: <ParentApplicationDetailPage /> },
-        { path: '/parent/announcements',      element: <ParentAnnouncementsPage /> },
-        { path: '/parent/calendar',           element: <ParentCalendarPage /> },
-        { path: '/parent/inbox',              element: <InboxPage /> },
-        { path: '/parent/profile',            element: <ProfilePage /> },
-        { path: '/parent/settings',           element: <SettingsPage /> },
-      ],
+      element: <RoleGuard allowedRoles={[ROLES.PARENT]}><Outlet /></RoleGuard>,
+      children: [{
+        element: <ParentLayout />,
+        children: [
+          { path: '/applicant',                     element: <Navigate to="/applicant/dashboard" replace /> },
+          { path: '/applicant/dashboard',           element: <ParentDashboardPage /> },
+          { path: '/applicant/applications',        element: <ParentApplicationsPage /> },
+          { path: '/applicant/applications/new',    element: <ApplicationFormPage /> },
+          { path: '/applicant/applications/:id',    element: <ParentApplicationDetailPage /> },
+          { path: '/applicant/announcements',       element: <ParentAnnouncementsPage /> },
+          { path: '/applicant/calendar',            element: <ParentCalendarPage /> },
+          { path: '/applicant/inbox',               element: <InboxPage /> },
+          { path: '/applicant/profile',             element: <ProfilePage /> },
+          { path: '/applicant/settings',            element: <SettingsPage /> },
+        ],
+      }],
     }],
   },
 
@@ -125,21 +124,24 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [{
-      element: <AdminLayout />,
-      children: [
-        { path: '/admin',                     element: <Navigate to="/admin/dashboard" replace /> },
-        { path: '/admin/dashboard',           element: <AdminDashboardPage /> },
-        { path: '/admin/applications',        element: <AdminApplicationsPage /> },
-        { path: '/admin/applications/:id',    element: <ApplicationReviewPage /> },
-        { path: '/admin/campers',             element: <AdminCampersPage /> },
-        { path: '/admin/sessions',            element: <AdminSessionsPage /> },
-        { path: '/admin/reports',             element: <AdminReportsPage /> },
-        { path: '/admin/announcements',       element: <AdminAnnouncementsPage /> },
-        { path: '/admin/calendar',            element: <AdminCalendarPage /> },
-        { path: '/admin/inbox',               element: <InboxPage /> },
-        { path: '/admin/profile',             element: <ProfilePage /> },
-        { path: '/admin/settings',            element: <SettingsPage /> },
-      ],
+      element: <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}><Outlet /></RoleGuard>,
+      children: [{
+        element: <AdminLayout />,
+        children: [
+          { path: '/admin',                     element: <Navigate to="/admin/dashboard" replace /> },
+          { path: '/admin/dashboard',           element: <AdminDashboardPage /> },
+          { path: '/admin/applications',        element: <AdminApplicationsPage /> },
+          { path: '/admin/applications/:id',    element: <ApplicationReviewPage /> },
+          { path: '/admin/campers',             element: <AdminCampersPage /> },
+          { path: '/admin/sessions',            element: <AdminSessionsPage /> },
+          { path: '/admin/reports',             element: <AdminReportsPage /> },
+          { path: '/admin/announcements',       element: <AdminAnnouncementsPage /> },
+          { path: '/admin/calendar',            element: <AdminCalendarPage /> },
+          { path: '/admin/inbox',               element: <InboxPage /> },
+          { path: '/admin/profile',             element: <ProfilePage /> },
+          { path: '/admin/settings',            element: <SettingsPage /> },
+        ],
+      }],
     }],
   },
 
@@ -147,14 +149,17 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [{
-      element: <MedicalLayout />,
-      children: [
-        { path: '/medical',                   element: <Navigate to="/medical/dashboard" replace /> },
-        { path: '/medical/dashboard',         element: <MedicalDashboardPage /> },
-        { path: '/medical/records/:camperId', element: <MedicalRecordPage /> },
-        { path: '/medical/profile',           element: <ProfilePage /> },
-        { path: '/medical/settings',          element: <SettingsPage /> },
-      ],
+      element: <RoleGuard allowedRoles={[ROLES.MEDICAL]}><Outlet /></RoleGuard>,
+      children: [{
+        element: <MedicalLayout />,
+        children: [
+          { path: '/medical',                   element: <Navigate to="/medical/dashboard" replace /> },
+          { path: '/medical/dashboard',         element: <MedicalDashboardPage /> },
+          { path: '/medical/records/:camperId', element: <MedicalRecordPage /> },
+          { path: '/medical/profile',           element: <ProfilePage /> },
+          { path: '/medical/settings',          element: <SettingsPage /> },
+        ],
+      }],
     }],
   },
 
@@ -162,24 +167,27 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [{
-      element: <SuperAdminLayout />,
-      children: [
-        { path: '/super-admin',                      element: <Navigate to="/super-admin/dashboard" replace /> },
-        { path: '/super-admin/dashboard',            element: <SuperAdminDashboardPage /> },
-        { path: '/super-admin/users',                element: <UserManagementPage /> },
-        { path: '/super-admin/audit',                element: <AuditLogPage /> },
-        { path: '/super-admin/forms',                element: <FormManagementPage /> },
-        { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
-        { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },
-        { path: '/super-admin/campers',              element: <AdminCampersPage /> },
-        { path: '/super-admin/sessions',             element: <AdminSessionsPage /> },
-        { path: '/super-admin/reports',              element: <AdminReportsPage /> },
-        { path: '/super-admin/announcements',        element: <AdminAnnouncementsPage /> },
-        { path: '/super-admin/calendar',             element: <AdminCalendarPage /> },
-        { path: '/super-admin/inbox',                element: <InboxPage /> },
-        { path: '/super-admin/profile',              element: <ProfilePage /> },
-        { path: '/super-admin/settings',             element: <SettingsPage /> },
-      ],
+      element: <RoleGuard allowedRoles={[ROLES.SUPER_ADMIN]}><Outlet /></RoleGuard>,
+      children: [{
+        element: <SuperAdminLayout />,
+        children: [
+          { path: '/super-admin',                      element: <Navigate to="/super-admin/dashboard" replace /> },
+          { path: '/super-admin/dashboard',            element: <SuperAdminDashboardPage /> },
+          { path: '/super-admin/users',                element: <UserManagementPage /> },
+          { path: '/super-admin/audit',                element: <AuditLogPage /> },
+          { path: '/super-admin/forms',                element: <FormManagementPage /> },
+          { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
+          { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },
+          { path: '/super-admin/campers',              element: <AdminCampersPage /> },
+          { path: '/super-admin/sessions',             element: <AdminSessionsPage /> },
+          { path: '/super-admin/reports',              element: <AdminReportsPage /> },
+          { path: '/super-admin/announcements',        element: <AdminAnnouncementsPage /> },
+          { path: '/super-admin/calendar',             element: <AdminCalendarPage /> },
+          { path: '/super-admin/inbox',                element: <InboxPage /> },
+          { path: '/super-admin/profile',              element: <ProfilePage /> },
+          { path: '/super-admin/settings',             element: <SettingsPage /> },
+        ],
+      }],
     }],
   },
 ]);

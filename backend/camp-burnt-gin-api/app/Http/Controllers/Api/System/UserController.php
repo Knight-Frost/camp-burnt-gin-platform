@@ -80,7 +80,7 @@ class UserController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
-        $oldRoleName = $user->role?->name ?? 'parent';
+        $oldRoleName = $user->role?->name ?? 'applicant';
         $role = Role::where('name', $request->string('role'))->firstOrFail();
         $user->role_id = $role->id;
         $user->save();
@@ -142,7 +142,7 @@ class UserController extends Controller
             'id'                => $user->id,
             'name'              => $user->name,
             'email'             => $user->email,
-            'role'              => $user->role?->name ?? 'parent',
+            'role'              => $user->role?->name ?? 'applicant',
             'email_verified_at' => $user->email_verified_at?->toISOString(),
             'mfa_enabled'       => (bool) $user->mfa_enabled,
             'created_at'        => $user->created_at->toISOString(),

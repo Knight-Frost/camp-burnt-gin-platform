@@ -35,7 +35,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
         // Create roles
         $adminRole = Role::create(['name' => 'admin', 'description' => 'Administrator']);
-        $parentRole = Role::create(['name' => 'parent', 'description' => 'Parent/Guardian']);
+        $parentRole = Role::create(['name' => 'applicant', 'description' => 'Parent/Guardian']);
 
         // Create users with roles
         $this->admin = User::factory()->create(['role_id' => $adminRole->id]);

@@ -34,7 +34,7 @@ class DocumentController extends Controller
             $documents = Document::with('documentable', 'uploader')
                 ->latest()
                 ->paginate(15);
-        } elseif ($user->isParent()) {
+        } elseif ($user->isApplicant()) {
             $camperIds = $user->campers()->pluck('id');
             $documents = Document::with('documentable', 'uploader')
                 ->where(function ($query) use ($camperIds) {

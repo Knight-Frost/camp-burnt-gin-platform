@@ -5,7 +5,7 @@
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
-  PARENT: 'parent',
+  PARENT: 'applicant',
   MEDICAL: 'medical',
 } as const;
 
@@ -14,7 +14,7 @@ export type RoleName = (typeof ROLES)[keyof typeof ROLES];
 export const ROLE_LABELS: Record<RoleName, string> = {
   super_admin: 'Super Admin',
   admin: 'Admin',
-  parent: 'Applicant',
+  applicant: 'Applicant',
   medical: 'Medical',
 };
 
@@ -45,7 +45,7 @@ export function getDashboardRoute(role: RoleName | null): string {
     case ROLES.MEDICAL:
       return '/medical/dashboard';
     case ROLES.PARENT:
-      return '/parent/dashboard';
+      return '/applicant/dashboard';
     default:
       return '/login';
   }
@@ -57,7 +57,7 @@ export function getProfileRoute(role: RoleName | null): string {
     case ROLES.SUPER_ADMIN: return '/super-admin/profile';
     case ROLES.ADMIN:       return '/admin/profile';
     case ROLES.MEDICAL:     return '/medical/profile';
-    case ROLES.PARENT:      return '/parent/profile';
+    case ROLES.PARENT:      return '/applicant/profile';
     default:                return '/login';
   }
 }

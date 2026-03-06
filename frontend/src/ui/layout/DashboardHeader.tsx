@@ -29,7 +29,7 @@ function getSettingsRoute(pathname: string): string {
   if (pathname.startsWith('/super-admin')) return '/super-admin/settings';
   if (pathname.startsWith('/admin')) return '/admin/settings';
   if (pathname.startsWith('/medical')) return '/medical/settings';
-  return '/parent/settings';
+  return '/applicant/settings';
 }
 
 export function DashboardHeader({ title }: DashboardHeaderProps) {

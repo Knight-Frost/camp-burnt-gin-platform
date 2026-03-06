@@ -26,7 +26,7 @@ class StoreMedicalRecordRequest extends FormRequest
         }
 
         // Parents can only create medical records for their own campers
-        if ($user->isParent()) {
+        if ($user->isApplicant()) {
             $camperId = $this->input('camper_id');
             if ($camperId) {
                 $camper = \App\Models\Camper::find($camperId);

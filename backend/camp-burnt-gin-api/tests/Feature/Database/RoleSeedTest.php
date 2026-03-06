@@ -30,7 +30,7 @@ class RoleSeedTest extends TestCase
         // Assert all four roles exist
         $this->assertDatabaseHas('roles', ['name' => 'super_admin']);
         $this->assertDatabaseHas('roles', ['name' => 'admin']);
-        $this->assertDatabaseHas('roles', ['name' => 'parent']);
+        $this->assertDatabaseHas('roles', ['name' => 'applicant']);
         $this->assertDatabaseHas('roles', ['name' => 'medical']);
 
         // Assert exactly 4 roles exist (no duplicates)
@@ -52,7 +52,7 @@ class RoleSeedTest extends TestCase
         // Verify each role appears exactly once
         $this->assertEquals(1, Role::where('name', 'super_admin')->count());
         $this->assertEquals(1, Role::where('name', 'admin')->count());
-        $this->assertEquals(1, Role::where('name', 'parent')->count());
+        $this->assertEquals(1, Role::where('name', 'applicant')->count());
         $this->assertEquals(1, Role::where('name', 'medical')->count());
     }
 
@@ -71,7 +71,7 @@ class RoleSeedTest extends TestCase
         $this->assertNotNull($admin->description);
         $this->assertStringContainsString('Administrator', $admin->description);
 
-        $parent = Role::where('name', 'parent')->first();
+        $parent = Role::where('name', 'applicant')->first();
         $this->assertNotNull($parent->description);
         $this->assertStringContainsString('Parent', $parent->description);
 
@@ -92,7 +92,7 @@ class RoleSeedTest extends TestCase
         // Assert super_admin is created first (lowest ID)
         $this->assertEquals('super_admin', $roles[0]);
         $this->assertEquals('admin', $roles[1]);
-        $this->assertEquals('parent', $roles[2]);
+        $this->assertEquals('applicant', $roles[2]);
         $this->assertEquals('medical', $roles[3]);
     }
 }

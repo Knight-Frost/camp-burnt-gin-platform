@@ -39,12 +39,12 @@ class InboxUserController extends Controller
             ->where('id', '!=', $authUser->id);   // exclude self
 
         // Role-based recipient restrictions
-        if ($authUser->isParent()) {
+        if ($authUser->isApplicant()) {
             // Parents can only message admins
             $query->whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin']));
         } elseif ($authUser->isMedicalProvider()) {
             // Medical can message admins and parents
-            $query->whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin', 'parent']));
+            $query->whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin', 'applicant']));
         }
         // admin / super_admin see all users (no additional filter)
 

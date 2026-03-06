@@ -50,7 +50,7 @@ class MedicalRecordPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($medicalRecord->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($medicalRecord->camper)) {
             return true;
         }
 
@@ -65,7 +65,7 @@ class MedicalRecordPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     /**
@@ -90,7 +90,7 @@ class MedicalRecordPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($medicalRecord->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($medicalRecord->camper)) {
             return true;
         }
 

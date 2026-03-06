@@ -37,7 +37,7 @@ trait WithRoles
         );
 
         $this->parentRole = Role::firstOrCreate(
-            ['name' => 'parent'],
+            ['name' => 'applicant'],
             ['description' => 'Parent or guardian of campers']
         );
 

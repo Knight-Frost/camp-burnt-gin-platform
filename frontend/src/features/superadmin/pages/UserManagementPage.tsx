@@ -20,13 +20,13 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { User } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
-const ROLES = ['parent', 'admin', 'medical', 'super_admin'];
+const ROLES = ['applicant', 'admin', 'medical', 'super_admin'];
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
   super_admin: { bg: 'rgba(22,163,74,0.12)', text: 'var(--ember-orange)' },
   admin:       { bg: 'rgba(96,165,250,0.12)', text: 'var(--night-sky-blue)' },
   medical:     { bg: 'rgba(5,150,105,0.12)', text: 'var(--forest-green)' },
-  parent:      { bg: 'rgba(22,163,74,0.1)',  text: 'var(--ember-orange)' },
+  applicant:   { bg: 'rgba(22,163,74,0.1)',  text: 'var(--ember-orange)' },
 };
 
 interface UserFilters {
@@ -175,7 +175,7 @@ export function UserManagementPage() {
             </div>
 
             {response.data.map((user) => {
-              const roleStyle = ROLE_COLORS[user.role] ?? ROLE_COLORS['parent'];
+              const roleStyle = ROLE_COLORS[user.role] ?? ROLE_COLORS['applicant'];
               return (
                 <motion.div
                   key={user.id}

@@ -14,13 +14,13 @@ use Illuminate\Support\Facades\Hash;
 class AuthService
 {
     /**
-     * Register a new user with parent role.
+     * Register a new user with applicant role.
      *
      * @param  array<string, mixed>  $data
      */
     public function register(array $data): User
     {
-        $parentRole = Role::where('name', 'parent')->first();
+        $parentRole = Role::where('name', 'applicant')->first();
 
         return User::create([
             'name' => $data['name'],

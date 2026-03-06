@@ -68,7 +68,7 @@ class ConversationPolicy
         }
 
         // Parents can only create conversations with admins
-        if ($user->isParent()) {
+        if ($user->isApplicant()) {
             // Reject if trying to message non-admins
             return !$hasNonAdminParticipants;
         }

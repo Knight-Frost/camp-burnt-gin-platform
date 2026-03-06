@@ -36,7 +36,7 @@ class SuperAdminAuthorizationTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
 
         $this->assertTrue($superAdmin->isSuperAdmin());
-        $this->assertFalse($superAdmin->isParent());
+        $this->assertFalse($superAdmin->isApplicant());
         $this->assertFalse($superAdmin->isMedicalProvider());
     }
 
@@ -139,7 +139,7 @@ class SuperAdminAuthorizationTest extends TestCase
     public function test_last_super_admin_cannot_demote_self(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $parentRole = Role::where('name', 'parent')->first();
+        $parentRole = Role::where('name', 'applicant')->first();
 
         // Last super admin cannot demote themselves
         $this->assertFalse($superAdmin->can('assign', [Role::class, $superAdmin, $parentRole]));

@@ -50,7 +50,7 @@ class DiagnosisPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($diagnosis->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
             return true;
         }
 
@@ -65,7 +65,7 @@ class DiagnosisPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider() || $user->isParent();
+        return $user->isAdmin() || $user->isMedicalProvider() || $user->isApplicant();
     }
 
     /**
@@ -89,7 +89,7 @@ class DiagnosisPolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($diagnosis->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
             return true;
         }
 
@@ -110,7 +110,7 @@ class DiagnosisPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($diagnosis->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
             return true;
         }
 

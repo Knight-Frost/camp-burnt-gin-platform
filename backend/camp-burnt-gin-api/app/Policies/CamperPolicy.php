@@ -40,7 +40,7 @@ class CamperPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
 
@@ -55,7 +55,7 @@ class CamperPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     /**
@@ -71,7 +71,7 @@ class CamperPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
 
@@ -91,7 +91,7 @@ class CamperPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
 
@@ -111,7 +111,7 @@ class CamperPolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
 

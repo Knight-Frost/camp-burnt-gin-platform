@@ -44,44 +44,15 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Test users are only created in non-production environments.
+        // Dev data (users, camp, applications, inbox, announcements, calendar)
+        // is only seeded in non-production environments.
         if (! app()->environment('production')) {
-            $parentRole = Role::where('name', 'parent')->first();
-
-            User::firstOrCreate(
-                ['email' => 'parent@example.com'],
-                [
-                    'name' => 'Test Parent',
-                    'role_id' => $parentRole->id,
-                    'password' => Hash::make('password'),
-                    'email_verified_at' => now(),
-                ]
-            );
-
-            $adminRole = Role::where('name', 'admin')->first();
-
-            User::firstOrCreate(
-                ['email' => 'admin@example.com'],
-                [
-                    'name' => 'Test Admin',
-                    'role_id' => $adminRole->id,
-                    'password' => Hash::make('password'),
-                    'email_verified_at' => now(),
-                ]
-            );
-
-            $medicalRole = Role::where('name', 'medical')->first();
-
-            User::firstOrCreate(
-                ['email' => 'medical@example.com'],
-                [
-                    'name' => 'Test Medical Staff',
-                    'role_id' => $medicalRole->id,
-                    'password' => Hash::make('password'),
-                    'email_verified_at' => now(),
-                ]
-            );
+            $this->call(DevSeeder::class);
         }
+
+        // Note: dev test accounts (admin@example.com, medical@example.com,
+        // and applicant family accounts) are seeded by DevSeeder above
+        // with realistic demo names. Do not duplicate them here.
 
         $this->command->info('Database seeding completed successfully.');
         $this->command->newLine();

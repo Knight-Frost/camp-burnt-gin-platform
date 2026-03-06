@@ -34,7 +34,7 @@ class MessageTest extends TestCase
         parent::setUp();
 
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'Administrator']);
-        $parentRole = Role::firstOrCreate(['name' => 'parent'], ['description' => 'Parent/Guardian']);
+        $parentRole = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
 
         $this->admin = User::factory()->create(['role_id' => $adminRole->id]);
         $this->parent = User::factory()->create(['role_id' => $parentRole->id]);
@@ -78,7 +78,7 @@ class MessageTest extends TestCase
     #[Test]
     public function non_participant_cannot_send_message()
     {
-        $parentRole = Role::firstOrCreate(['name' => 'parent'], ['description' => 'Parent/Guardian']);
+        $parentRole = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
         $outsider = User::factory()->create(['role_id' => $parentRole->id]);
 
         Sanctum::actingAs($outsider);

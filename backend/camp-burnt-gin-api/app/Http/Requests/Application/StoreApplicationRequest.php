@@ -28,7 +28,7 @@ class StoreApplicationRequest extends FormRequest
         }
 
         // Parents can only create applications for their own campers
-        if ($user->isParent()) {
+        if ($user->isApplicant()) {
             $camperId = $this->input('camper_id');
             if ($camperId) {
                 $camper = Camper::find($camperId);

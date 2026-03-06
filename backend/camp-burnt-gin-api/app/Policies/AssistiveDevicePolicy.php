@@ -42,7 +42,7 @@ class AssistiveDevicePolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($assistiveDevice->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {
             return true;
         }
 
@@ -54,7 +54,7 @@ class AssistiveDevicePolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider() || $user->isParent();
+        return $user->isAdmin() || $user->isMedicalProvider() || $user->isApplicant();
     }
 
     /**
@@ -74,7 +74,7 @@ class AssistiveDevicePolicy
                 ->exists();
         }
 
-        if ($user->isParent() && $user->ownsCamper($assistiveDevice->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {
             return true;
         }
 
@@ -90,7 +90,7 @@ class AssistiveDevicePolicy
             return true;
         }
 
-        if ($user->isParent() && $user->ownsCamper($assistiveDevice->camper)) {
+        if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {
             return true;
         }
 

@@ -64,7 +64,7 @@ class DocumentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isParent() || $user->isMedicalProvider();
+        return $user->isAdmin() || $user->isApplicant() || $user->isMedicalProvider();
     }
 
     /**
