@@ -467,7 +467,10 @@
     "download": "Descargar",
     "permitted": "Permitido",
     "not_permitted": "No Permitido",
-    "filter": "Filtrar"
+    "filter": "Filtrar",
+    "view_all": "Ver Todo",
+    "saving": "Guardando…",
+    "unknown": "Desconocido"
   },
   "profile": {
     "title": "Tu Perfil",
@@ -694,7 +697,45 @@
       "emergency_view": "Emergencia",
       "camper_directory": "Directorio Médico de Campistas",
       "load_more_campers": "Cargar Más Campistas",
-      "restrictions": "restricciones"
+      "restrictions": "restricciones",
+      "stats": {
+        "total_campers": "Total de Campistas",
+        "severe_allergies": "Alergias Graves",
+        "on_medications": "Con Medicamentos",
+        "active_restrictions": "Restricciones Activas",
+        "missing_forms": "Formularios Faltantes"
+      },
+      "alert": {
+        "overdue": "{{count}} seguimiento vencido",
+        "due_today": "{{count}} vence hoy"
+      },
+      "activity": {
+        "title": "Actividad Reciente",
+        "empty_title": "Sin actividad reciente",
+        "empty_desc": "No se registró actividad en los últimos 7 días",
+        "type_treatment": "Tratamiento",
+        "type_incident": "Incidente",
+        "type_visit": "Visita"
+      },
+      "followup": {
+        "title": "Seguimientos Pendientes",
+        "empty_title": "Todo al día",
+        "empty_desc": "No hay tareas de seguimiento abiertas",
+        "mark_complete": "Marcar Completo",
+        "complete": "Completar",
+        "overdue_label": "{{date}} — Vencido",
+        "priority_urgent": "Urgente",
+        "priority_high": "Alta",
+        "priority_medium": "Media",
+        "priority_low": "Baja"
+      },
+      "directory": {
+        "title": "Directorio Médico de Campistas",
+        "view_record": "Ver Registro",
+        "emergency_view": "Vista de Emergencia",
+        "emergency": "Emergencia",
+        "load_more": "Cargar Más"
+      }
     },
     "record": {
       "back": "Volver al Panel",

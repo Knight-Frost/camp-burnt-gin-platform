@@ -467,7 +467,10 @@
     "download": "Download",
     "permitted": "Permitted",
     "not_permitted": "Not Permitted",
-    "filter": "Filter"
+    "filter": "Filter",
+    "view_all": "View All",
+    "saving": "Saving…",
+    "unknown": "Unknown"
   },
   "profile": {
     "title": "Your Profile",
@@ -695,7 +698,45 @@
       "emergency_view": "Emergency",
       "camper_directory": "Camper Medical Directory",
       "load_more_campers": "Load More Campers",
-      "restrictions": "restrictions"
+      "restrictions": "restrictions",
+      "stats": {
+        "total_campers": "Total Campers",
+        "severe_allergies": "Severe Allergies",
+        "on_medications": "On Medications",
+        "active_restrictions": "Active Restrictions",
+        "missing_forms": "Missing Forms"
+      },
+      "alert": {
+        "overdue": "{{count}} follow-up overdue",
+        "due_today": "{{count}} due today"
+      },
+      "activity": {
+        "title": "Recent Activity",
+        "empty_title": "No recent activity",
+        "empty_desc": "No activity recorded in the last 7 days",
+        "type_treatment": "Treatment",
+        "type_incident": "Incident",
+        "type_visit": "Visit"
+      },
+      "followup": {
+        "title": "Pending Follow-Ups",
+        "empty_title": "All caught up",
+        "empty_desc": "No open follow-up tasks",
+        "mark_complete": "Mark Complete",
+        "complete": "Complete",
+        "overdue_label": "{{date}} — Overdue",
+        "priority_urgent": "Urgent",
+        "priority_high": "High",
+        "priority_medium": "Medium",
+        "priority_low": "Low"
+      },
+      "directory": {
+        "title": "Camper Medical Directory",
+        "view_record": "View Record",
+        "emergency_view": "Emergency Quick View",
+        "emergency": "Emergency",
+        "load_more": "Load More"
+      }
     },
     "record": {
       "back": "Back to Dashboard",
