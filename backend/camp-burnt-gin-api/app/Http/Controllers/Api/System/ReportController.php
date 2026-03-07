@@ -42,6 +42,13 @@ class ReportController extends Controller
             'enrolled'   => $s->applications_count,
         ]);
 
+        $timeline = Application::selectRaw("DATE_FORMAT(submitted_at, '%Y-%m') as month, COUNT(*) as count")
+            ->whereNotNull('submitted_at')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->map(fn ($r) => ['month' => $r->month, 'count' => (int) $r->count]);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -52,6 +59,7 @@ class ReportController extends Controller
                 'pending_applications'       => ($apps['pending'] ?? 0) + ($apps['submitted'] ?? 0) + ($apps['under_review'] ?? 0),
                 'rejected_applications'      => $apps['rejected'] ?? 0,
                 'sessions'                   => $sessions,
+                'applications_over_time'     => $timeline,
             ],
         ]);
     }
@@ -66,6 +74,7 @@ class ReportController extends Controller
     {
         return response()->streamDownload(function () use ($headers, $rows) {
             $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders special characters correctly
             fputcsv($handle, $headers);
             foreach ($rows as $row) {
                 fputcsv($handle, $row);

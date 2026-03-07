@@ -33,7 +33,18 @@ class CamperController extends Controller
 
         if ($user->isAdmin()) {
             $this->authorize('viewAny', Camper::class);
-            $campers = Camper::with('user')->paginate(15);
+            $query = Camper::with(['user', 'medicalRecord.allergies', 'medicalRecord.medications']);
+            if ($request->filled('search')) {
+                $query->where('full_name', 'like', '%' . $request->input('search') . '%');
+            }
+            $campers = $query->paginate(15);
+        } elseif ($user->isMedicalProvider()) {
+            // Medical providers can browse all camper profiles to support clinical workflows.
+            $query = Camper::with(['medicalRecord.allergies', 'medicalRecord.medications', 'medicalRecord.diagnoses']);
+            if ($request->filled('search')) {
+                $query->where('full_name', 'like', '%' . $request->input('search') . '%');
+            }
+            $campers = $query->paginate(15);
         } elseif ($user->isApplicant()) {
             $campers = $user->campers()->paginate(15);
         } else {

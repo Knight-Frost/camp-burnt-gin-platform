@@ -56,7 +56,7 @@ class ReportService
                     'parent_email' => $app->camper->user->email,
                     'camp_session' => $app->campSession->name,
                     'camp_name' => $app->campSession->camp->name,
-                    'status' => $app->status,
+                    'status' => $app->status->value,
                     'submitted_at' => $app->submitted_at?->toIso8601String(),
                     'reviewed_at' => $app->reviewed_at?->toIso8601String(),
                     'reviewer' => $app->reviewer?->name,

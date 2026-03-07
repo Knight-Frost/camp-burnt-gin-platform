@@ -39,6 +39,8 @@ export interface Application {
   submitted_at?: string;
   reviewed_at?: string;
   reviewer_id?: number;
+  signed_at?: string;
+  signature_name?: string;
   created_at: string;
   camper?: Camper;
   session?: CampSession;
@@ -55,7 +57,13 @@ export interface Camper {
   gender?: string;
   tshirt_size?: string;
   created_at: string;
+  user?: { id: number; name: string; email: string };
   medical_record?: MedicalRecord;
+  emergency_contacts?: EmergencyContact[];
+  behavioral_profile?: BehavioralProfile;
+  feeding_plan?: FeedingPlan;
+  assistive_devices?: AssistiveDevice[];
+  activity_permissions?: ActivityPermission[];
   applications?: Application[];
 }
 
@@ -63,14 +71,20 @@ export interface MedicalRecord {
   id: number;
   camper_id: number;
   primary_diagnosis?: string;
+  physician_name?: string;
+  physician_phone?: string;
+  insurance_provider?: string;
+  insurance_policy_number?: string;
+  special_needs?: string;
+  dietary_restrictions?: string;
+  notes?: string;
+  has_seizures?: boolean;
+  last_seizure_date?: string;
+  seizure_description?: string;
+  has_neurostimulator?: boolean;
   allergies?: Allergy[];
   medications?: Medication[];
   diagnoses?: Diagnosis[];
-  behavioral_profile?: BehavioralProfile;
-  feeding_plan?: FeedingPlan;
-  assistive_devices?: AssistiveDevice[];
-  activity_permissions?: ActivityPermission[];
-  emergency_contacts?: EmergencyContact[];
 }
 
 export interface Allergy {
@@ -78,6 +92,7 @@ export interface Allergy {
   name: string;
   severity: 'mild' | 'moderate' | 'severe' | 'life-threatening';
   reaction?: string;
+  treatment?: string;
 }
 
 export interface Medication {
@@ -86,6 +101,7 @@ export interface Medication {
   dosage: string;
   frequency: string;
   route?: string;
+  purpose?: string;
   notes?: string;
 }
 
@@ -129,7 +145,10 @@ export interface EmergencyContact {
   name: string;
   relationship: string;
   phone: string;
+  phone_primary?: string;
+  phone_secondary?: string;
   email?: string;
+  is_authorized_pickup?: boolean;
 }
 
 export interface Document {

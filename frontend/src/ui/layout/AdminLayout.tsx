@@ -15,25 +15,15 @@ import {
   Settings,
   Megaphone,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
 import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
-const NAV_ITEMS: NavItem[] = [
-  { group: 'Primary',       label: 'Dashboard',        to: ROUTES.ADMIN_DASHBOARD,      icon: LayoutDashboard },
-  { group: 'Primary',       label: 'Applications',     to: ROUTES.ADMIN_APPLICATIONS,   icon: FileText },
-  { group: 'Primary',       label: 'Campers',          to: ROUTES.ADMIN_CAMPERS,        icon: Users },
-  { group: 'Primary',       label: 'Sessions & Camps', to: ROUTES.ADMIN_SESSIONS,       icon: CalendarDays },
-  { group: 'Communication', label: 'Inbox',            to: '/admin/inbox',              icon: MessageSquare },
-  { group: 'Communication', label: 'Announcements',    to: ROUTES.ADMIN_ANNOUNCEMENTS,  icon: Megaphone },
-  { group: 'Operations',    label: 'Calendar',         to: ROUTES.ADMIN_CALENDAR,       icon: CalendarDays },
-  { group: 'Operations',    label: 'Reports',          to: ROUTES.ADMIN_REPORTS,        icon: BarChart3 },
-  { group: 'System',        label: 'Settings',         to: '/admin/settings',           icon: Settings },
-];
-
 export function AdminLayout() {
+  const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
   // Check roles array (normalized) OR flat role string (fallback for stale state)
   const hasAccess = Boolean(
@@ -47,8 +37,20 @@ export function AdminLayout() {
     return <Navigate to={getDashboardRoute(role)} replace />;
   }
 
+  const navItems: NavItem[] = [
+    { group: t('portal_nav.group_primary'),       label: t('portal_nav.dashboard'),      to: ROUTES.ADMIN_DASHBOARD,      icon: LayoutDashboard },
+    { group: t('portal_nav.group_primary'),       label: t('portal_nav.applications'),   to: ROUTES.ADMIN_APPLICATIONS,   icon: FileText },
+    { group: t('portal_nav.group_primary'),       label: t('portal_nav.campers'),        to: ROUTES.ADMIN_CAMPERS,        icon: Users },
+    { group: t('portal_nav.group_primary'),       label: t('portal_nav.sessions_camps'), to: ROUTES.ADMIN_SESSIONS,       icon: CalendarDays },
+    { group: t('portal_nav.group_communication'), label: t('portal_nav.inbox'),          to: '/admin/inbox',              icon: MessageSquare },
+    { group: t('portal_nav.group_communication'), label: t('portal_nav.announcements'),  to: ROUTES.ADMIN_ANNOUNCEMENTS,  icon: Megaphone },
+    { group: t('portal_nav.group_operations'),    label: t('portal_nav.calendar'),       to: ROUTES.ADMIN_CALENDAR,       icon: CalendarDays },
+    { group: t('portal_nav.group_operations'),    label: t('portal_nav.reports'),        to: ROUTES.ADMIN_REPORTS,        icon: BarChart3 },
+    { group: t('portal_nav.group_system'),        label: t('portal_nav.settings'),       to: '/admin/settings',           icon: Settings },
+  ];
+
   return (
-    <DashboardShell navItems={NAV_ITEMS} pageTitle="Dashboard">
+    <DashboardShell navItems={navItems} pageTitle={t('portal_nav.dashboard')}>
       <Outlet />
     </DashboardShell>
   );

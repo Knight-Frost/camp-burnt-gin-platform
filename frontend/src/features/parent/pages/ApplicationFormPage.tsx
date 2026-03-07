@@ -18,9 +18,11 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   Fragment,
   type ChangeEvent,
 } from 'react';
+import { useTranslation, type TFunction } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -444,18 +446,20 @@ interface SectionDef {
   icon: typeof User;
 }
 
-const SECTIONS: SectionDef[] = [
-  { id: 0, key: 's1', label: 'General Information',        shortLabel: 'General Info',   icon: User          },
-  { id: 1, key: 's2', label: 'Health & Medical',            shortLabel: 'Health',         icon: Heart         },
-  { id: 2, key: 's3', label: 'Development & Behavior',      shortLabel: 'Behavior',       icon: Brain         },
-  { id: 3, key: 's4', label: 'Equipment & Mobility',        shortLabel: 'Equipment',      icon: Accessibility },
-  { id: 4, key: 's5', label: 'Diet & Feeding',              shortLabel: 'Diet',           icon: Utensils      },
-  { id: 5, key: 's6', label: 'Personal Care',               shortLabel: 'Personal Care',  icon: ShieldCheck   },
-  { id: 6, key: 's7', label: 'Activities & Permissions',    shortLabel: 'Activities',     icon: Activity      },
-  { id: 7, key: 's8', label: 'Medications',                 shortLabel: 'Medications',    icon: Pill          },
-  { id: 8, key: 's9', label: 'Required Documents',          shortLabel: 'Documents',      icon: Upload        },
-  { id: 9, key: 's10', label: 'Consents & Signatures',      shortLabel: 'Consents',       icon: PenLine       },
-];
+function getSections(t: TFunction): SectionDef[] {
+  return [
+    { id: 0, key: 's1',  label: t('applicant.form.s0_label'), shortLabel: t('applicant.form.s0_short'), icon: User          },
+    { id: 1, key: 's2',  label: t('applicant.form.s1_label'), shortLabel: t('applicant.form.s1_short'), icon: Heart         },
+    { id: 2, key: 's3',  label: t('applicant.form.s2_label'), shortLabel: t('applicant.form.s2_short'), icon: Brain         },
+    { id: 3, key: 's4',  label: t('applicant.form.s3_label'), shortLabel: t('applicant.form.s3_short'), icon: Accessibility },
+    { id: 4, key: 's5',  label: t('applicant.form.s4_label'), shortLabel: t('applicant.form.s4_short'), icon: Utensils      },
+    { id: 5, key: 's6',  label: t('applicant.form.s5_label'), shortLabel: t('applicant.form.s5_short'), icon: ShieldCheck   },
+    { id: 6, key: 's7',  label: t('applicant.form.s6_label'), shortLabel: t('applicant.form.s6_short'), icon: Activity      },
+    { id: 7, key: 's8',  label: t('applicant.form.s7_label'), shortLabel: t('applicant.form.s7_short'), icon: Pill          },
+    { id: 8, key: 's9',  label: t('applicant.form.s8_label'), shortLabel: t('applicant.form.s8_short'), icon: Upload        },
+    { id: 9, key: 's10', label: t('applicant.form.s9_label'), shortLabel: t('applicant.form.s9_short'), icon: PenLine       },
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Section completion
@@ -661,6 +665,7 @@ function YesNoField({
   onChange: (v: boolean) => void;
   id: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between py-2.5 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
       <span className="text-sm flex-1 mr-4" style={{ color: 'var(--foreground)' }}>{label}</span>
@@ -702,7 +707,7 @@ function YesNoField({
                     : 'var(--muted-foreground)',
                 }}
               >
-                {opt === 'yes' ? 'Yes' : 'No'}
+                {opt === 'yes' ? t('applicant.form.yes') : t('applicant.form.no')}
               </span>
             </label>
           );
@@ -748,6 +753,7 @@ function Section1({
   sessions: Session[];
   onChange: (patch: Partial<FormState['s1']>) => void;
 }) {
+  const { t } = useTranslation();
   const set = (field: keyof FormState['s1']) => (v: string | boolean) =>
     onChange({ [field]: v } as Partial<FormState['s1']>);
 
@@ -756,24 +762,24 @@ function Section1({
 
       {/* Camper Info */}
       <SectionCard>
-        <SubHeading>Camper information</SubHeading>
+        <SubHeading>{t('applicant.form.section_camper_info')}</SubHeading>
         <FormRow>
           <div>
-            <FieldLabel required>First name</FieldLabel>
-            <TextInput value={data.camper_first_name} onChange={set('camper_first_name')} placeholder="First name" />
+            <FieldLabel required>{t('applicant.form.first_name')}</FieldLabel>
+            <TextInput value={data.camper_first_name} onChange={set('camper_first_name')} placeholder={t('applicant.form.first_name')} />
           </div>
           <div>
-            <FieldLabel required>Last name</FieldLabel>
-            <TextInput value={data.camper_last_name} onChange={set('camper_last_name')} placeholder="Last name" />
+            <FieldLabel required>{t('applicant.form.last_name')}</FieldLabel>
+            <TextInput value={data.camper_last_name} onChange={set('camper_last_name')} placeholder={t('applicant.form.last_name')} />
           </div>
         </FormRow>
         <FormRow>
           <div>
-            <FieldLabel required>Date of birth</FieldLabel>
+            <FieldLabel required>{t('applicant.form.dob')}</FieldLabel>
             <TextInput type="date" value={data.camper_dob} onChange={set('camper_dob')} />
           </div>
           <div>
-            <FieldLabel required>Gender</FieldLabel>
+            <FieldLabel required>{t('applicant.form.gender')}</FieldLabel>
             <SelectInput value={data.camper_gender} onChange={set('camper_gender')}>
               <option value="">Select gender</option>
               <option value="male">Male</option>
@@ -786,12 +792,12 @@ function Section1({
         </FormRow>
         <FormRow>
           <div>
-            <FieldLabel>Preferred name (nickname)</FieldLabel>
-            <TextInput value={data.camper_preferred_name} onChange={set('camper_preferred_name')} placeholder="Optional" />
+            <FieldLabel>{t('applicant.form.preferred_name')}</FieldLabel>
+            <TextInput value={data.camper_preferred_name} onChange={set('camper_preferred_name')} placeholder={t('applicant.form.optional')} />
           </div>
           <div>
-            <FieldLabel>County of residence</FieldLabel>
-            <TextInput value={data.county} onChange={set('county')} placeholder="County" />
+            <FieldLabel>{t('applicant.form.county')}</FieldLabel>
+            <TextInput value={data.county} onChange={set('county')} placeholder={t('applicant.form.county')} />
           </div>
         </FormRow>
       </SectionCard>
@@ -2569,14 +2575,16 @@ function StepIndicator({
   currentStep,
   form,
   onJump,
+  sections,
 }: {
   currentStep: number;
   form: FormState;
   onJump: (step: number) => void;
+  sections: SectionDef[];
 }) {
   return (
     <div className="flex items-center gap-1 flex-wrap" role="navigation" aria-label="Application steps">
-      {SECTIONS.map((section, i) => {
+      {sections.map((section, i) => {
         const status = getSectionStatus(i, form);
         const isActive = i === currentStep;
         const isComplete = status === 'complete';
@@ -2609,7 +2617,11 @@ function StepIndicator({
 // ---------------------------------------------------------------------------
 
 export function ApplicationFormPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+
+  // Recompute section labels when language changes
+  const sections = useMemo(() => getSections(t), [t]);
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -2683,7 +2695,7 @@ export function ApplicationFormPage() {
     localStorage.removeItem(DRAFT_KEY);
     setForm(INITIAL_STATE);
     setCurrentStep(0);
-    toast.success('Draft cleared.');
+    toast.success(t('applicant.form.draft_cleared'));
   }
 
   function handleSaveDraft() {
@@ -2882,7 +2894,7 @@ export function ApplicationFormPage() {
 
       // ── Success ───────────────────────────────────────────────────────────
       toast.dismiss(tid);
-      toast.success('Application submitted successfully!');
+      toast.success(t('applicant.form.submit_success'));
       localStorage.removeItem(DRAFT_KEY);
       navigate(ROUTES.PARENT_APPLICATIONS);
 
@@ -2913,22 +2925,22 @@ export function ApplicationFormPage() {
         <div className="flex justify-between items-start mb-10">
           <div>
             <h1 className="font-headline text-3xl font-semibold" style={{ color: 'var(--foreground)' }}>
-              New Camper Application
+              {t('applicant.form.title')}
             </h1>
             <p className="text-sm mt-2" style={{ color: 'var(--muted-foreground)' }}>
-              Camp Burnt Gin — CYSHCN Application
+              {t('applicant.form.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-3">
             {isSaving && (
               <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                <RefreshCw className="h-3 w-3 animate-spin" /> Saving…
+                <RefreshCw className="h-3 w-3 animate-spin" /> {t('applicant.form.saving')}
               </span>
             )}
             {!isSaving && lastSavedAt && (
               <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 <Save className="h-3 w-3" />
-                Saved {lastSavedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                {t('applicant.form.saved_at', { time: lastSavedAt.toLocaleTimeString(i18n.language === 'es' ? 'es-ES' : 'en-US', { hour: 'numeric', minute: '2-digit' }) })}
               </span>
             )}
             <Button
@@ -2938,7 +2950,7 @@ export function ApplicationFormPage() {
               className="flex items-center gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
-              Save Draft
+              {t('applicant.form.save_draft')}
             </Button>
             <button
               type="button"
@@ -2946,14 +2958,14 @@ export function ApplicationFormPage() {
               className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
               style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
             >
-              Clear draft
+              {t('applicant.form.clear_draft')}
             </button>
             <Button
               onClick={() => navigate(ROUTES.PARENT_APPLICATIONS)}
               variant="ghost"
               size="sm"
             >
-              Cancel
+              {t('applicant.form.cancel')}
             </Button>
           </div>
         </div>
@@ -2962,10 +2974,12 @@ export function ApplicationFormPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              {10 - missing} of 10 sections complete
+              {t('applicant.form.sections_complete', { done: sections.length - missing, total: sections.length })}
             </span>
             <span className="text-sm" style={{ color: missing === 0 ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}>
-              {missing === 0 ? 'Ready to submit' : `${missing} section${missing === 1 ? '' : 's'} remaining`}
+              {missing === 0
+                ? t('applicant.form.submit')
+                : t(missing === 1 ? 'applicant.form.sections_remaining' : 'applicant.form.sections_remaining_plural', { count: missing })}
             </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
@@ -2980,7 +2994,7 @@ export function ApplicationFormPage() {
         </div>
 
         {/* ── Step indicator ────────────────────────────── */}
-        <StepIndicator currentStep={currentStep} form={form} onJump={goToStep} />
+        <StepIndicator currentStep={currentStep} form={form} onJump={goToStep} sections={sections} />
 
         {/* ── Section content ─────────────────────────── */}
         <div className="mt-12">
@@ -2997,10 +3011,10 @@ export function ApplicationFormPage() {
                   className="text-xs font-semibold uppercase tracking-widest mb-2"
                   style={{ color: 'var(--muted-foreground)' }}
                 >
-                  Step {currentStep + 1} of {SECTIONS.length}
+                  {t('applicant.form.step_of', { current: currentStep + 1, total: sections.length })}
                 </p>
                 <h2 className="text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
-                  {SECTIONS[currentStep].label}
+                  {sections[currentStep].label}
                 </h2>
               </div>
 
@@ -3104,15 +3118,15 @@ export function ApplicationFormPage() {
             style={{ color: 'var(--foreground)' }}
           >
             <ChevronLeft className="h-4 w-4" />
-            Back
+            {t('applicant.form.prev')}
           </button>
 
-          {currentStep < SECTIONS.length - 1 ? (
+          {currentStep < sections.length - 1 ? (
             <Button
               onClick={() => goToStep(currentStep + 1)}
               className="flex items-center gap-2 px-6"
             >
-              Save &amp; Continue
+              {t('applicant.form.save_continue')}
               <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
@@ -3122,13 +3136,13 @@ export function ApplicationFormPage() {
               disabled={!canSubmit || isSubmitting}
               className="flex items-center gap-2 px-6"
             >
-              Submit Application
+              {t('applicant.form.submit')}
             </Button>
           )}
         </div>
 
         {/* Submit shortcut — visible on non-final steps when all sections complete */}
-        {canSubmit && currentStep < SECTIONS.length - 1 && (
+        {canSubmit && currentStep < sections.length - 1 && (
           <div className="flex justify-center mt-6">
             <button
               type="button"
@@ -3137,13 +3151,13 @@ export function ApplicationFormPage() {
               className="text-sm font-medium hover:underline"
               style={{ color: 'var(--ember-orange)' }}
             >
-              All sections complete — submit now
+              {t('applicant.form.all_complete_submit')}
             </button>
           </div>
         )}
 
         <p className="text-xs text-center mt-10 pb-4" style={{ color: 'var(--muted-foreground)' }}>
-          All information is encrypted and stored securely in accordance with HIPAA regulations.
+          {t('applicant.form.hipaa_footer')}
         </p>
       </div>
     </div>

@@ -52,6 +52,12 @@ export const ROUTES = {
   MEDICAL_ANNOUNCEMENTS: '/medical/announcements',
   MEDICAL_RECORD_TREATMENTS: (id: number | string) => `/medical/records/${id}/treatments`,
   MEDICAL_RECORD_DOCUMENTS: (id: number | string) => `/medical/records/${id}/documents`,
+  MEDICAL_INCIDENTS: '/medical/incidents',
+  MEDICAL_FOLLOW_UPS: '/medical/follow-ups',
+  MEDICAL_VISITS: '/medical/visits',
+  MEDICAL_RECORD_EMERGENCY: (id: number | string) => `/medical/records/${id}/emergency`,
+  MEDICAL_RECORD_INCIDENTS: (id: number | string) => `/medical/records/${id}/incidents`,
+  MEDICAL_RECORD_VISITS: (id: number | string) => `/medical/records/${id}/visits`,
 
   // Super Admin
   SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',

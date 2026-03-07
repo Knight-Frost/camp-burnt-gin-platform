@@ -92,11 +92,17 @@ The system implements a four-tier role hierarchy:
 - Record treatment log entries (first aid, medication administration, observations, emergencies)
 - Update own treatment log entries
 - View and upload medical documents for any camper
+- Record, view, and update medical incidents (behavioral, medical, injury, environmental, emergency)
+- Manage medical follow-up tasks — create, update status, mark complete
+- Record health office visits with vitals, treatment, and disposition
+- View active camper restrictions for clinical decision-making (read-only)
+- Access full camper directory for incident and visit workflow
 - **Cannot** create or modify applications
 - **Cannot** access administrative functions
 - **Cannot** modify camper profiles
 - **Cannot** delete any records (allergies, medications, treatments, documents)
 - **Cannot** manage other staff's treatment log entries (own entries only)
+- **Cannot** create, modify, or delete medical restrictions (admin-governed)
 
 **Note:** External medical providers (outside parties with shared token access) use the `MedicalProviderLink` token system and are distinct from the `medical` role used for on-site staff accounts.
 
@@ -108,13 +114,13 @@ The system implements a four-tier role hierarchy:
 
 | Operation | Admin | Parent | Medical |
 |-----------|-------|--------|---------|
-| List all campers | Yes | Own only | No |
+| List all campers | Yes | Own only | Yes (read-only, clinical workflow) |
 | View any camper | Yes | Own only | Yes (read-only, for clinical context) |
 | Create camper | Yes | Yes | No |
 | Update any camper | Yes | Own only | No |
 | Delete any camper | Yes | Own only | No |
 
-**Note:** Medical staff can view camper profiles (name, DOB) to support clinical workflows — recording treatments, reviewing records, and uploading documents. They cannot list, create, update, or delete camper profiles.
+**Note:** Medical staff can list and view camper profiles (name, DOB) to support clinical workflows — recording treatments, reviewing records, uploading documents, and incident/visit workflows. They cannot create, update, or delete camper profiles.
 
 ### Application Management
 
@@ -191,6 +197,54 @@ The system implements a four-tier role hierarchy:
 | Create treatment log | Yes | No | Yes |
 | Update treatment log | Yes | No | Own entries only |
 | Delete treatment log | Yes | No | No |
+
+### Medical Incidents
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List all incidents | Yes | No | Yes |
+| View any incident | Yes | No | Yes |
+| Create incident | Yes | No | Yes |
+| Update incident | Yes | No | Own entries only |
+| Delete incident | Yes | No | No |
+
+**Note:** Medical staff can create and update incident reports. Delete is restricted to administrators to preserve the audit trail.
+
+### Medical Follow-Ups
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List all follow-ups | Yes | No | Yes |
+| View any follow-up | Yes | No | Yes |
+| Create follow-up | Yes | No | Yes |
+| Update follow-up / mark complete | Yes | No | Assigned entries only |
+| Delete follow-up | Yes | No | No |
+
+**Note:** Medical staff can create follow-up tasks and transition status on tasks assigned to them. Delete is admin-only.
+
+### Medical Visits
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List all visits | Yes | No | Yes |
+| View any visit | Yes | No | Yes |
+| Record visit | Yes | No | Yes |
+| Update visit | Yes | No | Own entries only |
+| Delete visit | Yes | No | No |
+
+**Note:** Health office visit records are PHI. Medical staff record and view visits; delete is admin-only to maintain continuity of care documentation.
+
+### Medical Restrictions
+
+| Operation | Admin | Parent | Medical |
+|-----------|-------|--------|---------|
+| List all restrictions | Yes | No | Yes (read-only) |
+| View any restriction | Yes | No | Yes |
+| Create restriction | Yes | No | No |
+| Update restriction | Yes | No | No |
+| Delete restriction | Yes | No | No |
+
+**Note:** Restrictions are governance-level records managed by administrators. Medical staff view them for clinical context (e.g., allergy-driven activity restrictions) but cannot modify them.
 
 ### Medical Provider Links
 
@@ -329,4 +383,4 @@ This command:
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** March 2026 (Phase 10 — Documentation)
+**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 11 — Medical Portal Expansion (2026-03-07))

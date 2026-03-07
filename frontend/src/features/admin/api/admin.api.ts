@@ -82,6 +82,7 @@ export interface ReportsSummary {
   rejected_applications: number;
   applications_by_status: Record<string, number>;
   sessions: { id: number; name: string; capacity: number; enrolled: number }[];
+  applications_over_time: { month: string; count: number }[];
 }
 
 export async function getReportsSummary(): Promise<ReportsSummary> {

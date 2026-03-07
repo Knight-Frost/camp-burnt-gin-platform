@@ -5,6 +5,9 @@ import es from './es.json';
 
 const savedLanguage = localStorage.getItem('language') ?? 'en';
 
+// Set <html lang=""> on initial load for accessibility
+document.documentElement.lang = savedLanguage;
+
 i18n
   .use(initReactI18next)
   .init({

@@ -15,6 +15,8 @@ import { format } from 'date-fns';
 import {
   ArrowLeft, User, FileText, Heart, Pill, AlertTriangle,
   CheckCircle, XCircle, Clock, Download, ChevronRight,
+  Phone, Brain, Utensils, Wrench, Activity,
+  Users, PenLine, Stethoscope,
 } from 'lucide-react';
 
 import { getApplication, reviewApplication, getCamperComplianceStatus } from '@/features/admin/api/admin.api';
@@ -434,21 +436,47 @@ export function ApplicationReviewPage() {
             </SectionCard>
           </motion.div>
 
+          {/* Parent / guardian */}
+          {camper?.user && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Parent / Guardian" icon={<Users className="h-4 w-4" />}>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {[
+                    ['Name', camper.user.name],
+                    ['Email', camper.user.email],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                      <p style={{ color: 'var(--foreground)' }}>{value ?? t('common.not_provided')}</p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
+
           {/* Medical summary */}
           {medical && (
             <motion.div variants={staggerChild}>
               <SectionCard title={t('admin.review.medical_summary')} icon={<Heart className="h-4 w-4" />}>
-                {medical.primary_diagnosis && (
+                {/* Diagnoses */}
+                {medical.diagnoses && medical.diagnoses.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                      {t('admin.review.primary_diagnosis')}
+                    <p className="text-xs font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
+                      <Stethoscope className="h-3 w-3" /> Diagnoses
                     </p>
-                    <p className="text-sm" style={{ color: 'var(--foreground)' }}>
-                      {medical.primary_diagnosis}
-                    </p>
+                    <div className="space-y-1">
+                      {medical.diagnoses.map((d) => (
+                        <p key={d.id} className="text-sm" style={{ color: 'var(--foreground)' }}>
+                          {d.name}{d.icd_code ? ` (${d.icd_code})` : ''}
+                          {d.notes ? <span style={{ color: 'var(--muted-foreground)' }}> — {d.notes}</span> : null}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 )}
 
+                {/* Allergies */}
                 {medical.allergies && medical.allergies.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -472,8 +500,9 @@ export function ApplicationReviewPage() {
                   </div>
                 )}
 
+                {/* Medications */}
                 {medical.medications && medical.medications.length > 0 && (
-                  <div>
+                  <div className="mb-4">
                     <p className="text-xs font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
                       <Pill className="h-3 w-3" /> {t('admin.review.medications')}
                     </p>
@@ -481,11 +510,194 @@ export function ApplicationReviewPage() {
                       {medical.medications.map((m) => (
                         <p key={m.id} className="text-sm" style={{ color: 'var(--foreground)' }}>
                           {m.name} — {m.dosage}, {m.frequency}
+                          {m.route ? ` (${m.route})` : ''}
                         </p>
                       ))}
                     </div>
                   </div>
                 )}
+
+                {/* Special needs / dietary */}
+                {(medical.special_needs || medical.dietary_restrictions) && (
+                  <div className="grid grid-cols-1 gap-3 mb-4">
+                    {medical.special_needs && (
+                      <div>
+                        <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Special Needs</p>
+                        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.special_needs}</p>
+                      </div>
+                    )}
+                    {medical.dietary_restrictions && (
+                      <div>
+                        <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Dietary Restrictions</p>
+                        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.dietary_restrictions}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Seizure info */}
+                {medical.has_seizures && (
+                  <div
+                    className="rounded-lg p-3 border mb-4"
+                    style={{ background: 'rgba(220,38,38,0.06)', borderColor: 'rgba(220,38,38,0.2)' }}
+                  >
+                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--destructive)' }}>Seizure History</p>
+                    {medical.last_seizure_date && (
+                      <p className="text-xs mb-0.5" style={{ color: 'var(--foreground)' }}>
+                        Last seizure: {format(new Date(medical.last_seizure_date), 'MMM d, yyyy')}
+                      </p>
+                    )}
+                    {medical.seizure_description && (
+                      <p className="text-xs whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.seizure_description}</p>
+                    )}
+                    {medical.has_neurostimulator && (
+                      <p className="text-xs mt-1 font-medium" style={{ color: 'var(--destructive)' }}>Has neurostimulator</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Physician & insurance */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    ['Physician', medical.physician_name],
+                    ['Physician Phone', medical.physician_phone],
+                    ['Insurance Provider', medical.insurance_provider],
+                    ['Policy Number', medical.insurance_policy_number],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label as string}>
+                      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                      <p className="text-sm" style={{ color: 'var(--foreground)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {medical.notes && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Medical Notes</p>
+                    <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.notes}</p>
+                  </div>
+                )}
+              </SectionCard>
+            </motion.div>
+          )}
+
+          {/* Emergency contacts */}
+          {camper?.emergency_contacts && camper.emergency_contacts.length > 0 && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
+                <div className="space-y-3">
+                  {camper.emergency_contacts.map((ec) => (
+                    <div
+                      key={ec.id}
+                      className="rounded-lg p-3 border"
+                      style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+                    >
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Name</p>
+                          <p style={{ color: 'var(--foreground)' }}>{ec.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Relationship</p>
+                          <p style={{ color: 'var(--foreground)' }}>{ec.relationship}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Phone</p>
+                          <p style={{ color: 'var(--foreground)' }}>{ec.phone}</p>
+                        </div>
+                        {ec.email && (
+                          <div>
+                            <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Email</p>
+                            <p style={{ color: 'var(--foreground)' }}>{ec.email}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
+
+          {/* Behavioral profile */}
+          {camper?.behavioral_profile && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Behavioral Profile" icon={<Brain className="h-4 w-4" />}>
+                <div className="space-y-3 text-sm">
+                  {[
+                    ['Triggers', camper.behavioral_profile.triggers],
+                    ['De-escalation Strategies', camper.behavioral_profile.de_escalation_strategies],
+                    ['Communication Style', camper.behavioral_profile.communication_style],
+                    ['Notes', camper.behavioral_profile.notes],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label as string}>
+                      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                      <p className="whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
+
+          {/* Feeding plan */}
+          {camper?.feeding_plan && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Feeding Plan" icon={<Utensils className="h-4 w-4" />}>
+                <div className="space-y-3 text-sm">
+                  {[
+                    ['Method', camper.feeding_plan.method],
+                    ['Restrictions', camper.feeding_plan.restrictions],
+                    ['Notes', camper.feeding_plan.notes],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label as string}>
+                      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                      <p className="whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
+
+          {/* Assistive devices */}
+          {camper?.assistive_devices && camper.assistive_devices.length > 0 && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Assistive Devices" icon={<Wrench className="h-4 w-4" />}>
+                <div className="space-y-2">
+                  {camper.assistive_devices.map((d) => (
+                    <div key={d.id} className="text-sm">
+                      <span className="font-medium" style={{ color: 'var(--foreground)' }}>{d.type}</span>
+                      {d.description && (
+                        <span style={{ color: 'var(--muted-foreground)' }}> — {d.description}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
+
+          {/* Activity permissions */}
+          {camper?.activity_permissions && camper.activity_permissions.length > 0 && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
+                <div className="space-y-2">
+                  {camper.activity_permissions.map((p) => (
+                    <div key={p.id} className="flex items-start gap-2 text-sm">
+                      <span
+                        className="mt-0.5 w-4 h-4 flex-shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                        style={{ background: p.permitted ? '#16a34a' : 'var(--destructive)' }}
+                      >
+                        {p.permitted ? '✓' : '✗'}
+                      </span>
+                      <span style={{ color: 'var(--foreground)' }}>
+                        {p.activity}
+                        {p.notes && <span style={{ color: 'var(--muted-foreground)' }}> — {p.notes}</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </SectionCard>
             </motion.div>
           )}
@@ -531,6 +743,24 @@ export function ApplicationReviewPage() {
               )}
             </SectionCard>
           </motion.div>
+
+          {/* Signature */}
+          {application.signed_at && (
+            <motion.div variants={staggerChild}>
+              <SectionCard title="Digital Signature" icon={<PenLine className="h-4 w-4" />}>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Signed by</p>
+                    <p style={{ color: 'var(--foreground)' }}>{application.signature_name ?? t('common.not_provided')}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Signed on</p>
+                    <p style={{ color: 'var(--foreground)' }}>{format(new Date(application.signed_at), 'MMM d, yyyy h:mm a')}</p>
+                  </div>
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
 
           {/* Review notes history */}
           {application.notes && (

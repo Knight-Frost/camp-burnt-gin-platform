@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin, Bell, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 
+import { useTranslation } from 'react-i18next';
 import { getCampers, getApplications } from '@/features/parent/api/applicant.api';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/features/admin/api/notifications.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
@@ -31,6 +32,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 
 export function ApplicantDashboardPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [campers, setCampers] = useState<Camper[]>([]);
@@ -98,7 +100,7 @@ export function ApplicantDashboardPage() {
           className="text-xs uppercase tracking-widest font-medium mb-1"
           style={{ color: 'var(--ember-orange)' }}
         >
-          Welcome back
+          {t('applicant.dashboard.welcome_back')}
         </p>
         <h2
           className="text-2xl font-headline font-semibold"
@@ -107,7 +109,7 @@ export function ApplicantDashboardPage() {
           {firstName}
         </h2>
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-          Manage your campers, applications, and communications from here.
+          {t('applicant.dashboard.subtitle')}
         </p>
       </motion.div>
 
@@ -117,7 +119,7 @@ export function ApplicantDashboardPage() {
           <div className="flex items-center gap-2 mb-3">
             <Megaphone className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
             <h3 className="font-headline font-semibold text-sm" style={{ color: 'var(--foreground)' }}>
-              Announcements
+              {t('applicant.dashboard.announcements')}
             </h3>
           </div>
           <div className="flex flex-col gap-2">
@@ -142,7 +144,7 @@ export function ApplicantDashboardPage() {
                       {ann.is_urgent && (
                         <span className="flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
                           style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}>
-                          Urgent
+                          {t('applicant.dashboard.urgent')}
                         </span>
                       )}
                     </div>
@@ -165,20 +167,20 @@ export function ApplicantDashboardPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
-            label="Registered campers"
+            label={t('applicant.dashboard.stat_campers')}
             value={campers.length}
             icon={Users}
             delay={0}
           />
           <StatCard
-            label="Total applications"
+            label={t('applicant.dashboard.stat_applications')}
             value={applications.length}
             icon={FileText}
             color="var(--night-sky-blue)"
             delay={0.1}
           />
           <StatCard
-            label="Pending review"
+            label={t('applicant.dashboard.stat_pending')}
             value={pendingCount}
             icon={Calendar}
             color="var(--warm-amber)"
@@ -195,14 +197,14 @@ export function ApplicantDashboardPage() {
               className="font-headline font-semibold text-base"
               style={{ color: 'var(--foreground)' }}
             >
-              My Campers
+              {t('applicant.dashboard.my_campers')}
             </h3>
             <Link
               to={ROUTES.PARENT_APPLICATION_NEW}
               className="flex items-center gap-1.5 text-sm text-ember-orange hover:underline"
             >
               <Plus className="h-3.5 w-3.5" />
-              New application
+              {t('applicant.dashboard.new_application')}
             </Link>
           </div>
 
@@ -219,10 +221,10 @@ export function ApplicantDashboardPage() {
               }}
             >
               <EmptyState
-                title="No campers registered"
-                description="Register your first camper to start an application."
+                title={t('applicant.dashboard.no_campers_title')}
+                description={t('applicant.dashboard.no_campers_desc')}
                 action={{
-                  label: 'Start an application',
+                  label: t('applicant.dashboard.start_application'),
                   onClick: () => navigate(ROUTES.PARENT_APPLICATION_NEW),
                 }}
               />
@@ -274,7 +276,7 @@ export function ApplicantDashboardPage() {
                             className="text-xs"
                             style={{ color: 'var(--muted-foreground)' }}
                           >
-                            Age {camper.age} &middot; {camperApps.length} application{camperApps.length !== 1 ? 's' : ''}
+                            {t(camperApps.length === 1 ? 'applicant.dashboard.camper_age_apps_one' : 'applicant.dashboard.camper_age_apps_other', { age: camper.age, count: camperApps.length })}
                           </p>
                         </div>
                       </div>
@@ -306,7 +308,7 @@ export function ApplicantDashboardPage() {
               className="font-headline font-semibold text-base"
               style={{ color: 'var(--foreground)' }}
             >
-              Recent Updates
+              {t('applicant.dashboard.recent_updates')}
             </h3>
             {notifications.some((n) => !n.read_at) && (
               <button
@@ -314,7 +316,7 @@ export function ApplicantDashboardPage() {
                 className="text-xs hover:underline"
                 style={{ color: 'var(--ember-orange)' }}
               >
-                Mark all read
+                {t('applicant.dashboard.mark_all_read')}
               </button>
             )}
           </div>
@@ -328,7 +330,7 @@ export function ApplicantDashboardPage() {
             >
               <Bell className="h-5 w-5 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                No recent updates.
+                {t('applicant.dashboard.no_updates')}
               </p>
             </div>
           ) : (
@@ -367,7 +369,7 @@ export function ApplicantDashboardPage() {
                           className={`text-sm mb-0.5 ${isUnread ? 'font-semibold' : 'font-medium'}`}
                           style={{ color: 'var(--foreground)' }}
                         >
-                          {n.title || 'Notification'}
+                          {n.title || t('applicant.dashboard.notification_fallback')}
                         </p>
                         {n.message && (
                           <p
@@ -410,7 +412,7 @@ export function ApplicantDashboardPage() {
           className="font-headline font-semibold text-base mb-4"
           style={{ color: 'var(--foreground)' }}
         >
-          Quick Actions
+          {t('applicant.dashboard.quick_actions')}
         </h3>
         <div className="flex flex-wrap gap-3">
           <Button
@@ -420,7 +422,7 @@ export function ApplicantDashboardPage() {
             size="sm"
           >
             <Plus className="h-4 w-4" />
-            New application
+            {t('applicant.dashboard.new_application')}
           </Button>
           <Button
             as={Link}
@@ -428,7 +430,7 @@ export function ApplicantDashboardPage() {
             variant="secondary"
             size="sm"
           >
-            View all applications
+            {t('applicant.dashboard.view_all_applications')}
           </Button>
           <Button
             as={Link}
@@ -436,7 +438,7 @@ export function ApplicantDashboardPage() {
             variant="secondary"
             size="sm"
           >
-            Open inbox
+            {t('applicant.dashboard.open_inbox')}
           </Button>
         </div>
       </motion.div>

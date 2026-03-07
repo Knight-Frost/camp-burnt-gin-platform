@@ -16,6 +16,7 @@ import { clearAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { getNotifications } from '@/features/admin/api/notifications.api';
 import { NotificationPanel } from '@/ui/components/NotificationPanel';
+import { LanguageToggle } from '@/ui/components/LanguageToggle';
 import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getProfileRoute } from '@/shared/constants/roles';
 import { dropdownVariants } from '@/shared/constants/motion';
@@ -85,6 +86,9 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
 
         {/* Right controls */}
         <div className="flex items-center gap-1">
+          {/* Language toggle */}
+          <LanguageToggle />
+
           {/* Settings gear */}
           <Link
             to={settingsRoute}

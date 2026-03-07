@@ -193,4 +193,36 @@ class Camper extends Model
             fn ($allergy) => $allergy->requiresImmediateAttention()
         );
     }
+
+    /**
+     * Get all medical incidents recorded for this camper.
+     */
+    public function incidents(): HasMany
+    {
+        return $this->hasMany(MedicalIncident::class);
+    }
+
+    /**
+     * Get all medical follow-ups for this camper.
+     */
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(MedicalFollowUp::class);
+    }
+
+    /**
+     * Get all medical visits for this camper.
+     */
+    public function visits(): HasMany
+    {
+        return $this->hasMany(MedicalVisit::class);
+    }
+
+    /**
+     * Get all medical restrictions for this camper.
+     */
+    public function restrictions(): HasMany
+    {
+        return $this->hasMany(MedicalRestriction::class);
+    }
 }

@@ -69,6 +69,10 @@ const MedicalDashboardPage     = withSuspense(lazy(() => import('@/features/medi
 const MedicalRecordPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordPage').then(m => ({ default: m.MedicalRecordPage }))));
 const MedicalTreatmentLogPage  = withSuspense(lazy(() => import('@/features/medical/pages/MedicalTreatmentLogPage').then(m => ({ default: m.MedicalTreatmentLogPage }))));
 const MedicalDocumentsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDocumentsPage').then(m => ({ default: m.MedicalDocumentsPage }))));
+const MedicalIncidentsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalIncidentsPage').then(m => ({ default: m.MedicalIncidentsPage }))));
+const MedicalFollowUpsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalFollowUpsPage').then(m => ({ default: m.MedicalFollowUpsPage }))));
+const MedicalVisitsPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalVisitsPage').then(m => ({ default: m.MedicalVisitsPage }))));
+const MedicalEmergencyViewPage = withSuspense(lazy(() => import('@/features/medical/pages/MedicalEmergencyViewPage').then(m => ({ default: m.MedicalEmergencyViewPage }))));
 
 // ─── Super admin pages ────────────────────────────────────────────────────────
 const SuperAdminDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/SuperAdminDashboardPage').then(m => ({ default: m.SuperAdminDashboardPage }))));
@@ -167,6 +171,12 @@ export const router = createBrowserRouter([
           { path: '/medical/records/:camperId/treatments',       element: <MedicalTreatmentLogPage /> },
           { path: '/medical/records/:camperId/documents',        element: <MedicalDocumentsPage /> },
           { path: '/medical/treatments',                         element: <MedicalTreatmentLogPage /> },
+          { path: '/medical/incidents',                          element: <MedicalIncidentsPage /> },
+          { path: '/medical/follow-ups',                         element: <MedicalFollowUpsPage /> },
+          { path: '/medical/visits',                             element: <MedicalVisitsPage /> },
+          { path: '/medical/records/:camperId/incidents',        element: <MedicalIncidentsPage /> },
+          { path: '/medical/records/:camperId/visits',           element: <MedicalVisitsPage /> },
+          { path: '/medical/records/:camperId/emergency',        element: <MedicalEmergencyViewPage /> },
           { path: '/medical/announcements',                      element: <ParentAnnouncementsPage /> },
           { path: '/medical/inbox',                              element: <InboxPage /> },
           { path: '/medical/profile',                            element: <ProfilePage /> },

@@ -185,10 +185,15 @@ class ApplicationController extends Controller
         $this->authorize('view', $application);
 
         $application->load([
+            'camper.user',
             'camper.medicalRecord.allergies',
             'camper.medicalRecord.medications',
             'camper.medicalRecord.diagnoses',
             'camper.emergencyContacts',
+            'camper.behavioralProfile',
+            'camper.feedingPlan',
+            'camper.assistiveDevices',
+            'camper.activityPermissions',
             'campSession.camp',
             'reviewer',
             'documents',

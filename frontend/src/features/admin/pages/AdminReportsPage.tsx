@@ -86,8 +86,10 @@ export function AdminReportsPage() {
     { name: 'Pending',  value: Math.max(0, total - accepted - rejected), color: '#e5e7eb' },
   ].filter((d) => d.value > 0);
 
-  // Timeline data is not available from the summary endpoint — omit for now
-  const timelineData: { month: string; count: number }[] = [];
+  const timelineData = (summary?.applications_over_time ?? []).map(({ month, count }) => ({
+    month: new Date(`${month}-01`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+    count,
+  }));
 
   // Enrollment per session
   const sessionData = (summary?.sessions ?? []).map((s) => ({

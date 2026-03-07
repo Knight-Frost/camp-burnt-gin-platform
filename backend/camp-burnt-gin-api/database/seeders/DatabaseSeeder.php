@@ -89,6 +89,7 @@ class DatabaseSeeder extends Seeder
         // Medical data — diagnoses, allergies, medications, treatment logs.
         if (config('seeding.enable_medical_seeds', true)) {
             $this->call(MedicalSeeder::class);
+            $this->call(MedicalPhase11Seeder::class); // incidents, visits, follow-ups, restrictions
         } else {
             $this->command->warn('Medical seeds disabled (ENABLE_MEDICAL_SEEDS=false).');
         }

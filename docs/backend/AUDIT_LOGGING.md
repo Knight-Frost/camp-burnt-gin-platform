@@ -77,6 +77,11 @@ The following PHI-related activities are logged:
 - Document access (upload, view, download, delete)
 - Medical provider link access (unauthenticated PHI submission)
 - Application review (contains PHI references)
+- Treatment log access (view, create, update, delete)
+- Medical incident creation, update, and deletion (all PHI fields encrypted at rest)
+- Medical follow-up task creation and status changes
+- Health office visit recording, update, and deletion (vitals and clinical notes are PHI)
+- Medical restriction creation and modification
 
 ---
 
@@ -183,6 +188,26 @@ AuditLog::logPhiAccess('view', $user, $medicalRecord, [
 ]);
 ```
 
+**New Medical Entities (Phase 11):**
+```php
+// Medical Incident — PHI logged on create/update
+AuditLog::logPhiAccess('create', $user, $medicalIncident, [
+    'route'          => 'medical-incidents.store',
+    'method'         => 'POST',
+    'incident_type'  => $medicalIncident->type->value,
+    'severity'       => $medicalIncident->severity->value,
+    'camper_id'      => $medicalIncident->camper_id,
+]);
+
+// Medical Visit — vitals are PHI
+AuditLog::logPhiAccess('create', $user, $medicalVisit, [
+    'route'       => 'medical-visits.store',
+    'method'      => 'POST',
+    'disposition' => $medicalVisit->disposition->value,
+    'camper_id'   => $medicalVisit->camper_id,
+]);
+```
+
 **Administrative Actions:**
 ```php
 AuditLog::logAdminAction('application_review', $user,
@@ -215,6 +240,11 @@ protected array $phiRoutePatterns = [
     'applications.store',
     'applications.review',
     'campers.show',
+    'treatment-logs.*',
+    'medical-incidents.*',
+    'medical-follow-ups.*',
+    'medical-visits.*',
+    'medical-restrictions.*',
 ];
 ```
 
@@ -568,6 +598,23 @@ AuditLog::where('request_id', $requestId)
     ->get();
 ```
 
+**All PHI Events for a Camper's Medical Incidents (Phase 11):**
+```php
+// All PHI events touching a specific camper's medical incidents
+AuditLog::query()
+    ->where('entity_type', MedicalIncident::class)
+    ->whereJsonContains('metadata->camper_id', $camperId)
+    ->orderByDesc('created_at')
+    ->get();
+
+// All overdue follow-up status changes
+AuditLog::query()
+    ->where('entity_type', MedicalFollowUp::class)
+    ->where('action', 'update')
+    ->where('created_at', '>=', now()->subDays(7))
+    ->get();
+```
+
 ### Analytics Queries
 
 **PHI Access Volume by Day:**
@@ -754,6 +801,6 @@ Authorization: Bearer <super_admin_token>
 ---
 
 **Document Status:** Authoritative
-**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 9 additions)
+**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 9 additions); Phase 11 — Medical Portal Expansion (2026-03-07)
 **Version:** 1.1.0
 **HIPAA Compliance:** Reviewed and approved for §164.312(b) requirements

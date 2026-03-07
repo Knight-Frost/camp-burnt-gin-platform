@@ -5,23 +5,16 @@
  */
 
 import { Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, User, Settings, Inbox, ClipboardList, Megaphone } from 'lucide-react';
+import { LayoutDashboard, User, Settings, Inbox, ClipboardList, Megaphone, AlertOctagon, ClipboardCheck, Stethoscope } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
 import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',      to: ROUTES.MEDICAL_DASHBOARD,      icon: LayoutDashboard },
-  { label: 'Treatment Logs', to: '/medical/treatments',          icon: ClipboardList },
-  { label: 'Announcements',  to: ROUTES.MEDICAL_ANNOUNCEMENTS,   icon: Megaphone },
-  { label: 'Inbox',          to: '/medical/inbox',               icon: Inbox },
-  { label: 'Profile',        to: '/medical/profile',             icon: User },
-  { label: 'Settings',       to: '/medical/settings',            icon: Settings },
-];
-
 export function MedicalLayout() {
+  const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
   const hasAccess = Boolean(
     user?.roles?.some((r) => ['medical', 'admin', 'super_admin'].includes(r.name)) ||
@@ -34,8 +27,20 @@ export function MedicalLayout() {
     return <Navigate to={getDashboardRoute(role)} replace />;
   }
 
+  const navItems: NavItem[] = [
+    { label: t('portal_nav.dashboard'),      to: ROUTES.MEDICAL_DASHBOARD,    icon: LayoutDashboard },
+    { label: t('portal_nav.treatment_logs'), to: '/medical/treatments',        icon: ClipboardList },
+    { label: t('portal_nav.incidents'),      to: ROUTES.MEDICAL_INCIDENTS,     icon: AlertOctagon },
+    { label: t('portal_nav.follow_ups'),     to: ROUTES.MEDICAL_FOLLOW_UPS,    icon: ClipboardCheck },
+    { label: t('portal_nav.visits'),         to: ROUTES.MEDICAL_VISITS,        icon: Stethoscope },
+    { label: t('portal_nav.announcements'),  to: ROUTES.MEDICAL_ANNOUNCEMENTS, icon: Megaphone },
+    { label: t('portal_nav.inbox'),          to: '/medical/inbox',             icon: Inbox },
+    { label: t('portal_nav.profile'),        to: '/medical/profile',           icon: User },
+    { label: t('portal_nav.settings'),       to: '/medical/settings',          icon: Settings },
+  ];
+
   return (
-    <DashboardShell navItems={NAV_ITEMS} pageTitle="Medical Dashboard">
+    <DashboardShell navItems={navItems} pageTitle={t('medical.dashboard.title')}>
       <Outlet />
     </DashboardShell>
   );

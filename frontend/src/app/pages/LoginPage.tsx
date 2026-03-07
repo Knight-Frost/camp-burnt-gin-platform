@@ -25,6 +25,7 @@ import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getDashboardRoute } from '@/shared/constants/roles';
 import type { User } from '@/shared/types';
 import { isValidationError, isLockoutError, isRateLimitError } from '@/shared/types';
+import { useTranslation } from 'react-i18next';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 
 const CODE_LENGTH = 6;
@@ -40,6 +41,7 @@ function inputCls(hasError: boolean, extra = '') {
 }
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
@@ -168,8 +170,8 @@ export function LoginPage() {
   if (mfaStep) {
     return (
       <AuthCard
-        title="Two-factor authentication"
-        subtitle="Enter the 6-digit code from your authenticator app."
+        title={t('auth.mfa.title')}
+        subtitle={t('auth.mfa.description')}
       >
         <div className="flex flex-col items-center gap-8">
           <motion.div
@@ -228,7 +230,7 @@ export function LoginPage() {
             className="w-full py-3.5 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: '#1e3a6e', fontSize: '1rem' }}
           >
-            {mfaSubmitting ? 'Verifying…' : 'Verify identity'}
+            {mfaSubmitting ? t('common.loading') : t('auth.mfa.submit')}
           </button>
 
           <button
@@ -237,7 +239,7 @@ export function LoginPage() {
             className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to login
+            {t('auth.mfa.back_to_login')}
           </button>
         </div>
       </AuthCard>
@@ -246,13 +248,13 @@ export function LoginPage() {
 
   return (
     <AuthCard
-      title="Welcome to Camp Burnt Gin!"
-      subtitle="Log in to continue your camper application."
+      title={t('auth.login.title')}
+      subtitle={t('auth.login.description')}
       footer={
         <p>
-          Need an account?{' '}
+          {t('auth.login.no_account')}{' '}
           <Link to={ROUTES.REGISTER} className="text-blue-600 font-semibold hover:underline">
-            Create one now
+            {t('auth.login.create_account')}
           </Link>
         </p>
       }
@@ -262,7 +264,7 @@ export function LoginPage() {
         {/* ── Email ── */}
         <div className="flex flex-col gap-2">
           <label htmlFor="login-email" className="font-semibold text-[#1e293b]" style={{ fontSize: '0.9375rem' }}>
-            Email Address
+            {t('auth.login.email_label')}
           </label>
           <div className="relative">
             <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 pointer-events-none" style={{ width: '1.125rem', height: '1.125rem' }} />
@@ -270,7 +272,7 @@ export function LoginPage() {
               id="login-email"
               type="email"
               autoComplete="email"
-              placeholder="your.email@example.com"
+              placeholder={t('auth.login.email_placeholder')}
               aria-invalid={errors.email ? 'true' : 'false'}
               className={inputCls(!!errors.email, 'pr-4')}
               style={{ fontSize: '0.9375rem' }}
@@ -286,14 +288,14 @@ export function LoginPage() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label htmlFor="login-password" className="font-semibold text-[#1e293b]" style={{ fontSize: '0.9375rem' }}>
-              Password
+              {t('auth.login.password_label')}
             </label>
             <Link
               to={ROUTES.FORGOT_PASSWORD}
               className="text-slate-500 hover:text-[#1e3a6e] transition-colors"
               style={{ fontSize: '0.875rem' }}
             >
-              Forgot password?
+              {t('auth.login.forgot_password')}
             </Link>
           </div>
           <div className="relative">
@@ -302,7 +304,7 @@ export function LoginPage() {
               id="login-password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
-              placeholder="Enter your password"
+              placeholder={t('auth.login.password_placeholder')}
               aria-invalid={errors.password ? 'true' : 'false'}
               className={inputCls(!!errors.password, 'pr-12')}
               style={{ fontSize: '0.9375rem' }}
@@ -313,7 +315,7 @@ export function LoginPage() {
               onClick={() => setShowPassword(v => !v)}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
               style={{ transform: 'translateY(-50%)' }}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ? t('auth.login.hide_password') : t('auth.login.show_password')}
             >
               {showPassword ? <EyeOff style={{ width: '1.125rem', height: '1.125rem' }} /> : <Eye style={{ width: '1.125rem', height: '1.125rem' }} />}
             </button>
@@ -341,14 +343,14 @@ export function LoginPage() {
           className="w-full mt-1 py-3.5 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: '#1e3a6e', fontSize: '1rem' }}
         >
-          {isSubmitting ? 'Signing in…' : 'Log In'}
+          {isSubmitting ? t('common.loading') : t('auth.login.submit')}
         </button>
 
         {/* ── HIPAA notice ── */}
         <div className="flex items-center justify-center gap-2 pt-1">
           <ShieldCheck className="flex-shrink-0 text-slate-400" style={{ width: '1rem', height: '1rem' }} />
           <p className="text-center text-slate-400" style={{ fontSize: '0.8125rem' }}>
-            Secure Login Protected by HIPAA Standards
+            {t('auth.hipaa_notice')}
           </p>
         </div>
 

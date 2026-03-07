@@ -304,3 +304,325 @@ export async function downloadDocument(id: number): Promise<Blob> {
   const { data } = await axiosInstance.get(`/documents/${id}/download`, { responseType: 'blob' });
   return data;
 }
+
+// ─── Delete operations ────────────────────────────────────────────────────────
+
+export async function deleteAllergy(id: number): Promise<void> {
+  await axiosInstance.delete(`/allergies/${id}`);
+}
+
+export async function deleteMedication(id: number): Promise<void> {
+  await axiosInstance.delete(`/medications/${id}`);
+}
+
+export async function deleteDiagnosis(id: number): Promise<void> {
+  await axiosInstance.delete(`/diagnoses/${id}`);
+}
+
+export async function deleteAssistiveDevice(id: number): Promise<void> {
+  await axiosInstance.delete(`/assistive-devices/${id}`);
+}
+
+export async function deleteTreatmentLog(id: number): Promise<void> {
+  await axiosInstance.delete(`/treatment-logs/${id}`);
+}
+
+export async function deleteDocument(id: number): Promise<void> {
+  await axiosInstance.delete(`/documents/${id}`);
+}
+
+// ─── Medical Stats ────────────────────────────────────────────────────────────
+
+export interface MedicalStats {
+  campers: {
+    total: number;
+    with_severe_allergies: number;
+    on_medications: number;
+    with_active_restrictions: number;
+    missing_medical_record: number;
+  };
+  follow_ups: {
+    due_today: number;
+    overdue: number;
+    open: number;
+  };
+  recent_activity: {
+    treatments: TreatmentLog[];
+    incidents: MedicalIncident[];
+    visits: MedicalVisit[];
+  };
+  treatment_type_counts: Record<string, number>;
+}
+
+export async function getMedicalStats(): Promise<MedicalStats> {
+  const { data } = await axiosInstance.get<{ data: MedicalStats }>('/medical/stats');
+  return data.data;
+}
+
+// ─── Medical Incidents ────────────────────────────────────────────────────────
+
+export type IncidentType =
+  | 'behavioral'
+  | 'medical'
+  | 'injury'
+  | 'environmental'
+  | 'emergency'
+  | 'other';
+
+export type IncidentSeverity = 'minor' | 'moderate' | 'severe' | 'critical';
+
+export interface MedicalIncident {
+  id: number;
+  camper_id: number;
+  recorded_by: number;
+  treatment_log_id?: number;
+  recorder?: { id: number; name: string };
+  camper?: { id: number; full_name: string };
+  type: IncidentType;
+  severity: IncidentSeverity;
+  location?: string;
+  title: string;
+  description: string;
+  witnesses?: string;
+  escalation_required: boolean;
+  escalation_notes?: string;
+  incident_date: string;
+  incident_time?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreMedicalIncidentPayload {
+  camper_id: number;
+  treatment_log_id?: number;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  location?: string;
+  title: string;
+  description: string;
+  witnesses?: string;
+  escalation_required?: boolean;
+  escalation_notes?: string;
+  incident_date: string;
+  incident_time?: string;
+}
+
+export async function getMedicalIncidents(params?: {
+  camper_id?: number;
+  type?: IncidentType;
+  severity?: IncidentSeverity;
+  from?: string;
+  to?: string;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalIncident>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalIncident>>('/medical-incidents', { params });
+  return data;
+}
+
+export async function createMedicalIncident(payload: StoreMedicalIncidentPayload): Promise<MedicalIncident> {
+  const { data } = await axiosInstance.post<ApiResponse<MedicalIncident>>('/medical-incidents', payload);
+  return data.data;
+}
+
+export async function updateMedicalIncident(id: number, payload: Partial<StoreMedicalIncidentPayload>): Promise<MedicalIncident> {
+  const { data } = await axiosInstance.put<ApiResponse<MedicalIncident>>(`/medical-incidents/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteMedicalIncident(id: number): Promise<void> {
+  await axiosInstance.delete(`/medical-incidents/${id}`);
+}
+
+// ─── Medical Follow-Ups ───────────────────────────────────────────────────────
+
+export type FollowUpStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type FollowUpPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface MedicalFollowUp {
+  id: number;
+  camper_id: number;
+  created_by: number;
+  assigned_to?: number;
+  treatment_log_id?: number;
+  creator?: { id: number; name: string };
+  assignee?: { id: number; name: string };
+  camper?: { id: number; full_name: string };
+  title: string;
+  notes?: string;
+  status: FollowUpStatus;
+  priority: FollowUpPriority;
+  due_date: string;
+  completed_at?: string;
+  completed_by?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreMedicalFollowUpPayload {
+  camper_id: number;
+  assigned_to?: number;
+  treatment_log_id?: number;
+  title: string;
+  notes?: string;
+  status?: FollowUpStatus;
+  priority?: FollowUpPriority;
+  due_date: string;
+}
+
+export async function getMedicalFollowUps(params?: {
+  camper_id?: number;
+  status?: FollowUpStatus;
+  assigned_to?: number;
+  overdue?: boolean;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalFollowUp>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalFollowUp>>('/medical-follow-ups', { params });
+  return data;
+}
+
+export async function createMedicalFollowUp(payload: StoreMedicalFollowUpPayload): Promise<MedicalFollowUp> {
+  const { data } = await axiosInstance.post<ApiResponse<MedicalFollowUp>>('/medical-follow-ups', payload);
+  return data.data;
+}
+
+export async function updateMedicalFollowUp(id: number, payload: Partial<StoreMedicalFollowUpPayload & { status: FollowUpStatus }>): Promise<MedicalFollowUp> {
+  const { data } = await axiosInstance.put<ApiResponse<MedicalFollowUp>>(`/medical-follow-ups/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteMedicalFollowUp(id: number): Promise<void> {
+  await axiosInstance.delete(`/medical-follow-ups/${id}`);
+}
+
+// ─── Medical Visits ───────────────────────────────────────────────────────────
+
+export type VisitDisposition =
+  | 'returned_to_activity'
+  | 'monitoring'
+  | 'sent_home'
+  | 'emergency_transfer'
+  | 'other';
+
+export interface MedicalVisitVitals {
+  temp?: number;
+  pulse?: number;
+  bp_systolic?: number;
+  bp_diastolic?: number;
+  weight?: number;
+  spo2?: number;
+}
+
+export interface MedicalVisit {
+  id: number;
+  camper_id: number;
+  recorded_by: number;
+  recorder?: { id: number; name: string };
+  camper?: { id: number; full_name: string };
+  visit_date: string;
+  visit_time?: string;
+  chief_complaint: string;
+  symptoms: string;
+  vitals?: MedicalVisitVitals;
+  treatment_provided?: string;
+  medications_administered?: string;
+  disposition: VisitDisposition;
+  disposition_notes?: string;
+  follow_up_required: boolean;
+  follow_up_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreMedicalVisitPayload {
+  camper_id: number;
+  visit_date: string;
+  visit_time?: string;
+  chief_complaint: string;
+  symptoms: string;
+  vitals?: MedicalVisitVitals;
+  treatment_provided?: string;
+  medications_administered?: string;
+  disposition: VisitDisposition;
+  disposition_notes?: string;
+  follow_up_required?: boolean;
+  follow_up_notes?: string;
+}
+
+export async function getMedicalVisits(params?: {
+  camper_id?: number;
+  disposition?: VisitDisposition;
+  from?: string;
+  to?: string;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalVisit>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalVisit>>('/medical-visits', { params });
+  return data;
+}
+
+export async function createMedicalVisit(payload: StoreMedicalVisitPayload): Promise<MedicalVisit> {
+  const { data } = await axiosInstance.post<ApiResponse<MedicalVisit>>('/medical-visits', payload);
+  return data.data;
+}
+
+export async function updateMedicalVisit(id: number, payload: Partial<StoreMedicalVisitPayload>): Promise<MedicalVisit> {
+  const { data } = await axiosInstance.put<ApiResponse<MedicalVisit>>(`/medical-visits/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteMedicalVisit(id: number): Promise<void> {
+  await axiosInstance.delete(`/medical-visits/${id}`);
+}
+
+// ─── Medical Restrictions ──────────────────────────────────────────────────────
+
+export type RestrictionType = 'activity' | 'dietary' | 'environmental' | 'medication' | 'other';
+
+export interface MedicalRestriction {
+  id: number;
+  camper_id: number;
+  created_by: number;
+  creator?: { id: number; name: string };
+  camper?: { id: number; full_name: string };
+  restriction_type: RestrictionType;
+  description: string;
+  start_date?: string;
+  end_date?: string;
+  is_active: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreMedicalRestrictionPayload {
+  camper_id: number;
+  restriction_type: RestrictionType;
+  description: string;
+  start_date?: string;
+  end_date?: string;
+  is_active?: boolean;
+  notes?: string;
+}
+
+export async function getMedicalRestrictions(params?: {
+  camper_id?: number;
+  restriction_type?: RestrictionType;
+  is_active?: boolean;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalRestriction>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalRestriction>>('/medical-restrictions', { params });
+  return data;
+}
+
+export async function createMedicalRestriction(payload: StoreMedicalRestrictionPayload): Promise<MedicalRestriction> {
+  const { data } = await axiosInstance.post<ApiResponse<MedicalRestriction>>('/medical-restrictions', payload);
+  return data.data;
+}
+
+export async function updateMedicalRestriction(id: number, payload: Partial<StoreMedicalRestrictionPayload>): Promise<MedicalRestriction> {
+  const { data } = await axiosInstance.put<ApiResponse<MedicalRestriction>>(`/medical-restrictions/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteMedicalRestriction(id: number): Promise<void> {
+  await axiosInstance.delete(`/medical-restrictions/${id}`);
+}

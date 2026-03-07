@@ -26,6 +26,11 @@
 15. [Document Endpoints](#document-endpoints)
 16. [Medical Provider Link Endpoints](#medical-provider-link-endpoints)
 17. [Treatment Log Endpoints](#treatment-log-endpoints)
+- [Medical Incident Endpoints](#medical-incident-endpoints)
+- [Medical Follow-Up Endpoints](#medical-follow-up-endpoints)
+- [Medical Visit Endpoints](#medical-visit-endpoints)
+- [Medical Restriction Endpoints](#medical-restriction-endpoints)
+- [Medical Stats Endpoint](#medical-stats-endpoint)
 18. [Notification Endpoints](#notification-endpoints)
 19. [Inbox Endpoints](#inbox-endpoints)
 20. [Report Endpoints](#report-endpoints)
@@ -541,7 +546,9 @@ Soft delete session.
 
 List campers. Parents see only their own campers; admins see all.
 
-**Auth:** Yes | **Role:** Parent, Admin | **Rate Limit:** `api`
+**Auth:** Yes | **Role:** Parent, Admin, Medical | **Rate Limit:** `api`
+
+> **Note (Phase 11):** The `medical` role now receives the full camper list with eager-loaded medical record relations (allergies, medications, emergency contacts, active restrictions) to support clinical workflow.
 
 **Query Parameters:**
 | Parameter | Type | Description |
@@ -1336,6 +1343,468 @@ Delete a treatment log entry. Admin only.
 **Auth:** Yes | **Role:** `admin` | **Rate Limit:** `api`
 
 **Success (200):** `{ "message": "Treatment log deleted." }`
+
+---
+
+## Medical Incident Endpoints
+
+Incident reports for events occurring during camp sessions. All PHI fields are encrypted at rest.
+
+**Authorization:** `admin`, `medical` roles. Destroy is admin-only.
+
+---
+
+### `GET /medical-incidents`
+
+List all incidents. Supports filtering.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `camper_id` | integer | Filter by camper |
+| `type` | string | Filter by incident type enum value |
+| `severity` | string | Filter by severity enum value |
+| `date_from` | date | Filter incidents on or after this date |
+| `date_to` | date | Filter incidents on or before this date |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "camper_id": 4,
+      "recorded_by": 3,
+      "type": "medical",
+      "severity": "moderate",
+      "location": "Archery Range",
+      "title": "Hypoglycemia episode",
+      "description": "...",
+      "witnesses": "Jordan Reed, Sam Park",
+      "escalation_required": true,
+      "escalation_notes": "Parents notified at 2:45 PM.",
+      "incident_date": "2026-03-04",
+      "incident_time": "14:12:00",
+      "camper": { "id": 4, "full_name": "Ava Williams" },
+      "recorder": { "id": 3, "name": "Dr. Morgan Chen" }
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 7, "per_page": 15 }
+}
+```
+
+---
+
+### `POST /medical-incidents`
+
+Create a new incident report.
+
+**Request Body:**
+```json
+{
+  "camper_id": 4,
+  "type": "medical",
+  "severity": "moderate",
+  "location": "Archery Range",
+  "title": "Hypoglycemia episode — BG 52 mg/dL",
+  "description": "Dexcom alarmed during archery activity...",
+  "witnesses": "Jordan Reed",
+  "escalation_required": true,
+  "escalation_notes": "Parents notified at 2:45 PM.",
+  "incident_date": "2026-03-04",
+  "incident_time": "14:12:00",
+  "treatment_log_id": null
+}
+```
+
+**Enum Values:**
+- `type`: `behavioral`, `medical`, `injury`, `environmental`, `emergency`, `other`
+- `severity`: `minor`, `moderate`, `severe`, `critical`
+
+**Response `201`:** Created incident object.
+
+---
+
+### `GET /medical-incidents/{id}`
+
+View a single incident by ID.
+
+**Response `200`:** Full incident object with `camper` and `recorder` relations.
+
+---
+
+### `PUT /medical-incidents/{id}`
+
+Update an existing incident.
+
+**Request Body:** Any subset of `POST` fields.
+
+**Response `200`:** Updated incident object.
+
+---
+
+### `DELETE /medical-incidents/{id}`
+
+Delete an incident. **Admin only.**
+
+**Response `204`:** No content.
+
+---
+
+### `GET /medical-incidents/camper/{camper}`
+
+List all incidents for a specific camper.
+
+**Response `200`:** Paginated list of incidents for the given camper.
+
+---
+
+## Medical Follow-Up Endpoints
+
+Task queue for tracking medical follow-up actions after incidents, visits, or treatment logs.
+
+**Authorization:** `admin`, `medical` roles. Destroy is admin-only.
+
+---
+
+### `GET /medical-follow-ups`
+
+List all follow-ups. Supports filtering.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `camper_id` | integer | Filter by camper |
+| `status` | string | Filter by status enum value |
+| `priority` | string | Filter by priority enum value |
+| `assigned_to` | integer | Filter by assigned user ID |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "camper_id": 4,
+      "created_by": 3,
+      "assigned_to": 3,
+      "title": "Contact endocrinologist re: basal rate adjustment",
+      "notes": "Second hypoglycemia episode this session.",
+      "status": "pending",
+      "priority": "urgent",
+      "due_date": "2026-03-05",
+      "completed_at": null,
+      "completed_by": null,
+      "camper": { "id": 4, "full_name": "Ava Williams" },
+      "assignee": { "id": 3, "name": "Dr. Morgan Chen" }
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 7, "per_page": 15 }
+}
+```
+
+---
+
+### `POST /medical-follow-ups`
+
+Create a follow-up task.
+
+**Request Body:**
+```json
+{
+  "camper_id": 4,
+  "assigned_to": 3,
+  "title": "Contact endocrinologist re: basal rate adjustment",
+  "notes": "Second hypoglycemia episode this session.",
+  "priority": "urgent",
+  "due_date": "2026-03-05",
+  "treatment_log_id": null
+}
+```
+
+**Enum Values:**
+- `status`: `pending`, `in_progress`, `completed`, `cancelled`
+- `priority`: `low`, `medium`, `high`, `urgent`
+
+**Response `201`:** Created follow-up object.
+
+---
+
+### `GET /medical-follow-ups/{id}`
+
+View a single follow-up.
+
+**Response `200`:** Full follow-up object with `camper`, `creator`, `assignee` relations.
+
+---
+
+### `PUT /medical-follow-ups/{id}`
+
+Update a follow-up, including status transitions.
+
+**Request Body:** Any subset of `POST` fields plus `status`, `completed_at`.
+
+When `status` is set to `completed`, the API automatically sets `completed_at` to the current timestamp and `completed_by` to the authenticated user.
+
+**Response `200`:** Updated follow-up object.
+
+---
+
+### `DELETE /medical-follow-ups/{id}`
+
+Delete a follow-up task. **Admin only.**
+
+**Response `204`:** No content.
+
+---
+
+## Medical Visit Endpoints
+
+Health office visit records documenting chief complaint, vitals, treatment, and disposition.
+
+**Authorization:** `admin`, `medical` roles. Destroy is admin-only.
+
+---
+
+### `GET /medical-visits`
+
+List all health office visits.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `camper_id` | integer | Filter by camper |
+| `disposition` | string | Filter by disposition enum value |
+| `date_from` | date | Filter visits on or after this date |
+| `date_to` | date | Filter visits on or before this date |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "camper_id": 4,
+      "recorded_by": 3,
+      "visit_date": "2026-03-04",
+      "visit_time": "14:30:00",
+      "chief_complaint": "Post-hypoglycemia monitoring",
+      "symptoms": "Pallor, diaphoresis at presentation.",
+      "vitals": { "temp": "98.4", "pulse": "92", "bp": "108/66", "spo2": "99", "weight": null },
+      "treatment_provided": "Glucose monitoring x3, oral hydration.",
+      "medications_administered": "Glucose tabs 15g",
+      "disposition": "returned_to_activity",
+      "disposition_notes": "BG stable at 94 after 15 min.",
+      "follow_up_required": true,
+      "follow_up_notes": "Schedule call with endocrinologist.",
+      "camper": { "id": 4, "full_name": "Ava Williams" }
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 8, "per_page": 15 }
+}
+```
+
+---
+
+### `POST /medical-visits`
+
+Record a new health office visit.
+
+**Request Body:**
+```json
+{
+  "camper_id": 4,
+  "visit_date": "2026-03-04",
+  "visit_time": "14:30:00",
+  "chief_complaint": "Post-hypoglycemia monitoring",
+  "symptoms": "Pallor, diaphoresis.",
+  "vitals": { "temp": "98.4", "pulse": "92", "bp": "108/66", "spo2": "99", "weight": null },
+  "treatment_provided": "Glucose monitoring x3.",
+  "medications_administered": "Glucose tabs 15g",
+  "disposition": "returned_to_activity",
+  "disposition_notes": "BG stable at 94 mg/dL.",
+  "follow_up_required": true,
+  "follow_up_notes": "Contact endocrinologist."
+}
+```
+
+**Enum Values (`disposition`):** `returned_to_activity`, `monitoring`, `sent_home`, `emergency_transfer`, `other`
+
+**Response `201`:** Created visit object.
+
+---
+
+### `GET /medical-visits/{id}`
+
+View a single health office visit.
+
+**Response `200`:** Full visit object with `camper` and `recorder` relations.
+
+---
+
+### `PUT /medical-visits/{id}`
+
+Update a health office visit record.
+
+**Request Body:** Any subset of `POST` fields.
+
+**Response `200`:** Updated visit object.
+
+---
+
+### `DELETE /medical-visits/{id}`
+
+Delete a visit record. **Admin only.**
+
+**Response `204`:** No content.
+
+---
+
+### `GET /medical-visits/camper/{camper}`
+
+List all health office visits for a specific camper.
+
+**Response `200`:** Paginated list of visits for the given camper.
+
+---
+
+## Medical Restriction Endpoints
+
+Active camper restrictions (activity, dietary, environmental, equipment) for clinical context.
+
+**Authorization:** `admin` can create/update/delete. `medical` can view only.
+
+---
+
+### `GET /medical-restrictions`
+
+List all restrictions.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `camper_id` | integer | Filter by camper |
+| `is_active` | boolean | Filter active/inactive restrictions |
+| `restriction_type` | string | Filter by type (activity, dietary, environmental, equipment) |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "camper_id": 1,
+      "created_by": 3,
+      "restriction_type": "activity",
+      "description": "No unsupervised swimming. Seizure risk near water.",
+      "start_date": "2026-03-01",
+      "end_date": null,
+      "is_active": true,
+      "notes": "Clearance required from neurologist.",
+      "camper": { "id": 1, "full_name": "Ethan Johnson" }
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 6, "per_page": 15 }
+}
+```
+
+---
+
+### `POST /medical-restrictions`
+
+Create a restriction. **Admin only.**
+
+**Request Body:**
+```json
+{
+  "camper_id": 1,
+  "restriction_type": "activity",
+  "description": "No unsupervised swimming. Seizure risk near water.",
+  "start_date": "2026-03-01",
+  "end_date": null,
+  "is_active": true,
+  "notes": "Clearance required from neurologist."
+}
+```
+
+**Response `201`:** Created restriction object.
+
+---
+
+### `GET /medical-restrictions/{id}`
+
+View a single restriction.
+
+**Response `200`:** Full restriction object.
+
+---
+
+### `PUT /medical-restrictions/{id}`
+
+Update a restriction. **Admin only.**
+
+**Request Body:** Any subset of `POST` fields.
+
+**Response `200`:** Updated restriction object.
+
+---
+
+### `DELETE /medical-restrictions/{id}`
+
+Delete a restriction. **Admin only.**
+
+**Response `204`:** No content.
+
+---
+
+## Medical Stats Endpoint
+
+Aggregate statistics for the medical portal command center dashboard.
+
+**Authorization:** `admin`, `medical` roles.
+
+---
+
+### `GET /medical/stats`
+
+Returns aggregate counts and recent activity for dashboard widgets.
+
+**Response `200`:**
+```json
+{
+  "camper_counts": {
+    "total": 8,
+    "with_severe_allergies": 2,
+    "on_medications": 6,
+    "with_active_restrictions": 6,
+    "missing_medical_records": 0
+  },
+  "follow_up_counts": {
+    "overdue": 2,
+    "due_today": 1,
+    "open": 5
+  },
+  "recent_activity": [
+    {
+      "type": "incident",
+      "camper_name": "Lucas Williams",
+      "title": "Increased respiratory effort",
+      "date": "2026-03-06"
+    }
+  ],
+  "treatment_type_breakdown": {
+    "medication_administered": 8,
+    "first_aid": 4,
+    "observation": 9,
+    "emergency": 0,
+    "other": 0
+  }
+}
+```
 
 ---
 

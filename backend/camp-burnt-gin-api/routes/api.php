@@ -20,6 +20,11 @@ use App\Http\Controllers\Api\Medical\FeedingPlanController;
 use App\Http\Controllers\Api\Medical\MedicalRecordController;
 use App\Http\Controllers\Api\Medical\MedicationController;
 use App\Http\Controllers\Api\Medical\TreatmentLogController;
+use App\Http\Controllers\Api\Medical\MedicalIncidentController;
+use App\Http\Controllers\Api\Medical\MedicalFollowUpController;
+use App\Http\Controllers\Api\Medical\MedicalVisitController;
+use App\Http\Controllers\Api\Medical\MedicalRestrictionController;
+use App\Http\Controllers\Api\Medical\MedicalStatsController;
 use App\Http\Controllers\Api\Inbox\ConversationController;
 use App\Http\Controllers\Api\Inbox\InboxUserController;
 use App\Http\Controllers\Api\Inbox\MessageController;
@@ -402,6 +407,73 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{treatmentLog}', [TreatmentLogController::class, 'destroy'])
             ->middleware('admin')
             ->name('treatment-logs.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Medical Stats Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/medical/stats', [MedicalStatsController::class, 'index'])
+        ->middleware('role:admin,medical')
+        ->name('medical.stats');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Medical Incidents Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('medical-incidents')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [MedicalIncidentController::class, 'index'])->name('medical-incidents.index');
+        Route::post('/', [MedicalIncidentController::class, 'store'])->name('medical-incidents.store');
+        Route::get('/{medicalIncident}', [MedicalIncidentController::class, 'show'])->name('medical-incidents.show');
+        Route::put('/{medicalIncident}', [MedicalIncidentController::class, 'update'])->name('medical-incidents.update');
+        Route::delete('/{medicalIncident}', [MedicalIncidentController::class, 'destroy'])
+            ->middleware('admin')
+            ->name('medical-incidents.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Medical Follow-Up Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('medical-follow-ups')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [MedicalFollowUpController::class, 'index'])->name('medical-follow-ups.index');
+        Route::post('/', [MedicalFollowUpController::class, 'store'])->name('medical-follow-ups.store');
+        Route::get('/{medicalFollowUp}', [MedicalFollowUpController::class, 'show'])->name('medical-follow-ups.show');
+        Route::put('/{medicalFollowUp}', [MedicalFollowUpController::class, 'update'])->name('medical-follow-ups.update');
+        Route::delete('/{medicalFollowUp}', [MedicalFollowUpController::class, 'destroy'])
+            ->middleware('admin')
+            ->name('medical-follow-ups.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Medical Visit Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('medical-visits')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [MedicalVisitController::class, 'index'])->name('medical-visits.index');
+        Route::post('/', [MedicalVisitController::class, 'store'])->name('medical-visits.store');
+        Route::get('/{medicalVisit}', [MedicalVisitController::class, 'show'])->name('medical-visits.show');
+        Route::put('/{medicalVisit}', [MedicalVisitController::class, 'update'])->name('medical-visits.update');
+        Route::delete('/{medicalVisit}', [MedicalVisitController::class, 'destroy'])
+            ->middleware('admin')
+            ->name('medical-visits.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Medical Restriction Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('medical-restrictions')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [MedicalRestrictionController::class, 'index'])->name('medical-restrictions.index');
+        Route::post('/', [MedicalRestrictionController::class, 'store'])->name('medical-restrictions.store');
+        Route::get('/{medicalRestriction}', [MedicalRestrictionController::class, 'show'])->name('medical-restrictions.show');
+        Route::put('/{medicalRestriction}', [MedicalRestrictionController::class, 'update'])->name('medical-restrictions.update');
+        Route::delete('/{medicalRestriction}', [MedicalRestrictionController::class, 'destroy'])->name('medical-restrictions.destroy');
     });
 
     /*

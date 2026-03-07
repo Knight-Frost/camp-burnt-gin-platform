@@ -16,6 +16,7 @@ import {
   ArrowLeft, AlertTriangle, Pill, Brain, Coffee,
   Clipboard, Wrench, Activity, Phone, ChevronDown, ChevronUp,
   Plus, ClipboardList, FileText, Edit2, X, Save, Loader2,
+  AlertOctagon, Stethoscope,
 } from 'lucide-react';
 
 import {
@@ -562,6 +563,22 @@ export function MedicalRecordPage() {
             >
               <FileText className="h-3.5 w-3.5" />
               {t('medical.record.documents')}
+            </Link>
+            <Link
+              to={`/medical/records/${id}/incidents`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
+              style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+            >
+              <AlertOctagon className="h-3.5 w-3.5" />
+              {t('medical.record.incidents')}
+            </Link>
+            <Link
+              to={`/medical/records/${id}/visits`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
+              style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+            >
+              <Stethoscope className="h-3.5 w-3.5" />
+              {t('medical.record.visits')}
             </Link>
           </div>
         </div>

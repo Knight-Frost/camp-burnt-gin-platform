@@ -6,6 +6,47 @@ All notable changes to the Camp Burnt Gin API project are documented in this fil
 
 ## [Unreleased]
 
+### Phase 11 — Medical Portal Expansion (2026-03-07)
+
+#### Added
+
+**New Models & Migrations**
+- `MedicalIncident` (`app/Models/MedicalIncident.php`) — incident reports with `IncidentType` enum (`behavioral`, `medical`, `injury`, `environmental`, `emergency`, `other`) and `IncidentSeverity` enum (`minor`, `moderate`, `severe`, `critical`); all PHI fields encrypted
+- `MedicalFollowUp` (`app/Models/MedicalFollowUp.php`) — follow-up task queue with `FollowUpStatus` (`pending`, `in_progress`, `completed`, `cancelled`) and `FollowUpPriority` (`low`, `medium`, `high`, `urgent`) enums; tracks `assigned_to`, `completed_at`, `completed_by`
+- `MedicalVisit` (`app/Models/MedicalVisit.php`) — health office visit records with `vitals` JSON column (`temp`, `pulse`, `bp`, `spo2`, `weight`) and `VisitDisposition` enum (`returned_to_activity`, `monitoring`, `sent_home`, `emergency_transfer`, `other`); chief complaint, symptoms, treatment, and disposition notes are encrypted PHI
+- `MedicalRestriction` (`app/Models/MedicalRestriction.php`) — camper restrictions (activity, dietary, environmental, equipment) with active/expired tracking
+- Migrations for all four new tables with compound indexes on `(camper_id, incident_date)`, `(camper_id, visit_date)`, `(camper_id, is_active)`, and individual indexes on status, type, severity, due_date columns
+- `HasMany` relationships added to `Camper` model: `incidents()`, `followUps()`, `visits()`, `restrictions()`
+
+**New Controllers & Routes**
+- `MedicalStatsController` — `GET /medical/stats`: returns dashboard aggregate counts (campers with severe allergies, on medications, with active restrictions, missing records), follow-up queue metrics (overdue, due today, open), recent activity feed, and treatment type breakdown
+- `MedicalIncidentController` — full CRUD under `role:admin,medical` middleware; camper-scoped listing via `GET /medical-incidents/camper/{camper}`; destroy restricted to admin
+- `MedicalFollowUpController` — full CRUD; status transition on PUT automatically sets `completed_at` and `completed_by`; destroy restricted to admin
+- `MedicalVisitController` — full CRUD; camper-scoped listing via `GET /medical-visits/camper/{camper}`; destroy restricted to admin
+- `MedicalRestrictionController` — medical role has read-only access; create/update/delete restricted to admin
+
+**New Policies**
+- `MedicalIncidentPolicy`, `MedicalFollowUpPolicy`, `MedicalVisitPolicy`, `MedicalRestrictionPolicy` — all registered in `AppServiceProvider`
+
+**Frontend**
+- `MedicalDashboardPage` transformed into an operational command center: 5-stat bar (powered by `/medical/stats`), alert strip for overdue/due-today follow-ups, two-column layout (recent activity feed + follow-up task panel with mark-complete), paginated camper medical directory with search
+- New pages: `MedicalIncidentsPage` (dual-mode: global + camper-scoped), `MedicalFollowUpsPage` (5 tab filters), `MedicalVisitsPage` (dual-mode with vitals entry), `MedicalEmergencyViewPage` (read-only emergency quick view with 7 sections)
+- 3 new sidebar navigation items: Incidents, Follow-Ups, Visits
+- New route constants and lazy-loaded routes for all new pages + camper-scoped variants
+
+#### Fixed
+
+- `CamperController::index()` — medical providers previously received an empty `data: []` response; corrected by adding an explicit `isMedicalProvider()` branch that returns all campers with eager-loaded medical relations and search support
+
+#### Updated
+
+- `docs/backend/API_REFERENCE.md` — 5 new endpoint sections (incidents, follow-ups, visits, restrictions, stats); TOC updated; Camper listing endpoint notes medical role access
+- `docs/backend/DATA_MODEL.md` — 4 new table schemas; table count updated (21 → 25); ERD updated; Camper relationships extended
+- `docs/backend/ROLES_AND_PERMISSIONS.md` — Medical provider narrative expanded; 4 new permission matrix sections (incidents, follow-ups, visits, restrictions); camper listing permission updated
+- `docs/backend/AUDIT_LOGGING.md` — 4 new route patterns added to PHI monitoring; PHI event list updated; new logging examples added
+
+---
+
 ### Phase 10 — Documentation and Codebase Guide (2026-03-06)
 
 #### Added

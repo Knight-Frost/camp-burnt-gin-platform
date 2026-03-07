@@ -6,7 +6,7 @@ This document describes the database schema, entity relationships, and data mode
 
 ## Database Tables
 
-The system implements 21 database tables:
+The system implements 25 database tables:
 
 | Table | Records | Description |
 |-------|---------|-------------|
@@ -23,6 +23,10 @@ The system implements 21 database tables:
 | `documents` | Variable | File upload metadata (polymorphic - includes message attachments) |
 | `medical_provider_links` | Variable | Secure provider access tokens |
 | `treatment_logs` | Variable | On-site treatment and intervention records (PHI encrypted) |
+| `medical_incidents`    | Variable | Medical incident reports and escalation tracking             |
+| `medical_follow_ups`   | Variable | Follow-up task queue linked to incidents and campers         |
+| `medical_visits`       | Variable | Health office visit records with vitals and dispositions     |
+| `medical_restrictions` | Variable | Camper activity, dietary, and environmental restrictions      |
 | `conversations` | Variable | Message thread containers |
 | `conversation_participants` | Variable | User-conversation membership tracking |
 | `messages` | Variable | Individual messages (immutable) |
@@ -80,7 +84,15 @@ The system implements 21 database tables:
                 │
                 ├─── 1:N ──► medical_provider_links
                 │
-                └─── 1:N ──► treatment_logs (recorded_by → users)
+                ├─── 1:N ──► treatment_logs (recorded_by → users)
+                │
+                ├─── 1:N ──► medical_incidents (recorded_by → users)
+                │
+                ├─── 1:N ──► medical_follow_ups (created_by → users)
+                │
+                ├─── 1:N ──► medical_visits (recorded_by → users)
+                │
+                └─── 1:N ──► medical_restrictions (created_by → users)
 
 
         Inbox Messaging System Entities:
@@ -166,7 +178,7 @@ The system implements 21 database tables:
 
 **Relationships:**
 - belongs to: `users`
-- has many: `applications`, `medical_records`, `allergies`, `medications`, `emergency_contacts`, `medical_provider_links`
+- has many: `applications`, `medical_records`, `allergies`, `medications`, `emergency_contacts`, `medical_provider_links`, `treatment_logs`, `medical_incidents`, `medical_follow_ups`, `medical_visits`, `medical_restrictions`
 - has many (polymorphic): `documents`
 
 ### applications
@@ -261,6 +273,95 @@ The system implements 21 database tables:
 
 **Relationships:**
 - belongs to: `campers`
+
+### `medical_incidents`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint (PK) | Auto-increment |
+| `camper_id` | bigint (FK) | References `campers.id`, cascade delete |
+| `recorded_by` | bigint (FK) | References `users.id` |
+| `treatment_log_id` | bigint (FK, nullable) | References `treatment_logs.id`, null on delete |
+| `type` | enum | `behavioral`, `medical`, `injury`, `environmental`, `emergency`, `other` |
+| `severity` | enum | `minor`, `moderate`, `severe`, `critical` |
+| `location` | text (encrypted, nullable) | Where incident occurred |
+| `title` | text (encrypted) | Brief incident title |
+| `description` | text (encrypted) | Full incident narrative |
+| `witnesses` | text (encrypted, nullable) | Witness names |
+| `escalation_required` | boolean | Default false |
+| `escalation_notes` | text (encrypted, nullable) | Escalation details and actions taken |
+| `incident_date` | date | Date of occurrence |
+| `incident_time` | time (nullable) | Time of occurrence |
+| `created_at` / `updated_at` | timestamp | Standard Laravel timestamps |
+
+**Indexes:** `camper_id`, `recorded_by`, `(camper_id, incident_date)`, `type`, `severity`
+
+---
+
+### `medical_follow_ups`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint (PK) | Auto-increment |
+| `camper_id` | bigint (FK) | References `campers.id`, cascade delete |
+| `created_by` | bigint (FK) | References `users.id` |
+| `assigned_to` | bigint (FK, nullable) | References `users.id` |
+| `treatment_log_id` | bigint (FK, nullable) | References `treatment_logs.id`, null on delete |
+| `title` | string | Follow-up task title |
+| `notes` | text (nullable) | Additional context |
+| `status` | enum | `pending`, `in_progress`, `completed`, `cancelled` |
+| `priority` | enum | `low`, `medium`, `high`, `urgent` |
+| `due_date` | date | Task due date |
+| `completed_at` | timestamp (nullable) | When status moved to `completed` |
+| `completed_by` | bigint (FK, nullable) | References `users.id` |
+| `created_at` / `updated_at` | timestamp | Standard Laravel timestamps |
+
+**Indexes:** `camper_id`, `created_by`, `assigned_to`, `status`, `due_date`
+
+---
+
+### `medical_visits`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint (PK) | Auto-increment |
+| `camper_id` | bigint (FK) | References `campers.id`, cascade delete |
+| `recorded_by` | bigint (FK) | References `users.id` |
+| `visit_date` | date | Date of visit |
+| `visit_time` | time (nullable) | Time of visit |
+| `chief_complaint` | text (encrypted) | Primary reason for visit |
+| `symptoms` | text (encrypted) | Observed symptoms |
+| `vitals` | JSON (nullable) | `{ temp, pulse, bp, spo2, weight }` |
+| `treatment_provided` | text (encrypted, nullable) | Treatment administered |
+| `medications_administered` | text (encrypted, nullable) | Medications given during visit |
+| `disposition` | enum | `returned_to_activity`, `monitoring`, `sent_home`, `emergency_transfer`, `other` |
+| `disposition_notes` | text (encrypted, nullable) | Notes on outcome |
+| `follow_up_required` | boolean | Default false |
+| `follow_up_notes` | text (encrypted, nullable) | Follow-up instructions |
+| `created_at` / `updated_at` | timestamp | Standard Laravel timestamps |
+
+**Indexes:** `camper_id`, `recorded_by`, `(camper_id, visit_date)`
+
+---
+
+### `medical_restrictions`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint (PK) | Auto-increment |
+| `camper_id` | bigint (FK) | References `campers.id`, cascade delete |
+| `created_by` | bigint (FK) | References `users.id` |
+| `restriction_type` | string | e.g., `activity`, `dietary`, `environmental`, `equipment` |
+| `description` | text (encrypted) | Restriction details |
+| `start_date` | date | Effective from |
+| `end_date` | date (nullable) | Null = indefinite |
+| `is_active` | boolean | Default true |
+| `notes` | text (encrypted, nullable) | Additional clinical notes |
+| `created_at` / `updated_at` | timestamp | Standard Laravel timestamps |
+
+**Indexes:** `camper_id`, `created_by`, `(camper_id, is_active)`
+
+---
 
 ### conversations
 
@@ -388,6 +489,10 @@ Refer to database migrations in `database/migrations/` for complete schema defin
 - Camper → Allergies
 - Camper → Medications
 - Camper → Emergency Contacts
+- Camper → MedicalIncident (one camper, many incidents)
+- Camper → MedicalFollowUp (one camper, many follow-up tasks)
+- Camper → MedicalVisit (one camper, many health office visits)
+- Camper → MedicalRestriction (one camper, many restrictions)
 - Camp → Camp Sessions
 - Camp Session → Applications
 - Conversation → Messages
