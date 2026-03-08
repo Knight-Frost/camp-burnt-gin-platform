@@ -3,15 +3,19 @@
  *
  * Phase 9 — Audit Log Redesign.
  *
- * Presents the system audit log as a structured, human-readable activity
- * timeline. Features include:
+ * Purpose: System audit log viewer for super admins — a chronological record
+ *          of every significant action taken in the application.
+ * Responsibilities:
+ *   - Fetch paginated audit log entries with search + category/event_type/user/date filters
+ *   - Render each entry as a timeline card with a category badge and expandable detail panel
+ *   - Translate technical field names, HTTP methods, and status codes into plain English
+ *   - Parse the user-agent string into a "Browser on OS" label
+ *   - Show before/after diff blocks when an entry has old_values or new_values
+ *   - Support CSV and JSON export of the currently filtered result set
  *
- *   - Human-readable event descriptions (generated server-side)
- *   - Event category badges (Authentication, Messaging, Applications, etc.)
- *   - Expandable detail panels with before/after values and metadata
- *   - Filters: search, category, entity type, user ID, date range
- *   - Export: CSV and JSON downloads
- *   - Pagination with summary counts
+ * Plain-English: This page is like the security camera footage for the whole
+ * system. Every time someone logs in, changes a record, or accesses medical
+ * data, an entry appears here so super admins can investigate anything unusual.
  *
  * Route: /super-admin/audit
  */
@@ -42,6 +46,7 @@ interface CategoryDef {
   bg:     string;
 }
 
+// Maps server-side category strings to visual badge definitions
 const CATEGORIES: Record<string, CategoryDef> = {
   Authentication: { label: 'Authentication', icon: LogIn,          color: '#2563eb', bg: 'rgba(37,99,235,0.10)'  },
   Messaging:      { label: 'Messaging',      icon: MessageSquare,  color: '#16a34a', bg: 'rgba(22,163,74,0.10)'  },
@@ -54,6 +59,7 @@ const CATEGORIES: Record<string, CategoryDef> = {
   System:         { label: 'System',         icon: Settings,       color: '#6b7280', bg: 'rgba(107,114,128,0.10)'},
 };
 
+// Event type filter options that map to server-side event_type query param values
 const EVENT_TYPES = [
   { value: '',               label: 'All categories'    },
   { value: 'authentication', label: 'Authentication'    },
@@ -71,11 +77,12 @@ const EVENT_TYPES = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Falls back to the System definition for any category not in the map
 function getCategoryDef(category?: string): CategoryDef {
   return CATEGORIES[category ?? ''] ?? CATEGORIES.System;
 }
 
-/** Convert snake_case / camelCase field names to "Title Case" labels */
+// Converts snake_case / camelCase database field names to "Title Case" labels
 function fieldLabel(key: string): string {
   return key
     .replace(/_id$/, ' ID')
@@ -85,7 +92,7 @@ function fieldLabel(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Format a single field value for display */
+// Turns any field value into a displayable string, handling booleans and objects
 function formatFieldValue(key: string, value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -93,7 +100,7 @@ function formatFieldValue(key: string, value: unknown): string {
   return String(value);
 }
 
-/** Format before/after diff objects as labeled rows */
+// Converts a before/after values object into an array of labeled display rows
 function formatDiffEntries(obj: Record<string, unknown>): Array<{ key: string; label: string; value: string }> {
   return Object.entries(obj).map(([k, v]) => ({
     key: k,
@@ -104,6 +111,7 @@ function formatDiffEntries(obj: Record<string, unknown>): Array<{ key: string; l
 
 // ── Metadata interpreters ─────────────────────────────────────────────────────
 
+// Maps HTTP method verbs to plain-English descriptions for non-technical users
 const HTTP_METHOD_LABELS: Record<string, string> = {
   GET:    'Viewed / Retrieved',
   POST:   'Created or submitted',
@@ -116,6 +124,7 @@ function httpMethodLabel(method: string): string {
   return HTTP_METHOD_LABELS[method?.toUpperCase()] ?? method;
 }
 
+// Translates HTTP status codes to plain-English results with a success/failure flag
 function httpStatusLabel(status: number): { text: string; ok: boolean } {
   if (status >= 200 && status < 300) return { text: 'Success',           ok: true  };
   if (status === 400)                return { text: 'Bad request',        ok: false };
@@ -127,6 +136,7 @@ function httpStatusLabel(status: number): { text: string; ok: boolean } {
   return { text: `Code ${status}`, ok: false };
 }
 
+// Maps Laravel route names to plain-English sentences shown in the metadata panel
 const ROUTE_LABELS: Record<string, string> = {
   'campers.show':            'Viewed a camper profile',
   'campers.index':           'Browsed the camper list',
@@ -158,10 +168,12 @@ const ROUTE_LABELS: Record<string, string> = {
   'documents.destroy':       'Deleted a document',
 };
 
+// Falls back to converting "campers.show" → "campers › show" for unmapped routes
 function routeLabel(route: string): string {
   return ROUTE_LABELS[route] ?? route.replace(/\./g, ' › ').replace(/-/g, ' ');
 }
 
+// Converts route params like { camper: 5 } → "Camper #5"
 function formatRouteParams(params: unknown): string {
   if (!params || typeof params !== 'object') return '';
   return Object.entries(params as Record<string, unknown>)
@@ -169,7 +181,7 @@ function formatRouteParams(params: unknown): string {
     .join(', ');
 }
 
-/** Parse a raw user-agent string into a readable "Browser on OS" label */
+// Parses a raw user-agent string into "Chrome 120 on macOS" style readable text
 function parseUserAgent(ua: string): string {
   let browser = 'Unknown browser';
   if (ua.includes('Edg/')) {
@@ -198,6 +210,7 @@ function parseUserAgent(ua: string): string {
 
 // ─── Filters state ────────────────────────────────────────────────────────────
 
+// Consolidated filters — all in one object to avoid double-fetch race conditions
 interface Filters {
   search:     string;
   event_type: string;
@@ -213,6 +226,7 @@ const DEFAULT_FILTERS: Filters = {
 
 // ─── CategoryBadge ────────────────────────────────────────────────────────────
 
+// Renders a color-coded pill with an icon and label for a given audit category
 function CategoryBadge({ category }: { category?: string }) {
   const def  = getCategoryDef(category);
   const Icon = def.icon;
@@ -230,14 +244,17 @@ function CategoryBadge({ category }: { category?: string }) {
 // ─── AuditEntry row ───────────────────────────────────────────────────────────
 
 function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
+  // Local toggle for the expandable detail panel
   const [expanded, setExpanded] = useState(false);
 
+  // Only show the expand chevron when there's actually something to show
   const hasDetails =
     (entry.old_values && Object.keys(entry.old_values).length > 0) ||
     (entry.new_values && Object.keys(entry.new_values).length > 0) ||
     (entry.metadata   && Object.keys(entry.metadata).length > 0)   ||
     entry.user_agent;
 
+  // Prefer the server-generated human description, then fallback through less readable fields
   const displayText = entry.human_description || entry.description || entry.action;
 
   return (
@@ -245,9 +262,9 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
       className="rounded-xl border overflow-hidden"
       style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
     >
-      {/* Main row */}
+      {/* Main row — always visible */}
       <div className="flex items-start gap-3 px-4 py-3">
-        {/* Category icon dot */}
+        {/* Category icon in a colored badge */}
         <div
           className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 mt-0.5"
           style={{ background: getCategoryDef(entry.category).bg }}
@@ -258,9 +275,9 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
           })()}
         </div>
 
-        {/* Content */}
+        {/* Content area */}
         <div className="flex-1 min-w-0">
-          {/* Description + badge */}
+          {/* Human-readable description + category badge */}
           <div className="flex items-start gap-2 flex-wrap">
             <p className="text-sm font-medium leading-snug flex-1" style={{ color: 'var(--foreground)' }}>
               {displayText}
@@ -268,7 +285,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
             <CategoryBadge category={entry.category} />
           </div>
 
-          {/* Meta row: user · entity · IP · time */}
+          {/* Secondary metadata: user name, entity label, IP address */}
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             {entry.user && (
               <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--muted-foreground)' }}>
@@ -276,6 +293,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
                 {entry.user.name}
               </span>
             )}
+            {/* entity_label is a human name like "Application" or "Camper" */}
             {entry.entity_label && entry.auditable_id && (
               <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {entry.entity_label} #{entry.auditable_id}
@@ -290,8 +308,9 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
           </div>
         </div>
 
-        {/* Right: timestamp + expand toggle */}
+        {/* Right column: timestamp + expand toggle */}
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          {/* Full datetime shown on hover via the title attribute */}
           <time
             className="text-xs tabular-nums"
             style={{ color: 'var(--muted-foreground)' }}
@@ -302,6 +321,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
           <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
             {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
           </span>
+          {/* Expand button only rendered when there are details to show */}
           {hasDetails && (
             <button
               type="button"
@@ -319,7 +339,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
         </div>
       </div>
 
-      {/* Expandable detail panel */}
+      {/* Expandable detail panel — height animates from 0 to auto */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -334,7 +354,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
               className="px-4 pb-3 pt-1 border-t space-y-3"
               style={{ borderColor: 'var(--border)', background: 'rgba(248,249,250,0.6)' }}
             >
-              {/* Before / After values */}
+              {/* Before / After diff blocks when a record was changed */}
               {entry.old_values && Object.keys(entry.old_values).length > 0 && (
                 <DiffBlock label="Before" rows={formatDiffEntries(entry.old_values)} variant="removed" />
               )}
@@ -342,12 +362,12 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
                 <DiffBlock label="After" rows={formatDiffEntries(entry.new_values)} variant="added" />
               )}
 
-              {/* Metadata — parsed into human-readable rows */}
+              {/* Metadata panel — translates route, method, status, params to readable text */}
               {entry.metadata && Object.keys(entry.metadata).length > 0 && (
                 <MetadataPanel metadata={entry.metadata} />
               )}
 
-              {/* Device / browser info */}
+              {/* Device info parsed from the user-agent header */}
               {entry.user_agent && (
                 <div className="flex items-center gap-2">
                   <Monitor className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
@@ -357,7 +377,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
                 </div>
               )}
 
-              {/* Reference ID — only meaningful as a support reference */}
+              {/* Request ID — useful as a support reference when investigating issues */}
               {entry.request_id && (
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                   Reference ID: <span className="font-mono">{entry.request_id}</span>
@@ -371,7 +391,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
   );
 }
 
-/** Before / After diff block — renders labeled field rows instead of raw JSON */
+// Renders a "Before" (red) or "After" (green) block showing field-by-field diff rows
 function DiffBlock({
   label,
   rows,
@@ -381,6 +401,7 @@ function DiffBlock({
   rows: Array<{ key: string; label: string; value: string }>;
   variant: 'added' | 'removed';
 }) {
+  // Color palette differs between the before (red) and after (green) blocks
   const colors = {
     added:   { border: 'rgba(22,163,74,0.30)',  bg: 'rgba(22,163,74,0.04)',  header: '#166534' },
     removed: { border: 'rgba(220,38,38,0.30)',  bg: 'rgba(220,38,38,0.04)', header: '#991b1b' },
@@ -394,6 +415,7 @@ function DiffBlock({
       <div className="divide-y" style={{ borderColor: colors.border }}>
         {rows.map(({ key, label: lbl, value }) => (
           <div key={key} className="flex items-start gap-3 px-3 py-1.5">
+            {/* Fixed-width label column so values all align */}
             <span className="text-xs font-medium flex-shrink-0 w-36" style={{ color: 'var(--muted-foreground)' }}>
               {lbl}
             </span>
@@ -407,7 +429,7 @@ function DiffBlock({
   );
 }
 
-/** Metadata panel — translates technical route/method/status keys to plain English */
+// Translates technical metadata fields (route, method, status, params) to plain English rows
 function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
   const rows: Array<{ label: string; value: string; ok?: boolean }> = [];
 
@@ -426,7 +448,7 @@ function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
     if (formatted) rows.push({ label: 'Record accessed', value: formatted });
   }
 
-  // Any remaining unknown keys
+  // Any remaining keys not in the known set are displayed as generic labeled rows
   const knownKeys = new Set(['route', 'method', 'status', 'route_parameters']);
   for (const [k, v] of Object.entries(metadata)) {
     if (!knownKeys.has(k)) {
@@ -453,6 +475,7 @@ function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
             <span className="text-xs font-medium flex-shrink-0 w-36" style={{ color: 'var(--muted-foreground)' }}>
               {label}
             </span>
+            {/* Green for success, red for error, default color for neutral values */}
             <span
               className="text-xs"
               style={{ color: ok === false ? '#dc2626' : ok === true ? '#166534' : 'var(--foreground)' }}
@@ -473,15 +496,20 @@ export function AuditLogPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(false);
   const [exporting, setExporting]   = useState(false);
+  // Controls the expandable advanced-filter panel
   const [showFilters, setShowFilters] = useState(false);
+  // Consolidated filter object — any change resets page to 1
   const [filters, setFilters]       = useState<Filters>(DEFAULT_FILTERS);
 
+  // Generic filter updater — resets to page 1 for any filter except page itself
   function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     setFilters((f) => ({ ...f, [key]: value, page: key !== 'page' ? 1 : (value as number) }));
   }
 
+  // True when any optional filter beyond search is active — used to tint the Filters button
   const hasActiveFilters = filters.event_type || filters.user_id || filters.from || filters.to;
 
+  // Stable fetch function keyed to the filters object
   const fetchLog = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -489,6 +517,7 @@ export function AuditLogPage() {
       const params = {
         page:       filters.page,
         per_page:   25,
+        // Only pass params to the API when they have a value
         search:     filters.search   || undefined,
         event_type: filters.event_type || undefined,
         user_id:    filters.user_id ? Number(filters.user_id) : undefined,
@@ -506,6 +535,7 @@ export function AuditLogPage() {
 
   useEffect(() => { void fetchLog(); }, [fetchLog]);
 
+  // Export uses the same active filters so the download matches what the admin sees
   async function handleExport(format: 'csv' | 'json') {
     setExporting(true);
     try {
@@ -518,8 +548,7 @@ export function AuditLogPage() {
         to:         filters.to         || undefined,
       });
     } catch {
-      // Toast is not imported here to keep this page self-contained;
-      // silently fail — user can retry from the button.
+      // exportAuditLog handles its own blob download; silently fail here
     } finally {
       setExporting(false);
     }
@@ -529,8 +558,8 @@ export function AuditLogPage() {
     setFilters(DEFAULT_FILTERS);
   }
 
-  const entries     = response?.data ?? [];
-  const meta        = response?.meta;
+  const entries = response?.data ?? [];
+  const meta    = response?.meta;
 
   return (
     <motion.div
@@ -539,7 +568,7 @@ export function AuditLogPage() {
       animate="visible"
       className="p-6 max-w-6xl"
     >
-      {/* ── Page header ───────────────────────────────────────────────────── */}
+      {/* Page header with export + filter toolbar */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -552,8 +581,9 @@ export function AuditLogPage() {
           </p>
         </div>
 
-        {/* Export + filter buttons */}
+        {/* Export and filter action buttons */}
         <div className="flex items-center gap-2">
+          {/* CSV export button — applies current filters to the download */}
           <button
             type="button"
             onClick={() => void handleExport('csv')}
@@ -564,6 +594,7 @@ export function AuditLogPage() {
             <Download className="h-3.5 w-3.5" />
             CSV
           </button>
+          {/* JSON export button */}
           <button
             type="button"
             onClick={() => void handleExport('json')}
@@ -574,6 +605,7 @@ export function AuditLogPage() {
             <Download className="h-3.5 w-3.5" />
             JSON
           </button>
+          {/* Filters button tints green when any optional filter is active */}
           <button
             type="button"
             onClick={() => setShowFilters((v) => !v)}
@@ -586,6 +618,7 @@ export function AuditLogPage() {
           >
             <Filter className="h-3.5 w-3.5" />
             Filters
+            {/* Green dot indicates active filters at a glance */}
             {hasActiveFilters && (
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
@@ -593,6 +626,7 @@ export function AuditLogPage() {
               />
             )}
           </button>
+          {/* Refresh button — useful when watching live activity */}
           <button
             type="button"
             onClick={() => void fetchLog()}
@@ -606,7 +640,7 @@ export function AuditLogPage() {
         </div>
       </div>
 
-      {/* ── Search bar ────────────────────────────────────────────────────── */}
+      {/* Always-visible search bar */}
       <div
         className="flex items-center gap-2 rounded-lg px-3 py-2 border mb-3"
         style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -619,6 +653,7 @@ export function AuditLogPage() {
           className="flex-1 bg-transparent text-sm outline-none"
           style={{ color: 'var(--foreground)' }}
         />
+        {/* Clear-X button appears only when the search field has text */}
         {filters.search && (
           <button onClick={() => updateFilter('search', '')} aria-label="Clear search">
             <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
@@ -626,7 +661,7 @@ export function AuditLogPage() {
         )}
       </div>
 
-      {/* ── Expandable filter panel ────────────────────────────────────────── */}
+      {/* Expandable advanced-filter panel — height animates smoothly */}
       <AnimatePresence>
         {showFilters && (
           <motion.div
@@ -641,7 +676,7 @@ export function AuditLogPage() {
               className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 p-4 rounded-xl border"
               style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
             >
-              {/* Category */}
+              {/* Category / event type filter */}
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   Category
@@ -658,7 +693,7 @@ export function AuditLogPage() {
                 </select>
               </div>
 
-              {/* User ID */}
+              {/* User ID filter — shows actions by a specific user */}
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   User ID
@@ -673,7 +708,7 @@ export function AuditLogPage() {
                 />
               </div>
 
-              {/* From */}
+              {/* Date range: from */}
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   From date
@@ -687,7 +722,7 @@ export function AuditLogPage() {
                 />
               </div>
 
-              {/* To */}
+              {/* Date range: to */}
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   To date
@@ -701,7 +736,7 @@ export function AuditLogPage() {
                 />
               </div>
 
-              {/* Clear filters */}
+              {/* Clear all filters link — only shown when filters are active */}
               {hasActiveFilters && (
                 <div className="col-span-2 sm:col-span-4 flex justify-end">
                   <button
@@ -719,7 +754,7 @@ export function AuditLogPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Event timeline ────────────────────────────────────────────────── */}
+      {/* Event timeline */}
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 12 }).map((_, i) => <Skeletons.Row key={i} />)}
@@ -756,7 +791,7 @@ export function AuditLogPage() {
         </div>
       )}
 
-      {/* ── Pagination ────────────────────────────────────────────────────── */}
+      {/* Pagination controls */}
       {meta && meta.last_page > 1 && (
         <div className="flex items-center justify-between mt-5 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
