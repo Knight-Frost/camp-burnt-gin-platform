@@ -1,9 +1,18 @@
 /**
  * MedicalRecordPage.tsx
  *
- * Full medical record view for a single camper with editing capabilities
- * for camp medical staff. Organised into collapsible sections per record
- * type. Each section provides add and edit actions.
+ * The complete medical record for a single camper — everything the medical
+ * staff needs to know in one place. Content is divided into collapsible
+ * sections (allergies, medications, diagnoses, notes, behavioral profile,
+ * feeding plan, assistive devices, activity permissions, emergency contacts).
+ *
+ * Each section can be expanded or collapsed independently. Sections with
+ * writable data have an edit button or a "+" add button in the header.
+ * Editing opens a modal overlay; saving patches the API and updates local
+ * state without a full page reload.
+ *
+ * All 11 data sources are fetched in parallel on mount using Promise.all so
+ * the page loads as one fast batch rather than 11 slow waterfalls.
  *
  * Route: /medical/records/:camperId
  */
@@ -58,6 +67,10 @@ import type {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * FieldRow — renders a label + value pair.
+ * Returns nothing if the value is empty so the section doesn't show blank rows.
+ */
 function FieldRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
@@ -68,6 +81,11 @@ function FieldRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+/**
+ * SeverityBadge — a small colored pill label showing an allergy's severity.
+ * Colors escalate from green (mild) to red (life-threatening) so danger is
+ * immediately obvious without reading the text.
+ */
 function SeverityBadge({ severity }: { severity: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
     'life-threatening': { bg: 'rgba(220,38,38,0.15)', text: 'var(--destructive)' },
@@ -75,6 +93,7 @@ function SeverityBadge({ severity }: { severity: string }) {
     moderate: { bg: 'rgba(96,165,250,0.12)',  text: 'var(--night-sky-blue)' },
     mild:     { bg: 'rgba(5,150,105,0.12)',  text: 'var(--forest-green)' },
   };
+  // Fall back to a neutral style for any unknown severity value
   const style = colors[severity] ?? { bg: 'var(--muted)', text: 'var(--muted-foreground)' };
   return (
     <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: style.bg, color: style.text }}>
@@ -85,6 +104,12 @@ function SeverityBadge({ severity }: { severity: string }) {
 
 // ─── Modal overlay ────────────────────────────────────────────────────────────
 
+/**
+ * Modal — a centered overlay dialog used for all 14 add/edit forms.
+ * Clicking the dark backdrop calls onClose, so users can dismiss by clicking
+ * anywhere outside the white card. The card itself stops click propagation
+ * so clicking inside the card doesn't close it accidentally.
+ */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <AnimatePresence>
@@ -102,6 +127,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
           initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
+          // Stop clicks inside the card from bubbling up and closing the modal
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-5">
@@ -119,6 +145,10 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 // ─── Inline text field ────────────────────────────────────────────────────────
 
+/**
+ * Field — a reusable labeled input or textarea used inside modal forms.
+ * The `multiline` prop switches between a single-line input and a textarea.
+ */
 function Field({
   label, name, value, onChange, required, type = 'text', multiline,
 }: {
@@ -142,6 +172,10 @@ function Field({
   );
 }
 
+/**
+ * SelectField — a labeled dropdown used for fields with fixed option lists
+ * (e.g., allergy severity). Always includes a blank "Select…" placeholder.
+ */
 function SelectField({
   label, name, value, onChange, options, required,
 }: {
@@ -167,6 +201,10 @@ function SelectField({
   );
 }
 
+/**
+ * SaveBtn — the Cancel + Save button row used at the bottom of every modal form.
+ * Shows a spinning loader icon while the save API call is in flight.
+ */
 function SaveBtn({ loading, onClose }: { loading: boolean; onClose: () => void }) {
   return (
     <div className="flex items-center justify-end gap-3 mt-5">
@@ -205,12 +243,21 @@ interface MedSectionProps {
   onAdd?: () => void;
 }
 
+/**
+ * MedSection — a reusable collapsible card used for every data category on the
+ * page (allergies, medications, etc.). The header is always visible and acts as
+ * the toggle button. The "+" button in the header opens the add modal.
+ *
+ * When `empty` is true, the body shows `emptyText` instead of `children` so
+ * blank sections communicate clearly rather than showing nothing.
+ */
 function MedSection({ title, icon, color, bg, defaultOpen = true, children, empty, emptyText, onAdd }: MedSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center" style={{ background: 'var(--glass-medium)' }}>
+        {/* The entire header row (except the + button) toggles open/closed */}
         <button
           onClick={() => setOpen((o) => !o)}
           className="flex-1 flex items-center justify-between px-5 py-4 transition-colors text-left"
@@ -227,6 +274,7 @@ function MedSection({ title, icon, color, bg, defaultOpen = true, children, empt
             <ChevronDown className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
           )}
         </button>
+        {/* Add button is separate from the toggle so clicking + doesn't collapse the section */}
         {onAdd && (
           <button
             onClick={onAdd}
@@ -252,6 +300,12 @@ function MedSection({ title, icon, color, bg, defaultOpen = true, children, empt
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 
+/**
+ * RecordState — holds all the data fetched for one camper.
+ * Using a single state object instead of 10 separate useState calls keeps
+ * updates atomic: `setState((s) => ({ ...s, allergies: newList }))` updates
+ * only one field without touching the rest.
+ */
 interface RecordState {
   camper: Camper | null;
   record: MedicalRecord | null;
@@ -265,6 +319,11 @@ interface RecordState {
   devices: AssistiveDevice[];
 }
 
+/**
+ * ModalType — a union of all possible open modals on this page.
+ * Having an explicit union instead of a plain string helps TypeScript catch
+ * typos and makes the code self-documenting about which modals exist.
+ */
 type ModalType =
   | 'add-allergy' | 'edit-allergy'
   | 'add-medication' | 'edit-medication'
@@ -280,30 +339,44 @@ type ModalType =
 export function MedicalRecordPage() {
   const { t } = useTranslation();
   const { camperId } = useParams<{ camperId: string }>();
+  // Convert the URL string param to a number for use in API calls
   const id = Number(camperId);
 
+  // All camper data in one consolidated state object
   const [state, setState] = useState<RecordState>({
     camper: null, record: null, allergies: [], medications: [],
     diagnoses: [], contacts: [], permissions: [],
     behavioral: null, feeding: null, devices: [],
   });
   const [loading, setLoading] = useState(true);
+  // `saving` is true while any modal form's API call is in flight
   const [saving, setSaving] = useState(false);
+  // Medical alerts are separate from RecordState since they come from their own endpoint
   const [alerts, setAlerts] = useState<MedicalAlert[]>([]);
 
-  // Modal state
+  // Which modal is currently open (null = none)
   const [modal, setModal] = useState<ModalType>(null);
+  // For edit modals: the ID of the item being edited
   const [editTarget, setEditTarget] = useState<number | null>(null);
-
-  // Form state
+  // Shared form state for all modals — each modal only uses its own keys
   const [form, setForm] = useState<Record<string, string>>({});
 
+  /** closeModal — resets all modal-related state back to a clean slate. */
   const closeModal = () => { setModal(null); setEditTarget(null); setForm({}); };
 
+  /**
+   * setField — returns an onChange handler that updates a single field in the
+   * shared form state by key name. Usage: onChange={setField('name')}
+   */
   const setField = (k: string) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   // ─── Load ───────────────────────────────────────────────────────────────────
 
+  /**
+   * load — fetches all 11 data sources for this camper simultaneously.
+   * Each optional source uses `.catch(() => fallback)` so a 404 on one
+   * (e.g., no behavioral profile yet) doesn't prevent the others from loading.
+   */
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -331,6 +404,8 @@ export function MedicalRecordPage() {
   useEffect(() => { void load(); }, [load]);
 
   // ─── Modal openers ──────────────────────────────────────────────────────────
+  // Each opener pre-fills the shared `form` state with the item's current values
+  // before opening the edit modal, so the user sees the existing data to modify.
 
   const openEditAllergy = (a: Allergy) => {
     setEditTarget(a.id);
@@ -384,12 +459,16 @@ export function MedicalRecordPage() {
   };
 
   // ─── Saves ──────────────────────────────────────────────────────────────────
+  // Each save handler calls the API, then merges the returned object back into
+  // the local RecordState so the page reflects the change without a full reload.
 
   const handleAddAllergy = async () => {
+    // Guard: name and severity are required fields
     if (!form.name || !form.severity) return;
     setSaving(true);
     try {
       const a = await createAllergy({ camper_id: id, allergen: form.name, severity: form.severity, reaction: form.reaction });
+      // Append the new allergy to the existing list
       setState((s) => ({ ...s, allergies: [...s.allergies, a] }));
       closeModal();
     } finally { setSaving(false); }
@@ -400,6 +479,7 @@ export function MedicalRecordPage() {
     setSaving(true);
     try {
       const a = await updateAllergy(editTarget, { allergen: form.name, severity: form.severity, reaction: form.reaction });
+      // Replace only the edited item in the list using map
       setState((s) => ({ ...s, allergies: s.allergies.map((x) => x.id === editTarget ? a : x) }));
       closeModal();
     } finally { setSaving(false); }
@@ -429,6 +509,7 @@ export function MedicalRecordPage() {
     if (!form.name) return;
     setSaving(true);
     try {
+      // Send icd_code only if the user filled it in (undefined is omitted by the API)
       const d = await createDiagnosis({ camper_id: id, name: form.name, icd_code: form.icd_code || undefined, notes: form.notes });
       setState((s) => ({ ...s, diagnoses: [...s.diagnoses, d] }));
       closeModal();
@@ -462,6 +543,7 @@ export function MedicalRecordPage() {
   const handleEditBehavioral = async () => {
     setSaving(true);
     try {
+      // If a profile already exists, update it; otherwise create a new one
       if (state.behavioral) {
         const b = await updateBehavioralProfile(state.behavioral.id, form);
         setState((s) => ({ ...s, behavioral: b }));
@@ -477,6 +559,7 @@ export function MedicalRecordPage() {
     if (!form.method) return;
     setSaving(true);
     try {
+      // Same create-or-update pattern as behavioral profile
       if (state.feeding) {
         const f = await updateFeedingPlan(state.feeding.id, form);
         setState((s) => ({ ...s, feeding: f }));
@@ -508,6 +591,10 @@ export function MedicalRecordPage() {
     } finally { setSaving(false); }
   };
 
+  /**
+   * handleToggleActivityPermission — flips a permission between 'yes' and 'no'.
+   * Sends the API call then replaces the updated item in the local list.
+   */
   const handleToggleActivityPermission = async (p: ActivityPermission) => {
     setSaving(true);
     try {
@@ -529,8 +616,10 @@ export function MedicalRecordPage() {
     );
   }
 
+  // Destructure from state for cleaner JSX references below
   const { camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices } = state;
 
+  // Severity options used by both add-allergy and edit-allergy modals
   const SEVERITY_OPTIONS = [
     { value: 'mild',            label: 'Mild' },
     { value: 'moderate',        label: 'Moderate' },
@@ -542,7 +631,7 @@ export function MedicalRecordPage() {
     <>
       <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
 
-        {/* Back + breadcrumb */}
+        {/* Back navigation + quick-nav buttons to sub-pages */}
         <div className="flex items-center justify-between mb-6">
           <Link
             to={ROUTES.MEDICAL_RECORD_TREATMENT}
@@ -553,6 +642,7 @@ export function MedicalRecordPage() {
             {t('medical.record.back')}
           </Link>
 
+          {/* Quick-nav pill buttons to related sub-pages for this camper */}
           <div className="flex items-center gap-2">
             <Link
               to={`/medical/records/${id}/treatments`}
@@ -589,7 +679,7 @@ export function MedicalRecordPage() {
           </div>
         </div>
 
-        {/* Header */}
+        {/* Camper name + primary diagnosis */}
         <div className="mb-6">
           <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
             {camper?.full_name ?? t('medical.record.unknown')}
@@ -601,7 +691,8 @@ export function MedicalRecordPage() {
           )}
         </div>
 
-        {/* Medical Alerts */}
+        {/* Medical alert banners — each alert has a level (critical/warning/info) that
+            determines its background and icon color */}
         {alerts.length > 0 && (
           <div className="mb-6 space-y-2">
             {alerts.map((alert, i) => {
@@ -634,10 +725,10 @@ export function MedicalRecordPage() {
           </div>
         )}
 
-        {/* Sections */}
+        {/* Collapsible data sections — each animates in with a stagger delay */}
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
 
-          {/* Allergies */}
+          {/* Allergies — icon turns red if any allergy is life-threatening */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.allergies')}
@@ -681,6 +772,7 @@ export function MedicalRecordPage() {
               <div className="space-y-3">
                 {medications.map((m) => (
                   <div key={m.id} className="flex items-start justify-between gap-3">
+                    {/* Two-column grid for dosage + frequency labels */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm flex-1">
                       <p className="font-medium col-span-2" style={{ color: 'var(--foreground)' }}>{m.name}</p>
                       <p style={{ color: 'var(--muted-foreground)' }}>{t('medical.record.dosage')}: {m.dosage}</p>
@@ -696,7 +788,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </motion.div>
 
-          {/* Diagnoses */}
+          {/* Diagnoses — ICD code shown as a monospace badge when present */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.diagnoses')}
@@ -728,7 +820,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </motion.div>
 
-          {/* Notes */}
+          {/* General Notes — special needs, dietary restrictions, free-form notes */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.notes')}
@@ -772,7 +864,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </motion.div>
 
-          {/* Feeding Plan */}
+          {/* Feeding Plan — collapsed by default since less commonly needed */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.feeding')}
@@ -797,7 +889,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </motion.div>
 
-          {/* Assistive Devices */}
+          {/* Assistive Devices — collapsed by default */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.devices')}
@@ -825,7 +917,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </motion.div>
 
-          {/* Activity Permissions */}
+          {/* Activity Permissions — toggle between yes/no with a single click */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.activity_permissions')}
@@ -840,6 +932,7 @@ export function MedicalRecordPage() {
                 {permissions.map((p) => (
                   <div key={p.id} className="flex items-center justify-between">
                     <p className="text-sm" style={{ color: 'var(--foreground)' }}>{p.activity_name}</p>
+                    {/* Button color reflects the current permission level */}
                     <button
                       onClick={() => handleToggleActivityPermission(p)}
                       disabled={saving}
@@ -858,7 +951,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </motion.div>
 
-          {/* Emergency Contacts (read-only) */}
+          {/* Emergency Contacts — read-only (managed via the parent portal) */}
           <motion.div variants={staggerChild}>
             <MedSection
               title={t('medical.record.emergency_contacts')}
@@ -887,6 +980,7 @@ export function MedicalRecordPage() {
       </motion.div>
 
       {/* ─── Modals ───────────────────────────────────────────────────────────── */}
+      {/* Only one modal is rendered at a time based on the `modal` state value */}
 
       {modal === 'add-allergy' && (
         <Modal title={t('medical.modal.add_allergy')} onClose={closeModal}>
@@ -972,6 +1066,7 @@ export function MedicalRecordPage() {
       )}
 
       {modal === 'edit-behavioral' && (
+        // Title changes depending on whether a profile already exists
         <Modal title={state.behavioral ? t('medical.modal.edit_behavioral') : t('medical.modal.add_behavioral')} onClose={closeModal}>
           <form onSubmit={(e) => { e.preventDefault(); void handleEditBehavioral(); }} className="space-y-4">
             <Field label={t('medical.record.triggers')} name="triggers" value={form.triggers ?? ''} onChange={setField('triggers')} multiline />
@@ -1015,4 +1110,3 @@ export function MedicalRecordPage() {
       )}
     </>
   );
-}
