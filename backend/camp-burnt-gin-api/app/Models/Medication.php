@@ -7,11 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Medication model representing a medication taken by a camper.
+ * Medication model — records a single medication taken by a camper.
  *
- * Medications track prescribed and over-the-counter medications
- * that campers need during their stay, including dosage information
- * and administration schedules for camp medical staff.
+ * Camp medical staff need a complete and accurate medication list to
+ * administer doses correctly during the session and to avoid dangerous
+ * drug interactions or allergy conflicts.
+ *
+ * All fields except camper_id are encrypted at rest because medication
+ * names, dosages, and prescribing physicians are PHI under HIPAA.
+ *
+ * The isPrescribed() helper lets staff quickly distinguish physician-ordered
+ * medications from parent-supplied over-the-counter items, which may have
+ * different administration protocols.
  */
 class Medication extends Model
 {
@@ -23,31 +30,32 @@ class Medication extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'camper_id',
-        'name',
-        'dosage',
-        'frequency',
-        'purpose',
-        'prescribing_physician',
-        'notes',
+        'camper_id',             // Links to the camper who takes this medication.
+        'name',                  // Medication name (e.g. "Metformin").
+        'dosage',                // Amount per dose (e.g. "500mg").
+        'frequency',             // How often it is taken (e.g. "Twice daily with meals").
+        'purpose',               // Why it is taken — helps staff understand medical context.
+        'prescribing_physician', // Doctor who prescribed it; null for OTC medications.
+        'notes',                 // Any extra instructions for camp medical staff.
     ];
 
     /**
      * Get the attributes that should be cast.
      *
-     * PHI fields are encrypted at rest for HIPAA compliance.
+     * All text fields are encrypted via Laravel's AES-256 encrypted cast
+     * so raw medication details cannot be read from the database directly.
      *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'name' => 'encrypted',
-            'dosage' => 'encrypted',
-            'frequency' => 'encrypted',
-            'purpose' => 'encrypted',
+            'name'                  => 'encrypted',
+            'dosage'                => 'encrypted',
+            'frequency'             => 'encrypted',
+            'purpose'               => 'encrypted',
             'prescribing_physician' => 'encrypted',
-            'notes' => 'encrypted',
+            'notes'                 => 'encrypted',
         ];
     }
 
@@ -60,10 +68,14 @@ class Medication extends Model
     }
 
     /**
-     * Determine if this medication was prescribed by a physician.
+     * Determine if this medication was ordered by a physician.
+     *
+     * Prescription medications may require stricter administration protocols
+     * (e.g. witnessed administration, signed log entry) compared to OTC items.
      */
     public function isPrescribed(): bool
     {
+        // If prescribing_physician is null, no doctor ordered it — treat as OTC.
         return $this->prescribing_physician !== null;
     }
 }

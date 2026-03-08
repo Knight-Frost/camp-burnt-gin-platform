@@ -7,21 +7,30 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on Diagnosis resources.
+ * DiagnosisPolicy — Authorization rules for Diagnosis records.
  *
- * Diagnoses contain HIPAA-protected health information and require
- * strict access controls. Administrators, medical providers with
- * valid links, and the camper's parent/guardian may access these records.
+ * Diagnoses contain sensitive HIPAA-protected health information such as
+ * a child's medical conditions (e.g., asthma, diabetes). This policy
+ * strictly controls who can read, write, or remove these records.
+ *
+ * Access summary:
+ *  - Admins        → full access (view, create, update, delete)
+ *  - Medical staff → view, create, and update (but NOT delete)
+ *  - Applicants    → access only to their own child's diagnosis records
+ *
+ * Medical providers are excluded from deletion to maintain audit-trail
+ * integrity — parents retain final authority over what is removed.
  */
 class DiagnosisPolicy
 {
+    // This trait adds helper methods like allow() and deny() used by Laravel internals.
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any diagnoses.
+     * Can the user browse the full list of diagnoses?
      *
-     * Administrators and medical providers can view the list.
-     * Parents access their children's diagnoses through scoped queries.
+     * Admins and medical staff need the full list for clinical oversight.
+     * Parents access their child's diagnoses through scoped queries.
      */
     public function viewAny(User $user): bool
     {
@@ -29,23 +38,24 @@ class DiagnosisPolicy
     }
 
     /**
-     * Determine whether the user can view the diagnosis.
+     * Can the user view a specific diagnosis?
      *
-     * Administrators have full access.
-     * Medical providers can only view diagnoses for campers they're linked to.
-     * Parents can only view diagnoses for their own children.
+     * Three groups are allowed — we check each in order.
      */
     public function view(User $user, Diagnosis $diagnosis): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper diagnosis records.
+            // Camp medical staff have direct access to all camper diagnosis records
+            // so they can provide appropriate care throughout the session.
             return true;
         }
 
+        // A parent may view diagnosis records only for their own child.
         if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
             return true;
         }
@@ -54,10 +64,12 @@ class DiagnosisPolicy
     }
 
     /**
-     * Determine whether the user can create diagnoses.
+     * Can the user add a new diagnosis?
      *
-     * Administrators, medical providers, and parents can create diagnoses.
-     * Medical providers may document diagnoses discovered during care.
+     * All three user types may create diagnosis records:
+     *  - Admins for data entry / administrative corrections
+     *  - Medical staff who identify or document a condition during care
+     *  - Parents who know their child's pre-existing conditions
      */
     public function create(User $user): bool
     {
@@ -65,23 +77,25 @@ class DiagnosisPolicy
     }
 
     /**
-     * Determine whether the user can update the diagnosis.
+     * Can the user update an existing diagnosis?
      *
-     * Administrators have full access.
-     * Medical providers can update diagnoses for campers they're linked to.
-     * Parents can update diagnoses for their own children.
+     * Admins and medical staff may update any diagnosis record.
+     * Parents may keep their own child's diagnosis information up to date.
      */
     public function update(User $user, Diagnosis $diagnosis): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update diagnosis records during active care.
+            // Camp medical staff may update diagnosis records during active care,
+            // for example to refine a diagnosis or add clinical notes.
             return true;
         }
 
+        // Parent can update only their own child's diagnosis record.
         if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
             return true;
         }
@@ -90,19 +104,22 @@ class DiagnosisPolicy
     }
 
     /**
-     * Determine whether the user can delete the diagnosis.
+     * Can the user delete a diagnosis?
      *
-     * Only administrators and parents can delete diagnoses.
-     * Medical providers cannot delete diagnosis records to maintain
-     * audit trail integrity and ensure parents retain final authority
-     * over their child's medical record.
+     * Only admins and parents can delete diagnoses. Medical providers are
+     * intentionally excluded to maintain audit trail integrity and ensure
+     * parents retain final authority over their child's medical record.
+     * This mirrors the same design rationale used in AllergyPolicy and
+     * MedicationPolicy (see AUTHORIZATION DESIGN NOTE in those files).
      */
     public function delete(User $user, Diagnosis $diagnosis): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Parent can delete only their own child's diagnosis record.
         if ($user->isApplicant() && $user->ownsCamper($diagnosis->camper)) {
             return true;
         }

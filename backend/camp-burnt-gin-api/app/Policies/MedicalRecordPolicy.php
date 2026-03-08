@@ -7,21 +7,29 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on MedicalRecord resources.
+ * MedicalRecordPolicy — Authorization rules for MedicalRecord resources.
  *
- * Medical records contain HIPAA-protected health information and require
- * strict access controls. Administrators, medical providers, and the
- * camper's parent/guardian may access these records.
+ * Medical records contain Protected Health Information (PHI) covered by HIPAA.
+ * Access is tightly restricted and all access is automatically logged by
+ * the AuditPhiAccess middleware for compliance purposes.
+ *
+ * Access summary:
+ *  - Admins        → full access (view, create, update, delete)
+ *  - Medical staff → view and update (needed for active patient care)
+ *  - Applicants    → view and update only for their own child's record
+ *
+ * Deletion is admin-only to preserve the medical audit trail.
  */
 class MedicalRecordPolicy
 {
+    // This trait adds helper methods like allow() and deny() used by Laravel internals.
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any medical records.
+     * Can the user browse the full list of medical records?
      *
-     * Administrators and medical providers can view the list.
-     * Parents access their own records through scoped queries.
+     * Admins and medical providers need the full list for their dashboards.
+     * Parents access their child's record directly — not through a list.
      */
     public function viewAny(User $user): bool
     {
@@ -29,23 +37,24 @@ class MedicalRecordPolicy
     }
 
     /**
-     * Determine whether the user can view the medical record.
+     * Can the user view a specific medical record?
      *
-     * Administrators have full access.
-     * Medical providers can only view records for campers they're linked to.
-     * Parents can only view records for their own children.
+     * Three groups are allowed — we check each in order.
      */
     public function view(User $user, MedicalRecord $medicalRecord): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
             // Camp medical staff have direct access to all camper medical records.
+            // They need this to provide care during the camp session.
             return true;
         }
 
+        // A parent may view the medical record only for their own child.
         if ($user->isApplicant() && $user->ownsCamper($medicalRecord->camper)) {
             return true;
         }
@@ -54,10 +63,11 @@ class MedicalRecordPolicy
     }
 
     /**
-     * Determine whether the user can create medical records.
+     * Can the user create a new medical record?
      *
-     * Administrators and parents can create medical records.
-     * Medical providers cannot create new records.
+     * Admins create records for administrative purposes.
+     * Parents create the initial medical record when registering their child.
+     * Medical staff do not create records — they update existing ones.
      */
     public function create(User $user): bool
     {
@@ -65,14 +75,15 @@ class MedicalRecordPolicy
     }
 
     /**
-     * Determine whether the user can update the medical record.
+     * Can the user update a medical record?
      *
-     * Administrators have full access.
-     * Medical providers can only update records for campers they're linked to.
-     * Parents can update records for their own children.
+     * Admins may update any record. Medical staff update records during
+     * active care (e.g., adding a note after treating a camper).
+     * Parents can update their own child's record to keep information current.
      */
     public function update(User $user, MedicalRecord $medicalRecord): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
@@ -82,6 +93,7 @@ class MedicalRecordPolicy
             return true;
         }
 
+        // Parent can update only their own child's medical record.
         if ($user->isApplicant() && $user->ownsCamper($medicalRecord->camper)) {
             return true;
         }
@@ -90,10 +102,11 @@ class MedicalRecordPolicy
     }
 
     /**
-     * Determine whether the user can delete the medical record.
+     * Can the user delete a medical record?
      *
-     * Only administrators can delete medical records.
-     * Medical data should generally be retained for compliance.
+     * Only admins can delete medical records. Medical data should generally be
+     * retained for regulatory compliance — deletion is a last resort.
+     * Medical staff and parents cannot remove records to protect the audit trail.
      */
     public function delete(User $user, MedicalRecord $medicalRecord): bool
     {

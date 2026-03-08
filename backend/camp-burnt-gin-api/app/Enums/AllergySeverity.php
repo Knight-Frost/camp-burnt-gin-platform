@@ -3,20 +3,28 @@
 namespace App\Enums;
 
 /**
- * Enumeration of allergy severity levels.
+ * AllergySeverity — describes how dangerous a camper's allergy can be.
  *
- * This enum defines the valid severity classifications for camper
- * allergies, enabling appropriate response protocols based on risk.
+ * Knowing how serious an allergy is helps medical staff respond correctly.
+ * A mild reaction might just need some antihistamine, while a life-threatening
+ * one could require an EpiPen and a 911 call.
  */
 enum AllergySeverity: string
 {
+    // Minor reaction — sneezing, itchy eyes, slight rash. Not dangerous.
     case Mild = 'mild';
+
+    // Noticeable reaction that needs attention but is not an emergency.
     case Moderate = 'moderate';
+
+    // Serious reaction requiring prompt medical treatment.
     case Severe = 'severe';
+
+    // Could be fatal — requires immediate emergency response (e.g., EpiPen, 911).
     case LifeThreatening = 'life_threatening';
 
     /**
-     * Get a human-readable label for the severity level.
+     * Returns a friendly label for displaying the severity in the UI.
      */
     public function label(): string
     {
@@ -29,7 +37,8 @@ enum AllergySeverity: string
     }
 
     /**
-     * Determine if this severity level requires immediate medical attention.
+     * Returns true if this severity level means medical staff should act right away.
+     * Severe and life-threatening allergies always require immediate attention.
      */
     public function requiresImmediateAttention(): bool
     {

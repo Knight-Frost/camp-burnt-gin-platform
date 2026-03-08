@@ -14,33 +14,58 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * MessageService handles message operations within conversations.
+ * MessageService — Message Sending, Reading, and Attachment Handling
  *
- * Provides business logic for:
- * - Sending messages with idempotency protection
- * - Attaching files to messages via DocumentService
- * - Marking messages as read
- * - Retrieving conversation message history
+ * This service handles everything that happens with individual messages inside
+ * conversations. While InboxService manages the conversation container,
+ * MessageService manages the messages inside those containers.
  *
- * All operations include audit logging and notification delivery.
+ * Key responsibilities:
+ *  - Send messages with idempotency protection (prevents duplicate sends if the
+ *    user double-clicks or a network retry fires)
+ *  - Attach files to messages by delegating to DocumentService for validation
+ *    and storage
+ *  - Mark messages as read and track per-user read receipts
+ *  - Return paginated message history (and auto-mark fetched messages as read)
+ *  - Soft-delete messages (admin moderation only)
+ *  - Log all attachment accesses for HIPAA audit trail compliance
+ *
+ * All write operations use DB transactions and write to the audit log.
+ *
+ * Connected services:
+ *  - DocumentService: file upload, validation, and MIME scanning for attachments
+ *  - InboxService:    updates conversation timestamp and retrieves other participants
  */
 class MessageService
 {
+    /**
+     * Inject the two services this class depends on.
+     * Laravel's container resolves and provides these automatically.
+     */
     public function __construct(
         protected DocumentService $documentService,
         protected InboxService $inboxService
     ) {}
 
     /**
-     * Send a message in a conversation.
+     * Send a message within a conversation.
      *
-     * @param Conversation $conversation
-     * @param User $sender
-     * @param string $body
-     * @param array $attachments Array of UploadedFile objects
-     * @param string|null $idempotencyKey Unique key to prevent duplicate sends
-     * @return Message
-     * @throws \Exception
+     * Idempotency: if a message with the same idempotency key already exists,
+     * the existing message is returned instead of creating a duplicate. This
+     * handles network retries and double-submit scenarios gracefully.
+     *
+     * Flow:
+     *  1. Generate or use provided idempotency key
+     *  2. In a transaction: check for duplicate, create message, handle attachments,
+     *     update conversation timestamp, notify other participants
+     *  3. Write audit log entry
+     *
+     * @param  Conversation    $conversation    The conversation to send into
+     * @param  User            $sender          The user sending the message
+     * @param  string          $body            The message text content
+     * @param  array           $attachments     Array of UploadedFile objects (optional)
+     * @param  string|null     $idempotencyKey  Unique key to prevent duplicate sends
+     * @throws \Exception      If attachment upload fails
      */
     public function sendMessage(
         Conversation $conversation,
@@ -49,11 +74,12 @@ class MessageService
         array $attachments = [],
         ?string $idempotencyKey = null
     ): Message {
-        // Generate idempotency key if not provided
+        // Generate a random UUID idempotency key if the caller didn't provide one
         if (!$idempotencyKey) {
             $idempotencyKey = Str::uuid()->toString();
         }
 
+        // Wrap the entire send operation in a transaction for atomicity
         return DB::transaction(function () use (
             $conversation,
             $sender,
@@ -61,15 +87,15 @@ class MessageService
             $attachments,
             $idempotencyKey
         ) {
-            // Check for existing message with same idempotency key
+            // Idempotency check: if a message with this key was already created, return it
             $existingMessage = Message::where('idempotency_key', $idempotencyKey)->first();
 
             if ($existingMessage) {
-                // Return existing message (idempotent behavior)
+                // Return the existing message — safe for the caller to treat as a success
                 return $existingMessage->load(['sender', 'attachments']);
             }
 
-            // Create message
+            // Create the new message record
             $message = Message::create([
                 'conversation_id' => $conversation->id,
                 'sender_id' => $sender->id,
@@ -77,25 +103,25 @@ class MessageService
                 'idempotency_key' => $idempotencyKey,
             ]);
 
-            // Process attachments if provided
+            // Process and upload each attached file through DocumentService
             if (!empty($attachments)) {
                 foreach ($attachments as $file) {
                     $this->attachFile($message, $file, $sender);
                 }
             }
 
-            // Update conversation timestamp
+            // Bump the conversation's last_message_at so it sorts to the top of the inbox
             $this->inboxService->updateConversationTimestamp($conversation);
 
-            // Get other participants (excluding sender)
+            // Get all participants except the sender to notify them
             $otherParticipants = $this->inboxService->getParticipantsExcept($conversation, $sender);
 
-            // Notify other participants
+            // Send a notification to each participant (email + database)
             foreach ($otherParticipants as $participant) {
                 $participant->notify(new NewMessageNotification($message, $conversation));
             }
 
-            // Audit log
+            // Write an audit log entry recording this send event
             AuditLog::create([
                 'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
                 'user_id' => $sender->id,
@@ -106,6 +132,7 @@ class MessageService
                 'description' => "Message sent in conversation: {$conversation->subject}",
                 'new_values' => [
                     'conversation_id' => $conversation->id,
+                    // Log body length rather than content to avoid logging PHI in the audit table
                     'body_length' => strlen($body),
                     'attachment_count' => count($attachments),
                 ],
@@ -118,28 +145,33 @@ class MessageService
                 'created_at' => now(),
             ]);
 
+            // Return the message with sender and attachments loaded for the API response
             return $message->load(['sender', 'attachments']);
         });
     }
 
     /**
-     * Attach a file to a message.
+     * Attach a file to a message by uploading it through DocumentService.
      *
-     * @param Message $message
-     * @param UploadedFile $file
-     * @param User $uploader
-     * @return \App\Models\Document
-     * @throws \Exception
+     * DocumentService handles MIME validation, safe filename generation, and
+     * security scanning. This method adds the audit log entry specific to
+     * the attachment action.
+     *
+     * @param  Message       $message   The message to attach the file to
+     * @param  UploadedFile  $file      The file being attached
+     * @param  User          $uploader  The user performing the upload
+     * @throws \Exception    If the file fails validation or upload
      */
     protected function attachFile(Message $message, UploadedFile $file, User $uploader)
     {
-        // Validate file
+        // Validate the attachment separately before passing to DocumentService
         $this->validateAttachment($file);
 
-        // Upload and scan document using DocumentService
+        // Delegate actual upload, scanning, and storage to DocumentService
         $result = $this->documentService->upload(
             $file,
             [
+                // Link the document to the message via a polymorphic relationship
                 'documentable_type' => \App\Models\Message::class,
                 'documentable_id' => $message->id,
                 'message_id' => $message->id,
@@ -154,7 +186,7 @@ class MessageService
 
         $document = $result['document'];
 
-        // Audit log for attachment
+        // Write an attachment-specific audit log entry (separate from the message send event)
         AuditLog::create([
             'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
             'user_id' => $uploader->id,
@@ -177,20 +209,21 @@ class MessageService
     }
 
     /**
-     * Validate attachment against security requirements.
+     * Validate an attachment before passing it to DocumentService.
      *
-     * @param UploadedFile $file
-     * @return void
-     * @throws \Exception
+     * Enforces:
+     *  - 10 MB file size limit
+     *  - MIME type must be in the allowed list (PDF, JPEG, PNG, GIF, DOC, DOCX)
+     *
+     * @throws \Exception  With a human-readable message if validation fails
      */
     protected function validateAttachment(UploadedFile $file): void
     {
-        // Check file size (10MB limit)
+        // 10 MB in bytes: 10 * 1024 * 1024 = 10,485,760
         if ($file->getSize() > 10485760) {
             throw new \Exception('File size exceeds 10MB limit');
         }
 
-        // Check MIME type
         $allowedMimeTypes = [
             'application/pdf',
             'image/jpeg',
@@ -206,12 +239,15 @@ class MessageService
     }
 
     /**
-     * Get paginated messages for a conversation.
+     * Get paginated messages for a conversation and mark unread ones as read.
      *
-     * @param Conversation $conversation
-     * @param User $user
-     * @param int $perPage
-     * @return LengthAwarePaginator
+     * Messages are returned oldest-first (chronological order for chat display).
+     * As messages are fetched, any that the user hasn't read yet are automatically
+     * marked as read — so opening a conversation clears the unread badge.
+     *
+     * @param  Conversation  $conversation  The conversation to fetch messages for
+     * @param  User          $user          The user viewing the messages
+     * @param  int           $perPage       Messages per page (default 25)
      */
     public function getConversationMessages(
         Conversation $conversation,
@@ -220,10 +256,10 @@ class MessageService
     ): LengthAwarePaginator {
         $messages = Message::where('conversation_id', $conversation->id)
             ->with(['sender', 'attachments'])
-            ->oldest()
+            ->oldest()   // Chronological order for natural chat reading
             ->paginate($perPage);
 
-        // Mark unread messages as read
+        // Auto-mark any unread messages as read for this user
         foreach ($messages as $message) {
             if (!$message->isReadBy($user)) {
                 $this->markAsRead($message, $user);
@@ -234,28 +270,29 @@ class MessageService
     }
 
     /**
-     * Mark a message as read by a user.
+     * Mark a specific message as read by a user.
      *
-     * @param Message $message
-     * @param User $user
-     * @return void
+     * Rules:
+     *  - A user's own messages are never marked as read (they sent it)
+     *  - Already-read messages are skipped (idempotent)
+     *  - A read receipt record is created and an audit log entry is written
      */
     public function markAsRead(Message $message, User $user): void
     {
-        // Don't mark own messages as read
+        // Don't mark a message as read if the user sent it themselves
         if ($message->sender_id === $user->id) {
             return;
         }
 
-        // Check if already read
+        // Skip if already read — keeps this method idempotent
         if ($message->isReadBy($user)) {
             return;
         }
 
-        // Create read receipt
+        // Create the read receipt record via the model method
         $message->markAsReadBy($user);
 
-        // Audit log
+        // Log the read event for HIPAA audit trail
         AuditLog::create([
             'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
             'user_id' => $user->id,
@@ -274,39 +311,38 @@ class MessageService
     }
 
     /**
-     * Get unread message count for a user across all conversations.
+     * Get the total count of unread messages for a user across all conversations.
      *
-     * @param User $user
-     * @return int
+     * Used to drive the unread badge on the inbox navigation icon.
+     * Implemented as a single aggregated query — no N+1.
      */
     public function getUnreadMessageCount(User $user): int
     {
         return Message::whereHas('conversation', function ($query) use ($user) {
+            // Only count messages in conversations this user is part of and that are active
             $query->forUser($user)->active();
         })
-        ->unreadBy($user)
+        ->unreadBy($user)  // scope: no read receipt exists for this user
         ->count();
     }
 
     /**
-     * Get unread message count for a specific conversation.
+     * Get the unread message count for a specific conversation and user.
      *
-     * @param Conversation $conversation
-     * @param User $user
-     * @return int
+     * Used to show the unread count badge on a specific conversation row.
      */
     public function getConversationUnreadCount(Conversation $conversation, User $user): int
     {
+        // Delegates to the model's method for encapsulated query logic
         return $conversation->getUnreadCountForUser($user);
     }
 
     /**
-     * Soft delete a message.
+     * Soft delete a message (admin-only moderation action).
      *
-     * Only admins can perform this operation for moderation.
-     *
-     * @param Message $message
-     * @return void
+     * Sets deleted_at so the message disappears from conversation views.
+     * The database record is retained for audit purposes.
+     * Only administrators are permitted to call this method.
      */
     public function deleteMessage(Message $message): void
     {
@@ -320,6 +356,7 @@ class MessageService
             'auditable_id' => $message->id,
             'action' => 'soft_deleted',
             'description' => "Message soft deleted by admin",
+            // Capture the message content in old_values for the audit trail
             'old_values' => $message->toArray(),
             'metadata' => [
                 'conversation_id' => $message->conversation_id,
@@ -331,19 +368,23 @@ class MessageService
     }
 
     /**
-     * Access a message attachment and log the access.
+     * Access a message attachment and log the access event.
      *
-     * @param Message $message
-     * @param int $documentId
-     * @param User $user
-     * @return \App\Models\Document
-     * @throws \Exception
+     * Every time someone downloads an attachment, a HIPAA audit log entry is
+     * written recording who accessed which document and when. This is required
+     * for healthcare data access traceability.
+     *
+     * @param  Message  $message     The message that owns the attachment
+     * @param  int      $documentId  The ID of the document to access
+     * @param  User     $user        The user accessing the attachment
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException  If document not found
      */
     public function accessAttachment(Message $message, int $documentId, User $user)
     {
+        // Verify the document belongs to this message (prevents horizontal privilege escalation)
         $document = $message->attachments()->findOrFail($documentId);
 
-        // Audit log for attachment access
+        // Log the attachment access — required for HIPAA audit trail
         AuditLog::create([
             'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
             'user_id' => $user->id,

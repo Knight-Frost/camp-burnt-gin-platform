@@ -1,11 +1,14 @@
 /**
  * MedicalDashboardPage.tsx
  *
- * Full operational medical command center:
- *   Section 1 — Stats Bar (5 stat cards)
- *   Section 2 — Alert Strip (overdue / due-today follow-ups)
- *   Section 3 — Two-column: Recent Activity feed + Follow-up Tasks
- *   Section 4 — Camper Medical Directory (searchable grid, paginated)
+ * The medical staff's operational command center — the first screen they see
+ * after logging in. It answers three questions at a glance:
+ *   1. "How is our camp doing medically?" → Stats Bar (5 summary numbers)
+ *   2. "What needs my attention right now?" → Alert Strip + Follow-up Tasks
+ *   3. "Which camper do I need to look up?" → Searchable Camper Directory
+ *
+ * Data is loaded in two separate batches so the page can show partial content
+ * quickly instead of making the user wait for everything at once.
  *
  * Route: /medical/dashboard
  */
@@ -53,9 +56,14 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * relativeTime — converts a date string into a human-friendly "time ago" label.
+ * Returns things like "5m ago", "2h ago", or "yesterday".
+ */
 function relativeTime(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
+  // Difference in whole seconds between now and the recorded time
   const diff = Math.floor((now - then) / 1000);
 
   if (diff < 60) return 'just now';
@@ -65,10 +73,18 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/**
+ * isOverdue — returns true if a due date has completely passed.
+ * Setting hours to 23:59:59 means something due "today" is NOT overdue yet.
+ */
 function isOverdue(dueDateStr: string): boolean {
   return new Date(dueDateStr).setHours(23, 59, 59, 999) < Date.now();
 }
 
+/**
+ * formatDueDate — formats a date string as "Mon DD" (e.g. "Mar 15").
+ * Used in the follow-up task list to show when something is due.
+ */
 function formatDueDate(dueDateStr: string): string {
   const d = new Date(dueDateStr);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -76,8 +92,14 @@ function formatDueDate(dueDateStr: string): string {
 
 // ─── Unified activity item ─────────────────────────────────────────────────────
 
+/** The three types of events that can appear in the Recent Activity feed */
 type ActivityKind = 'treatment' | 'incident' | 'visit';
 
+/**
+ * ActivityItem — a normalized shape used by the activity feed.
+ * The backend returns treatments, incidents, and visits in separate arrays,
+ * but the feed needs them all in one list sorted by time.
+ */
 interface ActivityItem {
   id: number;
   kind: ActivityKind;
@@ -87,9 +109,15 @@ interface ActivityItem {
   timestamp: string;
 }
 
+/**
+ * buildActivity — merges three separate activity lists from the stats API
+ * into a single unified list, sorted newest-first, limited to 5 items.
+ * This is purely a client-side transformation — no extra network requests.
+ */
 function buildActivity(stats: MedicalStats): ActivityItem[] {
   const items: ActivityItem[] = [];
 
+  // Map each treatment log into the normalized ActivityItem shape
   for (const t of (stats.recent_activity.treatments ?? []) as TreatmentLog[]) {
     items.push({
       id: t.id,
@@ -101,6 +129,7 @@ function buildActivity(stats: MedicalStats): ActivityItem[] {
     });
   }
 
+  // Map each incident into the normalized ActivityItem shape
   for (const inc of (stats.recent_activity.incidents ?? []) as MedicalIncident[]) {
     items.push({
       id: inc.id,
@@ -112,6 +141,7 @@ function buildActivity(stats: MedicalStats): ActivityItem[] {
     });
   }
 
+  // Map each health office visit into the normalized ActivityItem shape
   for (const v of (stats.recent_activity.visits ?? []) as MedicalVisit[]) {
     items.push({
       id: v.id,
@@ -123,6 +153,7 @@ function buildActivity(stats: MedicalStats): ActivityItem[] {
     });
   }
 
+  // Sort all items newest-first, then keep only the top 5
   return items
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 5);
@@ -130,6 +161,10 @@ function buildActivity(stats: MedicalStats): ActivityItem[] {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+/**
+ * ActivityIcon — shows a small colored icon that signals what type of event
+ * an activity item is (treatment = green, incident = red, visit = blue).
+ */
 function ActivityIcon({ kind }: { kind: ActivityKind }) {
   if (kind === 'treatment') {
     return (
@@ -151,6 +186,7 @@ function ActivityIcon({ kind }: { kind: ActivityKind }) {
       </div>
     );
   }
+  // Default: visit
   return (
     <div
       className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
@@ -161,8 +197,13 @@ function ActivityIcon({ kind }: { kind: ActivityKind }) {
   );
 }
 
+/**
+ * ActivityTypeBadge — a colored pill label ("Treatment", "Incident", "Visit")
+ * that appears below the activity title so you can tell them apart at a glance.
+ */
 function ActivityTypeBadge({ kind }: { kind: ActivityKind }) {
   const { t } = useTranslation();
+  // Each activity kind has its own color scheme defined here
   const configs: Record<ActivityKind, { label: string; bg: string; color: string }> = {
     treatment: {
       label: t('medical.dashboard.activity.type_treatment'),
@@ -191,6 +232,10 @@ function ActivityTypeBadge({ kind }: { kind: ActivityKind }) {
   );
 }
 
+/**
+ * PriorityBadge — colored pill showing a follow-up's priority level.
+ * Colors escalate: low (green) → medium (amber) → high (orange) → urgent (red).
+ */
 function PriorityBadge({ priority }: { priority: MedicalFollowUp['priority'] }) {
   const { t } = useTranslation();
   const configs: Record<MedicalFollowUp['priority'], { bg: string; color: string }> = {
@@ -212,6 +257,10 @@ function PriorityBadge({ priority }: { priority: MedicalFollowUp['priority'] }) 
 
 // ─── Skeleton blocks ───────────────────────────────────────────────────────────
 
+/**
+ * StatsSkeleton — placeholder grid shown while the five stat cards are loading.
+ * Prevents layout shift by matching the real grid's column count.
+ */
 function StatsSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
@@ -222,6 +271,10 @@ function StatsSkeleton() {
   );
 }
 
+/**
+ * ActivitySkeleton — placeholder rows shown while the activity feed or
+ * follow-up list is still loading. Each row pulses to signal loading.
+ */
 function ActivitySkeleton() {
   return (
     <div className="space-y-3">
@@ -247,16 +300,19 @@ export function MedicalDashboardPage() {
   const [followUps, setFollowUps]       = useState<MedicalFollowUp[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError]     = useState(false);
+  // Incrementing this triggers a re-fetch without changing any other state
   const [statsRetryKey, setStatsRetryKey] = useState(0);
+  // Tracks which follow-up is currently being marked complete (to disable its button)
   const [completingId, setCompletingId] = useState<number | null>(null);
 
-  // Campers state
+  // Campers directory state
   const [camperResponse, setCamperResponse] = useState<PaginatedResponse<Camper> | null>(null);
   const [campersLoading, setCampersLoading] = useState(true);
   const [campersError, setCampersError]     = useState(false);
   const [camperRetryKey, setCamperRetryKey] = useState(0);
   const [search, setSearch]                 = useState('');
   const [camperPage, setCamperPage]         = useState(1);
+  // Separate flag so "Load more" doesn't replace the whole grid with a spinner
   const [loadingMore, setLoadingMore]       = useState(false);
 
   // ── Fetch stats + open follow-ups in parallel ────────────────────────────────
@@ -264,13 +320,15 @@ export function MedicalDashboardPage() {
     setStatsLoading(true);
     setStatsError(false);
     try {
+      // Kick off both requests at the same time instead of waiting for each in turn
       const [statsData, followUpData] = await Promise.all([
         getMedicalStats(),
         getMedicalFollowUps({ status: 'pending', page: 1 }),
       ]);
       setStats(statsData);
-      // Merge pending + in_progress: fetch in_progress separately
+      // Also fetch in-progress follow-ups so the panel shows them too
       const inProgressData = await getMedicalFollowUps({ status: 'in_progress', page: 1 });
+      // Merge both lists and sort: urgent first, then by due date ascending
       const merged = [...followUpData.data, ...inProgressData.data].sort((a, b) => {
         const priorityOrder: Record<MedicalFollowUp['priority'], number> = {
           urgent: 0, high: 1, medium: 2, low: 3,
@@ -287,9 +345,15 @@ export function MedicalDashboardPage() {
     }
   }, []);
 
+  // Re-run fetchStats whenever the retry key changes (incremented on error or after completing a task)
   useEffect(() => { void fetchStats(); }, [fetchStats, statsRetryKey]);
 
   // ── Fetch campers ─────────────────────────────────────────────────────────────
+  /**
+   * fetchCampers — loads a page of campers from the API.
+   * When `append` is true (Load More), new campers are added to the existing list
+   * instead of replacing it, so the user doesn't lose their scroll position.
+   */
   const fetchCampers = useCallback(async (page = 1, append = false) => {
     if (!append) setCampersLoading(true);
     else setLoadingMore(true);
@@ -297,6 +361,7 @@ export function MedicalDashboardPage() {
     try {
       const data = await getMedicalCampers({ search: search || undefined, page });
       if (append && camperResponse) {
+        // Prepend the existing campers to the new page results
         setCamperResponse({
           ...data,
           data: [...camperResponse.data, ...data.data],
@@ -312,18 +377,25 @@ export function MedicalDashboardPage() {
     }
   }, [search, camperRetryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reset to page 1 whenever the search term or retry key changes
   useEffect(() => {
     setCamperPage(1);
     void fetchCampers(1, false);
   }, [search, camperRetryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mark follow-up complete ───────────────────────────────────────────────────
+  /**
+   * handleMarkComplete — sends a PATCH to the API, then removes the item from
+   * the local list immediately so it disappears without requiring a full reload.
+   * Also refreshes the stats counts (overdue/due-today badges update).
+   */
   const handleMarkComplete = useCallback(async (id: number) => {
     setCompletingId(id);
     try {
       await updateMedicalFollowUp(id, { status: 'completed' });
+      // Remove the completed item from the visible list
       setFollowUps((prev) => prev.filter((f) => f.id !== id));
-      // Refresh stats counts
+      // Trigger a stats refresh so the alert strip counts update
       setStatsRetryKey((k) => k + 1);
     } finally {
       setCompletingId(null);
@@ -331,6 +403,7 @@ export function MedicalDashboardPage() {
   }, []);
 
   // ── Load more campers ─────────────────────────────────────────────────────────
+  /** handleLoadMore — increments the page counter and appends the next page. */
   const handleLoadMore = useCallback(() => {
     const nextPage = camperPage + 1;
     setCamperPage(nextPage);
@@ -338,11 +411,14 @@ export function MedicalDashboardPage() {
   }, [camperPage, fetchCampers]);
 
   // ── Derived data ──────────────────────────────────────────────────────────────
+  // Build the merged activity feed from the stats object (client-side only)
   const activityItems = stats ? buildActivity(stats) : [];
   const overdueCount  = stats?.follow_ups.overdue ?? 0;
   const dueTodayCount = stats?.follow_ups.due_today ?? 0;
+  // Only show the alert strip after stats have loaded and there's something to show
   const showAlertStrip = (overdueCount > 0 || dueTodayCount > 0) && !statsLoading;
 
+  // True when the API says there are more camper pages available
   const hasMoreCampers =
     camperResponse &&
     camperResponse.meta.current_page < camperResponse.meta.last_page;
@@ -372,6 +448,7 @@ export function MedicalDashboardPage() {
       {statsLoading ? (
         <StatsSkeleton />
       ) : statsError ? (
+        // Error state with a retry button
         <div
           className="rounded-xl border p-4 flex items-center justify-between"
           style={{ background: 'rgba(220,38,38,0.05)', borderColor: 'rgba(220,38,38,0.2)' }}
@@ -389,6 +466,7 @@ export function MedicalDashboardPage() {
           </button>
         </div>
       ) : stats ? (
+        // Five stat cards that animate in one after another
         <motion.div
           variants={staggerContainer}
           initial="hidden"
@@ -444,6 +522,7 @@ export function MedicalDashboardPage() {
       ) : null}
 
       {/* ── SECTION 2: Alert Strip ──────────────────────────────────────────── */}
+      {/* Only rendered when there are overdue or due-today follow-ups to act on */}
       {showAlertStrip && (
         <motion.div
           variants={staggerContainer}
@@ -451,6 +530,7 @@ export function MedicalDashboardPage() {
           animate="visible"
           className="flex flex-wrap gap-3"
         >
+          {/* Red button for overdue tasks — clicking navigates to the follow-ups page */}
           {overdueCount > 0 && (
             <motion.button
               variants={staggerChild}
@@ -463,6 +543,7 @@ export function MedicalDashboardPage() {
               <ArrowRight className="h-3.5 w-3.5 ml-1" />
             </motion.button>
           )}
+          {/* Amber button for items due today */}
           {dueTodayCount > 0 && (
             <motion.button
               variants={staggerChild}
@@ -479,6 +560,7 @@ export function MedicalDashboardPage() {
       )}
 
       {/* ── SECTION 3: Two-column layout ───────────────────────────────────── */}
+      {/* Left column takes 3/5 of the width, right column takes 2/5 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
         {/* Left: Recent Activity (60%) */}
@@ -513,6 +595,7 @@ export function MedicalDashboardPage() {
                 />
               </div>
             ) : (
+              // List of up to 5 activity items, each fading in with a stagger delay
               <motion.ul
                 variants={staggerContainer}
                 initial="hidden"
@@ -529,6 +612,7 @@ export function MedicalDashboardPage() {
                     <ActivityIcon kind={item.kind} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
+                        {/* Camper name links directly to their full medical record */}
                         <Link
                           to={ROUTES.MEDICAL_RECORD_DETAIL(item.camperId)}
                           className="text-sm font-medium hover:underline truncate"
@@ -560,6 +644,7 @@ export function MedicalDashboardPage() {
             <h2 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>
               {t('medical.dashboard.followup.title')}
             </h2>
+            {/* "View all" link goes to the dedicated follow-ups management page */}
             <Link
               to={ROUTES.MEDICAL_FOLLOW_UPS}
               className="text-xs font-medium flex items-center gap-1 hover:underline"
@@ -612,6 +697,7 @@ export function MedicalDashboardPage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <PriorityBadge priority={fu.priority} />
+                        {/* Mark complete button — disabled while the API call is in flight */}
                         <button
                           onClick={() => void handleMarkComplete(fu.id)}
                           disabled={isCompleting}
@@ -629,6 +715,7 @@ export function MedicalDashboardPage() {
                         {fu.title}
                       </p>
                       <div className="flex items-center justify-between gap-2">
+                        {/* Camper name links to their medical record */}
                         <Link
                           to={ROUTES.MEDICAL_RECORD_DETAIL(fu.camper_id)}
                           className="text-xs hover:underline truncate"
@@ -636,6 +723,7 @@ export function MedicalDashboardPage() {
                         >
                           {fu.camper?.full_name ?? t('common.unknown')}
                         </Link>
+                        {/* Due date turns red if the task is overdue */}
                         <span
                           className="text-xs flex-shrink-0 font-medium"
                           style={{ color: overdue ? 'var(--destructive)' : 'var(--muted-foreground)' }}
@@ -661,7 +749,7 @@ export function MedicalDashboardPage() {
             {t('medical.dashboard.directory.title')}
           </h2>
 
-          {/* Search */}
+          {/* Search box — typing here triggers a new server-side fetch automatically */}
           <div
             className="flex items-center gap-2 rounded-lg px-3 py-2 border w-full sm:max-w-xs"
             style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -701,8 +789,10 @@ export function MedicalDashboardPage() {
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
             >
               {camperResponse.data.map((camper: Camper) => {
+                // Derive summary counts from the nested medical_record object
                 const allergyCount = camper.medical_record?.allergies?.length ?? 0;
                 const medCount     = camper.medical_record?.medications?.length ?? 0;
+                // Life-threatening allergy flag changes the card's border color to red
                 const hasLifeThreatening = camper.medical_record?.allergies?.some(
                   (a) => a.severity === 'life-threatening'
                 );
@@ -714,6 +804,7 @@ export function MedicalDashboardPage() {
                       className="rounded-xl border overflow-hidden transition-shadow hover:shadow-md"
                       style={{
                         background: 'var(--glass-medium)',
+                        // Cards with a life-threatening allergy get a thicker red left border
                         borderColor: hasLifeThreatening ? 'rgba(220,38,38,0.25)' : 'var(--border)',
                         borderLeftWidth: hasLifeThreatening ? '3px' : '1px',
                         borderLeftColor: hasLifeThreatening ? 'var(--destructive)' : 'var(--border)',
@@ -722,6 +813,7 @@ export function MedicalDashboardPage() {
                     >
                       <div className="p-5">
                         <div className="flex items-start justify-between mb-3">
+                          {/* Icon changes to a red warning triangle for campers with life-threatening allergies */}
                           <div
                             className="flex items-center justify-center w-9 h-9 rounded-xl"
                             style={{
@@ -741,12 +833,14 @@ export function MedicalDashboardPage() {
                           {camper.full_name}
                         </p>
 
+                        {/* Show the camper's primary diagnosis if one exists */}
                         {primaryDx && (
                           <p className="text-xs mb-3 truncate" style={{ color: 'var(--muted-foreground)' }}>
                             {primaryDx}
                           </p>
                         )}
 
+                        {/* Summary pills for allergies and medications */}
                         <div className="flex flex-wrap items-center gap-2 mb-4">
                           {allergyCount > 0 && (
                             <span
@@ -777,6 +871,7 @@ export function MedicalDashboardPage() {
 
                         </div>
 
+                        {/* Two action buttons: full record view, and emergency quick view */}
                         <div className="flex items-center gap-2">
                           <Link
                             to={ROUTES.MEDICAL_RECORD_DETAIL(camper.id)}
@@ -788,6 +883,7 @@ export function MedicalDashboardPage() {
                           >
                             {t('medical.dashboard.directory.view_record')}
                           </Link>
+                          {/* Emergency view link — color matches severity (red if life-threatening) */}
                           <Link
                             to={ROUTES.MEDICAL_RECORD_EMERGENCY(camper.id)}
                             className="flex items-center justify-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -813,7 +909,7 @@ export function MedicalDashboardPage() {
               })}
             </motion.div>
 
-            {/* Load more */}
+            {/* Load more button — only appears when there is a next page */}
             {hasMoreCampers && (
               <div className="flex justify-center pt-2">
                 <button

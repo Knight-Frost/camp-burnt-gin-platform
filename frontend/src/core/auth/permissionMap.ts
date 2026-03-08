@@ -1,13 +1,27 @@
+/**
+ * permissionMap.ts — Role-to-permission mapping table
+ *
+ * This is the frontend's RBAC (Role-Based Access Control) truth table.
+ * It answers: "Given a role, what specific actions is that user allowed to perform?"
+ *
+ * Each role maps to an array of Permission strings (defined in permissions.ts).
+ * The usePermission() hook reads this map to determine what UI elements to show
+ * and what AuthorityGuard gates to open.
+ *
+ * Note: super_admin receives ALL permissions via `...Object.values(PERMISSIONS)`.
+ * The `medical` role is intentionally narrow — read-only access to medical records.
+ */
+
 import { PERMISSIONS, Permission } from '@/shared/constants/permissions';
 import { RoleName } from '@/shared/constants/roles';
 
 export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   super_admin: [
-    // All permissions (governance + operational + self-service)
+    // Super admin gets every permission — governance + operational + self-service
     ...Object.values(PERMISSIONS),
   ],
   admin: [
-    // Operational permissions (no governance)
+    // Operational permissions — can manage day-to-day camp data but NOT governance tools
     PERMISSIONS.VIEW_ALL_CAMPERS,
     PERMISSIONS.VIEW_ALL_APPLICATIONS,
     PERMISSIONS.REVIEW_APPLICATION,
@@ -23,7 +37,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     PERMISSIONS.DELETE_MEDICAL_RECORD,
   ],
   applicant: [
-    // Self-service permissions
+    // Self-service permissions — parents/guardians can only access their own data
     PERMISSIONS.VIEW_OWN_CAMPERS,
     PERMISSIONS.CREATE_CAMPER,
     PERMISSIONS.UPDATE_OWN_CAMPER,
@@ -42,9 +56,10 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     PERMISSIONS.SEND_MESSAGE,
   ],
   medical: [
-    // Read-only medical permissions
+    // Read-only medical permissions — medical staff can view records but not modify them
     PERMISSIONS.VIEW_ALL_MEDICAL_RECORDS,
   ],
 };
 
+// Re-export Permission type so consumers can import it from this file
 export type { Permission };

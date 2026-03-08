@@ -9,11 +9,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Allergy model representing a known allergy for a camper.
+ * Allergy model — records a single known allergen for a camper.
  *
- * Allergies track the allergen, severity level, typical reaction,
- * and recommended treatment. This information is critical for
- * ensuring camper safety during camp activities.
+ * Each row captures what the camper is allergic to, how severe the reaction
+ * can be, what a typical reaction looks like, and how to treat it. This
+ * data is critical for camp staff to prevent and respond to allergic events.
+ *
+ * PHI encryption:
+ *  - allergen, reaction, and treatment are all encrypted at rest because they
+ *    constitute protected health information under HIPAA.
+ *
+ * Frontend compatibility:
+ *  - The database column is called 'allergen', but the frontend expects 'name'.
+ *    A virtual 'name' attribute is appended to JSON output as an alias so the
+ *    two sides don't need to be aware of each other's naming convention.
  */
 class Allergy extends Model
 {
@@ -25,42 +34,46 @@ class Allergy extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'camper_id',
-        'allergen',
-        'severity',
-        'reaction',
-        'treatment',
+        'camper_id', // Links this allergy to a specific camper.
+        'allergen',  // The substance causing the reaction (e.g. "Peanuts").
+        'severity',  // AllergySeverity enum — mild, moderate, severe, life-threatening.
+        'reaction',  // Description of what happens during an allergic reaction.
+        'treatment', // Instructions for responding to a reaction (e.g. "Use EpiPen").
     ];
 
     /**
      * Get the attributes that should be cast.
      *
-     * PHI fields are encrypted at rest for HIPAA compliance.
+     * PHI fields are AES-256 encrypted in the database via Laravel's encrypted cast.
      *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'allergen' => 'encrypted',
-            'severity' => AllergySeverity::class,
-            'reaction' => 'encrypted',
-            'treatment' => 'encrypted',
+            'allergen'  => 'encrypted',              // PHI — stored encrypted.
+            'severity'  => AllergySeverity::class,   // Maps stored string to enum instance.
+            'reaction'  => 'encrypted',              // PHI — stored encrypted.
+            'treatment' => 'encrypted',              // PHI — stored encrypted.
         ];
     }
 
     /**
-     * Attributes appended to JSON/array output.
+     * Virtual attributes appended to JSON/array output.
      *
-     * Exposes 'name' as an alias for 'allergen' so the frontend
-     * can consistently read allergy.name without a field-name mismatch.
+     * 'name' is added here so the frontend can read allergy.name instead of
+     * allergy.allergen, keeping the API surface consistent with other models
+     * that use a 'name' field for their primary display value.
      *
      * @var list<string>
      */
     protected $appends = ['name'];
 
     /**
-     * Alias allergen as 'name' for frontend compatibility.
+     * Define the 'name' virtual attribute as a read-only alias for 'allergen'.
+     *
+     * Attribute::make() with only a getter creates a computed, read-only property.
+     * Writing to $allergy->name would be silently ignored; callers should use allergen.
      */
     protected function name(): Attribute
     {
@@ -78,7 +91,10 @@ class Allergy extends Model
     }
 
     /**
-     * Determine if this allergy requires immediate medical attention.
+     * Determine whether this allergy demands immediate medical attention.
+     *
+     * Delegates to the AllergySeverity enum so the threshold definition
+     * lives in one place and is consistent across the whole codebase.
      */
     public function requiresImmediateAttention(): bool
     {

@@ -1,9 +1,19 @@
 /**
  * ApplicantDocumentsPage.tsx
- * Standalone document management for applicants — upload, preview, and delete
- * documents independent of the application form.
  *
- * Route: /applicant/documents
+ * Purpose: Standalone document management for applicants — upload, preview, and
+ *          delete documents independent of the multi-step application form.
+ * Responsibilities:
+ *   - Fetch all documents belonging to the current user from the API
+ *   - Provide a drag-and-drop / click-to-browse upload area (PDF, JPG, PNG, WebP)
+ *   - Require a document-type label before upload to keep files organized
+ *   - Display each document with a View (modal preview), Send (to admin), and Delete action
+ *   - PreviewModal: inline image or iframe PDF viewer; "open in new tab" fallback for others
+ *   - SendDocumentModal: creates a new inbox conversation with a selected admin recipient
+ *
+ * Plain-English: This is the parent's personal filing cabinet — they can
+ * drag files in, preview them without downloading, notify an admin that
+ * a document is ready, or remove files they uploaded by mistake.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -38,14 +48,17 @@ import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import { staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 
+// File types accepted by the hidden <input> and the drag-and-drop zone
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png,.webp';
 
+// Converts raw byte count into a human-readable string (B / KB / MB)
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// PDF icon is red (conventional); all other file types get a blue generic icon
 function FileIcon({ mime }: { mime: string }) {
   const isPdf = mime === 'application/pdf';
   return (
@@ -62,7 +75,7 @@ function FileIcon({ mime }: { mime: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Preview modal
+// Preview modal — renders an image, PDF iframe, or a "can't preview" fallback
 // ---------------------------------------------------------------------------
 
 function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) {
@@ -70,11 +83,13 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
   const isPdf   = doc.mime_type === 'application/pdf';
 
   return (
+    // Clicking the dark backdrop closes the modal
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
     >
+      {/* e.stopPropagation prevents clicks inside the card from closing the modal */}
       <div
         className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
         style={{ background: 'var(--card)', maxHeight: '90vh' }}
@@ -96,6 +111,7 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
           </button>
         </div>
         <div className="overflow-auto" style={{ maxHeight: 'calc(90vh - 56px)' }}>
+          {/* Images render directly */}
           {isImage && (
             <img
               src={doc.url}
@@ -103,6 +119,7 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
               className="w-full h-auto object-contain"
             />
           )}
+          {/* PDFs load in an iframe so the browser's built-in PDF viewer handles them */}
           {isPdf && (
             <iframe
               src={doc.url}
@@ -111,6 +128,7 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
               style={{ height: '75vh' }}
             />
           )}
+          {/* Any other format gets a "can't preview" message with an open-in-tab link */}
           {!isImage && !isPdf && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <FileText className="h-12 w-12" style={{ color: 'var(--muted-foreground)' }} />
@@ -135,7 +153,7 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
 }
 
 // ---------------------------------------------------------------------------
-// Send to admin modal
+// Send to admin modal — lets the parent notify an admin about a specific document
 // ---------------------------------------------------------------------------
 
 function SendDocumentModal({
@@ -147,16 +165,19 @@ function SendDocumentModal({
 }) {
   const [admins, setAdmins]           = useState<ConversationParticipant[]>([]);
   const [selectedId, setSelectedId]   = useState<number | null>(null);
+  // Pre-fill a helpful message template mentioning the document name and type
   const [message, setMessage]         = useState(
     `Hi, I'm sharing a document with you:\n\nDocument: ${doc.file_name}\nType: ${doc.document_type}\n\nPlease let me know if you need anything else.`
   );
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [sending, setSending]         = useState(false);
 
+  // Load available admin recipients when the modal opens
   useEffect(() => {
     searchInboxUsers('')
       .then((users) => {
         setAdmins(users);
+        // Auto-select the first admin so the user doesn't have to pick one manually
         if (users.length > 0) setSelectedId(users[0].id);
       })
       .catch(() => toast.error('Could not load admin recipients.'))
@@ -167,11 +188,13 @@ function SendDocumentModal({
     if (!selectedId || !message.trim()) return;
     setSending(true);
     try {
+      // Step 1: create a new conversation thread for this document notification
       const conv = await createConversation({
         subject: `Document: ${doc.file_name}`,
         participant_ids: [selectedId],
         category: 'general',
       });
+      // Step 2: send the composed message into that new thread
       await sendMessage(conv.id, message.trim());
       toast.success('Document notification sent to admin.');
       onClose();
@@ -183,6 +206,7 @@ function SendDocumentModal({
   }
 
   return (
+    // Backdrop click closes the modal
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
@@ -217,7 +241,7 @@ function SendDocumentModal({
 
         {/* Body */}
         <div className="p-5 flex flex-col gap-4">
-          {/* Recipient */}
+          {/* Recipient dropdown — populated after searchInboxUsers resolves */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
               Send to
@@ -244,7 +268,7 @@ function SendDocumentModal({
             )}
           </div>
 
-          {/* Message */}
+          {/* Editable message body — parent can customize before sending */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
               Message
@@ -259,7 +283,7 @@ function SendDocumentModal({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer actions */}
         <div
           className="flex items-center justify-end gap-3 px-5 py-4 border-t"
           style={{ borderColor: 'var(--border)' }}
@@ -267,6 +291,7 @@ function SendDocumentModal({
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
+          {/* Send button disabled while loading admins, while sending, or if nothing to send */}
           <Button
             size="sm"
             disabled={!selectedId || !message.trim() || sending || loadingAdmins || admins.length === 0}
@@ -284,7 +309,7 @@ function SendDocumentModal({
 }
 
 // ---------------------------------------------------------------------------
-// Upload area
+// Upload area — drag-and-drop zone with a document-type input
 // ---------------------------------------------------------------------------
 
 function UploadArea({
@@ -294,16 +319,20 @@ function UploadArea({
   onUpload: (file: File, documentType: string) => Promise<void>;
   uploading: boolean;
 }) {
+  // Hidden file input triggered by clicking the drop zone
   const inputRef     = useRef<HTMLInputElement>(null);
   const [docType, setDocType] = useState('');
+  // Visual feedback when a file is dragged over the zone
   const [dragging, setDragging] = useState(false);
 
   async function handleFile(file: File) {
+    // Require a document type label so uploads are always categorized
     if (!docType.trim()) {
       toast.error('Please enter a document type before uploading.');
       return;
     }
     await onUpload(file, docType.trim());
+    // Clear the label after a successful upload so the next upload starts fresh
     setDocType('');
   }
 
@@ -327,6 +356,7 @@ function UploadArea({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
+        {/* Document type label — must be filled before uploading */}
         <input
           type="text"
           placeholder="Document type (e.g. Medical Exam, Insurance Card)"
@@ -337,6 +367,7 @@ function UploadArea({
         />
       </div>
 
+      {/* Drop zone: border turns orange and background tints when dragging */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -352,6 +383,7 @@ function UploadArea({
         <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
           Drag & drop or <span style={{ color: 'var(--ember-orange)' }}>browse</span>
         </p>
+        {/* sr-only hides the raw file input visually while keeping it accessible */}
         <input
           ref={inputRef}
           type="file"
@@ -360,6 +392,7 @@ function UploadArea({
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
+            // Reset value so re-selecting the same file triggers onChange again
             e.target.value = '';
           }}
         />
@@ -383,10 +416,14 @@ export function ApplicantDocumentsPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(false);
   const [uploading, setUploading]   = useState(false);
+  // null means no preview is open; set to a Document to open the preview modal
   const [preview, setPreview]       = useState<Document | null>(null);
+  // Track which document ID is being deleted for a per-row spinner
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  // null means the send modal is closed; set to a Document to open it
   const [sendDoc, setSendDoc]       = useState<Document | null>(null);
 
+  // Named function so it can be passed directly to ErrorState's onRetry prop
   const load = () => {
     setLoading(true);
     setError(false);
@@ -398,6 +435,7 @@ export function ApplicantDocumentsPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Build FormData for multipart upload; re-fetch list after success
   async function handleUpload(file: File, documentType: string) {
     setUploading(true);
     try {
@@ -406,6 +444,7 @@ export function ApplicantDocumentsPage() {
       fd.append('document_type', documentType);
       await uploadDocument(fd);
       toast.success('Document uploaded.');
+      // Re-fetch to get the new document's server-assigned ID and URL
       load();
     } catch (err) {
       const msg = (err as { message?: string })?.message;
@@ -416,10 +455,12 @@ export function ApplicantDocumentsPage() {
   }
 
   async function handleDelete(doc: Document) {
+    // Native confirm dialog — simple safeguard against accidental deletes
     if (!window.confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return;
     setDeletingId(doc.id);
     try {
       await deleteDocument(doc.id);
+      // Filter the deleted document out of local state — no re-fetch needed
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
       toast.success('Document deleted.');
     } catch (err) {
@@ -432,6 +473,7 @@ export function ApplicantDocumentsPage() {
 
   return (
     <>
+      {/* Modals are rendered outside the main layout div to avoid z-index issues */}
       {preview && (
         <PreviewModal doc={preview} onClose={() => setPreview(null)} />
       )}
@@ -440,7 +482,7 @@ export function ApplicantDocumentsPage() {
       )}
 
       <div className="flex flex-col gap-6 max-w-4xl">
-        {/* Header */}
+        {/* Page header */}
         <div>
           <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
             Documents
@@ -450,10 +492,10 @@ export function ApplicantDocumentsPage() {
           </p>
         </div>
 
-        {/* Upload panel */}
+        {/* Upload panel appears above the document list */}
         <UploadArea onUpload={handleUpload} uploading={uploading} />
 
-        {/* Document list */}
+        {/* Document list card */}
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           {loading ? (
             <div className="p-4">
@@ -468,6 +510,7 @@ export function ApplicantDocumentsPage() {
               icon={FileText}
             />
           ) : (
+            // Stagger animation so each row fades in one after another
             <motion.ul
               variants={staggerContainerVariants}
               initial="hidden"
@@ -487,6 +530,7 @@ export function ApplicantDocumentsPage() {
                         >
                           {doc.file_name}
                         </p>
+                        {/* Secondary metadata: type · size · upload date */}
                         <div
                           className="flex items-center gap-2 text-xs mt-0.5"
                           style={{ color: 'var(--muted-foreground)' }}
@@ -499,6 +543,7 @@ export function ApplicantDocumentsPage() {
                         </div>
                       </div>
                     </div>
+                    {/* Per-row action buttons: View, Send, Delete */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <Button
                         variant="ghost"
@@ -518,6 +563,7 @@ export function ApplicantDocumentsPage() {
                         <Send className="h-3.5 w-3.5" />
                         Send
                       </Button>
+                      {/* Delete shows a spinner while the API call is in flight */}
                       <Button
                         variant="destructive"
                         size="sm"

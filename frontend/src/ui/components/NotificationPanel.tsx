@@ -1,7 +1,20 @@
 /**
  * NotificationPanel.tsx
- * Slide-out notifications panel triggered from DashboardHeader.
- * Fetches from GET /api/notifications. Supports mark-as-read.
+ *
+ * Purpose: A slide-out panel that shows the logged-in user's notifications.
+ * Triggered by the bell icon in DashboardHeader.
+ *
+ * Responsibilities:
+ *   - Fetches notifications from GET /api/notifications when the panel opens.
+ *   - Renders skeleton placeholders while loading to avoid layout shift.
+ *   - Supports marking a single notification read (PATCH /api/notifications/{id}/read).
+ *   - Supports marking all notifications read at once.
+ *   - Supports clearing all notifications (DELETE /api/notifications).
+ *   - Calls `onUnreadChange` so the parent (DashboardHeader) can update the badge count.
+ *
+ * Layout:
+ *   A fixed aside slides in from the right edge of the screen over a transparent
+ *   backdrop. Clicking the backdrop dismisses the panel.
  */
 
 import { useEffect, useState } from 'react';
@@ -20,8 +33,11 @@ import { slidePanelVariants, fadeVariants, backdropVariants } from '@/shared/con
 import { cn } from '@/shared/utils/cn';
 
 interface NotificationPanelProps {
+  /** Controls whether the panel is visible. */
   open: boolean;
+  /** Called when the user closes the panel (backdrop click or X button). */
   onClose: () => void;
+  /** Called whenever the unread count changes so the header badge stays in sync. */
   onUnreadChange?: (count: number) => void;
 }
 
@@ -29,15 +45,20 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Fetch notifications every time the panel opens — keeps the list fresh.
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     getNotifications()
       .then((res) => setNotifications(res.data))
-      .catch(() => {})
+      .catch(() => {}) // Silently fail — an empty list is acceptable.
       .finally(() => setLoading(false));
   }, [open]);
 
+  /**
+   * Marks a single notification as read.
+   * Updates local state immediately so the UI responds without a refetch.
+   */
   const handleMarkRead = async (id: string) => {
     try {
       await markNotificationRead(id);
@@ -45,6 +66,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
         const next = prev.map((n) =>
           n.id === id ? { ...n, read_at: new Date().toISOString() } : n
         );
+        // Tell the parent how many unread remain after this change.
         onUnreadChange?.(next.filter((n) => !n.read_at).length);
         return next;
       });
@@ -53,6 +75,10 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
     }
   };
 
+  /**
+   * Marks every notification as read in one API call.
+   * Updates all items in local state and resets the badge to zero.
+   */
   const handleMarkAllRead = async () => {
     try {
       await markAllNotificationsRead();
@@ -63,6 +89,10 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
     }
   };
 
+  /**
+   * Deletes all notifications from the server.
+   * Clears the local list and resets the badge to zero.
+   */
   const handleClearAll = async () => {
     try {
       await clearAllNotifications();
@@ -73,13 +103,15 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
     }
   };
 
+  // Derive unread count from local state for the badge inside the panel header.
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
+    // AnimatePresence lets the panel and backdrop animate out before being removed from the DOM.
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Transparent backdrop — clicking it triggers onClose without a visual overlay */}
           <motion.div
             variants={backdropVariants}
             initial="hidden"
@@ -89,7 +121,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
             onClick={onClose}
           />
 
-          {/* Panel */}
+          {/* Slide-in panel — fixed to the right edge of the viewport */}
           <motion.aside
             variants={slidePanelVariants}
             initial="hidden"
@@ -103,7 +135,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
             }}
             aria-label="Notifications"
           >
-            {/* Header */}
+            {/* ── Panel header ── */}
             <div
               className="flex items-center justify-between px-6 py-4 border-b"
               style={{ borderColor: 'var(--border)' }}
@@ -116,6 +148,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                 >
                   Notifications
                 </h2>
+                {/* Orange pill showing the number of unread notifications */}
                 {unreadCount > 0 && (
                   <span
                     className="text-xs px-1.5 py-0.5 rounded-full font-medium"
@@ -128,7 +161,10 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                   </span>
                 )}
               </div>
+
+              {/* Action buttons — only rendered when there is something to act on */}
               <div className="flex items-center gap-2">
+                {/* "Mark all read" only appears when there are unread notifications */}
                 {unreadCount > 0 && (
                   <button
                     onClick={handleMarkAllRead}
@@ -139,6 +175,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                     Mark all read
                   </button>
                 )}
+                {/* "Clear all" only appears when there are any notifications */}
                 {notifications.length > 0 && (
                   <button
                     onClick={handleClearAll}
@@ -150,6 +187,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                     Clear all
                   </button>
                 )}
+                {/* X close button — always visible */}
                 <button
                   onClick={onClose}
                   className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)]"
@@ -161,9 +199,10 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
               </div>
             </div>
 
-            {/* List */}
+            {/* ── Notification list ── */}
             <div className="flex-1 overflow-y-auto">
               {loading ? (
+                // Skeleton placeholders — three gray blocks pulse while data loads.
                 <div className="flex flex-col gap-3 p-4">
                   {[1, 2, 3].map((i) => (
                     <div
@@ -174,6 +213,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                   ))}
                 </div>
               ) : notifications.length === 0 ? (
+                // Empty state — shown after loading completes with zero items.
                 <motion.div
                   variants={fadeVariants}
                   initial="hidden"
@@ -186,12 +226,19 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                   </p>
                 </motion.div>
               ) : (
+                // Notification list — divided by horizontal rules between items.
                 <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
                   {notifications.map((notification) => (
                     <li key={notification.id}>
+                      {/*
+                       * The entire row is a button so clicking anywhere on an unread
+                       * notification marks it read. Already-read notifications are
+                       * visually dimmer (normal font weight) and clicking does nothing.
+                       */}
                       <button
                         className={cn(
                           'w-full text-left px-6 py-4 transition-colors hover:bg-[var(--dash-nav-hover-bg)]',
+                          // Slight tint for unread items to draw the eye.
                           !notification.read_at && 'bg-white/[0.02]'
                         )}
                         onClick={() =>
@@ -199,13 +246,16 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                         }
                       >
                       <div className="flex items-start gap-3">
+                        {/* Orange dot indicator — only rendered for unread notifications */}
                         {!notification.read_at && (
                           <div
                             className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
                             style={{ background: 'var(--ember-orange)' }}
                           />
                         )}
+                        {/* Extra left padding on read items to align with the absent dot */}
                         <div className={cn('flex-1', notification.read_at && 'pl-[18px]')}>
+                          {/* Title is bold for unread, normal weight for read */}
                           <p
                             className={cn(
                               'text-sm mb-0.5',
@@ -215,12 +265,14 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                           >
                             {notification.title}
                           </p>
+                          {/* Body message in muted color */}
                           <p
                             className="text-xs leading-relaxed mb-1.5"
                             style={{ color: 'var(--muted-foreground)' }}
                           >
                             {notification.message}
                           </p>
+                          {/* Relative timestamp — e.g. "3 minutes ago" */}
                           <p
                             className="text-xs"
                             style={{ color: 'var(--muted-foreground)' }}

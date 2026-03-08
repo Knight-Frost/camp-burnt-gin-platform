@@ -7,17 +7,19 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on AssistiveDevice resources.
+ * AssistiveDevicePolicy — controls who can manage a camper's assistive device records.
  *
- * Assistive device information contributes to accessibility planning
- * and risk assessment, requiring appropriate access controls.
+ * Assistive devices (like wheelchairs, hearing aids, or communication boards) are part
+ * of a camper's medical and accessibility profile. This policy ensures only authorized
+ * users — admins, medical staff, or the camper's parent — can view or change these records.
  */
 class AssistiveDevicePolicy
 {
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any assistive devices.
+     * Can the user see a list of all assistive device records?
+     * Only admins and medical staff can browse the full list.
      */
     public function viewAny(User $user): bool
     {
@@ -25,7 +27,8 @@ class AssistiveDevicePolicy
     }
 
     /**
-     * Determine whether the user can view the assistive device.
+     * Can the user see a single assistive device record?
+     * Admins and medical staff can see any. Parents can only see their own camper's records.
      */
     public function view(User $user, AssistiveDevice $assistiveDevice): bool
     {
@@ -46,7 +49,8 @@ class AssistiveDevicePolicy
     }
 
     /**
-     * Determine whether the user can create assistive devices.
+     * Can the user add a new assistive device record?
+     * Admins, medical staff, and parents (for their own campers) may all create them.
      */
     public function create(User $user): bool
     {
@@ -54,7 +58,8 @@ class AssistiveDevicePolicy
     }
 
     /**
-     * Determine whether the user can update the assistive device.
+     * Can the user edit an existing assistive device record?
+     * Admins and medical staff can update any record. Parents can only update their camper's.
      */
     public function update(User $user, AssistiveDevice $assistiveDevice): bool
     {
@@ -75,7 +80,8 @@ class AssistiveDevicePolicy
     }
 
     /**
-     * Determine whether the user can delete the assistive device.
+     * Can the user delete an assistive device record?
+     * Medical staff cannot delete — only admins and the camper's parent can.
      */
     public function delete(User $user, AssistiveDevice $assistiveDevice): bool
     {

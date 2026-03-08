@@ -7,17 +7,18 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on CampSession resources.
+ * CampSessionPolicy — controls who can manage individual camp sessions.
  *
- * Camp sessions are publicly viewable to all authenticated users.
- * Only administrators can create, update, or delete camp sessions.
+ * A camp session is a specific dated instance of camp (e.g., "Summer Session A, June 2026").
+ * Parents and medical staff need to read session information to understand schedules,
+ * but only administrators can add, edit, or remove sessions.
  */
 class CampSessionPolicy
 {
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any camp sessions.
+     * Can the user see a list of all camp sessions?
      *
      * All authenticated users can view the list of camp sessions.
      * Non-admins will have the list filtered to show only active sessions.
@@ -28,7 +29,7 @@ class CampSessionPolicy
     }
 
     /**
-     * Determine whether the user can view the camp session.
+     * Can the user view the details of a single camp session?
      *
      * All authenticated users can view camp session details.
      */
@@ -38,7 +39,7 @@ class CampSessionPolicy
     }
 
     /**
-     * Determine whether the user can create camp sessions.
+     * Can the user create a new camp session?
      *
      * Only administrators can create new camp sessions.
      */
@@ -48,7 +49,7 @@ class CampSessionPolicy
     }
 
     /**
-     * Determine whether the user can update the camp session.
+     * Can the user edit an existing camp session?
      *
      * Only administrators can update camp sessions.
      */
@@ -58,7 +59,7 @@ class CampSessionPolicy
     }
 
     /**
-     * Determine whether the user can delete the camp session.
+     * Can the user delete a camp session?
      *
      * Only administrators can delete camp sessions.
      */

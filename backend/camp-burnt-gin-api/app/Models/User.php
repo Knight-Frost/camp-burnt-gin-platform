@@ -12,19 +12,30 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * User model representing an authenticated user within the system.
+ * User model — the central account record for every person who can log in.
  *
- * Users are assigned roles that determine their access level and
- * permissions. Common roles include administrators, staff members,
- * and applicants (parents or guardians of campers).
+ * A User can be an admin, super_admin, applicant (parent/guardian), or medical
+ * provider. The role_id column points to the Role model, which defines what
+ * that person is allowed to see and do.
+ *
+ * Security highlights:
+ *  - Passwords are always stored hashed (never plain-text).
+ *  - mfa_secret is hidden from API responses to prevent token exposure.
+ *  - After 5 bad login attempts the account is locked for 5 minutes.
+ *  - The last super_admin cannot be deleted, preventing full system lockout.
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
+    // HasApiTokens — lets Sanctum issue and validate API bearer tokens for this user.
+    // Notifiable   — allows $user->notify(...) to send emails and database notifications.
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
+     *
+     * Only columns listed here can be set via User::create([...]) or $user->fill([...]).
+     * This is a security guard that prevents attackers from stuffing unexpected columns.
      *
      * @var list<string>
      */
@@ -55,49 +66,63 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * The attributes that should be hidden for serialization.
      *
+     * These columns are stripped from any JSON or array output, so they
+     * are never accidentally sent to the frontend or logged.
+     *
      * @var list<string>
      */
     protected $hidden = [
-        'password',
-        'remember_token',
-        'mfa_secret',
+        'password',       // Never expose the hashed password in API responses.
+        'remember_token', // Internal Laravel session token — not for public consumption.
+        'mfa_secret',     // The TOTP seed — exposing it would defeat 2-factor auth entirely.
     ];
 
     /**
      * Get the attributes that should be cast.
+     *
+     * Casting tells Laravel how to automatically convert raw database values
+     * into the right PHP types when you access them on the model.
      *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'is_active' => 'boolean',
-            'password' => 'hashed',
-            'mfa_enabled' => 'boolean',
-            'mfa_verified_at' => 'datetime',
-            'lockout_until' => 'datetime',
-            'last_failed_login_at' => 'datetime',
+            // Treat these timestamp columns as Carbon date objects.
+            'email_verified_at'      => 'datetime',
+            'mfa_verified_at'        => 'datetime',
+            'lockout_until'          => 'datetime',
+            'last_failed_login_at'   => 'datetime',
+            // Boolean flags — stored as 0/1 in MySQL, returned as true/false in PHP.
+            'is_active'              => 'boolean',
+            'mfa_enabled'            => 'boolean',
+            // 'hashed' cast automatically bcrypt-hashes the value when you set it.
+            'password'               => 'hashed',
+            // JSON column decoded to a PHP array automatically on read.
             'notification_preferences' => 'array',
         ];
     }
 
     /**
-     * Boot the model and apply event listeners.
+     * Boot the model and register lifecycle event listeners.
      *
-     * Prevents deletion of the last super administrator to avoid system lockout.
+     * The "deleting" hook fires just before a User record is removed from the
+     * database. We use it to block the deletion of the very last super_admin,
+     * which would leave the system with no way to recover admin access.
      */
     protected static function boot()
     {
         parent::boot();
 
         static::deleting(function ($user) {
-            // Prevent deletion of the last super administrator
+            // Only run the guard if the user being deleted is a super_admin.
             if ($user->isSuperAdmin()) {
+                // Count how many super_admin users still exist in the database.
                 $superAdminCount = static::whereHas('role', function ($query) {
                     $query->where('name', 'super_admin');
                 })->count();
 
+                // If this is the only super_admin left, abort the deletion.
                 if ($superAdminCount <= 1) {
                     throw new \Exception('Cannot delete the last super administrator. At least one super administrator must exist in the system.');
                 }
@@ -107,6 +132,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get the role assigned to this user.
+     *
+     * A user belongs to exactly one Role row (e.g. "admin", "applicant").
+     * Access via $user->role->name.
      */
     public function role(): BelongsTo
     {
@@ -115,6 +143,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get all campers managed by this user.
+     *
+     * An applicant (parent/guardian) may register multiple children.
+     * Each Camper row has a user_id foreign key pointing back here.
      */
     public function campers(): HasMany
     {
@@ -123,6 +154,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get the user's personal emergency contacts.
+     *
+     * Results are sorted so primary contacts always appear first, then
+     * alphabetically by name within each tier.
      */
     public function userEmergencyContacts(): HasMany
     {
@@ -130,7 +164,10 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get all applications reviewed by this user.
+     * Get all applications that this user reviewed as an admin.
+     *
+     * The foreign key is "reviewed_by" (not the default "user_id"), so
+     * we pass it explicitly to Laravel's relationship builder.
      */
     public function reviewedApplications(): HasMany
     {
@@ -139,6 +176,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Determine if the user has a specific role by name.
+     *
+     * Checks that the role relationship is loaded and that its name matches
+     * the requested string (e.g. "admin", "medical").
      */
     public function hasRole(string $roleName): bool
     {
@@ -159,11 +199,12 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Determine if the user is an administrator.
      *
-     * This includes both regular administrators and super administrators.
-     * Super administrators inherit all admin privileges.
+     * Returns true for both "admin" and "super_admin" roles, because
+     * super admins inherit all regular admin privileges.
      */
     public function isAdmin(): bool
     {
+        // OR condition ensures super_admins pass all admin-only policy checks.
         return $this->hasRole('admin') || $this->hasRole('super_admin');
     }
 
@@ -185,6 +226,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Determine if the user owns (manages) the given camper.
+     *
+     * Comparing IDs directly is faster than loading the relationship and
+     * prevents accidental cross-user data access in policy checks.
      */
     public function ownsCamper(Camper $camper): bool
     {
@@ -192,28 +236,37 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Check if account is currently locked due to failed login attempts.
+     * Check if the account is currently locked due to too many failed logins.
+     *
+     * If the lockout has expired, this method also clears the lockout fields
+     * so the user can try again without needing an explicit admin reset.
      */
     public function isLockedOut(): bool
     {
+        // No lockout timestamp stored means the account is definitely not locked.
         if (! $this->lockout_until) {
             return false;
         }
 
+        // If the lockout window is still in the future, deny login.
         if ($this->lockout_until->isFuture()) {
             return true;
         }
 
+        // The lockout has expired — clean up so the next login attempt works normally.
         $this->update([
-            'lockout_until' => null,
-            'failed_login_attempts' => 0,
+            'lockout_until'          => null,
+            'failed_login_attempts'  => 0,
         ]);
 
         return false;
     }
 
     /**
-     * Increment failed login attempts and lock account if threshold reached.
+     * Increment the failed login counter and lock the account when the threshold is reached.
+     *
+     * Called by LoginController on every authentication failure for this user.
+     * After 5 failures, the account is locked for 5 minutes.
      */
     public function recordFailedLogin(): void
     {
@@ -222,9 +275,10 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $data = [
             'failed_login_attempts' => $attempts,
-            'last_failed_login_at' => now(),
+            'last_failed_login_at'  => now(),
         ];
 
+        // Trigger the lockout once the attempt count reaches the threshold.
         if ($attempts >= 5) {
             $data['lockout_until'] = now()->addMinutes($lockoutMinutes);
         }
@@ -233,31 +287,43 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Reset failed login attempts after successful login.
+     * Reset failed login counters after a successful authentication.
+     *
+     * Called by LoginController immediately after a correct password is verified
+     * so the next genuine accidental mistype does not immediately lock the account.
      */
     public function resetFailedLogins(): void
     {
         $this->update([
             'failed_login_attempts' => 0,
-            'lockout_until' => null,
-            'last_failed_login_at' => null,
+            'lockout_until'         => null,
+            'last_failed_login_at'  => null,
         ]);
     }
 
     /**
-     * Get minutes remaining until account lockout expires.
+     * Get how many whole minutes remain before the current lockout expires.
+     *
+     * Returns null if the account is not locked, allowing callers to skip
+     * the "try again in X minutes" message when there is nothing to show.
      */
     public function getLockoutMinutesRemaining(): ?int
     {
+        // Return null if there is no active lockout.
         if (! $this->lockout_until || $this->lockout_until->isPast()) {
             return null;
         }
 
+        // diffInMinutes returns a negative number if $lockout_until is in the past,
+        // but the isPast() guard above ensures we only reach this line when it is future.
         return now()->diffInMinutes($this->lockout_until, false);
     }
 
     /**
-     * Send the email verification notification using our custom mailer.
+     * Send the email verification notification using the project's custom mailer.
+     *
+     * Overrides the default Laravel method so our branded email template is used
+     * instead of the generic Laravel verification email.
      */
     public function sendEmailVerificationNotification(): void
     {
@@ -265,7 +331,10 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Determine if this account is administratively active.
+     * Determine if this account has been administratively activated.
+     *
+     * Inactive users cannot log in even with a correct password; admins
+     * toggle this flag to suspend/reinstate accounts without deleting them.
      */
     public function isActive(): bool
     {

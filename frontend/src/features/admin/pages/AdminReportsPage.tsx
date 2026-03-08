@@ -1,8 +1,19 @@
 /**
  * AdminReportsPage.tsx
  *
- * Visual analytics dashboard + CSV export.
- * Charts: applications by status, acceptance rate, applications over time, enrollment per session.
+ * Purpose: Visual analytics dashboard and CSV export hub for admins.
+ * Route: /admin/reports
+ *
+ * Responsibilities:
+ *  - Fetch a summary object containing application counts, enrollment per session, and timeline data.
+ *  - Render four Recharts charts: applications by status (bar), acceptance rate (donut pie),
+ *    applications over time (line), enrollment per session (horizontal bar).
+ *  - Provide one-click CSV download buttons for five report types.
+ *
+ * Plain-English summary:
+ *  This page is the "numbers at a glance" screen. It loads one big summary object from the API
+ *  and turns it into charts so admins can spot trends instantly. Below the charts are download
+ *  buttons — clicking one triggers a file download in the browser without leaving the page.
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
@@ -20,8 +31,10 @@ import type { ReportsSummary } from '@/features/admin/api/admin.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 
+// The five CSV export types the API supports.
 type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 'id-labels';
 
+// Maps each application status to a hex color used in the charts.
 const CHART_COLORS = {
   pending: '#f59e0b',
   under_review: '#3b82f6',
@@ -30,6 +43,7 @@ const CHART_COLORS = {
   submitted: '#8b5cf6',
 };
 
+// Drives the "Export Reports" button grid — one entry per downloadable report type.
 const EXPORT_REPORTS = [
   { type: 'applications' as ReportType,   label: 'All Applications',   icon: FileText,   color: '#3b82f6' },
   { type: 'accepted' as ReportType,       label: 'Accepted Only',      icon: CheckCircle, color: '#16a34a' },
@@ -38,6 +52,7 @@ const EXPORT_REPORTS = [
   { type: 'id-labels' as ReportType,      label: 'ID Labels',          icon: Tag,        color: '#059669' },
 ];
 
+// Reusable chart wrapper — applies consistent border, background, and title styling.
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div
@@ -55,8 +70,10 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
 export function AdminReportsPage() {
   const [summary, setSummary]         = useState<ReportsSummary | null>(null);
   const [loading, setLoading]         = useState(true);
+  // Tracks which report type is currently being downloaded (shows spinner on that button).
   const [downloading, setDownloading] = useState<ReportType | null>(null);
 
+  // ── Fetch summary on mount ─────────────────────────────────────────────────
   useEffect(() => {
     getReportsSummary()
       .then(setSummary)
@@ -64,8 +81,9 @@ export function AdminReportsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Chart data ───────────────────────────────────────────────────────────────
+  // ── Chart data derivations ─────────────────────────────────────────────────
 
+  // Build the status bar chart data — filter out statuses with 0 applications.
   const byStatus = summary?.applications_by_status ?? {};
   const statusCounts = [
     { name: 'Submitted',    value: byStatus['submitted']    ?? 0, color: CHART_COLORS.submitted },
@@ -73,30 +91,35 @@ export function AdminReportsPage() {
     { name: 'Accepted',     value: byStatus['accepted']     ?? 0, color: CHART_COLORS.accepted },
     { name: 'Rejected',     value: byStatus['rejected']     ?? 0, color: CHART_COLORS.rejected },
     { name: 'Pending',      value: byStatus['pending']      ?? 0, color: CHART_COLORS.pending },
-  ].filter((s) => s.value > 0);
+  ].filter((s) => s.value > 0); // Don't show bars for statuses with no applications.
 
   const total    = summary?.total_applications ?? 0;
   const accepted = summary?.accepted_applications ?? 0;
   const rejected = summary?.rejected_applications ?? 0;
+  // Rate is a percentage; guard against division by zero.
   const rate     = total > 0 ? Math.round((accepted / total) * 100) : 0;
 
+  // Donut pie slices: accepted (green), rejected (red), and all others (gray).
   const acceptancePieData = [
     { name: 'Accepted', value: accepted,                        color: '#16a34a' },
     { name: 'Rejected', value: rejected,                        color: '#dc2626' },
     { name: 'Pending',  value: Math.max(0, total - accepted - rejected), color: '#e5e7eb' },
-  ].filter((d) => d.value > 0);
+  ].filter((d) => d.value > 0); // Don't include zero-value slices.
 
+  // Convert "2024-03" strings to "Mar 2024" labels for the timeline x-axis.
   const timelineData = (summary?.applications_over_time ?? []).map(({ month, count }) => ({
     month: new Date(`${month}-01`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
     count,
   }));
 
-  // Enrollment per session
+  // Enrollment per session — at most 8 sessions to keep the chart readable.
   const sessionData = (summary?.sessions ?? []).map((s) => ({
     name:     s.name,
     enrolled: s.enrolled,
     capacity: s.capacity,
   })).slice(0, 8);
+
+  // ── Download handler ───────────────────────────────────────────────────────
 
   async function handleDownload(type: ReportType) {
     setDownloading(type);
@@ -126,8 +149,9 @@ export function AdminReportsPage() {
         </p>
       </motion.div>
 
-      {/* Summary stats */}
+      {/* Summary stat cards */}
       {loading ? (
+        // Four skeleton placeholders while data loads.
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[1,2,3,4].map((i) => <SkeletonCard key={i} lines={1} />)}
         </div>
@@ -144,6 +168,7 @@ export function AdminReportsPage() {
             { label: 'Rejected', value: rejected,                    color: '#dc2626' },
             { label: 'Rate',     value: `${rate}%`,                  color: '#16a34a' },
           ].map(({ label, value, color }) => (
+            // Each card animates in sequentially via staggerChildVariants.
             <motion.div
               key={label}
               variants={staggerChildVariants}
@@ -161,7 +186,7 @@ export function AdminReportsPage() {
         </motion.div>
       )}
 
-      {/* Charts grid */}
+      {/* Charts grid — only shown after data is loaded (avoids Recharts rendering on null data). */}
       {!loading && (
         <motion.div
           variants={staggerContainerVariants}
@@ -169,7 +194,7 @@ export function AdminReportsPage() {
           animate="visible"
           className="grid grid-cols-1 lg:grid-cols-2 gap-6"
         >
-          {/* Applications by status — bar */}
+          {/* Applications by status — vertical bar chart */}
           <motion.div variants={staggerChildVariants}>
             <ChartCard title="Applications by Status">
               {statusCounts.length > 0 ? (
@@ -181,6 +206,7 @@ export function AdminReportsPage() {
                     <Tooltip
                       contentStyle={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, fontSize: 13 }}
                     />
+                    {/* Each bar uses a Cell to get its own color from statusCounts. */}
                     <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                       {statusCounts.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
@@ -194,11 +220,12 @@ export function AdminReportsPage() {
             </ChartCard>
           </motion.div>
 
-          {/* Acceptance rate — pie */}
+          {/* Acceptance rate — donut chart with a legend on the right */}
           <motion.div variants={staggerChildVariants}>
             <ChartCard title="Acceptance Rate">
               {acceptancePieData.length > 0 ? (
                 <div className="flex items-center gap-4">
+                  {/* innerRadius + outerRadius create the donut hole effect. */}
                   <ResponsiveContainer width="60%" height={220}>
                     <PieChart>
                       <Pie
@@ -219,6 +246,7 @@ export function AdminReportsPage() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
+                  {/* Legend with acceptance rate percentage and color-coded counts. */}
                   <div className="flex flex-col gap-3">
                     <div className="text-center">
                       <p className="text-3xl font-headline font-bold" style={{ color: '#16a34a' }}>{rate}%</p>
@@ -238,7 +266,7 @@ export function AdminReportsPage() {
             </ChartCard>
           </motion.div>
 
-          {/* Applications over time — line */}
+          {/* Applications over time — line chart showing monthly submission trend */}
           <motion.div variants={staggerChildVariants}>
             <ChartCard title="Applications Over Time">
               {timelineData.length > 0 ? (
@@ -266,11 +294,12 @@ export function AdminReportsPage() {
             </ChartCard>
           </motion.div>
 
-          {/* Enrollment per session — bar */}
+          {/* Enrollment per session — horizontal bar chart (layout="vertical") */}
           <motion.div variants={staggerChildVariants}>
             <ChartCard title="Enrollment per Session">
               {sessionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
+                  {/* layout="vertical" flips the chart so bars grow left-to-right. */}
                   <BarChart data={sessionData} layout="vertical" barSize={20}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 12, fill: '#6b7280' }} />
@@ -278,6 +307,7 @@ export function AdminReportsPage() {
                     <Tooltip
                       contentStyle={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, fontSize: 13 }}
                     />
+                    {/* Light green bar = capacity (background); solid green = enrolled (foreground). */}
                     <Bar dataKey="capacity" fill="rgba(22,163,74,0.15)" radius={[0, 4, 4, 0]} name="Capacity" />
                     <Bar dataKey="enrolled" fill="#16a34a" radius={[0, 4, 4, 0]} name="Enrolled" />
                   </BarChart>
@@ -290,7 +320,7 @@ export function AdminReportsPage() {
         </motion.div>
       )}
 
-      {/* CSV / Excel exports */}
+      {/* CSV export buttons */}
       <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
@@ -303,14 +333,17 @@ export function AdminReportsPage() {
             <button
               key={type}
               onClick={() => handleDownload(type)}
+              // Disable all buttons while any download is in progress.
               disabled={!!downloading}
               className="flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all hover:shadow-sm"
               style={{
                 background: '#ffffff',
                 borderColor: 'var(--border)',
+                // Dim other buttons while this specific type is downloading.
                 opacity: downloading && downloading !== type ? 0.6 : 1,
               }}
             >
+              {/* Colored icon background using hex with 15% opacity (hex `15` = ~8%). */}
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                 style={{ background: `${color}15` }}
@@ -321,6 +354,7 @@ export function AdminReportsPage() {
                 <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{label}</p>
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Download CSV</p>
               </div>
+              {/* Show a spinner on the button that is actively downloading. */}
               {downloading === type ? (
                 <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: color, borderTopColor: 'transparent' }} />
               ) : (

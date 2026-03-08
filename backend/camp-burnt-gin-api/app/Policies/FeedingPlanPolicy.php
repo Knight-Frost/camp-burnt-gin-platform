@@ -7,17 +7,20 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on FeedingPlan resources.
+ * FeedingPlanPolicy — controls who can access and change a camper's feeding plan.
  *
- * Feeding plans contain sensitive dietary and medical nutrition
- * information requiring strict access controls for camper safety.
+ * Feeding plans describe how a camper is fed, including any special dietary needs,
+ * tube feeding instructions, or allergy-safe meal requirements. This is sensitive
+ * medical information, so access is carefully restricted to admins, medical staff,
+ * and the camper's own parent.
  */
 class FeedingPlanPolicy
 {
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any feeding plans.
+     * Can the user see a list of all feeding plans?
+     * Only admins and medical staff can browse the full list.
      */
     public function viewAny(User $user): bool
     {
@@ -25,7 +28,8 @@ class FeedingPlanPolicy
     }
 
     /**
-     * Determine whether the user can view the feeding plan.
+     * Can the user view a single feeding plan?
+     * Admins and medical staff can see any. Parents can only see their own camper's plan.
      */
     public function view(User $user, FeedingPlan $feedingPlan): bool
     {
@@ -46,7 +50,8 @@ class FeedingPlanPolicy
     }
 
     /**
-     * Determine whether the user can create feeding plans.
+     * Can the user create a new feeding plan?
+     * Admins, medical staff, and parents (for their own campers) may all create them.
      */
     public function create(User $user): bool
     {
@@ -54,7 +59,8 @@ class FeedingPlanPolicy
     }
 
     /**
-     * Determine whether the user can update the feeding plan.
+     * Can the user edit a feeding plan?
+     * Admins and medical staff can update any plan. Parents can only update their camper's.
      */
     public function update(User $user, FeedingPlan $feedingPlan): bool
     {
@@ -75,7 +81,8 @@ class FeedingPlanPolicy
     }
 
     /**
-     * Determine whether the user can delete the feeding plan.
+     * Can the user delete a feeding plan?
+     * Medical staff cannot delete — only admins and the camper's parent can.
      */
     public function delete(User $user, FeedingPlan $feedingPlan): bool
     {

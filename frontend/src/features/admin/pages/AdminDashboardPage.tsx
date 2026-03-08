@@ -1,6 +1,17 @@
 /**
  * AdminDashboardPage.tsx
- * Admin overview — application stats, review queue, enrollment per session, unread messages.
+ *
+ * Purpose: The first screen admins see after logging in — a bird's-eye view of camp activity.
+ *
+ * Responsibilities:
+ *  - Show four stat cards: total applications, pending, accepted, rejected + unread inbox count.
+ *  - List the 10 most recent applications that need a decision (review queue).
+ *  - Show enrollment fill bars for up to 8 camp sessions.
+ *
+ * Plain-English summary:
+ *  Think of this as the admin's "morning briefing" page. It fetches three things at once
+ *  (applications, camps, unread messages), calculates quick numbers, and displays them in
+ *  easy-to-read cards and lists. If anything fails, a retry button appears.
  */
 
 import { useEffect, useState } from 'react';
@@ -24,19 +35,30 @@ import {
 } from '@/shared/constants/motion';
 
 export function AdminDashboardPage() {
+  // ── State ──────────────────────────────────────────────────────────────────
+
+  // All applications fetched from the API (full list, no pagination on dashboard).
   const [applications, setApplications] = useState<Application[]>([]);
+  // Camp objects — each contains an array of sessions nested inside.
   const [camps, setCamps]               = useState<Camp[]>([]);
+  // Number of unread inbox messages for the "Unread messages" stat card.
   const [unread, setUnread]             = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Incrementing this counter re-triggers the useEffect below (retry pattern).
   const [retryKey, setRetryKey] = useState(0);
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     setLoading(true);
     setError(false);
+    // Fire all three API calls at the same time so they run in parallel.
     Promise.all([
       getAdminApplications().then((res) => res.data),
+      // If camps fail, fall back to an empty array — non-critical.
       getCamps().catch(() => [] as Camp[]),
+      // Same for unread count — don't break the whole page if inbox fails.
       getUnreadCount().catch(() => 0),
     ])
       .then(([apps, campsData, unreadCount]) => {
@@ -44,10 +66,14 @@ export function AdminDashboardPage() {
         setCamps(campsData);
         setUnread(unreadCount);
       })
+      // Only set error=true if the applications call itself fails (critical).
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [retryKey]);
+  }, [retryKey]); // Runs again every time retryKey changes.
 
+  // ── Derived data ───────────────────────────────────────────────────────────
+
+  // Count each status category from the full applications list.
   const stats = {
     total: applications.length,
     pending: applications.filter((a) => a.status === 'pending').length,
@@ -55,11 +81,13 @@ export function AdminDashboardPage() {
     rejected: applications.filter((a) => a.status === 'rejected').length,
   };
 
+  // The review queue is applications that still need a decision, capped at 10.
   const reviewQueue = applications
     .filter((a) => a.status === 'pending' || a.status === 'under_review')
     .slice(0, 10);
 
-  // Build enrollment rows from camps → sessions
+  // Build enrollment rows from camps → sessions (camps contain nested sessions).
+  // flatMap flattens [camp1.sessions, camp2.sessions, ...] into one array.
   const sessionRows = camps.flatMap((c) =>
     (c.sessions ?? []).map((s) => ({
       id: s.id,
@@ -67,14 +95,16 @@ export function AdminDashboardPage() {
       enrolled: s.enrolled_count ?? 0,
       capacity: s.capacity ?? 0,
     }))
-  ).slice(0, 8);
+  ).slice(0, 8); // Show at most 8 sessions on the dashboard.
 
+  // If the main data fetch failed, swap the whole page for an error UI with retry.
   if (error) return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
 
   return (
     <div className="max-w-6xl space-y-16">
 
       {/* ── Stats row ───────────────────────────────────────── */}
+      {/* Show skeleton placeholders while loading, real cards after. */}
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-8">
           {[1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} lines={1} />)}
@@ -85,6 +115,7 @@ export function AdminDashboardPage() {
           <StatCard label="Pending review" value={stats.pending} icon={Clock} color="var(--warm-amber)" delay={0.05} />
           <StatCard label="Accepted" value={stats.accepted} icon={CheckCircle} color="var(--forest-green)" delay={0.1} />
           <StatCard label="Rejected" value={stats.rejected} icon={XCircle} color="var(--destructive)" delay={0.15} />
+          {/* The 5th "stat card" is actually a link to the inbox, styled to match. */}
           <Link to="/admin/inbox" className="block group">
             <div
               className="rounded-2xl border p-7 flex items-start gap-5 transition-shadow hover:shadow-md h-full"
@@ -92,6 +123,7 @@ export function AdminDashboardPage() {
             >
               <div
                 className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
+                // Green tint when there are unread messages, neutral otherwise.
                 style={{ background: unread > 0 ? 'rgba(22,163,74,0.12)' : 'rgba(0,0,0,0.05)' }}
               >
                 <MessageSquare
@@ -116,6 +148,7 @@ export function AdminDashboardPage() {
       )}
 
       {/* ── Pending Review ──────────────────────────────────── */}
+      {/* scrollRevealVariants fades in this section as it enters the viewport. */}
       <motion.section variants={scrollRevealVariants} initial="hidden" animate="visible">
         <div className="flex items-start justify-between mb-8">
           <div>
@@ -142,6 +175,7 @@ export function AdminDashboardPage() {
           {loading ? (
             <div className="p-8"><SkeletonTable rows={5} /></div>
           ) : reviewQueue.length === 0 ? (
+            // Empty state — all applications have been reviewed.
             <div className="flex items-center justify-center py-24">
               <div className="text-center">
                 <CheckCircle
@@ -157,6 +191,8 @@ export function AdminDashboardPage() {
               </div>
             </div>
           ) : (
+            // staggerContainerVariants + staggerChildVariants animate list items
+            // in one by one with a small delay between each (stagger effect).
             <motion.ul
               variants={staggerContainerVariants}
               initial="hidden"
@@ -178,11 +214,13 @@ export function AdminDashboardPage() {
                         <Users className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
                       </div>
                       <div className="min-w-0">
+                        {/* Show camper name if available, otherwise fall back to ID. */}
                         <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
                           {app.camper?.full_name ?? `Camper #${app.camper_id}`}
                         </p>
                         <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
                           {app.session?.name ?? `Session #${app.session_id}`}
+                          {/* Only show the submitted date if it exists. */}
                           {app.submitted_at && (
                             <> &middot; {format(new Date(app.submitted_at), 'MMM d, yyyy')}</>
                           )}
@@ -241,9 +279,11 @@ export function AdminDashboardPage() {
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
               {sessionRows.map((row) => {
+                // Percentage filled — capped at 100% so the bar never overflows.
                 const pct = row.capacity > 0 ? Math.min((row.enrolled / row.capacity) * 100, 100) : 0;
-                const isFull = pct >= 100;
+                const isFull     = pct >= 100;
                 const isNearFull = pct >= 80;
+                // Bar turns red when full, amber when nearly full, green otherwise.
                 const barColor = isFull ? 'var(--destructive)' : isNearFull ? 'var(--warm-amber)' : 'var(--forest-green)';
 
                 return (
@@ -252,6 +292,7 @@ export function AdminDashboardPage() {
                       <p className="text-sm font-medium truncate flex-1 mr-4" style={{ color: 'var(--foreground)' }}>
                         {row.name}
                       </p>
+                      {/* Show "enrolled / capacity" as a fraction. */}
                       <span
                         className="text-xs font-medium tabular-nums flex-shrink-0"
                         style={{ color: 'var(--muted-foreground)' }}
@@ -259,6 +300,7 @@ export function AdminDashboardPage() {
                         {row.enrolled} / {row.capacity}
                       </span>
                     </div>
+                    {/* Progress bar: width is driven by pct, color by fill level. */}
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
                       <div
                         className="h-full rounded-full transition-all duration-500"

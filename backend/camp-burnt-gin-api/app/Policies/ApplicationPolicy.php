@@ -7,20 +7,29 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on Application resources.
+ * ApplicationPolicy — Authorization rules for camp Applications.
  *
- * Applications can only be accessed by their camper's parent/guardian
- * or administrators. Medical providers have no access to applications.
+ * An Application is the formal registration a parent submits to enroll
+ * their child at camp. This policy controls who can view, create, edit,
+ * delete, and review applications.
+ *
+ * Access summary:
+ *  - Admins        → full access to all applications, including review/approve
+ *  - Applicants    → access only to applications for their own children
+ *  - Medical staff → no access (applications are administrative, not clinical)
+ *
+ * Note: "Applicant" is the role name for parents/guardians in this system.
  */
 class ApplicationPolicy
 {
+    // This trait adds helper methods like allow() and deny() used by Laravel internals.
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any applications.
+     * Can the user browse the full list of all applications?
      *
-     * Only administrators can view the full list of applications.
-     * Parents access their own applications through scoped queries.
+     * Only admins see every application. Parents use scoped queries
+     * that automatically filter to their own applications.
      */
     public function viewAny(User $user): bool
     {
@@ -28,18 +37,20 @@ class ApplicationPolicy
     }
 
     /**
-     * Determine whether the user can view the application.
+     * Can the user view a specific application?
      *
-     * Administrators have full access.
-     * Parents can only view applications for their own children.
-     * Medical providers cannot view applications.
+     * Admins see any application. A parent may only see the application
+     * that belongs to their child. Medical staff are excluded entirely.
      */
     public function view(User $user, Application $application): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // A parent may view the application only if they own the camper
+        // that the application was submitted for.
         if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
             return true;
         }
@@ -48,10 +59,10 @@ class ApplicationPolicy
     }
 
     /**
-     * Determine whether the user can create applications.
+     * Can the user submit a new application?
      *
-     * Administrators and parents can create applications.
-     * Medical providers cannot create applications.
+     * Admins can create applications on behalf of families.
+     * Parents create applications to register their children for camp.
      */
     public function create(User $user): bool
     {
@@ -59,20 +70,24 @@ class ApplicationPolicy
     }
 
     /**
-     * Determine whether the user can update the application.
+     * Can the user edit an existing application?
      *
-     * Administrators have full access.
-     * Parents can only update applications for their own children,
-     * and only if the application status allows editing.
-     * Medical providers cannot update applications.
+     * Admins may update any application at any time.
+     * Parents can only edit their own child's application, and only while
+     * the application is still in an editable state (e.g., not yet submitted
+     * or approved). The isEditable() check enforces that workflow rule.
      */
     public function update(User $user, Application $application): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Parent can edit only their own child's application,
+        // and only if the current status permits changes.
         if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
+            // isEditable() returns false for submitted/approved applications.
             return $application->isEditable();
         }
 
@@ -80,10 +95,11 @@ class ApplicationPolicy
     }
 
     /**
-     * Determine whether the user can delete the application.
+     * Can the user delete an application?
      *
-     * Only administrators can delete applications.
-     * Parents may cancel applications but not delete them.
+     * Only admins can permanently delete applications for data-integrity reasons.
+     * Parents may cancel an application through a separate workflow, but they
+     * cannot remove the record entirely.
      */
     public function delete(User $user, Application $application): bool
     {
@@ -91,9 +107,10 @@ class ApplicationPolicy
     }
 
     /**
-     * Determine whether the user can review the application.
+     * Can the user review (approve or reject) an application?
      *
-     * Only administrators can review and approve/reject applications.
+     * Reviewing is an admin-only workflow — it represents the camp staff
+     * making an official decision on the child's enrollment.
      */
     public function review(User $user, Application $application): bool
     {

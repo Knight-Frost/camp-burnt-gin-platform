@@ -1,9 +1,22 @@
 /**
  * ApplicationReviewPage.tsx
  *
- * Full application detail view for admins.
- * Shows camper info, medical data, documents, and review action panel.
+ * Purpose: Full application detail view for admins to review and decide on a camper's application.
  * Route: /admin/applications/:id
+ *
+ * Responsibilities:
+ *  - Load a single application with all its nested relations (camper, medical, documents, etc.).
+ *  - Show camper info, guardian, medical summary, emergency contacts, behavioral profile,
+ *    feeding plan, assistive devices, activity permissions, uploaded documents, and signature.
+ *  - Provide a sticky ReviewPanel (sidebar) where admin can approve, reject, or mark under-review.
+ *  - Before approving, check camper compliance; if incomplete, show a bypass dialog.
+ *  - Allow downloading attached documents using the blob download pattern.
+ *
+ * Plain-English summary:
+ *  Think of this as the "full application packet" an admin reads before deciding yes or no.
+ *  The left column shows all the details the parent filled in. The right column (sticky) has the
+ *  approve / reject / under-review buttons. If the application is missing required documents,
+ *  a warning dialog pops up before the admin can approve — they can still bypass it if needed.
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
@@ -33,6 +46,7 @@ import type { Application } from '@/features/admin/types/admin.types';
 // Section card wrapper
 // ---------------------------------------------------------------------------
 
+// Reusable card with an icon and title — wraps each logical section of the application.
 interface SectionCardProps {
   title: string;
   icon: ReactNode;
@@ -66,25 +80,29 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Review panel
+// Review panel (sticky sidebar)
 // ---------------------------------------------------------------------------
 
 interface ReviewPanelProps {
   applicationId: number;
   camperId: number;
   currentStatus: Application['status'];
+  // Callback fired after a successful review — updates the parent's application state.
   onReviewed: (updated: Application) => void;
 }
 
 function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: ReviewPanelProps) {
   const { t } = useTranslation();
   const [notes, setNotes] = useState('');
+  // Tracks which action is in-flight to show a spinner on the right button.
   const [submitting, setSubmitting] = useState<'approved' | 'rejected' | 'under_review' | null>(null);
+  // bypassDialog holds whether the non-compliant warning is open and its details.
   const [bypassDialog, setBypassDialog] = useState<{ open: boolean; details: ComplianceStatus | null }>({
     open: false,
     details: null,
   });
 
+  // Actually fires the review API call and updates the parent with the returned application.
   async function doReview(status: 'approved' | 'rejected' | 'under_review') {
     setSubmitting(status);
     try {
@@ -99,16 +117,18 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
     }
   }
 
+  // handleReview checks compliance before approving; all other statuses skip the check.
   async function handleReview(status: 'approved' | 'rejected' | 'under_review') {
     if (status === 'approved') {
       try {
         const compliance = await getCamperComplianceStatus(camperId);
         if (!compliance.is_compliant) {
+          // Show the bypass dialog instead of approving immediately.
           setBypassDialog({ open: true, details: compliance });
           return;
         }
       } catch {
-        // If compliance check itself fails, proceed without blocking approval
+        // If compliance check itself fails, don't block the admin — proceed anyway.
       }
     }
     await doReview(status);
@@ -116,6 +136,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
 
   return (
     <>
+      {/* Sticky card — stays visible as admin scrolls through application details. */}
       <div
         className="rounded-xl p-6 border sticky top-6"
         style={{
@@ -135,6 +156,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
           <StatusBadge status={currentStatus} />
         </div>
 
+        {/* Optional notes textarea — included in the review submission. */}
         <div className="mb-5">
           <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
             {t('admin.review.notes_label')}
@@ -153,6 +175,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
           />
         </div>
 
+        {/* Three decision buttons — only one can be in-flight at a time. */}
         <div className="flex flex-col gap-2">
           <Button
             onClick={() => handleReview('approved')}
@@ -185,11 +208,12 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
         </div>
       </div>
 
-      {/* Incomplete application bypass dialog */}
+      {/* Non-compliant bypass dialog — portal-level overlay, shown over the whole page. */}
       {bypassDialog.open && bypassDialog.details && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.5)' }}
+          // Clicking the backdrop cancels the dialog.
           onClick={() => setBypassDialog({ open: false, details: null })}
         >
           <div
@@ -198,6 +222,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
               background: 'var(--card)',
               borderColor: 'var(--border)',
             }}
+            // Stop propagation so clicking inside the card doesn't close it.
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3 mb-4">
@@ -217,7 +242,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
               </div>
             </div>
 
-            {/* Detail lists */}
+            {/* Show missing, expired, and unverified documents as separate lists. */}
             {bypassDialog.details.missing_documents.length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -225,6 +250,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
                 </p>
                 <ul className="space-y-0.5">
                   {bypassDialog.details.missing_documents.map((d, i) => {
+                    // The API may return a string or an object with a document_type field.
                     const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
                     return (
                       <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
@@ -291,6 +317,7 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
                   background: 'var(--ember-orange)',
                   color: '#fff',
                 }}
+                // Close the dialog first, then fire the actual review call.
                 onClick={() => {
                   setBypassDialog({ open: false, details: null });
                   void doReview('approved');
@@ -315,12 +342,14 @@ export function ApplicationReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  // Build the correct back-link prefix depending on which portal is active.
   const applicationsPath = location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : '/admin/applications';
 
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // ── Fetch the application on mount (or when the id param changes) ──────────
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -331,6 +360,8 @@ export function ApplicationReviewPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // ── Blob download helper ───────────────────────────────────────────────────
+  // Downloads a document by creating a temporary anchor element and clicking it programmatically.
   function handleDownload(documentId: number, name: string) {
     axiosInstance
       .get(`/documents/${documentId}/download`, { responseType: 'blob' })
@@ -342,10 +373,13 @@ export function ApplicationReviewPage() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        // Clean up the temporary object URL to free memory.
         URL.revokeObjectURL(url);
       })
       .catch(() => toast.error(t('common.download_error')));
   }
+
+  // ── Loading / error states ─────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -372,6 +406,7 @@ export function ApplicationReviewPage() {
     );
   }
 
+  // Convenient shortcuts to deeply nested objects.
   const camper = application.camper;
   const medical = camper?.medical_record;
 
@@ -382,7 +417,7 @@ export function ApplicationReviewPage() {
       animate="visible"
       className="p-6 max-w-7xl"
     >
-      {/* Back navigation */}
+      {/* Back link to the applications list. */}
       <Link
         to={applicationsPath}
         className="inline-flex items-center gap-2 text-sm mb-6 transition-colors"
@@ -407,15 +442,16 @@ export function ApplicationReviewPage() {
         <StatusBadge status={application.status} />
       </div>
 
+      {/* Two-column layout: detail sections on left, review panel on right. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: detail columns */}
+        {/* Left column — all the application details */}
         <motion.div
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
           className="lg:col-span-2 space-y-5"
         >
-          {/* Camper info */}
+          {/* Camper information */}
           <motion.div variants={staggerChild}>
             <SectionCard title={t('admin.review.camper_info')} icon={<User className="h-4 w-4" />}>
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -436,7 +472,7 @@ export function ApplicationReviewPage() {
             </SectionCard>
           </motion.div>
 
-          {/* Parent / guardian */}
+          {/* Parent / Guardian info — only shown when the user relation is loaded. */}
           {camper?.user && (
             <motion.div variants={staggerChild}>
               <SectionCard title="Parent / Guardian" icon={<Users className="h-4 w-4" />}>
@@ -455,11 +491,11 @@ export function ApplicationReviewPage() {
             </motion.div>
           )}
 
-          {/* Medical summary */}
+          {/* Medical summary — only shown when a medical_record relation is present. */}
           {medical && (
             <motion.div variants={staggerChild}>
               <SectionCard title={t('admin.review.medical_summary')} icon={<Heart className="h-4 w-4" />}>
-                {/* Diagnoses */}
+                {/* Diagnoses list */}
                 {medical.diagnoses && medical.diagnoses.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -476,7 +512,7 @@ export function ApplicationReviewPage() {
                   </div>
                 )}
 
-                {/* Allergies */}
+                {/* Allergies — life-threatening ones get a red tint to stand out. */}
                 {medical.allergies && medical.allergies.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -517,7 +553,7 @@ export function ApplicationReviewPage() {
                   </div>
                 )}
 
-                {/* Special needs / dietary */}
+                {/* Special needs and dietary restrictions — shown side by side when both present. */}
                 {(medical.special_needs || medical.dietary_restrictions) && (
                   <div className="grid grid-cols-1 gap-3 mb-4">
                     {medical.special_needs && (
@@ -535,7 +571,7 @@ export function ApplicationReviewPage() {
                   </div>
                 )}
 
-                {/* Seizure info */}
+                {/* Seizure history — highlighted in red to signal critical safety info. */}
                 {medical.has_seizures && (
                   <div
                     className="rounded-lg p-3 border mb-4"
@@ -556,7 +592,7 @@ export function ApplicationReviewPage() {
                   </div>
                 )}
 
-                {/* Physician & insurance */}
+                {/* Physician & insurance — filter out undefined values before mapping. */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     ['Physician', medical.physician_name],
@@ -624,6 +660,7 @@ export function ApplicationReviewPage() {
             <motion.div variants={staggerChild}>
               <SectionCard title="Behavioral Profile" icon={<Brain className="h-4 w-4" />}>
                 <div className="space-y-3 text-sm">
+                  {/* Filter out fields that have no value — no empty rows shown. */}
                   {[
                     ['Triggers', camper.behavioral_profile.triggers],
                     ['De-escalation Strategies', camper.behavioral_profile.de_escalation_strategies],
@@ -678,7 +715,7 @@ export function ApplicationReviewPage() {
             </motion.div>
           )}
 
-          {/* Activity permissions */}
+          {/* Activity permissions — circles colored by permission level (green/amber/red). */}
           {camper?.activity_permissions && camper.activity_permissions.length > 0 && (
             <motion.div variants={staggerChild}>
               <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
@@ -702,7 +739,7 @@ export function ApplicationReviewPage() {
             </motion.div>
           )}
 
-          {/* Documents */}
+          {/* Uploaded documents with download buttons */}
           <motion.div variants={staggerChild}>
             <SectionCard title={t('admin.review.documents')} icon={<FileText className="h-4 w-4" />}>
               {!application.documents || application.documents.length === 0 ? (
@@ -744,7 +781,7 @@ export function ApplicationReviewPage() {
             </SectionCard>
           </motion.div>
 
-          {/* Signature */}
+          {/* Digital signature — only shown if the application was signed. */}
           {application.signed_at && (
             <motion.div variants={staggerChild}>
               <SectionCard title="Digital Signature" icon={<PenLine className="h-4 w-4" />}>
@@ -762,7 +799,7 @@ export function ApplicationReviewPage() {
             </motion.div>
           )}
 
-          {/* Review notes history */}
+          {/* Previous reviewer notes */}
           {application.notes && (
             <motion.div variants={staggerChild}>
               <SectionCard title={t('admin.review.review_notes')} icon={<ChevronRight className="h-4 w-4" />}>
@@ -774,12 +811,13 @@ export function ApplicationReviewPage() {
           )}
         </motion.div>
 
-        {/* Right: review panel */}
+        {/* Right column — sticky review action panel */}
         <div>
           <ReviewPanel
             applicationId={application.id}
             camperId={application.camper_id}
             currentStatus={application.status}
+            // When a review completes, update the application state so the status badge refreshes.
             onReviewed={setApplication}
           />
         </div>

@@ -1,8 +1,17 @@
 /**
  * ApplicantApplicationDetailPage.tsx
- * Read-only view of a single application for the parent who submitted it.
- * Shows camper info, session, current status, admin review notes, and uploaded documents.
- * Route: /parent/applications/:id
+ *
+ * Purpose: Read-only view of a single application for the parent who submitted it.
+ * Responsibilities:
+ *   - Fetch one application by ID from the API
+ *   - Display a visual status timeline (Submitted → Under Review → Approved)
+ *     with special handling for rejected/withdrawn/draft states
+ *   - Show camper information, camp session details, and any admin review notes
+ *   - List uploaded documents with a download button per file
+ *
+ * Plain-English: Think of this page as the receipt a parent gets after turning
+ * in an application — it shows exactly where things stand and lets them
+ * download any files they attached.
  */
 
 import { useEffect, useState } from 'react';
@@ -24,7 +33,7 @@ import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } 
 import axiosInstance from '@/api/axios.config';
 import type { Application } from '@/features/admin/types/admin.types';
 
-// ─── Section card ──────────────────────────────────────────────────────────────
+// ─── Section card — reusable titled card with an icon ─────────────────────────
 
 function SectionCard({
   title,
@@ -56,8 +65,9 @@ function SectionCard({
   );
 }
 
-// ─── Field row ────────────────────────────────────────────────────────────────
+// ─── Field row — label + value pair ───────────────────────────────────────────
 
+// Shows "Not provided" when value is null/undefined to communicate intent clearly
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
@@ -73,13 +83,16 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 
 // ─── Status timeline ──────────────────────────────────────────────────────────
 
+// Defines the three main forward-progress steps for a typical application
 const STATUS_STEPS: { status: string; label: string; icon: React.ReactNode }[] = [
   { status: 'pending',      label: 'Submitted',    icon: <FileText className="h-3.5 w-3.5" /> },
   { status: 'under_review', label: 'Under review', icon: <Clock className="h-3.5 w-3.5" /> },
   { status: 'approved',     label: 'Approved',     icon: <CheckCircle className="h-3.5 w-3.5" /> },
 ];
 
+// Visual progress indicator showing where an application is in the review pipeline
 function StatusTimeline({ status }: { status: string }) {
+  // Terminal failure states get their own simple message instead of a progress bar
   if (status === 'rejected' || status === 'withdrawn') {
     return (
       <div className="flex items-center gap-2 py-2">
@@ -91,6 +104,7 @@ function StatusTimeline({ status }: { status: string }) {
     );
   }
   if (status === 'draft') {
+    // Draft applications haven't entered the pipeline yet
     return (
       <div className="flex items-center gap-2 py-2">
         <Info className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
@@ -102,18 +116,20 @@ function StatusTimeline({ status }: { status: string }) {
   }
 
   const stepOrder = ['pending', 'under_review', 'approved'];
+  // Find where the current status sits in the ordered list
   const currentIdx = stepOrder.indexOf(status);
 
   return (
     <div className="flex items-center gap-1">
       {STATUS_STEPS.map((step, i) => {
-        const done    = i < currentIdx;
-        const active  = i === currentIdx;
-        const pending = i > currentIdx;
+        const done    = i < currentIdx;   // step already passed
+        const active  = i === currentIdx; // step currently happening
+        const pending = i > currentIdx;   // step not yet reached
 
         return (
           <div key={step.status} className="flex items-center gap-1 flex-1">
             <div className="flex flex-col items-center gap-1 flex-1">
+              {/* Circle icon: filled brand color when done or active, grey when pending */}
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
                 style={{
@@ -123,6 +139,7 @@ function StatusTimeline({ status }: { status: string }) {
               >
                 {step.icon}
               </div>
+              {/* Step label bold when it's the active step */}
               <p
                 className="text-xs text-center leading-tight"
                 style={{
@@ -133,6 +150,7 @@ function StatusTimeline({ status }: { status: string }) {
                 {step.label}
               </p>
             </div>
+            {/* Connector line between steps — filled brand color when the step before it is done */}
             {i < STATUS_STEPS.length - 1 && (
               <div
                 className="h-px flex-1 mb-4"
@@ -149,12 +167,14 @@ function StatusTimeline({ status }: { status: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ApplicantApplicationDetailPage() {
+  // Pull the application ID from the URL (e.g. /applicant/applications/7)
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Increment to re-trigger the fetch after an error
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -167,6 +187,7 @@ export function ApplicantApplicationDetailPage() {
       .finally(() => setLoading(false));
   }, [id, retryKey]);
 
+  // Download a document by fetching it as a blob and triggering a browser save
   function handleDownload(docId: number, name: string) {
     axiosInstance
       .get(`/documents/${docId}/download`, { responseType: 'blob' })
@@ -175,14 +196,17 @@ export function ApplicantApplicationDetailPage() {
         const a   = document.createElement('a');
         a.href     = url;
         a.download = name;
+        // Append to body so the click works in Firefox too
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        // Free the object URL immediately to avoid memory leaks
         URL.revokeObjectURL(url);
       })
       .catch(() => toast.error('Download failed. Please try again.'));
   }
 
+  // Show skeleton cards while the application is loading
   if (loading) {
     return (
       <div className="flex flex-col gap-5 max-w-3xl">
@@ -198,6 +222,7 @@ export function ApplicantApplicationDetailPage() {
     return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
   }
 
+  // Destructure for cleaner JSX below
   const camper  = application.camper;
   const session = application.session;
 
@@ -208,7 +233,7 @@ export function ApplicantApplicationDetailPage() {
       animate="visible"
       className="flex flex-col gap-6 max-w-3xl"
     >
-      {/* Back link */}
+      {/* Back navigation link */}
       <Link
         to={ROUTES.PARENT_APPLICATIONS}
         className="inline-flex items-center gap-2 text-sm transition-colors w-fit"
@@ -218,7 +243,7 @@ export function ApplicantApplicationDetailPage() {
         Back to applications
       </Link>
 
-      {/* Header */}
+      {/* Page header: camper name + status badge */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2
@@ -237,16 +262,18 @@ export function ApplicantApplicationDetailPage() {
         <StatusBadge status={application.status} />
       </div>
 
+      {/* Staggered card sections */}
       <motion.div
         variants={staggerContainerVariants}
         initial="hidden"
         animate="visible"
         className="flex flex-col gap-5"
       >
-        {/* Status timeline */}
+        {/* Status timeline card — always shown */}
         <motion.div variants={staggerChildVariants}>
           <SectionCard title="Application Status" icon={<AlertTriangle className="h-4 w-4" />}>
             <StatusTimeline status={application.status} />
+            {/* Admin notes box appears only when the reviewer left a message */}
             {application.notes && (
               <div
                 className="mt-4 rounded-xl p-4 border"
@@ -258,6 +285,7 @@ export function ApplicantApplicationDetailPage() {
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
                   Review notes from camp staff
                 </p>
+                {/* whitespace-pre-wrap preserves line breaks the admin typed in */}
                 <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>
                   {application.notes}
                 </p>
@@ -266,7 +294,7 @@ export function ApplicantApplicationDetailPage() {
           </SectionCard>
         </motion.div>
 
-        {/* Camper info */}
+        {/* Camper information — only rendered when camper data was eager-loaded */}
         {camper && (
           <motion.div variants={staggerChildVariants}>
             <SectionCard title="Camper Information" icon={<User className="h-4 w-4" />}>
@@ -274,13 +302,14 @@ export function ApplicantApplicationDetailPage() {
                 <Field label="Full name"     value={camper.full_name} />
                 <Field label="Date of birth" value={camper.date_of_birth} />
                 <Field label="Gender"        value={camper.gender} />
+                {/* Handle both t_shirt_size and tshirt_size field name variants from the API */}
                 <Field label="T-shirt size"  value={(camper as { t_shirt_size?: string }).t_shirt_size ?? (camper as { tshirt_size?: string }).tshirt_size} />
               </div>
             </SectionCard>
           </motion.div>
         )}
 
-        {/* Session info */}
+        {/* Camp session details — only rendered when session data was eager-loaded */}
         {session && (
           <motion.div variants={staggerChildVariants}>
             <SectionCard title="Camp Session" icon={<Calendar className="h-4 w-4" />}>
@@ -294,7 +323,7 @@ export function ApplicantApplicationDetailPage() {
           </motion.div>
         )}
 
-        {/* Documents */}
+        {/* Documents — list all uploaded files with download buttons */}
         <motion.div variants={staggerChildVariants}>
           <SectionCard title="Uploaded Documents" icon={<FileText className="h-4 w-4" />}>
             {!application.documents || application.documents.length === 0 ? (
@@ -315,6 +344,7 @@ export function ApplicantApplicationDetailPage() {
                         <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>
                           {doc.name}
                         </p>
+                        {/* Convert bytes to KB for a friendlier size display */}
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                           {(doc.size / 1024).toFixed(1)} KB
                         </p>
@@ -336,7 +366,7 @@ export function ApplicantApplicationDetailPage() {
         </motion.div>
       </motion.div>
 
-      {/* Footer action */}
+      {/* Footer — secondary back navigation */}
       <div className="flex gap-3 pt-2">
         <button
           onClick={() => navigate(ROUTES.PARENT_APPLICATIONS)}

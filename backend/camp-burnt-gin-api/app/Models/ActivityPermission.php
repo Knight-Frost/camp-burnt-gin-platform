@@ -8,11 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * ActivityPermission model representing participation restrictions for activities.
+ * ActivityPermission model — tracks whether a camper may participate in a specific camp activity.
  *
- * Each permission tracks whether a camper can participate in a specific
- * camp activity, with documentation of any restrictions or accommodations
- * required for safe participation.
+ * Each record links one camper to one activity name and stores a permission level (Yes, No, or Restricted).
+ * If a camper has restrictions, staff must also read the restriction_notes before allowing participation.
+ * This model is read by medical and admin staff when planning activity rosters and safety protocols.
+ *
+ * Relationships: belongs to Camper
+ * Enum: ActivityPermissionLevel (Yes | No | Restricted)
  */
 class ActivityPermission extends Model
 {
@@ -33,25 +36,42 @@ class ActivityPermission extends Model
     /**
      * Get the attributes that should be cast.
      *
+     * Casting permission_level to the enum automatically converts the raw database
+     * string into a type-safe ActivityPermissionLevel enum instance.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            // Convert the stored string value into the ActivityPermissionLevel enum on read
             'permission_level' => ActivityPermissionLevel::class,
         ];
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Relationships
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
      * Get the camper this activity permission belongs to.
+     *
+     * A camper can have many activity permissions — one per activity.
      */
     public function camper(): BelongsTo
     {
         return $this->belongsTo(Camper::class);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Helper Methods
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
-     * Determine if this activity is fully permitted.
+     * Determine if this activity is fully permitted (no conditions).
+     *
+     * Returns true when the permission level is "Yes" — the camper
+     * may participate without any special accommodations.
      */
     public function isPermitted(): bool
     {
@@ -59,7 +79,10 @@ class ActivityPermission extends Model
     }
 
     /**
-     * Determine if this activity is not permitted.
+     * Determine if this activity is not permitted at all.
+     *
+     * Returns true when the permission level is "No" — staff should
+     * prevent the camper from participating in this activity.
      */
     public function isNotPermitted(): bool
     {
@@ -67,7 +90,10 @@ class ActivityPermission extends Model
     }
 
     /**
-     * Determine if this activity has restrictions.
+     * Determine if this activity has restrictions that must be followed.
+     *
+     * Returns true when the permission level is "Restricted" — the camper
+     * may participate, but staff must review the restriction_notes first.
      */
     public function hasRestrictions(): bool
     {
@@ -75,13 +101,15 @@ class ActivityPermission extends Model
     }
 
     /**
-     * Determine if restriction notes are required for this permission.
+     * Determine if restriction notes are required for this permission level.
      *
-     * Restricted activities must document specific limitations or
-     * accommodations required for safe participation.
+     * Restricted activities must document specific limitations or accommodations
+     * for safe participation. The check is delegated to the enum so the rule
+     * lives in one place.
      */
     public function requiresRestrictionNotes(): bool
     {
+        // The enum method encapsulates the business rule about when notes are mandatory
         return $this->permission_level->requiresNotes();
     }
 }

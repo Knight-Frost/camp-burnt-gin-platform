@@ -1,6 +1,21 @@
 /**
  * AdminAnnouncementsPage.tsx
- * Create, schedule, pin, and manage announcements.
+ *
+ * Purpose: Create, schedule, pin, and manage announcements for applicants and staff.
+ * Route: /admin/announcements
+ *
+ * Responsibilities:
+ *  - Load all announcements (up to 50) on mount.
+ *  - Separate pinned and unpinned announcements into two visual groups.
+ *  - Allow creating and editing announcements via a slide-up modal.
+ *  - Allow toggling pin status inline per row.
+ *  - Allow deleting announcements with a per-row spinner.
+ *
+ * Plain-English summary:
+ *  This is the camp's "bulletin board" manager. Pinned announcements float to the top so
+ *  parents always see important news. The editing modal is the same component for both creating
+ *  and updating — the presence of the `editing` state variable determines which API call is made.
+ *  A `cancelled` flag in the useEffect prevents setting state after the component unmounts.
  */
 
 import { useEffect, useState, type CSSProperties } from 'react';
@@ -22,6 +37,7 @@ import {
   modalBackdrop, modalContent,
 } from '@/shared/constants/motion';
 
+// Human-readable labels for each audience type shown in the form and in rows.
 const AUDIENCE_LABELS: Record<string, string> = {
   all:      'All Applicants',
   accepted: 'Accepted Only',
@@ -29,6 +45,7 @@ const AUDIENCE_LABELS: Record<string, string> = {
   session:  'Specific Session',
 };
 
+// Blank form used both for the initial create state and after a successful save.
 const DEFAULT_FORM: CreateAnnouncementPayload = {
   title:      '',
   body:       '',
@@ -56,14 +73,19 @@ export function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState(false);
+  // Incrementing retryKey re-triggers the fetch useEffect.
   const [retryKey, setRetryKey]           = useState(0);
   const [showModal, setShowModal]         = useState(false);
+  // null = create mode; an Announcement object = edit mode.
   const [editing, setEditing]             = useState<Announcement | null>(null);
   const [form, setForm]                   = useState<CreateAnnouncementPayload>(DEFAULT_FORM);
   const [saving, setSaving]               = useState(false);
+  // Tracks which row's delete button is spinning.
   const [deletingId, setDeletingId]       = useState<number | null>(null);
 
+  // ── Fetch announcements ────────────────────────────────────────────────────
   useEffect(() => {
+    // The `cancelled` flag prevents setting state after the component unmounts.
     let cancelled = false;
     setLoading(true);
     setError(false);
@@ -71,15 +93,20 @@ export function AdminAnnouncementsPage() {
       .then((res) => { if (!cancelled) setAnnouncements(res.data ?? []); })
       .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
+    // Return cleanup: set cancelled=true so in-flight responses are ignored.
     return () => { cancelled = true; };
   }, [retryKey]);
 
+  // ── Modal helpers ──────────────────────────────────────────────────────────
+
+  // Opens the modal in "create" mode with a blank form.
   function openCreate() {
     setEditing(null);
     setForm(DEFAULT_FORM);
     setShowModal(true);
   }
 
+  // Opens the modal in "edit" mode with the existing announcement's values pre-filled.
   function openEdit(ann: Announcement) {
     setEditing(ann);
     setForm({
@@ -94,6 +121,8 @@ export function AdminAnnouncementsPage() {
     setShowModal(true);
   }
 
+  // ── CRUD handlers ──────────────────────────────────────────────────────────
+
   async function handleSave() {
     if (!form.title.trim() || !form.body.trim()) {
       toast.error('Title and body are required.');
@@ -102,10 +131,12 @@ export function AdminAnnouncementsPage() {
     setSaving(true);
     try {
       if (editing) {
+        // Edit mode: replace the existing item in local state.
         const updated = await updateAnnouncement(editing.id, form);
         setAnnouncements((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
         toast.success('Announcement updated.');
       } else {
+        // Create mode: prepend to the list so it appears at the top.
         const created = await createAnnouncement(form);
         setAnnouncements((prev) => [created, ...prev]);
         toast.success('Announcement created.');
@@ -122,6 +153,7 @@ export function AdminAnnouncementsPage() {
     setDeletingId(id);
     try {
       await deleteAnnouncement(id);
+      // Remove deleted announcement from local state immediately.
       setAnnouncements((prev) => prev.filter((a) => a.id !== id));
       toast.success('Announcement deleted.');
     } catch {
@@ -134,6 +166,7 @@ export function AdminAnnouncementsPage() {
   async function handlePin(ann: Announcement) {
     try {
       const res = await toggleAnnouncementPin(ann.id);
+      // Only update the is_pinned field for the affected row — leave everything else intact.
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === ann.id ? { ...a, is_pinned: res.is_pinned } : a))
       );
@@ -142,12 +175,13 @@ export function AdminAnnouncementsPage() {
     }
   }
 
+  // Derived arrays so pinned announcements always appear in their own section above others.
   const pinned   = announcements.filter((a) => a.is_pinned);
   const unpinned = announcements.filter((a) => !a.is_pinned);
 
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
-      {/* Header */}
+      {/* Page header */}
       <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
         <div className="flex items-start justify-between">
           <div>
@@ -168,6 +202,7 @@ export function AdminAnnouncementsPage() {
         </div>
       </motion.div>
 
+      {/* Content: error → loading skeletons → empty state → announcement list */}
       {error ? (
         <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
       ) : loading ? (
@@ -184,7 +219,7 @@ export function AdminAnnouncementsPage() {
         </div>
       ) : (
         <motion.div variants={staggerContainerVariants} initial="hidden" animate="visible" className="flex flex-col gap-3">
-          {/* Pinned */}
+          {/* Pinned section — only shown when at least one announcement is pinned. */}
           {pinned.length > 0 && (
             <>
               <div className="flex items-center gap-2 mb-1">
@@ -203,6 +238,7 @@ export function AdminAnnouncementsPage() {
                   deleting={deletingId === ann.id}
                 />
               ))}
+              {/* Section divider between pinned and regular announcements. */}
               {unpinned.length > 0 && (
                 <div className="flex items-center gap-2 mt-3 mb-1">
                   <Megaphone className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
@@ -213,6 +249,7 @@ export function AdminAnnouncementsPage() {
               )}
             </>
           )}
+          {/* Unpinned announcements */}
           {unpinned.map((ann) => (
             <AnnouncementRow
               key={ann.id}
@@ -226,7 +263,7 @@ export function AdminAnnouncementsPage() {
         </motion.div>
       )}
 
-      {/* Modal */}
+      {/* Create / Edit modal */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -245,6 +282,7 @@ export function AdminAnnouncementsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
+                {/* Title changes based on whether we're editing or creating. */}
                 <h3 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
                   {editing ? 'Edit Announcement' : 'New Announcement'}
                 </h3>
@@ -271,6 +309,7 @@ export function AdminAnnouncementsPage() {
                 <div>
                   <label htmlFor="ann-publish-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Schedule Publish Date (optional)</label>
                   <input id="ann-publish-at" type="datetime-local" style={inputStyle()} value={form.published_at ?? ''} onChange={(e) => setForm((f) => ({ ...f, published_at: e.target.value || null }))} />
+                  {/* Empty value means publish now; a date means publish later. */}
                   <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Leave blank to publish immediately.</p>
                 </div>
                 <div className="flex gap-6">
@@ -299,8 +338,10 @@ export function AdminAnnouncementsPage() {
   );
 }
 
-// ── Sub-component ─────────────────────────────────────────────────────────────
+// ── AnnouncementRow sub-component ─────────────────────────────────────────────
 
+// Renders a single announcement row with pin, edit, and delete actions.
+// Defined after the main component to keep it close to where it's used.
 function AnnouncementRow({
   ann, onEdit, onDelete, onPin, deleting,
 }: {
@@ -315,12 +356,14 @@ function AnnouncementRow({
       variants={staggerChildVariants}
       className="rounded-2xl border px-5 py-4"
       style={{
+        // Urgent announcements get a subtle red-tinted background for visual distinction.
         background: ann.is_urgent ? 'rgba(220,38,38,0.03)' : '#ffffff',
         borderColor: ann.is_urgent ? 'rgba(220,38,38,0.18)' : 'var(--border)',
       }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
+          {/* Title row with pin icon and urgent badge. */}
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             {ann.is_pinned && <Pin className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />}
             {ann.is_urgent && (
@@ -331,11 +374,14 @@ function AnnouncementRow({
             )}
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>{ann.title}</p>
           </div>
+          {/* Body preview — clamp to 2 lines. */}
           <p className="text-xs leading-relaxed line-clamp-2 mb-2" style={{ color: 'var(--muted-foreground)' }}>{ann.body}</p>
+          {/* Metadata: audience badge + publish date + author. */}
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--dash-nav-active-bg)', color: 'var(--ember-orange)' }}>
               {AUDIENCE_LABELS[ann.audience] ?? ann.audience}
             </span>
+            {/* Use published_at if set, otherwise fall back to created_at for the display date. */}
             <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
               {format(new Date(ann.published_at ?? ann.created_at), 'MMM d, yyyy')}
             </span>
@@ -344,10 +390,12 @@ function AnnouncementRow({
             )}
           </div>
         </div>
+        {/* Action buttons: pin toggle, edit, delete. */}
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => onPin(ann)}
             className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+            // Active pin = orange, inactive = gray.
             style={{ color: ann.is_pinned ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}
             title={ann.is_pinned ? 'Unpin' : 'Pin'}
           >
@@ -368,6 +416,7 @@ function AnnouncementRow({
             style={{ color: 'var(--destructive)' }}
             title="Delete"
           >
+            {/* Show a spinner while this row's delete is in-flight. */}
             {deleting ? (
               <div className="w-3.5 h-3.5 border border-red-500 border-t-transparent rounded-full animate-spin" />
             ) : (

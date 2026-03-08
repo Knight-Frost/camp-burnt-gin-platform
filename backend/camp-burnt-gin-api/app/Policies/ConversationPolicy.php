@@ -6,21 +6,28 @@ use App\Models\Conversation;
 use App\Models\User;
 
 /**
- * ConversationPolicy enforces RBAC rules for conversation operations.
+ * ConversationPolicy — Authorization rules for the messaging system.
  *
- * Implements role-based restrictions:
- * - Parents can only message admins
- * - Admins can message anyone
- * - Medical providers cannot initiate conversations
- * - All participants can view and reply to their conversations
+ * Conversations are threads in the camp's internal messaging system.
+ * This policy enforces which users can start, view, modify, and leave
+ * conversations, following the role-based messaging rules below.
+ *
+ * Messaging rules:
+ *  - Admins        → can message anyone, view all conversations
+ *  - Applicants    → can only message admins (not other parents or medical staff)
+ *  - Medical staff → cannot initiate conversations at all
+ *  - All participants → can view and reply to conversations they are in
+ *
+ * System-generated conversations (notifications) have special protections —
+ * they cannot be archived, left, or force-deleted.
  */
 class ConversationPolicy
 {
     /**
-     * Determine if the user can view any conversations.
+     * Can the user see the full conversation list for all users?
      *
-     * Admins can view all conversations.
-     * Parents and medical providers can only view their own.
+     * Only admins see every conversation. Other users see only the
+     * conversations they are participants in (handled by scoped queries).
      */
     public function viewAny(User $user): bool
     {
@@ -28,48 +35,51 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can view the conversation.
+     * Can the user view a specific conversation?
      *
-     * Users can view conversations they are participants in.
-     * Admins can view all conversations.
+     * A user can see a conversation if they are one of its participants.
+     * Admins bypass this and can see everything.
      */
     public function view(User $user, Conversation $conversation): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // hasParticipant() checks if this user is in the conversation's participant list.
         return $conversation->hasParticipant($user);
     }
 
     /**
-     * Determine if the user can create conversations.
+     * Can the user start a new conversation?
      *
-     * Parents can create conversations with admins only.
-     * Admins can create conversations with anyone.
-     * Medical providers cannot create conversations.
+     * Medical providers are blocked entirely — they may only be added to
+     * conversations by admins. Parents can start conversations, but only
+     * if all recipients are admins (no parent-to-parent messaging).
+     * Admins can start conversations with anyone.
      *
-     * Note: Participant role validation must be performed in the service layer
-     * before calling this policy. This policy only checks the user's own role.
+     * Note: The $hasNonAdminParticipants flag must be resolved in the
+     * service layer before this policy is called.
      *
      * @param User $user The user attempting to create
      * @param bool $hasNonAdminParticipants Whether non-admin participants are included
      */
     public function create(User $user, bool $hasNonAdminParticipants = false): bool
     {
-        // Medical providers cannot initiate conversations
+        // Medical providers cannot initiate conversations — admins add them.
         if ($user->isMedicalProvider()) {
             return false;
         }
 
-        // Admins can create conversations with anyone
+        // Admins can create conversations with anyone.
         if ($user->isAdmin()) {
             return true;
         }
 
-        // Parents can only create conversations with admins
+        // Parents can only create conversations with admins.
         if ($user->isApplicant()) {
-            // Reject if trying to message non-admins
+            // If the recipient list includes any non-admin, the parent is blocked.
             return !$hasNonAdminParticipants;
         }
 
@@ -77,37 +87,39 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can update the conversation.
+     * Can the user update the conversation's metadata (subject, etc.)?
      *
-     * Only admins and the creator can update conversation metadata.
-     * Updates include archiving and subject changes.
+     * The creator of the conversation and admins may edit conversation details.
      */
     public function update(User $user, Conversation $conversation): bool
     {
+        // created_by_id identifies who started this conversation.
         return $user->isAdmin() || $conversation->created_by_id === $user->id;
     }
 
     /**
-     * Determine if the user can archive the conversation.
+     * Can the user archive (close) the conversation?
      *
-     * System-generated notifications cannot be archived — they live in the
-     * System tab indefinitely for audit purposes.
-     * Creators can archive their own conversations.
-     * Admins can archive any user conversation.
+     * System-generated notification threads cannot be archived — they serve
+     * as a permanent notification history and must remain accessible.
+     * The creator and admins may archive regular conversations.
      */
     public function archive(User $user, Conversation $conversation): bool
     {
+        // System notification conversations are never archivable.
         if ($conversation->is_system_generated) {
             return false;
         }
 
+        // The creator or any admin can archive the conversation.
         return $user->isAdmin() || $conversation->created_by_id === $user->id;
     }
 
     /**
-     * Determine if the user can delete (soft delete) the conversation.
+     * Can the user soft-delete the conversation?
      *
-     * Only admins can delete conversations for compliance reasons.
+     * Only admins may delete conversations. This protects communication
+     * records which may be needed for compliance investigations.
      */
     public function delete(User $user, Conversation $conversation): bool
     {
@@ -115,9 +127,9 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can restore a deleted conversation.
+     * Can the user restore a previously soft-deleted conversation?
      *
-     * Only admins can restore conversations.
+     * Only admins may restore deleted conversations.
      */
     public function restore(User $user, Conversation $conversation): bool
     {
@@ -125,9 +137,10 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can permanently delete the conversation.
+     * Can the user permanently (hard) delete the conversation?
      *
-     * Permanent deletion is not allowed for HIPAA compliance.
+     * Permanent deletion is never allowed. HIPAA requires that records,
+     * including communication logs that may reference PHI, be retained.
      */
     public function forceDelete(User $user, Conversation $conversation): bool
     {
@@ -135,24 +148,26 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can add participants to the conversation.
+     * Can the user add a new participant to the conversation?
      *
-     * Only admins can add participants.
-     * Medical providers can only be added by admins to relevant conversations.
+     * Only admins may add participants. Before adding, we confirm:
+     *  1. The new participant is not already in the conversation.
+     *  2. Medical providers can only be added to camper-related conversations.
      */
     public function addParticipant(User $user, Conversation $conversation, User $newParticipant): bool
     {
+        // Non-admins cannot add participants.
         if (!$user->isAdmin()) {
             return false;
         }
 
-        // Prevent adding user who is already a participant
+        // Prevent adding user who is already a participant.
         if ($conversation->hasParticipant($newParticipant)) {
             return false;
         }
 
-        // Ensure role-based restrictions are maintained
-        // Medical providers can only be added to camper-related conversations
+        // Ensure role-based restrictions are maintained.
+        // Medical providers can only be added to camper-related conversations.
         if ($newParticipant->isMedicalProvider() && !$conversation->isLinkedToCamper()) {
             return false;
         }
@@ -161,18 +176,19 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can remove participants from the conversation.
+     * Can the user remove a participant from the conversation?
      *
-     * Only admins can remove participants.
-     * Cannot remove the conversation creator.
+     * Only admins may remove participants. The creator of the conversation
+     * can never be removed — they must archive it instead.
      */
     public function removeParticipant(User $user, Conversation $conversation, User $participant): bool
     {
+        // Non-admins cannot remove participants.
         if (!$user->isAdmin()) {
             return false;
         }
 
-        // Cannot remove the creator
+        // The conversation creator cannot be removed from their own conversation.
         if ($conversation->created_by_id === $participant->id) {
             return false;
         }
@@ -181,26 +197,26 @@ class ConversationPolicy
     }
 
     /**
-     * Determine if the user can leave the conversation.
+     * Can the user leave the conversation themselves?
      *
-     * System-generated notifications cannot be left — the user remains
-     * a participant so they can always access their notification history.
-     * Participants can leave conversations except the creator.
-     * Admins can always leave.
+     * System notification threads cannot be left — the user must always be
+     * able to access their notification history. The creator of a regular
+     * conversation also cannot leave; they must archive it instead.
+     * All other active participants may leave freely.
      */
     public function leave(User $user, Conversation $conversation): bool
     {
-        // System notifications cannot be left
+        // Users cannot leave system-generated notification threads.
         if ($conversation->is_system_generated) {
             return false;
         }
 
-        // Must be a participant
+        // A user must actually be a participant to leave.
         if (!$conversation->hasParticipant($user)) {
             return false;
         }
 
-        // Creator cannot leave their own conversation (must archive instead)
+        // The creator cannot leave — they must archive the conversation to close it.
         if ($conversation->created_by_id === $user->id) {
             return false;
         }

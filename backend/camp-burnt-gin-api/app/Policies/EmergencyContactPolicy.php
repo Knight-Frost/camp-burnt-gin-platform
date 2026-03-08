@@ -7,17 +7,19 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on EmergencyContact resources.
+ * EmergencyContactPolicy — controls who can view and manage emergency contact records.
  *
- * Emergency contacts are accessible by administrators, medical providers
- * (for emergency response), and the camper's parent/guardian.
+ * Emergency contacts are the people to call when something serious happens to a camper
+ * (e.g., a parent, grandparent, or family friend). Medical staff need read access for
+ * emergency response, but only admins and the camper's own parent can create, edit,
+ * or delete these contacts.
  */
 class EmergencyContactPolicy
 {
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any emergency contacts.
+     * Can the user see a list of emergency contacts?
      *
      * Administrators and medical providers can view the list.
      * Parents access their own contacts through scoped queries.
@@ -28,7 +30,7 @@ class EmergencyContactPolicy
     }
 
     /**
-     * Determine whether the user can view the emergency contact.
+     * Can the user view a specific emergency contact record?
      *
      * Administrators have full access.
      * Medical providers can only view for campers they have valid provider links for.
@@ -53,7 +55,7 @@ class EmergencyContactPolicy
     }
 
     /**
-     * Determine whether the user can create emergency contacts.
+     * Can the user add a new emergency contact?
      *
      * Administrators and parents can create emergency contacts.
      * Medical providers cannot create contacts.
@@ -64,7 +66,7 @@ class EmergencyContactPolicy
     }
 
     /**
-     * Determine whether the user can update the emergency contact.
+     * Can the user edit an emergency contact?
      *
      * Administrators have full access.
      * Parents can update contacts for their own children.
@@ -84,7 +86,7 @@ class EmergencyContactPolicy
     }
 
     /**
-     * Determine whether the user can delete the emergency contact.
+     * Can the user delete an emergency contact?
      *
      * Administrators have full access.
      * Parents can delete contacts for their own children.

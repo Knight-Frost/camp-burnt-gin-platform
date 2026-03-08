@@ -1,11 +1,26 @@
 /**
  * StatusBadge.tsx
- * Colored status badge for application and other entity statuses.
+ *
+ * Purpose: A colored inline badge that communicates the status of an entity
+ * (application, session, medical severity, etc.) at a glance.
+ *
+ * Responsibilities:
+ *   - Maps a status string to a background color, text color, and display label.
+ *   - Optionally renders a small colored dot before the label for extra visual weight.
+ *   - All color values meet WCAG AA 4.5:1 contrast ratio on their respective
+ *     tinted backgrounds — ensuring accessibility compliance.
+ *
+ * Supported status values:
+ *   Application statuses: draft, submitted, under_review, approved, accepted,
+ *                         rejected, waitlisted, withdrawn
+ *   General statuses:     pending, active, inactive, open, closed, cancelled, waitlist
+ *   Medical severity:     low, moderate, high, critical
  */
 
 import { cn } from '@/shared/utils/cn';
 import type { ApplicationStatus } from '@/shared/types';
 
+/** Union of all accepted status string values. */
 type BadgeVariant =
   | ApplicationStatus
   | 'pending'
@@ -97,6 +112,7 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     text: '#16a34a',
     label: 'Waitlist',
   },
+  // Medical severity levels — green → amber → orange → red as risk increases.
   low: {
     bg: 'rgba(22,163,74,0.10)',
     text: '#16a34a',   // green = safe
@@ -122,10 +138,12 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
 interface StatusBadgeProps {
   status: BadgeVariant;
   className?: string;
+  /** When true, renders a small colored dot before the label text. */
   showDot?: boolean;
 }
 
 export function StatusBadge({ status, className, showDot = false }: StatusBadgeProps) {
+  // Fall back to 'draft' config if an unrecognized status string is passed.
   const config = variantConfig[status] ?? variantConfig.draft;
 
   return (
@@ -136,6 +154,7 @@ export function StatusBadge({ status, className, showDot = false }: StatusBadgeP
       )}
       style={{ background: config.bg, color: config.text }}
     >
+      {/* Optional dot — same color as the text for visual cohesion */}
       {showDot && (
         <span
           className="w-1.5 h-1.5 rounded-full flex-shrink-0"

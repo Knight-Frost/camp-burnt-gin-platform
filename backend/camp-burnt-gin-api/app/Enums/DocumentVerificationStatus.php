@@ -3,19 +3,25 @@
 namespace App\Enums;
 
 /**
- * Enumeration of document verification statuses.
+ * DocumentVerificationStatus — tracks whether an uploaded document has been reviewed.
  *
- * Tracks the verification lifecycle of medical compliance documents
- * to ensure proper review before application approval.
+ * Parents upload medical and compliance documents as part of the registration process.
+ * Before an application can be fully approved, administrators must review each document.
+ * This enum tracks where each document is in that review process.
  */
 enum DocumentVerificationStatus: string
 {
+    // The document has been uploaded but has not been reviewed by staff yet.
     case Pending = 'pending';
+
+    // Staff reviewed the document and it meets requirements — all good!
     case Approved = 'approved';
+
+    // Staff reviewed the document and it was not acceptable — resubmission may be needed.
     case Rejected = 'rejected';
 
     /**
-     * Get a human-readable label for the verification status.
+     * Returns a friendly label for the verification status to display in the UI.
      */
     public function label(): string
     {
@@ -27,7 +33,7 @@ enum DocumentVerificationStatus: string
     }
 
     /**
-     * Determine if the document is verified and approved.
+     * Returns true if the document has passed review and is fully accepted.
      */
     public function isApproved(): bool
     {
@@ -35,7 +41,7 @@ enum DocumentVerificationStatus: string
     }
 
     /**
-     * Determine if the document is pending review.
+     * Returns true if the document is still waiting to be reviewed by staff.
      */
     public function isPending(): bool
     {
@@ -43,7 +49,7 @@ enum DocumentVerificationStatus: string
     }
 
     /**
-     * Determine if the document was rejected.
+     * Returns true if the document was reviewed and found to be unacceptable.
      */
     public function isRejected(): bool
     {

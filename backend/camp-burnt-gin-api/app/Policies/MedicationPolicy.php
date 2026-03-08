@@ -7,21 +7,31 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on Medication resources.
+ * MedicationPolicy — Authorization rules for Medication records.
  *
- * Medication information is essential for proper camper care and is
- * accessible by administrators, medical providers, and the camper's
- * parent/guardian.
+ * Medication records track what drugs a camper takes, their dosage, and
+ * schedule. This is critical clinical data that medical staff must be
+ * able to read and update, while parents retain final authority over
+ * what is permanently removed from the record.
+ *
+ * Access summary:
+ *  - Admins        → full access (view, create, update, delete)
+ *  - Medical staff → view, create, and update (but NOT delete — see delete() below)
+ *  - Applicants    → access only to their own child's medication records
+ *
+ * The intentional asymmetry for medical staff (can create/update but not delete)
+ * preserves the audit trail and is documented in the delete() method below.
  */
 class MedicationPolicy
 {
+    // This trait adds helper methods like allow() and deny() used by Laravel internals.
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any medications.
+     * Can the user browse the full medication list?
      *
-     * Administrators and medical providers can view the list.
-     * Parents access their own medications through scoped queries.
+     * Admins and medical staff see the full list for safety and reporting.
+     * Parents use scoped queries limited to their own child.
      */
     public function viewAny(User $user): bool
     {
@@ -29,23 +39,24 @@ class MedicationPolicy
     }
 
     /**
-     * Determine whether the user can view the medication.
+     * Can the user view a specific medication record?
      *
-     * Administrators have full access.
-     * Medical providers can only view for campers they have valid provider links for.
-     * Parents can only view medications for their own children.
+     * Three groups are allowed — we check each in order.
      */
     public function view(User $user, Medication $medication): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper medication records.
+            // Camp medical staff have direct access to all camper medication records
+            // so they can administer or verify medications correctly.
             return true;
         }
 
+        // A parent may view medication records only for their own child.
         if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
             return true;
         }
@@ -54,10 +65,12 @@ class MedicationPolicy
     }
 
     /**
-     * Determine whether the user can create medications.
+     * Can the user add a new medication record?
      *
-     * Administrators, medical providers, and parents can record medications.
-     * Medical providers may document medications during care.
+     * All three user types may create medication records:
+     *  - Admins for data entry / administrative corrections
+     *  - Medical staff who prescribe or document medications during care
+     *  - Parents who list their child's existing medications during registration
      */
     public function create(User $user): bool
     {
@@ -65,23 +78,26 @@ class MedicationPolicy
     }
 
     /**
-     * Determine whether the user can update the medication.
+     * Can the user update a medication record?
      *
-     * Administrators have full access.
-     * Medical providers can update only for campers they have valid provider links for.
-     * Parents can update medications for their own children.
+     * Admins and medical staff may update any record — for example, a nurse
+     * may adjust dosage after consulting with a doctor.
+     * Parents may update their own child's medication information.
      */
     public function update(User $user, Medication $medication): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update medication records during active care.
+            // Camp medical staff may update medication records during active care,
+            // for example to note a dosage change or record an administration time.
             return true;
         }
 
+        // Parent can update only their own child's medication record.
         if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
             return true;
         }
@@ -90,7 +106,7 @@ class MedicationPolicy
     }
 
     /**
-     * Determine whether the user can delete the medication.
+     * Can the user delete a medication record?
      *
      * AUTHORIZATION DESIGN NOTE:
      * Medical providers can create and update medications but cannot delete them.
@@ -110,10 +126,13 @@ class MedicationPolicy
      */
     public function delete(User $user, Medication $medication): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Parent can delete only their own child's medication record.
+        // Medical providers are intentionally excluded — see the docblock above.
         if ($user->isApplicant() && $user->ownsCamper($medication->camper)) {
             return true;
         }

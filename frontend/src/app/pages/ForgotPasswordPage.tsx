@@ -1,7 +1,17 @@
 /**
  * ForgotPasswordPage.tsx
- * Forgot password — wired to POST /api/auth/forgot-password.
- * Shows success confirmation state after submission.
+ *
+ * Purpose: Lets users request a password reset link via email.
+ * Responsibilities:
+ *   - Renders a simple email input form.
+ *   - On submit: POSTs to POST /api/auth/forgot-password.
+ *   - Always shows the "check your email" success screen after submission,
+ *     even if the API call fails — this hides whether a given email exists
+ *     in the system (a standard security practice).
+ *
+ * Two visual states:
+ *   1. Form state   — email input + submit button.
+ *   2. Success state — envelope icon + link to try a different address.
  */
 
 import { useState } from 'react';
@@ -24,7 +34,9 @@ import { Button } from '@/ui/components/Button';
 import { fadeVariants } from '@/shared/constants/motion';
 
 export function ForgotPasswordPage() {
+  // When true the form is replaced by the success confirmation screen.
   const [submitted, setSubmitted] = useState(false);
+  // Stores the email the user entered so we can display it in the success message.
   const [submittedEmail, setSubmittedEmail] = useState('');
 
   const {
@@ -38,10 +50,12 @@ export function ForgotPasswordPage() {
   const onSubmit = async (values: ForgotPasswordFormValues) => {
     try {
       await forgotPassword(values);
+      // API call succeeded — show success screen.
       setSubmittedEmail(values.email);
       setSubmitted(true);
     } catch {
-      // Always show success for security (don't reveal if email exists)
+      // API call failed, but we still show the success screen.
+      // This prevents an attacker from probing which emails are registered.
       setSubmittedEmail(values.email);
       setSubmitted(true);
       toast.info('If an account exists, a reset link has been sent.');
@@ -50,6 +64,7 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthCard
+      // The card title and subtitle change dynamically between the two states.
       title={submitted ? 'Check your email' : 'Reset your password'}
       subtitle={
         submitted
@@ -66,8 +81,10 @@ export function ForgotPasswordPage() {
         </Link>
       }
     >
+      {/* AnimatePresence + mode="wait" ensures one view fully fades out before the next fades in */}
       <AnimatePresence mode="wait">
         {submitted ? (
+          // ── Success state ──────────────────────────────────────────────────
           <motion.div
             key="success"
             variants={fadeVariants}
@@ -75,6 +92,7 @@ export function ForgotPasswordPage() {
             animate="visible"
             className="flex flex-col items-center gap-6 py-4"
           >
+            {/* Mail icon gives a visual cue that something was sent to their inbox */}
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
               style={{ background: 'var(--glass-icon-bg)' }}
@@ -83,6 +101,7 @@ export function ForgotPasswordPage() {
             </div>
             <p className="text-sm text-center" style={{ color: 'var(--on-image-muted)' }}>
               Didn&apos;t receive it? Check your spam folder, or{' '}
+              {/* Clicking here resets the form so they can try a different address */}
               <button
                 onClick={() => setSubmitted(false)}
                 className="text-ember-orange hover:underline"
@@ -93,6 +112,7 @@ export function ForgotPasswordPage() {
             </p>
           </motion.div>
         ) : (
+          // ── Form state ─────────────────────────────────────────────────────
           <motion.form
             key="form"
             variants={fadeVariants}
@@ -109,6 +129,7 @@ export function ForgotPasswordPage() {
               error={errors.email?.message}
               {...register('email')}
             />
+            {/* fullWidth makes the button span the entire card width */}
             <Button type="submit" fullWidth loading={isSubmitting}>
               Send reset link
             </Button>

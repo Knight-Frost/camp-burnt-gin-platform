@@ -1,10 +1,19 @@
 /**
- * routes.ts
- * All application route paths as typed constants.
- * Import from here instead of hardcoding path strings.
+ * routes.ts — Application route path constants
+ *
+ * Every URL in the app lives here as a named constant.
+ * Importing from this file instead of typing "/admin/campers" by hand
+ * means a typo only needs to be fixed in one place.
+ *
+ * Functions (e.g. ADMIN_CAMPER_DETAIL) accept an ID and return the full path string.
+ * Plain strings are static paths with no dynamic segments.
+ *
+ * Usage example:
+ *   navigate(ROUTES.ADMIN_CAMPER_DETAIL(camperId))
+ *   <Link to={ROUTES.LOGIN}>
  */
 export const ROUTES = {
-  // Public
+  // ─── Public / marketing pages ───────────────────────────────────────────────
   HOME: '/',
   ABOUT: '/about',
   PROGRAMS: '/programs',
@@ -14,26 +23,29 @@ export const ROUTES = {
   GET_INVOLVED: '/get-involved',
   VIRTUAL_PROGRAM: '/virtual-program',
 
-  // Auth
+  // ─── Auth pages (unauthenticated) ───────────────────────────────────────────
   LOGIN: '/login',
   REGISTER: '/register',
   MFA_VERIFY: '/mfa-verify',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
 
-  // Applicant (parent/guardian portal)
+  // ─── Applicant portal (parent/guardian role) ────────────────────────────────
+  // Note: the role is called "applicant" in code, but users are parents/guardians
   PARENT_DASHBOARD: '/applicant/dashboard',
   PARENT_APPLICATIONS: '/applicant/applications',
   PARENT_APPLICATION_NEW: '/applicant/applications/new',
+  // Function that takes an application ID and returns the detail URL
   PARENT_APPLICATION_DETAIL: (id: number | string) =>
     `/applicant/applications/${id}`,
   PARENT_DOCUMENTS: '/applicant/documents',
   PARENT_CALENDAR: '/applicant/calendar',
   PARENT_ANNOUNCEMENTS: '/applicant/announcements',
 
-  // Admin
+  // ─── Admin portal ───────────────────────────────────────────────────────────
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_CAMPERS: '/admin/campers',
+  // Function: returns /admin/campers/123 when called with id=123
   ADMIN_CAMPER_DETAIL: (id: number | string) => `/admin/campers/${id}`,
   ADMIN_APPLICATIONS: '/admin/applications',
   ADMIN_APPLICATION_DETAIL: (id: number | string) =>
@@ -45,14 +57,18 @@ export const ROUTES = {
   ADMIN_CALENDAR: '/admin/calendar',
   ADMIN_DOCUMENTS: '/admin/documents',
 
-  // Medical
+  // ─── Medical portal ─────────────────────────────────────────────────────────
   MEDICAL_DASHBOARD: '/medical/dashboard',
+  // List of all campers with medical records
   MEDICAL_RECORDS: '/medical/records',
+  // A specific camper's full medical record
   MEDICAL_RECORD_DETAIL: (id: number | string) => `/medical/records/${id}`,
   MEDICAL_TREATMENT_LOGS: '/medical/treatments',
   MEDICAL_ANNOUNCEMENTS: '/medical/announcements',
+  // Sub-pages scoped to a specific camper's record
   MEDICAL_RECORD_TREATMENTS: (id: number | string) => `/medical/records/${id}/treatments`,
   MEDICAL_RECORD_DOCUMENTS: (id: number | string) => `/medical/records/${id}/documents`,
+  // Phase 11 additions — incidents, follow-ups, visits, emergency view
   MEDICAL_INCIDENTS: '/medical/incidents',
   MEDICAL_FOLLOW_UPS: '/medical/follow-ups',
   MEDICAL_VISITS: '/medical/visits',
@@ -61,17 +77,20 @@ export const ROUTES = {
   MEDICAL_RECORD_VISITS: (id: number | string) => `/medical/records/${id}/visits`,
   MEDICAL_RECORD_TREATMENT: '/medical/record-treatment',
 
-  // Super Admin
+  // ─── Super Admin portal ─────────────────────────────────────────────────────
   SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',
   SUPER_ADMIN_USERS: '/super-admin/users',
+  // Audit log shows every action taken in the system (HIPAA requirement)
   SUPER_ADMIN_AUDIT: '/super-admin/audit',
   SUPER_ADMIN_FORMS: '/super-admin/forms',
 
-  // Shared authenticated
+  // ─── Shared authenticated pages ─────────────────────────────────────────────
+  // Each portal mounts these under its own prefix (e.g. /admin/inbox, /medical/inbox)
   INBOX: '/inbox',
   PROFILE: '/profile',
 
-  // Errors
+  // ─── Error pages ────────────────────────────────────────────────────────────
   FORBIDDEN: '/forbidden',
+  // '*' matches any URL that didn't match a defined route (404 catch-all)
   NOT_FOUND: '*',
 } as const;

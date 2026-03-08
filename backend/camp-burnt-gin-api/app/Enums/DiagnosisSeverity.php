@@ -3,20 +3,25 @@
 namespace App\Enums;
 
 /**
- * Enumeration of diagnosis severity levels.
+ * DiagnosisSeverity — rates how serious a camper's medical diagnosis is.
  *
- * This enum defines the valid severity classifications for camper
- * diagnoses, enabling appropriate risk assessment and care planning
- * based on medical complexity.
+ * When a doctor diagnoses a camper with a condition (like asthma or epilepsy),
+ * this enum captures how severe it is. The severity feeds into the risk scoring
+ * system to help figure out how much medical attention the camper will need at camp.
  */
 enum DiagnosisSeverity: string
 {
+    // The condition is manageable and unlikely to disrupt normal camp activities.
     case Mild = 'mild';
+
+    // The condition requires regular monitoring and some extra care.
     case Moderate = 'moderate';
+
+    // The condition significantly affects the camper's daily health and safety.
     case Severe = 'severe';
 
     /**
-     * Get a human-readable label for the severity level.
+     * Returns a friendly label for displaying the severity in the UI.
      */
     public function label(): string
     {
@@ -28,17 +33,18 @@ enum DiagnosisSeverity: string
     }
 
     /**
-     * Get the risk score contribution for this severity level.
+     * Returns a numeric score representing how much this severity adds to the
+     * camper's overall medical risk calculation.
      *
-     * Used by the risk assessment engine to calculate overall camper
-     * medical complexity and supervision requirements.
+     * Higher scores push the camper into a higher complexity tier, which may
+     * require more staff support or specialized care planning.
      */
     public function getRiskScore(): int
     {
         return match ($this) {
-            self::Mild => 0,
-            self::Moderate => 3,
-            self::Severe => 5,
+            self::Mild => 0,       // No added risk — routine management only.
+            self::Moderate => 3,   // Moderate risk — needs regular check-ins.
+            self::Severe => 5,     // High risk — requires close medical oversight.
         };
     }
 }

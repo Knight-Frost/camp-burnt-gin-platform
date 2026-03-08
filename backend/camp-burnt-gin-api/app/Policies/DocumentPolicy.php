@@ -6,15 +6,27 @@ use App\Models\Document;
 use App\Models\User;
 
 /**
- * Policy for Document resource authorization.
+ * DocumentPolicy — Authorization rules for uploaded Document records.
  *
- * Controls access to uploaded documents based on ownership and roles.
+ * Documents are files uploaded and attached to other models (e.g., a Camper
+ * profile or a MedicalRecord). Access depends on who uploaded the file and
+ * what model it is attached to ("documentable").
+ *
+ * Access summary:
+ *  - Admins        → full access to all documents
+ *  - Applicants    → access to documents they uploaded, or attached to their child
+ *  - Medical staff → view and upload documents on camper/medical-record models
+ *
+ * Only admins may verify or reject uploaded documents (the update action).
  * Implements FR-34: Document access control.
  */
 class DocumentPolicy
 {
     /**
-     * Determine whether the user can view any documents.
+     * Can the user browse the full document list?
+     *
+     * Only admins see every document. Other users query documents
+     * through the model they are attached to (e.g., camper documents).
      */
     public function viewAny(User $user): bool
     {
@@ -22,28 +34,37 @@ class DocumentPolicy
     }
 
     /**
-     * Determine whether the user can view the document.
+     * Can the user view a specific document?
+     *
+     * Access is granted by several independent checks — we return true
+     * as soon as any one of them passes.
      */
     public function view(User $user, Document $document): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // The person who uploaded the document can always view it.
         if ($document->uploaded_by === $user->id) {
             return true;
         }
 
+        // If the document is attached to a Camper, the parent who owns that
+        // camper can view it. campers() scopes the query to this user's children.
         if ($document->documentable_type === 'App\\Models\\Camper') {
             return $user->campers()->where('id', $document->documentable_id)->exists();
         }
 
         if ($user->isMedicalProvider()) {
             // Camp medical staff can view documents attached to campers or medical records.
+            // They need these documents to provide proper clinical care.
             if ($document->documentable_type === 'App\\Models\\Camper') {
                 return true;
             }
 
+            // Medical providers also need access to documents on medical records.
             if ($document->documentable_type === 'App\\Models\\MedicalRecord') {
                 return true;
             }
@@ -53,11 +74,11 @@ class DocumentPolicy
     }
 
     /**
-     * Determine whether the user can create documents.
+     * Can the user upload a new document?
      *
-     * Admins, parents, and medical providers can upload documents.
-     * Specific authorization for what they can attach to is handled
-     * in StoreDocumentRequest.
+     * Admins, parents, and medical providers may upload documents.
+     * The specific model they are allowed to attach the document to
+     * is further validated inside StoreDocumentRequest.
      */
     public function create(User $user): bool
     {
@@ -65,7 +86,10 @@ class DocumentPolicy
     }
 
     /**
-     * Determine whether the user can update (verify/reject) a document. Admin only.
+     * Can the user update (verify or reject) a document?
+     *
+     * Verification is an administrative action — only admins may approve
+     * or reject documents that parents and medical providers have uploaded.
      */
     public function update(User $user, Document $document): bool
     {
@@ -73,14 +97,19 @@ class DocumentPolicy
     }
 
     /**
-     * Determine whether the user can delete the document.
+     * Can the user delete a document?
+     *
+     * Admins can delete any document. The person who originally uploaded
+     * a document may also remove it (they "own" what they submitted).
      */
     public function delete(User $user, Document $document): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // The uploader may delete their own document.
         return $document->uploaded_by === $user->id;
     }
 }

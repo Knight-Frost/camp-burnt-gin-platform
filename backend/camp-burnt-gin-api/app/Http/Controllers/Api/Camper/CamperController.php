@@ -14,30 +14,49 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Controller for managing camper resources.
+ * CamperController — Full CRUD for camper profiles, plus medical intelligence endpoints.
  *
- * This controller handles CRUD operations for camper profiles.
- * All actions are protected by CamperPolicy authorization.
+ * A "camper" is a child registered in the system by their parent (applicant).
+ * This controller manages who can see and change camper records:
+ *
+ *   - Admins      → full visibility and control over all campers.
+ *   - Medical     → read access to all campers (clinical workflows).
+ *   - Applicants  → see and manage only their own children.
+ *
+ * Beyond basic CRUD, it also exposes three computed endpoints that derive
+ * clinical intelligence directly from the camper's medical record at request
+ * time — no separate alerts table needed.
+ *
+ * All actions are gated by CamperPolicy authorization rules.
  */
 class CamperController extends Controller
 {
     /**
      * Display a listing of campers.
      *
-     * Administrators see all campers.
-     * Parents see only their own children.
-     * Medical providers are denied access.
+     * GET /api/campers
+     *
+     * The response data varies by the caller's role:
+     *   - Admin       → all campers, with user/medical data, plus optional name/ID search.
+     *   - Medical     → all campers, with deeper medical record detail (allergies, meds, diagnoses).
+     *   - Applicant   → only campers belonging to the authenticated user.
+     *   - Other roles → empty result set (no error, just nothing returned).
+     *
+     * Results are paginated in pages of 15.
      */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
         if ($user->isAdmin()) {
+            // Confirm this admin is allowed to list all campers via CamperPolicy.
             $this->authorize('viewAny', Camper::class);
+            // Eager-load the parent user and the most common medical fields for the admin table.
             $query = Camper::with(['user', 'medicalRecord.allergies', 'medicalRecord.medications']);
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
+                    // Allow searching by camper name or by numeric ID.
                     $q->where('full_name', 'like', '%' . $search . '%');
                     if (ctype_digit($search)) {
                         $q->orWhere('id', (int) $search);
@@ -47,6 +66,7 @@ class CamperController extends Controller
             $campers = $query->paginate(15);
         } elseif ($user->isMedicalProvider()) {
             // Medical providers can browse all camper profiles to support clinical workflows.
+            // Include diagnoses in addition to allergies and medications for clinical context.
             $query = Camper::with(['medicalRecord.allergies', 'medicalRecord.medications', 'medicalRecord.diagnoses']);
             if ($request->filled('search')) {
                 $search = $request->input('search');
@@ -59,6 +79,7 @@ class CamperController extends Controller
             }
             $campers = $query->paginate(15);
         } elseif ($user->isApplicant()) {
+            // Parents only see the campers they personally registered — scoped via the relationship.
             $campers = $user->campers()->paginate(15);
         } else {
             // User has no recognised role — return empty result.
@@ -73,6 +94,7 @@ class CamperController extends Controller
             ]);
         }
 
+        // Shape pagination metadata consistently so the frontend can build page controls.
         return response()->json([
             'data' => $campers->items(),
             'meta' => [
@@ -86,6 +108,15 @@ class CamperController extends Controller
 
     /**
      * Store a newly created camper.
+     *
+     * POST /api/campers
+     *
+     * Step-by-step:
+     *   1. CamperPolicy confirms the authenticated user may create a camper.
+     *   2. Validated data from StoreCamperRequest is used (no raw input).
+     *   3. For non-admin callers the user_id is forced to their own ID — they
+     *      cannot create a camper on behalf of a different parent account.
+     *   4. The new camper record is saved and returned.
      */
     public function store(StoreCamperRequest $request): JsonResponse
     {
@@ -93,6 +124,7 @@ class CamperController extends Controller
 
         $data = $request->validated();
 
+        // Prevent a non-admin from supplying a different user_id and hijacking another account's campers.
         if (! $request->user()->isAdmin()) {
             $data['user_id'] = $request->user()->id;
         }
@@ -107,11 +139,18 @@ class CamperController extends Controller
 
     /**
      * Display the specified camper.
+     *
+     * GET /api/campers/{camper}
+     *
+     * CamperPolicy ensures the viewer is either an admin, medical provider,
+     * or the parent of this specific camper.
+     * The user relationship and all camp applications (with session info) are eager-loaded.
      */
     public function show(Camper $camper): JsonResponse
     {
         $this->authorize('view', $camper);
 
+        // Load the parent user account and the camper's application history with session details.
         $camper->load(['user', 'applications.campSession']);
 
         return response()->json([
@@ -121,6 +160,11 @@ class CamperController extends Controller
 
     /**
      * Update the specified camper.
+     *
+     * PUT/PATCH /api/campers/{camper}
+     *
+     * UpdateCamperRequest validates the incoming fields before they reach the model.
+     * CamperPolicy ensures only admins or the camper's own parent can update.
      */
     public function update(UpdateCamperRequest $request, Camper $camper): JsonResponse
     {
@@ -136,6 +180,11 @@ class CamperController extends Controller
 
     /**
      * Remove the specified camper.
+     *
+     * DELETE /api/campers/{camper}
+     *
+     * Soft-deletes the camper record (the model uses SoftDeletes).
+     * Only admins are permitted to delete campers via CamperPolicy.
      */
     public function destroy(Camper $camper): JsonResponse
     {
@@ -151,6 +200,8 @@ class CamperController extends Controller
     /**
      * Get computed medical alerts for the specified camper.
      *
+     * GET /api/campers/{camper}/medical-alerts
+     *
      * Alerts are derived in real-time from the camper's clinical record:
      * severe / life-threatening allergies, seizure history, neurostimulator
      * presence, critical diagnoses, and required medications. No separate
@@ -158,11 +209,15 @@ class CamperController extends Controller
      *
      * Medical staff see these alerts prominently when opening a camper's
      * record so critical information is never buried in sub-sections.
+     *
+     * The service is injected by Laravel's container — no manual instantiation needed.
      */
     public function medicalAlerts(Camper $camper, MedicalAlertService $alertService): JsonResponse
     {
+        // CamperPolicy enforces that only authorized roles can view this camper's data.
         $this->authorize('view', $camper);
 
+        // The service inspects allergies, diagnoses, and medications to produce alert objects.
         $alerts = $alertService->alertsFor($camper);
 
         return response()->json([
@@ -173,24 +228,35 @@ class CamperController extends Controller
     /**
      * Get risk assessment summary for the specified camper.
      *
+     * GET /api/campers/{camper}/risk-summary
+     *
      * Returns medical complexity risk score, supervision level,
      * complexity tier, and active risk flags for care planning
      * and staffing ratio determination.
+     *
+     * This helps the camp determine how many staff members are needed per
+     * camper based on their individual medical complexity.
      */
     public function riskSummary(Camper $camper, SpecialNeedsRiskAssessmentService $riskService): JsonResponse
     {
         $this->authorize('view', $camper);
 
+        // The service scores the camper's medical record and returns a structured assessment.
         $assessment = $riskService->assessCamper($camper);
 
         return response()->json([
             'data' => [
+                // Numeric score driving all other tier/level decisions.
                 'risk_score' => $assessment['risk_score'],
+                // Enum value (e.g., "high") for programmatic use in the frontend.
                 'supervision_level' => $assessment['supervision_level']->value,
+                // Human-readable label (e.g., "High Supervision") for display.
                 'supervision_label' => $assessment['supervision_level']->label(),
+                // Staff-to-camper ratio string (e.g., "1:2") for scheduling.
                 'staffing_ratio' => $assessment['supervision_level']->getStaffingRatio(),
                 'medical_complexity_tier' => $assessment['medical_complexity_tier']->value,
                 'complexity_label' => $assessment['medical_complexity_tier']->label(),
+                // Individual flags (e.g., "seizure_history") that contributed to the score.
                 'flags' => $assessment['flags'],
             ],
         ]);
@@ -198,6 +264,8 @@ class CamperController extends Controller
 
     /**
      * Get medical document compliance status for the specified camper.
+     *
+     * GET /api/campers/{camper}/compliance
      *
      * Returns compliance status including required documents, missing documents,
      * expired documents, and unverified documents. Used by parents to understand
@@ -210,6 +278,7 @@ class CamperController extends Controller
     {
         $this->authorize('view', $camper);
 
+        // The service inspects required vs. uploaded documents and returns a compliance summary.
         $compliance = $documentEnforcement->checkCompliance($camper);
 
         return response()->json([

@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * AssistiveDevice model representing mobility aids and assistive technology.
+ * AssistiveDevice model — records mobility aids and assistive equipment used by a camper.
  *
- * Each device tracks the type of assistive equipment, transfer assistance
- * requirements, and usage notes to support appropriate accessibility
- * accommodations and staff training needs.
+ * A camper can have multiple assistive devices (e.g., a wheelchair plus a communication device).
+ * Each record stores the device type, whether staff assistance is needed for transfers,
+ * and any usage notes. This information drives accessibility planning and staff training decisions.
+ *
+ * Relationships: belongs to Camper
  */
 class AssistiveDevice extends Model
 {
@@ -37,23 +39,34 @@ class AssistiveDevice extends Model
     protected function casts(): array
     {
         return [
+            // Stored as tinyint in MySQL; cast so PHP sees a proper boolean
             'requires_transfer_assistance' => 'boolean',
         ];
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Relationships
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
      * Get the camper this assistive device belongs to.
+     *
+     * A camper may have many devices; each device points back to its camper.
      */
     public function camper(): BelongsTo
     {
         return $this->belongsTo(Camper::class);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Helper Methods
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
      * Determine if this device requires specialized staff training.
      *
-     * Transfer assistance and certain assistive devices require staff
-     * to have appropriate training for safe operation and assistance.
+     * Transfer assistance (lifting, pivoting, repositioning a camper between a wheelchair
+     * and another surface) carries an injury risk, so staff must be trained before helping.
      */
     public function requiresTraining(): bool
     {
@@ -61,13 +74,14 @@ class AssistiveDevice extends Model
     }
 
     /**
-     * Determine if this device affects mobility accessibility.
+     * Determine if this device affects the camper's physical mobility around camp.
      *
-     * Certain device types require specific accessibility accommodations
-     * for camp facilities and activities.
+     * Mobility devices like wheelchairs and walkers require accessible pathways,
+     * ramps, and adapted facilities — checked when evaluating venue accessibility.
      */
     public function isMobilityDevice(): bool
     {
+        // Known mobility-related device type strings (case-insensitive comparison)
         $mobilityDevices = [
             'wheelchair',
             'walker',
@@ -77,6 +91,7 @@ class AssistiveDevice extends Model
             'stander',
         ];
 
+        // strtolower normalises any casing staff may have entered (e.g. "Wheelchair")
         return in_array(strtolower($this->device_type), $mobilityDevices);
     }
 }

@@ -7,11 +7,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * ConversationParticipant model representing user membership in conversations.
+ * ConversationParticipant model — the join table between users and conversations.
  *
- * Tracks which users are participants in each conversation with metadata
- * for join/leave timestamps. Used for authorization checks and participant
- * management.
+ * Instead of a simple many-to-many pivot, this is a full Eloquent model because it carries
+ * user-specific per-conversation state: whether the user has starred, marked as important,
+ * or trashed the conversation. This means two users in the same conversation can each have
+ * their own independent starred/trash state — just like a real email inbox.
+ *
+ * Lifecycle of a participant:
+ *   1. Added (joined_at set, left_at null, trashed_at null)
+ *   2. Can be starred / marked important independently per user
+ *   3. Can be trashed by the user (trashed_at set) without affecting others in the thread
+ *   4. Can leave the conversation (left_at set)
+ *   5. Can rejoin (left_at cleared to null)
+ *
+ * Relationships:
+ *   - belongs to Conversation
+ *   - belongs to User
+ *
+ * Scopes: trashed(), notTrashed(), active(), left(), forConversation(), forUser()
  */
 class ConversationParticipant extends Model
 {
@@ -33,7 +47,9 @@ class ConversationParticipant extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * Cast types for participant fields.
+     *
+     * All timestamps become Carbon instances for readable comparisons.
      *
      * @return array<string, string>
      */
@@ -44,12 +60,17 @@ class ConversationParticipant extends Model
             'left_at'      => 'datetime',
             'is_starred'   => 'boolean',
             'is_important' => 'boolean',
+            // User-level soft-trash; does NOT delete the conversation for other participants
             'trashed_at'   => 'datetime',
         ];
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Relationships
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
-     * Get the conversation this participant belongs to.
+     * Get the conversation this participant record belongs to.
      */
     public function conversation(): BelongsTo
     {
@@ -57,15 +78,21 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Get the user who is a participant.
+     * Get the user who is a participant in the conversation.
      */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // State Checks
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
-     * Determine if the participant has left the conversation.
+     * Determine if this participant has left the conversation.
+     *
+     * Left participants should not receive new message notifications.
      */
     public function hasLeft(): bool
     {
@@ -73,7 +100,9 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Determine if the participant is currently active.
+     * Determine if this participant is currently active in the conversation.
+     *
+     * Active means they are still a member and receiving messages.
      */
     public function isActive(): bool
     {
@@ -81,7 +110,23 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Mark participant as having left the conversation.
+     * Determine if this conversation is in the user's trash folder.
+     *
+     * Trashing is per-user — it does not affect other participants.
+     */
+    public function isTrashed(): bool
+    {
+        return $this->trashed_at !== null;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // State Mutations
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Record that this participant has left the conversation.
+     *
+     * Sets left_at to now; they no longer appear in the conversation's active participant list.
      */
     public function markAsLeft(): void
     {
@@ -89,7 +134,9 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Rejoin the conversation (clear left_at).
+     * Rejoin the conversation after having previously left.
+     *
+     * Clears left_at so the participant is active again.
      */
     public function rejoin(): void
     {
@@ -97,7 +144,10 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Toggle the starred state and return the new value.
+     * Toggle the starred flag and return the resulting new value.
+     *
+     * Used by the star/unstar inbox action; the boolean return allows
+     * the controller to include the new state in the API response immediately.
      */
     public function toggleStar(): bool
     {
@@ -107,7 +157,9 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Toggle the important state and return the new value.
+     * Toggle the important flag and return the resulting new value.
+     *
+     * Works identically to toggleStar() — flip the flag and report back.
      */
     public function toggleImportant(): bool
     {
@@ -117,7 +169,10 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Move this conversation to the user's trash.
+     * Move this conversation to the user's trash folder.
+     *
+     * Sets trashed_at to now. The conversation is still in the database and
+     * visible to other participants — this only affects this user's folder view.
      */
     public function trash(): void
     {
@@ -125,23 +180,21 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Restore from trash.
+     * Restore this conversation from the user's trash folder.
+     *
+     * Clears trashed_at so the conversation reappears in the inbox.
      */
     public function restore(): void
     {
         $this->update(['trashed_at' => null]);
     }
 
-    /**
-     * Determine if this conversation is trashed for this user.
-     */
-    public function isTrashed(): bool
-    {
-        return $this->trashed_at !== null;
-    }
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Scopes
+    // ──────────────────────────────────────────────────────────────────────────
 
     /**
-     * Scope: only trashed participant records.
+     * Scope: only participant records where the user has trashed the conversation.
      */
     public function scopeTrashed($query)
     {
@@ -149,7 +202,7 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Scope: only non-trashed participant records.
+     * Scope: only participant records where the conversation is NOT trashed for this user.
      */
     public function scopeNotTrashed($query)
     {
@@ -157,7 +210,7 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Scope to filter active participants.
+     * Scope: only participants who are currently active (have not left).
      */
     public function scopeActive($query)
     {
@@ -165,7 +218,7 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Scope to filter participants who have left.
+     * Scope: only participants who have left the conversation.
      */
     public function scopeLeft($query)
     {
@@ -173,7 +226,9 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Scope to filter by conversation.
+     * Scope: filter to a specific conversation by ID.
+     *
+     * Useful when building queries like "all active participants in conversation 42".
      */
     public function scopeForConversation($query, int $conversationId)
     {
@@ -181,7 +236,9 @@ class ConversationParticipant extends Model
     }
 
     /**
-     * Scope to filter by user.
+     * Scope: filter to a specific user by ID.
+     *
+     * Useful when building queries like "all conversations this user is part of".
      */
     public function scopeForUser($query, int $userId)
     {

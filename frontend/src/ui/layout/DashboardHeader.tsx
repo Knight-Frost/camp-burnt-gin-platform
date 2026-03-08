@@ -1,7 +1,22 @@
 /**
  * DashboardHeader.tsx
- * Top header bar for all authenticated dashboard layouts.
- * Shows: page title, notification bell, settings link, user dropdown.
+ *
+ * Purpose: The sticky top bar rendered inside DashboardShell for all authenticated
+ * dashboard layouts.
+ *
+ * Responsibilities:
+ *   - Displays the current page title (passed in from DashboardShell).
+ *   - Provides a language toggle (EN/ES) for i18n switching.
+ *   - Links to the role-appropriate settings page.
+ *   - Shows a notification bell with an unread-count badge; clicking it opens
+ *     the NotificationPanel slide-out drawer.
+ *   - Shows a user avatar button that opens a dropdown with profile, settings,
+ *     and sign-out options.
+ *
+ * Route helpers:
+ *   - getSettingsRoute() reads the URL prefix (/admin, /medical, etc.) to
+ *     build the correct settings path without needing Redux or role checks.
+ *   - getProfileRoute() (imported) does the same for profile links.
  */
 
 import { useState, useEffect } from 'react';
@@ -25,7 +40,10 @@ interface DashboardHeaderProps {
   title: string;
 }
 
-/** Derive settings route from current prefix */
+/**
+ * Returns the settings route for the current portal prefix.
+ * e.g. /super-admin/anything → "/super-admin/settings"
+ */
 function getSettingsRoute(pathname: string): string {
   if (pathname.startsWith('/super-admin')) return '/super-admin/settings';
   if (pathname.startsWith('/admin')) return '/admin/settings';
@@ -38,22 +56,30 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAppSelector((state) => state.auth.user);
+  // Controls whether the notification slide-out panel is open.
   const [notifOpen, setNotifOpen] = useState(false);
+  // Tracks how many unread notifications exist so we can show the orange badge dot.
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Derive the correct profile and settings URLs for the logged-in user's role.
   const profileRoute = getProfileRoute(getPrimaryRole(user?.roles ?? []));
   const settingsRoute = getSettingsRoute(location.pathname);
 
+  // Fetch the unread notification count once on mount so the bell badge is accurate.
   useEffect(() => {
     getNotifications()
       .then((res) => {
         const unread = res.data.filter((n) => !n.read_at).length;
         setUnreadCount(unread);
       })
-      .catch(() => {});
+      .catch(() => {}); // Silently ignore — a badge not showing is not a critical failure.
   }, []);
 
+  /**
+   * Signs the user out: calls the API (ignores errors), clears Redux auth
+   * state, navigates to login.
+   */
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -73,10 +99,11 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
         style={{
           background: 'var(--dash-header-bg)',
           borderColor: 'var(--dash-sidebar-border)',
+          // Frosted-glass effect — blurs content scrolling behind the header.
           backdropFilter: 'blur(16px)',
         }}
       >
-        {/* Page title */}
+        {/* Current page title — derived from the pathname by DashboardShell */}
         <h1
           className="text-base font-headline font-semibold"
           style={{ color: 'var(--foreground)' }}
@@ -84,12 +111,12 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
           {title}
         </h1>
 
-        {/* Right controls */}
+        {/* Right-side controls — always grouped in a flex row */}
         <div className="flex items-center gap-1">
-          {/* Language toggle */}
+          {/* Language toggle switches between English and Spanish */}
           <LanguageToggle />
 
-          {/* Settings gear */}
+          {/* Settings gear icon — navigates to the role-specific settings page */}
           <Link
             to={settingsRoute}
             className="p-2 rounded-xl transition-colors"
@@ -99,16 +126,18 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
             <Settings className="h-5 w-5" />
           </Link>
 
-          {/* Notification bell */}
+          {/* Notification bell — orange dot badge appears when there are unread notifications */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setNotifOpen(true)}
             className="relative p-2 rounded-xl transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
+            // aria-label includes count so screen readers announce "3 unread" etc.
             aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
           >
             <Bell className="h-5 w-5" />
+            {/* Orange dot — only rendered when there is at least 1 unread notification */}
             {unreadCount > 0 && (
               <span
                 className="absolute top-1 right-1 w-2 h-2 rounded-full"
@@ -118,9 +147,10 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
             )}
           </motion.button>
 
-          {/* User dropdown */}
+          {/* User dropdown — opens a popover with profile, settings, and sign-out */}
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
+              {/* Avatar button: initial letter + first name on sm+ screens */}
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
@@ -132,6 +162,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                 }}
                 aria-label="User menu"
               >
+                {/* Initial-based avatar circle */}
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
                   style={{
@@ -141,12 +172,14 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                 >
                   {user?.name.charAt(0).toUpperCase()}
                 </div>
+                {/* First name only — hidden on small screens to save space */}
                 <span className="text-sm hidden sm:block">{user?.name.split(' ')[0]}</span>
               </motion.button>
             </DropdownMenu.Trigger>
 
             <DropdownMenu.Portal>
               <DropdownMenu.Content align="end" sideOffset={8} asChild>
+                {/* Animated dropdown panel — slides down and fades in */}
                 <motion.div
                   variants={dropdownVariants}
                   initial="hidden"
@@ -160,7 +193,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                     boxShadow: 'var(--shadow-card)',
                   }}
                 >
-                  {/* User info */}
+                  {/* User info — name + email at the top of the dropdown */}
                   <div
                     className="px-3 py-2 mb-1 border-b"
                     style={{ borderColor: 'var(--border)' }}
@@ -173,6 +206,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                     </p>
                   </div>
 
+                  {/* Profile link — goes to the role-specific profile page */}
                   <DropdownMenu.Item asChild>
                     <Link
                       to={profileRoute}
@@ -184,6 +218,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                     </Link>
                   </DropdownMenu.Item>
 
+                  {/* Settings link — same destination as the gear icon in the header */}
                   <DropdownMenu.Item asChild>
                     <Link
                       to={settingsRoute}
@@ -195,11 +230,13 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                     </Link>
                   </DropdownMenu.Item>
 
+                  {/* Visual divider between navigation items and the destructive sign-out action */}
                   <DropdownMenu.Separator
                     className="my-1 h-px"
                     style={{ background: 'var(--border)' }}
                   />
 
+                  {/* Sign-out button — red text to signal a potentially irreversible action */}
                   <DropdownMenu.Item asChild>
                     <button
                       onClick={handleLogout}
@@ -218,7 +255,8 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
         </div>
       </header>
 
-      {/* Notification panel */}
+      {/* Notification slide-out panel — rendered outside the header so it can
+          overlay the full page. onUnreadChange keeps the bell badge in sync. */}
       <NotificationPanel
         open={notifOpen}
         onClose={() => setNotifOpen(false)}

@@ -8,72 +8,101 @@ use App\Enums\SupervisionLevel;
 use App\Models\Camper;
 
 /**
- * Service for special needs risk assessment and supervision level determination.
+ * SpecialNeedsRiskAssessmentService — Medical Risk Scoring and Supervision Planning
  *
- * This service calculates medical complexity risk scores based on camper
- * medical conditions, behavioral needs, and assistive device requirements.
- * Risk scores determine appropriate staff-to-camper supervision ratios
- * and medical complexity tiers for care planning.
+ * This service calculates a numeric risk score (0–100) for each camper based
+ * on their medical conditions, behavioral profile, and physical support needs.
+ * The score drives two important decisions:
  *
- * Scoring is deterministic and follows documented medical risk assessment
- * protocols for children and youth with special health care needs.
+ *  1. SupervisionLevel — determines the staff-to-camper ratio:
+ *       Standard  (score  0–20): 1 staff to 6 campers (typical camp ratio)
+ *       Enhanced  (score 21–40): 1 staff to 3 campers (increased supervision)
+ *       OneToOne  (score   41+): 1 dedicated staff member per camper
+ *
+ *  2. MedicalComplexityTier — categorises overall medical care requirements:
+ *       Low       (score  0–25): Minimal medical intervention needed
+ *       Moderate  (score 26–50): Regular monitoring and medical support
+ *       High      (score   51+): Intensive care and specialised staffing
+ *
+ * Risk factors and their point values are defined as class constants so
+ * they can be reviewed and adjusted without changing the algorithm itself.
+ *
+ * The calculated supervision level is persisted back to the camper record
+ * (quietly, to avoid triggering observer loops). Scores above 100 are capped.
+ *
+ * Called by: CamperController -> riskSummary() endpoint
+ *            DocumentEnforcementService for compliance checking
  */
 class SpecialNeedsRiskAssessmentService
 {
-    /**
-     * Risk score constants for medical conditions.
-     */
+    // ── Risk score point values ──────────────────────────────────────────────
+    // Each constant represents how many risk points a specific condition adds.
+    // Higher numbers = more complex support need.
+
+    /** Seizure history — high risk requiring an action plan */
     protected const RISK_SEIZURES = 20;
 
+    /** G-tube (gastrostomy tube) feeding — requires trained staff */
     protected const RISK_G_TUBE = 20;
 
+    /** Wandering risk — requires constant physical proximity */
     protected const RISK_WANDERING = 15;
 
+    /** History of aggression — requires intervention-trained staff */
     protected const RISK_AGGRESSION = 15;
 
+    /** Behavioural profile explicitly requires one-to-one supervision */
     protected const RISK_ONE_TO_ONE = 30;
 
+    /** Physical transfer assistance required for mobility devices */
     protected const RISK_TRANSFER_ASSISTANCE = 10;
 
+    /** Developmental delay — requires adapted programming */
     protected const RISK_DEVELOPMENTAL_DELAY = 10;
 
+    /** Severe diagnosis on file */
     protected const RISK_DIAGNOSIS_SEVERE = 5;
 
+    /** Moderate diagnosis on file */
     protected const RISK_DIAGNOSIS_MODERATE = 3;
 
-    /**
-     * Maximum risk score cap.
-     */
+    // ── Score ceiling ────────────────────────────────────────────────────────
+    /** Scores are capped at 100 regardless of how many conditions are present */
     protected const RISK_SCORE_CAP = 100;
 
-    /**
-     * Supervision level thresholds.
-     */
+    // ── Supervision thresholds ───────────────────────────────────────────────
+    /** Scores at or below this value → Standard supervision */
     protected const SUPERVISION_STANDARD_MAX = 20;
 
+    /** Scores at or below this value (but above STANDARD_MAX) → Enhanced supervision */
     protected const SUPERVISION_ENHANCED_MAX = 40;
 
-    /**
-     * Medical complexity tier thresholds.
-     */
+    // ── Complexity tier thresholds ───────────────────────────────────────────
+    /** Scores at or below this value → Low complexity tier */
     protected const COMPLEXITY_LOW_MAX = 25;
 
+    /** Scores at or below this value (but above LOW_MAX) → Moderate complexity tier */
     protected const COMPLEXITY_MODERATE_MAX = 50;
 
     /**
-     * Assess a camper's medical complexity and supervision requirements.
+     * Run the full risk assessment for a camper and return a structured result.
      *
-     * This method calculates the camper's risk score, determines appropriate
-     * supervision level and medical complexity tier, extracts risk flags,
-     * and persists the supervision level if changed.
+     * This is the public entry point. It:
+     *  1. Eagerly loads all relationships to avoid N+1 queries
+     *  2. Calculates the numeric risk score
+     *  3. Determines the supervision level and complexity tier from the score
+     *  4. Extracts a plain-English list of active risk flags
+     *  5. Persists the supervision level to the camper record (only if changed)
      *
-     * PERFORMANCE: Eagerly loads all required relationships to prevent N+1 queries.
+     * PERFORMANCE: All required relationships are loaded in one loadMissing() call
+     * to prevent multiple database round-trips.
      *
-     * @return array<string, mixed> Assessment results with risk_score, supervision_level, medical_complexity_tier, and flags
+     * @param  Camper  $camper  The camper to assess
+     * @return array<string, mixed>  risk_score, supervision_level, medical_complexity_tier, flags
      */
     public function assessCamper(Camper $camper): array
     {
-        // Eagerly load all relationships needed for assessment to prevent N+1 queries
+        // Load all relationships needed for assessment in a single call to prevent N+1 queries
         $camper->loadMissing([
             'medicalRecord',
             'feedingPlan',
@@ -89,6 +118,7 @@ class SpecialNeedsRiskAssessmentService
         $complexityTier = $this->determineComplexityTier($riskScore);
         $flags = $this->extractFlags($camper);
 
+        // Write supervision level back to the database if it has changed
         $this->persistSupervisionLevel($camper, $supervisionLevel);
 
         return [
@@ -100,23 +130,27 @@ class SpecialNeedsRiskAssessmentService
     }
 
     /**
-     * Calculate the total risk score for a camper.
+     * Calculate the total numeric risk score for a camper (0–100).
      *
-     * Risk scoring algorithm considers:
-     * - Medical conditions (seizures, G-tube feeding)
-     * - Behavioral factors (wandering, aggression, supervision needs)
-     * - Physical needs (assistive devices, developmental delays)
-     * - Diagnosis severity levels
+     * Works through each medical data category, adding points for each
+     * positive risk factor found. The result is capped at RISK_SCORE_CAP (100)
+     * so a camper with many conditions doesn't go past the maximum tier boundary.
      *
-     * Scores are capped at 100 to prevent overflow from multiple conditions.
+     * Scoring categories:
+     *  - Medical record: seizure history
+     *  - Feeding plan: G-tube dependency
+     *  - Behavioral profile: wandering, aggression, one-to-one need, developmental delay
+     *  - Assistive devices: transfer assistance requirement
+     *  - Diagnoses: severity level (severe or moderate)
      *
-     * @return int Risk score from 0 to 100
+     * @param  Camper  $camper  Camper with all relationships pre-loaded
+     * @return int  Risk score from 0 to 100
      */
     public function calculateRiskScore(Camper $camper): int
     {
         $score = 0;
 
-        // Medical record risk factors
+        // ── Medical record risk factors ──────────────────────────────────────
         $medicalRecord = $camper->medicalRecord;
         if ($medicalRecord) {
             if ($medicalRecord->has_seizures) {
@@ -124,13 +158,13 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // Feeding plan risk factors
+        // ── Feeding plan risk factors ────────────────────────────────────────
         $feedingPlan = $camper->feedingPlan;
         if ($feedingPlan && $feedingPlan->g_tube) {
             $score += self::RISK_G_TUBE;
         }
 
-        // Behavioral profile risk factors
+        // ── Behavioral profile risk factors ──────────────────────────────────
         $behavioralProfile = $camper->behavioralProfile;
         if ($behavioralProfile) {
             if ($behavioralProfile->wandering_risk) {
@@ -150,16 +184,17 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // Assistive device risk factors
+        // ── Assistive device risk factors ────────────────────────────────────
         $assistiveDevices = $camper->assistiveDevices;
         foreach ($assistiveDevices as $device) {
             if ($device->requires_transfer_assistance) {
                 $score += self::RISK_TRANSFER_ASSISTANCE;
-                break; // Count once regardless of multiple devices
+                // Count transfer assistance only once even if multiple devices require it
+                break;
             }
         }
 
-        // Diagnosis severity risk factors
+        // ── Diagnosis severity risk factors ──────────────────────────────────
         $diagnoses = $camper->diagnoses;
         foreach ($diagnoses as $diagnosis) {
             if ($diagnosis->severity_level === DiagnosisSeverity::Severe) {
@@ -169,17 +204,17 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // Cap score at maximum
+        // Cap the score at the maximum so it never exceeds the defined ceiling
         return min($score, self::RISK_SCORE_CAP);
     }
 
     /**
-     * Determine the appropriate supervision level based on risk score.
+     * Map a numeric risk score to the appropriate supervision level.
      *
-     * Supervision levels determine staff-to-camper ratios:
-     * - Standard (1:6): Low risk, typical camp supervision
-     * - Enhanced (1:3): Moderate risk, increased supervision needed
-     * - One-to-One (1:1): High risk, dedicated staff member required
+     * Supervision levels affect staffing ratios at camp:
+     *  Standard  (≤20): 1:6 ratio — typical for campers with minimal needs
+     *  Enhanced  (≤40): 1:3 ratio — increased supervision for moderate needs
+     *  OneToOne    (>40): 1:1 ratio — a dedicated staff member per camper
      *
      * @param  int  $score  Risk score from 0 to 100
      */
@@ -193,16 +228,17 @@ class SpecialNeedsRiskAssessmentService
             return SupervisionLevel::Enhanced;
         }
 
+        // Anything above Enhanced threshold requires dedicated one-to-one support
         return SupervisionLevel::OneToOne;
     }
 
     /**
-     * Determine the medical complexity tier based on risk score.
+     * Map a numeric risk score to the appropriate medical complexity tier.
      *
-     * Complexity tiers categorize overall medical support requirements:
-     * - Low: Minimal medical intervention needed
-     * - Moderate: Regular medical monitoring and support
-     * - High: Intensive medical care and specialized staffing
+     * Complexity tiers inform medical staffing levels and care plan complexity:
+     *  Low      (≤25): Standard health monitoring; no specialist staffing needed
+     *  Moderate (≤50): Regular medical check-ins; nurse on call at all times
+     *  High      (>50): Continuous medical oversight; specialist staff required
      *
      * @param  int  $score  Risk score from 0 to 100
      */
@@ -220,19 +256,23 @@ class SpecialNeedsRiskAssessmentService
     }
 
     /**
-     * Extract risk flags from camper medical data.
+     * Build a plain-English list of active risk flags from all medical data sections.
      *
-     * Flags provide a human-readable summary of specific risk factors
-     * present for the camper, enabling quick identification of medical
-     * and behavioral considerations for staff.
+     * Flags are short string identifiers (e.g. 'seizures', 'wandering_risk') that
+     * give staff a quick checklist of what to watch for with this camper, without
+     * needing to open every sub-section of the medical record.
      *
-     * @return array<string> List of active risk flags
+     * These flags are also used by DocumentEnforcementService to determine which
+     * condition-specific documents are required for approval.
+     *
+     * @param  Camper  $camper  Camper with all relationships pre-loaded
+     * @return array<string>  List of active risk flag identifiers
      */
     protected function extractFlags(Camper $camper): array
     {
         $flags = [];
 
-        // Medical record flags
+        // ── Medical record flags ─────────────────────────────────────────────
         $medicalRecord = $camper->medicalRecord;
         if ($medicalRecord) {
             if ($medicalRecord->has_seizures) {
@@ -244,7 +284,7 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // Feeding plan flags
+        // ── Feeding plan flags ───────────────────────────────────────────────
         $feedingPlan = $camper->feedingPlan;
         if ($feedingPlan) {
             if ($feedingPlan->g_tube) {
@@ -256,7 +296,7 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // Behavioral profile flags
+        // ── Behavioral profile flags ─────────────────────────────────────────
         $behavioralProfile = $camper->behavioralProfile;
         if ($behavioralProfile) {
             if ($behavioralProfile->wandering_risk) {
@@ -280,9 +320,10 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // Assistive device flags
+        // ── Assistive device flags ───────────────────────────────────────────
         $assistiveDevices = $camper->assistiveDevices;
         if ($assistiveDevices->isNotEmpty()) {
+            // Flag that the camper uses at least one assistive device
             $flags[] = 'assistive_devices';
 
             if ($assistiveDevices->contains('requires_transfer_assistance', true)) {
@@ -290,8 +331,9 @@ class SpecialNeedsRiskAssessmentService
             }
         }
 
-        // High-severity diagnosis flag
+        // ── Diagnosis severity flag ──────────────────────────────────────────
         $diagnoses = $camper->diagnoses;
+        // Check if any diagnosis has a "Severe" severity level
         $hasSevereDiagnosis = $diagnoses->contains(function ($diagnosis) {
             return $diagnosis->severity_level === DiagnosisSeverity::Severe;
         });
@@ -304,21 +346,21 @@ class SpecialNeedsRiskAssessmentService
     }
 
     /**
-     * Persist the calculated supervision level to the camper record.
+     * Persist the computed supervision level to the camper's database record.
      *
-     * Only updates the database if the supervision level has changed,
-     * preventing unnecessary writes and observer triggering.
+     * Only writes to the database if the level has actually changed, avoiding
+     * unnecessary writes and preventing infinite observer loops (observers watch
+     * camper saves and call this service again — saveQuietly() skips observers).
      *
-     * Uses saveQuietly() to prevent observer loops during reassessment.
-     *
-     * @param  Camper  $camper  The camper instance
-     * @param  SupervisionLevel  $level  The calculated supervision level
+     * @param  Camper           $camper  The camper being updated
+     * @param  SupervisionLevel $level   The freshly computed supervision level
      */
     protected function persistSupervisionLevel(Camper $camper, SupervisionLevel $level): void
     {
-        // Only update if supervision level has changed
+        // Skip the database write entirely if the level hasn't changed
         if ($camper->supervision_level !== $level) {
             $camper->supervision_level = $level;
+            // saveQuietly() saves without firing model events (prevents observer re-entry)
             $camper->saveQuietly();
         }
     }

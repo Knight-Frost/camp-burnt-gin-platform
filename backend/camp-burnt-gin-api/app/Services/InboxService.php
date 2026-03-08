@@ -13,29 +13,56 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * InboxService handles conversation management operations.
+ * InboxService — Conversation Lifecycle Management
  *
- * Provides business logic for:
- * - Creating conversations with participants
- * - Managing participant membership
- * - Archiving and filtering conversations
- * - Transaction boundaries for multi-step operations
+ * This service is the business logic layer for the Camp Burnt Gin internal
+ * messaging system. Think of it as the post office for the application —
+ * it creates conversations, manages who is in them, and organises them into
+ * folders (inbox, sent, starred, trash, etc.).
  *
- * All operations include audit logging and notification delivery.
+ * Every operation that modifies a conversation is:
+ *  1. Validated before touching the database
+ *  2. Executed inside a DB transaction (so partial failures roll back cleanly)
+ *  3. Logged to the audit trail for HIPAA compliance
+ *  4. Accompanied by a notification to affected users where appropriate
+ *
+ * Folder system (mirrors Gmail-style organisation):
+ *  - inbox:     Active non-archived conversations the user participates in
+ *  - starred:   Conversations the user has marked with a star
+ *  - important: Conversations the user has flagged as important
+ *  - sent:      Conversations created by the user
+ *  - archive:   Archived conversations (hidden from inbox but not deleted)
+ *  - trash:     Conversations the user has moved to trash (trashed_at is set)
+ *  - system:    Auto-generated system notifications (no human sender)
+ *  - all:       Everything not in trash (backward-compatible catch-all)
+ *
+ * Called by: ConversationController, MessageService (for timestamp updates)
  */
 class InboxService
 {
     /**
-     * Create a new conversation with initial participants.
+     * Create a new conversation with the creator and specified participants.
      *
-     * @param User $creator User creating the conversation
-     * @param string $subject Conversation subject line
-     * @param array $participantIds Array of user IDs to include as participants
-     * @param int|null $applicationId Optional application context
-     * @param int|null $camperId Optional camper context
-     * @param int|null $campSessionId Optional camp session context
-     * @return Conversation
-     * @throws \Exception
+     * Validates the participant list, then within a database transaction:
+     *  1. Creates the Conversation record
+     *  2. Adds the creator as a participant
+     *  3. Adds each other participant and notifies them
+     *  4. Writes an audit log entry
+     *
+     * Rules enforced:
+     *  - Participant list cannot be empty
+     *  - Cannot create a conversation with only yourself
+     *  - Maximum 10 participants per conversation
+     *  - All participant IDs must correspond to existing users
+     *
+     * @param  User        $creator         The user starting the conversation
+     * @param  string|null $subject         Conversation subject line (can be null)
+     * @param  array       $participantIds  User IDs to include (not including creator)
+     * @param  int|null    $applicationId   Optional: links conversation to an application
+     * @param  int|null    $camperId        Optional: links conversation to a camper
+     * @param  int|null    $campSessionId   Optional: links conversation to a session
+     * @param  string      $category        Conversation category (default: 'general')
+     * @throws \InvalidArgumentException   If participant validation fails
      */
     public function createConversation(
         User $creator,
@@ -46,23 +73,25 @@ class InboxService
         ?int $campSessionId = null,
         string $category = 'general'
     ): Conversation {
-        // Validate participant list
+        // Guard: participant list must not be empty
         if (empty($participantIds)) {
             throw new \InvalidArgumentException('Participant list cannot be empty');
         }
 
-        // Remove creator from participant list if present (they're added automatically)
+        // Remove the creator from the list if they included themselves — they're added automatically
         $participantIds = array_diff($participantIds, [$creator->id]);
 
+        // Guard: after removing the creator, at least one other person must remain
         if (empty($participantIds)) {
             throw new \InvalidArgumentException('Cannot create conversation with only yourself');
         }
 
-        // Validate max participants
+        // Guard: cap conversations at 10 participants to prevent abuse
         if (count($participantIds) > 10) {
             throw new \InvalidArgumentException('Maximum 10 participants allowed per conversation');
         }
 
+        // Wrap everything in a transaction — if any step fails, nothing is committed
         return DB::transaction(function () use (
             $creator,
             $subject,
@@ -72,7 +101,7 @@ class InboxService
             $campSessionId,
             $category
         ) {
-            // Create conversation
+            // Create the parent Conversation record
             $conversation = Conversation::create([
                 'created_by_id' => $creator->id,
                 'subject' => $subject,
@@ -84,25 +113,24 @@ class InboxService
                 'is_archived' => false,
             ]);
 
-            // Add creator as participant
+            // Add the creator as the first participant (no notification to self)
             $this->addParticipant($conversation, $creator);
 
-            // Fetch and add other participants
+            // Load the participant users in one query to verify they all exist
             $participantUsers = User::whereIn('id', $participantIds)->get();
 
-            // Verify all requested users exist
+            // Guard: if any ID in the list doesn't exist in users table, abort
             if ($participantUsers->count() !== count($participantIds)) {
                 throw new \InvalidArgumentException('One or more participants do not exist');
             }
 
             foreach ($participantUsers as $participant) {
                 $this->addParticipant($conversation, $participant);
-
-                // Notify new participant
+                // Notify each new participant that a conversation was started with them
                 $participant->notify(new NewConversationNotification($conversation));
             }
 
-            // Audit log
+            // Write an audit log entry for HIPAA compliance and security review
             AuditLog::create([
                 'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
                 'user_id' => $creator->id,
@@ -122,26 +150,29 @@ class InboxService
                 'created_at' => now(),
             ]);
 
+            // Return the conversation with participants and creator loaded for the API response
             return $conversation->load(['participants.role', 'creator']);
         });
     }
 
     /**
-     * Add a participant to a conversation.
+     * Add a user as a participant in a conversation.
      *
-     * @param Conversation $conversation
-     * @param User $user
-     * @return ConversationParticipant
+     * If the user was previously in the conversation but left, they are rejoined
+     * (their left_at is cleared). If they're already an active participant, the
+     * existing record is returned unchanged.
+     *
+     * Both actions are logged to the audit trail.
      */
     public function addParticipant(Conversation $conversation, User $user): ConversationParticipant
     {
-        // Check if user is already a participant
+        // Check if a participant record already exists for this user/conversation pair
         $existing = ConversationParticipant::where('conversation_id', $conversation->id)
             ->where('user_id', $user->id)
             ->first();
 
         if ($existing) {
-            // If they left, rejoin them
+            // If they previously left, rejoin them (clears the left_at timestamp)
             if ($existing->hasLeft()) {
                 $existing->rejoin();
 
@@ -160,10 +191,11 @@ class InboxService
                 ]);
             }
 
+            // Return the existing participant record (either active or just rejoined)
             return $existing;
         }
 
-        // Create new participant record
+        // No existing record — create a fresh participant entry
         $participant = ConversationParticipant::create([
             'conversation_id' => $conversation->id,
             'user_id' => $user->id,
@@ -188,20 +220,22 @@ class InboxService
     }
 
     /**
-     * Remove a participant from a conversation.
+     * Remove a user from a conversation by setting their left_at timestamp.
      *
-     * @param Conversation $conversation
-     * @param User $user
-     * @return void
+     * This is a soft removal — the participant record stays in the database
+     * for the audit trail, but the user no longer sees the conversation.
+     * Only active participants (left_at IS NULL) can be removed.
      */
     public function removeParticipant(Conversation $conversation, User $user): void
     {
+        // Find the active participant record for this user (left_at must be null)
         $participant = ConversationParticipant::where('conversation_id', $conversation->id)
             ->where('user_id', $user->id)
             ->whereNull('left_at')
             ->first();
 
         if ($participant) {
+            // markAsLeft() sets left_at to now(), effectively removing them from the conversation
             $participant->markAsLeft();
 
             AuditLog::create([
@@ -221,10 +255,10 @@ class InboxService
     }
 
     /**
-     * Archive a conversation.
+     * Archive a conversation so it moves out of the active inbox.
      *
-     * @param Conversation $conversation
-     * @return Conversation
+     * Archived conversations are hidden from the inbox but still accessible
+     * via the Archive folder. Returns the refreshed conversation record.
      */
     public function archiveConversation(Conversation $conversation): Conversation
     {
@@ -243,14 +277,14 @@ class InboxService
             'created_at' => now(),
         ]);
 
+        // Return a fresh copy so the caller has the updated is_archived value
         return $conversation->fresh();
     }
 
     /**
-     * Unarchive a conversation.
+     * Unarchive a conversation, returning it to the active inbox.
      *
-     * @param Conversation $conversation
-     * @return Conversation
+     * Reverses the archiveConversation() operation. Returns the refreshed record.
      */
     public function unarchiveConversation(Conversation $conversation): Conversation
     {
@@ -273,23 +307,22 @@ class InboxService
     }
 
     /**
-     * Get conversations for a user, filtered by folder.
+     * Retrieve a paginated list of conversations for a user, filtered by folder.
      *
-     * Folders:
-     *  - inbox        Active non-archived user conversations (default)
-     *  - starred      Conversations the user starred
-     *  - important    Conversations the user marked important
-     *  - sent         Conversations created by the user
-     *  - archive      Archived conversations
-     *  - trash        Conversations the user moved to trash
-     *  - system       System-generated notifications
-     *  - all          Everything not trashed (backwards-compat)
+     * Each folder case adds a specific WHERE condition to scope the results:
+     *  - inbox:     active, not archived, not trashed
+     *  - starred:   participant record has is_starred = true
+     *  - important: participant record has is_important = true
+     *  - sent:      created_by_id matches the user
+     *  - archive:   is_archived = true
+     *  - trash:     participant record has trashed_at set
+     *  - system:    is_system_generated = true
+     *  - all:       no additional filter (catch-all / backward compat)
      *
-     * @param User        $user
-     * @param int         $perPage
-     * @param bool|null   $systemOnly  Deprecated filter — prefer folder param
-     * @param string      $folder
-     * @return LengthAwarePaginator
+     * @param  User       $user       The user whose conversations to retrieve
+     * @param  int        $perPage    Number of results per page (default 25)
+     * @param  bool|null  $systemOnly Deprecated — prefer the 'system' folder instead
+     * @param  string     $folder     Which folder to display (default: 'inbox')
      */
     public function getUserConversations(
         User $user,
@@ -297,13 +330,16 @@ class InboxService
         ?bool $systemOnly = null,
         string $folder = 'inbox'
     ): LengthAwarePaginator {
+        // Base query: scope to conversations this user participates in, load all needed relationships
         $query = Conversation::query()
             ->forUser($user)
             ->with(['creator', 'lastMessage.sender.role', 'participants.role', 'activeParticipantRecords'])
-            ->recentActivity();
+            ->recentActivity();  // Order by last_message_at descending
 
+        // Apply the folder-specific filter using a switch statement
         switch ($folder) {
             case 'inbox':
+                // Active (not archived), human conversations, not trashed by this user
                 $query->active()
                       ->userConversations()
                       ->whereHas('participantRecords', function ($q) use ($user) {
@@ -312,6 +348,7 @@ class InboxService
                 break;
 
             case 'starred':
+                // This user has starred the conversation and hasn't trashed it
                 $query->whereHas('participantRecords', function ($q) use ($user) {
                     $q->where('user_id', $user->id)
                       ->where('is_starred', true)
@@ -320,6 +357,7 @@ class InboxService
                 break;
 
             case 'important':
+                // This user has flagged the conversation as important and hasn't trashed it
                 $query->whereHas('participantRecords', function ($q) use ($user) {
                     $q->where('user_id', $user->id)
                       ->where('is_important', true)
@@ -328,6 +366,7 @@ class InboxService
                 break;
 
             case 'sent':
+                // Conversations that this user created (regardless of archive status)
                 $query->where('created_by_id', $user->id)
                       ->whereHas('participantRecords', function ($q) use ($user) {
                           $q->where('user_id', $user->id)->whereNull('trashed_at');
@@ -335,6 +374,7 @@ class InboxService
                 break;
 
             case 'archive':
+                // Archived conversations this user participates in
                 $query->archived()
                       ->whereHas('participantRecords', function ($q) use ($user) {
                           $q->where('user_id', $user->id)->whereNull('trashed_at');
@@ -342,13 +382,15 @@ class InboxService
                 break;
 
             case 'trash':
-                // Bypass the default forUser scope — include left participants too
+                // Bypass the default forUser scope because trashed users may have left the conversation
                 $query->whereHas('participantRecords', function ($q) use ($user) {
+                    // trashed_at NOT NULL means the user moved this conversation to their trash
                     $q->where('user_id', $user->id)->whereNotNull('trashed_at');
                 });
                 break;
 
             case 'system':
+                // System-generated notifications (no human creator or sender)
                 $query->active()
                       ->systemGenerated()
                       ->whereHas('participantRecords', function ($q) use ($user) {
@@ -358,13 +400,14 @@ class InboxService
 
             case 'all':
             default:
+                // Show everything not trashed — backward-compatible default
                 $query->whereHas('participantRecords', function ($q) use ($user) {
                     $q->where('user_id', $user->id)->whereNull('trashed_at');
                 });
                 break;
         }
 
-        // Legacy systemOnly filter (used when folder is not 'system')
+        // Legacy systemOnly filter support (used before the folder system was introduced)
         if ($folder !== 'system' && $systemOnly === true) {
             $query->systemGenerated();
         } elseif ($systemOnly === false) {
@@ -375,9 +418,10 @@ class InboxService
     }
 
     /**
-     * Toggle the starred state for a user's participation in a conversation.
+     * Toggle the starred flag for this user's participation in a conversation.
      *
-     * @return bool New is_starred value
+     * Stars are per-user — starring a conversation only affects your own view.
+     * Returns the new is_starred value (true = now starred, false = unstarred).
      */
     public function toggleStar(Conversation $conversation, User $user): bool
     {
@@ -385,13 +429,14 @@ class InboxService
             ->where('user_id', $user->id)
             ->firstOrFail();
 
+        // toggleStar() flips the boolean and saves, returning the new value
         return $participant->toggleStar();
     }
 
     /**
-     * Toggle the important state for a user's participation in a conversation.
+     * Toggle the important flag for this user's participation in a conversation.
      *
-     * @return bool New is_important value
+     * Like starring, this is per-user. Returns the new is_important value.
      */
     public function toggleImportant(Conversation $conversation, User $user): bool
     {
@@ -403,10 +448,14 @@ class InboxService
     }
 
     /**
-     * Move a conversation to the user's trash.
+     * Move a conversation to the user's trash by setting trashed_at.
+     *
+     * Trash is per-user — other participants are not affected.
+     * The conversation is hidden from all folders except the Trash folder.
      */
     public function trashConversation(Conversation $conversation, User $user): void
     {
+        // Set trashed_at on only this user's participant record
         \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
             ->where('user_id', $user->id)
             ->update(['trashed_at' => now()]);
@@ -426,10 +475,14 @@ class InboxService
     }
 
     /**
-     * Restore a conversation from the user's trash.
+     * Restore a conversation from the user's trash by clearing trashed_at.
+     *
+     * The conversation will reappear in the appropriate folder (inbox, archive, etc.)
+     * based on its other properties.
      */
     public function restoreFromTrash(Conversation $conversation, User $user): void
     {
+        // Clear trashed_at so the conversation reappears in normal folders
         \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
             ->where('user_id', $user->id)
             ->update(['trashed_at' => null]);
@@ -449,12 +502,13 @@ class InboxService
     }
 
     /**
-     * Get unread conversation count for a user.
+     * Get the count of unread conversations for a user.
      *
-     * Optimized single-query implementation to avoid N+1 problem.
+     * A conversation is "unread" if it has at least one message that:
+     *  - Was not sent by this user (own messages don't count as unread)
+     *  - Has not been marked as read by this user
      *
-     * @param User $user
-     * @return int
+     * Implemented as a single optimised query to avoid N+1.
      */
     public function getUnreadConversationCount(User $user): int
     {
@@ -462,6 +516,7 @@ class InboxService
             ->active()
             ->whereHas('messages', function ($query) use ($user) {
                 $query->whereDoesntHave('reads', function ($q) use ($user) {
+                    // Exclude messages already read by this user
                     $q->where('user_id', $user->id);
                 })->where(function ($q) use ($user) {
                     // Include system messages (sender_id = null) as unread
@@ -473,12 +528,10 @@ class InboxService
     }
 
     /**
-     * Update conversation timestamp to current time.
+     * Update the conversation's last_message_at timestamp to now.
      *
-     * Called when a new message is added.
-     *
-     * @param Conversation $conversation
-     * @return void
+     * Called by MessageService whenever a new message is sent to this conversation.
+     * This timestamp drives the "recent activity" sort order in the inbox list.
      */
     public function updateConversationTimestamp(Conversation $conversation): void
     {
@@ -486,39 +539,39 @@ class InboxService
     }
 
     /**
-     * Verify a user is an active participant in a conversation.
+     * Verify that a user is an active participant in a conversation.
      *
-     * @param Conversation $conversation
-     * @param User $user
-     * @return bool
+     * Used by MessageService and ConversationController to confirm access
+     * before allowing the user to read or send messages.
      */
     public function verifyParticipantStatus(Conversation $conversation, User $user): bool
     {
+        // hasParticipant() checks for an active (not left) participant record
         return $conversation->hasParticipant($user);
     }
 
     /**
-     * Get conversation participants excluding a specific user.
+     * Get all participants of a conversation except one specific user.
      *
-     * @param Conversation $conversation
-     * @param User $excludeUser
-     * @return Collection
+     * Used by MessageService to find who to notify when a message is sent
+     * (everyone except the person who just sent the message).
      */
     public function getParticipantsExcept(Conversation $conversation, User $excludeUser): Collection
     {
+        // Filter participants at the query level for efficiency
         return $conversation->participants()->where('users.id', '!=', $excludeUser->id)->get();
     }
 
     /**
-     * Soft delete a conversation.
+     * Soft delete a conversation (admin-only operation).
      *
-     * Only admins can perform this operation.
-     *
-     * @param Conversation $conversation
-     * @return void
+     * Soft deletion sets deleted_at on the conversation so it disappears from all
+     * views but remains in the database for audit purposes.
+     * Only administrators are permitted to call this.
      */
     public function deleteConversation(Conversation $conversation): void
     {
+        // Laravel's SoftDeletes sets deleted_at automatically
         $conversation->delete();
 
         AuditLog::create([
@@ -529,6 +582,7 @@ class InboxService
             'auditable_id' => $conversation->id,
             'action' => 'soft_deleted',
             'description' => "Conversation soft deleted: {$conversation->subject}",
+            // Capture old values for the audit trail before deletion
             'old_values' => $conversation->toArray(),
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),

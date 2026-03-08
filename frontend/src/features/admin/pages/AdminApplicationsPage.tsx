@@ -1,8 +1,18 @@
 /**
  * AdminApplicationsPage.tsx
  *
- * Paginated, filterable list of all applications for admins.
- * Route: /admin/applications
+ * Purpose: Paginated, filterable list of all camp applications for admins.
+ * Route: /admin/applications (also /super-admin/applications)
+ *
+ * Responsibilities:
+ *  - Fetch a paginated list of applications from the API, with optional search & status filters.
+ *  - Let admins search by camper name and filter by application status (pending, approved, etc.).
+ *  - Show each application's camper name, session, submission date, status badge, and a Review link.
+ *
+ * Plain-English summary:
+ *  This is the master list of every application. Admins can search or narrow by status to find
+ *  specific applications quickly. All three filter values (search, status, page) are stored in one
+ *  `filters` object so they always stay in sync and only trigger a single fetch when any of them change.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,8 +30,10 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { Application } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
+// All possible status filter values — 'all' means no filter is applied.
 const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'rejected', 'waitlisted', 'cancelled'] as const;
 
+// Consolidated filter state — keeps search, status, and page together to avoid double-fetch races.
 interface Filters {
   search: string;
   status: string;
@@ -31,17 +43,28 @@ interface Filters {
 export function AdminApplicationsPage() {
   const { t } = useTranslation();
   const location = useLocation();
+
+  // Build the correct link prefix depending on whether we're in admin or super-admin.
   const reviewBase = location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : '/admin/applications';
+
+  // ── State ──────────────────────────────────────────────────────────────────
 
   const [response, setResponse] = useState<PaginatedResponse<Application> | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
+  // All filter values live in one object so a single setFilters call updates everything atomically.
   const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', page: 1 });
 
-  // Helpers — reset page to 1 whenever a non-pagination filter changes
+  // ── Filter helpers ─────────────────────────────────────────────────────────
+
+  // Typing a new search string always resets to page 1 (avoids being on page 5 of 0 results).
   const setSearch = (search: string) => setFilters((f) => ({ ...f, search, page: 1 }));
+  // Changing the status dropdown also resets to page 1.
   const setStatus = (status: string) => setFilters((f) => ({ ...f, status, page: 1 }));
+  // Direct page navigation — doesn't reset other filters.
   const setPage   = (page: number)   => setFilters((f) => ({ ...f, page }));
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
@@ -49,7 +72,9 @@ export function AdminApplicationsPage() {
     try {
       const data = await getApplications({
         page: filters.page,
+        // Don't send empty strings to the API — use undefined to omit the param.
         search: filters.search || undefined,
+        // 'all' means "no filter" — send undefined so the API returns everything.
         status: filters.status === 'all' ? undefined : filters.status,
       });
       setResponse(data);
@@ -58,7 +83,7 @@ export function AdminApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters]); // Re-runs whenever any filter value (including page) changes.
 
   useEffect(() => { void fetchApplications(); }, [fetchApplications]);
 
@@ -74,12 +99,13 @@ export function AdminApplicationsPage() {
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('admin.applications.title')}
         </h1>
+        {/* Total count from meta — only shown once the first response arrives. */}
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           {response && t('admin.applications.subtitle', { total: response.meta.total })}
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Filters row: search box + status dropdown */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div
           className="flex items-center gap-2 flex-1 rounded-lg px-3 py-2 border"
@@ -115,7 +141,7 @@ export function AdminApplicationsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table: shows skeletons → error → empty state → rows */}
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -135,6 +161,7 @@ export function AdminApplicationsPage() {
         />
       ) : (
         <>
+          {/* Animated table container — children stagger in sequentially. */}
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -142,7 +169,7 @@ export function AdminApplicationsPage() {
             className="rounded-xl border overflow-hidden"
             style={{ borderColor: 'var(--border)' }}
           >
-            {/* Table header */}
+            {/* Column header */}
             <div
               className="grid grid-cols-12 px-4 py-3 text-xs font-medium uppercase tracking-wide border-b"
               style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
@@ -154,7 +181,7 @@ export function AdminApplicationsPage() {
               <div className="col-span-2 text-right">{t('admin.applications.col_action')}</div>
             </div>
 
-            {/* Rows */}
+            {/* One row per application */}
             {response.data.map((app) => (
               <motion.div
                 key={app.id}
@@ -163,6 +190,7 @@ export function AdminApplicationsPage() {
                 style={{ borderColor: 'var(--border)' }}
               >
                 <div className="col-span-3">
+                  {/* Show full_name if the camper relation is loaded, else fall back to ID. */}
                   <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                     {app.camper?.full_name ?? `Camper #${app.camper_id}`}
                   </p>
@@ -171,6 +199,7 @@ export function AdminApplicationsPage() {
                   <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                     {app.session?.name ?? `Session #${app.camp_session_id}`}
                   </p>
+                  {/* Show parent camp name as a sub-label if available. */}
                   {app.session?.camp && (
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                       {app.session.camp.name}
@@ -188,6 +217,7 @@ export function AdminApplicationsPage() {
                   <StatusBadge status={app.status} />
                 </div>
                 <div className="col-span-2 flex justify-end">
+                  {/* Review link navigates to the full ApplicationReviewPage for this application. */}
                   <Link
                     to={`${reviewBase}/${app.id}`}
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all"
@@ -204,7 +234,7 @@ export function AdminApplicationsPage() {
             ))}
           </motion.div>
 
-          {/* Pagination */}
+          {/* Pagination controls — hidden when everything fits on one page. */}
           {response.meta.last_page > 1 && (
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>

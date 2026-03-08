@@ -9,11 +9,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Message model representing a single message within a conversation.
+ * Message model — a single message posted inside a Conversation thread.
  *
- * Messages are immutable write-once records. No editing is supported
- * to maintain audit integrity for HIPAA compliance. Idempotency key
- * prevents duplicate submission on network retry.
+ * Messages are write-once records: once created they are never edited.
+ * This immutability is intentional — it preserves the audit trail so that
+ * conversations involving PHI or legal decisions cannot be altered after the fact.
+ *
+ * Key design details:
+ *  - sender_id is nullable to support system-generated messages (automated alerts,
+ *    status change notifications) that have no human author.
+ *  - idempotency_key prevents the same message from being stored twice if a client
+ *    retries a failed network request. The controller checks this key before inserting.
+ *  - Read receipts are stored in the message_reads table (one row per user per message).
+ *    markAsReadBy() creates a receipt; isReadBy() checks for one.
+ *  - Soft deletes allow "deleted" messages to be recovered and ensure the
+ *    conversation's unread count logic stays consistent.
  */
 class Message extends Model
 {
@@ -25,14 +35,14 @@ class Message extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'conversation_id',
-        'sender_id',
-        'body',
-        'idempotency_key',
+        'conversation_id', // FK — which conversation this message belongs to.
+        'sender_id',       // FK — the User who sent it; null for system messages.
+        'body',            // The message text.
+        'idempotency_key', // Unique client-generated key to prevent duplicate sends on retry.
     ];
 
     /**
-     * Get the conversation this message belongs to.
+     * Get the conversation this message is part of.
      */
     public function conversation(): BelongsTo
     {
@@ -41,6 +51,9 @@ class Message extends Model
 
     /**
      * Get the user who sent this message.
+     *
+     * Returns null for system-generated messages (sender_id = NULL).
+     * The FK is 'sender_id' instead of the default 'user_id'.
      */
     public function sender(): BelongsTo
     {
@@ -48,7 +61,9 @@ class Message extends Model
     }
 
     /**
-     * Get all documents attached to this message.
+     * Get all file attachments linked to this message.
+     *
+     * Documents are linked to a message via the message_id FK on the documents table.
      */
     public function attachments(): HasMany
     {
@@ -57,6 +72,8 @@ class Message extends Model
 
     /**
      * Get all read receipts for this message.
+     *
+     * Each MessageRead row records that a specific user has opened the message.
      */
     public function reads(): HasMany
     {
@@ -64,7 +81,9 @@ class Message extends Model
     }
 
     /**
-     * Determine if this message has been read by a specific user.
+     * Determine if a specific user has already read this message.
+     *
+     * Checks the message_reads table for a matching (message_id, user_id) row.
      */
     public function isReadBy(User $user): bool
     {
@@ -72,7 +91,7 @@ class Message extends Model
     }
 
     /**
-     * Determine if this message has attachments.
+     * Determine if this message has any file attachments.
      */
     public function hasAttachments(): bool
     {
@@ -80,7 +99,7 @@ class Message extends Model
     }
 
     /**
-     * Get attachment count for this message.
+     * Get the total number of file attachments on this message.
      */
     public function attachmentCount(): int
     {
@@ -88,16 +107,21 @@ class Message extends Model
     }
 
     /**
-     * Mark this message as read by a user.
+     * Mark this message as read by a given user.
      *
-     * System messages (sender_id = null) are also marked read.
+     * Guards:
+     *  1. If the user is the sender, no receipt is created — you don't "read" your own message.
+     *  2. If a receipt already exists, no duplicate is inserted (idempotent).
+     *
+     * System messages (sender_id = null) bypass guard #1 and are always marked read.
      */
     public function markAsReadBy(User $user): void
     {
-        // Never create a read receipt if the user sent the message
+        // Skip receipt creation if the user is the one who sent the message.
         if ($this->sender_id !== null && $this->sender_id === $user->id) {
             return;
         }
+        // Only create a receipt if one doesn't already exist for this user.
         if (!$this->isReadBy($user)) {
             $this->reads()->create([
                 'user_id' => $user->id,
@@ -107,7 +131,7 @@ class Message extends Model
     }
 
     /**
-     * Scope to filter messages in a conversation.
+     * Query scope — filter messages belonging to a specific conversation.
      */
     public function scopeInConversation($query, int $conversationId)
     {
@@ -115,7 +139,7 @@ class Message extends Model
     }
 
     /**
-     * Scope to filter messages sent by a user.
+     * Query scope — filter messages sent by a specific user.
      */
     public function scopeSentBy($query, User $user)
     {
@@ -123,23 +147,24 @@ class Message extends Model
     }
 
     /**
-     * Scope to filter unread messages for a user.
+     * Query scope — filter messages that the given user has not yet read.
      *
-     * Includes system messages (sender_id = null) as they have no sender
-     * and should always appear as unread until explicitly opened.
+     * Includes system messages (sender_id = NULL) as unread because they have
+     * no sender and should appear as new until the user explicitly opens them.
      */
     public function scopeUnreadBy($query, User $user)
     {
         return $query->whereDoesntHave('reads', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->where(function ($q) use ($user) {
+            // Include system messages (no sender) OR messages not sent by this user.
             $q->whereNull('sender_id')
               ->orWhere('sender_id', '!=', $user->id);
         });
     }
 
     /**
-     * Scope to order by newest first.
+     * Query scope — order messages newest first (most recent at top).
      */
     public function scopeNewest($query)
     {
@@ -147,7 +172,7 @@ class Message extends Model
     }
 
     /**
-     * Scope to order by oldest first.
+     * Query scope — order messages oldest first (chronological reading order).
      */
     public function scopeOldest($query)
     {

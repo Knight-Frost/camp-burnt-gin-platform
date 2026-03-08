@@ -40,11 +40,21 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes — Camp Burnt Gin
 |--------------------------------------------------------------------------
 |
-| Camp Burnt Gin API routes. All routes require authentication and are
-| protected by role-based middleware and model policies.
+| All routes in this file are automatically prefixed with /api by Laravel.
+| For example, Route::get('/health') maps to GET /api/health.
+|
+| Route structure:
+|  - Public routes (no auth):    /health, /ready, /auth/*
+|  - Authenticated routes:       Everything under middleware('auth:sanctum')
+|    - Admin-only:               Additional middleware('admin') or middleware('role:...')
+|    - Super-admin-only:         middleware('role:super_admin')
+|    - Medical + admin only:     middleware('role:admin,medical')
+|
+| Rate limiting is applied via named limiters defined in AppServiceProvider.
+| Policies (defined in AppServiceProvider) enforce per-record authorization.
 |
 */
 
@@ -53,8 +63,12 @@ use Illuminate\Support\Facades\Route;
 | Health Check Routes (No Authentication Required)
 |--------------------------------------------------------------------------
 |
-| Operational health endpoints for monitoring and orchestration.
-| These routes do not require authentication for liveness/readiness probes.
+| These endpoints are used by monitoring tools and container orchestrators
+| (e.g. Kubernetes, AWS ECS) to check if the application is alive and ready.
+| They intentionally skip authentication so probes can run without credentials.
+|
+| GET /health  → liveness probe  (is the app running?)
+| GET /ready   → readiness probe (is the app ready to serve traffic?)
 |
 */
 Route::get('/health', [HealthController::class, 'liveness'])->name('health.liveness');
@@ -65,65 +79,89 @@ Route::get('/ready', [HealthController::class, 'readiness'])->name('health.readi
 | Public Authentication Routes
 |--------------------------------------------------------------------------
 |
-| Routes for user registration, login, and password recovery.
-| These routes do not require authentication but have strict rate limiting
-| to prevent brute force attacks and account enumeration.
+| These routes handle account creation, login, and password recovery.
+| No API token is required, but the 'throttle:auth' rate limiter is applied
+| (5 requests per minute per IP) to prevent brute-force and enumeration attacks.
 |
 */
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
+    // Create a new applicant (parent) account
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
+    // Log in with email + password (and optionally an MFA code)
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
+    // Request a password reset email
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+    // Complete the password reset using the emailed token
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.reset');
-    // Email verification (no auth required — token is the credential)
+    // Verify an email address using the token sent in the verification email
+    // No auth required — the token itself is the credential
     Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->name('verification.verify');
 });
 
-// Email verification resend — requires auth but not verified email
+// Resend verification email — requires the user to be logged in but not yet verified
+// Separate from the auth group above so it can have its own tighter rate limit (6/min)
 Route::middleware(['auth:sanctum'])->post('/auth/email/resend', [EmailVerificationController::class, 'resend'])
     ->middleware('throttle:6,1')
     ->name('verification.resend');
 
 
+/*
+|--------------------------------------------------------------------------
+| All Authenticated Routes
+|--------------------------------------------------------------------------
+|
+| Every route in this group requires:
+|  - A valid Sanctum bearer token (auth:sanctum)
+|  - Respects the 'api' rate limit (60 req/min)
+|
+| Model-level authorization (who can view/edit which records) is enforced
+| by policies via $this->authorize() calls in each controller.
+|
+*/
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+
     /*
     |--------------------------------------------------------------------------
-    | Authenticated User Routes
+    | Current User Routes
     |--------------------------------------------------------------------------
     */
+    // GET /user — returns the authenticated user's profile with role
     Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
+    // POST /logout — revokes the current Sanctum token
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
     /*
     |--------------------------------------------------------------------------
-    | User Profile Routes (Pre-fill Support)
+    | User Profile Routes
     |--------------------------------------------------------------------------
     |
-    | Profile data for returning applicants to pre-fill recurring fields.
     | Implements FR-7: Pre-fill recurring fields for returning applicants.
+    | The /prefill endpoint returns saved profile data so the application form
+    | can auto-populate fields the user filled in previously.
     |
     */
     Route::prefix('profile')->group(function () {
         Route::get('/', [UserProfileController::class, 'show'])->name('profile.show');
         Route::put('/', [UserProfileController::class, 'update'])->name('profile.update');
+        // Returns structured pre-fill data for the application form
         Route::get('/prefill', [UserProfileController::class, 'prefillData'])->name('profile.prefill');
         Route::get('/notification-preferences', [UserProfileController::class, 'getNotificationPreferences'])->name('profile.notification-preferences.show');
         Route::put('/notification-preferences', [UserProfileController::class, 'updateNotificationPreferences'])->name('profile.notification-preferences.update');
         Route::put('/password', [UserProfileController::class, 'changePassword'])->name('profile.password.update');
 
-        // Avatar
+        // Avatar upload and removal (throttled because uploads are expensive)
         Route::post('/avatar', [UserProfileController::class, 'uploadAvatar'])
             ->middleware('throttle:uploads')
             ->name('profile.avatar.upload');
         Route::delete('/avatar', [UserProfileController::class, 'removeAvatar'])->name('profile.avatar.remove');
 
-        // Personal emergency contacts (account-level, not camper-level)
+        // Account-level emergency contacts (separate from camper emergency contacts)
         Route::get('/emergency-contacts', [UserProfileController::class, 'listEmergencyContacts'])->name('profile.emergency-contacts.index');
         Route::post('/emergency-contacts', [UserProfileController::class, 'storeEmergencyContact'])->name('profile.emergency-contacts.store');
         Route::put('/emergency-contacts/{contact}', [UserProfileController::class, 'updateEmergencyContact'])->name('profile.emergency-contacts.update');
         Route::delete('/emergency-contacts/{contact}', [UserProfileController::class, 'destroyEmergencyContact'])->name('profile.emergency-contacts.destroy');
 
-        // Data & account controls
+        // GDPR/privacy data controls (throttled to prevent abuse)
         Route::post('/data-export', [UserProfileController::class, 'requestDataExport'])
             ->middleware('throttle:sensitive')
             ->name('profile.data-export');
@@ -134,8 +172,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Public Camp Information Routes
+    | Camp and Session Routes
     |--------------------------------------------------------------------------
+    |
+    | Camps and sessions are publicly readable by any authenticated user.
+    | Only admins can create, update, or delete them.
+    |
     */
     Route::prefix('camps')->group(function () {
         Route::get('/', [CampController::class, 'index'])->name('camps.index');
@@ -157,10 +199,17 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     |--------------------------------------------------------------------------
     | MFA Setup Routes
     |--------------------------------------------------------------------------
+    |
+    | All MFA routes use the 'mfa' rate limiter (5 req/min) to prevent
+    | code-guessing attacks during the enable/disable flow.
+    |
     */
     Route::prefix('mfa')->middleware('throttle:mfa')->group(function () {
+        // Step 1: Generate secret + QR code for the user to scan
         Route::post('/setup', [MfaController::class, 'setup'])->name('mfa.setup');
+        // Step 2: Confirm the authenticator app is working by submitting the first code
         Route::post('/verify', [MfaController::class, 'verify'])->name('mfa.verify');
+        // Disable MFA after verifying password + current TOTP code
         Route::post('/disable', [MfaController::class, 'disable'])->name('mfa.disable');
     });
 
@@ -168,6 +217,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     |--------------------------------------------------------------------------
     | Notification Routes
     |--------------------------------------------------------------------------
+    |
+    | Database notifications from Laravel's notification system.
+    | These appear in the bell-icon dropdown (separate from the inbox system).
+    |
     */
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
@@ -180,21 +233,31 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     |--------------------------------------------------------------------------
     | Document Upload Routes
     |--------------------------------------------------------------------------
+    |
+    | Document uploads are throttled by the 'uploads' limiter (10/hour).
+    | Downloads are throttled by 'sensitive' (30/hour) because files may contain PHI.
+    | The /verify endpoint is admin-only (handled by DocumentPolicy).
+    |
     */
     Route::prefix('documents')->group(function () {
         Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
         Route::post('/', [DocumentController::class, 'store'])->middleware('throttle:uploads')->name('documents.store');
         Route::get('/{document}', [DocumentController::class, 'show'])->name('documents.show');
+        // Downloads are throttled at 30/hour to limit PHI data exfiltration
         Route::get('/{document}/download', [DocumentController::class, 'download'])->middleware('throttle:sensitive')->name('documents.download');
+        // Only admins can verify (approve/reject) documents — enforced by DocumentPolicy
         Route::patch('/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     });
-
 
     /*
     |--------------------------------------------------------------------------
     | Report Routes (Admin Only)
     |--------------------------------------------------------------------------
+    |
+    | All report endpoints are protected by the 'admin' middleware.
+    | Reports may contain sensitive aggregate data and camper PHI.
+    |
     */
     Route::middleware('admin')->prefix('reports')->group(function () {
         Route::get('/summary', [ReportController::class, 'summary'])->name('reports.summary');
@@ -210,9 +273,14 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Camper Routes
     |--------------------------------------------------------------------------
     |
-    | Camper management endpoints. Accessible by administrators and parents.
-    | Parents can only access their own children via policy enforcement.
-    | Medical providers have no access to camper endpoints.
+    | Parents (applicant role) can only access their own children — enforced
+    | by CamperPolicy. Admins can access all campers. Medical providers have
+    | no access to these endpoints.
+    |
+    | Special computed endpoints:
+    |  - /risk-summary:       Returns risk score, supervision level, and flags
+    |  - /compliance-status:  Returns document compliance check results
+    |  - /medical-alerts:     Returns computed medical alerts for the camper
     |
     */
     Route::prefix('campers')->group(function () {
@@ -221,8 +289,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/{camper}', [CamperController::class, 'show'])->name('campers.show');
         Route::put('/{camper}', [CamperController::class, 'update'])->name('campers.update');
         Route::delete('/{camper}', [CamperController::class, 'destroy'])->name('campers.destroy');
+        // Runs SpecialNeedsRiskAssessmentService and returns the scored results
         Route::get('/{camper}/risk-summary', [CamperController::class, 'riskSummary'])->name('campers.risk-summary');
+        // Runs DocumentEnforcementService and returns compliance gaps
         Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
+        // Runs MedicalAlertService and returns sorted alert list
         Route::get('/{camper}/medical-alerts', [CamperController::class, 'medicalAlerts'])->name('campers.medical-alerts');
     });
 
@@ -231,9 +302,9 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Application Routes
     |--------------------------------------------------------------------------
     |
-    | Camp application endpoints. Accessible by administrators and parents.
-    | Parents can only access applications for their own children.
-    | Medical providers have no access to application endpoints.
+    | Parents can submit and view their own children's applications.
+    | The /review endpoint (admin only) triggers the full ApplicationService
+    | workflow (compliance check, status update, notifications, letters).
     |
     */
     Route::prefix('applications')->group(function () {
@@ -241,10 +312,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/', [ApplicationController::class, 'store'])->name('applications.store');
         Route::get('/{application}', [ApplicationController::class, 'show'])->name('applications.show');
         Route::put('/{application}', [ApplicationController::class, 'update'])->name('applications.update');
+        // Sign an application (parent e-signature step)
         Route::post('/{application}/sign', [ApplicationController::class, 'sign'])->name('applications.sign');
+        // Hard delete — admin only
         Route::delete('/{application}', [ApplicationController::class, 'destroy'])
             ->middleware('admin')
             ->name('applications.destroy');
+        // Approve/reject an application — calls ApplicationService::reviewApplication()
         Route::post('/{application}/review', [ApplicationController::class, 'review'])
             ->middleware('admin')
             ->name('applications.review');
@@ -255,17 +329,20 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Medical Record Routes
     |--------------------------------------------------------------------------
     |
-    | Medical record endpoints containing HIPAA-protected health information.
-    | Accessible by administrators, medical providers, and parents (own children).
+    | Medical records contain HIPAA-protected PHI (Protected Health Information).
+    | The index endpoint (list all) is restricted to admin and medical roles.
+    | Individual record access is further restricted by MedicalRecordPolicy.
     |
     */
     Route::prefix('medical-records')->group(function () {
+        // List all medical records — admins and medical staff only
         Route::get('/', [MedicalRecordController::class, 'index'])
             ->middleware('role:admin,medical')
             ->name('medical-records.index');
         Route::post('/', [MedicalRecordController::class, 'store'])->name('medical-records.store');
         Route::get('/{medicalRecord}', [MedicalRecordController::class, 'show'])->name('medical-records.show');
         Route::put('/{medicalRecord}', [MedicalRecordController::class, 'update'])->name('medical-records.update');
+        // Hard delete — admin only
         Route::delete('/{medicalRecord}', [MedicalRecordController::class, 'destroy'])
             ->middleware('admin')
             ->name('medical-records.destroy');
@@ -276,8 +353,9 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Emergency Contact Routes
     |--------------------------------------------------------------------------
     |
-    | Emergency contact endpoints. Medical providers can view for emergencies.
-    | Only administrators and parents can modify contact information.
+    | Emergency contacts for campers (not user-level contacts — those are
+    | under /profile/emergency-contacts). Medical providers can view these
+    | in an emergency. Only admins and parents can modify them.
     |
     */
     Route::prefix('emergency-contacts')->group(function () {
@@ -295,8 +373,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Allergy Routes
     |--------------------------------------------------------------------------
     |
-    | Allergy information endpoints. Critical for camper safety.
-    | Accessible by administrators, medical providers, and parents.
+    | Allergy data is critical for camper safety — used in medical alerts
+    | and ID badges. All roles with medical need can access this data.
     |
     */
     Route::prefix('allergies')->group(function () {
@@ -314,8 +392,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Medication Routes
     |--------------------------------------------------------------------------
     |
-    | Medication information endpoints. Essential for proper camper care.
-    | Accessible by administrators, medical providers, and parents.
+    | Medication information used for daily administration schedules and
+    | medical record completeness. All medical-access roles can view.
     |
     */
     Route::prefix('medications')->group(function () {
@@ -330,19 +408,22 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | CYSHCN (Special Health Care Needs) Routes
+    | CYSHCN (Children and Youth with Special Health Care Needs) Routes
     |--------------------------------------------------------------------------
     |
-    | Endpoints for managing special health care needs information including
-    | diagnoses, behavioral profiles, feeding plans, assistive devices, and
-    | activity permissions. All routes contain PHI and require strict access
-    | controls for HIPAA compliance.
+    | These endpoints manage specialised clinical data for campers with complex
+    | medical needs. All contain PHI and require strict access controls.
+    |
+    | Data types covered:
+    |  - Diagnoses:          Medical diagnosis entries with severity levels
+    |  - Behavioral profiles: Wandering risk, aggression, supervision needs
+    |  - Feeding plans:      G-tube, special diets, feeding schedules
+    |  - Assistive devices:  Wheelchairs, communication devices, etc.
+    |  - Activity permissions: What activities the camper is cleared to participate in
     |
     */
 
-    /*
-    | Diagnosis Routes
-    */
+    // ── Diagnosis Routes ─────────────────────────────────────────────────────
     Route::prefix('diagnoses')->group(function () {
         Route::get('/', [DiagnosisController::class, 'index'])
             ->middleware('role:admin,medical')
@@ -353,9 +434,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{diagnosis}', [DiagnosisController::class, 'destroy'])->name('diagnoses.destroy');
     });
 
-    /*
-    | Behavioral Profile Routes
-    */
+    // ── Behavioral Profile Routes ─────────────────────────────────────────────
     Route::prefix('behavioral-profiles')->group(function () {
         Route::get('/', [BehavioralProfileController::class, 'index'])
             ->middleware('role:admin,medical')
@@ -366,9 +445,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{behavioralProfile}', [BehavioralProfileController::class, 'destroy'])->name('behavioral-profiles.destroy');
     });
 
-    /*
-    | Feeding Plan Routes
-    */
+    // ── Feeding Plan Routes ───────────────────────────────────────────────────
     Route::prefix('feeding-plans')->group(function () {
         Route::get('/', [FeedingPlanController::class, 'index'])
             ->middleware('role:admin,medical')
@@ -379,9 +456,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{feedingPlan}', [FeedingPlanController::class, 'destroy'])->name('feeding-plans.destroy');
     });
 
-    /*
-    | Assistive Device Routes
-    */
+    // ── Assistive Device Routes ───────────────────────────────────────────────
     Route::prefix('assistive-devices')->group(function () {
         Route::get('/', [AssistiveDeviceController::class, 'index'])
             ->middleware('role:admin,medical')
@@ -397,9 +472,9 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     | Treatment Log Routes
     |--------------------------------------------------------------------------
     |
-    | Treatment logs allow camp medical staff to record interventions,
-    | medication administrations, first aid, and clinical observations.
-    | Only medical staff and administrators may access these records.
+    | Treatment logs are clinical records of interventions performed by medical
+    | staff during camp (medication administration, first aid, observations).
+    | Access is restricted to medical staff and admins. Deletion requires admin.
     |
     */
     Route::prefix('treatment-logs')->middleware('role:admin,medical')->group(function () {
@@ -407,6 +482,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/', [TreatmentLogController::class, 'store'])->name('treatment-logs.store');
         Route::get('/{treatmentLog}', [TreatmentLogController::class, 'show'])->name('treatment-logs.show');
         Route::put('/{treatmentLog}', [TreatmentLogController::class, 'update'])->name('treatment-logs.update');
+        // Deletion of clinical records requires admin — medical staff cannot self-delete
         Route::delete('/{treatmentLog}', [TreatmentLogController::class, 'destroy'])
             ->middleware('admin')
             ->name('treatment-logs.destroy');
@@ -414,8 +490,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Medical Stats Routes
+    | Medical Stats Route
     |--------------------------------------------------------------------------
+    |
+    | Returns aggregate dashboard widget data for the medical portal.
+    | Used by MedicalDashboardPage to populate stats bar and alert strip.
+    |
     */
     Route::get('/medical/stats', [MedicalStatsController::class, 'index'])
         ->middleware('role:admin,medical')
@@ -423,8 +503,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Medical Incidents Routes
+    | Medical Incidents Routes (Phase 11)
     |--------------------------------------------------------------------------
+    |
+    | Clinical incident records (injuries, health events, emergency responses).
+    | Medical staff can create/update incidents; only admins can delete them.
+    |
     */
     Route::prefix('medical-incidents')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [MedicalIncidentController::class, 'index'])->name('medical-incidents.index');
@@ -438,8 +522,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Medical Follow-Up Routes
+    | Medical Follow-Up Routes (Phase 11)
     |--------------------------------------------------------------------------
+    |
+    | Follow-up tasks linked to incidents or visits (e.g. "call parent tomorrow").
+    | Tracked by medical staff and administrators.
+    |
     */
     Route::prefix('medical-follow-ups')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [MedicalFollowUpController::class, 'index'])->name('medical-follow-ups.index');
@@ -453,8 +541,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Medical Visit Routes
+    | Medical Visit Routes (Phase 11)
     |--------------------------------------------------------------------------
+    |
+    | Records of campers visiting the medical station (sick bay, nurse's office).
+    | Each visit captures reason, disposition, and follow-up instructions.
+    |
     */
     Route::prefix('medical-visits')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [MedicalVisitController::class, 'index'])->name('medical-visits.index');
@@ -468,8 +560,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Medical Restriction Routes
+    | Medical Restriction Routes (Phase 11)
     |--------------------------------------------------------------------------
+    |
+    | Activity restrictions placed on a camper by medical staff
+    | (e.g. "no swimming this week", "limited sun exposure").
+    | No additional admin middleware on delete — policy handles it.
+    |
     */
     Route::prefix('medical-restrictions')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [MedicalRestrictionController::class, 'index'])->name('medical-restrictions.index');
@@ -479,9 +576,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{medicalRestriction}', [MedicalRestrictionController::class, 'destroy'])->name('medical-restrictions.destroy');
     });
 
-    /*
-    | Activity Permission Routes
-    */
+    // ── Activity Permission Routes ─────────────────────────────────────────────
     Route::prefix('activity-permissions')->group(function () {
         Route::get('/', [ActivityPermissionController::class, 'index'])
             ->middleware('role:admin,medical')
@@ -494,32 +589,36 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Inbox Messaging Routes
+    | Inbox / Messaging Routes
     |--------------------------------------------------------------------------
     |
-    | Internal messaging system for secure communication between parents,
-    | administrators, and medical providers. All messages are HIPAA-compliant
-    | with full audit trails. Rate limiting prevents abuse.
+    | Secure internal messaging system for parents, admins, and medical staff.
+    | All messages are HIPAA-compliant and have a full audit trail.
+    | Fine-grained rate limits per route prevent message flooding.
     |
     */
 
-    // ─── Announcements ─────────────────────────────────────────────────────────
+    // ── Announcements (admin creates, all roles read) ──────────────────────────
     Route::prefix('announcements')->group(function () {
         Route::get('/', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
         Route::post('/', [AnnouncementController::class, 'store'])->middleware('admin')->name('announcements.store');
         Route::put('/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
         Route::delete('/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        // Toggle the pinned-to-top state (admin only)
         Route::post('/{announcement}/pin', [AnnouncementController::class, 'togglePin'])->middleware('admin')->name('announcements.pin');
     });
 
-    // ─── Audit Log (Super Admin only) ─────────────────────────────────────────
+    // ── Audit Log (super_admin only) ─────────────────────────────────────────
+    // Full audit history and CSV/JSON export of all system actions
     Route::middleware('role:super_admin')->prefix('audit-log')->group(function () {
         Route::get('/',       [AuditLogController::class, 'index'])->name('audit-log.index');
+        // Export up to 5,000 audit log rows as CSV or JSON
         Route::get('/export', [AuditLogController::class, 'export'])->name('audit-log.export');
     });
 
-    // ─── User Management (Super Admin only) ───────────────────────────────────
+    // ── User Management (super_admin only) ────────────────────────────────────
+    // Role assignment and account activation/deactivation
     Route::middleware('role:super_admin')->prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('users.index');
         Route::put('/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
@@ -527,7 +626,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
     });
 
-    // ─── Form Templates (Super Admin only) ────────────────────────────────────
+    // ── Form Templates (super_admin only) ─────────────────────────────────────
+    // Downloadable document templates (blank forms, waivers, etc.)
     Route::middleware('role:super_admin')->prefix('form-templates')->group(function () {
         Route::get('/', [FormTemplateController::class, 'index'])->name('form-templates.index');
         Route::post('/', [FormTemplateController::class, 'store'])->name('form-templates.store');
@@ -536,7 +636,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/{formTemplate}/download', [FormTemplateController::class, 'download'])->name('form-templates.download');
     });
 
-    // ─── Calendar Events ───────────────────────────────────────────────────────
+    // ── Calendar Events ────────────────────────────────────────────────────────
+    // Camp calendar visible to all authenticated users; only admins can modify
     Route::prefix('calendar')->group(function () {
         Route::get('/', [CalendarEventController::class, 'index'])->name('calendar.index');
         Route::get('/{calendarEvent}', [CalendarEventController::class, 'show'])->name('calendar.show');
@@ -545,82 +646,96 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{calendarEvent}', [CalendarEventController::class, 'destroy'])->middleware('admin')->name('calendar.destroy');
     });
 
+    // ── Inbox Routes ──────────────────────────────────────────────────────────
     Route::prefix('inbox')->group(function () {
-        /*
-        | User Search Route (for compose recipient autocomplete)
-        */
+
+        // User search for the compose recipient autocomplete field
+        // Throttled at 30/min to prevent user enumeration via autocomplete
         Route::get('/users', [InboxUserController::class, 'index'])
             ->middleware('throttle:30,1')
             ->name('inbox.users.index');
 
-        /*
-        | Conversation Routes
-        */
+        // ── Conversation Routes ────────────────────────────────────────────────
         Route::prefix('conversations')->group(function () {
+            // List conversations — filtered by folder via ?folder= query param
             Route::get('/', [ConversationController::class, 'index'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.index');
+            // Create a new conversation — throttled to 5 per hour to prevent spam
             Route::post('/', [ConversationController::class, 'store'])
                 ->middleware('throttle:5,60')
                 ->name('inbox.conversations.store');
+            // View a specific conversation and its messages
             Route::get('/{conversation}', [ConversationController::class, 'show'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.show');
+            // Move to archive folder
             Route::post('/{conversation}/archive', [ConversationController::class, 'archive'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.archive');
+            // Restore from archive
             Route::post('/{conversation}/unarchive', [ConversationController::class, 'unarchive'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.unarchive');
+            // Add a user to the conversation's participant list
             Route::post('/{conversation}/participants', [ConversationController::class, 'addParticipant'])
                 ->middleware('throttle:10,60')
                 ->name('inbox.conversations.add-participant');
+            // Remove a specific user from the conversation
             Route::delete('/{conversation}/participants/{user}', [ConversationController::class, 'removeParticipant'])
                 ->middleware('throttle:10,60')
                 ->name('inbox.conversations.remove-participant');
+            // Leave the conversation (user removes themselves)
             Route::post('/{conversation}/leave', [ConversationController::class, 'leave'])
                 ->middleware('throttle:10,60')
                 ->name('inbox.conversations.leave');
+            // Toggle starred flag for this user's view of the conversation
             Route::post('/{conversation}/star', [ConversationController::class, 'star'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.star');
+            // Toggle important flag for this user's view of the conversation
             Route::post('/{conversation}/important', [ConversationController::class, 'important'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.important');
+            // Move to trash (per-user — does not affect other participants)
             Route::post('/{conversation}/trash', [ConversationController::class, 'trash'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.trash');
+            // Restore from trash
             Route::post('/{conversation}/restore-trash', [ConversationController::class, 'restoreFromTrash'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.restore-trash');
+            // Hard delete (soft-delete) — admin only
             Route::delete('/{conversation}', [ConversationController::class, 'destroy'])
                 ->middleware('admin')
                 ->name('inbox.conversations.destroy');
 
-            /*
-            | Messages within Conversation Routes
-            */
+            // ── Messages within a Conversation ────────────────────────────────
+            // Paginated message history (oldest first); auto-marks as read on fetch
             Route::get('/{conversation}/messages', [MessageController::class, 'index'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.messages.index');
+            // Send a new message (throttled at 20/min to prevent message flooding)
             Route::post('/{conversation}/messages', [MessageController::class, 'store'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.messages.store');
         });
 
-        /*
-        | Message Routes
-        */
+        // ── Message-level Routes ────────────────────────────────────────────────
         Route::prefix('messages')->group(function () {
+            // Total unread message count — used for the inbox nav badge
             Route::get('/unread-count', [MessageController::class, 'unreadCount'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.messages.unread-count');
+            // View a single message by ID
             Route::get('/{message}', [MessageController::class, 'show'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.messages.show');
+            // Download a file attached to a message (throttled at 10/hour per user)
             Route::get('/{message}/attachments/{document}', [MessageController::class, 'downloadAttachment'])
                 ->middleware('throttle:10,60')
                 ->name('inbox.messages.download-attachment');
+            // Soft-delete a message (admin moderation only)
             Route::delete('/{message}', [MessageController::class, 'destroy'])
                 ->middleware('admin')
                 ->name('inbox.messages.destroy');

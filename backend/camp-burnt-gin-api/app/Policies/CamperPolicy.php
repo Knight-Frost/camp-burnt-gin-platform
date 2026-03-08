@@ -7,20 +7,29 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on Camper resources.
+ * CamperPolicy — Authorization rules for Camper records.
  *
- * Campers can only be accessed by their parent/guardian or administrators.
- * Medical providers do not have direct access to camper profiles.
+ * A "Camper" is a child registered to attend camp. This policy decides
+ * who is allowed to view, create, edit, or delete a camper profile.
+ *
+ * Access summary:
+ *  - Admins        → full access to every camper
+ *  - Applicants    → access only to their own children (ownsCamper check)
+ *  - Medical staff → read/view access to support clinical workflows
+ *
+ * This policy is registered automatically by Laravel's AuthServiceProvider
+ * because the model and policy names follow the naming convention.
  */
 class CamperPolicy
 {
+    // This trait adds helper methods like allow() and deny() used by Laravel internals.
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any campers.
+     * Can the user browse the full camper list?
      *
-     * Only administrators can view the full list of campers.
-     * Parents access their own campers through scoped queries.
+     * Only admins see the full directory. Parents only ever see their
+     * own children, so scoped queries are used instead of this gate.
      */
     public function viewAny(User $user): bool
     {
@@ -28,23 +37,26 @@ class CamperPolicy
     }
 
     /**
-     * Determine whether the user can view the camper.
+     * Can the user view a specific camper's profile?
      *
-     * Administrators have full access.
-     * Parents can only view their own children.
-     * Medical providers can view camper profiles to support clinical workflows
-     * (recording treatments, reviewing records, uploading documents).
+     * Three groups are allowed — we check each in order and return true
+     * as soon as one matches so we don't do unnecessary work.
      */
     public function view(User $user, Camper $camper): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // A parent may view their own child's profile.
+        // ownsCamper() confirms the camper belongs to this user account.
         if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
 
+        // Medical providers need to see camper profiles to record treatments,
+        // review records, and upload documents during a camp session.
         if ($user->isMedicalProvider()) {
             return true;
         }
@@ -53,10 +65,11 @@ class CamperPolicy
     }
 
     /**
-     * Determine whether the user can create campers.
+     * Can the user create a new camper profile?
      *
-     * Administrators and parents can create camper profiles.
-     * Medical providers cannot create camper profiles.
+     * Admins can create campers on behalf of families. Parents create
+     * camper profiles when registering their child for camp.
+     * Medical staff never create camper profiles — that is not their role.
      */
     public function create(User $user): bool
     {
@@ -64,18 +77,20 @@ class CamperPolicy
     }
 
     /**
-     * Determine whether the user can update the camper.
+     * Can the user edit an existing camper's profile?
      *
-     * Administrators have full access.
-     * Parents can only update their own children.
-     * Medical providers cannot update camper profiles.
+     * Admins may update any camper. A parent can only edit their
+     * own child's profile (ownsCamper enforces this).
+     * Medical staff cannot edit camper profiles — they work with medical records.
      */
     public function update(User $user, Camper $camper): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Parent can update only their own child.
         if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
@@ -84,18 +99,19 @@ class CamperPolicy
     }
 
     /**
-     * Determine whether the user can delete the camper.
+     * Can the user delete a camper profile?
      *
-     * Administrators have full access.
-     * Parents can only delete their own children.
-     * Medical providers cannot delete camper profiles.
+     * Deletion is a serious action that removes a child from the system.
+     * The same ownership rules as update apply — admins or the child's parent only.
      */
     public function delete(User $user, Camper $camper): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Parent can delete only their own child's profile.
         if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }
@@ -104,18 +120,20 @@ class CamperPolicy
     }
 
     /**
-     * Determine whether the user can create a medical provider link for the camper.
+     * Can the user create a medical provider link for this camper?
      *
-     * Administrators and parents can create provider links.
-     * Parents can only create links for their own children.
-     * Implements FR-19: Secure provider link creation.
+     * A "provider link" associates a medical provider account with a specific
+     * camper so they can access that child's medical data. Only admins and
+     * the child's own parent may authorise this connection (FR-19).
      */
     public function createProviderLink(User $user, Camper $camper): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Only the parent who owns this camper can create a provider link.
         if ($user->isApplicant() && $user->ownsCamper($camper)) {
             return true;
         }

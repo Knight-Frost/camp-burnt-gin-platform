@@ -6,27 +6,36 @@ use App\Services\Medical\MedicalProviderLinkService;
 use Illuminate\Console\Command;
 
 /**
- * Command to process expired medical provider links.
+ * HandleExpiredProviderLinks — processes medical provider links that have passed their expiry date.
  *
- * Sends notifications when provider links expire without submission.
+ * When a parent invites an external doctor to submit medical information, a secure link
+ * with an expiration date is generated. If the doctor never submits before the link expires,
+ * this command detects those expired links and sends notification emails so the parent
+ * and administrator are aware they need to follow up.
+ *
  * Implements FR-23: Link expiration notifications.
+ * This command is intended to run on a schedule (e.g., daily via the task scheduler).
  */
 class HandleExpiredProviderLinks extends Command
 {
     /**
-     * The name and signature of the console command.
+     * The artisan command name. Run with: php artisan provider-links:handle-expired
      *
      * @var string
      */
     protected $signature = 'provider-links:handle-expired';
 
     /**
-     * The console command description.
+     * A short description shown when running `php artisan list`.
      *
      * @var string
      */
     protected $description = 'Process expired medical provider links and send notifications';
 
+    /**
+     * Inject the MedicalProviderLinkService which contains the business logic
+     * for detecting and handling expired links.
+     */
     public function __construct(
         protected MedicalProviderLinkService $linkService
     ) {
@@ -34,10 +43,11 @@ class HandleExpiredProviderLinks extends Command
     }
 
     /**
-     * Execute the console command.
+     * Run the command: delegate to the link service and report how many links were processed.
      */
     public function handle(): int
     {
+        // The service handles all the logic — finding expired links and sending notifications.
         $count = $this->linkService->handleExpiredLinks();
 
         $this->info("Processed {$count} expired provider links.");

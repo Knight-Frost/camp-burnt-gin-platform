@@ -1,8 +1,20 @@
 /**
  * AdminSessionsPage.tsx
  *
- * CRUD management for camps and sessions.
+ * Purpose: Full CRUD (Create, Read, Update, Delete) management for camps and sessions.
  * Route: /admin/sessions
+ *
+ * Responsibilities:
+ *  - Display two columns side by side: one for camps, one for sessions.
+ *  - Allow admins to create, edit, or delete camps via CampModal.
+ *  - Allow admins to create, edit, or delete sessions (linked to a camp) via SessionModal.
+ *  - After save, update local state optimistically (no full re-fetch needed).
+ *
+ * Plain-English summary:
+ *  Camps are the main programs (e.g., "Summer Camp 2025"). Sessions are time-slots within
+ *  a camp (e.g., "Week 1 — June 2-8"). This page manages both. Each modal opens in an
+ *  animated overlay, and clicking the backdrop dismisses it. The "New Session" button is
+ *  disabled when there are no camps yet, because every session must belong to a camp.
  */
 
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
@@ -27,13 +39,16 @@ import type { Camp, CampSession } from '@/features/admin/types/admin.types';
 // ---------------------------------------------------------------------------
 
 interface CampModalProps {
+  // null means "create mode", an existing Camp means "edit mode".
   camp: Camp | null;
   onClose: () => void;
+  // Called with the saved camp object so the parent can update its list.
   onSaved: (camp: Camp) => void;
 }
 
 function CampModal({ camp, onClose, onSaved }: CampModalProps) {
   const { t } = useTranslation();
+  // Pre-fill form fields from the existing camp when editing, else start blank.
   const [name, setName]             = useState(camp?.name ?? '');
   const [location, setLocation]     = useState(camp?.location ?? '');
   const [description, setDesc]      = useState(camp?.description ?? '');
@@ -43,6 +58,7 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
     e.preventDefault();
     setSaving(true);
     try {
+      // If camp is provided we're editing; otherwise we're creating a new one.
       const saved = camp
         ? await updateCamp(camp.id, { name, location, description })
         : await createCamp({ name, location, description });
@@ -56,6 +72,7 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
   }
 
   return (
+    // modalBackdrop animates the dark overlay in/out; clicking it calls onClose.
     <motion.div
       variants={modalBackdrop}
       initial="hidden"
@@ -65,10 +82,12 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
+      {/* modalContent animates the dialog card itself (scale + fade). */}
       <motion.div
         variants={modalContent}
         className="w-full max-w-md rounded-2xl border p-6"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        // Stop click from bubbling up to the backdrop, which would close the modal.
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -80,6 +99,7 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
           </button>
         </div>
 
+        {/* Form fields are declared as an array and mapped to avoid repetition. */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {[
             { label: t('admin.sessions.camp_name'), value: name, set: setName, required: true },
@@ -127,6 +147,7 @@ interface SessionModalProps {
 
 function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
   const { t } = useTranslation();
+  // Default the camp dropdown to the session's camp (editing) or the first available camp (creating).
   const [campId, setCampId]         = useState<number>(session?.camp_id ?? camps[0]?.id ?? 0);
   const [name, setName]             = useState(session?.name ?? '');
   const [startDate, setStartDate]   = useState(session?.start_date ?? '');
@@ -139,6 +160,7 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
     setSaving(true);
     try {
       const payload = { camp_id: campId, name, start_date: startDate, end_date: endDate, capacity };
+      // Same create/update pattern as CampModal — determined by whether session prop is present.
       const saved = session
         ? await updateSession(session.id, payload)
         : await createSession(payload);
@@ -177,6 +199,7 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Camp selector — which camp does this session belong to? */}
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
               {t('admin.sessions.camp')}
@@ -203,6 +226,7 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
             />
           </div>
 
+          {/* Start and end dates side by side */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -258,9 +282,11 @@ export function AdminSessionsPage() {
   const [sessions, setSessions]       = useState<CampSession[]>([]);
   const [loading, setLoading]         = useState(true);
 
+  // Modal state objects hold both whether the modal is open and which item is being edited.
   const [campModal, setCampModal]     = useState<{ open: boolean; camp: Camp | null }>({ open: false, camp: null });
   const [sessionModal, setSessionModal] = useState<{ open: boolean; session: CampSession | null }>({ open: false, session: null });
 
+  // Fetch both camps and sessions in parallel on mount.
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -274,6 +300,7 @@ export function AdminSessionsPage() {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
+  // Delete a camp after user confirmation — removes it from local state on success.
   async function handleDeleteCamp(id: number) {
     if (!window.confirm(t('admin.sessions.confirm_delete_camp'))) return;
     await deleteCamp(id);
@@ -281,6 +308,7 @@ export function AdminSessionsPage() {
     toast.success(t('admin.sessions.camp_deleted'));
   }
 
+  // Delete a session after user confirmation — filters it out of local state.
   async function handleDeleteSession(id: number) {
     if (!window.confirm(t('admin.sessions.confirm_delete_session'))) return;
     await deleteSession(id);
@@ -292,12 +320,13 @@ export function AdminSessionsPage() {
     <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-7xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* Camps */}
+        {/* Left column: Camps */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
               {t('admin.sessions.camps_title')}
             </h2>
+            {/* Opens the camp modal in "create" mode (camp=null). */}
             <Button
               variant="primary"
               size="sm"
@@ -329,6 +358,7 @@ export function AdminSessionsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* Edit button — opens modal with this camp pre-loaded. */}
                       <button
                         onClick={() => setCampModal({ open: true, camp })}
                         className="p-1.5 rounded transition-colors"
@@ -351,12 +381,13 @@ export function AdminSessionsPage() {
           )}
         </div>
 
-        {/* Sessions */}
+        {/* Right column: Sessions */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
               {t('admin.sessions.sessions_title')}
             </h2>
+            {/* Disabled when no camps exist — every session must belong to a camp. */}
             <Button
               variant="primary"
               size="sm"
@@ -388,6 +419,7 @@ export function AdminSessionsPage() {
                         <Calendar className="h-3 w-3" />
                         {format(new Date(session.start_date), 'MMM d')} — {format(new Date(session.end_date), 'MMM d, yyyy')}
                       </p>
+                      {/* Show enrolled / capacity fraction. */}
                       <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
                         <Users className="h-3 w-3" />
                         {session.enrolled_count ?? 0} / {session.capacity} {t('admin.sessions.enrolled')}
@@ -417,13 +449,14 @@ export function AdminSessionsPage() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* AnimatePresence enables the exit animation when modals close. */}
       <AnimatePresence>
         {campModal.open && (
           <CampModal
             camp={campModal.camp}
             onClose={() => setCampModal({ open: false, camp: null })}
             onSaved={(saved) => {
+              // Optimistically update local state: replace if editing, append if creating.
               setCamps((prev) =>
                 campModal.camp
                   ? prev.map((c) => (c.id === saved.id ? saved : c))

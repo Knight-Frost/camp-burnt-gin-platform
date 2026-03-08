@@ -6,26 +6,36 @@ use App\Models\FeedingPlan;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
- * Observer for FeedingPlan model changes.
+ * FeedingPlanObserver — triggers automatic risk re-assessment when a camper's feeding plan changes.
  *
- * Triggers risk reassessment when feeding plan data changes,
- * particularly G-tube status which significantly impacts medical
- * complexity, staff training requirements, and risk scoring.
+ * G-tube (gastrostomy tube) feeding is one of the more medically complex care needs a camper
+ * can have — it requires trained staff, specialised equipment, and documented protocols. When
+ * a feeding plan is created or updated with G-tube status, the risk score must be recalculated
+ * to ensure the camper is assigned appropriately trained staff.
+ *
+ * Examples of when this matters:
+ *   - G-tube feeding is added → significant risk score increase → trained nurse required
+ *   - Diet description changes from standard to special diet → moderate risk increase
+ *   - G-tube is removed after surgery → major risk score reduction
+ *
+ * Registered in AppServiceProvider with FeedingPlan::observe(FeedingPlanObserver::class).
  */
 class FeedingPlanObserver
 {
     /**
-     * Handle the FeedingPlan "saved" event.
+     * Trigger a risk re-assessment when the feeding plan is created or updated.
      *
-     * Reassesses risk when feeding plan is created or updated,
-     * as G-tube feeding and specialized dietary needs impact
-     * medical complexity and supervision requirements.
+     * "saved" fires for both INSERT (new feeding plan) and UPDATE (plan edited).
+     * G-tube status is the most impactful flag — toggling it on or off causes the
+     * largest change in the camper's overall risk score.
      */
     public function saved(FeedingPlan $feedingPlan): void
     {
+        // Navigate from the feeding plan to its parent camper
         $camper = $feedingPlan->camper;
 
         if ($camper) {
+            // Re-score the camper — feeding plan changes significantly affect care complexity
             app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
         }
     }

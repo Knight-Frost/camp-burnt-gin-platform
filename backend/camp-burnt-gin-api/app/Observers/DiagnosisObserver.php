@@ -6,41 +6,51 @@ use App\Models\Diagnosis;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
- * Observer for Diagnosis model changes.
+ * DiagnosisObserver — triggers automatic risk re-assessment when a camper's diagnoses change.
  *
- * Triggers risk reassessment when diagnoses are added, modified,
- * or removed, as diagnosis severity directly contributes to
- * overall medical complexity and risk scoring.
+ * A camper's diagnosis list is one of the primary inputs to the risk assessment score.
+ * The severity of each diagnosis (mild, moderate, severe) directly contributes to the
+ * overall medical complexity rating that determines staffing requirements.
+ *
+ * This observer fires on both save (new diagnosis or edit) and delete (diagnosis removed),
+ * because removing a severe diagnosis may lower the risk score just as adding one raises it.
+ *
+ * Registered in AppServiceProvider with Diagnosis::observe(DiagnosisObserver::class).
  */
 class DiagnosisObserver
 {
     /**
-     * Handle the Diagnosis "saved" event.
+     * Trigger a risk re-assessment when a diagnosis is created or updated.
      *
-     * Reassesses risk when a diagnosis is created or updated,
-     * as severity level changes impact risk calculations.
+     * "saved" fires for both INSERT and UPDATE, so this covers both adding a new diagnosis
+     * and editing an existing one (e.g., upgrading severity from "mild" to "severe").
      */
     public function saved(Diagnosis $diagnosis): void
     {
+        // Navigate from the diagnosis to its camper to pass to the assessment service
         $camper = $diagnosis->camper;
 
         if ($camper) {
+            // Re-score the camper — the new or changed diagnosis may alter their risk level
             app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
         }
     }
 
     /**
-     * Handle the Diagnosis "deleted" event.
+     * Trigger a risk re-assessment when a diagnosis is removed.
      *
-     * Reassesses risk when a diagnosis is removed, as this
-     * may lower the camper's overall risk score and potentially
-     * reduce supervision requirements.
+     * Removing a diagnosis (especially a severe one) may reduce the camper's risk score
+     * and potentially lower their supervision requirements — so the score must be recalculated.
+     *
+     * Note: the camper relationship is still accessible during the "deleted" event because
+     * the model has not yet been fully garbage-collected.
      */
     public function deleted(Diagnosis $diagnosis): void
     {
         $camper = $diagnosis->camper;
 
         if ($camper) {
+            // Re-score after deletion — the removed diagnosis may have been contributing to a higher score
             app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
         }
     }

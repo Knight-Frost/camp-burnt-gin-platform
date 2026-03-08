@@ -9,30 +9,50 @@ use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 use Illuminate\Support\Collection;
 
 /**
- * Service for enforcing medical document compliance before application approval.
+ * DocumentEnforcementService — Pre-Approval Document Compliance Gating
  *
- * This service determines which documents are required based on a camper's
- * medical complexity tier, supervision level, and active condition flags.
- * It verifies that all required documents exist, are verified, and have not
- * expired before allowing application approval.
+ * This service is a critical safety layer in the application approval process.
+ * Before an application can be approved, this service checks that the camper's
+ * uploaded documents meet the rules for their specific medical profile.
  *
- * CRITICAL SAFETY LAYER: This service prevents approval of applications
- * without proper medical documentation, reducing liability and safety risks.
+ * The required documents are not one-size-fits-all. A camper with seizures needs
+ * a Seizure Action Plan. A camper using a G-tube needs feeding documentation.
+ * This service uses the camper's risk assessment (from SpecialNeedsRiskAssessmentService)
+ * to determine exactly which documents are required for that individual.
+ *
+ * The check is deterministic and read-only — it never modifies data and produces
+ * no side effects. It returns a structured result the controller can use to either
+ * block the approval or surface specific compliance gaps to the reviewer.
+ *
+ * CRITICAL SAFETY LAYER: This service prevents approvals without proper medical
+ * documentation, directly reducing liability and camper safety risks.
+ *
+ * Documents must be:
+ *  1. Uploaded (present for the required document type)
+ *  2. Verified (admin-approved, not pending or rejected)
+ *  3. Not expired (expiration_date is in the future, if set)
+ *
+ * Called by: ApplicationService -> reviewApplication() (compliance gate before approval)
+ *            CamperController -> complianceStatus() (for display in the admin UI)
  */
 class DocumentEnforcementService
 {
+    /**
+     * Inject the risk assessment service so we can determine which
+     * document rules apply to each individual camper's medical profile.
+     */
     public function __construct(
         protected SpecialNeedsRiskAssessmentService $riskAssessment
     ) {}
 
     /**
-     * Check compliance status for a camper.
+     * Check whether a camper's documents meet all compliance requirements.
      *
-     * This method is deterministic, has no side effects, and does not
-     * modify database state or log PHI. It returns structured compliance
-     * information suitable for approval enforcement and parent notification.
+     * This method is deterministic, has no side effects, and does not modify
+     * database state or log PHI. It returns a structured compliance report
+     * suitable for both approval enforcement and display in the admin portal.
      *
-     * @param  Camper  $camper  The camper to check compliance for
+     * @param  Camper  $camper  The camper whose documents are being checked
      * @return array{
      *     is_compliant: bool,
      *     required_documents: array,
@@ -43,21 +63,21 @@ class DocumentEnforcementService
      */
     public function checkCompliance(Camper $camper): array
     {
-        // Get risk assessment to determine applicable rules
+        // Run the full risk assessment to know this camper's tier, level, and flags
         $assessment = $this->riskAssessment->assessCamper($camper);
 
-        // Determine applicable document rules
+        // Determine which document rules apply based on the assessment result
         $requiredDocuments = $this->getRequiredDocuments($assessment);
 
-        // Get uploaded documents for this camper
+        // Fetch all documents already uploaded for this camper
         $uploadedDocuments = $this->getUploadedDocuments($camper);
 
-        // Analyze compliance
+        // Check each compliance dimension separately for granular error reporting
         $missingDocuments = $this->findMissingDocuments($requiredDocuments, $uploadedDocuments);
         $expiredDocuments = $this->findExpiredDocuments($uploadedDocuments);
         $unverifiedDocuments = $this->findUnverifiedDocuments($uploadedDocuments);
 
-        // Camper is compliant if no missing, expired, or unverified documents
+        // A camper is fully compliant only when every category is empty
         $isCompliant = $missingDocuments->isEmpty()
             && $expiredDocuments->isEmpty()
             && $unverifiedDocuments->isEmpty();
@@ -72,14 +92,20 @@ class DocumentEnforcementService
     }
 
     /**
-     * Get all required document rules for a camper based on risk assessment.
+     * Determine which RequiredDocumentRules apply to this camper's assessment.
      *
-     * Rules are matched by:
-     * - Medical complexity tier
-     * - Supervision level
-     * - Active condition flags
+     * Rules are matched by three criteria (any match counts):
+     *  - Medical complexity tier  (e.g. "High complexity requires X document")
+     *  - Supervision level        (e.g. "One-to-one requires Y document")
+     *  - Condition flag           (e.g. "Seizures require seizure_action_plan document")
      *
-     * Multiple rules may apply to a single camper.
+     * Universal rules (no tier, level, or flag) always apply to everyone.
+     *
+     * PERFORMANCE: All applicable rules are fetched in a single query using OR
+     * conditions rather than multiple separate queries.
+     *
+     * @param  array  $assessment  Result from SpecialNeedsRiskAssessmentService::assessCamper()
+     * @return Collection  Deduplicated collection of RequiredDocumentRule models
      */
     protected function getRequiredDocuments(array $assessment): Collection
     {
@@ -87,86 +113,96 @@ class DocumentEnforcementService
         $level = $assessment['supervision_level'];
         $flags = $assessment['flags'];
 
-        // Fetch all applicable rules in a single query using OR conditions
-        // PERFORMANCE: Consolidate multiple queries into one to prevent N+1
+        // Single query that ORs together all matching rule conditions
         $rules = RequiredDocumentRule::mandatory()
             ->where(function ($query) use ($tier, $level, $flags) {
-                // Universal rules (no tier, level, or flag specified)
+                // Universal rules: always apply (no specific tier, level, or flag)
                 $query->where(function ($q) {
                     $q->whereNull('medical_complexity_tier')
                         ->whereNull('supervision_level')
                         ->whereNull('condition_flag');
                 });
 
-                // Tier-specific rules
+                // Tier-specific rules (e.g. only for High complexity campers)
                 if ($tier !== null) {
                     $query->orWhere('medical_complexity_tier', $tier->value);
                 }
 
-                // Supervision-level-specific rules
+                // Supervision-level-specific rules (e.g. only for OneToOne campers)
                 if ($level !== null) {
                     $query->orWhere('supervision_level', $level->value);
                 }
 
-                // Condition-flag-specific rules
+                // Condition-flag-specific rules (e.g. seizures, g_tube, wandering_risk)
                 if (! empty($flags)) {
                     $query->orWhereIn('condition_flag', $flags);
                 }
             })
             ->get();
 
-        // Remove duplicates by document_type
+        // Deduplicate by document_type in case multiple rules require the same document
         return $rules->unique('document_type');
     }
 
     /**
-     * Get all uploaded documents for a camper.
-     *
-     * Documents are loaded with minimal data to avoid N+1 queries.
+     * Retrieve all documents uploaded for this camper from the database.
      */
     protected function getUploadedDocuments(Camper $camper): Collection
     {
+        // Use the polymorphic relationship to find documents owned by this camper
         return Document::where('documentable_type', Camper::class)
             ->where('documentable_id', $camper->id)
             ->get();
     }
 
     /**
-     * Find required documents that are missing (not uploaded).
+     * Find required document types that have not been uploaded at all.
+     *
+     * Compares the list of required document types against the types that
+     * have been uploaded. Any required type without a matching upload is "missing".
      */
     protected function findMissingDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
+        // Get a unique list of document types that have been uploaded
         $uploadedTypes = $uploadedDocuments->pluck('document_type')->unique();
 
+        // Keep only the rules whose document_type has not been uploaded
         return $requiredDocuments->filter(function ($rule) use ($uploadedTypes) {
             return ! $uploadedTypes->contains($rule->document_type);
         });
     }
 
     /**
-     * Find uploaded documents that have expired.
+     * Find uploaded documents that have passed their expiration date.
+     *
+     * An expired document (e.g. a TB test from 3 years ago) is treated as
+     * missing from a compliance standpoint — the camper needs a current version.
      */
     protected function findExpiredDocuments(Collection $uploadedDocuments): Collection
     {
+        // Document::isExpired() checks whether expiration_date is in the past
         return $uploadedDocuments->filter(function (Document $document) {
             return $document->isExpired();
         });
     }
 
     /**
-     * Find uploaded documents that are not verified or are rejected.
+     * Find uploaded documents that have not been verified by an admin.
+     *
+     * A document that is pending review or was rejected does not count as
+     * compliant — an admin must actively approve it.
      */
     protected function findUnverifiedDocuments(Collection $uploadedDocuments): Collection
     {
+        // Document::isVerified() returns true only for admin-approved documents
         return $uploadedDocuments->filter(function (Document $document) {
             return ! $document->isVerified();
         });
     }
 
     /**
-     * Format required documents for API response.
-     *
-     * Returns only non-PHI metadata about what documents are required.
+     * Format required document rules for the API response.
+     * Returns only non-PHI metadata (document type codes and descriptions).
      */
     protected function formatRequiredDocuments(Collection $requiredDocuments): array
     {
@@ -180,9 +216,8 @@ class DocumentEnforcementService
     }
 
     /**
-     * Format missing documents for API response.
-     *
-     * Returns only document type codes, no PHI.
+     * Format missing document rules for the API response.
+     * Returns only document type codes — no PHI is exposed.
      */
     protected function formatMissingDocuments(Collection $missingDocuments): array
     {
@@ -195,9 +230,8 @@ class DocumentEnforcementService
     }
 
     /**
-     * Format expired documents for API response.
-     *
-     * Returns only document IDs and types, no PHI.
+     * Format expired documents for the API response.
+     * Returns document IDs, types, and expiry dates — no PHI content.
      */
     protected function formatExpiredDocuments(Collection $expiredDocuments): array
     {
@@ -211,9 +245,8 @@ class DocumentEnforcementService
     }
 
     /**
-     * Format unverified documents for API response.
-     *
-     * Returns only document IDs and types, no PHI.
+     * Format unverified documents for the API response.
+     * Returns document IDs, types, and verification status — no PHI content.
      */
     protected function formatUnverifiedDocuments(Collection $unverifiedDocuments): array
     {
@@ -221,6 +254,7 @@ class DocumentEnforcementService
             return [
                 'document_id' => $document->id,
                 'document_type' => $document->document_type,
+                // e.g. 'pending', 'rejected' — helps the admin understand why it fails
                 'verification_status' => $document->verification_status?->value,
             ];
         })->values()->toArray();

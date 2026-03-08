@@ -1,11 +1,17 @@
 /**
  * CamperDetailPage.tsx
  *
- * Full camper profile for admins: personal info, medical record, session
- * history, emergency contacts, and linked application actions.
- * Route: /admin/campers/:id  |  /super-admin/campers/:id
+ * Purpose: Full read-only camper profile for admins and super-admins.
+ * Responsibilities:
+ *   - Fetch core camper info (name, DOB, gender, t-shirt size, applications)
+ *   - Separately fetch all medical sub-resources in parallel (allergies, meds, diagnoses, etc.)
+ *   - Display everything in stacked SectionCards with consistent layout
+ *   - Compute back/review base paths from the URL so the same component works
+ *     under both /admin/... and /super-admin/... prefixes
  *
- * Medical data comes from separate endpoints (same pattern as MedicalRecordPage).
+ * Plain-English: Think of this page like a binder tab in a camp counselor's
+ * notebook — flip to a camper's name and instantly see their whole story:
+ * medical needs, who to call in an emergency, and which activities they can join.
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
@@ -36,11 +42,12 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { Camper, MedicalRecord, Allergy, Medication, Diagnosis, EmergencyContact, ActivityPermission, BehavioralProfile, FeedingPlan, AssistiveDevice } from '@/features/admin/types/admin.types';
 
 // ---------------------------------------------------------------------------
-// Section card
+// Section card — reusable card with an icon and title header
 // ---------------------------------------------------------------------------
 
 interface SectionCardProps { title: string; icon: ReactNode; children: ReactNode }
 
+// Wraps each data group (medical, contacts, etc.) in a consistent styled card.
 function SectionCard({ title, icon, children }: SectionCardProps) {
   return (
     <div
@@ -48,6 +55,7 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
       style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', backdropFilter: 'blur(12px)' }}
     >
       <div className="flex items-center gap-3 mb-4">
+        {/* Colored icon badge — same visual language as the rest of the app */}
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{ background: 'rgba(22,163,74,0.12)' }}
@@ -61,10 +69,12 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
   );
 }
 
+// A simple label + value pair. Shows an em-dash when value is absent.
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex flex-col gap-0.5">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+      {/* Dim the text when value is null/undefined so "—" feels intentionally empty */}
       <p className="text-sm" style={{ color: value ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
         {value ?? '—'}
       </p>
@@ -72,6 +82,8 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+// Maps allergy severity → a color that communicates urgency at a glance.
+// "life-threatening" uses a dark crimson to stand out from plain "severe".
 const SEVERITY_COLOR: Record<string, string> = {
   mild: '#f59e0b',
   moderate: '#f97316',
@@ -80,7 +92,7 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Medical data state shape
+// Medical data state shape — groups all 9 medical sub-resources in one object
 // ---------------------------------------------------------------------------
 
 interface MedData {
@@ -96,22 +108,26 @@ interface MedData {
 }
 
 // ---------------------------------------------------------------------------
-// Main page
+// Main page component
 // ---------------------------------------------------------------------------
 
 export function CamperDetailPage() {
+  // Pull the camper's numeric ID from the URL (e.g. /admin/campers/42 → id="42")
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [camper, setCamper]         = useState<Camper | null>(null);
+  // All medical sub-resources live in one state object to avoid many useState calls
   const [med, setMed]               = useState<MedData | null>(null);
   const [loading, setLoading]       = useState(true);
+  // Separate loading flag for medical data — it loads after core camper data
   const [medLoading, setMedLoading] = useState(true);
   const [error, setError]           = useState(false);
 
+  // Convert the string route param to a number once; used in both useEffects
   const camperId = Number(id);
 
-  // Fetch core camper data
+  // --- Effect 1: fetch core camper profile ---
   useEffect(() => {
     if (!camperId) return;
     setLoading(true);
@@ -124,15 +140,18 @@ export function CamperDetailPage() {
       .finally(() => setLoading(false));
   }, [camperId]);
 
-  // Fetch medical data in parallel after camper loads
+  // --- Effect 2: fetch all medical data in parallel ---
+  // Runs independently so medical info loads without waiting for camper details.
   useEffect(() => {
     if (!camperId) return;
     setMedLoading(true);
 
     const fetchMedical = async () => {
-      // First get the medical record to get its ID for sub-resource calls
+      // Step 1: get the medical record to obtain its ID (needed for sub-resource endpoints)
       const record = await getMedicalRecordByCamper(camperId).catch(() => null);
 
+      // Step 2: fire all remaining requests at the same time with Promise.all.
+      // Each call falls back to [] or null on failure so a single 404 doesn't break the page.
       const [
         allergies, medications, diagnoses,
         emergencyContacts, activityPermissions,
@@ -141,6 +160,7 @@ export function CamperDetailPage() {
         record ? getAllergies(record.id).catch(() => [])            : Promise.resolve([]),
         record ? getMedications(record.id).catch(() => [])          : Promise.resolve([]),
         record ? getDiagnoses(record.id).catch(() => [])            : Promise.resolve([]),
+        // Emergency contacts and activity permissions are keyed by camper ID, not record ID
         getEmergencyContacts(camperId).catch(() => []),
         getActivityPermissions(camperId).catch(() => []),
         getBehavioralProfile(camperId).catch(() => null),
@@ -154,9 +174,11 @@ export function CamperDetailPage() {
     fetchMedical().finally(() => setMedLoading(false));
   }, [camperId]);
 
+  // Detect prefix from the current URL so back-navigation goes to the right portal
   const backPath       = window.location.pathname.startsWith('/super-admin') ? '/super-admin/campers' : '/admin/campers';
   const reviewBasePath = window.location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : '/admin/applications';
 
+  // Show skeleton cards while core camper data is loading
   if (loading) {
     return (
       <div className="p-6 max-w-5xl space-y-4">
@@ -168,6 +190,7 @@ export function CamperDetailPage() {
     );
   }
 
+  // If the API returned an error or no camper data, show a helpful empty state
   if (error || !camper) {
     return (
       <div className="p-6 max-w-5xl">
@@ -180,16 +203,18 @@ export function CamperDetailPage() {
     );
   }
 
+  // Calculate age in full years from DOB using millisecond arithmetic
   const age = camper.date_of_birth
     ? Math.floor((Date.now() - new Date(camper.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
 
+  // Default to empty array so `.map` below always works even if backend omits the field
   const applications = camper.applications ?? [];
 
   return (
     <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-5xl">
 
-      {/* Back + header */}
+      {/* Back link + camper avatar/name header */}
       <div className="mb-6">
         <Link
           to={backPath}
@@ -200,6 +225,7 @@ export function CamperDetailPage() {
           Back to campers
         </Link>
         <div className="flex items-start gap-4">
+          {/* Initials avatar — a quick visual anchor for the camper's identity */}
           <div
             className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-headline font-bold flex-shrink-0"
             style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--ember-orange)' }}
@@ -210,6 +236,7 @@ export function CamperDetailPage() {
             <h1 className="font-headline text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
               {camper.full_name}
             </h1>
+            {/* Mid-dots separate age and gender — conditional to avoid orphaned separators */}
             <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
               {age !== null ? `${age} years old` : ''}
               {age !== null && camper.gender ? ' · ' : ''}
@@ -219,9 +246,10 @@ export function CamperDetailPage() {
         </div>
       </div>
 
+      {/* Stagger children so each card fades in one after another */}
       <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
 
-        {/* Personal info */}
+        {/* Personal Information card */}
         <motion.div variants={staggerChild}>
           <SectionCard title="Personal Information" icon={<User className="h-4 w-4" />}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -233,7 +261,7 @@ export function CamperDetailPage() {
           </SectionCard>
         </motion.div>
 
-        {/* Applications */}
+        {/* Applications — lists every session the camper has applied for */}
         <motion.div variants={staggerChild}>
           <SectionCard title="Applications" icon={<FileText className="h-4 w-4" />}>
             {applications.length === 0 ? (
@@ -243,6 +271,7 @@ export function CamperDetailPage() {
                 {applications.map((app) => (
                   <div key={app.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                     <div className="min-w-0">
+                      {/* Fall back to a generic label if the session name was not eager-loaded */}
                       <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                         {app.session?.name ?? `Session #${app.camp_session_id}`}
                       </p>
@@ -252,6 +281,7 @@ export function CamperDetailPage() {
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <StatusBadge status={app.status} />
+                      {/* Deep-link directly to the full application review page */}
                       <Link
                         to={`${reviewBasePath}/${app.id}`}
                         className="text-xs px-2.5 py-1 rounded border transition-colors hover:opacity-80"
@@ -267,10 +297,11 @@ export function CamperDetailPage() {
           </SectionCard>
         </motion.div>
 
-        {/* Medical record */}
+        {/* Medical Record card — has its own medLoading state */}
         <motion.div variants={staggerChild}>
           <SectionCard title="Medical Record" icon={<Heart className="h-4 w-4" />}>
             {medLoading ? (
+              // Still fetching medical data — show skeleton rows inside the card
               <div className="space-y-2">
                 {[1, 2].map((i) => <Skeletons.Row key={i} />)}
               </div>
@@ -278,6 +309,7 @@ export function CamperDetailPage() {
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No medical record on file.</p>
             ) : (
               <div className="space-y-5">
+                {/* Primary diagnosis is a single free-text field from the record itself */}
                 {med.record.primary_diagnosis && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Primary Diagnosis</p>
@@ -285,6 +317,7 @@ export function CamperDetailPage() {
                   </div>
                 )}
 
+                {/* Structured diagnoses from the diagnoses sub-resource, with ICD codes */}
                 {med.diagnoses.length > 0 && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Diagnoses</p>
@@ -292,6 +325,7 @@ export function CamperDetailPage() {
                       {med.diagnoses.map((d) => (
                         <div key={d.id} className="flex items-center gap-2 text-sm">
                           <span style={{ color: 'var(--foreground)' }}>{d.name}</span>
+                          {/* ICD code shown as a monospace pill — only rendered if present */}
                           {d.icd_code && (
                             <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--glass-strong)', color: 'var(--muted-foreground)' }}>
                               {d.icd_code}
@@ -303,6 +337,7 @@ export function CamperDetailPage() {
                   </div>
                 )}
 
+                {/* Allergy chips — color-coded by severity for rapid triage */}
                 {med.allergies.length > 0 && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Allergies</p>
@@ -312,8 +347,10 @@ export function CamperDetailPage() {
                           key={a.id}
                           className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border"
                           style={{
+                            // Look up the severity color; fall back to neutral grey if unknown
                             color: SEVERITY_COLOR[a.severity] ?? '#6b7280',
                             borderColor: SEVERITY_COLOR[a.severity] ?? '#6b7280',
+                            // Hex + "14" = ~8% opacity tinted background
                             background: `${SEVERITY_COLOR[a.severity] ?? '#6b7280'}14`,
                           }}
                         >
@@ -325,6 +362,7 @@ export function CamperDetailPage() {
                   </div>
                 )}
 
+                {/* Medication list — dosage and frequency shown inline */}
                 {med.medications.length > 0 && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Medications</p>
@@ -342,6 +380,7 @@ export function CamperDetailPage() {
                   </div>
                 )}
 
+                {/* Behavioral profile — triggers and strategies for staff awareness */}
                 {med.behavioralProfile && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Behavioral Profile</p>
@@ -353,6 +392,7 @@ export function CamperDetailPage() {
                   </div>
                 )}
 
+                {/* Feeding plan — shows method and any dietary restrictions */}
                 {med.feedingPlan && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Feeding Plan</p>
@@ -363,6 +403,7 @@ export function CamperDetailPage() {
                   </div>
                 )}
 
+                {/* Fallback message: record exists in the DB but has no sub-resource data yet */}
                 {!med.record.primary_diagnosis && med.diagnoses.length === 0 && med.allergies.length === 0 && med.medications.length === 0 && !med.behavioralProfile && !med.feedingPlan && (
                   <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Medical record exists but contains no entries.</p>
                 )}
@@ -371,7 +412,7 @@ export function CamperDetailPage() {
           </SectionCard>
         </motion.div>
 
-        {/* Emergency contacts */}
+        {/* Emergency Contacts — keyed by camper ID, not medical record ID */}
         <motion.div variants={staggerChild}>
           <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
             {medLoading ? (
@@ -394,6 +435,7 @@ export function CamperDetailPage() {
                       <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                         <span className="font-medium" style={{ color: 'var(--foreground)' }}>Phone:</span> {ec.phone_primary}
                       </p>
+                      {/* Secondary phone is optional — only render if it exists */}
                       {ec.phone_secondary && (
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                           <span className="font-medium" style={{ color: 'var(--foreground)' }}>Phone 2:</span> {ec.phone_secondary}
@@ -404,6 +446,7 @@ export function CamperDetailPage() {
                           <span className="font-medium" style={{ color: 'var(--foreground)' }}>Email:</span> {ec.email}
                         </p>
                       )}
+                      {/* Authorized pickup status is a legal flag — shown in green for clarity */}
                       {ec.is_authorized_pickup && (
                         <p className="text-xs mt-1" style={{ color: 'var(--forest-green)' }}>Authorized for pickup</p>
                       )}
@@ -415,13 +458,14 @@ export function CamperDetailPage() {
           </SectionCard>
         </motion.div>
 
-        {/* Activity permissions */}
+        {/* Activity Permissions — only rendered when there are entries to show */}
         {!medLoading && (med?.activityPermissions ?? []).length > 0 && (
           <motion.div variants={staggerChild}>
             <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {med!.activityPermissions.map((ap) => (
                   <div key={ap.id} className="flex items-start gap-2.5">
+                    {/* Traffic-light dot: green = permitted, yellow = restricted, red = not permitted */}
                     <span
                       className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{
@@ -445,6 +489,7 @@ export function CamperDetailPage() {
                     </span>
                     <div>
                       <span className="text-sm" style={{ color: 'var(--foreground)' }}>{ap.activity_name}</span>
+                      {/* Human-readable label badge for the permission level */}
                       <span className="ml-2 text-xs capitalize px-1.5 py-0.5 rounded"
                         style={{
                           background: ap.permission_level === 'yes'
@@ -461,6 +506,7 @@ export function CamperDetailPage() {
                       >
                         {ap.permission_level === 'yes' ? 'Permitted' : ap.permission_level === 'no' ? 'Not Permitted' : 'Restricted'}
                       </span>
+                      {/* Restriction notes appear below the badge when present */}
                       {ap.restriction_notes && (
                         <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{ap.restriction_notes}</p>
                       )}
@@ -472,10 +518,11 @@ export function CamperDetailPage() {
           </motion.div>
         )}
 
-        {/* Assistive devices */}
+        {/* Assistive Devices — only shown when the camper has at least one device on file */}
         {!medLoading && (med?.assistiveDevices ?? []).length > 0 && (
           <motion.div variants={staggerChild}>
             <SectionCard title="Assistive Devices" icon={<Shield className="h-4 w-4" />}>
+              {/* Each device is rendered as a compact pill with optional notes inline */}
               <div className="flex flex-wrap gap-2">
                 {med!.assistiveDevices.map((d) => (
                   <span

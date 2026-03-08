@@ -9,10 +9,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
- * Application model representing a camper's registration request.
+ * Application model — records a camper's request to attend a specific camp session.
  *
- * Applications track a camper's enrollment request for a specific
- * camp session, including the review workflow and final decision.
+ * The lifecycle of an application moves through several states:
+ *   draft → submitted → under_review → approved / waitlisted / denied
+ *
+ * Key design points:
+ *  - is_draft lets parents save progress before final submission.
+ *  - signature_data stores the legal consent signature and is hidden from API
+ *    responses to avoid exposing the raw image/base64 blob unnecessarily.
+ *  - Documents (medical forms, permission slips) attach to an application via a
+ *    polymorphic relationship so one Document model serves multiple owner types.
+ *  - 'session' is exposed as a virtual attribute alias of campSession so the
+ *    frontend can use application.session everywhere consistently.
  */
 class Application extends Model
 {
@@ -24,18 +33,18 @@ class Application extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'camper_id',
-        'camp_session_id',
-        'status',
-        'is_draft',
-        'submitted_at',
-        'reviewed_at',
-        'reviewed_by',
-        'notes',
-        'signature_data',
-        'signature_name',
-        'signed_at',
-        'signed_ip_address',
+        'camper_id',          // Which camper this application is for.
+        'camp_session_id',    // Which specific session they want to attend.
+        'status',             // Current workflow state (ApplicationStatus enum).
+        'is_draft',           // True while the parent is still filling it out.
+        'submitted_at',       // Timestamp when the parent officially submitted.
+        'reviewed_at',        // Timestamp when an admin completed their review.
+        'reviewed_by',        // FK to the User who performed the review.
+        'notes',              // Admin notes visible only internally.
+        'signature_data',     // Raw signature image/data — hidden from API output.
+        'signature_name',     // Typed name accompanying the signature.
+        'signed_at',          // When the signature was captured.
+        'signed_ip_address',  // IP address for legal proof of consent.
     ];
 
     /**
@@ -46,16 +55,21 @@ class Application extends Model
     protected function casts(): array
     {
         return [
-            'status' => ApplicationStatus::class,
-            'is_draft' => 'boolean',
+            // Automatically resolves the stored string to an ApplicationStatus enum value.
+            'status'       => ApplicationStatus::class,
+            'is_draft'     => 'boolean',
+            // Carbon datetime objects for easy comparison and formatting.
             'submitted_at' => 'datetime',
-            'reviewed_at' => 'datetime',
-            'signed_at' => 'datetime',
+            'reviewed_at'  => 'datetime',
+            'signed_at'    => 'datetime',
         ];
     }
 
     /**
      * The attributes that should be hidden for serialization.
+     *
+     * signature_data is hidden so the raw consent image is never leaked in an
+     * API response. It can be accessed directly on the model when truly needed.
      *
      * @var list<string>
      */
@@ -64,17 +78,22 @@ class Application extends Model
     ];
 
     /**
-     * Attributes to append to the model's array/JSON representation.
+     * Virtual attributes appended to JSON/array output.
      *
-     * Aliases the campSession relationship as 'session' so the frontend
-     * can access it consistently via application.session.
+     * Adding 'session' here makes Laravel automatically call getSessionAttribute()
+     * and include the result in every API response as application.session,
+     * so the frontend does not need to reference the underlying campSession key.
      *
      * @var list<string>
      */
     protected $appends = ['session'];
 
     /**
-     * Get documents attached to this application.
+     * Get documents attached to this application (polymorphic).
+     *
+     * MorphMany means Document rows can belong to ANY model type, not just Application.
+     * The 'documentable' morph name is stored as documentable_type + documentable_id
+     * in the documents table.
      */
     public function documents(): MorphMany
     {
@@ -82,7 +101,7 @@ class Application extends Model
     }
 
     /**
-     * Get the camper associated with this application.
+     * Get the camper this application was submitted for.
      */
     public function camper(): BelongsTo
     {
@@ -90,7 +109,7 @@ class Application extends Model
     }
 
     /**
-     * Get the camp session this application is for.
+     * Get the camp session this application is requesting enrollment in.
      */
     public function campSession(): BelongsTo
     {
@@ -98,10 +117,10 @@ class Application extends Model
     }
 
     /**
-     * Alias campSession as 'session' for frontend compatibility.
+     * Expose campSession data under the key 'session' in JSON output.
      *
-     * Returns the loaded campSession relationship value so the JSON
-     * output includes a 'session' key pointing to the same data.
+     * getRelationValue() returns the already-loaded relation without triggering
+     * a new query, keeping this accessor safe to call inside loops.
      */
     public function getSessionAttribute(): mixed
     {
@@ -109,7 +128,9 @@ class Application extends Model
     }
 
     /**
-     * Get the user who reviewed this application.
+     * Get the admin user who reviewed this application.
+     *
+     * Uses 'reviewed_by' as the foreign key instead of the default 'user_id'.
      */
     public function reviewer(): BelongsTo
     {
@@ -117,15 +138,18 @@ class Application extends Model
     }
 
     /**
-     * Determine if the application has been reviewed.
+     * Determine if an admin has already reviewed this application.
      */
     public function isReviewed(): bool
     {
+        // reviewed_at is only set once the admin records a decision.
         return $this->reviewed_at !== null;
     }
 
     /**
-     * Determine if the application status is final.
+     * Determine if the application status is terminal (cannot change further).
+     *
+     * Delegates to the ApplicationStatus enum so the business rule lives in one place.
      */
     public function isFinal(): bool
     {
@@ -133,7 +157,10 @@ class Application extends Model
     }
 
     /**
-     * Determine if the application can be edited.
+     * Determine if the application can still be edited by the parent.
+     *
+     * A draft can always be edited. A non-draft can be edited if its status
+     * is still in an editable state (e.g. "returned for corrections").
      */
     public function isEditable(): bool
     {
@@ -141,7 +168,7 @@ class Application extends Model
     }
 
     /**
-     * Determine if the application is a draft.
+     * Determine if this application is still a draft (not yet submitted).
      */
     public function isDraft(): bool
     {
@@ -149,7 +176,7 @@ class Application extends Model
     }
 
     /**
-     * Determine if the application has been signed.
+     * Determine if the legal consent signature has been collected.
      */
     public function isSigned(): bool
     {
@@ -157,7 +184,9 @@ class Application extends Model
     }
 
     /**
-     * Scope to filter only draft applications.
+     * Query scope — filter only draft (unsubmitted) applications.
+     *
+     * Usage: Application::draft()->get()
      */
     public function scopeDraft($query)
     {
@@ -165,7 +194,10 @@ class Application extends Model
     }
 
     /**
-     * Scope to filter only submitted applications.
+     * Query scope — filter only formally submitted applications.
+     *
+     * Both conditions are required: is_draft must be false AND
+     * submitted_at must be set (guards against partially-updated rows).
      */
     public function scopeSubmitted($query)
     {
@@ -173,10 +205,14 @@ class Application extends Model
     }
 
     /**
-     * Scope to filter by status.
+     * Query scope — filter applications by a specific status value.
+     *
+     * Accepts either the enum instance or a raw string value so callers
+     * are not forced to import the enum when building dynamic queries.
      */
     public function scopeWithStatus($query, ApplicationStatus|string $status)
     {
+        // Normalise enum to its raw database string before passing to the query.
         $statusValue = $status instanceof ApplicationStatus ? $status->value : $status;
 
         return $query->where('status', $statusValue);

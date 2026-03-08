@@ -7,13 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * FeedingPlan model representing specialized dietary needs for a camper.
+ * FeedingPlan model — documents a camper's specialized dietary and tube-feeding requirements.
  *
- * Each camper has a single feeding plan documenting dietary restrictions,
- * tube feeding protocols, and nutrition support requirements to ensure
- * appropriate meal planning and medical supervision.
+ * Each camper has exactly one feeding plan. It covers both standard dietary restrictions
+ * (e.g., gluten-free) and complex medical feeding needs such as gastrostomy tube (G-tube)
+ * administration with per-feeding formulas, amounts, and schedules.
  *
- * PHI fields are encrypted at rest using Laravel's encrypted casting.
+ * PHI sensitivity: "diet_description" and "notes" are encrypted at rest because they
+ * may contain medical information subject to HIPAA. Decryption happens automatically
+ * when the model is accessed via Eloquent, using Laravel's encrypted cast.
+ *
+ * Relationships: belongs to Camper (one-to-one from the camper side)
  */
 class FeedingPlan extends Model
 {
@@ -40,36 +44,50 @@ class FeedingPlan extends Model
     /**
      * Get the attributes that should be cast.
      *
-     * PHI fields are encrypted at rest for HIPAA compliance.
+     * "feeding_times" is a JSON array of time strings (e.g., ["08:00", "12:00", "18:00"]).
+     * PHI fields (diet_description, notes) are encrypted; never readable from raw SQL queries.
      *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'special_diet' => 'boolean',
+            'special_diet'    => 'boolean',
+            // PHI field — encrypted at rest for HIPAA compliance
             'diet_description' => 'encrypted',
-            'g_tube' => 'boolean',
+            'g_tube'           => 'boolean',
             'feedings_per_day' => 'integer',
-            'feeding_times' => 'array',
-            'bolus_only' => 'boolean',
-            'notes' => 'encrypted',
+            // Stored as JSON array of scheduled times; decoded to PHP array on read
+            'feeding_times'    => 'array',
+            'bolus_only'       => 'boolean',
+            // PHI field — encrypted at rest for HIPAA compliance
+            'notes'            => 'encrypted',
         ];
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Relationships
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
      * Get the camper this feeding plan belongs to.
+     *
+     * The inverse of Camper::feedingPlan() (hasOne).
      */
     public function camper(): BelongsTo
     {
         return $this->belongsTo(Camper::class);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Helper Methods
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
-     * Determine if this feeding plan requires enteral feeding action plan.
+     * Determine if this feeding plan requires an enteral (tube) feeding action plan.
      *
-     * G-tube feeding requires a documented action plan with protocols
-     * for tube feeding administration and emergency procedures.
+     * G-tube campers need a documented action plan on file covering tube-feeding
+     * procedures and emergency steps if the tube is dislodged or blocked.
      */
     public function requiresFeedingActionPlan(): bool
     {
@@ -77,10 +95,10 @@ class FeedingPlan extends Model
     }
 
     /**
-     * Determine if this feeding plan requires specialized staff training.
+     * Determine if this feeding plan requires staff with specialized training.
      *
-     * Tube feeding and certain dietary restrictions require staff to
-     * have specialized training for safe administration.
+     * G-tube administration is a clinical skill — camp staff must hold certification
+     * or be supervised by a licensed nurse before feeding this camper.
      */
     public function requiresSpecializedStaff(): bool
     {

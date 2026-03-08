@@ -1,7 +1,19 @@
 /**
  * UserManagementPage.tsx
  *
- * Full user table with role assignment and activate/deactivate.
+ * Purpose: Full user table for super admins — view all users, change roles,
+ *          and activate or deactivate accounts.
+ * Responsibilities:
+ *   - Fetch paginated users with optional search + role filter
+ *   - Display a data table with name, email, role dropdown, join date, and action button
+ *   - Allow inline role changes via a dropdown (blocked for the current user's own row)
+ *   - Show a confirmation dialog before activating or deactivating a user
+ *   - Optimistically update the role in local state; re-fetch after activate/deactivate
+ *
+ * Plain-English: This page is like a master contacts list where the super admin
+ * can change someone's job title (role) or lock/unlock their account — but
+ * they can't accidentally lock themselves out by changing their own account.
+ *
  * Route: /super-admin/users
  */
 
@@ -20,8 +32,10 @@ import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/mo
 import type { User } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
+// All valid role values in the system — used to populate the role dropdown
 const ROLES = ['applicant', 'admin', 'medical', 'super_admin'];
 
+// Maps each role to a background/text color pair for the role pill display
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
   super_admin: { bg: 'rgba(22,163,74,0.12)', text: 'var(--ember-orange)' },
   admin:       { bg: 'rgba(96,165,250,0.12)', text: 'var(--night-sky-blue)' },
@@ -29,6 +43,7 @@ const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
   applicant:   { bg: 'rgba(22,163,74,0.1)',  text: 'var(--ember-orange)' },
 };
 
+// Consolidated filter object — all in one state to avoid double-fetch race conditions
 interface UserFilters {
   search:     string;
   roleFilter: string;
@@ -37,25 +52,32 @@ interface UserFilters {
 
 export function UserManagementPage() {
   const { t } = useTranslation();
+  // Track the logged-in user's own ID to prevent self-modification
   const currentUserId = useAppSelector((state) => state.auth.user?.id);
 
   const [response, setResponse] = useState<PaginatedResponse<User> | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
+  // Single state object for all filters + page to avoid double-fetch when multiple change
   const [filters, setFilters]   = useState<UserFilters>({ search: '', roleFilter: '', page: 1 });
+  // Track which user ID is being updated for a per-row spinner
   const [updating, setUpdating]         = useState<number | null>(null);
+  // The user awaiting confirm in the activate/deactivate dialog; null = dialog closed
   const [confirmUser, setConfirmUser]   = useState<User | null>(null);
 
+  // Helper setters that reset page to 1 whenever search or role changes
   const setSearch     = (search: string)     => setFilters((f) => ({ ...f, search,     page: 1 }));
   const setRoleFilter = (roleFilter: string) => setFilters((f) => ({ ...f, roleFilter, page: 1 }));
   const setPage       = (page: number)       => setFilters((f) => ({ ...f, page }));
 
+  // Stable fetch function — recreated only when the filters object changes
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const data = await getUsers({
         page:   filters.page,
+        // Only pass search/role to the API if they have a value — keeps URL clean
         search: filters.search || undefined,
         role:   filters.roleFilter || undefined,
       });
@@ -67,13 +89,17 @@ export function UserManagementPage() {
     }
   }, [filters]);
 
+  // Re-fetch whenever the stable fetchUsers reference changes (i.e., when filters change)
   useEffect(() => { void fetchUsers(); }, [fetchUsers]);
 
+  // Inline role change — optimistically updates the local list without a full re-fetch
   async function handleRoleChange(userId: number, role: string) {
+    // Prevent super admins from accidentally changing their own role
     if (userId === currentUserId) return;
     setUpdating(userId);
     try {
       const updated = await updateUserRole(userId, role);
+      // Replace the updated user object in place inside the existing response
       setResponse((prev) =>
         prev ? { ...prev, data: prev.data.map((u) => (u.id === userId ? updated : u)) } : prev
       );
@@ -85,15 +111,18 @@ export function UserManagementPage() {
     }
   }
 
+  // Activate or deactivate a user — full re-fetch after to get fresh server state
   async function handleToggleActive(user: User) {
     setUpdating(user.id);
     try {
+      // email_verified_at being set is used as the "active" indicator
       const isActive = !!user.email_verified_at;
       if (isActive) {
         await deactivateUser(user.id);
       } else {
         await reactivateUser(user.id);
       }
+      // Re-fetch instead of optimistically updating — ensures accuracy for status fields
       await fetchUsers();
       toast.success(t(isActive ? 'superadmin.users.deactivated' : 'superadmin.users.activated'));
     } catch {
@@ -109,12 +138,13 @@ export function UserManagementPage() {
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('superadmin.users.title')}
         </h1>
+        {/* Subtitle shows total user count once the first page loads */}
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           {response && t('superadmin.users.subtitle', { total: response.meta.total })}
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Filter bar: text search + role dropdown */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div
           className="flex items-center gap-2 flex-1 max-w-sm rounded-lg px-3 py-2 border"
@@ -129,6 +159,7 @@ export function UserManagementPage() {
             style={{ color: 'var(--foreground)' }}
           />
         </div>
+        {/* Changing role filter resets to page 1 via setRoleFilter helper */}
         <select
           value={filters.roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
@@ -156,6 +187,7 @@ export function UserManagementPage() {
         <EmptyState title={t('superadmin.users.empty_title')} description={t('superadmin.users.empty_desc')} />
       ) : (
         <>
+          {/* User table with stagger animation */}
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -163,6 +195,7 @@ export function UserManagementPage() {
             className="rounded-xl border overflow-hidden"
             style={{ borderColor: 'var(--border)' }}
           >
+            {/* Column header row */}
             <div
               className="grid grid-cols-12 px-4 py-3 text-xs font-medium uppercase tracking-wide border-b"
               style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
@@ -175,6 +208,7 @@ export function UserManagementPage() {
             </div>
 
             {response.data.map((user) => {
+              // Fall back to 'applicant' colors for any role not in the ROLE_COLORS map
               const roleStyle = ROLE_COLORS[user.role] ?? ROLE_COLORS['applicant'];
               return (
                 <motion.div
@@ -191,9 +225,11 @@ export function UserManagementPage() {
                   </div>
                   <div className="col-span-2">
                     {updating === user.id ? (
+                      // Show a small spinner in the role cell while an update is in flight
                       <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
                         style={{ borderColor: 'var(--ember-orange)', borderTopColor: 'transparent' }} />
                     ) : (
+                      // Role dropdown — styled as a colored pill; disabled for the current user
                       <select
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
@@ -203,6 +239,7 @@ export function UserManagementPage() {
                         style={{
                           background: roleStyle.bg,
                           color: roleStyle.text,
+                          // Visual cue that the super admin can't change their own role
                           cursor: user.id === currentUserId ? 'not-allowed' : 'pointer',
                           opacity: user.id === currentUserId ? 0.6 : 1,
                         }}
@@ -222,17 +259,20 @@ export function UserManagementPage() {
                   </div>
                   <div className="col-span-2 flex justify-end">
                     {user.id === currentUserId ? (
+                      // "You" label replaces the activate/deactivate button for the current user
                       <span className="text-xs px-2 py-1 rounded"
                         style={{ color: 'var(--muted-foreground)', background: 'var(--glass-medium)' }}>
                         You
                       </span>
                     ) : (
+                      // Activate/deactivate icon button — opens confirmation dialog first
                       <button
                         onClick={() => setConfirmUser(user)}
                         disabled={updating === user.id}
                         className="p-1.5 rounded transition-colors disabled:opacity-40"
                         title={user.email_verified_at ? t('superadmin.users.deactivate') : t('superadmin.users.activate')}
                       >
+                        {/* UserX = active user (can be deactivated); UserCheck = inactive (can be activated) */}
                         {user.email_verified_at
                           ? <UserX className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
                           : <UserCheck className="h-4 w-4" style={{ color: 'var(--forest-green)' }} />
@@ -245,6 +285,7 @@ export function UserManagementPage() {
             })}
           </motion.div>
 
+          {/* Pagination controls — only shown when there is more than one page */}
           {response.meta.last_page > 1 && (
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
@@ -272,7 +313,7 @@ export function UserManagementPage() {
         </>
       )}
 
-      {/* Confirmation dialog */}
+      {/* Activate/Deactivate confirmation dialog */}
       {confirmUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -286,6 +327,7 @@ export function UserManagementPage() {
             aria-labelledby="confirm-dialog-title"
           >
             <div className="flex items-start gap-3 mb-4">
+              {/* Icon changes color based on whether we're activating (green) or deactivating (red) */}
               <div className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
                 style={{ background: confirmUser.email_verified_at ? 'rgba(220,38,38,0.10)' : 'rgba(22,163,74,0.10)' }}>
                 <AlertTriangle className="h-4.5 w-4.5"
@@ -293,6 +335,7 @@ export function UserManagementPage() {
               </div>
               <div>
                 <p id="confirm-dialog-title" className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                  {/* Title adapts to deactivate vs activate context */}
                   {confirmUser.email_verified_at
                     ? t('superadmin.users.deactivate_confirm_title', { name: confirmUser.name })
                     : t('superadmin.users.activate_confirm_title',   { name: confirmUser.name })}
@@ -313,6 +356,7 @@ export function UserManagementPage() {
               >
                 {t('common.cancel')}
               </button>
+              {/* Confirm button: close dialog first, then run the toggle so there's no double-click risk */}
               <button
                 type="button"
                 onClick={() => { const u = confirmUser; setConfirmUser(null); void handleToggleActive(u); }}

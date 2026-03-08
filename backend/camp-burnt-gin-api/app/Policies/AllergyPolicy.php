@@ -7,20 +7,30 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on Allergy resources.
+ * AllergyPolicy — Authorization rules for Allergy records.
  *
- * Allergy information is critical for camper safety and is accessible
- * by administrators, medical providers, and the camper's parent/guardian.
+ * Allergy information is critical for camper safety — kitchen staff and
+ * medical providers need to know what a child is allergic to. This policy
+ * controls who can read and change these records.
+ *
+ * Access summary:
+ *  - Admins        → full access (view, create, update, delete)
+ *  - Medical staff → view, create, and update (but NOT delete — see delete() below)
+ *  - Applicants    → access only to their own child's allergy records
+ *
+ * The intentional asymmetry for medical staff (can create/update but not delete)
+ * is documented in detail in the delete() method below.
  */
 class AllergyPolicy
 {
+    // This trait adds helper methods like allow() and deny() used by Laravel internals.
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any allergies.
+     * Can the user browse the full allergy list?
      *
-     * Administrators and medical providers can view the list.
-     * Parents access their own allergies through scoped queries.
+     * Admins and medical staff see the full list for safety and reporting.
+     * Parents use scoped queries limited to their own child.
      */
     public function viewAny(User $user): bool
     {
@@ -28,23 +38,24 @@ class AllergyPolicy
     }
 
     /**
-     * Determine whether the user can view the allergy.
+     * Can the user view a specific allergy record?
      *
-     * Administrators have full access.
-     * Medical providers can only view for campers they have valid provider links for.
-     * Parents can only view allergies for their own children.
+     * Three groups are allowed — we check each in order.
      */
     public function view(User $user, Allergy $allergy): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper allergy records.
+            // Camp medical staff have direct access to all camper allergy records
+            // so they can respond appropriately to allergic reactions.
             return true;
         }
 
+        // A parent may view allergy records only for their own child.
         if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
             return true;
         }
@@ -53,10 +64,12 @@ class AllergyPolicy
     }
 
     /**
-     * Determine whether the user can create allergies.
+     * Can the user add a new allergy record?
      *
-     * Administrators, medical providers, and parents can record allergies.
-     * Medical providers may document allergies discovered during care.
+     * All three user types may create allergy records:
+     *  - Admins for data entry / administrative corrections
+     *  - Medical staff who discover a new allergy during care
+     *  - Parents who know their child's allergies and enter them during registration
      */
     public function create(User $user): bool
     {
@@ -64,23 +77,25 @@ class AllergyPolicy
     }
 
     /**
-     * Determine whether the user can update the allergy.
+     * Can the user update an allergy record?
      *
-     * Administrators have full access.
-     * Medical providers can update only for campers they have valid provider links for.
-     * Parents can update allergies for their own children.
+     * Admins and medical staff may update any record.
+     * Parents may update their own child's allergy details.
      */
     public function update(User $user, Allergy $allergy): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update allergy records during active care.
+            // Camp medical staff may update allergy records during active care,
+            // for example to add a new reaction note or change the treatment protocol.
             return true;
         }
 
+        // Parent can update only their own child's allergy record.
         if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
             return true;
         }
@@ -89,7 +104,7 @@ class AllergyPolicy
     }
 
     /**
-     * Determine whether the user can delete the allergy.
+     * Can the user delete an allergy record?
      *
      * AUTHORIZATION DESIGN NOTE:
      * Medical providers can create and update allergies but cannot delete them.
@@ -109,10 +124,13 @@ class AllergyPolicy
      */
     public function delete(User $user, Allergy $allergy): bool
     {
+        // Admins always get through.
         if ($user->isAdmin()) {
             return true;
         }
 
+        // Parent can delete only their own child's allergy record.
+        // Medical providers are intentionally excluded — see the docblock above.
         if ($user->isApplicant() && $user->ownsCamper($allergy->camper)) {
             return true;
         }

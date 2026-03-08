@@ -7,17 +7,18 @@ use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
- * Policy for authorizing actions on Camp resources.
+ * CampPolicy — controls who can manage camp records.
  *
- * Camps are publicly viewable to all authenticated users.
- * Only administrators can create, update, or delete camps.
+ * A "camp" is the top-level entity representing Camp Burnt Gin itself or any
+ * other camp in the system. Reading camp information is open to all logged-in users,
+ * but creating, editing, or removing camp records is restricted to administrators only.
  */
 class CampPolicy
 {
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any camps.
+     * Can the user see a list of all camps?
      *
      * All authenticated users can view the list of camps.
      * Non-admins will have the list filtered to show only active camps.
@@ -28,7 +29,7 @@ class CampPolicy
     }
 
     /**
-     * Determine whether the user can view the camp.
+     * Can the user view the details of a single camp?
      *
      * All authenticated users can view camp details.
      */
@@ -38,7 +39,7 @@ class CampPolicy
     }
 
     /**
-     * Determine whether the user can create camps.
+     * Can the user create a new camp?
      *
      * Only administrators can create new camps.
      */
@@ -48,7 +49,7 @@ class CampPolicy
     }
 
     /**
-     * Determine whether the user can update the camp.
+     * Can the user edit an existing camp?
      *
      * Only administrators can update camps.
      */
@@ -58,7 +59,7 @@ class CampPolicy
     }
 
     /**
-     * Determine whether the user can delete the camp.
+     * Can the user delete a camp?
      *
      * Only administrators can delete camps.
      */

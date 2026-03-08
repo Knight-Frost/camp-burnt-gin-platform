@@ -63,44 +63,79 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Application service provider for registering services and bootstrapping.
+ * AppServiceProvider — Application Bootstrap and Service Registration
  *
- * This provider registers authorization policies and other application-wide
- * services required for the Camp Burnt Gin backend.
+ * This is the main "startup file" for the Laravel application. Laravel calls
+ * boot() and register() on this provider every time the application starts.
+ *
+ * Think of it as the control room that wires everything together:
+ *
+ *  1. POLICIES  — tells Laravel "when a user tries to do X with model Y,
+ *                 check policy Z to decide if they're allowed."
+ *                 Every model that has access restrictions is listed here.
+ *
+ *  2. OBSERVERS — attaches observer classes to models so when a model is
+ *                 created/updated/deleted, the observer automatically runs.
+ *                 Used here to recalculate medical risk scores when clinical
+ *                 data changes (e.g. adding a diagnosis updates supervision level).
+ *
+ *  3. RATE LIMITING — registers named rate-limit rules used by routes.
+ *                 Prevents abuse of authentication, uploads, and sensitive operations.
+ *
+ * Note: this provider also handles AuthServiceProvider responsibilities since
+ * Laravel 11+ consolidates providers into AppServiceProvider.
  */
 class AppServiceProvider extends ServiceProvider
 {
     /**
-     * The policy mappings for the application.
+     * The model-to-policy mapping table.
+     *
+     * Each entry says: "when a Gate/Policy check is performed on this model class,
+     * use this policy class to determine whether the action is allowed."
+     *
+     * Policies live in app/Policies/ and follow a standard naming convention:
+     * {ModelName}Policy with methods like viewAny, view, create, update, delete.
      *
      * @var array<class-string, class-string>
      */
     protected array $policies = [
+        // Core camper and application data
         Camper::class => CamperPolicy::class,
         Application::class => ApplicationPolicy::class,
+
+        // Medical record and clinical data (PHI — strict access control)
         MedicalRecord::class => MedicalRecordPolicy::class,
         EmergencyContact::class => EmergencyContactPolicy::class,
         Allergy::class => AllergyPolicy::class,
         Medication::class => MedicationPolicy::class,
         Document::class => DocumentPolicy::class,
         MedicalProviderLink::class => MedicalProviderLinkPolicy::class,
+
+        // Special health care needs (CYSHCN) clinical data
         ActivityPermission::class => ActivityPermissionPolicy::class,
         AssistiveDevice::class => AssistiveDevicePolicy::class,
         BehavioralProfile::class => BehavioralProfilePolicy::class,
         Diagnosis::class => DiagnosisPolicy::class,
         FeedingPlan::class => FeedingPlanPolicy::class,
+
+        // Camp management
         Camp::class => CampPolicy::class,
         CampSession::class => CampSessionPolicy::class,
-        // Inbox Messaging System policies (explicit registration)
+
+        // Inbox messaging system policies
         Conversation::class => ConversationPolicy::class,
         Message::class => MessagePolicy::class,
-        // Role delegation governance policy
+
+        // Role delegation governance (super_admin only)
         Role::class => RolePolicy::class,
-        // User profile emergency contacts
+
+        // User-level (not camper-level) emergency contacts
         UserEmergencyContact::class => UserEmergencyContactPolicy::class,
-        // Medical staff treatment logs
+
+        // Medical staff treatment logs (Phase 6)
         TreatmentLog::class => TreatmentLogPolicy::class,
-        // Phase 11 medical portal models
+
+        // Phase 11: Full medical portal models
         MedicalIncident::class => MedicalIncidentPolicy::class,
         MedicalFollowUp::class => MedicalFollowUpPolicy::class,
         MedicalVisit::class => MedicalVisitPolicy::class,
@@ -108,12 +143,18 @@ class AppServiceProvider extends ServiceProvider
     ];
 
     /**
-     * Register any application services.
+     * Register application services.
+     *
+     * Called before boot(). Use this to bind things into the service container.
+     * Currently empty — all registrations are done in boot() for this provider.
      */
     public function register(): void {}
 
     /**
-     * Bootstrap any application services.
+     * Bootstrap application services.
+     *
+     * Called after all providers are registered. Wires up policies, observers,
+     * and rate limiters that the application needs to function correctly.
      */
     public function boot(): void
     {
@@ -123,7 +164,11 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register the application's policies.
+     * Register all model policies with Laravel's Gate.
+     *
+     * Iterates the $policies array above and calls Gate::policy() for each entry.
+     * After this runs, $gate->allows('update', $camper) will automatically find
+     * and call CamperPolicy::update().
      */
     protected function registerPolicies(): void
     {
@@ -133,11 +178,20 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register model observers for automatic risk reassessment.
+     * Register Eloquent model observers for automatic medical risk reassessment.
      *
-     * Observers trigger risk assessment recalculation when medical data
-     * changes, ensuring supervision levels remain accurate as camper
-     * conditions are updated.
+     * Observers are classes that "watch" a model and react when it changes.
+     * When a camper's medical data is modified (e.g. a new diagnosis is added),
+     * the observer automatically recalculates the camper's risk score and
+     * updates their supervision level — no manual recalculation needed.
+     *
+     * Models observed:
+     *  - Camper:           recalculates when base camper data changes
+     *  - MedicalRecord:    recalculates when seizure history or neurostimulator changes
+     *  - Diagnosis:        recalculates when a diagnosis is added/updated/removed
+     *  - BehavioralProfile: recalculates when behavioural risk flags change
+     *  - FeedingPlan:      recalculates when G-tube or feeding needs change
+     *  - AssistiveDevice:  recalculates when transfer-assistance needs change
      */
     protected function registerObservers(): void
     {
@@ -150,17 +204,28 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Configure rate limiting for the application.
+     * Configure named rate limiting rules for the application.
      *
-     * Implements strict rate limits for HIPAA-compliant operations
-     * to prevent brute-force attacks and resource exhaustion.
+     * These rules are referenced by name in routes/api.php using middleware('throttle:{name}').
+     * Each rule defines a maximum number of requests per time window, identified by
+     * either the authenticated user's ID or their IP address (for unauthenticated requests).
+     *
+     * Rules and their limits:
+     *  - api:            60 req/min  — general API rate limit for all authenticated routes
+     *  - auth:            5 req/min  — login/register (strict, prevents brute-force)
+     *  - provider-link:  10 req/5min — medical provider link creation (HIPAA protection)
+     *  - mfa:             5 req/min  — MFA verification (prevents code guessing)
+     *  - uploads:        10 req/hour — file uploads (prevents storage abuse)
+     *  - sensitive:      30 req/hour — sensitive operations (password change, data export)
      */
     protected function configureRateLimiting(): void
     {
+        // General API limit: 60 requests per minute per user (or IP if unauthenticated)
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Authentication limit: 5 requests per minute per IP — prevents brute-force attacks
         RateLimiter::for('auth', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip())
                 ->response(function () {
@@ -170,6 +235,7 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
+        // Provider link limit: 10 per 5 minutes per IP — prevents token farming
         RateLimiter::for('provider-link', function (Request $request) {
             return Limit::perMinutes(5, 10)->by($request->ip())
                 ->response(function () {
@@ -179,6 +245,7 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
+        // MFA limit: 5 per minute per user — prevents 6-digit code brute-forcing
         RateLimiter::for('mfa', function (Request $request) {
             return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip())
                 ->response(function () {
@@ -188,6 +255,7 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
+        // Upload limit: 10 per hour per user — prevents storage exhaustion attacks
         RateLimiter::for('uploads', function (Request $request) {
             return Limit::perHour(10)->by($request->user()?->id ?: $request->ip())
                 ->response(function () {
@@ -197,6 +265,7 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
+        // Sensitive operations limit: 30 per hour per user — covers password changes, data exports
         RateLimiter::for('sensitive', function (Request $request) {
             return Limit::perHour(30)->by($request->user()?->id ?: $request->ip())
                 ->response(function () {

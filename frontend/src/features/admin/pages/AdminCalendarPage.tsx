@@ -1,6 +1,20 @@
 /**
  * AdminCalendarPage.tsx
- * Admin calendar — all event types, create/edit/delete events.
+ *
+ * Purpose: Admin calendar for viewing and managing camp events across all event types.
+ * Route: /admin/calendar
+ *
+ * Responsibilities:
+ *  - Render a monthly grid calendar with navigation (prev/next/today).
+ *  - Show up to 2 event chips per day cell, with a "+N more" overflow indicator.
+ *  - Display an "Upcoming" sidebar listing the next 10 future events.
+ *  - Allow admins to create events via a modal (clicking any day pre-fills the start date).
+ *  - Allow deleting events directly from the upcoming sidebar.
+ *
+ * Plain-English summary:
+ *  Like a wall calendar that knows about camp. Clicking a blank day opens a "New Event" form
+ *  with that day pre-selected. Each event type gets its own color (deadlines = red, sessions = green,
+ *  etc.). The right sidebar shows the nearest upcoming events in order, each with a delete button.
  */
 
 import { useEffect, useState, type CSSProperties } from 'react';
@@ -18,6 +32,7 @@ import { SkeletonCard } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
 import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants, modalBackdrop, modalContent } from '@/shared/constants/motion';
 
+// Maps each event type to colors for background, text, dot indicator, and legend label.
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; label: string }> = {
   deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)',  label: 'Deadline'    },
   session:     { bg: 'rgba(22,163,74,0.10)',    text: '#16a34a',  dot: '#16a34a',  label: 'Session'     },
@@ -26,6 +41,7 @@ const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; l
   internal:    { bg: 'rgba(107,114,128,0.10)',  text: '#6b7280',  dot: '#6b7280',  label: 'Internal'    },
 };
 
+// Derives a flat array of {value, label} pairs from EVENT_COLORS for the legend and dropdown.
 const EVENT_TYPES = Object.entries(EVENT_COLORS).map(([value, meta]) => ({ value: value as EventType, label: meta.label }));
 
 interface EventFormState {
@@ -48,6 +64,7 @@ const DEFAULT_FORM: EventFormState = {
   audience: 'all',
 };
 
+// Returns consistent input styling; red border when hasErr is true (required field is empty).
 function inputStyle(hasErr = false) {
   return {
     width: '100%',
@@ -64,13 +81,17 @@ function inputStyle(hasErr = false) {
 export function AdminCalendarPage() {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
+  // Which month's grid to display.
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showModal, setShowModal]     = useState(false);
+  // The day the user clicked — used to pre-fill the event start date in the form.
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [form, setForm]               = useState<EventFormState>(DEFAULT_FORM);
   const [saving, setSaving]           = useState(false);
+  // Tracks which event is being deleted so we can show a spinner on its button.
   const [deletingId, setDeletingId]   = useState<number | null>(null);
 
+  // ── Fetch all events on mount ──────────────────────────────────────────────
   useEffect(() => {
     getCalendarEvents()
       .then(setEvents)
@@ -78,21 +99,30 @@ export function AdminCalendarPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // ── Calendar grid calculations ─────────────────────────────────────────────
+
+  // Generate an array of Date objects for every day in the current month.
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
     end:   endOfMonth(currentMonth),
   });
+  // How many empty cells to show before the 1st (0=Sunday, 1=Monday, etc.).
   const startWeekday = startOfMonth(currentMonth).getDay();
 
+  // Return events that fall on a given day.
   function eventsForDay(day: Date) {
     return events.filter((e) => isSameDay(new Date(e.starts_at), day));
   }
 
+  // Next 10 future events, sorted by start date ascending.
   const upcoming = events
     .filter((e) => new Date(e.starts_at) >= new Date())
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
     .slice(0, 10);
 
+  // ── Event actions ──────────────────────────────────────────────────────────
+
+  // Opens the create-event modal, optionally pre-filling the clicked day's date.
   function openNewEvent(day?: Date) {
     setForm({
       ...DEFAULT_FORM,
@@ -113,6 +143,7 @@ export function AdminCalendarPage() {
         title:       form.title.trim(),
         description: form.description || null,
         event_type:  form.event_type,
+        // Use the dot color for the event_type as the stored color.
         color:       EVENT_COLORS[form.event_type].dot,
         starts_at:   form.starts_at,
         ends_at:     form.ends_at || null,
@@ -121,6 +152,7 @@ export function AdminCalendarPage() {
         target_session_id: null,
       };
       const created = await createCalendarEvent(payload);
+      // Append new event to local state without re-fetching the whole list.
       setEvents((prev) => [...prev, created]);
       toast.success('Event created.');
       setShowModal(false);
@@ -135,6 +167,7 @@ export function AdminCalendarPage() {
     setDeletingId(id);
     try {
       await deleteCalendarEvent(id);
+      // Remove the deleted event from local state instantly.
       setEvents((prev) => prev.filter((e) => e.id !== id));
       toast.success('Event deleted.');
     } catch {
@@ -146,7 +179,7 @@ export function AdminCalendarPage() {
 
   return (
     <div className="flex flex-col gap-8 max-w-6xl">
-      {/* Header */}
+      {/* Page header with "Add Event" button */}
       <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
         <div className="flex items-start justify-between">
           <div>
@@ -168,10 +201,10 @@ export function AdminCalendarPage() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar grid */}
+        {/* Left: Calendar grid (takes 2 of 3 columns) */}
         <div className="lg:col-span-2">
           <div className="rounded-2xl border overflow-hidden" style={{ background: '#ffffff', borderColor: 'var(--border)' }}>
-            {/* Month nav */}
+            {/* Month navigation bar */}
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
               <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
                 {format(currentMonth, 'MMMM yyyy')}
@@ -185,6 +218,7 @@ export function AdminCalendarPage() {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
+                {/* Jump to current month instantly. */}
                 <button
                   onClick={() => setCurrentMonth(new Date())}
                   className="px-3 py-1 rounded-lg text-xs font-medium"
@@ -203,7 +237,7 @@ export function AdminCalendarPage() {
               </div>
             </div>
 
-            {/* Weekday labels */}
+            {/* Day-of-week header row */}
             <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)' }}>
               {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
                 <div key={d} className="py-2 text-center text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
@@ -212,11 +246,12 @@ export function AdminCalendarPage() {
               ))}
             </div>
 
-            {/* Days */}
+            {/* Day cells */}
             {loading ? (
               <div className="p-6"><SkeletonCard lines={4} /></div>
             ) : (
               <div className="grid grid-cols-7">
+                {/* Leading empty cells to align day 1 with the correct weekday column. */}
                 {Array.from({ length: startWeekday }).map((_, i) => (
                   <div key={`e-${i}`} className="h-20 border-b border-r" style={{ borderColor: 'var(--border)', background: 'rgba(0,0,0,0.01)' }} />
                 ))}
@@ -231,13 +266,16 @@ export function AdminCalendarPage() {
                       className="h-20 border-b border-r p-1.5 flex flex-col gap-0.5 overflow-hidden cursor-pointer transition-colors"
                       style={{
                         borderColor: 'var(--border)',
+                        // Today's cell gets a subtle green wash.
                         background: today ? 'rgba(22,163,74,0.04)' : '#ffffff',
                       }}
+                      // Clicking a day opens the create modal with that day pre-filled.
                       onClick={() => openNewEvent(day)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNewEvent(day); } }}
                       onMouseEnter={(e) => { if (!today) e.currentTarget.style.background = 'rgba(0,0,0,0.02)'; }}
                       onMouseLeave={(e) => { if (!today) e.currentTarget.style.background = '#ffffff'; }}
                     >
+                      {/* Date number — green circle for today. */}
                       <span
                         className="text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0"
                         style={{
@@ -247,6 +285,7 @@ export function AdminCalendarPage() {
                       >
                         {format(day, 'd')}
                       </span>
+                      {/* Show at most 2 event chips; events are small pills with type-based color. */}
                       {dayEvents.slice(0, 2).map((ev) => {
                         const s = EVENT_COLORS[ev.event_type] ?? EVENT_COLORS.internal;
                         return (
@@ -257,6 +296,7 @@ export function AdminCalendarPage() {
                             className="rounded px-1 text-[10px] font-medium truncate leading-4"
                             style={{ background: s.bg, color: s.text }}
                             title={ev.title}
+                            // Stop propagation so clicking a chip doesn't also open "new event".
                             onClick={(e) => e.stopPropagation()}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
                           >
@@ -264,6 +304,7 @@ export function AdminCalendarPage() {
                           </div>
                         );
                       })}
+                      {/* If more than 2 events, show "+N" overflow indicator. */}
                       {dayEvents.length > 2 && (
                         <div className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
                           +{dayEvents.length - 2}
@@ -276,7 +317,7 @@ export function AdminCalendarPage() {
             )}
           </div>
 
-          {/* Legend */}
+          {/* Color legend below the calendar grid */}
           <div className="flex flex-wrap gap-4 mt-3 px-1">
             {EVENT_TYPES.map(({ value, label }) => (
               <div key={value} className="flex items-center gap-1.5">
@@ -287,7 +328,7 @@ export function AdminCalendarPage() {
           </div>
         </div>
 
-        {/* Upcoming sidebar */}
+        {/* Right: Upcoming events sidebar */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -306,6 +347,7 @@ export function AdminCalendarPage() {
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No upcoming events.</p>
             </div>
           ) : (
+            // Stagger animation makes each event card slide in with a small delay after the previous.
             <motion.ul
               variants={staggerContainerVariants}
               initial="hidden"
@@ -322,6 +364,7 @@ export function AdminCalendarPage() {
                     style={{ background: '#ffffff', borderColor: 'var(--border)' }}
                   >
                     <div className="flex items-start gap-2">
+                      {/* Colored dot indicates the event type. */}
                       <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: s.dot }} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{ev.title}</p>
@@ -329,6 +372,7 @@ export function AdminCalendarPage() {
                           {format(new Date(ev.starts_at), 'MMM d, yyyy')}
                         </p>
                       </div>
+                      {/* Delete button with inline spinner when this event is being deleted. */}
                       <button
                         onClick={() => handleDelete(ev.id)}
                         disabled={deletingId === ev.id}
@@ -351,7 +395,7 @@ export function AdminCalendarPage() {
         </div>
       </div>
 
-      {/* Create event modal */}
+      {/* Create event modal — AnimatePresence enables the exit animation when it closes. */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -370,6 +414,7 @@ export function AdminCalendarPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
+                {/* Show the selected day in the modal title if the user clicked a specific day. */}
                 <h3 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
                   New Event{selectedDay && ` — ${format(selectedDay, 'MMM d')}`}
                 </h3>
@@ -387,6 +432,7 @@ export function AdminCalendarPage() {
                   <label htmlFor="cal-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
                   <input
                     id="cal-title"
+                    // Red border if title is empty (required field).
                     style={inputStyle(!form.title)}
                     placeholder="Event title"
                     value={form.title}
@@ -435,6 +481,7 @@ export function AdminCalendarPage() {
                   </div>
                 </div>
 
+                {/* Start and end date-time pickers side by side. */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="cal-starts-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Start *</label>

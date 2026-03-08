@@ -6,26 +6,36 @@ use App\Models\MedicalRecord;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
- * Observer for MedicalRecord model changes.
+ * MedicalRecordObserver — triggers automatic risk re-assessment when a camper's medical record changes.
  *
- * Triggers risk reassessment when medical record data changes,
- * particularly seizure status which significantly impacts
- * supervision requirements and risk scoring.
+ * The SpecialNeedsRiskAssessmentService calculates a holistic risk score for each camper based
+ * on their medical profile. This observer ensures the score stays up-to-date whenever the
+ * underlying data changes — without requiring manual calls scattered throughout the codebase.
+ *
+ * Why MedicalRecord changes matter for risk:
+ *   The medical record stores core clinical flags like seizure history, which is one of the
+ *   most significant factors for determining supervision requirements at camp.
+ *
+ * Registered in AppServiceProvider with MedicalRecord::observe(MedicalRecordObserver::class).
  */
 class MedicalRecordObserver
 {
     /**
-     * Handle the MedicalRecord "saved" event.
+     * Trigger a risk re-assessment after the medical record is created or updated.
      *
-     * Reassesses risk when medical record is created or updated,
-     * as changes to seizure status or other medical conditions
-     * may alter supervision requirements.
+     * Laravel fires the "saved" event for both "created" and "updated" operations,
+     * so this single hook covers all write scenarios without duplication.
+     *
+     * The guard ($camper check) prevents errors in edge cases where the medical record
+     * exists in the database but the associated camper has been deleted.
      */
     public function saved(MedicalRecord $medicalRecord): void
     {
+        // Load the associated camper to pass to the risk assessment service
         $camper = $medicalRecord->camper;
 
         if ($camper) {
+            // Re-score the camper's overall risk level based on all current medical data
             app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
         }
     }

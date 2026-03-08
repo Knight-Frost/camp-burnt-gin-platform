@@ -6,42 +6,52 @@ use App\Models\AssistiveDevice;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 
 /**
- * Observer for AssistiveDevice model changes.
+ * AssistiveDeviceObserver — triggers automatic risk re-assessment when a camper's assistive devices change.
  *
- * Triggers risk reassessment when assistive devices are added,
- * modified, or removed, particularly when transfer assistance
- * requirements change which impact staffing and risk scoring.
+ * Assistive devices that require transfer assistance (e.g., wheelchair users who need to be
+ * physically moved between surfaces) add to medical complexity and care burden.
+ * When devices are added, modified, or removed, the camper's risk score needs recalculation.
+ *
+ * Examples of when this matters:
+ *   - A wheelchair is added with transfer assistance required → risk score increases
+ *   - A cane is added with no transfer assistance → minimal risk impact
+ *   - A device is removed after the camper's mobility improves → risk score may drop
+ *
+ * Registered in AppServiceProvider with AssistiveDevice::observe(AssistiveDeviceObserver::class).
  */
 class AssistiveDeviceObserver
 {
     /**
-     * Handle the AssistiveDevice "saved" event.
+     * Trigger a risk re-assessment when an assistive device is created or updated.
      *
-     * Reassesses risk when an assistive device is created or updated,
-     * as transfer assistance requirements contribute to risk scoring
-     * and may affect supervision needs.
+     * "saved" fires for both INSERT (new device) and UPDATE (device info changed,
+     * e.g., transfer assistance requirement toggled on or off).
      */
     public function saved(AssistiveDevice $assistiveDevice): void
     {
+        // Navigate from the device to its parent camper
         $camper = $assistiveDevice->camper;
 
         if ($camper) {
+            // Re-score the camper — device changes may affect transfer assistance burden
             app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
         }
     }
 
     /**
-     * Handle the AssistiveDevice "deleted" event.
+     * Trigger a risk re-assessment when an assistive device is removed.
      *
-     * Reassesses risk when an assistive device is removed, as this
-     * may reduce transfer assistance requirements and potentially
-     * lower the camper's overall risk score.
+     * If the removed device required transfer assistance, the camper's risk score
+     * should decrease. The observer ensures this reduction is captured immediately.
+     *
+     * Note: the camper relationship is still accessible during the "deleted" event.
      */
     public function deleted(AssistiveDevice $assistiveDevice): void
     {
         $camper = $assistiveDevice->camper;
 
         if ($camper) {
+            // Re-score after deletion — removing a high-burden device may lower the risk level
             app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
         }
     }

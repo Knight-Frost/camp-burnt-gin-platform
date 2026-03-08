@@ -12,13 +12,29 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Controller for report generation.
+ * ReportController — Administrative reporting and CSV export.
  *
- * Provides administrative reports as downloadable CSV files.
- * Implements FR-16, FR-17, FR-18: Report generation requirements.
+ * This controller provides two categories of output:
+ *
+ *   1. summary() — A JSON dashboard of aggregate counts and timelines for the
+ *      AdminReportsPage overview (no download required).
+ *
+ *   2. CSV downloads — Individual report endpoints that stream application or
+ *      camper data as downloadable CSV files for offline use (mail merge,
+ *      spreadsheet analysis, ID badge printing, etc.).
+ *
+ * All endpoints require the admin or super_admin role (enforced via the
+ * ApplicationPolicy viewAny gate). The heavy SQL work is delegated to
+ * ReportService to keep this controller focused on HTTP concerns.
+ *
+ * CSV files include a UTF-8 BOM so Excel on Windows opens them correctly
+ * without garbling accented characters in names.
+ *
+ * Implements FR-16 (summary stats), FR-17 (CSV downloads), FR-18 (letters).
  */
 class ReportController extends Controller
 {
+    // ReportService encapsulates the complex queries for each report type.
     public function __construct(
         protected ReportService $reportService
     ) {}
@@ -26,15 +42,29 @@ class ReportController extends Controller
     /**
      * Summary statistics for the Reports dashboard.
      *
-     * Returns aggregate counts for campers, applications (by status),
-     * and session enrollment — consumed by AdminReportsPage.
+     * GET /api/reports/summary
+     *
+     * Returns aggregate counts for the overview cards on AdminReportsPage:
+     *   - total campers and applications
+     *   - applications broken down by status
+     *   - enrollment numbers per session
+     *   - application submission timeline (monthly counts for the chart)
+     *
+     * Step-by-step:
+     *   1. Authorize via ApplicationPolicy viewAny (admin+).
+     *   2. Run a GROUP BY query to get per-status application counts.
+     *   3. Fetch all sessions with their application counts (withCount).
+     *   4. Build a monthly timeline of submitted_at dates for the line chart.
      */
     public function summary(): JsonResponse
     {
+        // Reuse ApplicationPolicy viewAny to guard this endpoint — both controllers deal with app data.
         $this->authorize('viewAny', Application::class);
 
+        // selectRaw with GROUP BY produces a flat map of status → count without loading all rows.
         $apps = Application::selectRaw('status, COUNT(*) as count')->groupBy('status')->pluck('count', 'status');
 
+        // withCount('applications') adds an applications_count column without a subquery.
         $sessions = CampSession::withCount('applications')->get()->map(fn ($s) => [
             'id'         => $s->id,
             'name'       => $s->name,
@@ -42,6 +72,8 @@ class ReportController extends Controller
             'enrolled'   => $s->applications_count,
         ]);
 
+        // Build a monthly timeline of submission counts for the trend chart on the dashboard.
+        // whereNotNull filters out draft applications that were never submitted.
         $timeline = Application::selectRaw("DATE_FORMAT(submitted_at, '%Y-%m') as month, COUNT(*) as count")
             ->whereNotNull('submitted_at')
             ->groupBy('month')
@@ -54,8 +86,11 @@ class ReportController extends Controller
             'data' => [
                 'total_campers'              => Camper::count(),
                 'total_applications'         => Application::count(),
+                // Full breakdown map, e.g. {"pending": 12, "accepted": 45, "rejected": 3}
                 'applications_by_status'     => $apps,
+                // Individual status shortcuts for the dashboard counter cards.
                 'accepted_applications'      => $apps['accepted'] ?? 0,
+                // Group pending, submitted, and under_review together as "awaiting action".
                 'pending_applications'       => ($apps['pending'] ?? 0) + ($apps['submitted'] ?? 0) + ($apps['under_review'] ?? 0),
                 'rejected_applications'      => $apps['rejected'] ?? 0,
                 'sessions'                   => $sessions,
@@ -67,15 +102,22 @@ class ReportController extends Controller
     /**
      * Build a CSV StreamedResponse from headers and rows.
      *
-     * @param  list<string>          $headers
-     * @param  list<list<mixed>>     $rows
+     * A StreamedResponse writes the CSV directly to the HTTP output buffer row
+     * by row instead of building the entire string in memory first. This is
+     * important for large reports — it keeps memory usage flat.
+     *
+     * @param  list<string>          $headers  Column header labels for the first row.
+     * @param  list<list<mixed>>     $rows     Data rows; each item is an array of cell values.
+     * @param  string                $filename Suggested download filename.
      */
     private function csvResponse(array $headers, array $rows, string $filename): StreamedResponse
     {
         return response()->streamDownload(function () use ($headers, $rows) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders special characters correctly
+            // Write the header row (column names) first.
             fputcsv($handle, $headers);
+            // Write each data row — fputcsv handles quoting and escaping automatically.
             foreach ($rows as $row) {
                 fputcsv($handle, $row);
             }
@@ -87,15 +129,22 @@ class ReportController extends Controller
 
     /**
      * Download applications report as CSV.
+     *
+     * GET /api/reports/applications
+     *
+     * Optional filters: status, camp_session_id, date_from, date_to.
+     * Each row represents one application with camper, parent, session, and review info.
      */
     public function applications(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
+        // Pass only the relevant keys to the service — never forward the full request.
         $filters = $request->only(['status', 'camp_session_id', 'date_from', 'date_to']);
         $report = $this->reportService->generateApplicationsReport($filters);
 
         $headers = ['ID', 'Camper Name', 'Parent Name', 'Parent Email', 'Camp Session', 'Camp Name', 'Status', 'Submitted At', 'Reviewed At', 'Reviewer'];
+        // Map each report record to an ordered array that matches the header column positions.
         $rows = collect($report['data'])->map(fn ($r) => [
             $r['id'],
             $r['camper_name'],
@@ -109,11 +158,17 @@ class ReportController extends Controller
             $r['reviewer'] ?? '',
         ])->toArray();
 
+        // Include today's date in the filename so downloaded files are easy to tell apart.
         return $this->csvResponse($headers, $rows, 'applications-'.now()->format('Y-m-d').'.csv');
     }
 
     /**
      * Download accepted applicants report as CSV.
+     *
+     * GET /api/reports/accepted-applicants
+     *
+     * Optional filter: camp_session_id.
+     * Useful for producing enrollment rosters and session check-in lists.
      */
     public function acceptedApplicants(Request $request): StreamedResponse
     {
@@ -127,6 +182,7 @@ class ReportController extends Controller
             $r['camper_id'],
             $r['camper_name'],
             $r['date_of_birth'],
+            // Age is pre-calculated by the service from date_of_birth.
             $r['age'],
             $r['parent_name'],
             $r['parent_email'],
@@ -140,6 +196,11 @@ class ReportController extends Controller
 
     /**
      * Download rejected applicants report as CSV.
+     *
+     * GET /api/reports/rejected-applicants
+     *
+     * Optional filter: camp_session_id.
+     * Includes admin review notes so staff have context when following up.
      */
     public function rejectedApplicants(Request $request): StreamedResponse
     {
@@ -156,6 +217,7 @@ class ReportController extends Controller
             $r['parent_email'],
             $r['camp_session'],
             $r['rejected_at'] ?? '',
+            // Notes may be empty if the reviewer didn't leave a reason.
             $r['notes'] ?? '',
         ])->toArray();
 
@@ -164,11 +226,18 @@ class ReportController extends Controller
 
     /**
      * Download mailing labels as CSV.
+     *
+     * GET /api/reports/mailing-labels
+     *
+     * Optional filters: status, camp_session_id.
+     * Produces a minimal three-column file (recipient name, camper name, email)
+     * ready for import into a mail merge tool for sending physical letters.
      */
     public function mailingLabels(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
+        // Validate optional filter inputs before they reach the service.
         $request->validate([
             'status' => ['nullable', 'string'],
             'camp_session_id' => ['nullable', 'exists:camp_sessions,id'],
@@ -177,6 +246,7 @@ class ReportController extends Controller
         $labels = $this->reportService->generateMailingLabels($request->only(['status', 'camp_session_id']));
 
         $headers = ['Recipient Name', 'Camper Name', 'Email'];
+        // Map each label record to the three expected columns.
         $rows = array_map(fn ($r) => [$r['recipient_name'], $r['camper_name'], $r['email']], $labels);
 
         return $this->csvResponse($headers, $rows, 'mailing-labels-'.now()->format('Y-m-d').'.csv');
@@ -185,16 +255,22 @@ class ReportController extends Controller
     /**
      * Download identification labels as CSV.
      *
-     * camp_session_id is optional; omitting it returns labels for all approved campers.
+     * GET /api/reports/id-labels
+     *
+     * Optional filter: camp_session_id (omit to get all approved campers).
+     * Includes severe allergy information so ID lanyards can carry medical alerts.
+     * This CSV is intended for printing wristbands or lanyard inserts for campers.
      */
     public function idLabels(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
 
         $request->validate([
+            // camp_session_id must reference a real session if provided.
             'camp_session_id' => ['nullable', 'exists:camp_sessions,id'],
         ]);
 
+        // Convert 0 (when no session selected) to null so the service returns all sessions.
         $campSessionId = $request->integer('camp_session_id') ?: null;
         $labels = $this->reportService->generateIdLabels($campSessionId);
 
@@ -204,7 +280,9 @@ class ReportController extends Controller
             $r['date_of_birth'],
             $r['age'],
             $r['session_name'],
+            // Convert boolean to a human-readable "Yes"/"No" for the CSV cell.
             $r['has_severe_allergies'] ? 'Yes' : 'No',
+            // Join multiple allergens with a semicolon so the cell stays readable in Excel.
             implode('; ', $r['severe_allergies']),
         ], $labels);
 

@@ -11,35 +11,61 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Controller for camp session management.
+ * CampSessionController — manages individual camp session records.
  *
- * Provides camp session listing and admin management capabilities.
+ * A CampSession is a specific date window within a camp program (e.g., "Week 1: June 2–8, 2026").
+ * Sessions are the actual objects that families apply to — they have capacity limits, registration
+ * open/close dates, and are linked to one parent Camp.
+ *
+ * Authorization rules:
+ *   - Viewing: any authenticated user; non-admins only see active sessions
+ *   - Filtering: supports camp_id and available_only query parameters for the applicant portal
+ *   - Creating, updating, deleting: admin and super_admin only (enforced via CampSessionPolicy)
+ *
+ * Routes:
+ *   GET    /api/sessions              — list sessions (paginated, filterable)
+ *   GET    /api/sessions/{session}    — show a single session with its parent camp
+ *   POST   /api/sessions              — create a session (admin)
+ *   PUT    /api/sessions/{session}    — update a session (admin)
+ *   DELETE /api/sessions/{session}    — delete a session (admin)
  */
 class CampSessionController extends Controller
 {
     /**
-     * Display a listing of camp sessions.
+     * Display a paginated list of camp sessions.
+     *
+     * Supports three optional query filters:
+     *   ?camp_id=X         — limit to sessions belonging to a specific camp
+     *   ?available_only=1  — only show sessions currently open for registration
+     *
+     * Admins see all sessions; non-admins see only active ones.
+     * Results are ordered by start_date ascending (soonest first) for the applicant portal.
      */
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', CampSession::class);
 
+        // Each session includes its parent camp so the frontend can display the camp name
         $query = CampSession::with('camp');
 
+        // Non-admins should not see inactive/hidden sessions in the portal
         if (! $request->user()->isAdmin()) {
             $query->where('is_active', true);
         }
 
+        // Allow frontend to scope to one specific camp's sessions
         if ($request->filled('camp_id')) {
             $query->where('camp_id', $request->camp_id);
         }
 
+        // Filter to sessions where registration is currently open (between open and close dates)
         if ($request->boolean('available_only')) {
             $query->where('registration_opens_at', '<=', now())
                 ->where('registration_closes_at', '>=', now());
         }
 
         // PERFORMANCE: Paginate to prevent loading all sessions at once
+        // Order by start_date so the soonest upcoming session appears first
         $sessions = $query->orderBy('start_date')
             ->paginate(config('app.pagination_per_page', 15));
 
@@ -47,10 +73,14 @@ class CampSessionController extends Controller
     }
 
     /**
-     * Display the specified camp session.
+     * Display a single camp session with its parent camp loaded.
+     *
+     * The parent camp is eager-loaded so the session detail page can show the camp name
+     * and description without a second API call.
      */
     public function show(CampSession $session): JsonResponse
     {
+        // Eager-load the parent camp to avoid an N+1 query when rendering the detail view
         $session->load('camp');
 
         return response()->json([
@@ -59,40 +89,54 @@ class CampSessionController extends Controller
     }
 
     /**
-     * Store a newly created camp session.
+     * Create a new camp session.
+     *
+     * Validation is fully handled by StoreCampSessionRequest before this method runs.
+     * The request class enforces things like valid date ranges, capacity minimums, etc.
      */
     public function store(StoreCampSessionRequest $request): JsonResponse
     {
+        // CampSessionPolicy::create restricts this to admin and super_admin roles
         $this->authorize('create', CampSession::class);
 
+        // Mass-assign only the validated, safe fields from StoreCampSessionRequest
         $session = CampSession::create($request->validated());
 
+        // 201 Created indicates a new resource was successfully persisted
         return response()->json([
             'message' => 'Camp session created successfully.',
-            'data' => $session,
+            'data'    => $session,
         ], Response::HTTP_CREATED);
     }
 
     /**
-     * Update the specified camp session.
+     * Update an existing camp session.
+     *
+     * UpdateCampSessionRequest validates the incoming fields. Partial updates are supported —
+     * only the fields present in the request will be changed.
      */
     public function update(UpdateCampSessionRequest $request, CampSession $session): JsonResponse
     {
+        // CampSessionPolicy::update restricts this to admin and super_admin roles
         $this->authorize('update', $session);
 
         $session->update($request->validated());
 
         return response()->json([
             'message' => 'Camp session updated successfully.',
-            'data' => $session,
+            'data'    => $session,
         ]);
     }
 
     /**
-     * Remove the specified camp session.
+     * Delete a camp session.
+     *
+     * This should be done with caution — deleting a session with existing applications
+     * may break applicant records. Consider deactivating (is_active = false) instead.
      */
     public function destroy(CampSession $session): JsonResponse
     {
+        // CampSessionPolicy::delete restricts this to admin and super_admin roles
         $this->authorize('delete', $session);
 
         $session->delete();

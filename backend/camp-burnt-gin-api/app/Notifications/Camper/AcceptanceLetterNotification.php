@@ -8,21 +8,33 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * Notification for sending acceptance letters.
+ * AcceptanceLetterNotification — the formal acceptance email sent when an application is approved.
  *
- * Formal acceptance letter sent when an application is approved.
- * Implements FR-18: Digital acceptance letters.
+ * This is a significant communication milestone — it tells the family their camper has been accepted.
+ * The email includes camp name, session name, dates, location, and a link to the application details
+ * so the family can review next steps and complete any outstanding forms.
+ *
+ * Implements FR-18: Digital acceptance letters must be sent when an application is approved.
+ *
+ * The notification is sent to the applicant user (the parent/guardian) who owns the application.
+ * Channel: mail only — the formal letter is delivered by email, not as an in-app notification.
+ * Queue: uses Queueable so the email sends asynchronously without slowing the admin UI.
  */
 class AcceptanceLetterNotification extends Notification
 {
     use Queueable;
 
+    /**
+     * Accept the approved application so its session, camp, and camper details can be referenced.
+     */
     public function __construct(
         protected Application $application
     ) {}
 
     /**
-     * Get the notification's delivery channels.
+     * Get the delivery channels for this notification.
+     *
+     * Acceptance letters are sent by email only — this is the formal acceptance document.
      *
      * @return array<int, string>
      */
@@ -32,12 +44,16 @@ class AcceptanceLetterNotification extends Notification
     }
 
     /**
-     * Get the mail representation of the notification.
+     * Build the acceptance letter email.
+     *
+     * Loads session and camp details from the application and constructs a warm,
+     * professional letter with all the information families need to prepare for camp.
      */
     public function toMail(object $notifiable): MailMessage
     {
+        // Load the session and its parent camp to fill in the letter details
         $session = $this->application->campSession;
-        $camp = $session->camp;
+        $camp    = $session->camp;
 
         return (new MailMessage)
             ->subject('Congratulations! Application Accepted - '.$camp->name)
@@ -47,10 +63,12 @@ class AcceptanceLetterNotification extends Notification
             ->line('**Camp Details:**')
             ->line('Camp: '.$camp->name)
             ->line('Session: '.$session->name)
+            // Format dates as "June 2 - June 8, 2026" for readability
             ->line('Dates: '.$session->start_date->format('F j').' - '.$session->end_date->format('F j, Y'))
             ->line('Location: '.$camp->location)
             ->line('')
             ->line('Please review the camp information and ensure all required forms are completed before the session begins.')
+            // Deep link to the specific application so the family can see their details
             ->action('View Application Details', config('app.frontend_url').'/applications/'.$this->application->id)
             ->line('')
             ->line('We look forward to seeing '.$this->application->camper->first_name.' at camp!')

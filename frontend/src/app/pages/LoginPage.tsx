@@ -1,12 +1,17 @@
 /**
  * LoginPage.tsx
- * Two-phase login form:
- *   Phase 1 — email + password → POST /api/auth/login
- *   Phase 2 — MFA code input   → POST /api/auth/login again with mfa_code
  *
- * When the backend returns { mfa_required: true }, credentials are kept in
- * component state (never persisted) and the form switches to the MFA step.
- * On MFA submit, we call login({ email, password, mfa_code }) to get a full token.
+ * Purpose: The main sign-in page for Camp Burnt Gin.
+ * Responsibilities:
+ *   - Phase 1: Collects email + password, sends to POST /api/auth/login.
+ *   - Phase 2: If the server says MFA is required, switches to a 6-box
+ *     one-time-code entry form and re-submits with the code.
+ *   - On success: saves the token in sessionStorage, hydrates Redux auth
+ *     state, and navigates the user to their role-specific dashboard.
+ *
+ * Why two phases in one page?
+ *   The URL stays the same (/login) for both steps, which keeps the browser
+ *   history clean and prevents back-button weirdness during MFA entry.
  */
 
 import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
@@ -28,8 +33,14 @@ import { isValidationError, isLockoutError, isRateLimitError } from '@/shared/ty
 import { useTranslation } from 'react-i18next';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 
+// How many individual digit boxes the MFA input renders (always 6 for TOTP codes).
 const CODE_LENGTH = 6;
 
+/**
+ * Builds the CSS class string for text inputs.
+ * @param hasError  - turns the border red when true
+ * @param extra     - any additional Tailwind classes to append
+ */
 function inputCls(hasError: boolean, extra = '') {
   return [
     'w-full pl-11 py-3.5 rounded-xl border outline-none bg-white',
@@ -45,18 +56,25 @@ export function LoginPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  // Phase 1 state
+  // ── Phase 1 local state ────────────────────────────────────────────────────
+
+  // Controls whether the password field shows plain text or dots.
   const [showPassword,   setShowPassword]   = useState(false);
+  // When the account is locked out, we display a countdown and disable submit.
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
-  // Phase 2: MFA state — credentials held in ref (not Redux, not localStorage)
+  // ── Phase 2: MFA state ─────────────────────────────────────────────────────
+  // Credentials are stored in a ref (in memory only) — never written to Redux,
+  // localStorage, or sessionStorage — so they disappear if the tab closes.
   const mfaCredentials  = useRef<{ email: string; password: string } | null>(null);
+  // Array of refs so we can programmatically focus each individual digit box.
   const inputRefs       = useRef<(HTMLInputElement | null)[]>([]);
   const [mfaStep,       setMfaStep]         = useState(false);
   const [mfaDigits,     setMfaDigits]       = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [mfaError,      setMfaError]        = useState<string | null>(null);
   const [mfaSubmitting, setMfaSubmitting]   = useState(false);
 
+  // react-hook-form wired to the Zod schema — handles validation automatically.
   const {
     register,
     handleSubmit,
@@ -70,35 +88,44 @@ export function LoginPage() {
     try {
       const response = await login(values);
 
+      // Server says the user has MFA enabled — switch to digit-entry view.
       if (response.mfa_required) {
-        // Store credentials in memory only, switch to MFA step
+        // Keep credentials in memory so Phase 2 can include them in the second call.
         mfaCredentials.current = { email: values.email, password: values.password };
         setMfaStep(true);
         setMfaDigits(Array(CODE_LENGTH).fill(''));
         setMfaError(null);
+        // Small delay so the DOM has time to render before we steal focus.
         setTimeout(() => inputRefs.current[0]?.focus(), 120);
         return;
       }
 
+      // Normal login (no MFA) — write token and user to session + Redux.
       const { user, token } = response.data!;
+      // sessionStorage is tab-isolated; using it lets multiple roles be tested side by side.
       sessionStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
+      // hydrateAuth syncs the Redux slice with the token in sessionStorage.
       dispatch(hydrateAuth());
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
+      // Send the user to the dashboard that matches their primary role.
       const role = getPrimaryRole((user as User).roles ?? []);
       if (role) navigate(getDashboardRoute(role));
 
     } catch (error) {
+      // Account temporarily locked (too many failed attempts).
       if (isLockoutError(error)) {
         setLockoutSeconds(error.retryAfter);
         toast.error(`Account locked. Try again in ${error.retryAfter} seconds.`);
         return;
       }
+      // Generic rate-limit (IP-level throttle, not account lockout).
       if (isRateLimitError(error)) {
         toast.error(`Too many attempts. Please wait ${error.retryAfter} seconds.`);
         return;
       }
+      // Field-level validation errors from the server — map them to the form.
       if (isValidationError(error)) {
         Object.entries(error.errors).forEach(([field, messages]) => {
           setError(field as keyof LoginFormValues, { message: messages[0] });
@@ -111,22 +138,38 @@ export function LoginPage() {
 
   // ── Phase 2: MFA digit input handlers ───────────────────────────────────────
 
+  /**
+   * Called whenever a user types in one of the six digit boxes.
+   * Only allows a single numeric digit; auto-advances to the next box;
+   * auto-submits when all six boxes are filled.
+   */
   const handleMfaChange = (index: number, value: string) => {
+    // Reject anything that is not a single digit (or empty, for deletion).
     if (!/^\d?$/.test(value)) return;
     setMfaError(null);
     const updated = [...mfaDigits];
     updated[index] = value;
     setMfaDigits(updated);
+    // Move focus forward after a digit is entered.
     if (value && index < CODE_LENGTH - 1) inputRefs.current[index + 1]?.focus();
+    // All six boxes filled — auto-verify without requiring a button click.
     if (updated.every((d) => d !== '') && value) void handleMfaVerify(updated.join(''));
   };
 
+  /**
+   * Handles Backspace key: if the current box is already empty, jump
+   * focus back to the previous box so the user can fix a mistake easily.
+   */
   const handleMfaKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !mfaDigits[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
 
+  /**
+   * Handles paste events — strips non-digits, fills all boxes at once,
+   * and auto-submits if a complete 6-digit code was pasted.
+   */
   const handleMfaPaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH);
@@ -138,6 +181,11 @@ export function LoginPage() {
     if (pasted.length === CODE_LENGTH) void handleMfaVerify(pasted);
   };
 
+  /**
+   * Sends the full 6-digit code back to the server along with the original
+   * email/password (Phase 2 login call). On success, clears credentials from
+   * memory and navigates to the user's dashboard.
+   */
   const handleMfaVerify = async (code: string) => {
     if (!mfaCredentials.current) return;
     setMfaSubmitting(true);
@@ -145,7 +193,8 @@ export function LoginPage() {
     try {
       const response = await login({ ...mfaCredentials.current, mfa_code: code });
       const { user, token } = response.data!;
-      mfaCredentials.current = null; // clear from memory
+      // Wipe credentials from memory immediately after a successful verification.
+      mfaCredentials.current = null;
       sessionStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
@@ -156,6 +205,7 @@ export function LoginPage() {
     } catch (err) {
       const msg = (err as { message?: string })?.message ?? 'Invalid code. Please try again.';
       setMfaError(msg);
+      // Clear the digit boxes and refocus the first one for a fresh attempt.
       setMfaDigits(Array(CODE_LENGTH).fill(''));
       setTimeout(() => inputRefs.current[0]?.focus(), 60);
     } finally {
@@ -163,10 +213,12 @@ export function LoginPage() {
     }
   };
 
+  // Join the six individual digit strings into one code string for the button.
   const mfaCode = mfaDigits.join('');
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
+  // Phase 2 UI: render only the MFA digit entry, not the email/password form.
   if (mfaStep) {
     return (
       <AuthCard
@@ -174,6 +226,7 @@ export function LoginPage() {
         subtitle={t('auth.mfa.description')}
       >
         <div className="flex flex-col items-center gap-8">
+          {/* Animated shield icon to make the MFA step feel trustworthy */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -184,7 +237,7 @@ export function LoginPage() {
             <ShieldCheck className="h-8 w-8" style={{ color: '#1e3a6e' }} />
           </motion.div>
 
-          {/* Digit inputs */}
+          {/* Six individual digit boxes; each is linked via inputRefs for focus management */}
           <div className="flex gap-3" role="group" aria-label="MFA code">
             {mfaDigits.map((digit, index) => (
               <input
@@ -202,6 +255,7 @@ export function LoginPage() {
                 style={{
                   background: '#f8fafc',
                   color: '#1e293b',
+                  // Red border on error; navy when a digit is filled; light gray when empty.
                   borderColor: mfaError ? '#f87171' : digit ? '#1e3a6e' : '#d1dce8',
                   fontSize: '1.375rem',
                 }}
@@ -209,6 +263,7 @@ export function LoginPage() {
             ))}
           </div>
 
+          {/* Error message animates in/out smoothly so it doesn't cause layout jumps */}
           <AnimatePresence>
             {mfaError && (
               <motion.p
@@ -223,6 +278,7 @@ export function LoginPage() {
             )}
           </AnimatePresence>
 
+          {/* Submit button — disabled until all 6 boxes are filled */}
           <button
             type="button"
             disabled={mfaCode.length < CODE_LENGTH || mfaSubmitting}
@@ -233,6 +289,7 @@ export function LoginPage() {
             {mfaSubmitting ? t('common.loading') : t('auth.mfa.submit')}
           </button>
 
+          {/* "Back" link — clears in-memory credentials and returns to Phase 1 */}
           <button
             type="button"
             onClick={() => { setMfaStep(false); mfaCredentials.current = null; setMfaDigits(Array(CODE_LENGTH).fill('')); }}
@@ -246,6 +303,7 @@ export function LoginPage() {
     );
   }
 
+  // Phase 1 UI: the standard email + password login form.
   return (
     <AuthCard
       title={t('auth.login.title')}
@@ -259,14 +317,16 @@ export function LoginPage() {
         </p>
       }
     >
+      {/* noValidate disables browser-native validation so our Zod schema is always in control */}
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
 
-        {/* ── Email ── */}
+        {/* ── Email field ── */}
         <div className="flex flex-col gap-2">
           <label htmlFor="login-email" className="font-semibold text-[#1e293b]" style={{ fontSize: '0.9375rem' }}>
             {t('auth.login.email_label')}
           </label>
           <div className="relative">
+            {/* Icon is positioned absolutely inside the input wrapper, pointer-events-none so it doesn't interfere with typing */}
             <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 pointer-events-none" style={{ width: '1.125rem', height: '1.125rem' }} />
             <input
               id="login-email"
@@ -284,12 +344,13 @@ export function LoginPage() {
           )}
         </div>
 
-        {/* ── Password ── */}
+        {/* ── Password field ── */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label htmlFor="login-password" className="font-semibold text-[#1e293b]" style={{ fontSize: '0.9375rem' }}>
               {t('auth.login.password_label')}
             </label>
+            {/* Forgot password link lives next to the label for easy discovery */}
             <Link
               to={ROUTES.FORGOT_PASSWORD}
               className="text-slate-500 hover:text-[#1e3a6e] transition-colors"
@@ -302,6 +363,7 @@ export function LoginPage() {
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" style={{ width: '1.125rem', height: '1.125rem' }} />
             <input
               id="login-password"
+              // Toggle between password (hidden) and text (visible) based on showPassword state.
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder={t('auth.login.password_placeholder')}
@@ -310,6 +372,7 @@ export function LoginPage() {
               style={{ fontSize: '0.9375rem' }}
               {...register('password')}
             />
+            {/* Eye icon toggles visibility; aria-label updates to match current state */}
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
@@ -325,7 +388,7 @@ export function LoginPage() {
           )}
         </div>
 
-        {/* ── Lockout alert ── */}
+        {/* ── Lockout alert — only visible after too many failed attempts ── */}
         {lockoutSeconds > 0 && (
           <div
             className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700"
@@ -336,7 +399,7 @@ export function LoginPage() {
           </div>
         )}
 
-        {/* ── Submit ── */}
+        {/* ── Submit button — disabled during submission or lockout ── */}
         <button
           type="submit"
           disabled={isSubmitting || lockoutSeconds > 0}
@@ -346,7 +409,7 @@ export function LoginPage() {
           {isSubmitting ? t('common.loading') : t('auth.login.submit')}
         </button>
 
-        {/* ── HIPAA notice ── */}
+        {/* ── HIPAA compliance notice — reassures users their data is protected ── */}
         <div className="flex items-center justify-center gap-2 pt-1">
           <ShieldCheck className="flex-shrink-0 text-slate-400" style={{ width: '1rem', height: '1rem' }} />
           <p className="text-center text-slate-400" style={{ fontSize: '0.8125rem' }}>

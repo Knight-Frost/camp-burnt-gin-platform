@@ -1,10 +1,18 @@
 /**
  * AdminDocumentsPage.tsx
  *
- * Admin document inbox — view, verify, and download all documents
- * submitted by applicants. Organized with filters and status indicators.
+ * Purpose: Admin document inbox — view, verify, and download all documents
+ *          submitted by applicants.
+ * Responsibilities:
+ *   - Fetch paginated documents from the API with search + verification_status filters
+ *   - Debounce text search (300ms) while applying dropdown filter changes immediately
+ *   - Allow admins to approve or reject individual documents inline
+ *   - Allow admins to download documents (blocked if security scan failed)
+ *   - Display verification badge, scan status badge, uploader name, and camper name per row
  *
- * Route: /admin/documents
+ * Plain-English: Think of this page as a mail room where every document a
+ * parent uploads lands first. Admins can stamp each one "Approved", "Rejected",
+ * or download it to read it — but only after it passes the security scanner.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -40,6 +48,7 @@ import { staggerContainerVariants, staggerChildVariants } from '@/shared/constan
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Converts raw byte count into a human-readable string (B / KB / MB)
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -48,6 +57,7 @@ function formatBytes(bytes: number): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// Shows a red PDF icon for PDFs and a blue generic icon for everything else
 function FileIcon({ mime }: { mime: string }) {
   const isPdf = mime === 'application/pdf';
   return (
@@ -63,6 +73,7 @@ function FileIcon({ mime }: { mime: string }) {
   );
 }
 
+// Color-coded pill showing the admin's verification decision
 function VerificationBadge({ status }: { status: AdminDocument['verification_status'] }) {
   if (status === 'approved') {
     return (
@@ -80,6 +91,7 @@ function VerificationBadge({ status }: { status: AdminDocument['verification_sta
       </span>
     );
   }
+  // Default: pending — not yet acted on
   return (
     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
       style={{ background: 'rgba(245,158,11,0.12)', color: '#b45309' }}>
@@ -88,6 +100,7 @@ function VerificationBadge({ status }: { status: AdminDocument['verification_sta
   );
 }
 
+// Shows a "Failed scan" or "Scanning" badge; returns null when the scan passed (no badge needed)
 function ScanBadge({ scanPassed }: { scanPassed: boolean | null }) {
   if (scanPassed === false) {
     return (
@@ -98,6 +111,7 @@ function ScanBadge({ scanPassed }: { scanPassed: boolean | null }) {
     );
   }
   if (scanPassed === null) {
+    // null means the scan is still in progress on the server side
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
         style={{ background: 'rgba(96,165,250,0.10)', color: 'var(--night-sky-blue)' }}>
@@ -110,6 +124,7 @@ function ScanBadge({ scanPassed }: { scanPassed: boolean | null }) {
 
 // ─── Filters bar ──────────────────────────────────────────────────────────────
 
+// Consolidated filter state to prevent double-fetch race conditions
 interface Filters {
   search: string;
   verification_status: '' | 'pending' | 'approved' | 'rejected';
@@ -124,11 +139,12 @@ function FiltersBar({
   onChange: (f: Partial<Filters>) => void;
   onClear: () => void;
 }) {
+  // Determine if any filter is active so the "Clear" button appears
   const hasActive = filters.search !== '' || filters.verification_status !== '';
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Search */}
+      {/* Text search — debounced by the parent via handleFilterChange */}
       <div className="relative flex-1 min-w-48">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
         <input
@@ -141,7 +157,7 @@ function FiltersBar({
         />
       </div>
 
-      {/* Status filter */}
+      {/* Verification status dropdown — applied immediately (no debounce) */}
       <div className="relative">
         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
         <select
@@ -157,6 +173,7 @@ function FiltersBar({
         </select>
       </div>
 
+      {/* Clear button only visible when at least one filter is active */}
       {hasActive && (
         <button
           type="button"
@@ -184,6 +201,7 @@ function DocumentRow({
   doc: AdminDocument;
   onVerify: (id: number, status: 'approved' | 'rejected') => Promise<void>;
   onDownload: (doc: AdminDocument) => Promise<void>;
+  // Track which document ID is currently being verified/downloaded for per-row spinners
   verifying: number | null;
   downloading: number | null;
 }) {
@@ -193,12 +211,12 @@ function DocumentRow({
       className="flex items-start gap-4 px-6 py-5 border-b last:border-b-0"
       style={{ borderColor: 'var(--border)' }}
     >
-      {/* File icon */}
+      {/* File type icon derived from MIME type */}
       <FileIcon mime={doc.mime_type} />
 
-      {/* Main info */}
+      {/* Main info — two-column grid on wider screens */}
       <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-        {/* File name + type */}
+        {/* File name and document type label */}
         <div className="min-w-0">
           <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
             {doc.file_name}
@@ -210,38 +228,36 @@ function DocumentRow({
           )}
         </div>
 
-        {/* Meta */}
+        {/* Metadata column: uploader, camper, size, date */}
         <div className="flex flex-col gap-0.5">
-          {/* Uploader */}
           {doc.uploaded_by_name && (
             <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
               <User className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">{doc.uploaded_by_name}</span>
             </div>
           )}
-          {/* Camper */}
+          {/* documentable_name is the camper this file belongs to */}
           {doc.documentable_name && (
             <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
               <FileText className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">Camper: {doc.documentable_name}</span>
             </div>
           )}
-          {/* Size + date */}
           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
             {formatBytes(doc.size)} &middot; {format(new Date(doc.created_at), 'MMM d, yyyy')}
           </p>
         </div>
 
-        {/* Badges row */}
+        {/* Status badges spanning both columns */}
         <div className="flex flex-wrap items-center gap-2 mt-1 sm:col-span-2">
           <VerificationBadge status={doc.verification_status} />
           <ScanBadge scanPassed={doc.scan_passed} />
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Action buttons: download, approve, reject */}
       <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
-        {/* Download */}
+        {/* Download disabled when scan failed — unsafe file */}
         <button
           onClick={() => void onDownload(doc)}
           disabled={downloading === doc.id || doc.scan_passed === false}
@@ -255,7 +271,7 @@ function DocumentRow({
           }
         </button>
 
-        {/* Approve */}
+        {/* Approve button hidden if already approved — avoids redundant action */}
         {doc.verification_status !== 'approved' && (
           <button
             onClick={() => void onVerify(doc.id, 'approved')}
@@ -271,7 +287,7 @@ function DocumentRow({
           </button>
         )}
 
-        {/* Reject */}
+        {/* Reject button hidden if already rejected */}
         {doc.verification_status !== 'rejected' && (
           <button
             onClick={() => void onVerify(doc.id, 'rejected')}
@@ -300,6 +316,7 @@ function Pagination({
   meta: PaginatedResponse<AdminDocument>['meta'];
   onPage: (page: number) => void;
 }) {
+  // No pagination UI needed on a single-page result set
   if (meta.last_page <= 1) return null;
   return (
     <div className="flex items-center justify-between px-6 py-3 border-t text-sm" style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
@@ -336,20 +353,26 @@ export function AdminDocumentsPage() {
   const [result, setResult]       = useState<PaginatedResponse<AdminDocument> | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
+  // Consolidated filter object avoids double-fetch race conditions from separate useState calls
   const [filters, setFilters]     = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage]           = useState(1);
+  // Track which document ID is being verified to show a per-row spinner
   const [verifying, setVerifying] = useState<number | null>(null);
+  // Track which document ID is being downloaded to show a per-row spinner
   const [downloading, setDownloading] = useState<number | null>(null);
+  // Increment to force a re-fetch after a network error (retryKey pattern)
   const [retryKey, setRetryKey]   = useState(0);
 
-  // Debounce search
+  // Timer ref for debouncing the search input
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Stable fetch function — recreated only when page, filters, or retryKey changes
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const params: Parameters<typeof getAdminDocuments>[0] = { page };
+      // Only add optional params when they have a value — keeps the URL clean
       if (filters.search) params.search = filters.search;
       if (filters.verification_status) params.verification_status = filters.verification_status;
       const res = await getAdminDocuments(params);
@@ -361,8 +384,10 @@ export function AdminDocumentsPage() {
     }
   }, [page, filters, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-fetch whenever the stable `load` function reference changes
   useEffect(() => { void load(); }, [load]);
 
+  // Text search: debounced 300ms so we don't hit the API on every keystroke
   function handleFilterChange(partial: Partial<Filters>) {
     setPage(1);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -371,15 +396,18 @@ export function AdminDocumentsPage() {
     }, 300);
   }
 
+  // Dropdown filter: applied immediately since the user made a deliberate selection
   function handleFilterChangeDirect(partial: Partial<Filters>) {
     setPage(1);
     setFilters((prev) => ({ ...prev, ...partial }));
   }
 
+  // Approve or reject a document, then optimistically update the local list in place
   async function handleVerify(id: number, status: 'approved' | 'rejected') {
     setVerifying(id);
     try {
       const updated = await verifyDocument(id, status);
+      // Replace only the updated document in the existing list — no full re-fetch needed
       setResult((prev) => prev
         ? { ...prev, data: prev.data.map((d) => d.id === id ? { ...d, ...updated } : d) }
         : prev
@@ -392,6 +420,7 @@ export function AdminDocumentsPage() {
     }
   }
 
+  // Download via blob — creates a temporary object URL, clicks it, then revokes to free memory
   async function handleDownload(doc: AdminDocument) {
     setDownloading(doc.id);
     try {
@@ -401,6 +430,7 @@ export function AdminDocumentsPage() {
       a.href     = url;
       a.download = doc.file_name ?? `document-${doc.id}`;
       a.click();
+      // Revoke immediately after click to avoid memory leaks
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Download failed. The file may be pending security review.');
@@ -410,11 +440,12 @@ export function AdminDocumentsPage() {
   }
 
   const docs    = result?.data ?? [];
+  // Count pending documents to show the attention badge in the header
   const pending = docs.filter((d) => d.verification_status === 'pending').length;
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
-      {/* Header */}
+      {/* Header with optional pending-count badge */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -424,6 +455,7 @@ export function AdminDocumentsPage() {
             All documents submitted by applicants. Review and verify before application approval.
           </p>
         </div>
+        {/* Amber badge only shown when there are documents waiting for review */}
         {pending > 0 && (
           <div
             className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"
@@ -435,7 +467,7 @@ export function AdminDocumentsPage() {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Filter bar — routes search to debounced handler, dropdown to direct handler */}
       <FiltersBar
         filters={filters}
         onChange={(p) => {
@@ -448,13 +480,14 @@ export function AdminDocumentsPage() {
         onClear={() => { setPage(1); setFilters(DEFAULT_FILTERS); }}
       />
 
-      {/* List */}
+      {/* Document list card */}
       <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
         {loading ? (
           <div className="p-4">
             <SkeletonTable rows={5} />
           </div>
         ) : error ? (
+          // Clicking Retry increments retryKey which triggers the useCallback/useEffect chain
           <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
         ) : docs.length === 0 ? (
           <EmptyState
@@ -468,6 +501,7 @@ export function AdminDocumentsPage() {
           />
         ) : (
           <>
+            {/* Stagger animation so each row fades in sequentially */}
             <motion.div
               variants={staggerContainerVariants}
               initial="hidden"

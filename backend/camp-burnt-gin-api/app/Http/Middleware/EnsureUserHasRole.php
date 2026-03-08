@@ -7,51 +7,66 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Middleware to ensure the authenticated user has one of the required roles.
+ * EnsureUserHasRole — Route-level role-based access control middleware.
  *
- * This middleware enforces role-based access control at the route level.
- * It accepts one or more role names and verifies that the authenticated
- * user possesses at least one of the specified roles.
+ * This middleware acts as a gatekeeper on individual routes. When applied,
+ * it checks that the logged-in user holds at least one of the roles listed
+ * in the route definition. If they don't, access is denied immediately.
  *
- * Usage in routes:
- *   ->middleware('role:admin')
- *   ->middleware('role:admin,medical')
+ * How it is used in routes:
+ *   ->middleware('role:admin')           // only admins
+ *   ->middleware('role:admin,medical')   // admins OR medical providers
+ *
+ * Special behaviour: super_admin automatically passes any role check because
+ * isAdmin() returns true for super_admin (see User model isAdmin() override).
  */
 class EnsureUserHasRole
 {
     /**
      * Handle an incoming request.
      *
+     * Steps:
+     *  1. Confirm the user is authenticated (not a guest).
+     *  2. Confirm the user actually has a role assigned.
+     *  3. Short-circuit for super_admin — they bypass all role checks.
+     *  4. Walk through the allowed roles and pass the request if any match.
+     *  5. Return 403 Forbidden if no role matched.
+     *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      * @param  string  ...$roles  One or more role names that are permitted
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
+        // Pull the authenticated user from the current session/token.
         $user = $request->user();
 
+        // If no user is logged in at all, we cannot check roles — send 401.
         if ($user === null) {
             return response()->json([
                 'message' => 'Authentication required.',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
+        // A user with no role assigned would have no privileges — deny access.
         if ($user->role === null) {
             return response()->json([
                 'message' => 'Access denied. No role assigned.',
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // super_admin inherits all role privileges
+        // super_admin inherits all role privileges — let them through immediately.
         if ($user->isSuperAdmin()) {
             return $next($request);
         }
 
+        // Check each allowed role in turn; pass the request on the first match.
         foreach ($roles as $role) {
             if ($user->hasRole($role)) {
                 return $next($request);
             }
         }
 
+        // None of the allowed roles matched — the user lacks sufficient permissions.
         return response()->json([
             'message' => 'Access denied. Insufficient permissions.',
         ], Response::HTTP_FORBIDDEN);

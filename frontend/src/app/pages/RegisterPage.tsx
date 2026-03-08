@@ -1,7 +1,16 @@
 /**
  * RegisterPage.tsx
- * Registration form — wired to POST /api/auth/register.
- * Clean institutional design: confirm email, always-visible criteria, icons.
+ *
+ * Purpose: New-account registration form for Camp Burnt Gin.
+ * Responsibilities:
+ *   - Collects name, email (with a manual confirmation field), password
+ *     (with a confirmation field and live criteria checklist), and terms acceptance.
+ *   - Validates locally via Zod before sending to POST /api/auth/register.
+ *   - On success: writes the token to Redux, navigates to the applicant dashboard.
+ *
+ * Why a separate "confirm email" field?
+ *   Unlike passwords, browsers auto-fill email addresses, so a typo can go
+ *   unnoticed. The manual confirm field catches copy-paste or autofill mismatches.
  */
 
 import { useState, type ReactNode } from 'react';
@@ -22,8 +31,13 @@ import { AuthCard } from '@/features/auth/components/AuthCard';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
+// Reusable size object so every icon is consistently 18 × 18 px.
 const ICON_SIZE = { width: '1.125rem', height: '1.125rem' };
 
+/**
+ * Builds a CSS class string for text inputs.
+ * Red border when there is a validation error; light gray otherwise.
+ */
 function inputCls(hasError: boolean, extra = '') {
   return [
     'w-full pl-11 py-3.5 rounded-xl border outline-none bg-white',
@@ -34,6 +48,7 @@ function inputCls(hasError: boolean, extra = '') {
   ].join(' ');
 }
 
+/** Accessible label element — keeps the JSX in the form section clean. */
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
   return (
     <label htmlFor={htmlFor} className="font-semibold text-[#1e293b]" style={{ fontSize: '0.9375rem' }}>
@@ -42,10 +57,20 @@ function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNod
   );
 }
 
+/** Renders a red error message paragraph when `message` is truthy; renders nothing otherwise. */
 function FieldError({ message }: { message?: string }) {
   return message ? <p role="alert" className="text-sm text-red-500">{message}</p> : null;
 }
 
+/**
+ * One row in the password-strength criteria list.
+ * @param met    - whether this criterion is currently satisfied
+ * @param typing - whether the user has started typing a password yet
+ * @param label  - the human-readable rule text
+ *
+ * Before typing begins all bullets are neutral gray. Once typing starts,
+ * met criteria turn green and unmet ones stay gray, giving live feedback.
+ */
 function CriterionRow({ met, typing, label }: { met: boolean; typing: boolean; label: string }) {
   return (
     <li
@@ -72,11 +97,16 @@ export function RegisterPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  // Individual visibility toggles for each password field.
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm,  setShowConfirm]  = useState(false);
+  // Tracks whether the user has checked the terms-and-conditions checkbox.
   const [acceptTerms,  setAcceptTerms]  = useState(false);
+  // If the user hits "Create Account" without checking terms, show a local error.
   const [termsError,   setTermsError]   = useState(false);
 
+  // The "confirm email" field is uncontrolled by react-hook-form because the
+  // server only receives one email value; we compare both fields manually.
   const [confirmEmail,      setConfirmEmail]      = useState('');
   const [confirmEmailError, setConfirmEmailError] = useState('');
 
@@ -88,10 +118,12 @@ export function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema) });
 
+  // Watch live values to power the criteria checklist and match indicator.
   const password        = watch('password')              ?? '';
   const email           = watch('email')                 ?? '';
   const confirmPassword = watch('password_confirmation') ?? '';
 
+  // Password strength criteria — evaluated in real time as the user types.
   const criteria = {
     length:    password.length >= 8,
     uppercase: /[A-Z]/.test(password),
@@ -100,18 +132,21 @@ export function RegisterPage() {
     special:   /[!@#$%^&*(),.?":{}|<>_\-=+[\]\\;'`~]/.test(password),
   };
 
+  // Determine whether the confirmation password matches, or if the user hasn't typed yet.
   const confirmMatchState =
     confirmPassword.length > 0
       ? password === confirmPassword ? 'match' : 'no-match'
       : null;
 
   const onSubmit = async (values: RegisterFormValues) => {
+    // Email confirmation is handled outside react-hook-form, so validate it here.
     if (email !== confirmEmail) {
       setConfirmEmailError('Email addresses do not match');
       return;
     }
     setConfirmEmailError('');
 
+    // Terms must be accepted before we can create the account.
     if (!acceptTerms) {
       setTermsError(true);
       return;
@@ -123,10 +158,13 @@ export function RegisterPage() {
       const { user, token } = response.data!;
       dispatch(setToken({ token }));
       dispatch(setUser(user));
+      // hydrateAuth ensures the Axios interceptor picks up the new token.
       dispatch(hydrateAuth());
       toast.success('Account created. Welcome to Camp Burnt Gin.');
+      // New registrations always land on the applicant (parent) dashboard.
       navigate(ROUTES.PARENT_DASHBOARD, { replace: true });
     } catch (error) {
+      // Map server-side field errors back onto the form fields.
       if (isValidationError(error)) {
         Object.entries(error.errors).forEach(([field, messages]) => {
           setError(field as keyof RegisterFormValues, { message: messages[0] });
@@ -139,6 +177,7 @@ export function RegisterPage() {
     }
   };
 
+  // Used to switch the criteria list from neutral to green/gray feedback mode.
   const isTyping = password.length > 0;
 
   return (
@@ -156,6 +195,7 @@ export function RegisterPage() {
         </p>
       }
     >
+      {/* noValidate prevents browser pop-up bubbles — Zod handles all validation */}
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
 
         {/* ── Full Name ── */}
@@ -177,7 +217,7 @@ export function RegisterPage() {
           <FieldError message={errors.name?.message} />
         </div>
 
-        {/* ── Email Address ── */}
+        {/* ── Email Address — registered with react-hook-form so Zod validates it ── */}
         <div className="flex flex-col gap-2">
           <FieldLabel htmlFor="reg-email">Email Address</FieldLabel>
           <div className="relative">
@@ -196,7 +236,7 @@ export function RegisterPage() {
           <FieldError message={errors.email?.message} />
         </div>
 
-        {/* ── Confirm Email ── */}
+        {/* ── Confirm Email — controlled locally; compared to the main email on submit ── */}
         <div className="flex flex-col gap-2">
           <FieldLabel htmlFor="reg-email-confirm">Confirm Email Address</FieldLabel>
           <div className="relative">
@@ -209,6 +249,7 @@ export function RegisterPage() {
               value={confirmEmail}
               onChange={(e) => {
                 setConfirmEmail(e.target.value);
+                // Clear the error as soon as the user starts correcting their input.
                 if (confirmEmailError) setConfirmEmailError('');
               }}
               className={inputCls(!!confirmEmailError, 'pr-4')}
@@ -218,7 +259,7 @@ export function RegisterPage() {
           <FieldError message={confirmEmailError} />
         </div>
 
-        {/* ── Password ── */}
+        {/* ── Password with live strength feedback ── */}
         <div className="flex flex-col gap-2">
           <FieldLabel htmlFor="reg-password">Password</FieldLabel>
           <div className="relative">
@@ -233,6 +274,7 @@ export function RegisterPage() {
               style={{ fontSize: '0.9375rem' }}
               {...register('password')}
             />
+            {/* whileTap gives the eye button a quick scale-down animation on click */}
             <motion.button
               type="button"
               whileTap={{ scale: 0.9 }}
@@ -247,7 +289,7 @@ export function RegisterPage() {
             </motion.button>
           </div>
 
-          {/* Criteria — always visible */}
+          {/* Criteria checklist — always visible so the user knows the rules up front */}
           <ul className="flex flex-col gap-1 mt-0.5 pl-0.5">
             <CriterionRow met={criteria.length}    typing={isTyping} label="Must be 8–16 characters" />
             <CriterionRow met={criteria.uppercase} typing={isTyping} label="Must include 1 uppercase letter (A–Z)" />
@@ -258,7 +300,7 @@ export function RegisterPage() {
           <FieldError message={errors.password?.message} />
         </div>
 
-        {/* ── Confirm Password ── */}
+        {/* ── Confirm Password with live match indicator ── */}
         <div className="flex flex-col gap-2">
           <FieldLabel htmlFor="reg-confirm">Confirm Password</FieldLabel>
           <div className="relative">
@@ -270,6 +312,7 @@ export function RegisterPage() {
               placeholder="Re-enter your password"
               aria-invalid={errors.password_confirmation ? 'true' : 'false'}
               className={inputCls(
+                // Turn the border red if the server rejects it OR if the values don't match yet.
                 !!errors.password_confirmation || confirmMatchState === 'no-match',
                 'pr-12'
               )}
@@ -287,6 +330,7 @@ export function RegisterPage() {
             </motion.button>
           </div>
 
+          {/* Animated "Passwords match" / "do not match" indicator — key changes trigger re-animation */}
           <AnimatePresence mode="wait">
             {confirmMatchState && (
               <motion.p
@@ -308,7 +352,7 @@ export function RegisterPage() {
           <FieldError message={errors.password_confirmation?.message} />
         </div>
 
-        {/* ── Terms ── */}
+        {/* ── Terms and Conditions checkbox ── */}
         <div className="flex flex-col gap-1.5">
           <label className="flex items-start gap-3 cursor-pointer select-none">
             <input
@@ -316,6 +360,7 @@ export function RegisterPage() {
               checked={acceptTerms}
               onChange={(e) => {
                 setAcceptTerms(e.target.checked);
+                // Dismiss the terms error as soon as the user checks the box.
                 if (e.target.checked) setTermsError(false);
               }}
               className="mt-0.5 h-4 w-4 shrink-0 rounded cursor-pointer"
@@ -334,7 +379,7 @@ export function RegisterPage() {
           )}
         </div>
 
-        {/* ── Submit ── */}
+        {/* ── Submit button ── */}
         <button
           type="submit"
           disabled={isSubmitting}
@@ -352,7 +397,7 @@ export function RegisterPage() {
           </p>
         </div>
 
-        {/* ── Copyright ── */}
+        {/* ── Copyright line ── */}
         <p className="text-center text-slate-400" style={{ fontSize: '0.75rem' }}>
           © {new Date().getFullYear()} Camp Burnt Gin – South Carolina Department of Health
         </p>

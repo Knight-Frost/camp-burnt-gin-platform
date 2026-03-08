@@ -1,6 +1,16 @@
 /**
- * auth.api.ts
- * Authentication API calls with deterministic role normalization.
+ * auth.api.ts — Authentication API calls
+ *
+ * This module owns every HTTP request related to authentication:
+ * login, register, logout, password reset, MFA, and email verification.
+ *
+ * Key responsibility: role normalization.
+ * The backend may return a user's role as a string, an object, or inside a `roles`
+ * array. The frontend RBAC system always expects a plain string in `user.role` and
+ * a normalized `roles` array. The `normalizeUser()` function handles all variants.
+ *
+ * It also maps the legacy backend value "parent" → "applicant" so the frontend
+ * never has to deal with the old name.
  */
 
 import axiosInstance from '@/api/axios.config';
@@ -15,36 +25,39 @@ import type {
 } from '@/shared/types';
 
 /**
- * Normalize role names so frontend RBAC always receives valid values.
+ * normalizeUser — Normalize role names so frontend RBAC always receives valid values.
  *
  * Backend may return:
- * - role object
- * - role string
- * - roles array
+ * - role object  (e.g. { id: 1, name: 'admin' })
+ * - role string  (e.g. 'admin')
+ * - roles array  (e.g. [{ id: 1, name: 'admin' }])
  *
  * This function guarantees:
- * user.role → string
- * user.roles → Role[]
+ *   user.role  → plain string RoleName
+ *   user.roles → Role[]
  */
 function normalizeUser(user: User & { role?: Role | string }): User {
   let roleName: RoleName | null = null;
 
-  // Extract role name
+  // Case 1: role is a full Role object — extract the name property
   if (typeof user.role === 'object' && user.role !== null) {
     roleName = user.role.name as RoleName;
+  // Case 2: role is already a plain string
   } else if (typeof user.role === 'string') {
     roleName = user.role as RoleName;
+  // Case 3: role info is only in the roles array — take the first entry
   } else if (user.roles?.length) {
     roleName = user.roles[0].name as RoleName;
   }
 
   // Normalize legacy 'parent' role name from backend → 'applicant'
+  // The backend still stores "parent" in the DB; the frontend uses "applicant"
   // Cast to string for comparison since 'parent' is not in the RoleName union
   if ((roleName as string) === 'parent') {
     roleName = 'applicant';
   }
 
-  // Ensure roles array exists
+  // Build a normalized roles array so RBAC hooks always have a consistent shape
   const roles: Role[] = roleName
     ? [{ id: user.roles?.[0]?.id ?? 0, name: roleName, display_name: roleName }]
     : [];
@@ -57,12 +70,13 @@ function normalizeUser(user: User & { role?: Role | string }): User {
 }
 
 // ---------------------------------------------------------------------------
-// Auth endpoints
+// Request payload type definitions
 // ---------------------------------------------------------------------------
 
 export interface LoginPayload {
   email: string;
   password: string;
+  // Optional: provided when the user is completing MFA as part of login
   mfa_code?: string;
 }
 
@@ -70,6 +84,7 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
+  // Confirmation must match password — validated on the backend
   password_confirmation: string;
 }
 
@@ -78,19 +93,25 @@ export interface ForgotPasswordPayload {
 }
 
 export interface ResetPasswordPayload {
+  // One-time reset token sent to the user's email
   token: string;
   email: string;
   password: string;
   password_confirmation: string;
 }
 
-/** POST /api/auth/login */
+// ---------------------------------------------------------------------------
+// Auth endpoints
+// ---------------------------------------------------------------------------
+
+/** POST /api/auth/login — Authenticate and receive a Bearer token */
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await axiosInstance.post<AuthResponse>(
     '/auth/login',
     payload
   );
 
+  // Normalize the user object before storing it in Redux
   if (data.data?.user) {
     data.data.user = normalizeUser(data.data.user);
   }
@@ -98,7 +119,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   return data;
 }
 
-/** POST /api/auth/register */
+/** POST /api/auth/register — Create a new applicant account */
 export async function register(
   payload: RegisterPayload
 ): Promise<AuthResponse> {
@@ -114,13 +135,14 @@ export async function register(
   return data;
 }
 
-/** POST /api/logout */
+/** POST /api/logout — Invalidate the token on the server and clear session storage */
 export async function logout(): Promise<void> {
   await axiosInstance.post('/logout');
+  // Remove the persisted token from the browser so the next page load is clean
   sessionStorage.removeItem('auth_token');
 }
 
-/** POST /api/auth/forgot-password */
+/** POST /api/auth/forgot-password — Send a password reset email */
 export async function forgotPassword(
   payload: ForgotPasswordPayload
 ): Promise<ApiResponse<null>> {
@@ -131,7 +153,7 @@ export async function forgotPassword(
   return data;
 }
 
-/** POST /api/auth/reset-password */
+/** POST /api/auth/reset-password — Set a new password using the emailed token */
 export async function resetPassword(
   payload: ResetPasswordPayload
 ): Promise<ApiResponse<null>> {
@@ -142,9 +164,10 @@ export async function resetPassword(
   return data;
 }
 
-/** GET /api/user */
+/** GET /api/user — Fetch the currently authenticated user (used on page refresh) */
 export async function getAuthenticatedUser(): Promise<User> {
   const { data } = await axiosInstance.get<ApiResponse<User>>('/user');
+  // Always run through normalizeUser so role shape is consistent
   return normalizeUser(data.data);
 }
 
@@ -152,13 +175,13 @@ export async function getAuthenticatedUser(): Promise<User> {
 // MFA endpoints
 // ---------------------------------------------------------------------------
 
-/** POST /api/mfa/setup */
+/** POST /api/mfa/setup — Generate a TOTP secret and QR code for the user to scan */
 export async function setupMfa(): Promise<MFASetupResponse> {
   const { data } = await axiosInstance.post<MFASetupResponse>('/mfa/setup');
   return data;
 }
 
-/** POST /api/mfa/verify */
+/** POST /api/mfa/verify — Validate a TOTP code and mark MFA as verified for the session */
 export async function verifyMfa(code: string): Promise<MFAVerifyResponse> {
   const { data } = await axiosInstance.post<MFAVerifyResponse>('/mfa/verify', {
     code,
@@ -166,7 +189,7 @@ export async function verifyMfa(code: string): Promise<MFAVerifyResponse> {
   return data;
 }
 
-/** POST /api/mfa/disable */
+/** POST /api/mfa/disable — Turn off MFA for the authenticated user */
 export async function disableMfa(): Promise<ApiResponse<null>> {
   const { data } = await axiosInstance.post<ApiResponse<null>>('/mfa/disable');
   return data;
@@ -177,13 +200,14 @@ export async function disableMfa(): Promise<ApiResponse<null>> {
 // ---------------------------------------------------------------------------
 
 export interface VerifyEmailPayload {
+  // These four values come from the verification link the backend emails the user
   id: string;
   hash: string;
   expires: string;
   signature: string;
 }
 
-/** POST /api/auth/email/verify */
+/** POST /api/auth/email/verify — Confirm the user's email address */
 export async function verifyEmail(
   payload: VerifyEmailPayload
 ): Promise<ApiResponse<null>> {
@@ -194,7 +218,7 @@ export async function verifyEmail(
   return data;
 }
 
-/** POST /api/auth/email/resend */
+/** POST /api/auth/email/resend — Resend the verification email */
 export async function resendVerificationEmail(): Promise<ApiResponse<null>> {
   const { data } = await axiosInstance.post<ApiResponse<null>>(
     '/auth/email/resend'

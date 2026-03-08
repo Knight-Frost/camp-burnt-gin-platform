@@ -1,7 +1,16 @@
 /**
  * ResetPasswordPage.tsx
- * Password reset — reads token + email from URL params.
- * Wired to POST /api/auth/reset-password.
+ *
+ * Purpose: Lets users set a new password after clicking the reset link in their email.
+ * Responsibilities:
+ *   - Reads `token` and `email` from the URL search params (e.g. ?token=abc&email=user@x.com).
+ *   - If either param is missing the link is invalid — shows an error with a
+ *     link back to the Forgot Password page.
+ *   - On valid submit: POSTs to POST /api/auth/reset-password with token + email + new passwords.
+ *   - On success: navigates to the login page.
+ *
+ * The token is a short-lived Laravel signed URL parameter — it expires after
+ * a configurable window (default 60 minutes).
  */
 
 import { useState } from 'react';
@@ -24,9 +33,12 @@ import { Button } from '@/ui/components/Button';
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
+  // useSearchParams gives us read access to the URL query string (?token=...&email=...).
   const [searchParams] = useSearchParams();
+  // Extract the two required URL parameters; fall back to empty string if missing.
   const token = searchParams.get('token') ?? '';
   const email = searchParams.get('email') ?? '';
+  // Separate visibility toggles for each password field.
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -39,6 +51,7 @@ export function ResetPasswordPage() {
     resolver: zodResolver(resetPasswordSchema),
   });
 
+  // Guard: if the URL is missing params the reset link is broken — show an error card.
   if (!token || !email) {
     return (
       <AuthCard
@@ -50,6 +63,7 @@ export function ResetPasswordPage() {
           </Link>
         }
       >
+        {/* Empty div required because AuthCard always expects a children prop */}
         <div />
       </AuthCard>
     );
@@ -57,10 +71,12 @@ export function ResetPasswordPage() {
 
   const onSubmit = async (values: ResetPasswordFormValues) => {
     try {
+      // Include token and email from the URL — the server needs them to validate the request.
       await resetPassword({ ...values, token, email });
       toast.success('Password reset successfully. You can now sign in.');
       navigate(ROUTES.LOGIN);
     } catch (error) {
+      // Map field-level server errors (e.g. "token has expired") back onto the form.
       if (isValidationError(error)) {
         Object.entries(error.errors).forEach(([field, messages]) => {
           setError(field as keyof ResetPasswordFormValues, { message: messages[0] });
@@ -84,7 +100,8 @@ export function ResetPasswordPage() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
-        {/* Password */}
+
+        {/* ── New password field ── */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="password" className="text-sm font-medium" style={{ color: 'var(--on-image-text)' }}>
             New password
@@ -92,16 +109,19 @@ export function ResetPasswordPage() {
           <div className="relative">
             <input
               id="password"
+              // Swap input type to reveal/hide the password based on toggle state.
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               className="w-full rounded-lg px-4 py-3 pr-12 text-sm outline-none border transition-all duration-300 focus:ring-2 focus:ring-ember-orange/40"
               style={{
                 background: 'var(--input)',
                 color: 'var(--on-image-text)',
+                // Red border on validation error; normal border otherwise.
                 borderColor: errors.password ? 'var(--destructive)' : 'var(--on-image-border)',
               }}
               {...register('password')}
             />
+            {/* Animated eye toggle button — whileTap gives a subtle press-down feel */}
             <motion.button
               type="button"
               whileTap={{ scale: 0.9 }}
@@ -120,7 +140,7 @@ export function ResetPasswordPage() {
           )}
         </div>
 
-        {/* Confirm */}
+        {/* ── Confirm new password field ── */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="password_confirmation" className="text-sm font-medium" style={{ color: 'var(--on-image-text)' }}>
             Confirm new password
@@ -156,6 +176,7 @@ export function ResetPasswordPage() {
           )}
         </div>
 
+        {/* className="mt-2" gives a little breathing room above the button */}
         <Button type="submit" fullWidth loading={isSubmitting} className="mt-2">
           Reset password
         </Button>

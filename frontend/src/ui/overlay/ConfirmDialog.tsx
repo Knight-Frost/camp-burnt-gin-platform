@@ -1,12 +1,30 @@
 /**
  * ConfirmDialog.tsx
  *
- * Reusable confirmation dialog — replaces window.confirm entirely.
- * - Renders via React portal
- * - Focus trap (confirm button auto-focused)
- * - Escape key → cancel
- * - Click outside backdrop → cancel
- * - z-[600] (above compose panel, below nothing)
+ * Purpose: An accessible, animated confirmation dialog that replaces
+ * window.confirm() throughout the application.
+ *
+ * Responsibilities:
+ *   - Renders via a React portal so it always appears above every other UI layer
+ *     (z-index 600 — above the messaging compose panel at z-index ~500).
+ *   - Supports three visual variants: 'default' (orange), 'warning' (amber),
+ *     and 'danger' (red) to communicate the severity of the action.
+ *   - Auto-focuses the confirm button when opened so keyboard users can
+ *     immediately press Enter or Space to confirm (or Tab to cancel).
+ *   - Pressing Escape calls onCancel — standard dialog keyboard behavior.
+ *   - Clicking the backdrop also calls onCancel.
+ *   - Clicking inside the dialog card stops event propagation so the backdrop
+ *     click handler does not fire through the card.
+ *
+ * Props:
+ *   open         — controls visibility
+ *   title        — short action description (e.g. "Delete this record?")
+ *   message      — longer explanation of consequences
+ *   confirmLabel — label for the confirm button (default: "Confirm")
+ *   cancelLabel  — label for the cancel button (default: "Cancel")
+ *   variant      — color scheme: 'default' | 'warning' | 'danger'
+ *   onConfirm    — called when the user confirms
+ *   onCancel     — called when the user cancels (Escape, backdrop, or Cancel button)
  */
 
 import { useEffect, useRef } from 'react';
@@ -27,6 +45,7 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+/** Maps each variant to the confirm button background and text colors. */
 const VARIANT_COLORS: Record<ConfirmVariant, { bg: string; text: string }> = {
   danger:  { bg: 'var(--destructive)', text: '#ffffff' },
   warning: { bg: 'var(--warm-amber)',  text: '#ffffff' },
@@ -43,16 +62,19 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  // Ref to the confirm button so we can auto-focus it when the dialog opens.
   const confirmRef = useRef<HTMLButtonElement>(null);
 
-  // Auto-focus confirm button when dialog opens
+  // Auto-focus the confirm button shortly after open=true so keyboard users
+  // can immediately confirm or Tab to the cancel button.
   useEffect(() => {
     if (open) {
       setTimeout(() => confirmRef.current?.focus(), 50);
     }
   }, [open]);
 
-  // Escape key → cancel
+  // Attach a keydown listener when the dialog is open so Escape closes it.
+  // The listener is removed when the dialog closes to avoid memory leaks.
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -67,11 +89,14 @@ export function ConfirmDialog({
 
   const colors = VARIANT_COLORS[variant];
 
+  // createPortal renders the dialog directly into document.body so it escapes
+  // any overflow:hidden or z-index stacking contexts in the component tree.
   return createPortal(
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* ── Backdrop ──────────────────────────────────────────────────── */}
+          {/* Semi-transparent black overlay — clicking it calls onCancel */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -82,7 +107,12 @@ export function ConfirmDialog({
             onClick={onCancel}
           />
 
-          {/* Dialog */}
+          {/* ── Dialog card ────────────────────────────────────────────────── */}
+          {/*
+           * pointer-events-none on the outer centering div so backdrop clicks
+           * pass through to the backdrop div above. The inner card is
+           * pointer-events-auto so clicks inside it are captured.
+           */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -97,10 +127,12 @@ export function ConfirmDialog({
                 background: '#ffffff',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
               }}
+              // Stop clicks inside the card from reaching the backdrop and triggering onCancel.
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Icon + Title */}
+              {/* ── Icon + Title + Message ── */}
               <div className="flex items-start gap-3 mb-3">
+                {/* Colored icon background — 18 hex = 10% opacity of the variant color */}
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: `${colors.bg}18` }}
@@ -117,8 +149,9 @@ export function ConfirmDialog({
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* ── Action buttons ── */}
               <div className="flex items-center justify-end gap-2 mt-5">
+                {/* Cancel — subtle ghost style so the confirm button gets more visual weight */}
                 <button
                   type="button"
                   onClick={onCancel}
@@ -127,6 +160,7 @@ export function ConfirmDialog({
                 >
                   {cancelLabel}
                 </button>
+                {/* Confirm — auto-focused, variant-colored, hover reduces opacity */}
                 <button
                   ref={confirmRef}
                   type="button"
@@ -142,6 +176,7 @@ export function ConfirmDialog({
         </>
       )}
     </AnimatePresence>,
+    // Attach to document.body so the dialog is always on top of the page.
     document.body,
   );
 }

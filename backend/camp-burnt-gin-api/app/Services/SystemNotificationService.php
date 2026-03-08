@@ -11,52 +11,57 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * SystemNotificationService
+ * SystemNotificationService — Automated System Notification Delivery
  *
- * Creates system-generated, non-replyable notification conversations.
- * Used for platform events: application status changes, security events,
- * role modifications, and medical provider actions.
+ * This service creates "system notifications" — automated messages from the
+ * platform itself rather than from a human user. Think of them as official
+ * letters from the camp system delivered to a user's inbox.
  *
- * System notifications:
- * - Have no human creator (created_by_id = null)
- * - Have no human sender   (sender_id = null on the message)
- * - Are not replyable      (enforced by UI + policy)
- * - Appear in the System tab (is_system_generated = true)
- * - Are visible to the affected user and to Admins / Super Admins
+ * How system notifications work:
+ *  - Each notification creates a new Conversation record (so the inbox shows
+ *    one row per event, like Gmail's notification threads)
+ *  - The conversation has no human creator (created_by_id = null)
+ *  - The message inside has no human sender (sender_id = null)
+ *  - The conversation is tagged as is_system_generated = true so the UI can
+ *    display it in the "System" tab and show it as non-replyable
  *
- * Event type taxonomy:
- *   application.submitted    | application.approved     | application.rejected
- *   application.status_changed
- *   security.password_changed | security.mfa_enabled     | security.mfa_disabled
- *   security.account_locked
- *   role.changed
- *   medical.provider_link_generated | medical.provider_link_revoked
+ * Named constructor methods (applicationApproved, passwordChanged, etc.) are
+ * provided for each distinct event type so calling code stays readable and
+ * doesn't need to remember subject/body templates.
+ *
+ * Event taxonomy (prefix determines the category badge in the UI):
+ *   application.*  | security.*  | role.*  | medical.*
+ *
+ * All event type strings are defined as public constants so controllers can
+ * reference them without hardcoding strings.
  */
 class SystemNotificationService
 {
     // ─── Event type constants ─────────────────────────────────────────────────
+    // Use these constants (not raw strings) when calling notify() directly.
+    // They also serve as documentation of every event the system can trigger.
 
-    // Application events
+    // Application lifecycle events
     public const APPLICATION_SUBMITTED      = 'application.submitted';
     public const APPLICATION_APPROVED       = 'application.approved';
     public const APPLICATION_REJECTED       = 'application.rejected';
     public const APPLICATION_STATUS_CHANGED = 'application.status_changed';
 
-    // Security events
+    // Security events — notify the user any time their account security changes
     public const SECURITY_PASSWORD_CHANGED  = 'security.password_changed';
     public const SECURITY_MFA_ENABLED       = 'security.mfa_enabled';
     public const SECURITY_MFA_DISABLED      = 'security.mfa_disabled';
     public const SECURITY_ACCOUNT_LOCKED    = 'security.account_locked';
 
-    // Role events
+    // Role governance events
     public const ROLE_CHANGED               = 'role.changed';
 
-    // Medical events
+    // Medical provider link events
     public const MEDICAL_PROVIDER_LINK_GENERATED = 'medical.provider_link_generated';
     public const MEDICAL_PROVIDER_LINK_REVOKED   = 'medical.provider_link_revoked';
 
     // ─── Category labels ──────────────────────────────────────────────────────
-
+    // Maps event prefix → human-readable category label for the UI badge
     private const EVENT_CATEGORIES = [
         'application' => 'Application',
         'security'    => 'Security',
@@ -64,22 +69,22 @@ class SystemNotificationService
         'medical'     => 'Medical',
     ];
 
-    // ─── Public API ───────────────────────────────────────────────────────────
+    // ─── Core delivery method ─────────────────────────────────────────────────
 
     /**
-     * Deliver a system notification to a user.
+     * Create and deliver a system notification to a user.
      *
-     * Creates a new system conversation + first message.
-     * Each notification is a separate conversation so the user's
-     * inbox list shows individual rows per event (Gmail pattern).
+     * This is the low-level method used by all named constructors below.
+     * It creates the conversation and first message inside a DB transaction,
+     * then writes an audit log entry.
      *
-     * @param User   $recipient          The user who will receive the notification
-     * @param string $eventType          Machine-readable event (use class constants)
-     * @param string $subject            Short subject line (shown as conversation title)
-     * @param string $body               Full notification body (may contain HTML)
-     * @param string|null $relatedType   Optional entity type (e.g. 'App\Models\Application')
-     * @param int|null $relatedId        Optional entity ID
-     * @param array  $adminVisibleTo     Optional array of User objects that should also see this
+     * @param  User        $recipient          The user who will receive this notification
+     * @param  string      $eventType          Machine-readable event (use class constants)
+     * @param  string      $subject            Short subject line shown as conversation title
+     * @param  string      $body               Full notification body (may contain HTML)
+     * @param  string|null $relatedType        Optional entity type (e.g. 'App\Models\Application')
+     * @param  int|null    $relatedId          Optional entity ID (used for deep-linking in UI)
+     * @param  array       $adminVisibleTo     Additional User objects that should also see this
      */
     public function notify(
         User $recipient,
@@ -90,35 +95,39 @@ class SystemNotificationService
         ?int $relatedId = null,
         array $adminVisibleTo = []
     ): Conversation {
+        // Derive the category label (e.g. "Application") from the event type prefix
         $category = $this->deriveCategory($eventType);
 
+        // Wrap all database writes in a transaction for atomicity
         return DB::transaction(function () use (
             $recipient, $eventType, $category, $subject, $body,
             $relatedType, $relatedId, $adminVisibleTo
         ) {
-            // Create the notification conversation
+            // Create the system conversation — no human creator
             $conversation = Conversation::create([
-                'created_by_id'         => null,
+                'created_by_id'         => null,         // No human creator
                 'subject'               => $subject,
                 'category'              => 'system',
-                'is_system_generated'   => true,
+                'is_system_generated'   => true,         // Marks this as a system message
                 'system_event_type'     => $eventType,
                 'system_event_category' => $category,
+                // Optional links to related entities for UI deep-linking
                 'related_entity_type'   => $relatedType,
                 'related_entity_id'     => $relatedId,
                 'last_message_at'       => now(),
                 'is_archived'           => false,
             ]);
 
-            // Add recipient as participant
+            // Add the recipient as the primary participant
             ConversationParticipant::create([
                 'conversation_id' => $conversation->id,
                 'user_id'         => $recipient->id,
                 'joined_at'       => now(),
             ]);
 
-            // Add any additional admin viewers
+            // Add any admin users who should also see this notification (e.g. for security events)
             foreach ($adminVisibleTo as $adminUser) {
+                // Skip if the admin is the same person as the recipient (avoid duplicate rows)
                 if ($adminUser instanceof User && $adminUser->id !== $recipient->id) {
                     ConversationParticipant::create([
                         'conversation_id' => $conversation->id,
@@ -128,18 +137,19 @@ class SystemNotificationService
                 }
             }
 
-            // Create the system message (no sender)
+            // Create the notification message — no human sender
             Message::create([
                 'conversation_id' => $conversation->id,
-                'sender_id'       => null,
+                'sender_id'       => null,               // No human sender
                 'body'            => $body,
+                // Each message still needs a unique idempotency key
                 'idempotency_key' => Str::uuid()->toString(),
             ]);
 
-            // Audit log
+            // Write an audit log entry — safe for CLI usage (request() might be null)
             AuditLog::create([
                 'request_id'     => request()?->header('X-Request-ID', Str::uuid()->toString()) ?? Str::uuid()->toString(),
-                'user_id'        => null,
+                'user_id'        => null,                // System-generated — no human actor
                 'event_type'     => 'system_notification',
                 'auditable_type' => Conversation::class,
                 'auditable_id'   => $conversation->id,
@@ -162,9 +172,11 @@ class SystemNotificationService
     }
 
     // ─── Named constructors for each event type ───────────────────────────────
+    // Each method below is a convenience wrapper for a specific notification event.
+    // Controllers call these instead of calling notify() directly with raw strings.
 
     /**
-     * Application submitted by parent.
+     * Notify the parent that their application was successfully submitted.
      */
     public function applicationSubmitted(User $recipient, int $applicationId, string $camperName): Conversation
     {
@@ -179,7 +191,7 @@ class SystemNotificationService
     }
 
     /**
-     * Application approved by admin.
+     * Notify the parent that their application was approved.
      */
     public function applicationApproved(User $recipient, int $applicationId, string $camperName): Conversation
     {
@@ -187,6 +199,7 @@ class SystemNotificationService
             recipient:   $recipient,
             eventType:   self::APPLICATION_APPROVED,
             subject:     "Application approved for {$camperName}",
+            // Green colour on "approved" to make the good news visually clear
             body:        "<p>Great news! The camp application for <strong>{$camperName}</strong> has been <strong style=\"color:#16a34a\">approved</strong>.</p><p>Please log in to your portal to review the acceptance details and next steps.</p>",
             relatedType: 'App\\Models\\Application',
             relatedId:   $applicationId,
@@ -194,10 +207,12 @@ class SystemNotificationService
     }
 
     /**
-     * Application rejected by admin.
+     * Notify the parent that their application was not approved.
+     * Includes reviewer notes if provided.
      */
     public function applicationRejected(User $recipient, int $applicationId, string $camperName, ?string $notes = null): Conversation
     {
+        // Only include a notes paragraph if reviewer notes were actually provided
         $noteHtml = $notes ? "<p><em>Reviewer notes: {$notes}</em></p>" : '';
         return $this->notify(
             recipient:   $recipient,
@@ -210,10 +225,12 @@ class SystemNotificationService
     }
 
     /**
-     * Application status changed to any status.
+     * Notify the parent that their application status changed to any other status.
+     * Used for statuses like Waitlisted that don't have a dedicated method.
      */
     public function applicationStatusChanged(User $recipient, int $applicationId, string $camperName, string $newStatus): Conversation
     {
+        // Convert snake_case status to a human-readable label (e.g. "under_review" → "Under Review")
         $statusLabel = ucfirst(str_replace('_', ' ', $newStatus));
         return $this->notify(
             recipient:   $recipient,
@@ -226,7 +243,8 @@ class SystemNotificationService
     }
 
     /**
-     * Password changed by user.
+     * Notify the user that their password was changed.
+     * This is a security alert — if the user didn't do this, they should act immediately.
      */
     public function passwordChanged(User $recipient): Conversation
     {
@@ -239,7 +257,7 @@ class SystemNotificationService
     }
 
     /**
-     * MFA enabled by user.
+     * Notify the user that two-factor authentication was enabled on their account.
      */
     public function mfaEnabled(User $recipient): Conversation
     {
@@ -252,7 +270,8 @@ class SystemNotificationService
     }
 
     /**
-     * MFA disabled by user.
+     * Notify the user that two-factor authentication was disabled on their account.
+     * Encourages them to re-enable it as a security best practice.
      */
     public function mfaDisabled(User $recipient): Conversation
     {
@@ -265,7 +284,8 @@ class SystemNotificationService
     }
 
     /**
-     * Account locked after repeated failed login attempts.
+     * Notify the user that their account was temporarily locked after failed logins.
+     * The $lockoutMinutes parameter tells them how long to wait before trying again.
      */
     public function accountLocked(User $recipient, int $lockoutMinutes = 5): Conversation
     {
@@ -278,10 +298,12 @@ class SystemNotificationService
     }
 
     /**
-     * Role changed by super admin.
+     * Notify the user that a super-admin changed their account role.
+     * Includes old and new role names so the change is clearly explained.
      */
     public function roleChanged(User $recipient, string $oldRole, string $newRole, User $changedBy): Conversation
     {
+        // Convert role slugs to Title Case (e.g. "super_admin" → "Super Admin")
         $oldLabel = ucwords(str_replace('_', ' ', $oldRole));
         $newLabel = ucwords(str_replace('_', ' ', $newRole));
         return $this->notify(
@@ -289,19 +311,24 @@ class SystemNotificationService
             eventType:   self::ROLE_CHANGED,
             subject:     "Your account role has been updated",
             body:        "<p>Your account role has been changed from <strong>{$oldLabel}</strong> to <strong>{$newLabel}</strong> by a system administrator.</p><p>Your portal access has been updated accordingly. If you believe this is an error, please contact support.</p>",
+            // Link to the user record for audit-trail deep linking
             relatedType: 'App\\Models\\User',
             relatedId:   $recipient->id,
         );
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // ─── Private helpers ──────────────────────────────────────────────────────
 
     /**
-     * Derive the event category label from the event type string.
-     * e.g. 'application.submitted' → 'Application'
+     * Derive the category label from the event type string.
+     *
+     * Splits on the first dot to get the prefix (e.g. "application" from
+     * "application.submitted"), then maps it to a human-readable category.
+     * Falls back to "System" if the prefix is unrecognised.
      */
     private function deriveCategory(string $eventType): string
     {
+        // e.g. 'application.submitted' → ['application', 'submitted'] → take [0]
         $prefix = explode('.', $eventType)[0] ?? 'system';
         return self::EVENT_CATEGORIES[$prefix] ?? 'System';
     }

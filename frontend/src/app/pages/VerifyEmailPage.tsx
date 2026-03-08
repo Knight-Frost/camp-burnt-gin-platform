@@ -1,9 +1,18 @@
 /**
  * VerifyEmailPage.tsx
- * Email verification landing page — handles the link the user clicks from their inbox.
  *
- * Reads id/hash/expires/signature from the URL search params,
- * POSTs to POST /api/auth/email/verify, and shows the result.
+ * Purpose: Handles the email verification link that is sent to a new user's inbox.
+ * Responsibilities:
+ *   - On mount, reads `id`, `hash`, `expires`, and `signature` from the URL
+ *     query string and POSTs them to POST /api/auth/email/verify.
+ *   - Shows a spinner while verifying, a success screen on pass, or an error
+ *     screen with a "Resend" button on failure.
+ *   - Supports resending the verification email via POST /api/auth/email/resend.
+ *
+ * Why useRef(hasRun)?
+ *   React's StrictMode runs effects twice in development to help catch bugs.
+ *   The ref guards against sending the verify request twice — which would fail
+ *   on the second attempt because the one-time hash is already consumed.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -18,33 +27,40 @@ import { AuthCard } from '@/features/auth/components/AuthCard';
 import { Button } from '@/ui/components/Button';
 import { fadeVariants } from '@/shared/constants/motion';
 
+// Represents every possible state the verification flow can be in.
 type VerifyState = 'verifying' | 'success' | 'error' | 'resent';
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const [state, setState]       = useState<VerifyState>('verifying');
   const [resending, setResending] = useState(false);
+  // Guard prevents the verification API call from firing twice in React StrictMode.
   const hasRun = useRef(false);
 
   useEffect(() => {
+    // Skip if this effect has already run once.
     if (hasRun.current) return;
     hasRun.current = true;
 
+    // Pull all four required params from the URL.
     const id        = searchParams.get('id')        ?? '';
     const hash      = searchParams.get('hash')      ?? '';
     const expires   = searchParams.get('expires')   ?? '';
     const signature = searchParams.get('signature') ?? '';
 
+    // If any param is missing the URL is malformed — skip the API call and show the error screen.
     if (!id || !hash || !expires || !signature) {
       setState('error');
       return;
     }
 
+    // Send all four params to the server; it verifies the HMAC signature internally.
     verifyEmail({ id, hash, expires, signature })
       .then(() => setState('success'))
       .catch(() => setState('error'));
   }, [searchParams]);
 
+  /** Requests a fresh verification email for the currently logged-in user. */
   const handleResend = async () => {
     setResending(true);
     try {
@@ -58,8 +74,14 @@ export function VerifyEmailPage() {
     }
   };
 
+  /**
+   * Picks the correct UI block to render based on the current `state`.
+   * Each block is wrapped in a motion.div with fadeVariants so the
+   * transition between states is smooth.
+   */
   const renderContent = () => {
     switch (state) {
+      // ── Spinner while the API request is in flight ──
       case 'verifying':
         return (
           <motion.div
@@ -76,6 +98,7 @@ export function VerifyEmailPage() {
           </motion.div>
         );
 
+      // ── Success: email is now verified ──
       case 'success':
         return (
           <motion.div
@@ -94,12 +117,14 @@ export function VerifyEmailPage() {
             <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
               Your email has been verified. You can now access all features of your account.
             </p>
+            {/* Direct the user straight to the login page to get started */}
             <Link to={ROUTES.LOGIN}>
               <Button>Continue to sign in</Button>
             </Link>
           </motion.div>
         );
 
+      // ── Resent: a new verification email was sent ──
       case 'resent':
         return (
           <motion.div
@@ -121,6 +146,7 @@ export function VerifyEmailPage() {
           </motion.div>
         );
 
+      // ── Error: link is invalid, expired, or URL params were missing ──
       case 'error':
         return (
           <motion.div
@@ -132,6 +158,7 @@ export function VerifyEmailPage() {
           >
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
+              // Red tint background signals danger/failure.
               style={{ background: 'rgba(220,38,38,0.08)' }}
             >
               <XCircle className="h-8 w-8" style={{ color: '#dc2626' }} />
@@ -139,6 +166,7 @@ export function VerifyEmailPage() {
             <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
               This verification link is invalid or has expired. Request a new one below.
             </p>
+            {/* Resend button — loading state prevents double-clicks */}
             <Button onClick={handleResend} loading={resending} variant="secondary">
               Resend verification email
             </Button>
@@ -161,6 +189,7 @@ export function VerifyEmailPage() {
         </Link>
       }
     >
+      {/* Delegates rendering to renderContent() so each state has its own motion block */}
       {renderContent()}
     </AuthCard>
   );

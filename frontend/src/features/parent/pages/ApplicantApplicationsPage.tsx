@@ -1,7 +1,18 @@
 /**
  * ApplicantApplicationsPage.tsx
- * Lists all applications for the current applicant's campers.
- * Supports filtering by status, sorting by date, and active/past grouping.
+ *
+ * Purpose: Lists all applications for the current applicant's campers.
+ * Responsibilities:
+ *   - Fetch all applications from the API on mount
+ *   - Detect a locally-saved draft in localStorage and surface a "Continue" card
+ *   - Allow filtering by view mode (all / active / past) and by specific status
+ *   - Sort the filtered list newest-first or oldest-first
+ *   - Render applications in grouped sections: Drafts, Active, Past
+ *   - Offer a "Re-apply" button on resolved applications that pre-fills camper info
+ *
+ * Plain-English: This is the parent's filing cabinet — every application they've
+ * ever started or submitted lives here, organized so the ones that still need
+ * attention are easy to find at the top.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -33,14 +44,18 @@ import {
   cardHoverMotion,
 } from '@/shared/constants/motion';
 
+// localStorage key where ApplicationFormPage auto-saves in-progress drafts
 const LOCAL_DRAFT_KEY = 'cbg_app_draft';
 
 type ViewMode = 'all' | 'active' | 'past';
 type SortOrder = 'newest' | 'oldest';
 
+// Statuses that mean the application is still in flight and needs monitoring
 const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review', 'waitlisted'];
+// Statuses that mean the process is finished (one way or another)
 const PAST_STATUSES: ApplicationStatus[]   = ['approved', 'rejected', 'withdrawn', 'cancelled'];
 
+// Human-readable labels for each machine status value used in the filter dropdown
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft:        'Draft',
   pending:      'Pending',
@@ -52,19 +67,23 @@ const STATUS_LABELS: Record<ApplicationStatus, string> = {
   cancelled:    'Cancelled',
 };
 
+// Sort a copy of the list so we never mutate the original state array
 function sortApps(apps: Application[], order: SortOrder): Application[] {
   return [...apps].sort((a, b) => {
+    // Fall back to created_at if the application hasn't been submitted yet
     const dateA = new Date(a.submitted_at ?? a.created_at ?? '').getTime();
     const dateB = new Date(b.submitted_at ?? b.created_at ?? '').getTime();
     return order === 'newest' ? dateB - dateA : dateA - dateB;
   });
 }
 
+// Single application row — a card that links to the detail page
 function AppCard({ app }: { app: Application }) {
   const navigate = useNavigate();
   return (
     <motion.li variants={staggerChildVariants} {...cardHoverMotion}>
       <div className="flex items-center justify-between gap-4 px-6 py-4">
+        {/* The entire left side is a link to the detail page */}
         <Link
           to={ROUTES.PARENT_APPLICATION_DETAIL(app.id)}
           className="flex items-center gap-4 min-w-0 flex-1 hover:bg-[var(--dash-nav-hover-bg)] rounded-lg transition-colors -mx-2 px-2 py-1"
@@ -76,6 +95,7 @@ function AppCard({ app }: { app: Application }) {
             <FileText className="h-4 w-4" style={{ color: 'var(--night-sky-blue)' }} />
           </div>
           <div className="min-w-0">
+            {/* Fall back to a generic label if the camper was not eager-loaded */}
             <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
               {app.camper?.full_name ?? `Camper #${app.camper_id}`}
             </p>
@@ -96,9 +116,11 @@ function AppCard({ app }: { app: Application }) {
         </Link>
         <div className="flex items-center gap-3 flex-shrink-0">
           <StatusBadge status={app.status} />
+          {/* Re-apply button shown only when the application reached a terminal state */}
           {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled') && app.camper && (
             <button
               onClick={() =>
+                // Navigate to the new application form and pre-fill camper details
                 navigate(ROUTES.PARENT_APPLICATION_NEW, {
                   state: {
                     prefill: {
@@ -128,6 +150,7 @@ function AppCard({ app }: { app: Application }) {
   );
 }
 
+// A labeled section card grouping a set of application rows under a title
 function AppGroup({
   title,
   apps,
@@ -135,6 +158,7 @@ function AppGroup({
   title: string;
   apps: Application[];
 }) {
+  // Render nothing when there are no apps in this group — avoids empty section headers
   if (apps.length === 0) return null;
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
@@ -145,6 +169,7 @@ function AppGroup({
         <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
           {title}
         </span>
+        {/* Count badge next to the section title */}
         <span
           className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full"
           style={{ background: 'var(--border)', color: 'var(--muted-foreground)' }}
@@ -165,9 +190,11 @@ function AppGroup({
   );
 }
 
+// Special card shown when a localStorage draft is detected (not yet submitted to the server)
 function LocalDraftCard({ camperName }: { camperName: string | null }) {
   const navigate = useNavigate();
   return (
+    // Ember-orange border draws the eye to this unfinished draft
     <div
       className="flex items-center justify-between gap-4 px-6 py-4 rounded-2xl border"
       style={{ background: 'var(--card)', borderColor: 'var(--ember-orange)' }}
@@ -181,6 +208,7 @@ function LocalDraftCard({ camperName }: { camperName: string | null }) {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+            {/* Show the camper name parsed from the draft, or a generic label */}
             {camperName ? `Draft — ${camperName}` : 'Application draft (in progress)'}
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -188,6 +216,7 @@ function LocalDraftCard({ camperName }: { camperName: string | null }) {
           </p>
         </div>
       </div>
+      {/* "Continue" navigates back to the form, which re-hydrates from localStorage */}
       <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW)}>
         Continue
       </Button>
@@ -200,11 +229,15 @@ export function ApplicantApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(false);
+  // View mode: 'all' shows all groups, 'active' only in-flight, 'past' only resolved
   const [view, setView]                 = useState<ViewMode>('all');
+  // Specific status filter (overrides view mode when set)
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('');
   const [sortOrder, setSortOrder]       = useState<SortOrder>('newest');
+  // Holds camper name parsed from localStorage draft if one exists
   const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
 
+  // On mount, try to read the local draft key and extract the camper's name
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LOCAL_DRAFT_KEY);
@@ -216,6 +249,7 @@ export function ApplicantApplicationsPage() {
     } catch { /* ignore corrupt draft */ }
   }, []);
 
+  // Fetch all applications; the load function is also passed to ErrorState for retry
   const load = () => {
     setLoading(true);
     setError(false);
@@ -227,10 +261,11 @@ export function ApplicantApplicationsPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Derive the filtered + sorted list without modifying state directly (useMemo)
   const filtered = useMemo(() => {
     let list = applications;
     if (statusFilter === 'draft') {
-      // Drafts are stored with is_draft=true, not a separate status value
+      // Drafts are flagged via is_draft rather than having a unique status value
       list = list.filter((a) => a.is_draft === true);
     } else if (statusFilter) {
       list = list.filter((a) => a.status === statusFilter && !a.is_draft);
@@ -242,6 +277,7 @@ export function ApplicantApplicationsPage() {
     return sortApps(list, sortOrder);
   }, [applications, statusFilter, view, sortOrder]);
 
+  // Pre-split the filtered list into three groups for the sectioned "all" view
   const draftApps = useMemo(
     () => filtered.filter((a) => a.is_draft === true),
     [filtered]
@@ -257,7 +293,7 @@ export function ApplicantApplicationsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
-      {/* Header */}
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -273,9 +309,9 @@ export function ApplicantApplicationsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Filter toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* View toggle */}
+        {/* View mode toggle — clears status filter when switching modes */}
         <div
           className="flex rounded-xl border p-0.5"
           style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
@@ -287,6 +323,7 @@ export function ApplicantApplicationsPage() {
               onClick={() => { setView(v); setStatusFilter(''); }}
               className="text-xs font-medium px-3 py-1.5 rounded-lg capitalize transition-colors"
               style={{
+                // Highlighted button gets the brand color; inactive buttons are transparent
                 background: view === v ? 'var(--ember-orange)' : 'transparent',
                 color: view === v ? '#fff' : 'var(--muted-foreground)',
               }}
@@ -296,7 +333,7 @@ export function ApplicantApplicationsPage() {
           ))}
         </div>
 
-        {/* Status filter */}
+        {/* Status dropdown — selecting a status overrides the view mode grouping */}
         <div className="relative">
           <select
             value={statusFilter}
@@ -312,7 +349,7 @@ export function ApplicantApplicationsPage() {
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
         </div>
 
-        {/* Sort */}
+        {/* Sort order dropdown */}
         <div className="relative">
           <select
             value={sortOrder}
@@ -326,6 +363,7 @@ export function ApplicantApplicationsPage() {
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
         </div>
 
+        {/* Reset button appears only when a non-default filter is active */}
         {(statusFilter || view !== 'all') && (
           <button
             type="button"
@@ -339,7 +377,7 @@ export function ApplicantApplicationsPage() {
         )}
       </div>
 
-      {/* Content */}
+      {/* Main content area */}
       {loading ? (
         <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <SkeletonTable rows={5} />
@@ -366,9 +404,11 @@ export function ApplicantApplicationsPage() {
           />
         </div>
       ) : (
+        // AnimatePresence lets the list animate out when filters change
         <AnimatePresence mode="wait">
           <div className="flex flex-col gap-4">
             {view === 'all' && !statusFilter ? (
+              // Default grouped view: Drafts → Active → Past sections
               <>
                 {(draftApps.length > 0 || localDraft) && (
                   <div className="flex flex-col gap-3">
@@ -377,6 +417,7 @@ export function ApplicantApplicationsPage() {
                         Drafts
                       </span>
                     </div>
+                    {/* LocalDraftCard appears first when a localStorage draft exists */}
                     {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
                     {draftApps.length > 0 && (
                       <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
@@ -397,6 +438,7 @@ export function ApplicantApplicationsPage() {
                 <AppGroup title="Past Applications" apps={pastApps} />
               </>
             ) : statusFilter === 'draft' ? (
+              // When "Draft" is selected in the status filter, show local draft + server drafts
               <div className="flex flex-col gap-3">
                 {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
                 {filtered.length > 0 && (
@@ -414,6 +456,7 @@ export function ApplicantApplicationsPage() {
                 )}
               </div>
             ) : (
+              // Flat list when a specific status or view mode filter is active
               <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                 <motion.ul
                   variants={staggerContainerVariants}

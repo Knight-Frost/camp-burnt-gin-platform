@@ -13,15 +13,37 @@ use App\Services\SystemNotificationService;
 use App\Traits\QueuesNotifications;
 
 /**
- * Service for managing application business logic.
+ * ApplicationService — Camp Application Review Workflow
  *
- * Handles complex application workflows including approval, rejection,
- * and compliance validation for camp registrations.
+ * This service coordinates everything that happens when an admin reviews a
+ * camp application and changes its status (e.g. Pending → Approved, or → Rejected).
+ *
+ * It sits between the ApplicationController and the various subsystems (documents,
+ * letters, notifications) so the controller only needs one method call to trigger
+ * the entire review workflow.
+ *
+ * Responsibilities:
+ *  - Enforce document compliance before non-admin users can approve
+ *  - Guarantee a medical record exists for the camper before approval is finalised
+ *  - Persist the new status, reviewer, and notes to the database
+ *  - Send email + database notifications to the parent
+ *  - Send a matching in-app system notification to the parent's inbox
+ *  - Generate and email the appropriate acceptance or rejection letter
+ *
+ * Connected services:
+ *  - DocumentEnforcementService: checks that required documents are uploaded and verified
+ *  - LetterService:              generates and sends acceptance/rejection letters
+ *  - SystemNotificationService:  creates system-generated inbox messages for the parent
  */
 class ApplicationService
 {
+    // This trait provides the queueNotification() helper used for email notifications
     use QueuesNotifications;
 
+    /**
+     * Inject the three services this class depends on via constructor injection.
+     * Laravel's service container resolves and provides these automatically.
+     */
     public function __construct(
         protected DocumentEnforcementService $documentEnforcement,
         protected LetterService $letterService,
@@ -29,14 +51,23 @@ class ApplicationService
     ) {}
 
     /**
-     * Review and update application status with full workflow.
+     * Review an application: validate compliance, update status, and trigger all follow-up actions.
      *
-     * Handles:
-     * - Document compliance validation before approval
-     * - Status updates
-     * - User notifications
-     * - Acceptance/rejection letter generation
+     * This is the single entry point for the entire application-review workflow.
+     * Calling this one method handles everything a reviewer needs to do.
      *
+     * Step-by-step flow:
+     *  1. (Non-admin only) Run document compliance check — block approval if documents are missing
+     *  2. Ensure the camper has a medical record (create one if missing)
+     *  3. Persist the new status, notes, reviewer, and timestamp
+     *  4. Send a status-change email notification to the parent
+     *  5. Send an in-app system notification to the parent's inbox
+     *  6. Send an acceptance or rejection letter if the status warrants one
+     *
+     * @param  Application        $application  The application being reviewed
+     * @param  ApplicationStatus  $newStatus    The status to change to (Approved, Rejected, etc.)
+     * @param  string|null        $notes        Optional reviewer notes attached to the record
+     * @param  User               $reviewedBy   The admin or super-admin performing the review
      * @return array{success: bool, compliance_details?: array}
      */
     public function reviewApplication(
@@ -45,14 +76,18 @@ class ApplicationService
         ?string $notes,
         User $reviewedBy
     ): array {
+        // Capture the current status before we change it (used in the notification later)
         $previousStatus = $application->status->value;
 
-        // CRITICAL SAFETY CHECK: Enforce document compliance before approval.
-        // Admins and super-admins may override this check to unblock borderline cases.
+        // ── Step 1: Document compliance gate ────────────────────────────────────
+        // CRITICAL SAFETY CHECK: Only non-admins are blocked by this compliance check.
+        // Admins and super-admins can override it to handle edge cases or manual reviews.
         if ($newStatus === ApplicationStatus::Approved && ! $reviewedBy->isAdmin() && ! $reviewedBy->isSuperAdmin()) {
+            // Load the camper relationship if it hasn't been loaded yet
             $application->loadMissing('camper');
             $compliance = $this->documentEnforcement->checkCompliance($application->camper);
 
+            // If required documents are missing, expired, or unverified — block the approval
             if (! $compliance['is_compliant']) {
                 return [
                     'success' => false,
@@ -65,7 +100,7 @@ class ApplicationService
             }
         }
 
-        // Guarantee the camper has a medical record before approval is finalised.
+        // ── Step 2: Guarantee a medical record exists before approval ────────────
         // The application form normally creates one during submission, but this
         // firstOrCreate is a safety net for any path that bypassed that step.
         if ($newStatus === ApplicationStatus::Approved) {
@@ -75,7 +110,7 @@ class ApplicationService
             );
         }
 
-        // Update application status
+        // ── Step 3: Persist the review decision to the database ──────────────────
         $application->update([
             'status' => $newStatus,
             'notes' => $notes,
@@ -83,17 +118,20 @@ class ApplicationService
             'reviewed_by' => $reviewedBy->id,
         ]);
 
-        // Send status change notification (email + database)
+        // ── Step 4: Email notification to the parent ─────────────────────────────
+        // Load the parent user and camper name for use in notifications and letters
         $application->loadMissing('camper.user');
         $parentUser  = $application->camper->user;
         $camperName  = $application->camper->first_name . ' ' . $application->camper->last_name;
 
+        // queueNotification() (from QueuesNotifications trait) sends the email after the response
         $this->queueNotification(
             $parentUser,
             new ApplicationStatusChangedNotification($application, $previousStatus)
         );
 
-        // Send in-app system notification in the inbox System tab
+        // ── Step 5: In-app inbox notification ───────────────────────────────────
+        // Use match to call the most specific notification method based on the new status
         match ($newStatus) {
             ApplicationStatus::Approved => $this->systemNotifications->applicationApproved(
                 $parentUser, $application->id, $camperName
@@ -101,12 +139,14 @@ class ApplicationService
             ApplicationStatus::Rejected => $this->systemNotifications->applicationRejected(
                 $parentUser, $application->id, $camperName, $notes
             ),
+            // For any other status (Waitlisted, etc.) use the generic change notification
             default => $this->systemNotifications->applicationStatusChanged(
                 $parentUser, $application->id, $camperName, $newStatus->value
             ),
         };
 
-        // Send appropriate letter based on status
+        // ── Step 6: Send the formal decision letter ──────────────────────────────
+        // Note: we read $application->status (the freshly updated enum value) here
         if ($application->status === ApplicationStatus::Approved) {
             $this->letterService->sendAcceptanceLetter($application);
         } elseif ($application->status === ApplicationStatus::Rejected) {

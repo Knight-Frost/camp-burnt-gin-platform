@@ -7,11 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Role model representing user access levels within the system.
+ * Role model — defines a named access level that users are assigned to.
  *
- * Roles define the permissions and capabilities available to users.
- * Each user is assigned a single role that governs their access
- * to various features and resources.
+ * This is a simple lookup table. The system currently uses four roles:
+ *   - applicant    : A parent/guardian who submits camper applications.
+ *   - admin        : Camp staff who review applications and manage data.
+ *   - super_admin  : Full system authority; inherits all admin privileges.
+ *   - medical      : Medical providers who view and record health information.
+ *
+ * A user belongs to exactly one role (role_id on the users table).
+ * Permission checks are performed in Laravel Policies and on the User model
+ * (isAdmin(), isMedicalProvider(), etc.) rather than stored in this table.
  */
 class Role extends Model
 {
@@ -23,12 +29,14 @@ class Role extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'description',
+        'name',        // Machine-readable slug — used in policy checks (e.g. 'super_admin').
+        'description', // Human-readable label shown in the admin UI.
     ];
 
     /**
-     * Get all users assigned to this role.
+     * Get all users who are assigned this role.
+     *
+     * Useful for listing all admins, all medical providers, etc.
      */
     public function users(): HasMany
     {

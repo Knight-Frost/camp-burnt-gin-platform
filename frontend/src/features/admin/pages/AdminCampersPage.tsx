@@ -1,8 +1,19 @@
 /**
  * AdminCampersPage.tsx
  *
- * Searchable, filterable camper table for admins.
- * Route: /admin/campers
+ * Purpose: A searchable, paginated table of all registered campers for admins.
+ * Route: /admin/campers (also shared by super-admin at /super-admin/campers)
+ *
+ * Responsibilities:
+ *  - Fetch a paginated list of campers from the API.
+ *  - Let admins search by name; page resets to 1 when the search term changes.
+ *  - Display each camper's DOB, assigned session, a risk/compliance indicator, and a View link.
+ *  - Works for both /admin and /super-admin prefixes — detects which from the URL.
+ *
+ * Plain-English summary:
+ *  This is a directory of every camper in the system. You can type a name in the
+ *  search box and the list narrows down. Click any row to see the full camper profile.
+ *  The page number resets whenever you change the search so you always start at page 1.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -22,18 +33,29 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 export function AdminCampersPage() {
   const { t } = useTranslation();
   const location = useLocation();
+
+  // Detect whether we're inside /super-admin or /admin to build correct detail links.
   const camperBase = location.pathname.startsWith('/super-admin') ? '/super-admin/campers' : '/admin/campers';
 
+  // ── State ──────────────────────────────────────────────────────────────────
+
+  // The server returns a PaginatedResponse with a `data` array and `meta` (total, page info).
   const [response, setResponse]   = useState<PaginatedResponse<Camper> | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
+  // search is the text the user typed; page tracks which page of results we're on.
   const [search, setSearch]       = useState('');
   const [page, setPage]           = useState(1);
 
+  // ── Data fetching ──────────────────────────────────────────────────────────
+
+  // useCallback ensures fetchCampers only gets a new reference when page or search changes,
+  // which prevents the useEffect below from re-running unnecessarily.
   const fetchCampers = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
+      // Pass undefined for search when empty so the API ignores the parameter.
       const data = await getCampers({ page, search: search || undefined });
       setResponse(data);
     } catch {
@@ -43,7 +65,10 @@ export function AdminCampersPage() {
     }
   }, [page, search]);
 
+  // Run fetch whenever the stable fetchCampers reference changes (i.e., page or search changed).
   useEffect(() => { void fetchCampers(); }, [fetchCampers]);
+
+  // Reset to page 1 whenever the user types a new search — so we don't land on page 3 of 0 results.
   useEffect(() => { setPage(1); }, [search]);
 
   return (
@@ -52,12 +77,13 @@ export function AdminCampersPage() {
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('admin.campers.title')}
         </h1>
+        {/* Show the total camper count from the paginated meta once loaded. */}
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           {response && t('admin.campers.subtitle', { total: response.meta.total })}
         </p>
       </div>
 
-      {/* Search */}
+      {/* Search box */}
       <div
         className="flex items-center gap-2 rounded-lg px-3 py-2 border mb-6 max-w-sm"
         style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -72,7 +98,9 @@ export function AdminCampersPage() {
         />
       </div>
 
+      {/* Conditional rendering: loading → error → empty → table */}
       {loading ? (
+        // Show skeleton rows while the API call is in flight.
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => <Skeletons.Row key={i} />)}
         </div>
@@ -86,6 +114,7 @@ export function AdminCampersPage() {
         <EmptyState title={t('admin.campers.empty_title')} description={t('admin.campers.empty_desc')} />
       ) : (
         <>
+          {/* Camper table with animated row entrance. */}
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -93,6 +122,7 @@ export function AdminCampersPage() {
             className="rounded-xl border overflow-hidden"
             style={{ borderColor: 'var(--border)' }}
           >
+            {/* Table header row */}
             <div
               className="grid grid-cols-12 px-4 py-3 text-xs font-medium uppercase tracking-wide border-b"
               style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
@@ -105,7 +135,9 @@ export function AdminCampersPage() {
               <div className="col-span-1" />
             </div>
 
+            {/* One row per camper — each animates in with staggerChild. */}
             {response.data.map((camper) => {
+              // Take the first (most recent) application to show session info.
               const latestApp = camper.applications?.[0];
               return (
                 <motion.div
@@ -132,6 +164,7 @@ export function AdminCampersPage() {
                     </p>
                   </div>
                   <div className="col-span-2">
+                    {/* Links to the camper detail page, using the correct prefix for the portal. */}
                     <Link
                       to={`${camperBase}/${camper.id}`}
                       className="inline-flex items-center gap-1 text-xs"
@@ -161,8 +194,10 @@ export function AdminCampersPage() {
             })}
           </motion.div>
 
+          {/* Pagination controls — only show when there is more than one page. */}
           {response.meta.last_page > 1 && (
             <div className="flex items-center justify-between mt-4">
+              {/* Shows "1–15 of 42" style text. */}
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {t('common.pagination', {
                   from: (page - 1) * response.meta.per_page + 1,
@@ -171,6 +206,7 @@ export function AdminCampersPage() {
                 })}
               </p>
               <div className="flex items-center gap-2">
+                {/* Previous page — disabled on page 1. */}
                 <button
                   onClick={() => setPage((p) => p - 1)}
                   disabled={page === 1}
@@ -182,6 +218,7 @@ export function AdminCampersPage() {
                 <span className="text-sm px-2" style={{ color: 'var(--foreground)' }}>
                   {page} / {response.meta.last_page}
                 </span>
+                {/* Next page — disabled on the last page. */}
                 <button
                   onClick={() => setPage((p) => p + 1)}
                   disabled={page === response.meta.last_page}

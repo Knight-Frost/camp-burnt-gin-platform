@@ -3,8 +3,16 @@ import { Middleware } from '@reduxjs/toolkit';
 /**
  * PHI Protection Middleware
  *
- * Prevents accidental persistence of Protected Health Information (PHI)
- * by monitoring Redux actions and state for sensitive data.
+ * PHI stands for "Protected Health Information" — things like names, diagnoses,
+ * medications, and insurance numbers that HIPAA law says must be handled carefully.
+ *
+ * This middleware sits in the Redux pipeline and watches every action that flows
+ * through the store. Its three jobs are:
+ * 1. Allow redux-persist internal lifecycle actions to pass through untouched.
+ * 2. Warn (in development) if an action's payload contains PHI field names —
+ *    so developers know to be careful about where that data ends up.
+ * 3. Block any custom action that tries to manually invoke persist/* actions,
+ *    which could cause PHI to be written to browser storage.
  *
  * HIPAA Compliance:
  * - PHI must never be intentionally persisted to storage.
@@ -12,6 +20,7 @@ import { Middleware } from '@reduxjs/toolkit';
  * - Custom persistence attempts are not allowed.
  */
 
+// The list of object keys that indicate Protected Health Information
 const PHI_FIELDS = [
   'first_name',
   'last_name',
@@ -39,6 +48,7 @@ const PHI_FIELDS = [
 
 /**
  * Recursively checks an object for PHI fields.
+ * Returns true as soon as any nested object has a matching key.
  */
 function containsPHI(obj: unknown): boolean {
   if (!obj || typeof obj !== 'object') {
@@ -52,7 +62,7 @@ function containsPHI(obj: unknown): boolean {
     return true;
   }
 
-  // Recursive nested check
+  // Recursive nested check — PHI may be buried inside nested objects
   return keys.some((key) => {
     const value = (obj as Record<string, unknown>)[key];
     return containsPHI(value);
@@ -79,6 +89,7 @@ const PERSIST_FRAMEWORK_ACTIONS = [
   'persist/PURGE',
 ];
 
+// Middleware signature: a function that receives the store API and returns a handler
 export const phiProtectionMiddleware: Middleware =
   () => (next) => (action) => {
     const typedAction = action as { type: string; payload?: unknown };
@@ -100,7 +111,7 @@ export const phiProtectionMiddleware: Middleware =
      * Step 2: Development-only PHI monitoring.
      *
      * Warn if an action payload contains PHI fields.
-     * This does NOT block execution — only logs.
+     * This does NOT block execution — only logs a warning in the console.
      */
     if (import.meta.env.DEV) {
       if (containsPHI(typedAction.payload)) {
@@ -117,7 +128,7 @@ export const phiProtectionMiddleware: Middleware =
      *
      * If any action tries to manually dispatch persist/*
      * that is NOT part of redux-persist framework,
-     * it will be blocked here.
+     * it will be blocked here to prevent unauthorized data persistence.
      */
     if (
       typedAction.type &&
@@ -128,8 +139,10 @@ export const phiProtectionMiddleware: Middleware =
         '[PHI Protection] BLOCKED: Unauthorized persistence attempt detected.',
         typedAction.type
       );
+      // Return undefined — the action never reaches the reducer
       return;
     }
 
+    // All checks passed — forward the action to the next middleware or reducer
     return next(action);
   };

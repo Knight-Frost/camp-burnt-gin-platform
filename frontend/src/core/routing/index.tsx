@@ -22,9 +22,17 @@ import { SuperAdminLayout } from '@/ui/layout/SuperAdminLayout';
 import { ApplicantLayout }  from '@/ui/layout/ApplicantLayout';
 import { MedicalLayout }    from '@/ui/layout/MedicalLayout';
 
+/**
+ * withSuspense — lazy-loading wrapper factory
+ *
+ * React.lazy() splits each page into its own JS bundle that loads on demand.
+ * Suspense shows a skeleton placeholder while the bundle is downloading.
+ * This keeps the initial load fast — only the login page JS loads first.
+ */
 function withSuspense<T extends object>(Component: ComponentType<T>) {
   return function SuspenseWrapped(props: T) {
     return (
+      // Show PageSkeleton while the lazy bundle is being fetched
       <Suspense fallback={<PageSkeleton />}>
         <Component {...props} />
       </Suspense>
@@ -33,6 +41,7 @@ function withSuspense<T extends object>(Component: ComponentType<T>) {
 }
 
 // ─── Utility pages ────────────────────────────────────────────────────────────
+// .then(m => ({ default: m.PageName })) is needed because these files use named exports
 const NotFoundPage  = withSuspense(lazy(() => import('@/app/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage }))));
 const ForbiddenPage = withSuspense(lazy(() => import('@/app/pages/ForbiddenPage').then(m => ({ default: m.ForbiddenPage }))));
 
@@ -45,6 +54,7 @@ const ResetPasswordPage  = withSuspense(lazy(() => import('@/app/pages/ResetPass
 const VerifyEmailPage    = withSuspense(lazy(() => import('@/app/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage }))));
 
 // ─── Applicant pages ──────────────────────────────────────────────────────────
+// The "applicant" role is what parents/guardians use to submit camper applications
 const ApplicantDocumentsPage       = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantDocumentsPage').then(m => ({ default: m.ApplicantDocumentsPage }))));
 const ApplicantDashboardPage       = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantDashboardPage').then(m => ({ default: m.ApplicantDashboardPage }))));
 const ApplicantApplicationsPage    = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantApplicationsPage').then(m => ({ default: m.ApplicantApplicationsPage }))));
@@ -66,6 +76,7 @@ const AdminCalendarPage       = withSuspense(lazy(() => import('@/features/admin
 const AdminDocumentsPage      = withSuspense(lazy(() => import('@/features/admin/pages/AdminDocumentsPage').then(m => ({ default: m.AdminDocumentsPage }))));
 
 // ─── Medical pages ────────────────────────────────────────────────────────────
+// Medical staff have their own portal with HIPAA-protected camper health data
 const MedicalDashboardPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDashboardPage').then(m => ({ default: m.MedicalDashboardPage }))));
 const MedicalRecordPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordPage').then(m => ({ default: m.MedicalRecordPage }))));
 const MedicalTreatmentLogPage      = withSuspense(lazy(() => import('@/features/medical/pages/MedicalTreatmentLogPage').then(m => ({ default: m.MedicalTreatmentLogPage }))));
@@ -77,26 +88,40 @@ const MedicalVisitsPage        = withSuspense(lazy(() => import('@/features/medi
 const MedicalEmergencyViewPage = withSuspense(lazy(() => import('@/features/medical/pages/MedicalEmergencyViewPage').then(m => ({ default: m.MedicalEmergencyViewPage }))));
 
 // ─── Super admin pages ────────────────────────────────────────────────────────
+// Super admins get all admin pages plus user management, audit logs, and form builder
 const SuperAdminDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/SuperAdminDashboardPage').then(m => ({ default: m.SuperAdminDashboardPage }))));
 const UserManagementPage      = withSuspense(lazy(() => import('@/features/superadmin/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage }))));
 const AuditLogPage            = withSuspense(lazy(() => import('@/features/superadmin/pages/AuditLogPage').then(m => ({ default: m.AuditLogPage }))));
 const FormManagementPage      = withSuspense(lazy(() => import('@/features/superadmin/pages/FormManagementPage').then(m => ({ default: m.FormManagementPage }))));
 
 // ─── Shared pages ─────────────────────────────────────────────────────────────
+// These pages are reused across multiple portals (each portal mounts them under its own prefix)
 const InboxPage    = withSuspense(lazy(() => import('@/features/messaging/pages/InboxPage').then(m => ({ default: m.InboxPage }))));
 const ProfilePage  = withSuspense(lazy(() => import('@/features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage }))));
 const SettingsPage = withSuspense(lazy(() => import('@/features/profile/pages/SettingsPage').then(m => ({ default: m.SettingsPage }))));
 
+/**
+ * createBrowserRouter builds the route tree.
+ *
+ * The nesting pattern used here is:
+ *   ProtectedRoute (checks auth)
+ *     └─ RoleGuard (checks role)
+ *          └─ Layout (sidebar + topbar shell)
+ *               └─ Page components
+ *
+ * Outlet is a placeholder that renders the matched child route inside its parent.
+ */
 export const router = createBrowserRouter([
 
   // Root → login redirect
   { path: '/', element: <Navigate to="/login" replace /> },
 
-  // Utility pages — standalone
+  // Utility pages — standalone (no layout, no auth required)
   { path: '/forbidden', element: <ForbiddenPage /> },
   { path: '*',          element: <NotFoundPage /> },
 
   // ─── Auth routes (unauthenticated) ─────────────────────────────────────────
+  // AuthLayout provides the centered card background for login/register screens
   {
     element: <AuthLayout />,
     children: [
@@ -110,6 +135,9 @@ export const router = createBrowserRouter([
   },
 
   // ─── Applicant portal ──────────────────────────────────────────────────────
+  // Layer 1: ProtectedRoute — redirects to /login if not authenticated
+  // Layer 2: RoleGuard — only the 'applicant' role can enter
+  // Layer 3: ApplicantLayout — renders the applicant sidebar and topbar shell
   {
     element: <ProtectedRoute />,
     children: [{
@@ -117,10 +145,12 @@ export const router = createBrowserRouter([
       children: [{
         element: <ApplicantLayout />,
         children: [
+          // /applicant with no sub-path redirects immediately to /applicant/dashboard
           { path: '/applicant',                     element: <Navigate to="/applicant/dashboard" replace /> },
           { path: '/applicant/dashboard',           element: <ApplicantDashboardPage /> },
           { path: '/applicant/applications',        element: <ApplicantApplicationsPage /> },
           { path: '/applicant/applications/new',    element: <ApplicationFormPage /> },
+          // :id is a URL parameter — React Router fills it in from the actual URL
           { path: '/applicant/applications/:id',    element: <ApplicantApplicationDetailPage /> },
           { path: '/applicant/documents',           element: <ApplicantDocumentsPage /> },
           { path: '/applicant/announcements',       element: <ParentAnnouncementsPage /> },
@@ -134,6 +164,7 @@ export const router = createBrowserRouter([
   },
 
   // ─── Admin portal ──────────────────────────────────────────────────────────
+  // super_admin is also allowed here because RoleGuard grants them admin access
   {
     element: <ProtectedRoute />,
     children: [{
@@ -161,6 +192,7 @@ export const router = createBrowserRouter([
   },
 
   // ─── Medical portal ────────────────────────────────────────────────────────
+  // Only users with the 'medical' role can access these HIPAA-protected routes
   {
     element: <ProtectedRoute />,
     children: [{
@@ -170,16 +202,20 @@ export const router = createBrowserRouter([
         children: [
           { path: '/medical',                                      element: <Navigate to="/medical/dashboard" replace /> },
           { path: '/medical/dashboard',                          element: <MedicalDashboardPage /> },
+          // :camperId scopes the medical record to a specific camper
           { path: '/medical/records/:camperId',                  element: <MedicalRecordPage /> },
           { path: '/medical/records/:camperId/treatments',       element: <MedicalTreatmentLogPage /> },
           { path: '/medical/records/:camperId/documents',        element: <MedicalDocumentsPage /> },
+          // Global (non-camper-scoped) treatment and incident views
           { path: '/medical/treatments',                         element: <MedicalTreatmentLogPage /> },
           { path: '/medical/record-treatment',                   element: <MedicalRecordTreatmentPage /> },
           { path: '/medical/incidents',                          element: <MedicalIncidentsPage /> },
           { path: '/medical/follow-ups',                         element: <MedicalFollowUpsPage /> },
           { path: '/medical/visits',                             element: <MedicalVisitsPage /> },
+          // Camper-scoped incident and visit views (filtered by camperId)
           { path: '/medical/records/:camperId/incidents',        element: <MedicalIncidentsPage /> },
           { path: '/medical/records/:camperId/visits',           element: <MedicalVisitsPage /> },
+          // Emergency view shows critical info for a specific camper at a glance
           { path: '/medical/records/:camperId/emergency',        element: <MedicalEmergencyViewPage /> },
           { path: '/medical/announcements',                      element: <ParentAnnouncementsPage /> },
           { path: '/medical/inbox',                              element: <InboxPage /> },
@@ -191,6 +227,7 @@ export const router = createBrowserRouter([
   },
 
   // ─── Super admin portal ────────────────────────────────────────────────────
+  // Exclusive to super_admin — includes governance tools not available to admin
   {
     element: <ProtectedRoute />,
     children: [{
@@ -200,9 +237,11 @@ export const router = createBrowserRouter([
         children: [
           { path: '/super-admin',                      element: <Navigate to="/super-admin/dashboard" replace /> },
           { path: '/super-admin/dashboard',            element: <SuperAdminDashboardPage /> },
+          // Governance-only pages (not available in the regular admin portal)
           { path: '/super-admin/users',                element: <UserManagementPage /> },
           { path: '/super-admin/audit',                element: <AuditLogPage /> },
           { path: '/super-admin/forms',                element: <FormManagementPage /> },
+          // Shared admin pages also mounted under super-admin prefix
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
           { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },
           { path: '/super-admin/campers',              element: <AdminCampersPage /> },

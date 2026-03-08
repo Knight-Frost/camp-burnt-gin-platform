@@ -1,12 +1,17 @@
 /**
- * ProtectedRoute.tsx
- * Guards all authenticated routes.
+ * ProtectedRoute.tsx — Authentication gate for all private pages
  *
- * Logic:
- * 1. Show FullPageLoader while auth is hydrating (isLoading = true)
- * 2. Redirect to /login if not authenticated (preserves intended destination)
- * 3. Redirect to /mfa-verify if MFA is required but not yet verified
- * 4. Render children if all checks pass
+ * This component wraps every portal route tree. It acts like a security checkpoint —
+ * users must pass all checks before they can see the page content.
+ *
+ * Check order (fail = redirect immediately, don't evaluate further):
+ * 1. Still loading?    → Show a full-page spinner (auth is being hydrated from sessionStorage).
+ * 2. Not logged in?    → Redirect to /login, preserving where the user was trying to go
+ *                        so they can be sent there after a successful login.
+ * 3. MFA incomplete?   → Redirect to /mfa-verify so the user completes two-factor auth.
+ * 4. All clear         → Render the matched child route via <Outlet />.
+ *
+ * <Outlet /> is a React Router concept — it renders whatever child route matched the URL.
  */
 
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
@@ -15,14 +20,19 @@ import { ROUTES } from '@/shared/constants/routes';
 import { FullPageLoader } from '@/ui/components/FullPageLoader';
 
 export function ProtectedRoute() {
+  // Read auth state from Redux — this is the single source of truth for login status
   const { isAuthenticated, isLoading, mfaRequired, mfaVerified } =
     useAppSelector((state) => state.auth);
+  // useLocation tells us which URL the user is currently trying to visit
   const location = useLocation();
 
+  // Check 1: Auth hydration is still in progress — show spinner and wait
   if (isLoading) {
     return <FullPageLoader />;
   }
 
+  // Check 2: No valid session — redirect to login and remember the intended destination
+  // state.from lets LoginPage redirect back after a successful login
   if (!isAuthenticated) {
     return (
       <Navigate
@@ -33,9 +43,11 @@ export function ProtectedRoute() {
     );
   }
 
+  // Check 3: Account requires MFA but user hasn't completed it yet
   if (mfaRequired && !mfaVerified) {
     return <Navigate to={ROUTES.MFA_VERIFY} replace />;
   }
 
+  // All checks passed — render the nested child route
   return <Outlet />;
 }

@@ -1,7 +1,19 @@
 /**
  * ApplicantDashboardPage.tsx
- * Main parent dashboard — shows camper summary cards, application statuses,
- * quick actions, and recent notifications.
+ *
+ * Purpose: Main home screen for parents (applicants) after login.
+ * Responsibilities:
+ *   - Fetch campers, applications, notifications, and announcements in parallel
+ *   - Greet the user by first name from Redux auth state
+ *   - Display pinned/urgent camp announcements at the top
+ *   - Show three stat cards (total campers, total applications, pending count)
+ *   - List camper cards with latest application status and a drill-down link
+ *   - Show recent unread notifications with mark-as-read support
+ *   - Provide quick-action buttons at the bottom (New Application, View All, Inbox)
+ *
+ * Plain-English: This is the "home base" for parents — the first page they see
+ * after logging in, packed with everything they need to know about their kids'
+ * camp applications at a glance.
  */
 
 import { useEffect, useState, type ComponentType } from 'react';
@@ -34,6 +46,7 @@ import { formatDistanceToNow } from 'date-fns';
 export function ApplicantDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  // Pull the logged-in user's name from Redux — no API call needed
   const user = useAppSelector((state) => state.auth.user);
   const [campers, setCampers] = useState<Camper[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -41,13 +54,17 @@ export function ApplicantDashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Increment to trigger a re-fetch after an error (retryKey pattern)
   const [retryKey, setRetryKey] = useState(0);
 
+  // Fetch all dashboard data at once using Promise.allSettled.
+  // allSettled (vs. all) means a failed notification fetch won't hide the campers list.
   useEffect(() => {
     setLoading(true);
     setError(false);
     Promise.allSettled([getCampers(), getApplications(), getNotifications(), getAnnouncements(5)])
       .then(([cResult, aResult, nResult, annResult]) => {
+        // Only show a full error screen if BOTH core resources (campers + applications) failed
         if (cResult.status === 'rejected' && aResult.status === 'rejected') {
           setError(true);
           return;
@@ -55,6 +72,7 @@ export function ApplicantDashboardPage() {
         setCampers(cResult.status === 'fulfilled' ? cResult.value : []);
         setApplications(aResult.status === 'fulfilled' ? aResult.value : []);
         if (nResult.status === 'fulfilled') {
+          // Show at most 5 notifications — the sidebar bell shows the full list
           setNotifications((nResult.value.data ?? []).slice(0, 5));
         }
         if (annResult.status === 'fulfilled') {
@@ -65,11 +83,14 @@ export function ApplicantDashboardPage() {
       .finally(() => setLoading(false));
   }, [retryKey]);
 
+  // Extract first name from the full name stored in Redux for a friendly greeting
   const firstName = user?.name.split(' ')[0] ?? 'there';
+  // Count applications that still need attention from the admin
   const pendingCount = applications.filter(
     (a) => a.status === 'pending' || a.status === 'under_review'
   ).length;
 
+  // Mark a single notification read: fire API in background, update UI immediately
   const handleMarkRead = (id: string) => {
     markNotificationRead(id).catch(() => {/* non-critical */});
     setNotifications((prev) =>
@@ -77,9 +98,11 @@ export function ApplicantDashboardPage() {
     );
   };
 
+  // Mark all as read: fire API in background, stamp every unread notification locally
   const handleMarkAllRead = () => {
     markAllNotificationsRead().catch(() => {/* non-critical */});
     setNotifications((prev) =>
+      // Only update notifications that don't already have a read_at timestamp
       prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() }))
     );
   };
@@ -90,7 +113,7 @@ export function ApplicantDashboardPage() {
 
   return (
     <div className="flex flex-col gap-8 max-w-6xl">
-      {/* Welcome */}
+      {/* Welcome heading — scrolls in via scrollRevealVariants */}
       <motion.div
         variants={scrollRevealVariants}
         initial="hidden"
@@ -113,7 +136,7 @@ export function ApplicantDashboardPage() {
         </p>
       </motion.div>
 
-      {/* Announcements */}
+      {/* Announcements strip — only rendered when there are announcements to show */}
       {!loading && announcements.length > 0 && (
         <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
           <div className="flex items-center gap-2 mb-3">
@@ -128,6 +151,7 @@ export function ApplicantDashboardPage() {
                 key={ann.id}
                 className="rounded-xl border px-5 py-4"
                 style={{
+                  // Urgent announcements get a subtle red tint to draw attention
                   background: ann.is_urgent ? 'rgba(220,38,38,0.05)' : 'var(--card)',
                   borderColor: ann.is_urgent ? 'rgba(220,38,38,0.25)' : 'var(--border)',
                 }}
@@ -135,6 +159,7 @@ export function ApplicantDashboardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
+                      {/* Pin icon shown when the announcement is pinned by admins */}
                       {ann.is_pinned && (
                         <Pin className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
                       )}
@@ -148,6 +173,7 @@ export function ApplicantDashboardPage() {
                         </span>
                       )}
                     </div>
+                    {/* line-clamp-2 keeps long announcements from taking over the page */}
                     <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--muted-foreground)' }}>
                       {ann.body}
                     </p>
@@ -159,7 +185,7 @@ export function ApplicantDashboardPage() {
         </motion.div>
       )}
 
-      {/* Stats row */}
+      {/* Stat cards — skeleton placeholders shown while loading */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => <SkeletonCard key={i} lines={1} />)}
@@ -179,6 +205,7 @@ export function ApplicantDashboardPage() {
             color="var(--night-sky-blue)"
             delay={0.1}
           />
+          {/* Pending count uses amber to signal "needs attention" */}
           <StatCard
             label={t('applicant.dashboard.stat_pending')}
             value={pendingCount}
@@ -189,8 +216,9 @@ export function ApplicantDashboardPage() {
         </div>
       )}
 
+      {/* Two-column layout: camper list (left) + notifications (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Campers */}
+        {/* Camper cards — each card shows the latest application status */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h3
@@ -230,6 +258,7 @@ export function ApplicantDashboardPage() {
               />
             </div>
           ) : (
+            // Stagger each camper card so they animate in one after another
             <motion.ul
               variants={staggerContainerVariants}
               initial="hidden"
@@ -237,15 +266,18 @@ export function ApplicantDashboardPage() {
               className="flex flex-col gap-3"
             >
               {campers.map((camper) => {
+                // Filter applications to only those belonging to this camper
                 const camperApps = applications.filter(
                   (a) => a.camper_id === camper.id
                 );
+                // The first application in the list is assumed to be the most recent
                 const latestApp = camperApps[0];
 
                 return (
                   <motion.li
                     key={camper.id}
                     variants={staggerChildVariants}
+                    // cardHoverMotion adds a subtle scale-up on hover
                     {...cardHoverMotion}
                   >
                     <div
@@ -256,6 +288,7 @@ export function ApplicantDashboardPage() {
                       }}
                     >
                       <div className="flex items-center gap-3 min-w-0">
+                        {/* Initials avatar using the camper's first and last name initials */}
                         <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-headline font-semibold text-sm"
                           style={{
@@ -272,6 +305,7 @@ export function ApplicantDashboardPage() {
                           >
                             {camper.full_name}
                           </p>
+                          {/* i18n plural key chooses "1 application" vs "N applications" */}
                           <p
                             className="text-xs"
                             style={{ color: 'var(--muted-foreground)' }}
@@ -281,6 +315,7 @@ export function ApplicantDashboardPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
+                        {/* Status badge from the most recent application, if one exists */}
                         {latestApp && (
                           <StatusBadge status={latestApp.status} />
                         )}
@@ -301,7 +336,7 @@ export function ApplicantDashboardPage() {
           )}
         </div>
 
-        {/* Recent Updates */}
+        {/* Recent Updates / Notifications panel */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3
@@ -310,6 +345,7 @@ export function ApplicantDashboardPage() {
             >
               {t('applicant.dashboard.recent_updates')}
             </h3>
+            {/* "Mark all read" button only appears when at least one notification is unread */}
             {notifications.some((n) => !n.read_at) && (
               <button
                 onClick={handleMarkAllRead}
@@ -342,6 +378,7 @@ export function ApplicantDashboardPage() {
             >
               {notifications.map((n) => {
                 const isUnread = !n.read_at;
+                // Pick an icon based on the notification type string from the server
                 const Icon = getNotifIcon(n.type);
                 return (
                   <motion.li
@@ -349,12 +386,15 @@ export function ApplicantDashboardPage() {
                     variants={staggerChildVariants}
                     className="rounded-xl border p-4 cursor-pointer transition-colors"
                     style={{
+                      // Unread notifications have a subtle green tint to stand out
                       background: isUnread ? 'rgba(22,163,74,0.06)' : 'var(--card)',
                       borderColor: isUnread ? 'rgba(22,163,74,0.20)' : 'var(--border)',
                     }}
+                    // Clicking only fires when the notification is unread — avoids no-op clicks
                     onClick={() => isUnread && handleMarkRead(n.id)}
                   >
                     <div className="flex items-start gap-3">
+                      {/* Icon badge changes color based on read/unread state */}
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                         style={{
@@ -365,6 +405,7 @@ export function ApplicantDashboardPage() {
                         <Icon className="h-3.5 w-3.5" />
                       </div>
                       <div className="flex-1 min-w-0">
+                        {/* Unread titles are bold; read titles are medium weight */}
                         <p
                           className={`text-sm mb-0.5 ${isUnread ? 'font-semibold' : 'font-medium'}`}
                           style={{ color: 'var(--foreground)' }}
@@ -379,6 +420,7 @@ export function ApplicantDashboardPage() {
                             {n.message}
                           </p>
                         )}
+                        {/* Relative time like "3 hours ago" instead of a raw timestamp */}
                         <p
                           className="text-xs"
                           style={{ color: 'var(--muted-foreground)', opacity: 0.7 }}
@@ -386,6 +428,7 @@ export function ApplicantDashboardPage() {
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                         </p>
                       </div>
+                      {/* Orange dot indicator for unread — appears top-right of the card */}
                       {isUnread && (
                         <div
                           className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
@@ -401,7 +444,7 @@ export function ApplicantDashboardPage() {
         </div>
       </div>
 
-      {/* Quick actions */}
+      {/* Quick actions row — triggers scroll reveal when it enters the viewport */}
       <motion.div
         variants={scrollRevealVariants}
         initial="hidden"
@@ -448,6 +491,7 @@ export function ApplicantDashboardPage() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Maps a notification type string to a Lucide icon component for the notification feed
 function getNotifIcon(type: string): ComponentType<{ className?: string }> {
   switch (type) {
     case 'application_submitted':

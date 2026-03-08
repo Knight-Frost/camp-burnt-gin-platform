@@ -12,20 +12,50 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Controller for document upload and management.
+ * DocumentController — manages file upload, listing, verification, download, and deletion.
  *
- * Handles file uploads, downloads, and validation.
+ * Documents in this system are polymorphic — they can be attached to a Camper, a MedicalRecord,
+ * or other entity types (via documentable_type and documentable_id). This controller handles
+ * the HTTP layer while DocumentService handles the actual storage operations.
+ *
  * Implements FR-34 and FR-35: File upload and validation requirements.
+ *
+ * Authorization model (three-tier visibility):
+ *   - Admin:           sees all documents; can filter by type, owner, and verification status
+ *   - Medical user:    sees documents for all campers and medical records + their own uploads
+ *   - Applicant:       sees only documents attached to their own campers + their own uploads
+ *   - Other:           sees only documents they personally uploaded
+ *
+ * Security controls on download:
+ *   - Files that failed malware scanning (scan_passed = false) cannot be downloaded by anyone
+ *   - Files pending review (scan_passed = null) can only be downloaded by admins
+ *   - Files that passed scanning (scan_passed = true) can be downloaded by any authorized user
+ *
+ * Routes:
+ *   GET    /api/documents                       — list documents (role-filtered)
+ *   POST   /api/documents                       — upload a new document
+ *   GET    /api/documents/{document}            — view document metadata
+ *   GET    /api/documents/{document}/download   — download file (security-gated)
+ *   PATCH  /api/documents/{document}/verify     — approve or reject (admin)
+ *   DELETE /api/documents/{document}            — delete document
  */
 class DocumentController extends Controller
 {
+    /**
+     * Inject DocumentService via constructor for file storage operations.
+     */
     public function __construct(
         protected DocumentService $documentService
     ) {}
 
     /**
-     * List documents accessible to the current user.
-     * Supports optional filtering via: documentable_type, documentable_id, verification_status, search.
+     * List documents accessible to the authenticated user.
+     *
+     * The query is branched by role because each role has very different visibility rules.
+     * Filters (documentable_type, documentable_id, verification_status, search) are applied
+     * on top of the role-scoped base query.
+     *
+     * Pagination is always applied to prevent loading hundreds of files at once.
      */
     public function index(Request $request): JsonResponse
     {
@@ -36,8 +66,10 @@ class DocumentController extends Controller
         $search             = $request->input('search');
 
         if ($user->isAdmin()) {
+            // Admins see everything; apply optional admin-specific filters
             $query = Document::with('documentable', 'uploader')->latest();
 
+            // Optional filter: restrict to a specific entity type (e.g., "App\Models\Camper")
             if ($documentableType) {
                 $query->where('documentable_type', $documentableType);
             }
@@ -47,6 +79,7 @@ class DocumentController extends Controller
             if ($verificationStatus) {
                 $query->where('verification_status', $verificationStatus);
             }
+            // Search by the name of the person who uploaded the document
             if ($search) {
                 $query->whereHas('uploader', fn ($q) => $q->where('name', 'like', "%{$search}%"));
             }
@@ -54,21 +87,25 @@ class DocumentController extends Controller
             $documents = $query->paginate(20);
 
         } elseif ($user->isMedicalProvider()) {
-            // Camp medical staff can view all documents attached to campers and medical records.
+            // Medical staff see documents attached to any camper or medical record,
+            // plus any documents they personally uploaded
             $medicalRecordIds = \App\Models\MedicalRecord::pluck('id');
             $camperIds        = \App\Models\Camper::pluck('id');
 
             $query = Document::with('documentable', 'uploader')
                 ->where(function ($q) use ($camperIds, $medicalRecordIds, $user) {
                     $q->where(function ($inner) use ($camperIds) {
+                        // Documents attached directly to campers
                         $inner->where('documentable_type', 'App\\Models\\Camper')
                               ->whereIn('documentable_id', $camperIds);
                     })->orWhere(function ($inner) use ($medicalRecordIds) {
+                        // Documents attached to medical records
                         $inner->where('documentable_type', 'App\\Models\\MedicalRecord')
                               ->whereIn('documentable_id', $medicalRecordIds);
-                    })->orWhere('uploaded_by', $user->id);
+                    })->orWhere('uploaded_by', $user->id); // Their own uploads
                 });
 
+            // Optional type and ID filters still apply within the allowed set
             if ($documentableType) {
                 $query->where('documentable_type', $documentableType);
             }
@@ -79,14 +116,16 @@ class DocumentController extends Controller
             $documents = $query->latest()->paginate(15);
 
         } elseif ($user->isApplicant()) {
+            // Applicants see only documents for their own campers and their own uploads
             $camperIds = $user->campers()->pluck('id');
 
             $query = Document::with('documentable', 'uploader')
                 ->where(function ($q) use ($camperIds, $user) {
                     $q->where(function ($inner) use ($camperIds) {
+                        // Documents attached to campers that belong to this applicant
                         $inner->where('documentable_type', 'App\\Models\\Camper')
                               ->whereIn('documentable_id', $camperIds);
-                    })->orWhere('uploaded_by', $user->id);
+                    })->orWhere('uploaded_by', $user->id); // Their own uploads
                 });
 
             if ($documentableType) {
@@ -99,6 +138,7 @@ class DocumentController extends Controller
             $documents = $query->latest()->paginate(15);
 
         } else {
+            // Fallback: any other role sees only documents they personally uploaded
             $documents = Document::with('documentable', 'uploader')
                 ->where('uploaded_by', $user->id)
                 ->latest()
@@ -106,6 +146,7 @@ class DocumentController extends Controller
         }
 
         return response()->json([
+            // transformDocument maps internal fields to the API contract the frontend expects
             'data' => array_map([$this, 'transformDocument'], $documents->items()),
             'meta' => [
                 'current_page' => $documents->currentPage(),
@@ -117,10 +158,14 @@ class DocumentController extends Controller
     }
 
     /**
-     * Verify (approve or reject) a document. Admin only.
+     * Approve or reject a document (admin only).
+     *
+     * Sets verification_status, records the verifying admin's ID, and timestamps the action.
+     * Status must be either "approved" or "rejected" — no other values are accepted.
      */
     public function verify(Request $request, Document $document): JsonResponse
     {
+        // DocumentPolicy::update restricts this to admin roles
         $this->authorize('update', $document);
 
         $validated = $request->validate([
@@ -128,22 +173,29 @@ class DocumentController extends Controller
         ]);
 
         $document->update([
+            // DocumentVerificationStatus is a backed enum; ::from() converts the string safely
             'verification_status' => \App\Enums\DocumentVerificationStatus::from($validated['status']),
+            // Record who made the verification decision for the audit trail
             'verified_by'         => $request->user()->id,
             'verified_at'         => now(),
         ]);
 
         return response()->json([
             'message' => 'Document ' . $validated['status'] . '.',
+            // refresh() re-reads from DB so the response reflects the just-saved state
             'data'    => $this->transformDocument($document->refresh()),
         ]);
     }
 
     /**
-     * Upload a new document.
+     * Upload a new document file.
+     *
+     * Validation (file type, size, required fields) is handled by StoreDocumentRequest.
+     * DocumentService::upload handles storage, thumbnail generation, and virus scan queuing.
      */
     public function store(StoreDocumentRequest $request): JsonResponse
     {
+        // Delegate all storage logic to the service; it returns success/failure with the model
         $result = $this->documentService->upload(
             $request->file('file'),
             $request->validated(),
@@ -158,15 +210,18 @@ class DocumentController extends Controller
 
         return response()->json([
             'message' => 'Document uploaded successfully.',
-            'data' => $this->transformDocument($result['document']),
+            'data'    => $this->transformDocument($result['document']),
         ], Response::HTTP_CREATED);
     }
 
     /**
-     * Display document metadata.
+     * Display metadata for a single document.
+     *
+     * Does not return the file itself — use the /download endpoint for that.
      */
     public function show(Document $document): JsonResponse
     {
+        // DocumentPolicy::view checks the user is authorized to see this document
         $this->authorize('view', $document);
 
         return response()->json([
@@ -175,77 +230,96 @@ class DocumentController extends Controller
     }
 
     /**
-     * Download a document file.
+     * Download a document file as a binary stream.
+     *
+     * Three-level security gate:
+     *   1. DocumentPolicy::view — is the user authorized to access this document at all?
+     *   2. scan_passed === false — file failed malware scan; no one can download it
+     *   3. isSecure() / !isAdmin() — pending files are admin-only until scan passes
      *
      * Security enforcement:
-     * - Rejected files (scan_passed = false): Cannot be downloaded by anyone
-     * - Pending review files (scan_passed = null): Admin only
-     * - Approved files (scan_passed = true): All authorized users
+     *   - Rejected files (scan_passed = false): Cannot be downloaded by anyone
+     *   - Pending review files (scan_passed = null): Admin only
+     *   - Approved files (scan_passed = true): All authorized users
      */
     public function download(Document $document): StreamedResponse|JsonResponse
     {
+        // First check: does this user have general access to this document?
         $this->authorize('view', $document);
 
+        // Second check: file failed security scan — block all downloads without exception
         if ($document->scan_passed === false) {
             return response()->json([
                 'message' => 'Document failed security check and cannot be downloaded.',
             ], Response::HTTP_FORBIDDEN);
         }
 
+        // Third check: file is still pending scan review — only admins may access it early
         if (! $document->isSecure() && ! auth()->user()->isAdmin()) {
             return response()->json([
                 'message' => 'Document is pending security review. Contact an administrator.',
             ], Response::HTTP_FORBIDDEN);
         }
 
+        // All checks passed — stream the file to the client via DocumentService
         return $this->documentService->download($document);
     }
 
     /**
      * Transform a Document model into the API response shape expected by the frontend.
      *
-     * Maps internal field names to the frontend contract and appends an authenticated
-     * download URL. The original_filename is encrypted at rest; decryption errors are
-     * caught gracefully so a single bad record never breaks the full list response.
+     * This private method centralises the field mapping so index(), store(), and verify()
+     * all return documents in the exact same shape. It handles two edge cases:
+     *   1. original_filename is encrypted — a DecryptException on bad data returns a fallback name
+     *   2. verification_status is a backed enum — getRawOriginal() avoids a ValueError on
+     *      legacy or invalid values that don't match the enum's defined cases
      *
      * @return array<string, mixed>
      */
     private function transformDocument(Document $document): array
     {
-        // original_filename is encrypted — guard against DecryptException on bad records.
+        // original_filename is encrypted — guard against DecryptException on corrupt records
         try {
             $fileName = $document->original_filename;
         } catch (\Exception) {
+            // Fallback so a single bad record doesn't crash the whole list response
             $fileName = "Document #{$document->id}";
         }
 
-        // verification_status is a backed enum; getRawOriginal avoids ValueError on bad/legacy values.
+        // getRawOriginal() bypasses enum casting — prevents ValueError if the DB has an unexpected value
         $rawStatus = $document->getRawOriginal('verification_status');
         $verificationStatus = in_array($rawStatus, ['pending', 'approved', 'rejected'], true)
             ? $rawStatus
-            : 'pending';
+            : 'pending'; // Default to "pending" for any unrecognised legacy values
 
         return [
             'id'                  => $document->id,
             'file_name'           => $fileName,
             'document_type'       => $document->document_type,
             'mime_type'           => $document->mime_type,
+            // Frontend uses "size" not "file_size" — this mapping bridges the naming gap
             'size'                => $document->file_size,
             'scan_passed'         => $document->scan_passed,
             'verification_status' => $verificationStatus,
             'uploaded_by_name'    => $document->uploader?->name,
+            // Human-readable name of the entity this document is attached to (e.g., camper name)
             'documentable_name'   => $this->resolveDocumentableName($document),
             'created_at'          => $document->created_at,
+            // Authenticated download URL — the frontend uses this to trigger the download
             'url'                 => url("/api/documents/{$document->id}/download"),
         ];
     }
 
     /**
-     * Return a human-readable name for the document's parent entity (if applicable).
+     * Resolve a human-readable name for the entity this document is attached to.
+     *
+     * Currently only handles Camper entities; returns null for all other documentable types.
+     * This is used in the admin document list to show "attached to: John Doe" instead of an ID.
      */
     private function resolveDocumentableName(Document $document): ?string
     {
         if ($document->documentable_type === 'App\\Models\\Camper') {
+            // full_name is a computed accessor on the Camper model (first_name + last_name)
             return $document->documentable?->full_name;
         }
 
@@ -253,10 +327,14 @@ class DocumentController extends Controller
     }
 
     /**
-     * Delete a document.
+     * Delete a document and remove its associated file from storage.
+     *
+     * DocumentService::delete handles the actual file removal from disk in addition
+     * to removing the database record.
      */
     public function destroy(Document $document): JsonResponse
     {
+        // DocumentPolicy::delete restricts this to admin roles or the original uploader
         $this->authorize('delete', $document);
 
         $this->documentService->delete($document);

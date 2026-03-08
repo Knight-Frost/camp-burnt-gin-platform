@@ -1,7 +1,18 @@
 /**
- * authSlice.ts
- * Redux slice for authentication state.
- * Manages user, token, MFA state, and session metadata.
+ * authSlice.ts — Redux slice for authentication state
+ *
+ * A Redux "slice" bundles the state shape, initial values, and all the functions
+ * (called "reducers") that can change that state into one tidy object.
+ *
+ * This slice tracks:
+ * - Who is logged in (user object)
+ * - The Bearer token used to prove identity on API calls
+ * - Whether MFA (two-factor authentication) is required and completed
+ * - Session metadata (ID, last activity timestamp)
+ * - Whether the app is still loading the initial auth state (isLoading)
+ *
+ * isLoading starts as true on every page load. ProtectedRoute shows a spinner
+ * until useAuthInit() finishes checking the token, then sets it to false.
  */
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
@@ -12,14 +23,23 @@ import type { User } from '@/shared/types';
 // ---------------------------------------------------------------------------
 
 interface AuthState {
+  // The currently logged-in user, or null if nobody is logged in
   user: User | null;
+  // The API Bearer token, or null if not authenticated
   token: string | null;
+  // Unix timestamp (ms) when the token expires, or null if no expiry info
   tokenExpiry: number | null;
+  // True when a valid token + user are confirmed by the API
   isAuthenticated: boolean;
+  // True while useAuthInit() is validating a stored token on page load
   isLoading: boolean;
+  // True if the backend says MFA must be completed before accessing the app
   mfaRequired: boolean;
+  // True once the user has successfully completed the MFA verification step
   mfaVerified: boolean;
+  // An optional server-assigned session identifier
   sessionId: string | null;
+  // Unix timestamp (ms) of the last recorded user activity (for timeout tracking)
   lastActivity: number | null;
 }
 
@@ -28,7 +48,8 @@ const initialState: AuthState = {
   token: null,
   tokenExpiry: null,
   isAuthenticated: false,
-  isLoading: true, // starts true — ProtectedRoute shows loader until resolved
+  // starts true — ProtectedRoute shows a loader until auth is resolved on page refresh
+  isLoading: true,
   mfaRequired: false,
   mfaVerified: false,
   sessionId: null,
@@ -46,6 +67,7 @@ const authSlice = createSlice({
     /** Set the authenticated user and mark as authenticated */
     setUser(state, action: PayloadAction<User | null>) {
       state.user = action.payload;
+      // isAuthenticated is derived from whether a user object exists
       state.isAuthenticated = action.payload !== null;
     },
 
@@ -55,6 +77,7 @@ const authSlice = createSlice({
       action: PayloadAction<{ token: string; expiresIn?: number }>
     ) {
       state.token = action.payload.token;
+      // expiresIn is in seconds from the server; convert to an absolute ms timestamp
       state.tokenExpiry = action.payload.expiresIn
         ? Date.now() + action.payload.expiresIn * 1000
         : null;
@@ -86,20 +109,26 @@ const authSlice = createSlice({
     },
 
     /**
-     * Called after redux-persist rehydration completes.
-     * Sets isLoading to false so ProtectedRoute can evaluate auth state.
+     * Called after the auth init check completes (token valid or no token found).
+     * Sets isLoading to false so ProtectedRoute can evaluate auth state and
+     * either show the page or redirect to /login.
      */
     hydrateAuth(state) {
       state.isLoading = false;
     },
 
-    /** Full state reset — called on logout or 401 */
+    /**
+     * Full state reset — called on logout or when a 401 mid-session event fires.
+     * Returns the initial state but with isLoading explicitly false so no spinner
+     * appears after logout.
+     */
     clearAuth() {
       return { ...initialState, isLoading: false };
     },
   },
 });
 
+// Export individual action creators so components can dispatch them
 export const {
   setUser,
   setToken,
@@ -112,4 +141,5 @@ export const {
   clearAuth,
 } = authSlice.actions;
 
+// Export the reducer to be registered in the store
 export const authReducer = authSlice.reducer;
