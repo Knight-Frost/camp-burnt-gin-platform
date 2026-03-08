@@ -32,7 +32,7 @@ class StoreDocumentRequest extends FormRequest
 
             $user = $this->user();
 
-            return $user->isAdmin() || $user->ownsCamper($camper);
+            return $user->isAdmin() || $user->isMedicalProvider() || $user->ownsCamper($camper);
         }
 
         return true;

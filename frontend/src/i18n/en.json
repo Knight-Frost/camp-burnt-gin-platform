@@ -799,9 +799,19 @@
     },
     "treatments": {
       "title": "Treatment Log",
-      "add": "Record Treatment",
-      "empty_title": "No treatment records",
-      "empty_desc": "Treatment logs for this camper will appear here."
+      "add": "Add Treatment Entry",
+      "empty_title": "No treatment entries",
+      "empty_desc": "Treatment entries for this camper will appear here.",
+      "global_empty_desc": "No treatment entries have been recorded yet."
+    },
+    "record_treatment": {
+      "title": "Camper Medical Records",
+      "subtitle": "Search for a camper to view or update their medical record.",
+      "search_placeholder": "Search by name or camper ID…",
+      "no_results": "No campers match the active filters.",
+      "empty_hint": "No campers found.",
+      "dob_label": "DOB: {{dob}}",
+      "load_more": "Load more campers"
     },
     "documents": {
       "title": "Camper Documents",
@@ -1206,6 +1216,8 @@
     "group_system": "System",
     "incidents": "Incidents",
     "follow_ups": "Follow-Ups",
-    "visits": "Visits"
+    "visits": "Visits",
+    "record_treatment": "Select Camper",
+    "medical_records": "Medical Records"
   }
 }

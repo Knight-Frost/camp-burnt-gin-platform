@@ -129,34 +129,37 @@ export interface FeedingPlan {
 
 export interface AssistiveDevice {
   id: number;
-  type: string;
-  description?: string;
+  device_type: string;
+  requires_transfer_assistance?: boolean;
+  notes?: string;
 }
 
 export interface ActivityPermission {
   id: number;
-  activity: string;
-  permitted: boolean;
-  notes?: string;
+  activity_name: string;
+  permission_level: 'yes' | 'no' | 'restricted';
+  restriction_notes?: string;
 }
 
 export interface EmergencyContact {
   id: number;
   name: string;
   relationship: string;
-  phone: string;
-  phone_primary?: string;
+  phone_primary: string;
   phone_secondary?: string;
   email?: string;
+  is_primary?: boolean;
   is_authorized_pickup?: boolean;
 }
 
 export interface Document {
   id: number;
-  name: string;
+  file_name: string;
+  document_type: string | null;
   mime_type: string;
   size: number;
   created_at: string;
+  url: string;
 }
 
 export interface ProviderLink {

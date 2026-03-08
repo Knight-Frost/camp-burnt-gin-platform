@@ -85,7 +85,7 @@ class MedicalVisitController extends Controller
     public function show(MedicalVisit $medicalVisit): JsonResponse
     {
         $this->authorize('view', $medicalVisit);
-        $medicalVisit->load(['camper', 'recorder']);
+        $medicalVisit->load(['camper', 'recorder', 'treatmentLogs.recorder']);
 
         return response()->json(['data' => $medicalVisit]);
     }

@@ -19,11 +19,16 @@ use App\Models\MedicalProviderLink;
 use App\Models\MedicalRecord;
 use App\Models\Medication;
 use App\Models\TreatmentLog;
+use App\Models\MedicalIncident;
+use App\Models\MedicalFollowUp;
+use App\Models\MedicalVisit;
+use App\Models\MedicalRestriction;
 use App\Models\Message;
 use App\Models\Role;
 use App\Models\UserEmergencyContact;
 use App\Observers\AssistiveDeviceObserver;
 use App\Observers\BehavioralProfileObserver;
+use App\Observers\CamperObserver;
 use App\Observers\DiagnosisObserver;
 use App\Observers\FeedingPlanObserver;
 use App\Observers\MedicalRecordObserver;
@@ -46,6 +51,10 @@ use App\Policies\MedicationPolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\RolePolicy;
 use App\Policies\TreatmentLogPolicy;
+use App\Policies\MedicalIncidentPolicy;
+use App\Policies\MedicalFollowUpPolicy;
+use App\Policies\MedicalVisitPolicy;
+use App\Policies\MedicalRestrictionPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -91,6 +100,11 @@ class AppServiceProvider extends ServiceProvider
         UserEmergencyContact::class => UserEmergencyContactPolicy::class,
         // Medical staff treatment logs
         TreatmentLog::class => TreatmentLogPolicy::class,
+        // Phase 11 medical portal models
+        MedicalIncident::class => MedicalIncidentPolicy::class,
+        MedicalFollowUp::class => MedicalFollowUpPolicy::class,
+        MedicalVisit::class => MedicalVisitPolicy::class,
+        MedicalRestriction::class => MedicalRestrictionPolicy::class,
     ];
 
     /**
@@ -127,6 +141,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function registerObservers(): void
     {
+        Camper::observe(CamperObserver::class);
         MedicalRecord::observe(MedicalRecordObserver::class);
         Diagnosis::observe(DiagnosisObserver::class);
         BehavioralProfile::observe(BehavioralProfileObserver::class);

@@ -12,27 +12,21 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Seeder — document metadata records attached to Applications.
+ * Seeder — document metadata records.
  *
  * Creates Document model records without actual files on disk.
- * All stored_filename and path values are synthetic UUIDs pointing to
- * a non-existent dev/documents/ path. This exercises the document list
- * UI without requiring real file uploads.
+ * All stored_filename and path values are synthetic UUIDs.
  *
- * Documents are attached to Applications (not MedicalRecords) because the
- * ApplicationReviewPage reads application.documents, and camp staff upload
- * compliance documents in the context of reviewing an application.
+ * Part 1 — Application documents (uploaded by admin/medical for compliance review):
+ *   Ethan, Sofia, Ava, Noah, Lucas, Mia — medical_exam, insurance_card, etc.
  *
- * Documents seeded:
- *   Ethan   (approved)      → medical_exam, insurance_card, physician_clearance — all approved
- *   Sofia   (under_review)  → insurance_card (approved), immunization_record (pending)
- *   Ava     (approved)      → medical_exam, insurance_card, physician_clearance, care_plan — all approved
- *   Noah    (rejected/S1)   → medical_exam, insurance_card — approved
- *   Lucas   (pending/S1)    → insurance_card only — pending verification
- *   Mia     (past/approved) → medical_exam, insurance_card — approved (older dates)
+ * Part 2 — Applicant-uploaded documents (attached to Campers, uploaded by parent):
+ *   Sarah Johnson  → Ethan: immunization_record (pending), photo_id (approved)
+ *   Sarah Johnson  → Lily:  medical_waiver (pending)
+ *   David Martinez → Sofia: allergy_action_plan (pending)
+ *   Michael Williams → Ava: insulin_protocol (approved), emergency_contacts (approved)
  *
- * Lily and Tyler are intentionally left without documents to exercise
- * the "No documents attached" UI state.
+ * These exercise the applicant /documents page and the admin Documents inbox.
  */
 class DocumentSeeder extends Seeder
 {
@@ -97,6 +91,72 @@ class DocumentSeeder extends Seeder
             $this->makeDoc($appMia, 'medical_exam',            'Mia_Davis_Medical_Exam_2025.pdf',              $admin,   DocumentVerificationStatus::Approved, now()->subDays(340), now()->subDays(5));
             $this->makeDoc($appMia, 'insurance_card',          'Mia_Davis_Medicaid_Card_2025.pdf',             $admin,   DocumentVerificationStatus::Approved, now()->subDays(340));
         }
+
+        // ── Part 2: Applicant-uploaded documents (attached to Campers) ─────────────
+        // These are documents that parents upload themselves in the Applicant portal.
+
+        $sarah   = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
+        $david   = User::where('email', 'david.martinez@example.com')->firstOrFail();
+        $michael = User::where('email', 'michael.williams@example.com')->firstOrFail();
+
+        $lily  = Camper::where('first_name', 'Lily')->where('last_name', 'Johnson')->firstOrFail();
+
+        // Sarah → Ethan: immunization record (pending) + photo ID (approved)
+        if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $ethan->id)->where('uploaded_by', $sarah->id)->exists()) {
+            $this->makeCamperDoc($ethan, 'Immunization Record', 'Ethan_Johnson_Immunization_Record.pdf', $sarah, DocumentVerificationStatus::Pending,  now()->subDays(4));
+            $this->makeCamperDoc($ethan, 'Photo ID',            'Ethan_Johnson_State_ID.pdf',            $sarah, DocumentVerificationStatus::Approved, now()->subDays(10));
+        }
+
+        // Sarah → Lily: medical waiver (pending)
+        if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $lily->id)->where('uploaded_by', $sarah->id)->exists()) {
+            $this->makeCamperDoc($lily, 'Medical Waiver', 'Lily_Johnson_Medical_Waiver.pdf', $sarah, DocumentVerificationStatus::Pending, now()->subDays(2));
+        }
+
+        // David → Sofia: allergy action plan (pending)
+        if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $sofia->id)->where('uploaded_by', $david->id)->exists()) {
+            $this->makeCamperDoc($sofia, 'Allergy Action Plan', 'Sofia_Martinez_Allergy_Plan.pdf', $david, DocumentVerificationStatus::Pending, now()->subDays(6));
+        }
+
+        // Michael → Ava: insulin protocol (approved) + emergency contacts form (approved)
+        if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $ava->id)->where('uploaded_by', $michael->id)->exists()) {
+            $this->makeCamperDoc($ava, 'Insulin Protocol',    'Ava_Williams_Insulin_Protocol.pdf',    $michael, DocumentVerificationStatus::Approved, now()->subDays(14));
+            $this->makeCamperDoc($ava, 'Emergency Contacts', 'Ava_Williams_Emergency_Contacts.pdf',  $michael, DocumentVerificationStatus::Approved, now()->subDays(14));
+        }
+    }
+
+    private function makeCamperDoc(
+        Camper $camper,
+        string $documentType,
+        string $originalFilename,
+        User $uploader,
+        DocumentVerificationStatus $verificationStatus,
+        \DateTimeInterface $uploadedAt
+    ): void {
+        $isApproved     = $verificationStatus === DocumentVerificationStatus::Approved;
+        $storedFilename = Str::uuid()->toString() . '.pdf';
+
+        Document::create([
+            'documentable_type'   => Camper::class,
+            'documentable_id'     => $camper->id,
+            'message_id'          => null,
+            'uploaded_by'         => $uploader->id,
+            'original_filename'   => $originalFilename,
+            'stored_filename'     => $storedFilename,
+            'mime_type'           => 'application/pdf',
+            'file_size'           => rand(30000, 600000),
+            'disk'                => 'local',
+            'path'                => 'dev/documents/' . $storedFilename,
+            'document_type'       => $documentType,
+            'is_scanned'          => true,
+            'scan_passed'         => true,
+            'scanned_at'          => $uploadedAt,
+            'verification_status' => $verificationStatus,
+            'verified_by'         => $isApproved ? 2 : null, // admin id=2
+            'verified_at'         => $isApproved ? $uploadedAt : null,
+            'expiration_date'     => null,
+            'created_at'          => $uploadedAt,
+            'updated_at'          => $uploadedAt,
+        ]);
     }
 
     private function makeDoc(

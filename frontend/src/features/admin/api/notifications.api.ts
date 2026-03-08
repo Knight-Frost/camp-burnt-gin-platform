@@ -61,6 +61,12 @@ export async function markAllNotificationsRead(): Promise<ApiResponse<null>> {
   return data;
 }
 
+/** DELETE /api/notifications/clear-all */
+export async function clearAllNotifications(): Promise<ApiResponse<null>> {
+  const { data } = await axiosInstance.delete<ApiResponse<null>>('/notifications/clear-all');
+  return data;
+}
+
 /** GET /api/profile/notification-preferences */
 export async function getNotificationPreferences(): Promise<NotificationPreferences> {
   const { data } = await axiosInstance.get<ApiResponse<NotificationPreferences>>(

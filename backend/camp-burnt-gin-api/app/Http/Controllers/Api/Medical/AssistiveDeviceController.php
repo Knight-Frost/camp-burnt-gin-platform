@@ -28,7 +28,13 @@ class AssistiveDeviceController extends Controller
     {
         $this->authorize('viewAny', AssistiveDevice::class);
 
-        $devices = AssistiveDevice::with('camper')->paginate(15);
+        $query = AssistiveDevice::with('camper');
+
+        if ($request->filled('camper_id')) {
+            $query->where('camper_id', $request->integer('camper_id'));
+        }
+
+        $devices = $query->paginate(15);
 
         return response()->json([
             'data' => $devices->items(),

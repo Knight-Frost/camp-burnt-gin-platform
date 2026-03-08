@@ -33,6 +33,8 @@ class UpdateTreatmentLogRequest extends FormRequest
             'title'             => ['sometimes', 'string', 'max:255'],
             'description'       => ['sometimes', 'string', 'max:5000'],
             'outcome'           => ['nullable', 'string', 'max:2000'],
+            'medication_given'  => ['nullable', 'string', 'max:500'],
+            'dosage_given'      => ['nullable', 'string', 'max:255'],
             'follow_up_required' => ['boolean'],
             'follow_up_notes'   => ['nullable', 'string', 'max:2000'],
         ];

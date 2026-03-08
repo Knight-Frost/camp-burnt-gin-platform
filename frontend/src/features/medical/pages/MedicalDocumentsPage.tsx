@@ -142,7 +142,7 @@ export function MedicalDocumentsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = doc.name ?? `document-${doc.id}`;
+      a.download = doc.file_name ?? `document-${doc.id}`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -285,7 +285,7 @@ export function MedicalDocumentsPage() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{doc.name}</p>
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{doc.file_name}</p>
                 <div className="flex items-center gap-3 mt-0.5">
                   <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                     {doc.size ? formatSize(doc.size) : ''} &middot; {formatDate(doc.created_at)}

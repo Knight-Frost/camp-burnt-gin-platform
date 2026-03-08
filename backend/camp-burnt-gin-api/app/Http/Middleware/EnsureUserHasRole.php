@@ -41,6 +41,11 @@ class EnsureUserHasRole
             ], Response::HTTP_FORBIDDEN);
         }
 
+        // super_admin inherits all role privileges
+        if ($user->isSuperAdmin()) {
+            return $next($request);
+        }
+
         foreach ($roles as $role) {
             if ($user->hasRole($role)) {
                 return $next($request);

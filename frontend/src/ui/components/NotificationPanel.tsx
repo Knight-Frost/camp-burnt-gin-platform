@@ -6,13 +6,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, CheckCheck } from 'lucide-react';
+import { X, Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  clearAllNotifications,
 } from '@/features/admin/api/notifications.api';
 import type { Notification } from '@/shared/types';
 import { slidePanelVariants, fadeVariants, backdropVariants } from '@/shared/constants/motion';
@@ -56,6 +57,16 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
     try {
       await markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
+      onUnreadChange?.(0);
+    } catch {
+      // ignore — state was optimistically not updated
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await clearAllNotifications();
+      setNotifications([]);
       onUnreadChange?.(0);
     } catch {
       // ignore — state was optimistically not updated
@@ -126,6 +137,17 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
                   >
                     <CheckCheck className="h-3.5 w-3.5" />
                     Mark all read
+                  </button>
+                )}
+                {notifications.length > 0 && (
+                  <button
+                    onClick={handleClearAll}
+                    className="text-xs flex items-center gap-1 hover:text-red-500 transition-colors"
+                    style={{ color: 'var(--muted-foreground)' }}
+                    aria-label="Clear all notifications"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Clear all
                   </button>
                 )}
                 <button

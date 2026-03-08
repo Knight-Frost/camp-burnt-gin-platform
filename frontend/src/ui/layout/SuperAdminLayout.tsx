@@ -14,6 +14,7 @@ import {
   CalendarDays,
   BarChart3,
   MessageSquare,
+  FolderOpen,
   Settings,
   Megaphone,
   ClipboardList,
@@ -47,6 +48,7 @@ export function SuperAdminLayout() {
     { group: t('portal_nav.group_primary'),       label: t('portal_nav.sessions_camps'), to: '/super-admin/sessions',      icon: CalendarDays },
     { group: t('portal_nav.group_communication'), label: t('portal_nav.inbox'),          to: '/super-admin/inbox',         icon: MessageSquare },
     { group: t('portal_nav.group_communication'), label: t('portal_nav.announcements'),  to: '/super-admin/announcements', icon: Megaphone },
+    { group: t('portal_nav.group_communication'), label: 'Documents',                   to: '/super-admin/documents',     icon: FolderOpen },
     { group: t('portal_nav.group_operations'),    label: t('portal_nav.calendar'),       to: '/super-admin/calendar',      icon: CalendarDays },
     { group: t('portal_nav.group_operations'),    label: t('portal_nav.reports'),        to: '/super-admin/reports',       icon: BarChart3 },
   ];

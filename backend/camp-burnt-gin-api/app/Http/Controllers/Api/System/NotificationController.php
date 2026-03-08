@@ -94,4 +94,16 @@ class NotificationController extends Controller
             'message' => 'All notifications marked as read.',
         ]);
     }
+
+    /**
+     * Delete all notifications for the current user.
+     */
+    public function deleteAll(Request $request): JsonResponse
+    {
+        $request->user()->notifications()->delete();
+
+        return response()->json([
+            'message' => 'All notifications cleared.',
+        ]);
+    }
 }

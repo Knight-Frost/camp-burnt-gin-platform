@@ -7,6 +7,7 @@ use App\Http\Requests\Camper\StoreCamperRequest;
 use App\Http\Requests\Camper\UpdateCamperRequest;
 use App\Models\Camper;
 use App\Services\Document\DocumentEnforcementService;
+use App\Services\Medical\MedicalAlertService;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,14 +36,26 @@ class CamperController extends Controller
             $this->authorize('viewAny', Camper::class);
             $query = Camper::with(['user', 'medicalRecord.allergies', 'medicalRecord.medications']);
             if ($request->filled('search')) {
-                $query->where('full_name', 'like', '%' . $request->input('search') . '%');
+                $search = $request->input('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('full_name', 'like', '%' . $search . '%');
+                    if (ctype_digit($search)) {
+                        $q->orWhere('id', (int) $search);
+                    }
+                });
             }
             $campers = $query->paginate(15);
         } elseif ($user->isMedicalProvider()) {
             // Medical providers can browse all camper profiles to support clinical workflows.
             $query = Camper::with(['medicalRecord.allergies', 'medicalRecord.medications', 'medicalRecord.diagnoses']);
             if ($request->filled('search')) {
-                $query->where('full_name', 'like', '%' . $request->input('search') . '%');
+                $search = $request->input('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('full_name', 'like', '%' . $search . '%');
+                    if (ctype_digit($search)) {
+                        $q->orWhere('id', (int) $search);
+                    }
+                });
             }
             $campers = $query->paginate(15);
         } elseif ($user->isApplicant()) {
@@ -132,6 +145,28 @@ class CamperController extends Controller
 
         return response()->json([
             'message' => 'Camper deleted successfully.',
+        ]);
+    }
+
+    /**
+     * Get computed medical alerts for the specified camper.
+     *
+     * Alerts are derived in real-time from the camper's clinical record:
+     * severe / life-threatening allergies, seizure history, neurostimulator
+     * presence, critical diagnoses, and required medications. No separate
+     * alerts table is needed — the computation stays close to the source data.
+     *
+     * Medical staff see these alerts prominently when opening a camper's
+     * record so critical information is never buried in sub-sections.
+     */
+    public function medicalAlerts(Camper $camper, MedicalAlertService $alertService): JsonResponse
+    {
+        $this->authorize('view', $camper);
+
+        $alerts = $alertService->alertsFor($camper);
+
+        return response()->json([
+            'data' => $alerts,
         ]);
     }
 

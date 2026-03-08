@@ -386,10 +386,28 @@ export function CamperDetailPage() {
                     className="rounded-lg border p-3"
                     style={{ borderColor: 'var(--border)', background: 'var(--glass-strong)' }}
                   >
-                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{ec.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{ec.relationship}</p>
-                    <p className="text-xs mt-1 font-mono" style={{ color: 'var(--foreground)' }}>{ec.phone}</p>
-                    {ec.email && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{ec.email}</p>}
+                    <p className="text-sm font-semibold mb-1.5" style={{ color: 'var(--foreground)' }}>{ec.name}</p>
+                    <div className="space-y-0.5">
+                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        <span className="font-medium" style={{ color: 'var(--foreground)' }}>Relation:</span> {ec.relationship}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        <span className="font-medium" style={{ color: 'var(--foreground)' }}>Phone:</span> {ec.phone_primary}
+                      </p>
+                      {ec.phone_secondary && (
+                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>Phone 2:</span> {ec.phone_secondary}
+                        </p>
+                      )}
+                      {ec.email && (
+                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>Email:</span> {ec.email}
+                        </p>
+                      )}
+                      {ec.is_authorized_pickup && (
+                        <p className="text-xs mt-1" style={{ color: 'var(--forest-green)' }}>Authorized for pickup</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -403,18 +421,50 @@ export function CamperDetailPage() {
             <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {med!.activityPermissions.map((ap) => (
-                  <div key={ap.id} className="flex items-center gap-2.5">
+                  <div key={ap.id} className="flex items-start gap-2.5">
                     <span
-                      className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: ap.permitted ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.12)' }}
+                      className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: ap.permission_level === 'yes'
+                          ? 'rgba(22,163,74,0.15)'
+                          : ap.permission_level === 'restricted'
+                          ? 'rgba(234,179,8,0.15)'
+                          : 'rgba(220,38,38,0.12)',
+                      }}
                     >
                       <span
                         className="w-2 h-2 rounded-full"
-                        style={{ background: ap.permitted ? 'var(--forest-green)' : '#dc2626' }}
+                        style={{
+                          background: ap.permission_level === 'yes'
+                            ? 'var(--forest-green)'
+                            : ap.permission_level === 'restricted'
+                            ? '#ca8a04'
+                            : '#dc2626',
+                        }}
                       />
                     </span>
-                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>{ap.activity}</span>
-                    {ap.notes && <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>({ap.notes})</span>}
+                    <div>
+                      <span className="text-sm" style={{ color: 'var(--foreground)' }}>{ap.activity_name}</span>
+                      <span className="ml-2 text-xs capitalize px-1.5 py-0.5 rounded"
+                        style={{
+                          background: ap.permission_level === 'yes'
+                            ? 'rgba(22,163,74,0.1)'
+                            : ap.permission_level === 'restricted'
+                            ? 'rgba(234,179,8,0.1)'
+                            : 'rgba(220,38,38,0.08)',
+                          color: ap.permission_level === 'yes'
+                            ? 'var(--forest-green)'
+                            : ap.permission_level === 'restricted'
+                            ? '#ca8a04'
+                            : '#dc2626',
+                        }}
+                      >
+                        {ap.permission_level === 'yes' ? 'Permitted' : ap.permission_level === 'no' ? 'Not Permitted' : 'Restricted'}
+                      </span>
+                      {ap.restriction_notes && (
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{ap.restriction_notes}</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -433,7 +483,7 @@ export function CamperDetailPage() {
                     className="text-xs px-2.5 py-1 rounded-full border"
                     style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--glass-strong)' }}
                   >
-                    {d.type}{d.description ? ` — ${d.description}` : ''}
+                    {d.device_type}{d.notes ? ` — ${d.notes}` : ''}{d.requires_transfer_assistance ? ' (transfer assist)' : ''}
                   </span>
                 ))}
               </div>

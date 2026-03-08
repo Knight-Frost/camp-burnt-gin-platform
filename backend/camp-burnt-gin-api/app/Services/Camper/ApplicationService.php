@@ -4,6 +4,7 @@ namespace App\Services\Camper;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\MedicalRecord;
 use App\Models\User;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
 use App\Services\Document\DocumentEnforcementService;
@@ -62,6 +63,16 @@ class ApplicationService
                     ],
                 ];
             }
+        }
+
+        // Guarantee the camper has a medical record before approval is finalised.
+        // The application form normally creates one during submission, but this
+        // firstOrCreate is a safety net for any path that bypassed that step.
+        if ($newStatus === ApplicationStatus::Approved) {
+            $application->loadMissing('camper');
+            MedicalRecord::firstOrCreate(
+                ['camper_id' => $application->camper->id],
+            );
         }
 
         // Update application status

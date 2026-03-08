@@ -43,10 +43,13 @@ import {
   getAssistiveDevices,
   createAssistiveDevice,
   updateAssistiveDevice,
+  getCamperMedicalAlerts,
+  type MedicalAlert,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+import { ROUTES } from '@/shared/constants/routes';
 import type {
   Camper, MedicalRecord, Allergy, Medication, Diagnosis,
   EmergencyContact, ActivityPermission, BehavioralProfile,
@@ -286,6 +289,7 @@ export function MedicalRecordPage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [alerts, setAlerts] = useState<MedicalAlert[]>([]);
 
   // Modal state
   const [modal, setModal] = useState<ModalType>(null);
@@ -304,7 +308,7 @@ export function MedicalRecordPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices] = await Promise.all([
+      const [camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices, fetchedAlerts] = await Promise.all([
         getCamper(id),
         getMedicalRecordByCamper(id).catch(() => null),
         getAllergiesByCamper(id).catch(() => []),
@@ -315,8 +319,10 @@ export function MedicalRecordPage() {
         getBehavioralProfile(id).catch(() => null),
         getFeedingPlan(id).catch(() => null),
         getAssistiveDevices(id).catch(() => []),
+        getCamperMedicalAlerts(id).catch(() => []),
       ]);
       setState({ camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices });
+      setAlerts(fetchedAlerts);
     } finally {
       setLoading(false);
     }
@@ -373,7 +379,7 @@ export function MedicalRecordPage() {
 
   const openEditDevice = (d: AssistiveDevice) => {
     setEditTarget(d.id);
-    setForm({ type: d.type, description: d.description ?? '' });
+    setForm({ type: d.device_type, description: d.notes ?? '' });
     setModal('edit-device');
   };
 
@@ -496,7 +502,7 @@ export function MedicalRecordPage() {
     if (!editTarget) return;
     setSaving(true);
     try {
-      const d = await updateAssistiveDevice(editTarget, { type: form.type, description: form.description });
+      const d = await updateAssistiveDevice(editTarget, { device_type: form.type, notes: form.description });
       setState((s) => ({ ...s, devices: s.devices.map((x) => x.id === editTarget ? d : x) }));
       closeModal();
     } finally { setSaving(false); }
@@ -505,7 +511,7 @@ export function MedicalRecordPage() {
   const handleToggleActivityPermission = async (p: ActivityPermission) => {
     setSaving(true);
     try {
-      const updated = await updateActivityPermission(p.id, { permitted: !p.permitted });
+      const updated = await updateActivityPermission(p.id, { permission_level: p.permission_level === 'yes' ? 'no' : 'yes' });
       setState((s) => ({ ...s, permissions: s.permissions.map((x) => x.id === p.id ? updated : x) }));
     } finally { setSaving(false); }
   };
@@ -539,7 +545,7 @@ export function MedicalRecordPage() {
         {/* Back + breadcrumb */}
         <div className="flex items-center justify-between mb-6">
           <Link
-            to="/medical/dashboard"
+            to={ROUTES.MEDICAL_RECORD_TREATMENT}
             className="inline-flex items-center gap-2 text-sm transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
           >
@@ -594,6 +600,39 @@ export function MedicalRecordPage() {
             </p>
           )}
         </div>
+
+        {/* Medical Alerts */}
+        {alerts.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {alerts.map((alert, i) => {
+              const styles: Record<string, { bg: string; border: string; icon: string }> = {
+                critical: { bg: 'rgba(220,38,38,0.10)', border: 'rgba(220,38,38,0.35)', icon: 'var(--destructive)' },
+                warning:  { bg: 'rgba(234,179,8,0.10)',  border: 'rgba(234,179,8,0.35)',  icon: '#ca8a04' },
+                info:     { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', icon: '#2563eb' },
+              };
+              const s = styles[alert.level] ?? styles.info;
+              return (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 rounded-xl border px-4 py-3"
+                  style={{ background: s.bg, borderColor: s.border }}
+                >
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: s.icon }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold leading-snug" style={{ color: s.icon }}>
+                      {alert.title}
+                    </p>
+                    {alert.detail && (
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                        {alert.detail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Sections */}
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
@@ -774,8 +813,8 @@ export function MedicalRecordPage() {
                 {devices.map((d) => (
                   <div key={d.id} className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{d.type}</p>
-                      {d.description && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{d.description}</p>}
+                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{d.device_type}</p>
+                      {d.notes && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{d.notes}</p>}
                     </div>
                     <button onClick={() => openEditDevice(d)} className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)]" style={{ color: 'var(--muted-foreground)' }}>
                       <Edit2 className="h-3.5 w-3.5" />
@@ -800,18 +839,18 @@ export function MedicalRecordPage() {
               <div className="space-y-2">
                 {permissions.map((p) => (
                   <div key={p.id} className="flex items-center justify-between">
-                    <p className="text-sm" style={{ color: 'var(--foreground)' }}>{p.activity}</p>
+                    <p className="text-sm" style={{ color: 'var(--foreground)' }}>{p.activity_name}</p>
                     <button
                       onClick={() => handleToggleActivityPermission(p)}
                       disabled={saving}
                       className="text-xs px-2 py-0.5 rounded-full font-medium transition-opacity disabled:opacity-50"
                       style={{
-                        background: p.permitted ? 'rgba(5,150,105,0.12)' : 'rgba(220,38,38,0.12)',
-                        color: p.permitted ? 'var(--forest-green)' : 'var(--destructive)',
+                        background: p.permission_level === 'yes' ? 'rgba(5,150,105,0.12)' : p.permission_level === 'restricted' ? 'rgba(234,179,8,0.12)' : 'rgba(220,38,38,0.12)',
+                        color: p.permission_level === 'yes' ? 'var(--forest-green)' : p.permission_level === 'restricted' ? '#ca8a04' : 'var(--destructive)',
                       }}
                       title="Toggle permission"
                     >
-                      {p.permitted ? t('common.permitted') : t('common.not_permitted')}
+                      {p.permission_level === 'yes' ? t('common.permitted') : p.permission_level === 'restricted' ? 'Restricted' : t('common.not_permitted')}
                     </button>
                   </div>
                 ))}
@@ -835,7 +874,7 @@ export function MedicalRecordPage() {
                   <div key={c.id}>
                     <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{c.name}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      {c.relationship} &middot; {c.phone}
+                      {c.relationship} &middot; {c.phone_primary}
                       {c.email && ` · ${c.email}`}
                     </p>
                   </div>

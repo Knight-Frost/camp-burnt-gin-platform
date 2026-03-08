@@ -28,12 +28,15 @@ class StoreTreatmentLogRequest extends FormRequest
     {
         return [
             'camper_id'         => ['required', 'integer', 'exists:campers,id'],
+            'medical_visit_id'  => ['nullable', 'integer', 'exists:medical_visits,id'],
             'treatment_date'    => ['required', 'date', 'before_or_equal:today'],
             'treatment_time'    => ['nullable', 'date_format:H:i'],
             'type'              => ['required', Rule::enum(TreatmentType::class)],
             'title'             => ['required', 'string', 'max:255'],
             'description'       => ['required', 'string', 'max:5000'],
             'outcome'           => ['nullable', 'string', 'max:2000'],
+            'medication_given'  => ['nullable', 'string', 'max:500'],
+            'dosage_given'      => ['nullable', 'string', 'max:255'],
             'follow_up_required' => ['boolean'],
             'follow_up_notes'   => ['nullable', 'string', 'max:2000'],
         ];
@@ -47,7 +50,8 @@ class StoreTreatmentLogRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'camper_id.exists'       => 'The selected camper was not found.',
+            'camper_id.exists'          => 'The selected camper was not found.',
+            'medical_visit_id.exists'   => 'The selected medical visit was not found.',
             'treatment_date.before_or_equal' => 'Treatment date cannot be in the future.',
             'type.enum'              => 'The selected treatment type is invalid.',
         ];

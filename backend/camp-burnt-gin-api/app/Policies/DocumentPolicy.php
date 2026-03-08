@@ -65,6 +65,14 @@ class DocumentPolicy
     }
 
     /**
+     * Determine whether the user can update (verify/reject) a document. Admin only.
+     */
+    public function update(User $user, Document $document): bool
+    {
+        return $user->isAdmin();
+    }
+
+    /**
      * Determine whether the user can delete the document.
      */
     public function delete(User $user, Document $document): bool

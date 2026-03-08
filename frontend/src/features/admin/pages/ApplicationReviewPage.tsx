@@ -603,7 +603,7 @@ export function ApplicationReviewPage() {
                         </div>
                         <div>
                           <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Phone</p>
-                          <p style={{ color: 'var(--foreground)' }}>{ec.phone}</p>
+                          <p style={{ color: 'var(--foreground)' }}>{ec.phone_primary}</p>
                         </div>
                         {ec.email && (
                           <div>
@@ -667,9 +667,9 @@ export function ApplicationReviewPage() {
                 <div className="space-y-2">
                   {camper.assistive_devices.map((d) => (
                     <div key={d.id} className="text-sm">
-                      <span className="font-medium" style={{ color: 'var(--foreground)' }}>{d.type}</span>
-                      {d.description && (
-                        <span style={{ color: 'var(--muted-foreground)' }}> — {d.description}</span>
+                      <span className="font-medium" style={{ color: 'var(--foreground)' }}>{d.device_type}</span>
+                      {d.notes && (
+                        <span style={{ color: 'var(--muted-foreground)' }}> — {d.notes}</span>
                       )}
                     </div>
                   ))}
@@ -687,13 +687,13 @@ export function ApplicationReviewPage() {
                     <div key={p.id} className="flex items-start gap-2 text-sm">
                       <span
                         className="mt-0.5 w-4 h-4 flex-shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                        style={{ background: p.permitted ? '#16a34a' : 'var(--destructive)' }}
+                        style={{ background: p.permission_level === 'yes' ? '#16a34a' : p.permission_level === 'restricted' ? '#ca8a04' : 'var(--destructive)' }}
                       >
-                        {p.permitted ? '✓' : '✗'}
+                        {p.permission_level === 'yes' ? '✓' : p.permission_level === 'restricted' ? '~' : '✗'}
                       </span>
                       <span style={{ color: 'var(--foreground)' }}>
-                        {p.activity}
-                        {p.notes && <span style={{ color: 'var(--muted-foreground)' }}> — {p.notes}</span>}
+                        {p.activity_name}
+                        {p.restriction_notes && <span style={{ color: 'var(--muted-foreground)' }}> — {p.restriction_notes}</span>}
                       </span>
                     </div>
                   ))}

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Schema;
  * Affected tables:
  *   - medications: name, dosage, frequency, purpose, prescribing_physician
  *   - allergies: allergen
+ *   - emergency_contacts: name, relationship, phone_primary, phone_secondary, email
  */
 return new class extends Migration
 {
@@ -34,6 +35,14 @@ return new class extends Migration
         Schema::table('documents', function (Blueprint $table) {
             $table->text('original_filename')->change();
         });
+
+        Schema::table('emergency_contacts', function (Blueprint $table) {
+            $table->text('name')->change();
+            $table->text('relationship')->change();
+            $table->text('phone_primary')->change();
+            $table->text('phone_secondary')->nullable()->change();
+            $table->text('email')->nullable()->change();
+        });
     }
 
     public function down(): void
@@ -52,6 +61,14 @@ return new class extends Migration
 
         Schema::table('documents', function (Blueprint $table) {
             $table->string('original_filename')->change();
+        });
+
+        Schema::table('emergency_contacts', function (Blueprint $table) {
+            $table->string('name')->change();
+            $table->string('relationship')->change();
+            $table->string('phone_primary')->change();
+            $table->string('phone_secondary')->nullable()->change();
+            $table->string('email')->nullable()->change();
         });
     }
 };

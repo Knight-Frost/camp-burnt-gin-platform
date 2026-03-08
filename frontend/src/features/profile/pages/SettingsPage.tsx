@@ -142,7 +142,7 @@ export function SettingsPage() {
     setNotifPrefs((current) => ({ ...current, [key]: value })); // optimistic update
     try {
       const updated = await updateNotificationPreference(key, value);
-      setNotifPrefs(updated);
+      setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...updated });
       toast.success('Preference saved.');
     } catch {
       setNotifPrefs(prev); // revert on error

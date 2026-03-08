@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\VisitDisposition;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MedicalVisit extends Model
 {
@@ -48,6 +49,17 @@ class MedicalVisit extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    /**
+     * Get all treatment logs recorded during this visit.
+     *
+     * Treatments are the individual interventions (medications administered,
+     * first-aid applied, etc.) that occurred within this clinical encounter.
+     */
+    public function treatmentLogs(): HasMany
+    {
+        return $this->hasMany(TreatmentLog::class);
     }
 
     public function wasEscalated(): bool

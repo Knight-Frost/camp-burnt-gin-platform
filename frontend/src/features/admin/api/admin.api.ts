@@ -24,7 +24,7 @@ export async function reviewApplication(id: number, payload: ApplicationReviewPa
 }
 export async function deleteApplication(id: number): Promise<void> { await axiosInstance.delete(`/applications/${id}`); }
 
-export async function getCampers(params?: { page?: number; search?: string; session_id?: number }): Promise<PaginatedResponse<Camper>> {
+export async function getCampers(params?: { page?: number; search?: string; session_id?: number; id?: number }): Promise<PaginatedResponse<Camper>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Camper>>('/campers', { params });
   return data;
 }
@@ -169,3 +169,39 @@ export async function exportAuditLog(params: {
 
 /** Alias used by AdminDashboardPage */
 export const getAdminApplications = getApplications;
+
+// ─── Documents (admin inbox) ──────────────────────────────────────────────────
+
+export interface AdminDocument {
+  id: number;
+  file_name: string;
+  document_type: string | null;
+  mime_type: string;
+  size: number;
+  scan_passed: boolean | null;
+  verification_status: 'pending' | 'approved' | 'rejected';
+  uploaded_by_name: string | null;
+  documentable_name: string | null;
+  created_at: string;
+  url: string;
+}
+
+export async function getAdminDocuments(params?: {
+  page?: number;
+  search?: string;
+  verification_status?: string;
+  documentable_type?: string;
+}): Promise<PaginatedResponse<AdminDocument>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<AdminDocument>>('/documents', { params });
+  return data;
+}
+
+export async function verifyDocument(id: number, status: 'approved' | 'rejected'): Promise<AdminDocument> {
+  const { data } = await axiosInstance.patch<{ data: AdminDocument }>(`/documents/${id}/verify`, { status });
+  return data.data;
+}
+
+export async function downloadAdminDocument(id: number): Promise<Blob> {
+  const { data } = await axiosInstance.get(`/documents/${id}/download`, { responseType: 'blob' });
+  return data;
+}

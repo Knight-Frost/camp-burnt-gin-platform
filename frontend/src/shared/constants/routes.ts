@@ -43,6 +43,7 @@ export const ROUTES = {
   ADMIN_REPORTS: '/admin/reports',
   ADMIN_ANNOUNCEMENTS: '/admin/announcements',
   ADMIN_CALENDAR: '/admin/calendar',
+  ADMIN_DOCUMENTS: '/admin/documents',
 
   // Medical
   MEDICAL_DASHBOARD: '/medical/dashboard',
@@ -58,6 +59,7 @@ export const ROUTES = {
   MEDICAL_RECORD_EMERGENCY: (id: number | string) => `/medical/records/${id}/emergency`,
   MEDICAL_RECORD_INCIDENTS: (id: number | string) => `/medical/records/${id}/incidents`,
   MEDICAL_RECORD_VISITS: (id: number | string) => `/medical/records/${id}/visits`,
+  MEDICAL_RECORD_TREATMENT: '/medical/record-treatment',
 
   // Super Admin
   SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',

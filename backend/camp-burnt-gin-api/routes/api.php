@@ -173,6 +173,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
         Route::put('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::put('/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+        Route::delete('/clear-all', [NotificationController::class, 'deleteAll'])->name('notifications.clear-all');
     });
 
     /*
@@ -185,6 +186,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/', [DocumentController::class, 'store'])->middleware('throttle:uploads')->name('documents.store');
         Route::get('/{document}', [DocumentController::class, 'show'])->name('documents.show');
         Route::get('/{document}/download', [DocumentController::class, 'download'])->middleware('throttle:sensitive')->name('documents.download');
+        Route::patch('/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     });
 
@@ -221,6 +223,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('/{camper}', [CamperController::class, 'destroy'])->name('campers.destroy');
         Route::get('/{camper}/risk-summary', [CamperController::class, 'riskSummary'])->name('campers.risk-summary');
         Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
+        Route::get('/{camper}/medical-alerts', [CamperController::class, 'medicalAlerts'])->name('campers.medical-alerts');
     });
 
     /*

@@ -798,9 +798,19 @@
     },
     "treatments": {
       "title": "Registro de Tratamientos",
-      "add": "Registrar Tratamiento",
-      "empty_title": "Sin registros de tratamiento",
-      "empty_desc": "Los registros de tratamiento de este campista aparecerán aquí."
+      "add": "Agregar Entrada de Tratamiento",
+      "empty_title": "Sin entradas de tratamiento",
+      "empty_desc": "Las entradas de tratamiento de este campista aparecerán aquí.",
+      "global_empty_desc": "No se han registrado entradas de tratamiento todavía."
+    },
+    "record_treatment": {
+      "title": "Expedientes Médicos de Campistas",
+      "subtitle": "Busca un campista para ver o actualizar su expediente médico.",
+      "search_placeholder": "Buscar por nombre o ID de campista…",
+      "no_results": "Ningún campista coincide con los filtros activos.",
+      "empty_hint": "No se encontraron campistas.",
+      "dob_label": "Fecha nac.: {{dob}}",
+      "load_more": "Cargar más campistas"
     },
     "documents": {
       "title": "Documentos del Campista",
@@ -1205,6 +1215,8 @@
     "group_system": "Sistema",
     "incidents": "Incidentes",
     "follow_ups": "Seguimientos",
-    "visits": "Visitas"
+    "visits": "Visitas",
+    "record_treatment": "Seleccionar Campista",
+    "medical_records": "Expedientes Médicos"
   }
 }

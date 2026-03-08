@@ -201,30 +201,26 @@ function FollowUpCard({
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {followUp.status === 'pending' && (
-            <button
-              onClick={() => void handleMarkInProgress()}
-              disabled={actioning}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-50"
-              style={{ borderColor: 'var(--border)', color: 'var(--night-sky-blue)', background: 'rgba(37,99,235,0.06)' }}
-              title={t('medical.follow_ups.mark_in_progress') || 'Mark In Progress'}
-            >
-              {actioning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Clock className="h-3 w-3" />}
-              {t('medical.follow_ups.in_progress') || 'In Progress'}
-            </button>
-          )}
-          {followUp.status !== 'completed' && (
-            <button
-              onClick={() => void handleMarkComplete()}
-              disabled={actioning}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-50"
-              style={{ borderColor: 'var(--border)', color: 'var(--ember-orange)', background: 'rgba(22,163,74,0.06)' }}
-              title={t('medical.follow_ups.mark_complete') || 'Mark Complete'}
-            >
-              {actioning ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-              {t('medical.follow_ups.complete') || 'Complete'}
-            </button>
-          )}
+          <button
+            onClick={() => void handleMarkInProgress()}
+            disabled={actioning || followUp.status !== 'pending'}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-50${followUp.status !== 'pending' ? ' invisible' : ''}`}
+            style={{ borderColor: 'var(--border)', color: 'var(--night-sky-blue)', background: 'rgba(37,99,235,0.06)' }}
+            title={t('medical.follow_ups.mark_in_progress') || 'Mark In Progress'}
+          >
+            {actioning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Clock className="h-3 w-3" />}
+            {t('medical.follow_ups.in_progress') || 'In Progress'}
+          </button>
+          <button
+            onClick={() => void handleMarkComplete()}
+            disabled={actioning || followUp.status === 'completed'}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border transition-colors disabled:opacity-50${followUp.status === 'completed' ? ' invisible' : ''}`}
+            style={{ borderColor: 'var(--border)', color: 'var(--ember-orange)', background: 'rgba(22,163,74,0.06)' }}
+            title={t('medical.follow_ups.mark_complete') || 'Mark Complete'}
+          >
+            {actioning ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+            {t('medical.follow_ups.complete') || 'Complete'}
+          </button>
           <button
             onClick={() => void handleDelete()}
             disabled={deleting}

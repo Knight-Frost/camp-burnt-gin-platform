@@ -28,7 +28,13 @@ class EmergencyContactController extends Controller
     {
         $this->authorize('viewAny', EmergencyContact::class);
 
-        $contacts = EmergencyContact::with('camper')->paginate(15);
+        $query = EmergencyContact::with('camper');
+
+        if ($request->filled('camper_id')) {
+            $query->where('camper_id', $request->integer('camper_id'));
+        }
+
+        $contacts = $query->paginate(15);
 
         return response()->json([
             'data' => $contacts->items(),

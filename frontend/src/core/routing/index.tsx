@@ -63,11 +63,13 @@ const AdminSessionsPage       = withSuspense(lazy(() => import('@/features/admin
 const AdminReportsPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminReportsPage').then(m => ({ default: m.AdminReportsPage }))));
 const AdminAnnouncementsPage  = withSuspense(lazy(() => import('@/features/admin/pages/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage }))));
 const AdminCalendarPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminCalendarPage').then(m => ({ default: m.AdminCalendarPage }))));
+const AdminDocumentsPage      = withSuspense(lazy(() => import('@/features/admin/pages/AdminDocumentsPage').then(m => ({ default: m.AdminDocumentsPage }))));
 
 // ─── Medical pages ────────────────────────────────────────────────────────────
 const MedicalDashboardPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDashboardPage').then(m => ({ default: m.MedicalDashboardPage }))));
 const MedicalRecordPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordPage').then(m => ({ default: m.MedicalRecordPage }))));
-const MedicalTreatmentLogPage  = withSuspense(lazy(() => import('@/features/medical/pages/MedicalTreatmentLogPage').then(m => ({ default: m.MedicalTreatmentLogPage }))));
+const MedicalTreatmentLogPage      = withSuspense(lazy(() => import('@/features/medical/pages/MedicalTreatmentLogPage').then(m => ({ default: m.MedicalTreatmentLogPage }))));
+const MedicalRecordTreatmentPage   = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordTreatmentPage').then(m => ({ default: m.MedicalRecordTreatmentPage }))));
 const MedicalDocumentsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDocumentsPage').then(m => ({ default: m.MedicalDocumentsPage }))));
 const MedicalIncidentsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalIncidentsPage').then(m => ({ default: m.MedicalIncidentsPage }))));
 const MedicalFollowUpsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalFollowUpsPage').then(m => ({ default: m.MedicalFollowUpsPage }))));
@@ -149,6 +151,7 @@ export const router = createBrowserRouter([
           { path: '/admin/reports',             element: <AdminReportsPage /> },
           { path: '/admin/announcements',       element: <AdminAnnouncementsPage /> },
           { path: '/admin/calendar',            element: <AdminCalendarPage /> },
+          { path: '/admin/documents',           element: <AdminDocumentsPage /> },
           { path: '/admin/inbox',               element: <InboxPage /> },
           { path: '/admin/profile',             element: <ProfilePage /> },
           { path: '/admin/settings',            element: <SettingsPage /> },
@@ -171,6 +174,7 @@ export const router = createBrowserRouter([
           { path: '/medical/records/:camperId/treatments',       element: <MedicalTreatmentLogPage /> },
           { path: '/medical/records/:camperId/documents',        element: <MedicalDocumentsPage /> },
           { path: '/medical/treatments',                         element: <MedicalTreatmentLogPage /> },
+          { path: '/medical/record-treatment',                   element: <MedicalRecordTreatmentPage /> },
           { path: '/medical/incidents',                          element: <MedicalIncidentsPage /> },
           { path: '/medical/follow-ups',                         element: <MedicalFollowUpsPage /> },
           { path: '/medical/visits',                             element: <MedicalVisitsPage /> },
@@ -207,6 +211,7 @@ export const router = createBrowserRouter([
           { path: '/super-admin/reports',              element: <AdminReportsPage /> },
           { path: '/super-admin/announcements',        element: <AdminAnnouncementsPage /> },
           { path: '/super-admin/calendar',             element: <AdminCalendarPage /> },
+          { path: '/super-admin/documents',            element: <AdminDocumentsPage /> },
           { path: '/super-admin/inbox',                element: <InboxPage /> },
           { path: '/super-admin/profile',              element: <ProfilePage /> },
           { path: '/super-admin/settings',             element: <SettingsPage /> },

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Medical;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TreatmentLog\StoreTreatmentLogRequest;
 use App\Http\Requests\TreatmentLog\UpdateTreatmentLogRequest;
+use App\Models\Camper;
 use App\Models\TreatmentLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,6 +68,8 @@ class TreatmentLogController extends Controller
      * Store a newly created treatment log entry.
      *
      * The recorded_by field is automatically set to the authenticated user.
+     * If a medication is recorded, the response includes allergy conflict
+     * warnings so the medic can make an informed clinical decision.
      */
     public function store(StoreTreatmentLogRequest $request): JsonResponse
     {
@@ -77,12 +80,32 @@ class TreatmentLogController extends Controller
             ['recorded_by' => $request->user()->id]
         ));
 
-        $log->load(['camper', 'recorder']);
+        $log->load(['camper', 'recorder', 'medicalVisit']);
 
-        return response()->json([
+        // Allergy conflict check — warn if the administered medication
+        // matches any of the camper's recorded allergens.
+        $allergyWarnings = [];
+        $medicationGiven = $request->validated('medication_given');
+        if ($medicationGiven) {
+            $camper = Camper::with('allergies')->find($log->camper_id);
+            if ($camper) {
+                $allergyWarnings = TreatmentLog::detectAllergyConflicts(
+                    $medicationGiven,
+                    $camper->allergies
+                );
+            }
+        }
+
+        $response = [
             'message' => 'Treatment log created successfully.',
             'data'    => $log,
-        ], Response::HTTP_CREATED);
+        ];
+
+        if (! empty($allergyWarnings)) {
+            $response['allergy_warnings'] = $allergyWarnings;
+        }
+
+        return response()->json($response, Response::HTTP_CREATED);
     }
 
     /**
@@ -92,7 +115,7 @@ class TreatmentLogController extends Controller
     {
         $this->authorize('view', $treatmentLog);
 
-        $treatmentLog->load(['camper', 'recorder']);
+        $treatmentLog->load(['camper', 'recorder', 'medicalVisit']);
 
         return response()->json([
             'data' => $treatmentLog,
@@ -107,7 +130,7 @@ class TreatmentLogController extends Controller
         $this->authorize('update', $treatmentLog);
 
         $treatmentLog->update($request->validated());
-        $treatmentLog->load(['camper', 'recorder']);
+        $treatmentLog->load(['camper', 'recorder', 'medicalVisit']);
 
         return response()->json([
             'message' => 'Treatment log updated successfully.',

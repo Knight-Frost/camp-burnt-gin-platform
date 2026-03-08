@@ -13,15 +13,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Plus, Stethoscope, ChevronDown, ChevronUp,
-  Loader2, Save, X, Filter, AlertCircle,
+  Loader2, Save, X, Filter, AlertCircle, ClipboardList,
 } from 'lucide-react';
 
 import {
   getMedicalVisits,
+  getMedicalVisit,
   createMedicalVisit,
   type MedicalVisit,
   type MedicalVisitVitals,
   type VisitDisposition,
+  type TreatmentLog,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -108,9 +110,26 @@ function VitalsPills({ vitals }: { vitals: MedicalVisitVitals }) {
 
 // ─── Expandable visit card ─────────────────────────────────────────────────────
 
-function VisitCard({ visit }: { visit: MedicalVisit }) {
+function VisitCard({ visit: initialVisit }: { visit: MedicalVisit }) {
   const [open, setOpen] = useState(false);
+  const [visit, setVisit] = useState(initialVisit);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const meta = DISPOSITION_META[visit.disposition] ?? DISPOSITION_META.other;
+
+  const handleToggle = async () => {
+    const next = !open;
+    setOpen(next);
+    // Load full visit detail (including treatment_logs) on first expand
+    if (next && visit.treatment_logs === undefined) {
+      setLoadingDetail(true);
+      try {
+        const detail = await getMedicalVisit(visit.id);
+        setVisit(detail);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
+  };
 
   const date = new Date(visit.visit_date).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -125,7 +144,7 @@ function VisitCard({ visit }: { visit: MedicalVisit }) {
       style={{ borderColor: visit.disposition === 'emergency_transfer' ? 'rgba(220,38,38,0.3)' : 'var(--border)' }}
     >
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleToggle}
         className="w-full flex items-start gap-4 px-5 py-4 text-left transition-colors"
         style={{ background: 'var(--glass-medium)' }}
       >
@@ -209,6 +228,56 @@ function VisitCard({ visit }: { visit: MedicalVisit }) {
                   <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{visit.follow_up_notes}</p>
                 </div>
               )}
+              {loadingDetail && (
+                <div className="flex items-center gap-2 py-2" style={{ color: 'var(--muted-foreground)' }}>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span className="text-xs">Loading treatment log…</span>
+                </div>
+              )}
+
+              {/* Treatment logs nested under this visit */}
+              {visit.treatment_logs && visit.treatment_logs.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ClipboardList className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
+                    <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                      Treatment Log ({visit.treatment_logs.length})
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {visit.treatment_logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="rounded-lg border px-3 py-2.5"
+                        style={{ borderColor: 'var(--border)', background: 'var(--glass-light)' }}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>{log.title}</p>
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(37,99,235,0.10)', color: 'var(--night-sky-blue)' }}
+                          >
+                            {log.type.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{log.description}</p>
+                        {log.medication_given && (
+                          <p className="text-xs mt-1" style={{ color: 'var(--foreground)' }}>
+                            <span style={{ color: 'var(--muted-foreground)' }}>Medication: </span>
+                            {log.medication_given}{log.dosage_given ? ` — ${log.dosage_given}` : ''}
+                          </p>
+                        )}
+                        {log.recorder && (
+                          <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                            by {log.recorder.name}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {visit.recorder && (
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                   Recorded by {visit.recorder.name}

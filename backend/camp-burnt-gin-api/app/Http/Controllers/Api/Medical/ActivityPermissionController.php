@@ -28,7 +28,13 @@ class ActivityPermissionController extends Controller
     {
         $this->authorize('viewAny', ActivityPermission::class);
 
-        $permissions = ActivityPermission::with('camper')->paginate(15);
+        $query = ActivityPermission::with('camper');
+
+        if ($request->filled('camper_id')) {
+            $query->where('camper_id', $request->integer('camper_id'));
+        }
+
+        $permissions = $query->paginate(15);
 
         return response()->json([
             'data' => $permissions->items(),

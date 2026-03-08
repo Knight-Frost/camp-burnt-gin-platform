@@ -240,6 +240,13 @@ class UserProfileController extends Controller
             'deadlines'           => ['sometimes', 'boolean'],
         ]);
 
+        $defaults = [
+            'application_updates' => true,
+            'announcements'       => true,
+            'messages'            => true,
+            'deadlines'           => true,
+        ];
+
         $current = $request->user()->notification_preferences ?? [];
         $merged  = array_merge($current, $validated);
 
@@ -247,7 +254,7 @@ class UserProfileController extends Controller
 
         return response()->json([
             'message' => 'Notification preferences updated.',
-            'data'    => $merged,
+            'data'    => array_merge($defaults, $merged),
         ]);
     }
 

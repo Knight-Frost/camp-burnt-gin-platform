@@ -147,7 +147,7 @@ export async function getActivityPermissions(camperId: number): Promise<Activity
   return data.data;
 }
 
-export async function updateActivityPermission(id: number, payload: Partial<{ activity: string; permitted: boolean; notes: string }>): Promise<ActivityPermission> {
+export async function updateActivityPermission(id: number, payload: Partial<{ activity_name: string; permission_level: 'yes' | 'no' | 'restricted'; restriction_notes: string }>): Promise<ActivityPermission> {
   const { data } = await axiosInstance.put<ApiResponse<ActivityPermission>>(`/activity-permissions/${id}`, payload);
   return data.data;
 }
@@ -204,7 +204,7 @@ export async function createAssistiveDevice(payload: { camper_id: number; type: 
   return data.data;
 }
 
-export async function updateAssistiveDevice(id: number, payload: Partial<{ type: string; description: string }>): Promise<AssistiveDevice> {
+export async function updateAssistiveDevice(id: number, payload: Partial<{ device_type: string; notes: string; requires_transfer_assistance: boolean }>): Promise<AssistiveDevice> {
   const { data } = await axiosInstance.put<ApiResponse<AssistiveDevice>>(`/assistive-devices/${id}`, payload);
   return data.data;
 }
@@ -214,6 +214,7 @@ export async function updateAssistiveDevice(id: number, payload: Partial<{ type:
 export interface TreatmentLog {
   id: number;
   camper_id: number;
+  medical_visit_id?: number | null;
   recorded_by: number;
   recorder?: { id: number; name: string };
   camper?: { id: number; full_name: string };
@@ -223,6 +224,8 @@ export interface TreatmentLog {
   title: string;
   description: string;
   outcome?: string;
+  medication_given?: string;
+  dosage_given?: string;
   follow_up_required: boolean;
   follow_up_notes?: string;
   created_at: string;
@@ -238,12 +241,15 @@ export type TreatmentType =
 
 export interface StoreTreatmentLogPayload {
   camper_id: number;
+  medical_visit_id?: number | null;
   treatment_date: string;
   treatment_time?: string;
   type: TreatmentType;
   title: string;
   description: string;
   outcome?: string;
+  medication_given?: string;
+  dosage_given?: string;
   follow_up_required?: boolean;
   follow_up_notes?: string;
 }
@@ -259,9 +265,24 @@ export async function getTreatmentLogs(params?: {
   return data;
 }
 
-export async function createTreatmentLog(payload: StoreTreatmentLogPayload): Promise<TreatmentLog> {
-  const { data } = await axiosInstance.post<ApiResponse<TreatmentLog>>('/treatment-logs', payload);
-  return data.data;
+export interface AllergyConflict {
+  allergen: string;
+  severity: string;
+  reaction: string | null;
+  treatment: string | null;
+}
+
+export interface CreateTreatmentLogResult {
+  log: TreatmentLog;
+  allergyWarnings: AllergyConflict[];
+}
+
+export async function createTreatmentLog(payload: StoreTreatmentLogPayload): Promise<CreateTreatmentLogResult> {
+  const { data } = await axiosInstance.post<ApiResponse<TreatmentLog> & { allergy_warnings?: AllergyConflict[] }>('/treatment-logs', payload);
+  return {
+    log: data.data,
+    allergyWarnings: data.allergy_warnings ?? [],
+  };
 }
 
 export async function updateTreatmentLog(id: number, payload: Partial<StoreTreatmentLogPayload>): Promise<TreatmentLog> {
@@ -529,6 +550,8 @@ export interface MedicalVisit {
   disposition_notes?: string;
   follow_up_required: boolean;
   follow_up_notes?: string;
+  /** Treatment logs performed during this visit — populated on show() only. */
+  treatment_logs?: TreatmentLog[];
   created_at: string;
   updated_at: string;
 }
@@ -546,6 +569,11 @@ export interface StoreMedicalVisitPayload {
   disposition_notes?: string;
   follow_up_required?: boolean;
   follow_up_notes?: string;
+}
+
+export async function getMedicalVisit(id: number): Promise<MedicalVisit> {
+  const { data } = await axiosInstance.get<ApiResponse<MedicalVisit>>(`/medical-visits/${id}`);
+  return data.data;
 }
 
 export async function getMedicalVisits(params?: {
@@ -625,4 +653,21 @@ export async function updateMedicalRestriction(id: number, payload: Partial<Stor
 
 export async function deleteMedicalRestriction(id: number): Promise<void> {
   await axiosInstance.delete(`/medical-restrictions/${id}`);
+}
+
+// ─── Medical Alerts ────────────────────────────────────────────────────────────
+
+export type AlertLevel = 'critical' | 'warning' | 'info';
+export type AlertCategory = 'allergy' | 'seizure' | 'device' | 'diagnosis' | 'medication';
+
+export interface MedicalAlert {
+  level: AlertLevel;
+  category: AlertCategory;
+  title: string;
+  detail: string | null;
+}
+
+export async function getCamperMedicalAlerts(camperId: number): Promise<MedicalAlert[]> {
+  const { data } = await axiosInstance.get<ApiResponse<MedicalAlert[]>>(`/campers/${camperId}/medical-alerts`);
+  return data.data;
 }
