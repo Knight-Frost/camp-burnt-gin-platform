@@ -1,24 +1,23 @@
 /**
  * AdminDashboardPage.tsx
  *
- * Purpose: The first screen admins see after logging in — a bird's-eye view of camp activity.
- *
- * Responsibilities:
- *  - Show four stat cards: total applications, pending, accepted, rejected + unread inbox count.
- *  - List the 10 most recent applications that need a decision (review queue).
- *  - Show enrollment fill bars for up to 8 camp sessions.
- *
- * Plain-English summary:
- *  Think of this as the admin's "morning briefing" page. It fetches three things at once
- *  (applications, camps, unread messages), calculates quick numbers, and displays them in
- *  easy-to-read cards and lists. If anything fails, a retry button appears.
+ * Redesigned (Phase 12) for operational clarity:
+ *  - Meaningful header with context and quick actions
+ *  - Localization-resilient stat cards
+ *  - Pending Review queue is the primary focus
+ *  - Status badges with clear hierarchy
+ *  - Session enrollment as secondary section
  */
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, Users, CheckCircle, XCircle, Clock, ArrowRight, MessageSquare } from 'lucide-react';
+import {
+  FileText, Users, CheckCircle, XCircle, Clock,
+  ArrowRight, MessageSquare, Plus,
+} from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 import { getAdminApplications, getCamps } from '@/features/admin/api/admin.api';
 import { getUnreadCount } from '@/features/messaging/api/messaging.api';
@@ -35,30 +34,21 @@ import {
 } from '@/shared/constants/motion';
 
 export function AdminDashboardPage() {
-  // ── State ──────────────────────────────────────────────────────────────────
+  const { t } = useTranslation();
 
-  // All applications fetched from the API (full list, no pagination on dashboard).
   const [applications, setApplications] = useState<Application[]>([]);
-  // Camp objects — each contains an array of sessions nested inside.
   const [camps, setCamps]               = useState<Camp[]>([]);
-  // Number of unread inbox messages for the "Unread messages" stat card.
   const [unread, setUnread]             = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  // Incrementing this counter re-triggers the useEffect below (retry pattern).
+  const [error, setError]     = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-
-  // ── Data fetching ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     setLoading(true);
     setError(false);
-    // Fire all three API calls at the same time so they run in parallel.
     Promise.all([
       getAdminApplications().then((res) => res.data),
-      // If camps fail, fall back to an empty array — non-critical.
       getCamps().catch(() => [] as Camp[]),
-      // Same for unread count — don't break the whole page if inbox fails.
       getUnreadCount().catch(() => 0),
     ])
       .then(([apps, campsData, unreadCount]) => {
@@ -66,28 +56,21 @@ export function AdminDashboardPage() {
         setCamps(campsData);
         setUnread(unreadCount);
       })
-      // Only set error=true if the applications call itself fails (critical).
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [retryKey]); // Runs again every time retryKey changes.
+  }, [retryKey]);
 
-  // ── Derived data ───────────────────────────────────────────────────────────
-
-  // Count each status category from the full applications list.
   const stats = {
-    total: applications.length,
-    pending: applications.filter((a) => a.status === 'pending').length,
+    total:    applications.length,
+    pending:  applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length,
     accepted: applications.filter((a) => a.status === 'approved').length,
     rejected: applications.filter((a) => a.status === 'rejected').length,
   };
 
-  // The review queue is applications that still need a decision, capped at 10.
   const reviewQueue = applications
     .filter((a) => a.status === 'pending' || a.status === 'under_review')
     .slice(0, 10);
 
-  // Build enrollment rows from camps → sessions (camps contain nested sessions).
-  // flatMap flattens [camp1.sessions, camp2.sessions, ...] into one array.
   const sessionRows = camps.flatMap((c) =>
     (c.sessions ?? []).map((s) => ({
       id: s.id,
@@ -95,51 +78,102 @@ export function AdminDashboardPage() {
       enrolled: s.enrolled_count ?? 0,
       capacity: s.capacity ?? 0,
     }))
-  ).slice(0, 8); // Show at most 8 sessions on the dashboard.
+  ).slice(0, 8);
 
-  // If the main data fetch failed, swap the whole page for an error UI with retry.
   if (error) return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
 
   return (
-    <div className="max-w-6xl space-y-16">
+    <div className="max-w-6xl space-y-8">
 
-      {/* ── Stats row ───────────────────────────────────────── */}
-      {/* Show skeleton placeholders while loading, real cards after. */}
+      {/* ── Header with context ──────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
+            {t('admin.dashboard.title')}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+            {t('admin.dashboard.subtitle')}
+          </p>
+        </div>
+        {/* Quick actions */}
+        <div className="flex gap-2 flex-shrink-0">
+          <Link
+            to={ROUTES.ADMIN_APPLICATIONS}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors hover:bg-[var(--muted)]"
+            style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}
+          >
+            <FileText className="h-4 w-4" />
+            {t('admin.dashboard.all_applications')}
+          </Link>
+          <Link
+            to="/admin/inbox"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors hover:opacity-90 relative"
+            style={{ background: 'var(--ember-orange)', color: '#fff' }}
+          >
+            <MessageSquare className="h-4 w-4" />
+            {t('portal_nav.inbox')}
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-xs flex items-center justify-center font-semibold"
+                style={{ background: 'var(--destructive)', color: '#fff', fontSize: '10px' }}>
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Stats row ────────────────────────────────────────── */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} lines={1} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-8">
-          <StatCard label="Total applications" value={stats.total} icon={FileText} delay={0} />
-          <StatCard label="Pending review" value={stats.pending} icon={Clock} color="var(--warm-amber)" delay={0.05} />
-          <StatCard label="Accepted" value={stats.accepted} icon={CheckCircle} color="var(--forest-green)" delay={0.1} />
-          <StatCard label="Rejected" value={stats.rejected} icon={XCircle} color="var(--destructive)" delay={0.15} />
-          {/* The 5th "stat card" is actually a link to the inbox, styled to match. */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard
+            label={t('admin.dashboard.stat_total')}
+            value={stats.total}
+            icon={FileText}
+            delay={0}
+          />
+          <StatCard
+            label={t('admin.dashboard.stat_pending')}
+            value={stats.pending}
+            icon={Clock}
+            color="var(--warm-amber)"
+            delay={0.05}
+          />
+          <StatCard
+            label={t('admin.dashboard.stat_accepted')}
+            value={stats.accepted}
+            icon={CheckCircle}
+            color="var(--forest-green)"
+            delay={0.1}
+          />
+          <StatCard
+            label={t('admin.dashboard.stat_rejected')}
+            value={stats.rejected}
+            icon={XCircle}
+            color="var(--destructive)"
+            delay={0.15}
+          />
+          {/* Unread messages — clickable stat card */}
           <Link to="/admin/inbox" className="block group">
             <div
-              className="rounded-2xl border p-7 flex items-start gap-5 transition-shadow hover:shadow-md h-full"
+              className="rounded-2xl border p-4 sm:p-5 flex items-start gap-3 min-w-0 transition-shadow hover:shadow-md h-full"
               style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
             >
               <div
-                className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
-                // Green tint when there are unread messages, neutral otherwise.
+                className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{ background: unread > 0 ? 'rgba(22,163,74,0.12)' : 'rgba(0,0,0,0.05)' }}
               >
-                <MessageSquare
-                  className="h-5 w-5"
-                  style={{ color: unread > 0 ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}
-                />
+                <MessageSquare className="h-5 w-5" style={{ color: unread > 0 ? 'var(--ember-orange)' : 'var(--muted-foreground)' }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p
-                  className="text-3xl font-headline font-semibold"
-                  style={{ color: unread > 0 ? 'var(--ember-orange)' : 'var(--foreground)' }}
-                >
+                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: unread > 0 ? 'var(--ember-orange)' : 'var(--foreground)' }}>
                   {unread}
                 </p>
-                <p className="text-sm mt-1 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                  Unread messages
+                <p className="text-xs sm:text-sm mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+                  {t('admin.dashboard.stat_unread')}
                 </p>
               </div>
             </div>
@@ -147,16 +181,37 @@ export function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ── Pending Review ──────────────────────────────────── */}
-      {/* scrollRevealVariants fades in this section as it enters the viewport. */}
+      {/* ── Pending work alert ───────────────────────────────── */}
+      {!loading && stats.pending > 0 && (
+        <div
+          className="rounded-xl border px-4 py-3 flex items-center justify-between gap-4"
+          style={{ background: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.25)', borderLeftWidth: '3px', borderLeftColor: 'var(--warm-amber)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 flex-shrink-0" style={{ color: '#b45309' }} />
+            <p className="text-sm font-medium" style={{ color: '#b45309' }}>
+              {stats.pending} application{stats.pending !== 1 ? 's' : ''} awaiting review
+            </p>
+          </div>
+          <Link
+            to={ROUTES.ADMIN_APPLICATIONS}
+            className="flex-shrink-0 flex items-center gap-1 text-xs font-medium hover:underline"
+            style={{ color: '#b45309' }}
+          >
+            {t('common.view_all')} <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
+
+      {/* ── Pending Review queue ─────────────────────────────── */}
       <motion.section variants={scrollRevealVariants} initial="hidden" animate="visible">
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
-              Pending Review
+            <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
+              {t('admin.dashboard.review_queue_title')}
             </h2>
-            <p className="text-sm mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-              Applications awaiting your decision
+            <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('admin.dashboard.review_queue_subtitle')}
             </p>
           </div>
           <Link
@@ -164,35 +219,34 @@ export function AdminDashboardPage() {
             className="text-sm font-medium hover:underline flex items-center gap-1.5 mt-0.5 flex-shrink-0"
             style={{ color: 'var(--ember-orange)' }}
           >
-            View all <ArrowRight className="h-3.5 w-3.5" />
+            {t('common.view_all')} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        <div
-          className="rounded-2xl border overflow-hidden shadow-sm"
-          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-        >
+        <div className="rounded-2xl border overflow-hidden shadow-sm" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           {loading ? (
-            <div className="p-8"><SkeletonTable rows={5} /></div>
+            <div className="p-6"><SkeletonTable rows={5} /></div>
           ) : reviewQueue.length === 0 ? (
-            // Empty state — all applications have been reviewed.
-            <div className="flex items-center justify-center py-24">
+            <div className="flex items-center justify-center py-16">
               <div className="text-center">
-                <CheckCircle
-                  className="h-10 w-10 mx-auto mb-4"
-                  style={{ color: 'var(--forest-green)', opacity: 0.65 }}
-                />
+                <CheckCircle className="h-10 w-10 mx-auto mb-3" style={{ color: 'var(--forest-green)', opacity: 0.65 }} />
                 <p className="text-base font-medium" style={{ color: 'var(--foreground)' }}>
-                  All caught up
+                  {t('admin.dashboard.all_caught_up')}
                 </p>
-                <p className="text-sm mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-                  No applications pending review.
+                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                  {t('admin.dashboard.no_pending')}
                 </p>
+                <Link
+                  to={ROUTES.ADMIN_APPLICATION_DETAIL('new')}
+                  className="inline-flex items-center gap-1.5 mt-4 text-sm font-medium"
+                  style={{ color: 'var(--ember-orange)' }}
+                >
+                  <Plus className="h-4 w-4" />
+                  {t('admin.dashboard.new_application')}
+                </Link>
               </div>
             </div>
           ) : (
-            // staggerContainerVariants + staggerChildVariants animate list items
-            // in one by one with a small delay between each (stagger effect).
             <motion.ul
               variants={staggerContainerVariants}
               initial="hidden"
@@ -204,30 +258,25 @@ export function AdminDashboardPage() {
                 <motion.li key={app.id} variants={staggerChildVariants}>
                   <Link
                     to={ROUTES.ADMIN_APPLICATION_DETAIL(app.id)}
-                    className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                    className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
                   >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(22,163,74,0.1)' }}
-                      >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(22,163,74,0.1)' }}>
                         <Users className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
                       </div>
                       <div className="min-w-0">
-                        {/* Show camper name if available, otherwise fall back to ID. */}
-                        <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
                           {app.camper?.full_name ?? `Camper #${app.camper_id}`}
                         </p>
                         <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                          {app.session?.name ?? `Session #${app.session_id}`}
-                          {/* Only show the submitted date if it exists. */}
+                          {app.session?.name ?? `Session #${app.session?.id ?? '?'}`}
                           {app.submitted_at && (
                             <> &middot; {format(new Date(app.submitted_at), 'MMM d, yyyy')}</>
                           )}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <StatusBadge status={app.status} />
                       <ArrowRight className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
                     </div>
@@ -239,15 +288,15 @@ export function AdminDashboardPage() {
         </div>
       </motion.section>
 
-      {/* ── Session Enrollment ──────────────────────────────── */}
+      {/* ── Session Enrollment ───────────────────────────────── */}
       <motion.section variants={scrollRevealVariants} initial="hidden" animate="visible">
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
-              Session Enrollment
+            <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
+              {t('admin.dashboard.enrollment_title')}
             </h2>
-            <p className="text-sm mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-              Current capacity across all camp sessions
+            <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('admin.dashboard.enrollment_subtitle')}
             </p>
           </div>
           <Link
@@ -255,57 +304,56 @@ export function AdminDashboardPage() {
             className="text-sm font-medium hover:underline flex items-center gap-1.5 mt-0.5 flex-shrink-0"
             style={{ color: 'var(--ember-orange)' }}
           >
-            Manage <ArrowRight className="h-3.5 w-3.5" />
+            {t('admin.dashboard.manage_sessions')} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        <div
-          className="rounded-2xl border overflow-hidden shadow-sm"
-          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-        >
+        <div className="rounded-2xl border overflow-hidden shadow-sm" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           {loading ? (
-            <div className="p-8"><SkeletonTable rows={4} /></div>
+            <div className="p-6"><SkeletonTable rows={4} /></div>
           ) : sessionRows.length === 0 ? (
-            <div className="flex items-center justify-center py-24">
+            <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <p className="text-base font-medium" style={{ color: 'var(--foreground)' }}>
-                  No sessions found
+                <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                  {t('admin.dashboard.no_sessions')}
                 </p>
-                <p className="text-sm mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-                  Sessions will appear here once created.
+                <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                  {t('admin.dashboard.no_sessions_desc')}
                 </p>
               </div>
             </div>
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
               {sessionRows.map((row) => {
-                // Percentage filled — capped at 100% so the bar never overflows.
-                const pct = row.capacity > 0 ? Math.min((row.enrolled / row.capacity) * 100, 100) : 0;
+                const pct        = row.capacity > 0 ? Math.min((row.enrolled / row.capacity) * 100, 100) : 0;
                 const isFull     = pct >= 100;
                 const isNearFull = pct >= 80;
-                // Bar turns red when full, amber when nearly full, green otherwise.
-                const barColor = isFull ? 'var(--destructive)' : isNearFull ? 'var(--warm-amber)' : 'var(--forest-green)';
+                const barColor   = isFull ? 'var(--destructive)' : isNearFull ? 'var(--warm-amber)' : 'var(--forest-green)';
 
                 return (
-                  <div key={row.id} className="px-6 py-5">
-                    <div className="flex items-center justify-between mb-3">
+                  <div key={row.id} className="px-5 py-4">
+                    <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium truncate flex-1 mr-4" style={{ color: 'var(--foreground)' }}>
                         {row.name}
                       </p>
-                      {/* Show "enrolled / capacity" as a fraction. */}
-                      <span
-                        className="text-xs font-medium tabular-nums flex-shrink-0"
-                        style={{ color: 'var(--muted-foreground)' }}
-                      >
-                        {row.enrolled} / {row.capacity}
-                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {isFull && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}>
+                            Full
+                          </span>
+                        )}
+                        {isNearFull && !isFull && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.10)', color: '#b45309' }}>
+                            Almost full
+                          </span>
+                        )}
+                        <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
+                          {row.enrolled} / {row.capacity}
+                        </span>
+                      </div>
                     </div>
-                    {/* Progress bar: width is driven by pct, color by fill level. */}
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%`, background: barColor }}
-                      />
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
                     </div>
                   </div>
                 );

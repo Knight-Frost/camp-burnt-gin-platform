@@ -520,6 +520,26 @@
     "upload_button": "Upload Document"
   },
   "admin": {
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "subtitle": "Monitor applications, enrollment, and camp operations.",
+      "all_applications": "All Applications",
+      "stat_total": "Total Applications",
+      "stat_pending": "Pending Review",
+      "stat_accepted": "Accepted",
+      "stat_rejected": "Rejected",
+      "stat_unread": "Unread Messages",
+      "review_queue_title": "Pending Review",
+      "review_queue_subtitle": "Applications awaiting your decision",
+      "all_caught_up": "All caught up",
+      "no_pending": "No applications pending review.",
+      "new_application": "New Application",
+      "enrollment_title": "Session Enrollment",
+      "enrollment_subtitle": "Current capacity across all camp sessions",
+      "manage_sessions": "Manage",
+      "no_sessions": "No sessions found",
+      "no_sessions_desc": "Sessions will appear here once created."
+    },
     "applications": {
       "title": "Applications",
       "subtitle": "Review and manage camper applications",
@@ -708,7 +728,12 @@
       },
       "alert": {
         "overdue": "{{count}} follow-up overdue",
-        "due_today": "{{count}} due today"
+        "due_today": "{{count}} due today",
+        "overdue_desc": "These items require immediate attention.",
+        "due_today_desc": "Complete these follow-ups before end of day."
+      },
+      "quick_action": {
+        "new_treatment": "Record Treatment"
       },
       "activity": {
         "title": "Recent Activity",
@@ -737,6 +762,22 @@
         "emergency": "Emergency",
         "load_more": "Load More"
       }
+    },
+    "directory": {
+      "nav_label": "Camp Medical Directory",
+      "title": "Camp Medical Directory",
+      "subtitle": "Find a camper and access their medical record quickly.",
+      "camper_count": "campers enrolled",
+      "no_alerts": "No active alerts",
+      "empty_title": "No campers found",
+      "empty_desc": "Enrolled campers will appear here once they have been added to the system.",
+      "empty_filtered_desc": "No campers match your current filters. Try adjusting or clearing the search.",
+      "filter_all_alerts": "All Alerts",
+      "filter_life_threatening": "Life-Threatening Allergy",
+      "filter_has_allergy": "Has Allergy",
+      "filter_has_diagnosis": "Has Diagnosis",
+      "filter_all_meds": "All Medications",
+      "filter_on_medication": "On Medication"
     },
     "record": {
       "back": "Back to Dashboard",

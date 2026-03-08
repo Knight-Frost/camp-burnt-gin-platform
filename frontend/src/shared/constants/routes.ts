@@ -76,6 +76,8 @@ export const ROUTES = {
   MEDICAL_RECORD_INCIDENTS: (id: number | string) => `/medical/records/${id}/incidents`,
   MEDICAL_RECORD_VISITS: (id: number | string) => `/medical/records/${id}/visits`,
   MEDICAL_RECORD_TREATMENT: '/medical/record-treatment',
+  // Phase 12: Camp Medical Directory (dedicated page)
+  MEDICAL_DIRECTORY: '/medical/directory',
 
   // ─── Super Admin portal ─────────────────────────────────────────────────────
   SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',

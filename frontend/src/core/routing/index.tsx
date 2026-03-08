@@ -78,6 +78,7 @@ const AdminDocumentsPage      = withSuspense(lazy(() => import('@/features/admin
 // ─── Medical pages ────────────────────────────────────────────────────────────
 // Medical staff have their own portal with HIPAA-protected camper health data
 const MedicalDashboardPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalDashboardPage').then(m => ({ default: m.MedicalDashboardPage }))));
+const CampMedicalDirectoryPage = withSuspense(lazy(() => import('@/features/medical/pages/CampMedicalDirectoryPage').then(m => ({ default: m.CampMedicalDirectoryPage }))));
 const MedicalRecordPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordPage').then(m => ({ default: m.MedicalRecordPage }))));
 const MedicalTreatmentLogPage      = withSuspense(lazy(() => import('@/features/medical/pages/MedicalTreatmentLogPage').then(m => ({ default: m.MedicalTreatmentLogPage }))));
 const MedicalRecordTreatmentPage   = withSuspense(lazy(() => import('@/features/medical/pages/MedicalRecordTreatmentPage').then(m => ({ default: m.MedicalRecordTreatmentPage }))));
@@ -202,6 +203,8 @@ export const router = createBrowserRouter([
         children: [
           { path: '/medical',                                      element: <Navigate to="/medical/dashboard" replace /> },
           { path: '/medical/dashboard',                          element: <MedicalDashboardPage /> },
+          // Phase 12: dedicated camper medical directory
+          { path: '/medical/directory',                          element: <CampMedicalDirectoryPage /> },
           // :camperId scopes the medical record to a specific camper
           { path: '/medical/records/:camperId',                  element: <MedicalRecordPage /> },
           { path: '/medical/records/:camperId/treatments',       element: <MedicalTreatmentLogPage /> },

@@ -520,6 +520,26 @@
     "upload_button": "Cargar Documento"
   },
   "admin": {
+    "dashboard": {
+      "title": "Panel de Administración",
+      "subtitle": "Monitorea solicitudes, inscripciones y operaciones del campamento.",
+      "all_applications": "Todas las Solicitudes",
+      "stat_total": "Total de Solicitudes",
+      "stat_pending": "En Revisión",
+      "stat_accepted": "Aceptadas",
+      "stat_rejected": "Rechazadas",
+      "stat_unread": "Mensajes sin Leer",
+      "review_queue_title": "Pendientes de Revisión",
+      "review_queue_subtitle": "Solicitudes que esperan tu decisión",
+      "all_caught_up": "Todo al día",
+      "no_pending": "No hay solicitudes pendientes de revisión.",
+      "new_application": "Nueva Solicitud",
+      "enrollment_title": "Inscripción por Sesión",
+      "enrollment_subtitle": "Capacidad actual en todas las sesiones del campamento",
+      "manage_sessions": "Gestionar",
+      "no_sessions": "No se encontraron sesiones",
+      "no_sessions_desc": "Las sesiones aparecerán aquí una vez creadas."
+    },
     "applications": {
       "title": "Solicitudes",
       "subtitle": "Revisar y gestionar solicitudes de campistas",
@@ -707,7 +727,12 @@
       },
       "alert": {
         "overdue": "{{count}} seguimiento vencido",
-        "due_today": "{{count}} vence hoy"
+        "due_today": "{{count}} vence hoy",
+        "overdue_desc": "Estos elementos requieren atención inmediata.",
+        "due_today_desc": "Complete estos seguimientos antes del final del día."
+      },
+      "quick_action": {
+        "new_treatment": "Registrar Tratamiento"
       },
       "activity": {
         "title": "Actividad Reciente",
@@ -736,6 +761,22 @@
         "emergency": "Emergencia",
         "load_more": "Cargar Más"
       }
+    },
+    "directory": {
+      "nav_label": "Directorio Médico del Campamento",
+      "title": "Directorio Médico del Campamento",
+      "subtitle": "Encuentra un campista y accede a su expediente médico rápidamente.",
+      "camper_count": "campistas inscritos",
+      "no_alerts": "Sin alertas activas",
+      "empty_title": "No se encontraron campistas",
+      "empty_desc": "Los campistas inscritos aparecerán aquí una vez que sean registrados.",
+      "empty_filtered_desc": "Ningún campista coincide con los filtros actuales.",
+      "filter_all_alerts": "Todas las Alertas",
+      "filter_life_threatening": "Alergia con riesgo de vida",
+      "filter_has_allergy": "Con Alergia",
+      "filter_has_diagnosis": "Con Diagnóstico",
+      "filter_all_meds": "Todos los Medicamentos",
+      "filter_on_medication": "Con Medicación"
     },
     "record": {
       "back": "Volver al Panel",

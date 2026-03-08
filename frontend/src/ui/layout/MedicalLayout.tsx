@@ -16,7 +16,7 @@
  */
 
 import { Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, User, Settings, Inbox, ClipboardList, Megaphone, AlertOctagon, ClipboardCheck, Stethoscope, BookOpen } from 'lucide-react';
+import { LayoutDashboard, User, Settings, Inbox, ClipboardList, Megaphone, AlertOctagon, ClipboardCheck, Stethoscope, BookOpen, BookMarked } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
@@ -42,17 +42,19 @@ export function MedicalLayout() {
 
   // Medical portal nav — flat list (no group property) renders without section headers.
   const navItems: NavItem[] = [
-    { label: t('portal_nav.dashboard'),      to: ROUTES.MEDICAL_DASHBOARD,        icon: LayoutDashboard },
-    { label: t('portal_nav.treatment_logs'), to: '/medical/treatments',           icon: ClipboardList },
-    { label: t('portal_nav.medical_records'),to: ROUTES.MEDICAL_RECORD_TREATMENT, icon: BookOpen },
+    { label: t('portal_nav.dashboard'),         to: ROUTES.MEDICAL_DASHBOARD,        icon: LayoutDashboard },
+    // Camp Medical Directory — Phase 12: dedicated camper lookup page
+    { label: t('medical.directory.nav_label'), to: ROUTES.MEDICAL_DIRECTORY,       icon: BookMarked },
+    { label: t('portal_nav.treatment_logs'),   to: '/medical/treatments',           icon: ClipboardList },
+    { label: t('portal_nav.medical_records'),  to: ROUTES.MEDICAL_RECORD_TREATMENT, icon: BookOpen },
     // Incidents, Follow-Ups, and Visits were added in Phase 11.
-    { label: t('portal_nav.incidents'),      to: ROUTES.MEDICAL_INCIDENTS,        icon: AlertOctagon },
-    { label: t('portal_nav.follow_ups'),     to: ROUTES.MEDICAL_FOLLOW_UPS,       icon: ClipboardCheck },
-    { label: t('portal_nav.visits'),         to: ROUTES.MEDICAL_VISITS,           icon: Stethoscope },
-    { label: t('portal_nav.announcements'),  to: ROUTES.MEDICAL_ANNOUNCEMENTS,    icon: Megaphone },
-    { label: t('portal_nav.inbox'),          to: '/medical/inbox',                icon: Inbox },
-    { label: t('portal_nav.profile'),        to: '/medical/profile',              icon: User },
-    { label: t('portal_nav.settings'),       to: '/medical/settings',             icon: Settings },
+    { label: t('portal_nav.incidents'),        to: ROUTES.MEDICAL_INCIDENTS,        icon: AlertOctagon },
+    { label: t('portal_nav.follow_ups'),       to: ROUTES.MEDICAL_FOLLOW_UPS,       icon: ClipboardCheck },
+    { label: t('portal_nav.visits'),           to: ROUTES.MEDICAL_VISITS,           icon: Stethoscope },
+    { label: t('portal_nav.announcements'),    to: ROUTES.MEDICAL_ANNOUNCEMENTS,    icon: Megaphone },
+    { label: t('portal_nav.inbox'),            to: '/medical/inbox',                icon: Inbox },
+    { label: t('portal_nav.profile'),          to: '/medical/profile',              icon: User },
+    { label: t('portal_nav.settings'),         to: '/medical/settings',             icon: Settings },
   ];
 
   return (
