@@ -304,6 +304,43 @@ The recipient is only able to see the text that came with the body of the messag
 ![no-image-sent](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%239/no-image-sent.png)
 
 ---
+## Issue #10 – The Register page has an issue where you cannot create an account with fewer than 12 characters.
+### 1. Page / Location
+`/register` 
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [ ] Functional Bug
+- [x] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When a user tries to register an account with 8–11 characters, they are unable to because an error appears stating that they need 12 characters. Once they enter 12 characters, the registration works.
+
+### 4. Steps to Reproduce
+1. Create an account.
+2. Start to register an account.
+3. Make a password that meets all requirements and is shorter than 12 characters.
+4. Click create account
+
+### 5. Expected Behavior
+The user should have been able to create an account with less than 12 characters.
+
+### 6. Actual Behavior
+The user is froced to create an account with 12+ characters.
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [x] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [ ] Critical (system unusable)
+
+### 8. Screenshot (if available)
+![failed_register](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%2310/failed_register.png)
 
 ---
 
@@ -344,6 +381,7 @@ PHP's `finfo_file` extension detects PNG files as `image/x-png` on some platform
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
 **Version:** 1.2.0
+
 
 
 
