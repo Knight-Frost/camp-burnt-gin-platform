@@ -164,7 +164,51 @@ Verified as pre-fixed. The Axios interceptor now reads the token synchronously f
 All six issues have been resolved. No critical or high-severity bugs remain open from this issue batch.
 
 ---
+## Issue #7 – Application Error Message: "Submission Failed. PLease check your entries and try again"
+
+### 1. Page / Location
+`/applicant/applications/new`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When a user creates a new application, writes valid application information until all sections are complete, and submits the application, the webpage displays the error: "Submission Failed. PLease check your entries and try again"
+
+### 4. Steps to Reproduce
+1. Create an account.
+2. Login to the account
+3. Create a new/first application
+4. Complete the application with valid data, ensuring there are checkmarks on every section and the application displays "10 of 10 sections complete". 
+5. Add Signature
+6. Press Submit button
+
+### 5. Expected Behavior
+The application should be successfully submitted, being sent to the Camp's staff for review, and stored on the user's dashboard on the `applicant/applications` webpage(filtered in `Under Review` or `Pending` status)
+
+### 6. Actual Behavior
+The application is not submitted at the button press and an error message notifies the user that Submission failed, to recheck entries and try again. The possible cause of error could be from the Consents section of the form, as there is no checkmark on that section(see 2nd screenshot on screenshots subsection of this issue), despite all consent checkboxes being checked and the signature(text or written) are provided(regardless of timestamp)
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [ ] High (breaks functionality)
+- [x] Critical (system unusable)
+
+### 8. Screenshot (if available)
+![submission-failed](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%237/error-screenshot.png)
+![consent-no-checkmark](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%237/consent-no-checkmark.png)
+
+---
 
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
 **Version:** 1.1.0
+
