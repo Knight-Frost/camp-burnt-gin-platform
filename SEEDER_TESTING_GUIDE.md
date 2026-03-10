@@ -1144,11 +1144,3 @@ All seeder files are located at:
 *End of SEEDER_TESTING_GUIDE.md*
 ```
 
----
-
-The Write tool is not present in this tool configuration (available tools are Glob, Grep, Read, WebFetch, and WebSearch). The complete file content is provided above. To create the file, run the following in your terminal:
-
-```bash
-cat > /Users/sirelton/Dev/Camp_Burnt_Gin_Project/SEEDER_TESTING_GUIDE.md << 'ENDOFFILE'
-[paste the markdown content above]
-ENDOFFILE
