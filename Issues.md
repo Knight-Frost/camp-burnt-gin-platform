@@ -191,7 +191,7 @@ When a user creates a new application, writes valid application information unti
 6. Press Submit button
 
 ### 5. Expected Behavior
-The application should be successfully submitted, being sent to the Camp's staff for review, and stored on the user's dashboard on the `applicant/applications` webpage(filtered in `Under Review` or `Pending` status)
+The application should be successfully submitted, being sent to the Camp's staff for review, and stored on the user's dashboard on the `applicant/applications` webpage(filtered in `Under Review` or `Pending` status). On an `admin` or `super_admin` account, under `admin/applications`(assuming successful submission, in which here does not occur), the user's application should be present either as `Pending` or `Under Review` status for the admin.
 
 ### 6. Actual Behavior
 The application is not submitted at the button press and an error message notifies the user that Submission failed, to recheck entries and try again. The possible cause of error could be from the Consents section of the form, as there is no checkmark on that section(see 2nd screenshot on screenshots subsection of this issue), despite all consent checkboxes being checked and the signature(text or written) are provided(regardless of timestamp).
@@ -308,6 +308,7 @@ The recipient is only able to see the text that came with the body of the messag
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
 **Version:** 1.1.0
+
 
 
 
