@@ -207,8 +207,54 @@ The application is not submitted at the button press and an error message notifi
 ![consent-no-checkmark](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%237/consent-no-checkmark.png)
 
 ---
+## Issue #8 – Valid Document File Upload Error Message: "Upload failed: A server error occurred. Please try again later."
+
+### 1. Page / Location
+`/applicants/documents`
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When uploads a new document on the `Documents` page, despite it being the acceptable file format and less than 10MB, the webpage displays the error: "Upload failed: A server error occurred. Please try again later."
+
+### 4. Steps to Reproduce
+1. Create an account.
+2. Login to the account
+3. Go to `/applicant`documents`
+4. For the document type, write anything(ex: "Insurance").
+5. Upload a picture of type `PNG` that is less than 10MB
+
+The error will be displayed on the top right of the webpage.
+
+### 5. Expected Behavior
+The document should be sucessfully uploaded, which should then show up on the `applicant/documents` page at the bottom.
+
+### 6. Actual Behavior
+Document is not uploaded and error message appears: "Upload failed: A server error occurred. Please try again later."
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [x] High (breaks functionality)
+- [ ] Critical (system unusable)
+
+### 8. Screenshot (if available)
+![name-and-upload](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%238/error-message.png)
+![file-good-size-format](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%238/file-good-size-format.png)
+![error-message](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%238/error-message.png)
+
+---
 
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
 **Version:** 1.1.0
+
 
