@@ -230,12 +230,12 @@ When uploads a new document on the `Documents` page, despite it being the accept
 2. Login to the account
 3. Go to `/applicant`documents`
 4. For the document type, write anything(ex: "Insurance").
-5. Upload a picture of type `PNG` that is less than 10MB
+5. Upload a picture of type `PNG` or any other acceptable file format that has a size of less than 10MB
 
-The error will be displayed on the top right of the webpage.
+The error will be displayed on the top right of the webpage. It seems it also happens between `JPG` and `JPEG`(both of which are exactly the same file format, just different naming)
 
 ### 5. Expected Behavior
-The document should be sucessfully uploaded, which should then show up on the `applicant/documents` page at the bottom.
+The document should be successfully uploaded, which should then show up on the `applicant/documents` page at the bottom.
 
 ### 6. Actual Behavior
 Document is not uploaded and error message appears: "Upload failed: A server error occurred. Please try again later."
@@ -256,5 +256,6 @@ Document is not uploaded and error message appears: "Upload failed: A server err
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
 **Version:** 1.1.0
+
 
 
