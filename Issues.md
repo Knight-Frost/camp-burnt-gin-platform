@@ -252,10 +252,58 @@ Document is not uploaded and error message appears: "Upload failed: A server err
 ![error-message](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%238/error-message.png)
 
 ---
+## Issue #9 – Unsuccessful Sending of Attachments/Images over conversation via Compose
+
+### 1. Page / Location
+`/applicants/inbox` or via Compose Feature
+
+### 2. Type of Issue
+- [ ] UI Design
+- [ ] UX Problem
+- [x] Functional Bug
+- [ ] Validation Issue
+- [ ] Broken Link
+- [ ] Performance Issue
+- [ ] Accessibility Issue
+- [ ] Other: ________
+
+### 3. Description
+When the user composes a new message with an image/file attached or sends a file to a recipient(for example, and administrator), the recipient can only see the text sent(if any)
+
+### 4. Steps to Reproduce
+1. Create an account.
+2. Login to the account
+3. Go to `aplicant/inbox`
+4. Click on Compose
+5. Find a subject(ex: Administrator Alex Riviera) and send some text along with an image(preferably one less than 10MB and .png, as used in the example). 
+6. Click Send
+7. Login as the recipient
+8. Go to inbox and check message Inbox
+
+
+
+### 5. Expected Behavior
+The recipient should be able to see a small preview of the file or see the file name along with the button to download the image. 
+
+### 6. Actual Behavior
+The recipient is only able to see the text that came with the body of the message. 
+
+### 7. Severity
+- [ ] Low (minor visual issue)
+- [ ] Medium (affects usability)
+- [x] High (breaks functionality)
+- [ ] Critical (system unusable)
+
+### 8. Screenshot (if available)
+![send-compose](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%239/send-compose.png)
+![no-image-sent](https://github.com/WinthropUniversity/project-2025-2026-pizza-tacos/blob/frontend/issuesScreenshots/Issue%20%239/no-image-sent.png)
+
+---
 
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
 **Version:** 1.1.0
+
 
 
 
