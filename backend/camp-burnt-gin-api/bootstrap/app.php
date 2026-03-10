@@ -80,6 +80,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(AuditPhiAccess::class);
 
         $middleware->alias([
+            // Override the default Authenticate middleware so unauthenticated API
+            // requests return 401 JSON instead of attempting a login redirect.
+            'auth' => \App\Http\Middleware\Authenticate::class,
             'role' => EnsureUserHasRole::class,
             'admin' => EnsureUserIsAdmin::class,
             'medical' => EnsureUserIsMedicalProvider::class,

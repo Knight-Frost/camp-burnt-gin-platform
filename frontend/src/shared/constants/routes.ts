@@ -84,7 +84,6 @@ export const ROUTES = {
   SUPER_ADMIN_USERS: '/super-admin/users',
   // Audit log shows every action taken in the system (HIPAA requirement)
   SUPER_ADMIN_AUDIT: '/super-admin/audit',
-  SUPER_ADMIN_FORMS: '/super-admin/forms',
 
   // ─── Shared authenticated pages ─────────────────────────────────────────────
   // Each portal mounts these under its own prefix (e.g. /admin/inbox, /medical/inbox)

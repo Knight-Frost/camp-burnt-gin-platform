@@ -40,6 +40,11 @@ use Illuminate\Support\Facades\Hash;
  *   ExtendedMessageSeeder         → medical staff threads, archived conversation, long thread, unanswered
  *   ExtendedAuditLogSeeder        → comprehensive audit log entries across all categories
  *   ExtendedNotificationSeeder    → admin, medical, and additional applicant notifications
+ *   ApplicantDocumentSeeder       → admin-to-applicant documents (3 states: pending, submitted, reviewed)
+ *   DocumentRequestSeeder         → full document request lifecycle (7 states) + system inbox threads
+ *   MessageReadSeeder             → read receipts for all existing conversations
+ *   MedicalCrossLinkSeeder        → incident/follow-up treatment_log_id cross-links;
+ *                                   restrictions for Ava + Mia; behavioral profiles for Ava + Mia
  *
  * Environment flags (config/seeding.php / .env):
  *   ENABLE_DEMO_DATA          — master switch (default: true)
@@ -167,6 +172,23 @@ class DatabaseSeeder extends Seeder
 
                 // Admin, medical staff, and additional applicant notifications
                 ExtendedNotificationSeeder::class,
+
+                // Admin-to-applicant documents (3 states: pending, submitted, reviewed)
+                ApplicantDocumentSeeder::class,
+
+                // Document request full lifecycle (7 states) + system inbox threads per request
+                // Depends on: users, campers, applications, conversations infrastructure
+                DocumentRequestSeeder::class,
+
+                // Read receipts: system conversations fully read; active threads have unread tail;
+                // Patricia/Mia unanswered thread preserved as unread for admin
+                // Depends on: all conversation and message seeders having run
+                MessageReadSeeder::class,
+
+                // Cross-links: incident/follow-up treatment_log_id back-filled;
+                // activity restrictions for Ava and Mia; behavioral profiles for Ava and Mia;
+                // Depends on: MedicalPhase11Seeder, TreatmentLogSeeder, CamperProfileSeeder
+                MedicalCrossLinkSeeder::class,
             ]);
         } else {
             $this->command->warn('Extended seeds disabled (ENABLE_EXTENDED_SEEDS=false).');

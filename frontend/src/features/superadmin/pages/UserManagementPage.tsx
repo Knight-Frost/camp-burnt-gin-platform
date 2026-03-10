@@ -17,8 +17,7 @@
  * Route: /super-admin/users
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle } from 'lucide-react';
@@ -28,7 +27,6 @@ import { getUsers, updateUserRole, deactivateUser, reactivateUser } from '@/feat
 import { useAppSelector } from '@/store/hooks';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 import type { User } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
@@ -65,8 +63,19 @@ export function UserManagementPage() {
   // The user awaiting confirm in the activate/deactivate dialog; null = dialog closed
   const [confirmUser, setConfirmUser]   = useState<User | null>(null);
 
-  // Helper setters that reset page to 1 whenever search or role changes
-  const setSearch     = (search: string)     => setFilters((f) => ({ ...f, search,     page: 1 }));
+  // searchInput is the controlled input value — updates immediately for UX.
+  // filters.search is the debounced API value — only changes after 300ms of inactivity.
+  const [searchInput, setSearchInput] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced search setter — avoids firing an API call on every keystroke.
+  function setSearch(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters((f) => ({ ...f, search: value, page: 1 }));
+    }, 300);
+  }
   const setRoleFilter = (roleFilter: string) => setFilters((f) => ({ ...f, roleFilter, page: 1 }));
   const setPage       = (page: number)       => setFilters((f) => ({ ...f, page }));
 
@@ -133,7 +142,7 @@ export function UserManagementPage() {
   }
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-7xl">
+    <div className="p-6 max-w-7xl">
       <div className="mb-6">
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('superadmin.users.title')}
@@ -152,7 +161,7 @@ export function UserManagementPage() {
         >
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
           <input
-            value={filters.search}
+            value={searchInput}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('superadmin.users.search_placeholder')}
             className="flex-1 bg-transparent text-sm outline-none"
@@ -187,11 +196,8 @@ export function UserManagementPage() {
         <EmptyState title={t('superadmin.users.empty_title')} description={t('superadmin.users.empty_desc')} />
       ) : (
         <>
-          {/* User table with stagger animation */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
+          {/* User table */}
+          <div
             className="rounded-xl border overflow-hidden"
             style={{ borderColor: 'var(--border)' }}
           >
@@ -211,9 +217,8 @@ export function UserManagementPage() {
               // Fall back to 'applicant' colors for any role not in the ROLE_COLORS map
               const roleStyle = ROLE_COLORS[user.role] ?? ROLE_COLORS['applicant'];
               return (
-                <motion.div
+                <div
                   key={user.id}
-                  variants={staggerChild}
                   className="grid grid-cols-12 items-center px-4 py-3.5 border-b last:border-b-0"
                   style={{ borderColor: 'var(--border)' }}
                 >
@@ -280,10 +285,10 @@ export function UserManagementPage() {
                       </button>
                     )}
                   </div>
-                </motion.div>
+                </div>
               );
             })}
-          </motion.div>
+          </div>
 
           {/* Pagination controls — only shown when there is more than one page */}
           {response.meta.last_page > 1 && (
@@ -372,6 +377,6 @@ export function UserManagementPage() {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

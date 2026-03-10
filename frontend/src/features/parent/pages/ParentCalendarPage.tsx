@@ -16,14 +16,12 @@
  */
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
          isSameDay, isToday, isPast, addMonths, subMonths } from 'date-fns';
 
 import { getCalendarEvents, type CalendarEvent } from '@/features/admin/api/calendar.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
-import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 
 // Color palette for each event type — same mapping as the admin calendar
 const EVENT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -85,7 +83,7 @@ export function ParentCalendarPage() {
   return (
     <div className="flex flex-col gap-8 max-w-6xl">
       {/* Page header */}
-      <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <div>
         <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
           My Schedule
         </p>
@@ -95,7 +93,7 @@ export function ParentCalendarPage() {
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           Application deadlines, session dates, and orientation events.
         </p>
-      </motion.div>
+      </div>
 
       {/* Overdue deadlines alert — only shown when past-due deadline events exist */}
       {!loading && overdue.length > 0 && (
@@ -263,19 +261,12 @@ export function ParentCalendarPage() {
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No upcoming events.</p>
             </div>
           ) : (
-            // Stagger each event card so they animate in sequentially
-            <motion.ul
-              variants={staggerContainerVariants}
-              initial="hidden"
-              animate="visible"
-              className="flex flex-col gap-2"
-            >
+            <ul className="flex flex-col gap-2">
               {upcoming.map((ev) => {
                 const style = getEventStyle(ev.event_type);
                 return (
-                  <motion.li
+                  <li
                     key={ev.id}
-                    variants={staggerChildVariants}
                     className="rounded-xl border p-3"
                     style={{ background: '#ffffff', borderColor: 'var(--border)' }}
                   >
@@ -300,10 +291,10 @@ export function ParentCalendarPage() {
                         </span>
                       </div>
                     </div>
-                  </motion.li>
+                  </li>
                 );
               })}
-            </motion.ul>
+            </ul>
           )}
         </div>
       </div>

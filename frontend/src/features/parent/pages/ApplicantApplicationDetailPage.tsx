@@ -16,7 +16,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, User, FileText, Calendar, Download,
@@ -29,7 +28,6 @@ import { StatusBadge } from '@/ui/components/StatusBadge';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { ROUTES } from '@/shared/constants/routes';
-import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 import axiosInstance from '@/api/axios.config';
 import type { Application } from '@/features/admin/types/admin.types';
 
@@ -227,12 +225,7 @@ export function ApplicantApplicationDetailPage() {
   const session = application.session;
 
   return (
-    <motion.div
-      variants={scrollRevealVariants}
-      initial="hidden"
-      animate="visible"
-      className="flex flex-col gap-6 max-w-3xl"
-    >
+    <div className="flex flex-col gap-6 max-w-3xl">
       {/* Back navigation link */}
       <Link
         to={ROUTES.PARENT_APPLICATIONS}
@@ -262,15 +255,10 @@ export function ApplicantApplicationDetailPage() {
         <StatusBadge status={application.status} />
       </div>
 
-      {/* Staggered card sections */}
-      <motion.div
-        variants={staggerContainerVariants}
-        initial="hidden"
-        animate="visible"
-        className="flex flex-col gap-5"
-      >
+      {/* Card sections */}
+      <div className="flex flex-col gap-5">
         {/* Status timeline card — always shown */}
-        <motion.div variants={staggerChildVariants}>
+        <div>
           <SectionCard title="Application Status" icon={<AlertTriangle className="h-4 w-4" />}>
             <StatusTimeline status={application.status} />
             {/* Admin notes box appears only when the reviewer left a message */}
@@ -292,11 +280,11 @@ export function ApplicantApplicationDetailPage() {
               </div>
             )}
           </SectionCard>
-        </motion.div>
+        </div>
 
         {/* Camper information — only rendered when camper data was eager-loaded */}
         {camper && (
-          <motion.div variants={staggerChildVariants}>
+          <div>
             <SectionCard title="Camper Information" icon={<User className="h-4 w-4" />}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <Field label="Full name"     value={camper.full_name} />
@@ -306,12 +294,12 @@ export function ApplicantApplicationDetailPage() {
                 <Field label="T-shirt size"  value={(camper as { t_shirt_size?: string }).t_shirt_size ?? (camper as { tshirt_size?: string }).tshirt_size} />
               </div>
             </SectionCard>
-          </motion.div>
+          </div>
         )}
 
         {/* Camp session details — only rendered when session data was eager-loaded */}
         {session && (
-          <motion.div variants={staggerChildVariants}>
+          <div>
             <SectionCard title="Camp Session" icon={<Calendar className="h-4 w-4" />}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <Field label="Session"    value={session.name} />
@@ -320,11 +308,11 @@ export function ApplicantApplicationDetailPage() {
                 <Field label="End date"   value={session.end_date   ? format(new Date(session.end_date),   'MMMM d, yyyy') : undefined} />
               </div>
             </SectionCard>
-          </motion.div>
+          </div>
         )}
 
         {/* Documents — list all uploaded files with download buttons */}
-        <motion.div variants={staggerChildVariants}>
+        <div>
           <SectionCard title="Uploaded Documents" icon={<FileText className="h-4 w-4" />}>
             {!application.documents || application.documents.length === 0 ? (
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
@@ -363,8 +351,8 @@ export function ApplicantApplicationDetailPage() {
               </div>
             )}
           </SectionCard>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Footer — secondary back navigation */}
       <div className="flex gap-3 pt-2">
@@ -377,6 +365,6 @@ export function ApplicantApplicationDetailPage() {
           Back to all applications
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }

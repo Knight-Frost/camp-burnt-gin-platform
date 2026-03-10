@@ -19,7 +19,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 import {
   resetPasswordSchema,
@@ -121,17 +120,16 @@ export function ResetPasswordPage() {
               }}
               {...register('password')}
             />
-            {/* Animated eye toggle button — whileTap gives a subtle press-down feel */}
-            <motion.button
+            {/* Eye toggle button */}
+            <button
               type="button"
-              whileTap={{ scale: 0.9 }}
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
               style={{ color: 'var(--on-image-muted)' }}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </motion.button>
+            </button>
           </div>
           {errors.password && (
             <p role="alert" className="text-xs" style={{ color: 'var(--destructive)' }}>
@@ -158,16 +156,15 @@ export function ResetPasswordPage() {
               }}
               {...register('password_confirmation')}
             />
-            <motion.button
+            <button
               type="button"
-              whileTap={{ scale: 0.9 }}
               onClick={() => setShowConfirm((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
               style={{ color: 'var(--on-image-muted)' }}
               aria-label={showConfirm ? 'Hide password' : 'Show password'}
             >
               {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </motion.button>
+            </button>
           </div>
           {errors.password_confirmation && (
             <p role="alert" className="text-xs" style={{ color: 'var(--destructive)' }}>

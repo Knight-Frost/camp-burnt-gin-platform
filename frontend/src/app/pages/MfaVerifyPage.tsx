@@ -20,7 +20,6 @@
 
 import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { ShieldCheck } from 'lucide-react';
 
@@ -140,16 +139,13 @@ export function MfaVerifyPage() {
       subtitle="Enter the 6-digit code from your authenticator app."
     >
       <div className="flex flex-col items-center gap-8">
-        {/* Shield icon — animates in on mount to signal a security checkpoint */}
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+        {/* Shield icon — signals a security checkpoint */}
+        <div
           className="flex items-center justify-center w-16 h-16 rounded-2xl"
           style={{ background: 'var(--glass-icon-bg)' }}
         >
           <ShieldCheck className="h-8 w-8 text-ember-orange" />
-        </motion.div>
+        </div>
 
         {/* Six individual digit input boxes, managed as a group for accessibility */}
         <div className="flex gap-3" role="group" aria-label="One-time password input">
@@ -180,21 +176,16 @@ export function MfaVerifyPage() {
           ))}
         </div>
 
-        {/* Error message slides in smoothly and disappears when the user clears the boxes */}
-        <AnimatePresence>
-          {error && (
-            <motion.p
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              role="alert"
-              className="text-sm text-center"
-              style={{ color: 'var(--destructive)' }}
-            >
-              {error}
-            </motion.p>
-          )}
-        </AnimatePresence>
+        {/* Error message — shown when the code is rejected */}
+        {error && (
+          <p
+            role="alert"
+            className="text-sm text-center"
+            style={{ color: 'var(--destructive)' }}
+          >
+            {error}
+          </p>
+        )}
 
         {/* Verify button — disabled until all 6 boxes contain a digit */}
         <Button

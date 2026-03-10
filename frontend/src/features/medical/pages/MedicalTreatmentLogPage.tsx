@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Plus, ClipboardList, AlertCircle, AlertTriangle,
@@ -33,7 +33,7 @@ import {
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import type { Camper } from '@/features/admin/types/admin.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,13 +150,8 @@ function LogEntry({ log }: { log: TreatmentLog }) {
         </div>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+      {open && (
+          <div
             className="border-t"
             style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
           >
@@ -194,9 +189,8 @@ function LogEntry({ log }: { log: TreatmentLog }) {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -286,11 +280,9 @@ function AddLogForm({
   const REQ = <span style={{ color: 'var(--destructive)' }}>*</span>;
 
   return (
-    <motion.div
+    <div
       className="rounded-2xl border p-6"
       style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -450,14 +442,8 @@ function AddLogForm({
             </label>
           </div>
 
-          <AnimatePresence>
-            {form.follow_up_required && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
+          {form.follow_up_required && (
+              <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   Follow-up Notes
                 </label>
@@ -469,9 +455,8 @@ function AddLogForm({
                   onChange={(e) => setField('follow_up_notes')(e.target.value)}
                   placeholder="Describe the follow-up needed…"
                 />
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </div>
 
         {error && (
@@ -530,7 +515,7 @@ function AddLogForm({
           </button>
         </div>
       </form>
-    </motion.div>
+    </div>
   );
 }
 
@@ -546,11 +531,9 @@ function SavedBanner({
   onReturnToList: () => void;
 }) {
   return (
-    <motion.div
+    <div
       className="rounded-2xl border p-5"
       style={{ background: 'rgba(22,163,74,0.06)', borderColor: 'rgba(22,163,74,0.3)' }}
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-start gap-3">
         <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--forest-green)' }} />
@@ -581,7 +564,7 @@ function SavedBanner({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -648,7 +631,7 @@ export function MedicalTreatmentLogPage() {
   const severeAllergies = allergies.filter((a) => a.severity === 'severe' || a.severity === 'life-threatening');
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl">
 
       {/* Back */}
       {hasCamper && (
@@ -715,30 +698,26 @@ export function MedicalTreatmentLogPage() {
       )}
 
       {/* Saved banner */}
-      <AnimatePresence>
-        {savedLog && (
-          <div className="mb-5">
-            <SavedBanner
-              log={savedLog}
-              onAddAnother={handleAddAnother}
-              onReturnToList={handleReturnToList}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+      {savedLog && (
+        <div className="mb-5">
+          <SavedBanner
+            log={savedLog}
+            onAddAnother={handleAddAnother}
+            onReturnToList={handleReturnToList}
+          />
+        </div>
+      )}
 
       {/* Entry form */}
-      <AnimatePresence>
-        {hasCamper && showForm && (
-          <div className="mb-6">
-            <AddLogForm
-              camperId={id!}
-              onSaved={handleSaved}
-              onClose={() => setShowForm(false)}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+      {hasCamper && showForm && (
+        <div className="mb-6">
+          <AddLogForm
+            camperId={id!}
+            onSaved={handleSaved}
+            onClose={() => setShowForm(false)}
+          />
+        </div>
+      )}
 
       {/* History section header */}
       {logs.length > 0 && (
@@ -766,14 +745,14 @@ export function MedicalTreatmentLogPage() {
           description={hasCamper ? t('medical.treatments.empty_desc') : t('medical.treatments.global_empty_desc')}
         />
       ) : (
-        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+        <div className="space-y-3">
           {logs.map((log) => (
-            <motion.div key={log.id} variants={staggerChild}>
+            <div key={log.id}>
               <LogEntry log={log} />
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }

@@ -24,7 +24,6 @@ import {
 } from 'react';
 import { useTranslation, type TFunction } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   User,
@@ -2433,6 +2432,15 @@ function Section10({
 }) {
   const today = new Date().toISOString().split('T')[0];
 
+  // Pre-populate today's date in state so the section can mark as complete
+  // without the user needing to manually interact with the date picker.
+  useEffect(() => {
+    if (!data.signed_date) {
+      onChange({ signed_date: today });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const allConsents = data.consent_medical && data.consent_photo && data.consent_liability
     && data.consent_medication && data.consent_hipaa;
 
@@ -2468,9 +2476,7 @@ function Section10({
 
       {/* Signature section — only show once all consents are checked */}
       {allConsents && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           className="rounded-xl border p-5 flex flex-col gap-4"
           style={{ borderColor: 'var(--border)', background: 'var(--glass-light, #fafafa)' }}
         >
@@ -2550,7 +2556,7 @@ function Section10({
               </p>
             </div>
           )}
-        </motion.div>
+        </div>
       )}
 
       {!allConsents && (
@@ -2647,6 +2653,12 @@ export function ApplicationFormPage() {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Holds actual File objects for document uploads — not serialized to localStorage */
   const docFilesRef = useRef<Record<string, File | null>>({});
+  /**
+   * Tracks the camper ID created in step 1 of handleSubmit.
+   * If submission fails and the user retries, we reuse the same camper record
+   * instead of creating a new orphan entry.
+   */
+  const pendingCamperIdRef = useRef<number | null>(null);
 
   // ── Load sessions ──────────────────────────────────────────────────────────
 
@@ -2717,15 +2729,21 @@ export function ApplicationFormPage() {
     const tid = toast.loading('Submitting application…');
 
     try {
-      // ── Step 1: Create camper ─────────────────────────────────────────────
-      const camper = await createCamper({
-        first_name:    form.s1.camper_first_name,
-        last_name:     form.s1.camper_last_name,
-        date_of_birth: form.s1.camper_dob,
-        gender:        form.s1.camper_gender,
-        tshirt_size:   '',
-      });
-      const camperId = camper.id;
+      // ── Step 1: Create camper (reuse if already created on a prior failed attempt) ──
+      let camperId: number;
+      if (pendingCamperIdRef.current !== null) {
+        camperId = pendingCamperIdRef.current;
+      } else {
+        const camper = await createCamper({
+          first_name:    form.s1.camper_first_name,
+          last_name:     form.s1.camper_last_name,
+          date_of_birth: form.s1.camper_dob,
+          gender:        form.s1.camper_gender,
+          tshirt_size:   '',
+        });
+        camperId = camper.id;
+        pendingCamperIdRef.current = camperId;
+      }
 
       // ── Step 2: Emergency contact ─────────────────────────────────────────
       if (form.s1.ec_name.trim()) {
@@ -2890,9 +2908,15 @@ export function ApplicationFormPage() {
       }
 
       // ── Step 13: Sign application ─────────────────────────────────────────
-      await signApplication(applicationId, form.s10.signed_name);
+      // For typed signatures the signature_data is the typed name itself.
+      // For drawn signatures it is the base64-encoded PNG captured from the canvas.
+      const signatureData = form.s10.signature_type === 'drawn' && form.s10.signature_data
+        ? form.s10.signature_data
+        : form.s10.signed_name;
+      await signApplication(applicationId, form.s10.signed_name, signatureData);
 
       // ── Success ───────────────────────────────────────────────────────────
+      pendingCamperIdRef.current = null;
       toast.dismiss(tid);
       toast.success(t('applicant.form.submit_success'));
       localStorage.removeItem(DRAFT_KEY);
@@ -2900,9 +2924,14 @@ export function ApplicationFormPage() {
 
     } catch (err: unknown) {
       toast.dismiss(tid);
-      const msg = (err as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message;
-      toast.error(msg ?? 'Submission failed. Please check your entries and try again.');
+      // Axios interceptor normalizes errors to plain { message, errors } objects —
+      // there is no `.response.data` wrapper after the interceptor runs.
+      const apiErr = err as { message?: string; errors?: Record<string, string[]> };
+      const firstFieldError = apiErr.errors
+        ? Object.values(apiErr.errors).flat()[0]
+        : undefined;
+      const msg = firstFieldError ?? apiErr.message ?? 'Submission failed. Please check your entries and try again.';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -2998,14 +3027,7 @@ export function ApplicationFormPage() {
 
         {/* ── Section content ─────────────────────────── */}
         <div className="mt-12">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-            >
+          <div>
               <div className="mb-8">
                 <p
                   className="text-xs font-semibold uppercase tracking-widest mb-2"
@@ -3101,8 +3123,7 @@ export function ApplicationFormPage() {
                   </ul>
                 </div>
               )}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
 
         {/* ── Step navigation ──────────────────────────── */}

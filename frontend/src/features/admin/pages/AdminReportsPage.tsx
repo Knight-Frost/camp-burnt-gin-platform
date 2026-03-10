@@ -17,7 +17,6 @@
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Download, FileText, Users, CheckCircle, XCircle, Tag, TrendingUp } from 'lucide-react';
 import {
@@ -29,7 +28,6 @@ import {
 import { getReportsSummary, downloadReport } from '@/features/admin/api/admin.api';
 import type { ReportsSummary } from '@/features/admin/api/admin.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
-import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
 
 // The five CSV export types the API supports.
 type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 'id-labels';
@@ -137,7 +135,7 @@ export function AdminReportsPage() {
     <div className="flex flex-col gap-8 max-w-6xl">
 
       {/* Header */}
-      <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <div>
         <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
           Analytics
         </p>
@@ -147,7 +145,7 @@ export function AdminReportsPage() {
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           Application statistics, enrollment data, and downloadable exports.
         </p>
-      </motion.div>
+      </div>
 
       {/* Summary stat cards */}
       {loading ? (
@@ -156,22 +154,15 @@ export function AdminReportsPage() {
           {[1,2,3,4].map((i) => <SkeletonCard key={i} lines={1} />)}
         </div>
       ) : (
-        <motion.div
-          variants={staggerContainerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-2 sm:grid-cols-4 gap-4"
-        >
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Campers',  value: summary?.total_campers ?? 0, color: '#3b82f6' },
             { label: 'Accepted', value: accepted,                    color: '#16a34a' },
             { label: 'Rejected', value: rejected,                    color: '#dc2626' },
             { label: 'Rate',     value: `${rate}%`,                  color: '#16a34a' },
           ].map(({ label, value, color }) => (
-            // Each card animates in sequentially via staggerChildVariants.
-            <motion.div
+            <div
               key={label}
-              variants={staggerChildVariants}
               className="rounded-2xl border px-5 py-4 flex flex-col gap-1"
               style={{ background: '#ffffff', borderColor: 'var(--border)' }}
             >
@@ -181,21 +172,16 @@ export function AdminReportsPage() {
               <p className="text-3xl font-headline font-bold" style={{ color }}>
                 {value}
               </p>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
 
       {/* Charts grid — only shown after data is loaded (avoids Recharts rendering on null data). */}
       {!loading && (
-        <motion.div
-          variants={staggerContainerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Applications by status — vertical bar chart */}
-          <motion.div variants={staggerChildVariants}>
+          <div>
             <ChartCard title="Applications by Status">
               {statusCounts.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -218,10 +204,10 @@ export function AdminReportsPage() {
                 <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No data yet.</p>
               )}
             </ChartCard>
-          </motion.div>
+          </div>
 
           {/* Acceptance rate — donut chart with a legend on the right */}
-          <motion.div variants={staggerChildVariants}>
+          <div>
             <ChartCard title="Acceptance Rate">
               {acceptancePieData.length > 0 ? (
                 <div className="flex items-center gap-4">
@@ -264,10 +250,10 @@ export function AdminReportsPage() {
                 <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No data yet.</p>
               )}
             </ChartCard>
-          </motion.div>
+          </div>
 
           {/* Applications over time — line chart showing monthly submission trend */}
-          <motion.div variants={staggerChildVariants}>
+          <div>
             <ChartCard title="Applications Over Time">
               {timelineData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -292,10 +278,10 @@ export function AdminReportsPage() {
                 <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No timeline data yet.</p>
               )}
             </ChartCard>
-          </motion.div>
+          </div>
 
           {/* Enrollment per session — horizontal bar chart (layout="vertical") */}
-          <motion.div variants={staggerChildVariants}>
+          <div>
             <ChartCard title="Enrollment per Session">
               {sessionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -316,12 +302,12 @@ export function AdminReportsPage() {
                 <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No session data yet.</p>
               )}
             </ChartCard>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
 
       {/* CSV export buttons */}
-      <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <div>
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
           <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
@@ -363,7 +349,7 @@ export function AdminReportsPage() {
             </button>
           ))}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

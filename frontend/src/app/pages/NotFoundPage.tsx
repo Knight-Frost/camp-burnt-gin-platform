@@ -7,14 +7,11 @@
  * Route: * (catch-all — matches anything the router could not find)
  *
  * Design: Large faded "404" number, a short translated message, and a link
- * back to the app root. The whole card animates in via the shared `pageEntry`
- * Framer Motion variant.
+ * back to the app root.
  */
 
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { pageEntry, buttonHover, buttonTap } from '@/shared/constants/motion';
 
 export function NotFoundPage() {
   const { t } = useTranslation();
@@ -22,13 +19,7 @@ export function NotFoundPage() {
   return (
     // Full-screen centered container so the card floats in the middle of the page.
     <div className="min-h-screen flex items-center justify-center p-6">
-      {/* pageEntry animates the card in from slightly below with a fade */}
-      <motion.div
-        variants={pageEntry}
-        initial="hidden"
-        animate="visible"
-        className="text-center max-w-sm"
-      >
+      <div className="text-center max-w-sm">
         {/* Giant faded "404" — opacity: 0.2 makes it a decorative watermark rather than text */}
         <p
           className="font-headline font-bold mb-4"
@@ -47,8 +38,8 @@ export function NotFoundPage() {
           {t('errors.not_found_desc')}
         </p>
 
-        {/* Animated home-link button — subtle scale effects on hover and tap */}
-        <motion.div whileHover={buttonHover} whileTap={buttonTap} className="inline-block">
+        {/* Home-link button */}
+        <div className="inline-block">
           <Link
             to="/"
             className="px-6 py-2.5 rounded-xl text-sm font-medium transition-all"
@@ -56,8 +47,8 @@ export function NotFoundPage() {
           >
             {t('errors.go_home')}
           </Link>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

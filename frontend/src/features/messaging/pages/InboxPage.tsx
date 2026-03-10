@@ -23,7 +23,6 @@
 import {
   useState, useEffect, useRef, type ElementType, type MouseEvent,
 } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Mail, Star, AlertCircle, Send, Archive, Trash2, Bot, Megaphone,
@@ -70,14 +69,6 @@ const FOLDER_DEFS: FolderItem[] = [
   { id: 'system',        label: 'System',        icon: Bot           },
   { id: 'announcements', label: 'Announcements', icon: Megaphone     },
 ];
-
-// ─── Framer variants ──────────────────────────────────────────────────────────
-
-const threadVariants = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.12 } },
-  exit:    { opacity: 0, transition: { duration: 0.1 }  },
-};
 
 // ─── BulkButton helper ────────────────────────────────────────────────────────
 
@@ -763,6 +754,7 @@ export function InboxPage() {
                     isSelected={selected.has(conv.id)}
                     isStarred={conv.is_starred}
                     isActive={selectedConv?.id === conv.id}
+                    isInArchive={folder === 'archive'}
                     currentUserId={currentUserId}
                     onSelect={toggleSelect}
                     onStar={(id, e) => void handleStar(id, e)}
@@ -781,58 +773,50 @@ export function InboxPage() {
 
       {/* ── Right pane: thread viewer ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--background)' }}>
-        <AnimatePresence mode="wait">
-          {selectedConv ? (
-            <motion.div key={selectedConv.id} {...threadVariants} className="flex flex-col h-full overflow-hidden">
-              <ThreadView
-                conversation={selectedConv}
-                currentUserId={currentUserId}
-                onBack={handleBack}
-                onArchive={handleConvArchived}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="empty-thread"
-              {...threadVariants}
-              className="flex flex-col items-center justify-center h-full gap-3"
+        {selectedConv ? (
+          <div className="flex flex-col h-full overflow-hidden">
+            <ThreadView
+              conversation={selectedConv}
+              currentUserId={currentUserId}
+              onBack={handleBack}
+              onArchive={handleConvArchived}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(22,163,74,0.08)' }}
             >
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(22,163,74,0.08)' }}
+              <Mail className="h-7 w-7" style={{ color: BRAND }} />
+            </div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+              Select a conversation
+            </p>
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Choose a message from the list to read it.
+            </p>
+            {!isReadOnly && (
+              <button
+                onClick={() => setShowCompose(true)}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+                style={{ background: BRAND }}
               >
-                <Mail className="h-7 w-7" style={{ color: BRAND }} />
-              </div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-                Select a conversation
-              </p>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                Choose a message from the list to read it.
-              </p>
-              {!isReadOnly && (
-                <button
-                  onClick={() => setShowCompose(true)}
-                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
-                  style={{ background: BRAND }}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Compose  (c)
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <Plus className="h-3.5 w-3.5" />
+                Compose  (c)
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Floating compose ────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showCompose && (
-          <FloatingCompose
-            onClose={() => setShowCompose(false)}
-            onCreated={handleConvCreated}
-          />
-        )}
-      </AnimatePresence>
+      {showCompose && (
+        <FloatingCompose
+          onClose={() => setShowCompose(false)}
+          onCreated={handleConvCreated}
+        />
+      )}
     </div>
   );
 }

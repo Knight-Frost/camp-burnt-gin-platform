@@ -12,7 +12,7 @@
 
 import { useRef, useState, type MouseEvent } from 'react';
 import {
-  Archive, Trash2, MoreHorizontal, Star, CheckSquare, Square, Bot, AlertCircle,
+  Archive, ArchiveRestore, Trash2, MoreHorizontal, Star, CheckSquare, Square, Bot, AlertCircle,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
@@ -114,6 +114,8 @@ interface MessageRowProps {
   isStarred: boolean;
   /** Highlights the row when this conversation is open in the thread pane. */
   isActive?: boolean;
+  /** When true, the archive action becomes "Unarchive". */
+  isInArchive?: boolean;
   currentUserId?: number;
   onSelect: (id: number, e: MouseEvent) => void;
   onStar: (id: number, e: MouseEvent) => void;
@@ -135,6 +137,7 @@ export function MessageRow({
   isSelected,
   isStarred,
   isActive = false,
+  isInArchive = false,
   currentUserId,
   onSelect,
   onStar,
@@ -279,13 +282,16 @@ export function MessageRow({
               <button
                 type="button"
                 onClick={(e) => onArchive(conv.id, e)}
-                title="Archive"
-                aria-label="Archive conversation"
+                title={isInArchive ? 'Unarchive' : 'Archive'}
+                aria-label={isInArchive ? 'Unarchive conversation' : 'Archive conversation'}
                 className="p-1 rounded transition-colors hover:bg-[var(--border)]"
                 style={{ color: 'var(--muted-foreground)' }}
                 data-testid="row-archive-btn"
               >
-                <Archive className="h-3.5 w-3.5" />
+                {isInArchive
+                  ? <ArchiveRestore className="h-3.5 w-3.5" />
+                  : <Archive className="h-3.5 w-3.5" />
+                }
               </button>
               <button
                 type="button"
@@ -370,7 +376,7 @@ export function MessageRow({
                 className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
                 style={{ color: 'var(--foreground)' }}
               >
-                Archive
+                {isInArchive ? 'Unarchive' : 'Archive'}
               </button>
             )}
             <button

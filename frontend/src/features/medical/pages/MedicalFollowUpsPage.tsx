@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ClipboardCheck, Plus, X, Loader2, Save, CheckCircle,
@@ -27,7 +27,7 @@ import {
 } from '@/features/medical/api/medical.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
 
@@ -320,13 +320,8 @@ function CamperSearch({
         {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin" style={{ color: 'var(--muted-foreground)' }} />}
       </div>
 
-      <AnimatePresence>
-        {open && suggestions.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
+      {open && suggestions.length > 0 && (
+          <div
             className="absolute z-20 w-full mt-1 rounded-xl border shadow-lg overflow-hidden"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
           >
@@ -348,9 +343,8 @@ function CamperSearch({
                 {camper.full_name}
               </button>
             ))}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -416,11 +410,9 @@ function AddFollowUpForm({
   };
 
   return (
-    <motion.div
+    <div
       className="rounded-2xl border p-6 mb-6"
       style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -521,7 +513,7 @@ function AddFollowUpForm({
           </button>
         </div>
       </form>
-    </motion.div>
+    </div>
   );
 }
 
@@ -595,7 +587,7 @@ export function MedicalFollowUpsPage() {
   };
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -622,11 +614,9 @@ export function MedicalFollowUpsPage() {
       </div>
 
       {/* Add form */}
-      <AnimatePresence>
-        {showForm && (
-          <AddFollowUpForm onSaved={handleSaved} onClose={() => setShowForm(false)} />
-        )}
-      </AnimatePresence>
+      {showForm && (
+        <AddFollowUpForm onSaved={handleSaved} onClose={() => setShowForm(false)} />
+      )}
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
@@ -635,7 +625,7 @@ export function MedicalFollowUpsPage() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => { setLoading(true); setActiveTab(tab.key); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
               style={{
                 background: isActive ? 'var(--ember-orange)' : 'transparent',
@@ -688,17 +678,17 @@ export function MedicalFollowUpsPage() {
         />
       ) : (
         <>
-          <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+          <div className="space-y-3">
             {followUps.map((fu) => (
-              <motion.div key={fu.id} variants={staggerChild}>
+              <div key={fu.id}>
                 <FollowUpCard
                   followUp={fu}
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
                 />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {hasMore && (
             <div className="mt-6 flex justify-center">
@@ -715,6 +705,6 @@ export function MedicalFollowUpsPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }

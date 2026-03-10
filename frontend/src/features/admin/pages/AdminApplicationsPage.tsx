@@ -15,9 +15,8 @@
  *  `filters` object so they always stay in sync and only trigger a single fetch when any of them change.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -26,7 +25,6 @@ import { getApplications } from '@/features/admin/api/admin.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 import type { Application } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
@@ -55,10 +53,22 @@ export function AdminApplicationsPage() {
   // All filter values live in one object so a single setFilters call updates everything atomically.
   const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', page: 1 });
 
+  // searchInput is the controlled input value — updates on every keystroke for responsive UX.
+  // filters.search is the debounced value that actually triggers an API call.
+  const [searchInput, setSearchInput] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Filter helpers ─────────────────────────────────────────────────────────
 
-  // Typing a new search string always resets to page 1 (avoids being on page 5 of 0 results).
-  const setSearch = (search: string) => setFilters((f) => ({ ...f, search, page: 1 }));
+  // Debounced search — updates the input immediately but waits 300ms before touching
+  // filters.search so we don't fire an API request on every keystroke.
+  function setSearch(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters((f) => ({ ...f, search: value, page: 1 }));
+    }, 300);
+  }
   // Changing the status dropdown also resets to page 1.
   const setStatus = (status: string) => setFilters((f) => ({ ...f, status, page: 1 }));
   // Direct page navigation — doesn't reset other filters.
@@ -88,12 +98,7 @@ export function AdminApplicationsPage() {
   useEffect(() => { void fetchApplications(); }, [fetchApplications]);
 
   return (
-    <motion.div
-      variants={pageEntry}
-      initial="hidden"
-      animate="visible"
-      className="p-6 max-w-7xl"
-    >
+    <div className="p-6 max-w-7xl">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -113,7 +118,7 @@ export function AdminApplicationsPage() {
         >
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
           <input
-            value={filters.search}
+            value={searchInput}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('admin.applications.search_placeholder')}
             className="flex-1 bg-transparent text-sm outline-none"
@@ -161,11 +166,8 @@ export function AdminApplicationsPage() {
         />
       ) : (
         <>
-          {/* Animated table container — children stagger in sequentially. */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
+          {/* Table container */}
+          <div
             className="rounded-xl border overflow-hidden"
             style={{ borderColor: 'var(--border)' }}
           >
@@ -183,9 +185,8 @@ export function AdminApplicationsPage() {
 
             {/* One row per application */}
             {response.data.map((app) => (
-              <motion.div
+              <div
                 key={app.id}
-                variants={staggerChild}
                 className="grid grid-cols-12 items-center px-4 py-3.5 border-b last:border-b-0 transition-colors"
                 style={{ borderColor: 'var(--border)' }}
               >
@@ -230,9 +231,9 @@ export function AdminApplicationsPage() {
                     <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {/* Pagination controls — hidden when everything fits on one page. */}
           {response.meta.last_page > 1 && (
@@ -269,6 +270,6 @@ export function AdminApplicationsPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }

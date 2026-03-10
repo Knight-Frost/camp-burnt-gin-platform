@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Plus, AlertOctagon, Brain, Cross, Bandage,
@@ -26,7 +26,7 @@ import {
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
 
@@ -190,13 +190,8 @@ function IncidentCard({ incident }: { incident: MedicalIncident }) {
         </div>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+      {open && (
+          <div
             className="border-t"
             style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
           >
@@ -223,9 +218,8 @@ function IncidentCard({ incident }: { incident: MedicalIncident }) {
                 </p>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -312,11 +306,9 @@ function AddIncidentForm({
   };
 
   return (
-    <motion.div
+    <div
       className="rounded-2xl border p-6"
       style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -489,7 +481,7 @@ function AddIncidentForm({
           </button>
         </div>
       </form>
-    </motion.div>
+    </div>
   );
 }
 
@@ -577,7 +569,7 @@ export function MedicalIncidentsPage() {
   const hasFilters = filterType !== '' || filterSeverity !== '';
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl">
 
       {hasCamper && (
         <Link
@@ -667,17 +659,15 @@ export function MedicalIncidentsPage() {
       </div>
 
       {/* Add form */}
-      <AnimatePresence>
-        {hasCamper && showForm && (
-          <div className="mb-6">
-            <AddIncidentForm
-              camperId={id!}
-              onSaved={handleSaved}
-              onClose={() => setShowForm(false)}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+      {hasCamper && showForm && (
+        <div className="mb-6">
+          <AddIncidentForm
+            camperId={id!}
+            onSaved={handleSaved}
+            onClose={() => setShowForm(false)}
+          />
+        </div>
+      )}
 
       {/* List */}
       {loading ? (
@@ -697,13 +687,13 @@ export function MedicalIncidentsPage() {
         />
       ) : (
         <>
-          <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+          <div className="space-y-3">
             {incidents.map((incident) => (
-              <motion.div key={incident.id} variants={staggerChild}>
+              <div key={incident.id}>
                 <IncidentCard incident={incident} />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {hasMore && (
             <div className="mt-6 flex justify-center">
@@ -720,6 +710,6 @@ export function MedicalIncidentsPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }

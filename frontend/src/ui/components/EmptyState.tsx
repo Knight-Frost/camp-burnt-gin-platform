@@ -8,7 +8,6 @@
  *   - ErrorState  — shown when a data fetch fails with an error.
  *
  * Both components:
- *   - Animate in with a fade via Framer Motion.
  *   - Center their content vertically and horizontally within their container.
  *   - Accept optional action buttons (e.g. "Create first record" or "Try again").
  *
@@ -20,11 +19,9 @@
  *   <ErrorState onRetry={() => setRetryKey(k => k + 1)} />
  */
 
-import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { AlertCircle, RefreshCw, Inbox } from 'lucide-react';
 import { Button } from './Button';
-import { fadeVariants } from '@/shared/constants/motion';
 
 // ---------------------------------------------------------------------------
 // EmptyState
@@ -50,12 +47,7 @@ export function EmptyState({
   action,
 }: EmptyStateProps) {
   return (
-    <motion.div
-      variants={fadeVariants}
-      initial="hidden"
-      animate="visible"
-      className="flex flex-col items-center justify-center py-16 px-6 text-center"
-    >
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
       {/* Icon in a muted square container — neutral gray signals "nothing here" */}
       <div
         className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
@@ -87,7 +79,7 @@ export function EmptyState({
           {action.label}
         </Button>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -110,12 +102,7 @@ export function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <motion.div
-      variants={fadeVariants}
-      initial="hidden"
-      animate="visible"
-      className="flex flex-col items-center justify-center py-16 px-6 text-center"
-    >
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
       {/* Red-tinted icon container signals an error state */}
       <div
         className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
@@ -146,6 +133,6 @@ export function ErrorState({
           Try again
         </Button>
       )}
-    </motion.div>
+    </div>
   );
 }

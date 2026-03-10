@@ -59,9 +59,20 @@ export function useAuthInit(): void {
         dispatch(hydrateAuth());
       })
       .catch(() => {
-        // Token is expired or revoked — clean up and force re-login
-        sessionStorage.removeItem('auth_token');
-        dispatch(clearAuth());
+        // Check whether the token was already removed by the auth:unauthorized handler.
+        // That handler fires synchronously when the server returns 401, removing the token
+        // from sessionStorage and dispatching clearAuth() before this catch runs.
+        //
+        // If the token is still in sessionStorage, the failure was transient (network error
+        // or server error), not an authentication rejection. In that case we stop the loading
+        // spinner without destroying the session so the token survives the next refresh.
+        if (!sessionStorage.getItem('auth_token')) {
+          // Token was already removed — either 401 was received or token was cleared elsewhere.
+          dispatch(clearAuth());
+        } else {
+          // Transient failure — stop loading but keep the session intact.
+          dispatch(hydrateAuth());
+        }
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

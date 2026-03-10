@@ -11,7 +11,6 @@
  *   - Supports `fullWidth` to span 100% of its container.
  *   - Polymorphic via the `as` prop — can render as a React Router <Link> or
  *     any other element type when you need a link that looks like a button.
- *   - Wraps in a Framer Motion button for subtle hover/tap scale feedback.
  *   - Forwarded ref so parent components can focus or measure the element.
  *
  * Styling:
@@ -25,7 +24,6 @@ import {
   type ReactNode,
   type ElementType,
 } from 'react';
-import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 
@@ -116,7 +114,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     // Background and shadow are CSS-token-based — applied via inline style.
     const sharedStyle =
       isPrimary
-        ? { background: 'var(--cta-primary-bg)', boxShadow: 'var(--shadow-ember-primary)' }
+        ? { background: 'var(--cta-primary-bg)', boxShadow: 'var(--shadow-ember-primary)', color: 'var(--cta-primary-color)' }
         : variant === 'secondary'
         ? { background: 'var(--cta-secondary-bg)', boxShadow: 'var(--shadow-ember-secondary)' }
         : undefined;
@@ -133,7 +131,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     );
 
     // Polymorphic path: when `as` is provided render as that element (e.g. Link).
-    // Motion effects are skipped because Link elements don't support motion props.
     if (Component) {
       return (
         <Component
@@ -146,20 +143,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       );
     }
 
-    // Default path: a motion.button with subtle hover scale-up and tap scale-down.
-    // Scale effects are disabled when the button is in a disabled/loading state.
+    // Default path: a plain button element.
     return (
-      <motion.button
+      <button
         ref={ref}
-        whileHover={isDisabled ? undefined : { scale: 1.03 }}
-        whileTap={isDisabled ? undefined : { scale: 0.98 }}
         className={sharedClassName}
         style={sharedStyle}
         disabled={isDisabled}
         {...(props as object)}
       >
         {content}
-      </motion.button>
+      </button>
     );
   }
 );

@@ -17,7 +17,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   FileText,
@@ -38,11 +37,6 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
-import {
-  staggerContainerVariants,
-  staggerChildVariants,
-  cardHoverMotion,
-} from '@/shared/constants/motion';
 
 // localStorage key where ApplicationFormPage auto-saves in-progress drafts
 const LOCAL_DRAFT_KEY = 'cbg_app_draft';
@@ -81,7 +75,7 @@ function sortApps(apps: Application[], order: SortOrder): Application[] {
 function AppCard({ app }: { app: Application }) {
   const navigate = useNavigate();
   return (
-    <motion.li variants={staggerChildVariants} {...cardHoverMotion}>
+    <li>
       <div className="flex items-center justify-between gap-4 px-6 py-4">
         {/* The entire left side is a link to the detail page */}
         <Link
@@ -146,7 +140,7 @@ function AppCard({ app }: { app: Application }) {
           </Link>
         </div>
       </div>
-    </motion.li>
+    </li>
   );
 }
 
@@ -177,15 +171,12 @@ function AppGroup({
           {apps.length}
         </span>
       </div>
-      <motion.ul
-        variants={staggerContainerVariants}
-        initial="hidden"
-        animate="visible"
+      <ul
         className="divide-y"
         style={{ borderColor: 'var(--border)' }}
       >
         {apps.map((app) => <AppCard key={app.id} app={app} />)}
-      </motion.ul>
+      </ul>
     </div>
   );
 }
@@ -404,9 +395,7 @@ export function ApplicantApplicationsPage() {
           />
         </div>
       ) : (
-        // AnimatePresence lets the list animate out when filters change
-        <AnimatePresence mode="wait">
-          <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
             {view === 'all' && !statusFilter ? (
               // Default grouped view: Drafts → Active → Past sections
               <>
@@ -421,15 +410,12 @@ export function ApplicantApplicationsPage() {
                     {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
                     {draftApps.length > 0 && (
                       <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                        <motion.ul
-                          variants={staggerContainerVariants}
-                          initial="hidden"
-                          animate="visible"
+                        <ul
                           className="divide-y"
                           style={{ borderColor: 'var(--border)' }}
                         >
                           {draftApps.map((app) => <AppCard key={app.id} app={app} />)}
-                        </motion.ul>
+                        </ul>
                       </div>
                     )}
                   </div>
@@ -443,34 +429,27 @@ export function ApplicantApplicationsPage() {
                 {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
                 {filtered.length > 0 && (
                   <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                    <motion.ul
-                      variants={staggerContainerVariants}
-                      initial="hidden"
-                      animate="visible"
+                    <ul
                       className="divide-y"
                       style={{ borderColor: 'var(--border)' }}
                     >
                       {filtered.map((app) => <AppCard key={app.id} app={app} />)}
-                    </motion.ul>
+                    </ul>
                   </div>
                 )}
               </div>
             ) : (
               // Flat list when a specific status or view mode filter is active
               <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                <motion.ul
-                  variants={staggerContainerVariants}
-                  initial="hidden"
-                  animate="visible"
+                <ul
                   className="divide-y"
                   style={{ borderColor: 'var(--border)' }}
                 >
                   {filtered.map((app) => <AppCard key={app.id} app={app} />)}
-                </motion.ul>
+                </ul>
               </div>
             )}
           </div>
-        </AnimatePresence>
       )}
     </div>
   );

@@ -23,7 +23,6 @@
  */
 
 import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { X, Minus, Maximize2, Minimize2, Upload, Send } from 'lucide-react';
 import {
@@ -170,7 +169,7 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
       };
       if (subject.trim()) payload.subject = subject.trim();
       const conv = await createConversation(payload);
-      await sendMessage(conv.id, bodyHtml);
+      await sendMessage(conv.id, bodyHtml, attachments.length > 0 ? attachments : undefined);
       clearDraft();
       onCreated(conv);
       toast.success('Message sent.');
@@ -213,28 +212,16 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
   return (
     <>
       {/* Fullscreen backdrop */}
-      <AnimatePresence>
-        {maximized && (
-          <motion.div
-            key="compose-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black/30"
-            style={{ zIndex: 999 }}
-            onClick={() => setMaximized(false)}
-          />
-        )}
-      </AnimatePresence>
+      {maximized && (
+        <div
+          className="fixed inset-0 bg-black/30"
+          style={{ zIndex: 999 }}
+          onClick={() => setMaximized(false)}
+        />
+      )}
 
       {/* ── Compose panel ─────────────────────────────────────────────────── */}
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 24, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 24, scale: 0.96 }}
-        transition={{ duration: 0.18, ease: 'easeOut' }}
+      <div
         className={
           maximized
             ? 'fixed inset-4 rounded-2xl border overflow-hidden shadow-2xl flex flex-col'
@@ -476,7 +463,7 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
             </div>
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Discard draft confirm */}
       <ConfirmDialog

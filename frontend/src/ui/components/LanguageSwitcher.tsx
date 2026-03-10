@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
@@ -41,11 +40,7 @@ export function LanguageSwitcher() {
       </button>
 
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
+        <div
           className="absolute top-full right-0 mt-2 rounded-xl overflow-hidden"
           style={{
             backgroundColor: 'rgba(255, 252, 248, 0.97)',
@@ -75,7 +70,7 @@ export function LanguageSwitcher() {
           >
             Español
           </button>
-        </motion.div>
+        </div>
       )}
     </div>
   );

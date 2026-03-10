@@ -9,7 +9,9 @@ use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
 use App\Http\Controllers\Api\Camper\CamperController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
+use App\Http\Controllers\Api\Document\ApplicantDocumentController;
 use App\Http\Controllers\Api\Document\DocumentController;
+use App\Http\Controllers\Api\Document\DocumentRequestController;
 use App\Http\Controllers\Api\Medical\ActivityPermissionController;
 use App\Http\Controllers\Api\Medical\AllergyController;
 use App\Http\Controllers\Api\Medical\AssistiveDeviceController;
@@ -33,7 +35,6 @@ use App\Http\Controllers\Api\System\NotificationController;
 use App\Http\Controllers\Api\System\AuditLogController;
 use App\Http\Controllers\Api\System\ReportController;
 use App\Http\Controllers\Api\System\UserController;
-use App\Http\Controllers\Api\System\FormTemplateController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\CalendarEventController;
 use Illuminate\Support\Facades\Route;
@@ -248,6 +249,70 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         // Only admins can verify (approve/reject) documents — enforced by DocumentPolicy
         Route::patch('/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Applicant Documents Routes
+    |--------------------------------------------------------------------------
+    |
+    | Admin side: send documents to applicants, list, download, review, replace.
+    | Applicant side: list assigned documents, download original, upload completed.
+    |
+    */
+
+    // Applicant Documents — Admin side
+    Route::middleware(['role:admin,super_admin'])->group(function () {
+        Route::post('/admin/documents/send', [ApplicantDocumentController::class, 'adminSend']);
+        Route::get('/admin/documents', [ApplicantDocumentController::class, 'adminList']);
+        Route::get('/admin/documents/{applicantId}', [ApplicantDocumentController::class, 'adminListForApplicant']);
+        Route::get('/admin/applicant-documents/{applicantDocument}/download-original', [ApplicantDocumentController::class, 'adminDownloadOriginal']);
+        Route::get('/admin/applicant-documents/{applicantDocument}/download-submitted', [ApplicantDocumentController::class, 'adminDownloadSubmitted']);
+        Route::patch('/admin/applicant-documents/{applicantDocument}/review', [ApplicantDocumentController::class, 'adminMarkReviewed']);
+        Route::post('/admin/applicant-documents/{applicantDocument}/replace', [ApplicantDocumentController::class, 'adminReplace']);
+    });
+
+    // Applicant Documents — Applicant side
+    Route::middleware(['role:applicant'])->group(function () {
+        Route::get('/applicant/documents', [ApplicantDocumentController::class, 'applicantList']);
+        Route::get('/applicant/applicant-documents/{applicantDocument}/download', [ApplicantDocumentController::class, 'applicantDownload']);
+        Route::post('/applicant/documents/upload', [ApplicantDocumentController::class, 'applicantSubmit'])
+             ->middleware('throttle:uploads');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document Requests Routes
+    |--------------------------------------------------------------------------
+    |
+    | Admin: create requests, list, view stats, approve, reject.
+    | Applicant: list own requests, upload document, download uploaded file.
+    |
+    */
+
+    // Document Requests — Admin side
+    Route::middleware(['role:admin,super_admin'])->group(function () {
+        Route::get('/document-requests/stats', [DocumentRequestController::class, 'stats']);
+        Route::get('/document-requests', [DocumentRequestController::class, 'index']);
+        Route::post('/document-requests', [DocumentRequestController::class, 'store']);
+        Route::get('/document-requests/{documentRequest}', [DocumentRequestController::class, 'show']);
+        Route::get('/document-requests/{documentRequest}/download', [DocumentRequestController::class, 'download'])
+             ->middleware('throttle:sensitive');
+        Route::patch('/document-requests/{documentRequest}/approve', [DocumentRequestController::class, 'approve']);
+        Route::patch('/document-requests/{documentRequest}/reject', [DocumentRequestController::class, 'reject']);
+        Route::delete('/document-requests/{documentRequest}', [DocumentRequestController::class, 'cancel']);
+        Route::post('/document-requests/{documentRequest}/remind', [DocumentRequestController::class, 'remind']);
+        Route::patch('/document-requests/{documentRequest}/extend', [DocumentRequestController::class, 'extend']);
+        Route::patch('/document-requests/{documentRequest}/reupload', [DocumentRequestController::class, 'requestReupload']);
+    });
+
+    // Document Requests — Applicant side
+    Route::middleware(['role:applicant'])->group(function () {
+        Route::get('/applicant/document-requests', [DocumentRequestController::class, 'applicantIndex']);
+        Route::post('/applicant/document-requests/{documentRequest}/upload', [DocumentRequestController::class, 'applicantUpload'])
+             ->middleware('throttle:uploads');
+        Route::get('/applicant/document-requests/{documentRequest}/download', [DocumentRequestController::class, 'applicantDownload'])
+             ->middleware('throttle:sensitive');
     });
 
     /*
@@ -624,16 +689,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::put('/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
         Route::post('/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
         Route::post('/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
-    });
-
-    // ── Form Templates (super_admin only) ─────────────────────────────────────
-    // Downloadable document templates (blank forms, waivers, etc.)
-    Route::middleware('role:super_admin')->prefix('form-templates')->group(function () {
-        Route::get('/', [FormTemplateController::class, 'index'])->name('form-templates.index');
-        Route::post('/', [FormTemplateController::class, 'store'])->name('form-templates.store');
-        Route::patch('/{formTemplate}', [FormTemplateController::class, 'update'])->name('form-templates.update');
-        Route::delete('/{formTemplate}', [FormTemplateController::class, 'destroy'])->name('form-templates.destroy');
-        Route::get('/{formTemplate}/download', [FormTemplateController::class, 'download'])->name('form-templates.download');
     });
 
     // ── Calendar Events ────────────────────────────────────────────────────────

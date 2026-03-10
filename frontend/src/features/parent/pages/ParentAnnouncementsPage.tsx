@@ -17,14 +17,12 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Megaphone, Pin, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
 
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 
 // Number of announcements to request per page
 const PAGE_SIZE = 10;
@@ -81,12 +79,7 @@ export function ParentAnnouncementsPage() {
   }
 
   return (
-    <motion.div
-      variants={pageEntry}
-      initial="hidden"
-      animate="visible"
-      className="p-6 max-w-3xl"
-    >
+    <div className="p-6 max-w-3xl">
       {/* Page header with icon */}
       <div className="flex items-center gap-3 mb-6">
         <div
@@ -132,17 +125,11 @@ export function ParentAnnouncementsPage() {
         />
       ) : (
         <>
-          {/* Stagger each announcement card in with a sequential fade */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-            className="space-y-3"
-          >
+          <div className="space-y-3">
             {items.map((item) => (
               <AnnouncementCard key={item.id} item={item} />
             ))}
-          </motion.div>
+          </div>
 
           {/* "Load more" button appears only when the server has more items */}
           {hasMore && (
@@ -165,7 +152,7 @@ export function ParentAnnouncementsPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -179,8 +166,7 @@ function AnnouncementCard({ item }: { item: Announcement }) {
   const bodyPreview = isLong && !expanded ? item.body.slice(0, 300) + '…' : item.body;
 
   return (
-    <motion.article
-      variants={staggerChild}
+    <article
       className="rounded-2xl border overflow-hidden"
       style={{
         // Urgent gets a red tint; pinned gets a green tint; regular uses the card background
@@ -263,6 +249,6 @@ function AnnouncementCard({ item }: { item: Announcement }) {
           </button>
         )}
       </div>
-    </motion.article>
+    </article>
   );
 }

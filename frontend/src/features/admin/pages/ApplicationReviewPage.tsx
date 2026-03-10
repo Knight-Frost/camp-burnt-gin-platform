@@ -21,7 +21,6 @@
 
 import { useState, useEffect, type ReactNode } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -38,7 +37,6 @@ import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 import { axiosInstance } from '@/api/axios.config';
 import type { Application } from '@/features/admin/types/admin.types';
 
@@ -411,12 +409,7 @@ export function ApplicationReviewPage() {
   const medical = camper?.medical_record;
 
   return (
-    <motion.div
-      variants={pageEntry}
-      initial="hidden"
-      animate="visible"
-      className="p-6 max-w-7xl"
-    >
+    <div className="p-6 max-w-7xl">
       {/* Back link to the applications list. */}
       <Link
         to={applicationsPath}
@@ -445,56 +438,46 @@ export function ApplicationReviewPage() {
       {/* Two-column layout: detail sections on left, review panel on right. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column — all the application details */}
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-          className="lg:col-span-2 space-y-5"
-        >
+        <div className="lg:col-span-2 space-y-5">
           {/* Camper information */}
-          <motion.div variants={staggerChild}>
-            <SectionCard title={t('admin.review.camper_info')} icon={<User className="h-4 w-4" />}>
+          <SectionCard title={t('admin.review.camper_info')} icon={<User className="h-4 w-4" />}>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {[
+                [t('admin.review.field_name'), camper?.full_name],
+                [t('admin.review.field_dob'), camper?.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : undefined],
+                [t('admin.review.field_gender'), camper?.gender],
+                [t('admin.review.field_shirt'), camper?.tshirt_size],
+                [t('admin.review.field_session'), application.session?.name],
+                [t('admin.review.field_camp'), application.session?.camp?.name],
+              ].map(([label, value]) => (
+                <div key={label as string}>
+                  <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                  <p style={{ color: 'var(--foreground)' }}>{value ?? t('common.not_provided')}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+
+          {/* Parent / Guardian info — only shown when the user relation is loaded. */}
+          {camper?.user && (
+            <SectionCard title="Parent / Guardian" icon={<Users className="h-4 w-4" />}>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {[
-                  [t('admin.review.field_name'), camper?.full_name],
-                  [t('admin.review.field_dob'), camper?.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : undefined],
-                  [t('admin.review.field_gender'), camper?.gender],
-                  [t('admin.review.field_shirt'), camper?.tshirt_size],
-                  [t('admin.review.field_session'), application.session?.name],
-                  [t('admin.review.field_camp'), application.session?.camp?.name],
+                  ['Name', camper.user.name],
+                  ['Email', camper.user.email],
                 ].map(([label, value]) => (
-                  <div key={label as string}>
+                  <div key={label}>
                     <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
                     <p style={{ color: 'var(--foreground)' }}>{value ?? t('common.not_provided')}</p>
                   </div>
                 ))}
               </div>
             </SectionCard>
-          </motion.div>
-
-          {/* Parent / Guardian info — only shown when the user relation is loaded. */}
-          {camper?.user && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Parent / Guardian" icon={<Users className="h-4 w-4" />}>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {[
-                    ['Name', camper.user.name],
-                    ['Email', camper.user.email],
-                  ].map(([label, value]) => (
-                    <div key={label}>
-                      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                      <p style={{ color: 'var(--foreground)' }}>{value ?? t('common.not_provided')}</p>
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
-            </motion.div>
           )}
 
           {/* Medical summary — only shown when a medical_record relation is present. */}
           {medical && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title={t('admin.review.medical_summary')} icon={<Heart className="h-4 w-4" />}>
+            <SectionCard title={t('admin.review.medical_summary')} icon={<Heart className="h-4 w-4" />}>
                 {/* Diagnoses list */}
                 {medical.diagnoses && medical.diagnoses.length > 0 && (
                   <div className="mb-4">
@@ -613,14 +596,12 @@ export function ApplicationReviewPage() {
                     <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.notes}</p>
                   </div>
                 )}
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Emergency contacts */}
           {camper?.emergency_contacts && camper.emergency_contacts.length > 0 && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
+            <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
                 <div className="space-y-3">
                   {camper.emergency_contacts.map((ec) => (
                     <div
@@ -651,14 +632,12 @@ export function ApplicationReviewPage() {
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Behavioral profile */}
           {camper?.behavioral_profile && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Behavioral Profile" icon={<Brain className="h-4 w-4" />}>
+            <SectionCard title="Behavioral Profile" icon={<Brain className="h-4 w-4" />}>
                 <div className="space-y-3 text-sm">
                   {/* Filter out fields that have no value — no empty rows shown. */}
                   {[
@@ -673,14 +652,12 @@ export function ApplicationReviewPage() {
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Feeding plan */}
           {camper?.feeding_plan && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Feeding Plan" icon={<Utensils className="h-4 w-4" />}>
+            <SectionCard title="Feeding Plan" icon={<Utensils className="h-4 w-4" />}>
                 <div className="space-y-3 text-sm">
                   {[
                     ['Method', camper.feeding_plan.method],
@@ -693,14 +670,12 @@ export function ApplicationReviewPage() {
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Assistive devices */}
           {camper?.assistive_devices && camper.assistive_devices.length > 0 && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Assistive Devices" icon={<Wrench className="h-4 w-4" />}>
+            <SectionCard title="Assistive Devices" icon={<Wrench className="h-4 w-4" />}>
                 <div className="space-y-2">
                   {camper.assistive_devices.map((d) => (
                     <div key={d.id} className="text-sm">
@@ -711,14 +686,12 @@ export function ApplicationReviewPage() {
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Activity permissions — circles colored by permission level (green/amber/red). */}
           {camper?.activity_permissions && camper.activity_permissions.length > 0 && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
+            <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
                 <div className="space-y-2">
                   {camper.activity_permissions.map((p) => (
                     <div key={p.id} className="flex items-start gap-2 text-sm">
@@ -735,13 +708,11 @@ export function ApplicationReviewPage() {
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Uploaded documents with download buttons */}
-          <motion.div variants={staggerChild}>
-            <SectionCard title={t('admin.review.documents')} icon={<FileText className="h-4 w-4" />}>
+          <SectionCard title={t('admin.review.documents')} icon={<FileText className="h-4 w-4" />}>
               {!application.documents || application.documents.length === 0 ? (
                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                   {t('admin.review.no_documents')}
@@ -778,13 +749,11 @@ export function ApplicationReviewPage() {
                   ))}
                 </div>
               )}
-            </SectionCard>
-          </motion.div>
+          </SectionCard>
 
           {/* Digital signature — only shown if the application was signed. */}
           {application.signed_at && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title="Digital Signature" icon={<PenLine className="h-4 w-4" />}>
+            <SectionCard title="Digital Signature" icon={<PenLine className="h-4 w-4" />}>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Signed by</p>
@@ -795,21 +764,18 @@ export function ApplicationReviewPage() {
                     <p style={{ color: 'var(--foreground)' }}>{format(new Date(application.signed_at), 'MMM d, yyyy h:mm a')}</p>
                   </div>
                 </div>
-              </SectionCard>
-            </motion.div>
+            </SectionCard>
           )}
 
           {/* Previous reviewer notes */}
           {application.notes && (
-            <motion.div variants={staggerChild}>
-              <SectionCard title={t('admin.review.review_notes')} icon={<ChevronRight className="h-4 w-4" />}>
-                <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>
-                  {application.notes}
-                </p>
-              </SectionCard>
-            </motion.div>
+            <SectionCard title={t('admin.review.review_notes')} icon={<ChevronRight className="h-4 w-4" />}>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>
+                {application.notes}
+              </p>
+            </SectionCard>
           )}
-        </motion.div>
+        </div>
 
         {/* Right column — sticky review action panel */}
         <div>
@@ -822,6 +788,6 @@ export function ApplicationReviewPage() {
           />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

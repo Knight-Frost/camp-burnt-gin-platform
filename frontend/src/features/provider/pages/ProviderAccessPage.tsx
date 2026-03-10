@@ -9,13 +9,11 @@
 
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Heart, Upload, CheckCircle, AlertTriangle, Plus, X } from 'lucide-react';
 
 import { axiosInstance } from '@/api/axios.config';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 
 // ---------------------------------------------------------------------------
 // API
@@ -210,10 +208,7 @@ export function ProviderAccessPage() {
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#f4f6f9' }}>
-        <motion.div
-          variants={pageEntry} initial="hidden" animate="visible"
-          className="max-w-sm w-full text-center"
-        >
+        <div className="max-w-sm w-full text-center">
           <div className="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-5"
             style={{ background: 'rgba(5,150,105,0.12)' }}>
             <CheckCircle className="h-7 w-7" style={{ color: '#10b981' }} />
@@ -224,7 +219,7 @@ export function ProviderAccessPage() {
           <p className="text-sm" style={{ color: '#555' }}>
             {t('provider.success_desc', { name: context.camper_name })}
           </p>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -234,10 +229,7 @@ export function ProviderAccessPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen py-10 px-4" style={{ background: '#f4f6f9' }}>
-      <motion.div
-        variants={pageEntry} initial="hidden" animate="visible"
-        className="max-w-xl mx-auto"
-      >
+      <div className="max-w-xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl mx-auto mb-4"
@@ -262,9 +254,9 @@ export function ProviderAccessPage() {
           style={{ background: '#fff', borderColor: 'rgba(26,26,34,0.1)' }}
         >
           <form onSubmit={handleSubmit}>
-            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+            <div className="space-y-6">
 
-              <motion.div variants={staggerChild}>
+              <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: '#555' }}>
                   {t('provider.primary_diagnosis')}
                 </label>
@@ -275,27 +267,27 @@ export function ProviderAccessPage() {
                   className="w-full rounded-lg px-3 py-2.5 text-sm border outline-none"
                   style={{ background: '#f4f6f9', borderColor: 'rgba(26,26,34,0.14)', color: '#1a1a22' }}
                 />
-              </motion.div>
+              </div>
 
-              <motion.div variants={staggerChild}>
+              <div>
                 <ListBuilder
                   label={t('provider.allergies')}
                   placeholder={t('provider.allergies_placeholder')}
                   items={allergies}
                   onChange={setAllergies}
                 />
-              </motion.div>
+              </div>
 
-              <motion.div variants={staggerChild}>
+              <div>
                 <ListBuilder
                   label={t('provider.medications')}
                   placeholder={t('provider.medications_placeholder')}
                   items={medications}
                   onChange={setMedications}
                 />
-              </motion.div>
+              </div>
 
-              <motion.div variants={staggerChild}>
+              <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: '#555' }}>
                   {t('provider.notes')}
                 </label>
@@ -307,10 +299,10 @@ export function ProviderAccessPage() {
                   className="w-full rounded-lg px-3 py-2.5 text-sm border outline-none resize-none"
                   style={{ background: '#f4f6f9', borderColor: 'rgba(26,26,34,0.14)', color: '#1a1a22' }}
                 />
-              </motion.div>
+              </div>
 
               {/* Document upload */}
-              <motion.div variants={staggerChild}>
+              <div>
                 <p className="text-xs font-medium mb-2" style={{ color: '#555' }}>
                   {t('provider.documents')}
                 </p>
@@ -345,9 +337,9 @@ export function ProviderAccessPage() {
                     ))}
                   </div>
                 )}
-              </motion.div>
+              </div>
 
-              <motion.div variants={staggerChild}>
+              <div>
                 <button
                   type="submit"
                   disabled={submitting}
@@ -360,16 +352,16 @@ export function ProviderAccessPage() {
                       ? t('provider.submitting')
                       : t('provider.submit')}
                 </button>
-              </motion.div>
+              </div>
 
-            </motion.div>
+            </div>
           </form>
         </div>
 
         <p className="text-center text-xs mt-6" style={{ color: '#999' }}>
           {t('provider.hipaa_notice')}
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 }

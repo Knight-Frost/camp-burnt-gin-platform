@@ -19,7 +19,6 @@
  */
 
 import { useEffect, useState, type CSSProperties } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Pin, AlertTriangle, X, Trash2, Edit2, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -32,10 +31,6 @@ import {
 import { Button } from '@/ui/components/Button';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
-import {
-  scrollRevealVariants, staggerContainerVariants, staggerChildVariants,
-  modalBackdrop, modalContent,
-} from '@/shared/constants/motion';
 
 // Human-readable labels for each audience type shown in the form and in rows.
 const AUDIENCE_LABELS: Record<string, string> = {
@@ -182,7 +177,7 @@ export function AdminAnnouncementsPage() {
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       {/* Page header */}
-      <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <div>
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
@@ -200,7 +195,7 @@ export function AdminAnnouncementsPage() {
             New Announcement
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Content: error → loading skeletons → empty state → announcement list */}
       {error ? (
@@ -218,7 +213,7 @@ export function AdminAnnouncementsPage() {
           />
         </div>
       ) : (
-        <motion.div variants={staggerContainerVariants} initial="hidden" animate="visible" className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           {/* Pinned section — only shown when at least one announcement is pinned. */}
           {pinned.length > 0 && (
             <>
@@ -260,80 +255,73 @@ export function AdminAnnouncementsPage() {
               deleting={deletingId === ann.id}
             />
           ))}
-        </motion.div>
+        </div>
       )}
 
       {/* Create / Edit modal */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div
-            variants={modalBackdrop}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.35)' }}
-            onClick={() => setShowModal(false)}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+            style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              variants={modalContent}
-              className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
-              style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                {/* Title changes based on whether we're editing or creating. */}
-                <h3 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
-                  {editing ? 'Edit Announcement' : 'New Announcement'}
-                </h3>
-                <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)]" style={{ color: 'var(--muted-foreground)' }}>
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+            <div className="flex items-center justify-between mb-6">
+              {/* Title changes based on whether we're editing or creating. */}
+              <h3 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
+                {editing ? 'Edit Announcement' : 'New Announcement'}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)]" style={{ color: 'var(--muted-foreground)' }}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label htmlFor="ann-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
-                  <input id="ann-title" style={inputStyle()} placeholder="Announcement title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
-                </div>
-                <div>
-                  <label htmlFor="ann-body" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Body *</label>
-                  <textarea id="ann-body" style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder="Announcement body…" value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
-                </div>
-                <div>
-                  <label htmlFor="ann-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
-                  <select id="ann-audience" style={inputStyle()} value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as CreateAnnouncementPayload['audience'] }))}>
-                    {Object.entries(AUDIENCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="ann-publish-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Schedule Publish Date (optional)</label>
-                  <input id="ann-publish-at" type="datetime-local" style={inputStyle()} value={form.published_at ?? ''} onChange={(e) => setForm((f) => ({ ...f, published_at: e.target.value || null }))} />
-                  {/* Empty value means publish now; a date means publish later. */}
-                  <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Leave blank to publish immediately.</p>
-                </div>
-                <div className="flex gap-6">
-                  <label htmlFor="ann-pinned" className="flex items-center gap-2 cursor-pointer">
-                    <input id="ann-pinned" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_pinned} onChange={(e) => setForm((f) => ({ ...f, is_pinned: e.target.checked }))} />
-                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>Pin announcement</span>
-                  </label>
-                  <label htmlFor="ann-urgent" className="flex items-center gap-2 cursor-pointer">
-                    <input id="ann-urgent" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_urgent} onChange={(e) => setForm((f) => ({ ...f, is_urgent: e.target.checked }))} />
-                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>Mark as urgent</span>
-                  </label>
-                </div>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="ann-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
+                <input id="ann-title" style={inputStyle()} placeholder="Announcement title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
               </div>
+              <div>
+                <label htmlFor="ann-body" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Body *</label>
+                <textarea id="ann-body" style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder="Announcement body…" value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="ann-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
+                <select id="ann-audience" style={inputStyle()} value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as CreateAnnouncementPayload['audience'] }))}>
+                  {Object.entries(AUDIENCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="ann-publish-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Schedule Publish Date (optional)</label>
+                <input id="ann-publish-at" type="datetime-local" style={inputStyle()} value={form.published_at ?? ''} onChange={(e) => setForm((f) => ({ ...f, published_at: e.target.value || null }))} />
+                {/* Empty value means publish now; a date means publish later. */}
+                <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Leave blank to publish immediately.</p>
+              </div>
+              <div className="flex gap-6">
+                <label htmlFor="ann-pinned" className="flex items-center gap-2 cursor-pointer">
+                  <input id="ann-pinned" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_pinned} onChange={(e) => setForm((f) => ({ ...f, is_pinned: e.target.checked }))} />
+                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>Pin announcement</span>
+                </label>
+                <label htmlFor="ann-urgent" className="flex items-center gap-2 cursor-pointer">
+                  <input id="ann-urgent" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_urgent} onChange={(e) => setForm((f) => ({ ...f, is_urgent: e.target.checked }))} />
+                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>Mark as urgent</span>
+                </label>
+              </div>
+            </div>
 
-              <div className="flex gap-3 mt-6">
-                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button variant="primary" size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Saving…' : editing ? 'Save Changes' : 'Create'}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button variant="primary" size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : editing ? 'Save Changes' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -352,8 +340,7 @@ function AnnouncementRow({
   deleting: boolean;
 }) {
   return (
-    <motion.div
-      variants={staggerChildVariants}
+    <div
       className="rounded-2xl border px-5 py-4"
       style={{
         // Urgent announcements get a subtle red-tinted background for visual distinction.
@@ -425,6 +412,6 @@ function AnnouncementRow({
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

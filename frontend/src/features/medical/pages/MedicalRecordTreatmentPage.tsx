@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   Search, BookOpen, ChevronRight, Loader2, AlertCircle,
@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 
 import { getCampers } from '@/features/admin/api/admin.api';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
 
@@ -88,8 +87,7 @@ function CamperCard({
   const hasSpecialCare     = Boolean(rec?.special_needs);
 
   return (
-    <motion.div
-      variants={staggerChild}
+    <div
       className="rounded-xl border overflow-hidden transition-shadow hover:shadow-sm"
       style={{
         background: 'var(--card)',
@@ -193,7 +191,7 @@ function CamperCard({
           Log Visit
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -277,7 +275,7 @@ export function MedicalRecordTreatmentPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-2xl">
+    <div className="p-6 max-w-2xl">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -317,27 +315,21 @@ export function MedicalRecordTreatmentPage() {
             style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
             autoFocus
           />
-          <AnimatePresence>
-            {loading && !loadingMore && (
-              <motion.span
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              >
+          {loading && !loadingMore && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2">
                 <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--muted-foreground)' }} />
-              </motion.span>
+              </span>
             )}
             {query && !loading && (
-              <motion.button
+              <button
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[var(--dash-nav-hover-bg)]"
                 style={{ color: 'var(--muted-foreground)' }}
                 onClick={() => setQuery('')}
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                 aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
-              </motion.button>
+              </button>
             )}
-          </AnimatePresence>
         </div>
 
         {/* Age group */}
@@ -385,18 +377,15 @@ export function MedicalRecordTreatmentPage() {
         </div>
 
         {/* Clear all */}
-        <AnimatePresence>
-          {hasFilters && (
-            <motion.button
-              initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
-              onClick={clearFilters}
-              className="px-3 py-2.5 rounded-xl border text-sm whitespace-nowrap transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-              style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-            >
-              Clear filters
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="px-3 py-2.5 rounded-xl border text-sm whitespace-nowrap transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+            style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Results count */}
@@ -453,7 +442,7 @@ export function MedicalRecordTreatmentPage() {
         </div>
       ) : (
         <>
-          <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-2">
+          <div className="space-y-2">
             {visibleCampers.map((camper) => (
               <CamperCard
                 key={camper.id}
@@ -462,7 +451,7 @@ export function MedicalRecordTreatmentPage() {
                 onLogVisit={() => logVisit(camper)}
               />
             ))}
-          </motion.div>
+          </div>
 
           {/* Load more */}
           {meta.current_page < meta.last_page && !ageGroup && !alertFilter && (
@@ -480,6 +469,6 @@ export function MedicalRecordTreatmentPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }

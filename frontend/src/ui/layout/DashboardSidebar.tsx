@@ -10,8 +10,8 @@
  *   - Optionally renders a pinned "System" nav section at the bottom that is
  *     always visible regardless of viewport height (never scrolled off-screen).
  *   - Renders a user avatar + name + logout button at the very bottom.
- *   - On mobile, the sidebar hides behind a hamburger button and slides in as
- *     an animated drawer when opened.
+ *   - On mobile, the sidebar hides behind a hamburger button and shows as a
+ *     drawer when opened.
  *
  * Stability notes (important for avoiding flicker/re-mount bugs):
  *   - Wrapped in React.memo — only re-renders when navItems reference changes.
@@ -26,7 +26,6 @@
 
 import { memo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Menu, X, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,7 +34,6 @@ import { clearAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { ROLE_LABELS, getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
-import { fadeVariants } from '@/shared/constants/motion';
 import { cn } from '@/shared/utils/cn';
 
 // ---------------------------------------------------------------------------
@@ -388,54 +386,44 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
       </button>
 
       {/* ── Mobile sidebar drawer ───────────────────────────────────────────────
-          AnimatePresence lets the drawer animate out smoothly before unmounting. */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            {/* Semi-transparent backdrop — clicking it closes the drawer */}
-            <motion.div
-              variants={fadeVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              onClick={() => setMobileOpen(false)}
-              className="lg:hidden fixed inset-0 z-40"
-              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            />
+          Conditionally rendered — no exit animation, just instant show/hide. */}
+      {mobileOpen && (
+        <>
+          {/* Semi-transparent backdrop — clicking it closes the drawer */}
+          <div
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden fixed inset-0 z-40"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          />
 
-            {/* Drawer panel — slides in from the left */}
-            <motion.aside
-              initial={{ x: -280, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -280, opacity: 0 }}
-              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-              className="lg:hidden fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col border-r"
-              style={{
-                background: 'var(--dash-sidebar-bg)',
-                borderColor: 'var(--dash-sidebar-border)',
-              }}
-              aria-label="Mobile navigation"
+          {/* Drawer panel */}
+          <aside
+            className="lg:hidden fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col border-r"
+            style={{
+              background: 'var(--dash-sidebar-bg)',
+              borderColor: 'var(--dash-sidebar-border)',
+            }}
+            aria-label="Mobile navigation"
+          >
+            {/* Close button in the top-right corner of the drawer */}
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)]"
+              style={{ color: 'var(--muted-foreground)' }}
+              aria-label="Close navigation"
             >
-              {/* Close button in the top-right corner of the drawer */}
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)]"
-                style={{ color: 'var(--muted-foreground)' }}
-                aria-label="Close navigation"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              {/* Same content as the desktop sidebar — reuses the shared fragments */}
-              <div className="flex flex-col h-full">
-                {brandHeader}
-                {navList}
-                {pinnedNav}
-                {userFooter}
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              <X className="h-4 w-4" />
+            </button>
+            {/* Same content as the desktop sidebar — reuses the shared fragments */}
+            <div className="flex flex-col h-full">
+              {brandHeader}
+              {navList}
+              {pinnedNav}
+              {userFooter}
+            </div>
+          </aside>
+        </>
+      )}
     </>
   );
 });

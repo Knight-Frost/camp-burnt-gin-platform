@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, AlertTriangle, Phone, Shield, Pill, Heart,
@@ -31,7 +31,7 @@ import {
   type MedicalRestriction,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import { ROUTES } from '@/shared/constants/routes';
 import type {
   Camper,
@@ -241,7 +241,7 @@ export function MedicalEmergencyViewPage() {
   }
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl">
 
       {/* Back link */}
       <Link
@@ -282,10 +282,10 @@ export function MedicalEmergencyViewPage() {
         </div>
       </div>
 
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+      <div className="space-y-6">
 
         {/* 1. CRITICAL ALERTS */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<AlertTriangle className="h-4 w-4" />}
             title={t('medical.emergency.critical_alerts') || 'CRITICAL ALERTS'}
@@ -333,10 +333,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* 2. ALLERGIES */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<AlertTriangle className="h-4 w-4" />}
             title={t('medical.emergency.allergies') || 'ALLERGIES'}
@@ -384,10 +384,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* 3. CURRENT MEDICATIONS */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<Pill className="h-4 w-4" />}
             title={t('medical.emergency.medications') || 'CURRENT MEDICATIONS'}
@@ -421,10 +421,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* 4. ACTIVE DIAGNOSES */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<Heart className="h-4 w-4" />}
             title={t('medical.emergency.diagnoses') || 'ACTIVE DIAGNOSES'}
@@ -464,10 +464,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* 5. EMERGENCY CONTACTS */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<Phone className="h-4 w-4" />}
             title={t('medical.emergency.emergency_contacts') || 'EMERGENCY CONTACTS'}
@@ -539,10 +539,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* 6. ACTIVE RESTRICTIONS */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<Ban className="h-4 w-4" />}
             title={t('medical.emergency.restrictions') || 'ACTIVE RESTRICTIONS'}
@@ -584,10 +584,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* 7. RECENT VISITS & TREATMENTS */}
-        <motion.div variants={staggerChild}>
+        <div>
           <Section
             icon={<Clock className="h-4 w-4" />}
             title={t('medical.emergency.recent_activity') || 'RECENT VISITS & TREATMENTS (last 3)'}
@@ -651,10 +651,10 @@ export function MedicalEmergencyViewPage() {
               </div>
             )}
           </Section>
-        </motion.div>
+        </div>
 
         {/* Footer note */}
-        <motion.div variants={staggerChild}>
+        <div>
           <div
             className="rounded-xl border p-4 flex items-center gap-3"
             style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
@@ -672,9 +672,9 @@ export function MedicalEmergencyViewPage() {
               </Link>
             </p>
           </div>
-        </motion.div>
+        </div>
 
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

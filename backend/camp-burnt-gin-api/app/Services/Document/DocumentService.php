@@ -159,6 +159,7 @@ class DocumentService
             'application/pdf' => 'pdf',
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
+            'image/x-png' => 'png',  // Normalize alternate PNG MIME type to .png extension
             'image/gif' => 'gif',
             'application/msword' => 'doc',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',

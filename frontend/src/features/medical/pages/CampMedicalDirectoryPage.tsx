@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   Search,
@@ -34,7 +34,7 @@ import { getMedicalCampers } from '@/features/medical/api/medical.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ROUTES } from '@/shared/constants/routes';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import type { Camper } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
@@ -274,7 +274,7 @@ export function CampMedicalDirectoryPage() {
   const hasActiveFilter = filters.search || filters.alertFilter || filters.medFilter;
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-7xl space-y-6">
+    <div className="p-6 max-w-7xl space-y-6">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -382,18 +382,15 @@ export function CampMedicalDirectoryPage() {
             {hasActiveFilter ? ' (filtered)' : ''}
           </p>
 
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
+          <div
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
           >
             {displayedCampers.map((camper) => (
-              <motion.div key={camper.id} variants={staggerChild}>
+              <div key={camper.id}>
                 <CamperCard camper={camper} />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {/* Load more */}
           {hasMore && !hasActiveFilter && (
@@ -414,6 +411,6 @@ export function CampMedicalDirectoryPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }

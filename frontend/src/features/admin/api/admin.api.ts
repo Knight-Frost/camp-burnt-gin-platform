@@ -205,3 +205,162 @@ export async function downloadAdminDocument(id: number): Promise<Blob> {
   const { data } = await axiosInstance.get(`/documents/${id}/download`, { responseType: 'blob' });
   return data;
 }
+
+// ─── Applicant Documents ─────────────────────────────────────────────────────
+
+export interface ApplicantDocumentRecord {
+  id: number;
+  applicant_id: number;
+  applicant_name: string;
+  uploaded_by_admin_id: number;
+  admin_name: string;
+  original_file_name: string;
+  instructions: string | null;
+  status: 'pending' | 'submitted' | 'reviewed';
+  created_at: string;
+  reviewed_at: string | null;
+  download_original_url: string;
+  download_submitted_url: string | null;
+}
+
+export const sendDocumentToApplicant = async (formData: FormData): Promise<ApplicantDocumentRecord> => {
+  const { data } = await axiosInstance.post('/admin/documents/send', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+export const getAdminApplicantDocuments = async (params?: {
+  applicant_id?: number;
+  status?: string;
+  page?: number;
+}): Promise<{ data: ApplicantDocumentRecord[]; meta: any }> => {
+  const { data } = await axiosInstance.get('/admin/documents', { params });
+  return data;
+};
+
+export const getAdminDocumentsForApplicant = async (applicantId: number): Promise<ApplicantDocumentRecord[]> => {
+  const { data } = await axiosInstance.get(`/admin/documents/${applicantId}`);
+  return data;
+};
+
+export const markApplicantDocumentReviewed = async (id: number): Promise<ApplicantDocumentRecord> => {
+  const { data } = await axiosInstance.patch(`/admin/applicant-documents/${id}/review`);
+  return data;
+};
+
+export const replaceApplicantDocument = async (id: number, formData: FormData): Promise<ApplicantDocumentRecord> => {
+  const { data } = await axiosInstance.post(`/admin/applicant-documents/${id}/replace`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+// ─── Document Requests ────────────────────────────────────────────────────────
+
+export type DocumentRequestStatus =
+  | 'awaiting_upload'
+  | 'uploaded'
+  | 'scanning'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'overdue';
+
+export interface DocumentRequest {
+  id: number;
+  applicant_id: number;
+  applicant_name: string;
+  application_id: number | null;
+  camper_id: number | null;
+  camper_name: string | null;
+  requested_by_admin_id: number;
+  requested_by_name: string;
+  document_type: string;
+  instructions: string | null;
+  status: DocumentRequestStatus;
+  due_date: string | null;
+  uploaded_file_name: string | null;
+  uploaded_at: string | null;
+  rejection_reason: string | null;
+  reviewed_at: string | null;
+  reviewed_by_name: string | null;
+  download_url: string | null;
+  created_at: string;
+}
+
+export interface DocumentRequestStats {
+  total: number;
+  awaiting_upload: number;
+  uploaded: number;
+  under_review: number;
+  approved: number;
+  rejected: number;
+  overdue: number;
+}
+
+export const getDocumentRequestStats = async (): Promise<DocumentRequestStats> => {
+  const { data } = await axiosInstance.get('/document-requests/stats');
+  return data;
+};
+
+export const getDocumentRequests = async (params?: {
+  applicant_id?: number;
+  camper_id?: number;
+  status?: string;
+  search?: string;
+  page?: number;
+}): Promise<{ data: DocumentRequest[]; meta: any }> => {
+  const { data } = await axiosInstance.get('/document-requests', { params });
+  return data;
+};
+
+export const getDocumentRequest = async (id: number): Promise<DocumentRequest> => {
+  const { data } = await axiosInstance.get(`/document-requests/${id}`);
+  return data;
+};
+
+export const createDocumentRequest = async (payload: {
+  applicant_id: number;
+  application_id?: number | null;
+  camper_id?: number | null;
+  document_type: string;
+  instructions?: string;
+  due_date?: string;
+}): Promise<DocumentRequest> => {
+  const { data } = await axiosInstance.post('/document-requests', payload);
+  return data;
+};
+
+export const approveDocumentRequest = async (id: number): Promise<DocumentRequest> => {
+  const { data } = await axiosInstance.patch(`/document-requests/${id}/approve`);
+  return data;
+};
+
+export const rejectDocumentRequest = async (id: number, reason?: string): Promise<DocumentRequest> => {
+  const { data } = await axiosInstance.patch(`/document-requests/${id}/reject`, { reason });
+  return data;
+};
+
+export const downloadDocumentRequestFile = async (id: number): Promise<Blob> => {
+  const { data } = await axiosInstance.get(`/document-requests/${id}/download`, { responseType: 'blob' });
+  return data;
+};
+
+export const cancelDocumentRequest = async (id: number): Promise<void> => {
+  await axiosInstance.delete(`/document-requests/${id}`);
+};
+
+export const remindDocumentRequest = async (id: number): Promise<void> => {
+  await axiosInstance.post(`/document-requests/${id}/remind`);
+};
+
+export const extendDocumentRequestDeadline = async (id: number, due_date: string): Promise<DocumentRequest> => {
+  const { data } = await axiosInstance.patch(`/document-requests/${id}/extend`, { due_date });
+  return data;
+};
+
+export const requestDocumentReupload = async (id: number): Promise<DocumentRequest> => {
+  const { data } = await axiosInstance.patch(`/document-requests/${id}/reupload`);
+  return data;
+};

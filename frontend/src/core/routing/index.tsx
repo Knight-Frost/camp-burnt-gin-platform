@@ -11,7 +11,6 @@
 import { lazy, Suspense, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 
-import { PageSkeleton } from '@/app/components/PageSkeleton';
 import { ProtectedRoute } from '@/core/auth/ProtectedRoute';
 import { RoleGuard } from '@/core/auth/RoleGuard';
 import { ROLES } from '@/shared/constants/roles';
@@ -32,8 +31,8 @@ import { MedicalLayout }    from '@/ui/layout/MedicalLayout';
 function withSuspense<T extends object>(Component: ComponentType<T>) {
   return function SuspenseWrapped(props: T) {
     return (
-      // Show PageSkeleton while the lazy bundle is being fetched
-      <Suspense fallback={<PageSkeleton />}>
+      // null fallback: sidebar/header remain visible during bundle fetch; no spinner flash
+      <Suspense fallback={null}>
         <Component {...props} />
       </Suspense>
     );
@@ -93,7 +92,6 @@ const MedicalEmergencyViewPage = withSuspense(lazy(() => import('@/features/medi
 const SuperAdminDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/SuperAdminDashboardPage').then(m => ({ default: m.SuperAdminDashboardPage }))));
 const UserManagementPage      = withSuspense(lazy(() => import('@/features/superadmin/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage }))));
 const AuditLogPage            = withSuspense(lazy(() => import('@/features/superadmin/pages/AuditLogPage').then(m => ({ default: m.AuditLogPage }))));
-const FormManagementPage      = withSuspense(lazy(() => import('@/features/superadmin/pages/FormManagementPage').then(m => ({ default: m.FormManagementPage }))));
 
 // ─── Shared pages ─────────────────────────────────────────────────────────────
 // These pages are reused across multiple portals (each portal mounts them under its own prefix)
@@ -243,7 +241,6 @@ export const router = createBrowserRouter([
           // Governance-only pages (not available in the regular admin portal)
           { path: '/super-admin/users',                element: <UserManagementPage /> },
           { path: '/super-admin/audit',                element: <AuditLogPage /> },
-          { path: '/super-admin/forms',                element: <FormManagementPage /> },
           // Shared admin pages also mounted under super-admin prefix
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
           { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },

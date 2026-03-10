@@ -1,7 +1,7 @@
 /**
  * ConfirmDialog.tsx
  *
- * Purpose: An accessible, animated confirmation dialog that replaces
+ * Purpose: An accessible confirmation dialog that replaces
  * window.confirm() throughout the application.
  *
  * Responsibilities:
@@ -29,7 +29,6 @@
 
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 
 export type ConfirmVariant = 'danger' | 'warning' | 'default';
@@ -92,16 +91,12 @@ export function ConfirmDialog({
   // createPortal renders the dialog directly into document.body so it escapes
   // any overflow:hidden or z-index stacking contexts in the component tree.
   return createPortal(
-    <AnimatePresence>
+    <>
       {open && (
         <>
           {/* ── Backdrop ──────────────────────────────────────────────────── */}
           {/* Semi-transparent black overlay — clicking it calls onCancel */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+          <div
             className="fixed inset-0"
             style={{ zIndex: 599, background: 'rgba(0,0,0,0.40)' }}
             onClick={onCancel}
@@ -113,11 +108,7 @@ export function ConfirmDialog({
            * pass through to the backdrop div above. The inner card is
            * pointer-events-auto so clicks inside it are captured.
            */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 8 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+          <div
             className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
             style={{ zIndex: 600 }}
           >
@@ -172,10 +163,10 @@ export function ConfirmDialog({
                 </button>
               </div>
             </div>
-          </motion.div>
+          </div>
         </>
       )}
-    </AnimatePresence>,
+    </>,
     // Attach to document.body so the dialog is always on top of the page.
     document.body,
   );

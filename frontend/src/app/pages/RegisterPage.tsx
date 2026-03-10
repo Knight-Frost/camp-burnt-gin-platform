@@ -19,7 +19,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { User, Mail, Lock, Eye, EyeOff, Check, X, ShieldCheck } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas/auth.schema';
 import { register as registerUser } from '@/features/auth/api/auth.api';
@@ -274,10 +273,8 @@ export function RegisterPage() {
               style={{ fontSize: '0.9375rem' }}
               {...register('password')}
             />
-            {/* whileTap gives the eye button a quick scale-down animation on click */}
-            <motion.button
+            <button
               type="button"
-              whileTap={{ scale: 0.9 }}
               onClick={() => setShowPassword(v => !v)}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -286,7 +283,7 @@ export function RegisterPage() {
                 ? <EyeOff style={ICON_SIZE} />
                 : <Eye style={ICON_SIZE} />
               }
-            </motion.button>
+            </button>
           </div>
 
           {/* Criteria checklist — always visible so the user knows the rules up front */}
@@ -319,36 +316,28 @@ export function RegisterPage() {
               style={{ fontSize: '0.9375rem' }}
               {...register('password_confirmation')}
             />
-            <motion.button
+            <button
               type="button"
-              whileTap={{ scale: 0.9 }}
               onClick={() => setShowConfirm(v => !v)}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
               aria-label={showConfirm ? 'Hide password' : 'Show password'}
             >
               {showConfirm ? <EyeOff style={ICON_SIZE} /> : <Eye style={ICON_SIZE} />}
-            </motion.button>
+            </button>
           </div>
 
-          {/* Animated "Passwords match" / "do not match" indicator — key changes trigger re-animation */}
-          <AnimatePresence mode="wait">
-            {confirmMatchState && (
-              <motion.p
-                key={confirmMatchState}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.15 }}
-                className="flex items-center gap-1.5 text-sm"
-                style={{ color: confirmMatchState === 'match' ? 'var(--forest-green)' : 'var(--destructive)' }}
-              >
-                {confirmMatchState === 'match'
-                  ? <><Check style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} /> Passwords match</>
-                  : <><X style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} /> Passwords do not match</>
-                }
-              </motion.p>
-            )}
-          </AnimatePresence>
+          {/* "Passwords match" / "do not match" indicator */}
+          {confirmMatchState && (
+            <p
+              className="flex items-center gap-1.5 text-sm"
+              style={{ color: confirmMatchState === 'match' ? 'var(--forest-green)' : 'var(--destructive)' }}
+            >
+              {confirmMatchState === 'match'
+                ? <><Check style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} /> Passwords match</>
+                : <><X style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} /> Passwords do not match</>
+              }
+            </p>
+          )}
           <FieldError message={errors.password_confirmation?.message} />
         </div>
 

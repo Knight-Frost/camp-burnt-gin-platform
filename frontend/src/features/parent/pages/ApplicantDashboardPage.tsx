@@ -15,15 +15,14 @@
 
 import { useEffect, useState, type ComponentType } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin,
-  Bell, MessageSquare, CheckCircle, Clock,
+  Bell, MessageSquare, CheckCircle, Clock, AlertCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 
-import { getCampers, getApplications } from '@/features/parent/api/applicant.api';
+import { getCampers, getApplications, getRequiredDocuments, type RequiredDocument } from '@/features/parent/api/applicant.api';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/features/admin/api/notifications.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application, Notification } from '@/shared/types';
@@ -35,12 +34,6 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
-import {
-  staggerContainerVariants,
-  staggerChildVariants,
-  scrollRevealVariants,
-  cardHoverMotion,
-} from '@/shared/constants/motion';
 
 export function ApplicantDashboardPage() {
   const { t } = useTranslation();
@@ -51,6 +44,7 @@ export function ApplicantDashboardPage() {
   const [applications, setApplications]   = useState<Application[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [requiredDocs, setRequiredDocs]   = useState<RequiredDocument[]>([]);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState(false);
   const [retryKey, setRetryKey]           = useState(0);
@@ -58,8 +52,8 @@ export function ApplicantDashboardPage() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    Promise.allSettled([getCampers(), getApplications(), getNotifications(), getAnnouncements(5)])
-      .then(([cResult, aResult, nResult, annResult]) => {
+    Promise.allSettled([getCampers(), getApplications(), getNotifications(), getAnnouncements(5), getRequiredDocuments()])
+      .then(([cResult, aResult, nResult, annResult, reqResult]) => {
         if (cResult.status === 'rejected' && aResult.status === 'rejected') {
           setError(true);
           return;
@@ -72,6 +66,9 @@ export function ApplicantDashboardPage() {
         if (annResult.status === 'fulfilled') {
           setAnnouncements(annResult.value.data ?? []);
         }
+        if (reqResult.status === 'fulfilled') {
+          setRequiredDocs(reqResult.value);
+        }
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -79,6 +76,7 @@ export function ApplicantDashboardPage() {
 
   const firstName    = user?.name.split(' ')[0] ?? 'there';
   const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
+  const pendingDocsCount = requiredDocs.filter((d) => d.status === 'pending').length;
 
   const handleMarkRead = (id: string) => {
     markNotificationRead(id).catch(() => {/* non-critical */});
@@ -96,7 +94,7 @@ export function ApplicantDashboardPage() {
     <div className="flex flex-col gap-6 max-w-5xl">
 
       {/* ── Welcome header ───────────────────────────────────── */}
-      <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <div>
         <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
           {t('applicant.dashboard.welcome_back')}
         </p>
@@ -106,7 +104,22 @@ export function ApplicantDashboardPage() {
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           {t('applicant.dashboard.subtitle')}
         </p>
-      </motion.div>
+      </div>
+
+      {/* ── Document action alert ────────────────────────────── */}
+      {!loading && pendingDocsCount > 0 && (
+        <Link
+          to={ROUTES.PARENT_DOCUMENTS}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+          style={{ background: 'rgba(245,158,11,0.07)', borderColor: 'rgba(245,158,11,0.30)' }}
+        >
+          <AlertCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#b45309' }} />
+          <span className="text-sm font-medium" style={{ color: '#b45309' }}>
+            {t('required_documents.dashboard_alert', { count: pendingDocsCount })}
+          </span>
+          <ArrowRight className="h-4 w-4 ml-auto flex-shrink-0" style={{ color: '#b45309' }} />
+        </Link>
+      )}
 
       {/* ── Stat cards ───────────────────────────────────────── */}
       {loading ? (
@@ -142,7 +155,7 @@ export function ApplicantDashboardPage() {
 
       {/* ── Announcements strip ──────────────────────────────── */}
       {!loading && announcements.length > 0 && (
-        <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+        <div>
           <div className="flex items-center gap-2 mb-2">
             <Megaphone className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
             <h3 className="font-headline font-semibold text-sm" style={{ color: 'var(--foreground)' }}>
@@ -178,7 +191,7 @@ export function ApplicantDashboardPage() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ── My Campers — primary content ─────────────────────── */}
@@ -210,12 +223,7 @@ export function ApplicantDashboardPage() {
             />
           </div>
         ) : (
-          <motion.ul
-            variants={staggerContainerVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col gap-3"
-          >
+          <ul className="flex flex-col gap-3">
             {campers.map((camper) => {
               const camperApps = applications.filter((a) => a.camper_id === camper.id);
               const latestApp  = camperApps[0];
@@ -223,7 +231,7 @@ export function ApplicantDashboardPage() {
               const sessionName = latestApp?.session?.name ?? null;
 
               return (
-                <motion.li key={camper.id} variants={staggerChildVariants} {...cardHoverMotion}>
+                <li key={camper.id}>
                   <div
                     className="rounded-2xl border p-4 flex items-center justify-between gap-4"
                     style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
@@ -261,10 +269,10 @@ export function ApplicantDashboardPage() {
                       </Link>
                     </div>
                   </div>
-                </motion.li>
+                </li>
               );
             })}
-          </motion.ul>
+          </ul>
         )}
       </div>
 
@@ -295,14 +303,13 @@ export function ApplicantDashboardPage() {
             className="rounded-2xl border overflow-hidden divide-y"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
           >
-            <motion.ul variants={staggerContainerVariants} initial="hidden" animate="visible">
+            <ul>
               {notifications.map((n) => {
                 const isUnread = !n.read_at;
                 const Icon = getNotifIcon(n.type);
                 return (
-                  <motion.li
+                  <li
                     key={n.id}
-                    variants={staggerChildVariants}
                     className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
                     style={{
                       background: isUnread ? 'rgba(22,163,74,0.04)' : 'transparent',
@@ -342,10 +349,10 @@ export function ApplicantDashboardPage() {
                         <div className="w-2 h-2 rounded-full" style={{ background: 'var(--ember-orange)' }} />
                       )}
                     </div>
-                  </motion.li>
+                  </li>
                 );
               })}
-            </motion.ul>
+            </ul>
           </div>
         )}
       </div>

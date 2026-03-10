@@ -13,7 +13,6 @@ import {
   type FormEvent,
   type ChangeEvent,
 } from 'react';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -58,7 +57,6 @@ import {
 import { resendVerificationEmail } from '@/features/auth/api/auth.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setUser } from '@/features/auth/store/authSlice';
 import type { User as UserType, UserEmergencyContact } from '@/shared/types/user.types';
@@ -762,7 +760,7 @@ export function ProfilePage() {
   }
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-2xl">
+    <div className="p-6 max-w-2xl">
       <div className="mb-7">
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('profile.title')}
@@ -772,10 +770,10 @@ export function ProfilePage() {
         </p>
       </div>
 
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-5">
+      <div className="space-y-5">
 
         {/* ── Avatar ─────────────────────────────────────────────────── */}
-        <motion.div variants={staggerChild}>
+        <div>
           <ProfileSection title="Profile Photo" icon={<Camera className="h-4 w-4" />}>
             <AvatarSection
               avatarUrl={profile?.avatar_url}
@@ -784,10 +782,10 @@ export function ProfilePage() {
               onRemove={handleAvatarRemove}
             />
           </ProfileSection>
-        </motion.div>
+        </div>
 
         {/* ── Personal Information ────────────────────────────────────── */}
-        <motion.div variants={staggerChild}>
+        <div>
           <ProfileSection title={t('profile.personal_title')} icon={<User className="h-4 w-4" />}>
             <form onSubmit={handleSavePersonal} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -839,10 +837,10 @@ export function ProfilePage() {
               </div>
             </form>
           </ProfileSection>
-        </motion.div>
+        </div>
 
         {/* ── Contact / Address ──────────────────────────────────────── */}
-        <motion.div variants={staggerChild}>
+        <div>
           <ProfileSection title="Contact Information" icon={<MapPin className="h-4 w-4" />}>
             <form onSubmit={handleSaveAddress} className="space-y-4">
               <FieldRow label="Address line 1">
@@ -872,26 +870,26 @@ export function ProfilePage() {
               </div>
             </form>
           </ProfileSection>
-        </motion.div>
+        </div>
 
         {/* ── Emergency contacts ─────────────────────────────────────── */}
-        <motion.div variants={staggerChild}>
+        <div>
           <ProfileSection title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
             <EmergencyContactsSection />
           </ProfileSection>
-        </motion.div>
+        </div>
 
         {/* ── Security / MFA ─────────────────────────────────────────── */}
-        <motion.div variants={staggerChild}>
+        <div>
           <ProfileSection title={t('profile.mfa.title')} icon={<Shield className="h-4 w-4" />}>
             <MfaSection
               mfaEnabled={!!profile?.mfa_enabled}
               onToggle={() => setProfile((p) => p ? { ...p, mfa_enabled: !p.mfa_enabled } : p)}
             />
           </ProfileSection>
-        </motion.div>
+        </div>
 
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

@@ -20,8 +20,7 @@
  * Route: /super-admin/audit
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Download, Filter, X, User, Globe, Monitor,
@@ -33,7 +32,6 @@ import type { ElementType } from 'react';
 
 import { getAuditLog, exportAuditLog } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
-import { pageEntry } from '@/shared/constants/motion';
 import type { AuditLogEntry } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
@@ -339,54 +337,43 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
         </div>
       </div>
 
-      {/* Expandable detail panel — height animates from 0 to auto */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            key="details"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="overflow-hidden"
-          >
-            <div
-              className="px-4 pb-3 pt-1 border-t space-y-3"
-              style={{ borderColor: 'var(--border)', background: 'rgba(248,249,250,0.6)' }}
-            >
-              {/* Before / After diff blocks when a record was changed */}
-              {entry.old_values && Object.keys(entry.old_values).length > 0 && (
-                <DiffBlock label="Before" rows={formatDiffEntries(entry.old_values)} variant="removed" />
-              )}
-              {entry.new_values && Object.keys(entry.new_values).length > 0 && (
-                <DiffBlock label="After" rows={formatDiffEntries(entry.new_values)} variant="added" />
-              )}
+      {/* Expandable detail panel */}
+      {expanded && (
+        <div
+          className="px-4 pb-3 pt-1 border-t space-y-3"
+          style={{ borderColor: 'var(--border)', background: 'rgba(248,249,250,0.6)' }}
+        >
+          {/* Before / After diff blocks when a record was changed */}
+          {entry.old_values && Object.keys(entry.old_values).length > 0 && (
+            <DiffBlock label="Before" rows={formatDiffEntries(entry.old_values)} variant="removed" />
+          )}
+          {entry.new_values && Object.keys(entry.new_values).length > 0 && (
+            <DiffBlock label="After" rows={formatDiffEntries(entry.new_values)} variant="added" />
+          )}
 
-              {/* Metadata panel — translates route, method, status, params to readable text */}
-              {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                <MetadataPanel metadata={entry.metadata} />
-              )}
+          {/* Metadata panel — translates route, method, status, params to readable text */}
+          {entry.metadata && Object.keys(entry.metadata).length > 0 && (
+            <MetadataPanel metadata={entry.metadata} />
+          )}
 
-              {/* Device info parsed from the user-agent header */}
-              {entry.user_agent && (
-                <div className="flex items-center gap-2">
-                  <Monitor className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                    {parseUserAgent(entry.user_agent)}
-                  </p>
-                </div>
-              )}
-
-              {/* Request ID — useful as a support reference when investigating issues */}
-              {entry.request_id && (
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                  Reference ID: <span className="font-mono">{entry.request_id}</span>
-                </p>
-              )}
+          {/* Device info parsed from the user-agent header */}
+          {entry.user_agent && (
+            <div className="flex items-center gap-2">
+              <Monitor className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                {parseUserAgent(entry.user_agent)}
+              </p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+
+          {/* Request ID — useful as a support reference when investigating issues */}
+          {entry.request_id && (
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              Reference ID: <span className="font-mono">{entry.request_id}</span>
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -501,9 +488,24 @@ export function AuditLogPage() {
   // Consolidated filter object — any change resets page to 1
   const [filters, setFilters]       = useState<Filters>(DEFAULT_FILTERS);
 
-  // Generic filter updater — resets to page 1 for any filter except page itself
+  // searchInput is the controlled input value — updates instantly for UX.
+  // filters.search is the debounced value that triggers an API call.
+  const [searchInput, setSearchInput] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Generic filter updater — resets to page 1 for any filter except page itself.
+  // For 'search' specifically, callers should use handleSearchChange() to get debouncing.
   function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     setFilters((f) => ({ ...f, [key]: value, page: key !== 'page' ? 1 : (value as number) }));
+  }
+
+  // Debounced search handler — avoids firing an API call on every keystroke.
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters((f) => ({ ...f, search: value, page: 1 }));
+    }, 300);
   }
 
   // True when any optional filter beyond search is active — used to tint the Filters button
@@ -555,6 +557,8 @@ export function AuditLogPage() {
   }
 
   function clearFilters() {
+    setSearchInput('');
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setFilters(DEFAULT_FILTERS);
   }
 
@@ -562,12 +566,7 @@ export function AuditLogPage() {
   const meta    = response?.meta;
 
   return (
-    <motion.div
-      variants={pageEntry}
-      initial="hidden"
-      animate="visible"
-      className="p-6 max-w-6xl"
-    >
+    <div className="p-6 max-w-6xl">
       {/* Page header with export + filter toolbar */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
         <div>
@@ -647,112 +646,108 @@ export function AuditLogPage() {
       >
         <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
         <input
-          value={filters.search}
-          onChange={(e) => updateFilter('search', e.target.value)}
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search events, users, actions…"
           className="flex-1 bg-transparent text-sm outline-none"
           style={{ color: 'var(--foreground)' }}
         />
         {/* Clear-X button appears only when the search field has text */}
-        {filters.search && (
-          <button onClick={() => updateFilter('search', '')} aria-label="Clear search">
+        {searchInput && (
+          <button
+            onClick={() => {
+              setSearchInput('');
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              setFilters((f) => ({ ...f, search: '', page: 1 }));
+            }}
+            aria-label="Clear search"
+          >
             <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
           </button>
         )}
       </div>
 
-      {/* Expandable advanced-filter panel — height animates smoothly */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            key="filters"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="overflow-hidden"
-          >
-            <div
-              className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 p-4 rounded-xl border"
-              style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+      {/* Expandable advanced-filter panel */}
+      {showFilters && (
+        <div
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 p-4 rounded-xl border"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        >
+          {/* Category / event type filter */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              Category
+            </label>
+            <select
+              value={filters.event_type}
+              onChange={(e) => updateFilter('event_type', e.target.value)}
+              className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
             >
-              {/* Category / event type filter */}
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  Category
-                </label>
-                <select
-                  value={filters.event_type}
-                  onChange={(e) => updateFilter('event_type', e.target.value)}
-                  className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
-                  style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                >
-                  {EVENT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
+              {EVENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
 
-              {/* User ID filter — shows actions by a specific user */}
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  User ID
-                </label>
-                <input
-                  type="number"
-                  value={filters.user_id}
-                  onChange={(e) => updateFilter('user_id', e.target.value)}
-                  placeholder="Any user"
-                  className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
-                  style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                />
-              </div>
+          {/* User ID filter — shows actions by a specific user */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              User ID
+            </label>
+            <input
+              type="number"
+              value={filters.user_id}
+              onChange={(e) => updateFilter('user_id', e.target.value)}
+              placeholder="Any user"
+              className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
 
-              {/* Date range: from */}
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  From date
-                </label>
-                <input
-                  type="date"
-                  value={filters.from}
-                  onChange={(e) => updateFilter('from', e.target.value)}
-                  className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
-                  style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                />
-              </div>
+          {/* Date range: from */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              From date
+            </label>
+            <input
+              type="date"
+              value={filters.from}
+              onChange={(e) => updateFilter('from', e.target.value)}
+              className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
 
-              {/* Date range: to */}
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  To date
-                </label>
-                <input
-                  type="date"
-                  value={filters.to}
-                  onChange={(e) => updateFilter('to', e.target.value)}
-                  className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
-                  style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                />
-              </div>
+          {/* Date range: to */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              To date
+            </label>
+            <input
+              type="date"
+              value={filters.to}
+              onChange={(e) => updateFilter('to', e.target.value)}
+              className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
 
-              {/* Clear all filters link — only shown when filters are active */}
-              {hasActiveFilters && (
-                <div className="col-span-2 sm:col-span-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="text-xs font-medium hover:underline"
-                    style={{ color: '#dc2626' }}
-                  >
-                    Clear all filters
-                  </button>
-                </div>
-              )}
+          {/* Clear all filters link — only shown when filters are active */}
+          {hasActiveFilters && (
+            <div className="col-span-2 sm:col-span-4 flex justify-end">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs font-medium hover:underline"
+                style={{ color: '#dc2626' }}
+              >
+                Clear all filters
+              </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      )}
 
       {/* Event timeline */}
       {loading ? (
@@ -822,6 +817,6 @@ export function AuditLogPage() {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

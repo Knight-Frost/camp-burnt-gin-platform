@@ -18,7 +18,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -31,7 +30,6 @@ import { ROUTES } from '@/shared/constants/routes';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 import { FormField } from '@/ui/components/FormField';
 import { Button } from '@/ui/components/Button';
-import { fadeVariants } from '@/shared/constants/motion';
 
 export function ForgotPasswordPage() {
   // When true the form is replaced by the success confirmation screen.
@@ -81,61 +79,48 @@ export function ForgotPasswordPage() {
         </Link>
       }
     >
-      {/* AnimatePresence + mode="wait" ensures one view fully fades out before the next fades in */}
-      <AnimatePresence mode="wait">
-        {submitted ? (
-          // ── Success state ──────────────────────────────────────────────────
-          <motion.div
-            key="success"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col items-center gap-6 py-4"
+      {submitted ? (
+        // ── Success state ──────────────────────────────────────────────────
+        <div className="flex flex-col items-center gap-6 py-4">
+          {/* Mail icon gives a visual cue that something was sent to their inbox */}
+          <div
+            className="flex items-center justify-center w-16 h-16 rounded-2xl"
+            style={{ background: 'var(--glass-icon-bg)' }}
           >
-            {/* Mail icon gives a visual cue that something was sent to their inbox */}
-            <div
-              className="flex items-center justify-center w-16 h-16 rounded-2xl"
-              style={{ background: 'var(--glass-icon-bg)' }}
+            <Mail className="h-8 w-8 text-ember-orange" />
+          </div>
+          <p className="text-sm text-center" style={{ color: 'var(--on-image-muted)' }}>
+            Didn&apos;t receive it? Check your spam folder, or{' '}
+            {/* Clicking here resets the form so they can try a different address */}
+            <button
+              onClick={() => setSubmitted(false)}
+              className="text-ember-orange hover:underline"
             >
-              <Mail className="h-8 w-8 text-ember-orange" />
-            </div>
-            <p className="text-sm text-center" style={{ color: 'var(--on-image-muted)' }}>
-              Didn&apos;t receive it? Check your spam folder, or{' '}
-              {/* Clicking here resets the form so they can try a different address */}
-              <button
-                onClick={() => setSubmitted(false)}
-                className="text-ember-orange hover:underline"
-              >
-                try a different email
-              </button>
-              .
-            </p>
-          </motion.div>
-        ) : (
-          // ── Form state ─────────────────────────────────────────────────────
-          <motion.form
-            key="form"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-            className="flex flex-col gap-5"
-          >
-            <FormField
-              label="Email address"
-              type="email"
-              autoComplete="email"
-              error={errors.email?.message}
-              {...register('email')}
-            />
-            {/* fullWidth makes the button span the entire card width */}
-            <Button type="submit" fullWidth loading={isSubmitting}>
-              Send reset link
-            </Button>
-          </motion.form>
-        )}
-      </AnimatePresence>
+              try a different email
+            </button>
+            .
+          </p>
+        </div>
+      ) : (
+        // ── Form state ─────────────────────────────────────────────────────
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-5"
+        >
+          <FormField
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          {/* fullWidth makes the button span the entire card width */}
+          <Button type="submit" fullWidth loading={isSubmitting}>
+            Send reset link
+          </Button>
+        </form>
+      )}
     </AuthCard>
   );
 }

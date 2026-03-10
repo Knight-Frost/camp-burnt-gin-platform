@@ -17,7 +17,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { format } from 'date-fns';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, User, Heart, Phone, FileText, Activity, Shield, AlertTriangle,
@@ -38,7 +37,6 @@ import {
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
 import type { Camper, MedicalRecord, Allergy, Medication, Diagnosis, EmergencyContact, ActivityPermission, BehavioralProfile, FeedingPlan, AssistiveDevice } from '@/features/admin/types/admin.types';
 
 // ---------------------------------------------------------------------------
@@ -212,7 +210,7 @@ export function CamperDetailPage() {
   const applications = camper.applications ?? [];
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-5xl">
+    <div className="p-6 max-w-5xl">
 
       {/* Back link + camper avatar/name header */}
       <div className="mb-6">
@@ -246,60 +244,54 @@ export function CamperDetailPage() {
         </div>
       </div>
 
-      {/* Stagger children so each card fades in one after another */}
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
+      <div className="space-y-4">
 
         {/* Personal Information card */}
-        <motion.div variants={staggerChild}>
-          <SectionCard title="Personal Information" icon={<User className="h-4 w-4" />}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Field label="Date of Birth" value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
-              <Field label="Age"           value={age !== null ? `${age} years` : undefined} />
-              <Field label="Gender"        value={camper.gender} />
-              <Field label="T-Shirt Size"  value={camper.tshirt_size} />
-            </div>
-          </SectionCard>
-        </motion.div>
+        <SectionCard title="Personal Information" icon={<User className="h-4 w-4" />}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Field label="Date of Birth" value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
+            <Field label="Age"           value={age !== null ? `${age} years` : undefined} />
+            <Field label="Gender"        value={camper.gender} />
+            <Field label="T-Shirt Size"  value={camper.tshirt_size} />
+          </div>
+        </SectionCard>
 
         {/* Applications — lists every session the camper has applied for */}
-        <motion.div variants={staggerChild}>
-          <SectionCard title="Applications" icon={<FileText className="h-4 w-4" />}>
-            {applications.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No applications on file.</p>
-            ) : (
-              <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {applications.map((app) => (
-                  <div key={app.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      {/* Fall back to a generic label if the session name was not eager-loaded */}
-                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                        {app.session?.name ?? `Session #${app.camp_session_id}`}
-                      </p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                        Submitted {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <StatusBadge status={app.status} />
-                      {/* Deep-link directly to the full application review page */}
-                      <Link
-                        to={`${reviewBasePath}/${app.id}`}
-                        className="text-xs px-2.5 py-1 rounded border transition-colors hover:opacity-80"
-                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                      >
-                        Review
-                      </Link>
-                    </div>
+        <SectionCard title="Applications" icon={<FileText className="h-4 w-4" />}>
+          {applications.length === 0 ? (
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No applications on file.</p>
+          ) : (
+            <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {applications.map((app) => (
+                <div key={app.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    {/* Fall back to a generic label if the session name was not eager-loaded */}
+                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                      {app.session?.name ?? `Session #${app.camp_session_id}`}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      Submitted {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-        </motion.div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <StatusBadge status={app.status} />
+                    {/* Deep-link directly to the full application review page */}
+                    <Link
+                      to={`${reviewBasePath}/${app.id}`}
+                      className="text-xs px-2.5 py-1 rounded border transition-colors hover:opacity-80"
+                      style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                    >
+                      Review
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
 
         {/* Medical Record card — has its own medLoading state */}
-        <motion.div variants={staggerChild}>
-          <SectionCard title="Medical Record" icon={<Heart className="h-4 w-4" />}>
+        <SectionCard title="Medical Record" icon={<Heart className="h-4 w-4" />}>
             {medLoading ? (
               // Still fetching medical data — show skeleton rows inside the card
               <div className="space-y-2">
@@ -409,12 +401,10 @@ export function CamperDetailPage() {
                 )}
               </div>
             )}
-          </SectionCard>
-        </motion.div>
+        </SectionCard>
 
         {/* Emergency Contacts — keyed by camper ID, not medical record ID */}
-        <motion.div variants={staggerChild}>
-          <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
+        <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
             {medLoading ? (
               <Skeletons.Row />
             ) : (med?.emergencyContacts ?? []).length === 0 ? (
@@ -455,13 +445,11 @@ export function CamperDetailPage() {
                 ))}
               </div>
             )}
-          </SectionCard>
-        </motion.div>
+        </SectionCard>
 
         {/* Activity Permissions — only rendered when there are entries to show */}
         {!medLoading && (med?.activityPermissions ?? []).length > 0 && (
-          <motion.div variants={staggerChild}>
-            <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
+          <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {med!.activityPermissions.map((ap) => (
                   <div key={ap.id} className="flex items-start gap-2.5">
@@ -514,14 +502,12 @@ export function CamperDetailPage() {
                   </div>
                 ))}
               </div>
-            </SectionCard>
-          </motion.div>
+          </SectionCard>
         )}
 
         {/* Assistive Devices — only shown when the camper has at least one device on file */}
         {!medLoading && (med?.assistiveDevices ?? []).length > 0 && (
-          <motion.div variants={staggerChild}>
-            <SectionCard title="Assistive Devices" icon={<Shield className="h-4 w-4" />}>
+          <SectionCard title="Assistive Devices" icon={<Shield className="h-4 w-4" />}>
               {/* Each device is rendered as a compact pill with optional notes inline */}
               <div className="flex flex-wrap gap-2">
                 {med!.assistiveDevices.map((d) => (
@@ -534,11 +520,10 @@ export function CamperDetailPage() {
                   </span>
                 ))}
               </div>
-            </SectionCard>
-          </motion.div>
+          </SectionCard>
         )}
 
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

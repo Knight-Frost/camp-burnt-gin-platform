@@ -17,7 +17,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,7 +24,6 @@ import { verifyEmail, resendVerificationEmail } from '@/features/auth/api/auth.a
 import { ROUTES } from '@/shared/constants/routes';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 import { Button } from '@/ui/components/Button';
-import { fadeVariants } from '@/shared/constants/motion';
 
 // Represents every possible state the verification flow can be in.
 type VerifyState = 'verifying' | 'success' | 'error' | 'resent';
@@ -76,38 +74,24 @@ export function VerifyEmailPage() {
 
   /**
    * Picks the correct UI block to render based on the current `state`.
-   * Each block is wrapped in a motion.div with fadeVariants so the
-   * transition between states is smooth.
    */
   const renderContent = () => {
     switch (state) {
       // ── Spinner while the API request is in flight ──
       case 'verifying':
         return (
-          <motion.div
-            key="verifying"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col items-center gap-4 py-6"
-          >
+          <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="h-10 w-10 text-ember-orange animate-spin" />
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Verifying your email address…
             </p>
-          </motion.div>
+          </div>
         );
 
       // ── Success: email is now verified ──
       case 'success':
         return (
-          <motion.div
-            key="success"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col items-center gap-5 py-4"
-          >
+          <div className="flex flex-col items-center gap-5 py-4">
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
               style={{ background: 'var(--glass-icon-bg)' }}
@@ -121,19 +105,13 @@ export function VerifyEmailPage() {
             <Link to={ROUTES.LOGIN}>
               <Button>Continue to sign in</Button>
             </Link>
-          </motion.div>
+          </div>
         );
 
       // ── Resent: a new verification email was sent ──
       case 'resent':
         return (
-          <motion.div
-            key="resent"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col items-center gap-5 py-4"
-          >
+          <div className="flex flex-col items-center gap-5 py-4">
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
               style={{ background: 'var(--glass-icon-bg)' }}
@@ -143,19 +121,13 @@ export function VerifyEmailPage() {
             <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
               A new verification link has been sent to your email address.
             </p>
-          </motion.div>
+          </div>
         );
 
       // ── Error: link is invalid, expired, or URL params were missing ──
       case 'error':
         return (
-          <motion.div
-            key="error"
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col items-center gap-5 py-4"
-          >
+          <div className="flex flex-col items-center gap-5 py-4">
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
               // Red tint background signals danger/failure.
@@ -170,7 +142,7 @@ export function VerifyEmailPage() {
             <Button onClick={handleResend} loading={resending} variant="secondary">
               Resend verification email
             </Button>
-          </motion.div>
+          </div>
         );
     }
   };
@@ -189,7 +161,7 @@ export function VerifyEmailPage() {
         </Link>
       }
     >
-      {/* Delegates rendering to renderContent() so each state has its own motion block */}
+      {/* Delegates rendering to renderContent() so each state has its own block */}
       {renderContent()}
     </AuthCard>
   );

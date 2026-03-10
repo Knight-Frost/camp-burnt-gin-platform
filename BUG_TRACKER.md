@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** Phase 10 — Documentation
+**Last Updated:** Post Phase 13 — Issues #7, #8, #9
 **Format:** ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -791,19 +791,63 @@
 
 ---
 
+### BUG-054
+**Title:** Application submission fails — `signApplication` never sends `signature_data`; Consents section never marks complete; duplicate campers on retry
+**Module:** Applicant Portal — Application Form
+**Severity:** Critical
+**Status:** Resolved — Post Phase 13
+**Description:** Three compounding bugs in `ApplicationFormPage.tsx` that together made application submission impossible:
+1. `Section10` rendered today's date as a display fallback (`value={data.signed_date || today}`) without writing it to form state. `getSectionStatus` evaluated `signed_date === ''` → section stayed `'partial'` → Submit button disabled.
+2. `signApplication()` in `applicant.api.ts` only posted `signature_name`. The backend `SignApplicationRequest` validates `signature_data` as `required` → 422 on every submission after step 1 (camper creation) had already succeeded.
+3. `createCamper` ran unconditionally at step 1 of `handleSubmit`. On failure at any later step, the orphan camper persisted in the DB. Each retry created a new duplicate entry visible in `/admin/campers`.
+**Resolution:**
+1. Added `useEffect` in `Section10` to call `onChange({ signed_date: today })` on mount when `signed_date` is empty.
+2. Added `signatureData` parameter to `signApplication()`. `handleSubmit` now derives the value: drawn → base64 canvas data; typed → the typed name string.
+3. Added `pendingCamperIdRef` (`useRef<number | null>`). Step 1 is skipped on retry; ref is cleared on successful submission.
+**Affected Files:**
+- `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+- `frontend/src/features/parent/api/applicant.api.ts`
+
+---
+
+### BUG-055
+**Title:** Document upload fails for PNG files — `image/x-png` not in allowed MIME type list
+**Module:** Document Upload — Applicant Portal / General
+**Severity:** High
+**Status:** Resolved — Post Phase 13
+**Description:** PHP's `finfo_file` extension reports PNG files as `image/x-png` instead of `image/png` on some platforms (macOS, Linux with older `magic` database). `DocumentService::validateMimeType` ran a magic-byte check against `Document::ALLOWED_MIME_TYPES` which only listed `image/png`. Valid PNG files were rejected with "Unsupported file type", surfacing to the user as a generic server error.
+**Resolution:** Added `'image/x-png'` to `Document::ALLOWED_MIME_TYPES`. Added `'image/x-png' => 'png'` to the `$mimeToExtension` map in `DocumentService::generateFilename` so the stored extension resolves correctly to `.png`.
+**Affected Files:**
+- `backend/camp-burnt-gin-api/app/Models/Document.php`
+- `backend/camp-burnt-gin-api/app/Services/Document/DocumentService.php`
+
+---
+
+### BUG-056
+**Title:** Message attachments sent via Compose not visible to recipient
+**Module:** Inbox / Messaging — FloatingCompose
+**Severity:** High
+**Status:** Resolved — Post Phase 13
+**Description:** `FloatingCompose::handleSend` called `sendMessage(conv.id, bodyHtml)` without the third `attachments` argument. The `sendMessage` API function already handles `FormData` multipart when attachments are supplied, the backend stores and returns attachments correctly, and `ThreadView` renders them correctly — the only broken link was the omitted argument in `FloatingCompose`. Recipients saw only message text with no attachment preview or download button.
+**Resolution:** Changed the call to `sendMessage(conv.id, bodyHtml, attachments.length > 0 ? attachments : undefined)`, matching the existing working pattern in `ThreadView`.
+**Affected Files:**
+- `frontend/src/features/messaging/components/FloatingCompose.tsx`
+
+---
+
 ## Summary
 
 | Severity | Count |
 |----------|-------|
-| Critical | 13 |
-| High | 17 |
+| Critical | 14 |
+| High | 19 |
 | Medium | 14 |
 | Low | 7 |
-| **Total** | **51** |
+| **Total** | **54** |
 
 | Status | Count |
 |--------|-------|
-| Resolved | 43 |
+| Resolved | 46 |
 | Open | 8 |
 
 | Module | Issues |
@@ -814,11 +858,12 @@
 | Medical Portal | BUG-007, BUG-008, BUG-028, BUG-034 |
 | Admin — Camper Management | BUG-005, BUG-029, BUG-042, BUG-043, BUG-047 |
 | Applicant Portal | BUG-009, BUG-011, BUG-030 |
-| Application Form | BUG-010 |
+| Application Form | BUG-010, BUG-054 |
 | Seeders | BUG-012 |
 | Audit Log | BUG-013 |
 | Profile System | BUG-014, BUG-036, BUG-037, BUG-040, BUG-041 |
-| Inbox / Messaging | BUG-015, BUG-016, BUG-017, BUG-049, BUG-050 |
+| Inbox / Messaging | BUG-015, BUG-016, BUG-017, BUG-049, BUG-050, BUG-056 |
+| Document Upload | BUG-055 |
 | Recent Updates | BUG-018 |
 | Super Admin Dashboard | BUG-019 |
 | Form Management | BUG-020, BUG-021 |

@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -52,7 +52,7 @@ import { StatCard } from '@/ui/components/StatCard';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ROUTES } from '@/shared/constants/routes';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -250,7 +250,7 @@ export function MedicalDashboardPage() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-7xl space-y-6">
+    <div className="p-6 max-w-7xl space-y-6">
 
       {/* ── SECTION 1: Header with context ──────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -288,23 +288,23 @@ export function MedicalDashboardPage() {
           </button>
         </div>
       ) : stats ? (
-        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <motion.div variants={staggerChild}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div>
             <StatCard label={t('medical.dashboard.stats.total_campers')} value={stats.campers.total} icon={Users} color="var(--ember-orange)" delay={0} />
-          </motion.div>
-          <motion.div variants={staggerChild}>
+          </div>
+          <div>
             <StatCard label={t('medical.dashboard.stats.severe_allergies')} value={stats.campers.with_severe_allergies} icon={AlertTriangle} color="var(--destructive)" delay={0.05} />
-          </motion.div>
-          <motion.div variants={staggerChild}>
+          </div>
+          <div>
             <StatCard label={t('medical.dashboard.stats.on_medications')} value={stats.campers.on_medications} icon={Pill} color="var(--night-sky-blue)" delay={0.1} />
-          </motion.div>
-          <motion.div variants={staggerChild}>
+          </div>
+          <div>
             <StatCard label={t('medical.dashboard.stats.active_restrictions')} value={stats.campers.with_active_restrictions} icon={Shield} color="#d97706" delay={0.15} />
-          </motion.div>
-          <motion.div variants={staggerChild}>
+          </div>
+          <div>
             <StatCard label={t('medical.dashboard.stats.missing_forms')} value={stats.campers.missing_medical_record} icon={FileX} color="var(--destructive)" delay={0.2} />
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       ) : null}
 
       {/* ── SECTION 3: Quick Actions ─────────────────────────────────────────── */}
@@ -354,9 +354,7 @@ export function MedicalDashboardPage() {
       {/* ── SECTION 4: Critical Alerts ───────────────────────────────────────── */}
       {/* Overdue alert — prominent red banner */}
       {overdueCount > 0 && !statsLoading && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           className="rounded-xl border p-4 flex items-center justify-between gap-4"
           style={{ background: 'rgba(220,38,38,0.06)', borderColor: 'rgba(220,38,38,0.25)', borderLeftWidth: '4px', borderLeftColor: 'var(--destructive)' }}
         >
@@ -380,14 +378,12 @@ export function MedicalDashboardPage() {
           >
             {t('common.view_all')} <ArrowRight className="h-3.5 w-3.5" />
           </button>
-        </motion.div>
+        </div>
       )}
 
       {/* Due-today alert — amber */}
       {dueTodayCount > 0 && !statsLoading && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           className="rounded-xl border p-4 flex items-center justify-between gap-4"
           style={{ background: 'rgba(217,119,6,0.06)', borderColor: 'rgba(217,119,6,0.25)', borderLeftWidth: '4px', borderLeftColor: '#d97706' }}
         >
@@ -411,7 +407,7 @@ export function MedicalDashboardPage() {
           >
             {t('common.view_all')} <ArrowRight className="h-3.5 w-3.5" />
           </button>
-        </motion.div>
+        </div>
       )}
 
       {/* Urgent follow-ups inline notice */}
@@ -456,12 +452,12 @@ export function MedicalDashboardPage() {
                 <EmptyState title={t('medical.dashboard.followup.empty_title')} description={t('medical.dashboard.followup.empty_desc')} />
               </div>
             ) : (
-              <motion.ul variants={staggerContainer} initial="hidden" animate="visible" className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
                 {followUps.slice(0, 6).map((fu) => {
                   const overdue = isOverdue(fu.due_date);
                   const isCompleting = completingId === fu.id;
                   return (
-                    <motion.li key={fu.id} variants={staggerChild} className="p-4 space-y-2">
+                    <li key={fu.id} className="p-4 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <PriorityBadge priority={fu.priority} />
                         <button
@@ -485,10 +481,10 @@ export function MedicalDashboardPage() {
                           {overdue ? `Overdue · ${formatDueDate(fu.due_date)}` : formatDueDate(fu.due_date)}
                         </span>
                       </div>
-                    </motion.li>
+                    </li>
                   );
                 })}
-              </motion.ul>
+              </ul>
             )}
           </div>
         </div>
@@ -521,9 +517,9 @@ export function MedicalDashboardPage() {
                 <EmptyState title={t('medical.dashboard.activity.empty_title')} description={t('medical.dashboard.activity.empty_desc')} />
               </div>
             ) : (
-              <motion.ul variants={staggerContainer} initial="hidden" animate="visible" className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
                 {activityItems.map((item) => (
-                  <motion.li key={`${item.kind}-${item.id}`} variants={staggerChild} className="flex items-start gap-3 p-4 hover:bg-[var(--muted)] transition-colors">
+                  <li key={`${item.kind}-${item.id}`} className="flex items-start gap-3 p-4 hover:bg-[var(--muted)] transition-colors">
                     <ActivityIcon kind={item.kind} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -541,9 +537,9 @@ export function MedicalDashboardPage() {
                         <ActivityTypeBadge kind={item.kind} severity={item.severity} />
                       </div>
                     </div>
-                  </motion.li>
+                  </li>
                 ))}
-              </motion.ul>
+              </ul>
             )}
           </div>
 
@@ -561,6 +557,6 @@ export function MedicalDashboardPage() {
           </Link>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

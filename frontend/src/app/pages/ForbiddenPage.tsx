@@ -7,19 +7,16 @@
  * Route: /forbidden
  *
  * Design: A red-tinted shield icon, a short translated message, and a link
- * back to the app root. The whole card animates in via the shared `pageEntry`
- * Framer Motion variant, mirroring the NotFoundPage layout for consistency.
+ * back to the app root.
  *
  * Note: In practice the layout components (AdminLayout, ApplicantLayout, etc.)
  * redirect unauthorized users to their own dashboard rather than this page,
  * so ForbiddenPage is mainly a fallback for edge cases.
  */
 
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ShieldOff } from 'lucide-react';
-import { pageEntry, buttonHover, buttonTap } from '@/shared/constants/motion';
 
 export function ForbiddenPage() {
   const { t } = useTranslation();
@@ -27,13 +24,7 @@ export function ForbiddenPage() {
   return (
     // Full-screen centered wrapper — same pattern as NotFoundPage.
     <div className="min-h-screen flex items-center justify-center p-6">
-      {/* pageEntry fades and slides the content in from slightly below */}
-      <motion.div
-        variants={pageEntry}
-        initial="hidden"
-        animate="visible"
-        className="text-center max-w-sm"
-      >
+      <div className="text-center max-w-sm">
         {/* Red-tinted icon container signals a blocked/denied action */}
         <div
           className="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-5"
@@ -52,8 +43,8 @@ export function ForbiddenPage() {
           {t('errors.forbidden_desc')}
         </p>
 
-        {/* Animated home-link button — consistent with NotFoundPage */}
-        <motion.div whileHover={buttonHover} whileTap={buttonTap} className="inline-block">
+        {/* Home-link button */}
+        <div className="inline-block">
           <Link
             to="/"
             className="px-6 py-2.5 rounded-xl text-sm font-medium transition-all"
@@ -61,8 +52,8 @@ export function ForbiddenPage() {
           >
             {t('errors.go_home')}
           </Link>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

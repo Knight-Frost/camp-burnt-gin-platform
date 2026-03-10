@@ -5,8 +5,6 @@
  */
 
 import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
-import { pageEntryVariants } from '@/shared/constants/motion';
 
 interface AuthCardProps {
   title: string;
@@ -34,12 +32,7 @@ export function AuthCard({
   maxWidth = 'md',
 }: AuthCardProps) {
   return (
-    <motion.div
-      variants={pageEntryVariants}
-      initial="hidden"
-      animate="visible"
-      className={`w-full ${maxWidthMap[maxWidth]}`}
-    >
+    <div className={`w-full ${maxWidthMap[maxWidth]}`}>
       <div
         className="bg-white rounded-2xl border px-10 py-10"
         style={{
@@ -87,6 +80,6 @@ export function AuthCard({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

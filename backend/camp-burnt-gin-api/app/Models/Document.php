@@ -103,6 +103,7 @@ class Document extends Model
         'application/pdf',
         'image/jpeg',
         'image/png',
+        'image/x-png',  // Some PHP/OS environments report PNG files as image/x-png
         'image/gif',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

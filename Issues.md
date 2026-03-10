@@ -305,9 +305,45 @@ The recipient is only able to see the text that came with the body of the messag
 
 ---
 
+---
+
+## Resolution Summary (Issues #7–#9)
+
+| Issue | Severity | Status | Resolution Date |
+|-------|----------|--------|-----------------|
+| #7 — Application submission failed | Critical | Resolved | March 2026 |
+| #8 — Document upload server error | High | Resolved | March 2026 |
+| #9 — Message attachments not visible to recipient | High | Resolved | March 2026 |
+
+### Issue #7 — Root Causes and Fixes
+
+**Root cause A — Consents section never marked complete:**
+`Section10` rendered today's date as a display-only fallback (`value={data.signed_date || today}`) without writing it to form state. `getSectionStatus` evaluated `signed_date === ''` and returned `'partial'`, keeping the Submit button disabled.
+**Fix:** Added `useEffect` in `Section10` to call `onChange({ signed_date: today })` on mount when `signed_date` is empty — `ApplicationFormPage.tsx`.
+
+**Root cause B — `signApplication` never sent `signature_data` (backend requires it):**
+`SignApplicationRequest` validates `signature_data` as `required`. The frontend `signApplication()` API function only posted `signature_name`, causing a 422 on every submission attempt after the camper was already created in step 1.
+**Fix:** Updated `signApplication()` in `applicant.api.ts` to accept and send a `signatureData` argument. Updated `handleSubmit` to derive the value: drawn signatures use the base64 canvas data; typed signatures use the typed name string.
+
+**Root cause C — Duplicate campers on retry:**
+`createCamper` ran unconditionally at the start of `handleSubmit`. If any later step failed, the orphan camper record persisted. Re-trying created a second camper.
+**Fix:** Added `pendingCamperIdRef` (`useRef<number | null>`) in the component. On the first attempt the ref is populated after `createCamper` succeeds; on retry, step 1 is skipped and the existing ID is reused. The ref is cleared to `null` on successful submission — `ApplicationFormPage.tsx`.
+
+### Issue #8 — Root Cause and Fix
+
+PHP's `finfo_file` extension detects PNG files as `image/x-png` on some platforms (macOS, certain Linux distros with an older `magic` database). `DocumentService::validateMimeType` ran a second magic-byte check against `Document::ALLOWED_MIME_TYPES` which did not include `image/x-png`, causing valid PNG uploads to be rejected.
+**Fix:** Added `'image/x-png'` to `Document::ALLOWED_MIME_TYPES` (`Document.php`) and added `'image/x-png' => 'png'` to the `$mimeToExtension` map in `DocumentService::generateFilename()` (`DocumentService.php`) so the extension is correctly resolved to `.png`.
+
+### Issue #9 — Root Cause and Fix
+
+`FloatingCompose::handleSend` called `sendMessage(conv.id, bodyHtml)` without the third `attachments` argument. The `sendMessage` API function already had full FormData multipart handling when attachments are supplied (matching the working `ThreadView` reply path), but it never received the files from the compose window.
+**Fix:** Changed the call to `sendMessage(conv.id, bodyHtml, attachments.length > 0 ? attachments : undefined)` — `FloatingCompose.tsx`.
+
+---
+
 **Document Status:** Archived — Resolved Issues
 **Last Updated:** March 2026
-**Version:** 1.1.0
+**Version:** 1.2.0
 
 
 

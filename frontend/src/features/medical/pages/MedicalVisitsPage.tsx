@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Plus, Stethoscope, ChevronDown, ChevronUp,
@@ -28,7 +28,7 @@ import {
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
 
@@ -187,13 +187,8 @@ function VisitCard({ visit: initialVisit }: { visit: MedicalVisit }) {
         </div>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+      {open && (
+          <div
             className="border-t"
             style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
           >
@@ -284,9 +279,8 @@ function VisitCard({ visit: initialVisit }: { visit: MedicalVisit }) {
                 </p>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -375,11 +369,9 @@ function AddVisitForm({
   };
 
   return (
-    <motion.div
+    <div
       className="rounded-2xl border p-6"
       style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -485,14 +477,8 @@ function AddVisitForm({
             {form.showVitals ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
 
-          <AnimatePresence>
-            {form.showVitals && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+          {form.showVitals && (
+              <div>
                 <div className="p-4 grid grid-cols-3 gap-3" style={{ background: 'var(--card)' }}>
                   <div>
                     <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -531,9 +517,8 @@ function AddVisitForm({
                     <input type="number" step="0.1" className={BASE_INPUT} style={INPUT_STYLE} placeholder="75" value={form.weight} onChange={(e) => setField('weight')(e.target.value)} />
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </div>
 
         <div>
@@ -618,7 +603,7 @@ function AddVisitForm({
           </button>
         </div>
       </form>
-    </motion.div>
+    </div>
   );
 }
 
@@ -696,7 +681,7 @@ export function MedicalVisitsPage() {
   };
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl">
 
       {hasCamper && (
         <Link
@@ -775,17 +760,15 @@ export function MedicalVisitsPage() {
       </div>
 
       {/* Add form */}
-      <AnimatePresence>
-        {hasCamper && showForm && (
-          <div className="mb-6">
-            <AddVisitForm
-              camperId={id!}
-              onSaved={handleSaved}
-              onClose={() => setShowForm(false)}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+      {hasCamper && showForm && (
+        <div className="mb-6">
+          <AddVisitForm
+            camperId={id!}
+            onSaved={handleSaved}
+            onClose={() => setShowForm(false)}
+          />
+        </div>
+      )}
 
       {/* List */}
       {loading ? (
@@ -805,13 +788,13 @@ export function MedicalVisitsPage() {
         />
       ) : (
         <>
-          <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+          <div className="space-y-3">
             {visits.map((visit) => (
-              <motion.div key={visit.id} variants={staggerChild}>
+              <div key={visit.id}>
                 <VisitCard visit={visit} />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {hasMore && (
             <div className="mt-6 flex justify-center">
@@ -828,6 +811,6 @@ export function MedicalVisitsPage() {
           )}
         </>
       )}
-    </motion.div>
+    </div>
   );
 }

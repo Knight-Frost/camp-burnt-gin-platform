@@ -17,7 +17,6 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 
 export type PopoverPlacement = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
 
@@ -97,14 +96,10 @@ export function Popover({
   }, [open, onClose, anchorRef]);
 
   return createPortal(
-    <AnimatePresence>
+    <>
       {open && (
-        <motion.div
+        <div
           ref={popoverRef}
-          initial={{ opacity: 0, y: -4, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -4, scale: 0.97 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
           style={{
             ...posStyle,
             zIndex: 1100,
@@ -115,9 +110,9 @@ export function Popover({
           className={`rounded-xl border overflow-hidden ${className}`}
         >
           {children}
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>,
+    </>,
     document.body,
   );
 }

@@ -6,12 +6,11 @@
  * all child components can use.
  *
  * Order (outermost → innermost):
- * 1. MotionConfig   — tells Framer Motion to honor the OS "reduce motion" setting
- * 2. ErrorBoundary  — catches unexpected crashes and shows a friendly error screen
- * 3. HelmetProvider — lets pages safely set <title> and <meta> tags
- * 4. ThemeProvider  — manages light/dark theme tokens
- * 5. Provider       — makes the Redux store available everywhere via useAppSelector/Dispatch
- * 6. Toaster        — displays toast notification pop-ups in the top-right corner
+ * 1. ErrorBoundary  — catches unexpected crashes and shows a friendly error screen
+ * 2. HelmetProvider — lets pages safely set <title> and <meta> tags
+ * 3. ThemeProvider  — manages light/dark theme tokens
+ * 4. Provider       — makes the Redux store available everywhere via useAppSelector/Dispatch
+ * 5. Toaster        — displays toast notification pop-ups in the top-right corner
  */
 
 import { type ReactNode } from 'react';
@@ -21,8 +20,6 @@ import { Provider } from 'react-redux';
 import { HelmetProvider } from 'react-helmet-async';
 // Toaster renders the global toast notification stack
 import { Toaster } from 'sonner';
-// MotionConfig applies animation settings app-wide
-import { MotionConfig } from 'framer-motion';
 import { store } from '@/store';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from '@/theme/useTheme';
@@ -37,29 +34,26 @@ export function AppProviders({ children }: AppProvidersProps) {
     // to only affect app surfaces (not marketing pages or iframes)
     // display:contents means this div has no visual effect — it's invisible to layout
     <div data-cbg-app style={{ display: 'contents' }}>
-      {/* MotionConfig: Framer Motion respects OS prefers-reduced-motion automatically */}
-      <MotionConfig reducedMotion="user">
-        {/* ErrorBoundary catches any JavaScript crash below this point */}
-        <ErrorBoundary>
-          {/* HelmetProvider lets child components set <head> tags safely */}
-          <HelmetProvider>
-            {/* ThemeProvider reads user theme preference and applies CSS token values */}
-            <ThemeProvider>
-              {/* Provider makes the Redux store accessible to all components */}
-              <Provider store={store}>
-                {children}
-                {/* Toaster renders toast messages; richColors adds green/red styling */}
-                <Toaster
-                  position="top-right"
-                  richColors
-                  closeButton
-                  duration={4000}
-                />
-              </Provider>
-            </ThemeProvider>
-          </HelmetProvider>
-        </ErrorBoundary>
-      </MotionConfig>
+      {/* ErrorBoundary catches any JavaScript crash below this point */}
+      <ErrorBoundary>
+        {/* HelmetProvider lets child components set <head> tags safely */}
+        <HelmetProvider>
+          {/* ThemeProvider reads user theme preference and applies CSS token values */}
+          <ThemeProvider>
+            {/* Provider makes the Redux store accessible to all components */}
+            <Provider store={store}>
+              {children}
+              {/* Toaster renders toast messages; richColors adds green/red styling */}
+              <Toaster
+                position="top-right"
+                richColors
+                closeButton
+                duration={4000}
+              />
+            </Provider>
+          </ThemeProvider>
+        </HelmetProvider>
+      </ErrorBoundary>
     </div>
   );
 }

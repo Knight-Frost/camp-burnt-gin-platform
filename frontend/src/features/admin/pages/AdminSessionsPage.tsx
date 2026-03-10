@@ -13,12 +13,11 @@
  * Plain-English summary:
  *  Camps are the main programs (e.g., "Summer Camp 2025"). Sessions are time-slots within
  *  a camp (e.g., "Week 1 — June 2-8"). This page manages both. Each modal opens in an
- *  animated overlay, and clicking the backdrop dismisses it. The "New Session" button is
+ *  overlay, and clicking the backdrop dismisses it. The "New Session" button is
  *  disabled when there are no camps yet, because every session must belong to a camp.
  */
 
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users } from 'lucide-react';
@@ -31,7 +30,6 @@ import {
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild, modalBackdrop, modalContent } from '@/shared/constants/motion';
 import type { Camp, CampSession } from '@/features/admin/types/admin.types';
 
 // ---------------------------------------------------------------------------
@@ -72,22 +70,16 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
   }
 
   return (
-    // modalBackdrop animates the dark overlay in/out; clicking it calls onClose.
-    <motion.div
-      variants={modalBackdrop}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+    // Backdrop — clicking it calls onClose.
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      {/* modalContent animates the dialog card itself (scale + fade). */}
-      <motion.div
-        variants={modalContent}
+      {/* Dialog card — stop click from bubbling up to the backdrop. */}
+      <div
         className="w-full max-w-md rounded-2xl border p-6"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-        // Stop click from bubbling up to the backdrop, which would close the modal.
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -129,8 +121,8 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
             </Button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -174,17 +166,12 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
   }
 
   return (
-    <motion.div
-      variants={modalBackdrop}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      <motion.div
-        variants={modalContent}
+      <div
         className="w-full max-w-md rounded-2xl border p-6"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
         onClick={(e) => e.stopPropagation()}
@@ -266,8 +253,8 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
             <Button type="submit" variant="primary" loading={saving} className="flex-1">{t('common.save')}</Button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -317,7 +304,7 @@ export function AdminSessionsPage() {
   }
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-7xl">
+    <div className="p-6 max-w-7xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
         {/* Left column: Camps */}
@@ -342,11 +329,10 @@ export function AdminSessionsPage() {
           ) : camps.length === 0 ? (
             <EmptyState title={t('admin.sessions.no_camps')} description={t('admin.sessions.no_camps_desc')} />
           ) : (
-            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+            <div className="space-y-3">
               {camps.map((camp) => (
-                <motion.div
+                <div
                   key={camp.id}
-                  variants={staggerChild}
                   className="rounded-xl border p-4"
                   style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
                 >
@@ -375,9 +361,9 @@ export function AdminSessionsPage() {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           )}
         </div>
 
@@ -404,11 +390,10 @@ export function AdminSessionsPage() {
           ) : sessions.length === 0 ? (
             <EmptyState title={t('admin.sessions.no_sessions')} description={t('admin.sessions.no_sessions_desc')} />
           ) : (
-            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+            <div className="space-y-3">
               {sessions.map((session) => (
-                <motion.div
+                <div
                   key={session.id}
-                  variants={staggerChild}
                   className="rounded-xl border p-4"
                   style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
                 >
@@ -442,46 +427,46 @@ export function AdminSessionsPage() {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* AnimatePresence enables the exit animation when modals close. */}
-      <AnimatePresence>
-        {campModal.open && (
-          <CampModal
-            camp={campModal.camp}
-            onClose={() => setCampModal({ open: false, camp: null })}
-            onSaved={(saved) => {
-              // Optimistically update local state: replace if editing, append if creating.
-              setCamps((prev) =>
-                campModal.camp
-                  ? prev.map((c) => (c.id === saved.id ? saved : c))
-                  : [...prev, saved]
-              );
-              setCampModal({ open: false, camp: null });
-            }}
-          />
-        )}
-        {sessionModal.open && (
-          <SessionModal
-            session={sessionModal.session}
-            camps={camps}
-            onClose={() => setSessionModal({ open: false, session: null })}
-            onSaved={(saved) => {
-              setSessions((prev) =>
-                sessionModal.session
-                  ? prev.map((s) => (s.id === saved.id ? saved : s))
-                  : [...prev, saved]
-              );
-              setSessionModal({ open: false, session: null });
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </motion.div>
+      {/* Camp modal */}
+      {campModal.open && (
+        <CampModal
+          camp={campModal.camp}
+          onClose={() => setCampModal({ open: false, camp: null })}
+          onSaved={(saved) => {
+            // Optimistically update local state: replace if editing, append if creating.
+            setCamps((prev) =>
+              campModal.camp
+                ? prev.map((c) => (c.id === saved.id ? saved : c))
+                : [...prev, saved]
+            );
+            setCampModal({ open: false, camp: null });
+          }}
+        />
+      )}
+
+      {/* Session modal */}
+      {sessionModal.open && (
+        <SessionModal
+          session={sessionModal.session}
+          camps={camps}
+          onClose={() => setSessionModal({ open: false, session: null })}
+          onSaved={(saved) => {
+            setSessions((prev) =>
+              sessionModal.session
+                ? prev.map((s) => (s.id === saved.id ? saved : s))
+                : [...prev, saved]
+            );
+            setSessionModal({ open: false, session: null });
+          }}
+        />
+      )}
+    </div>
   );
 }

@@ -17,7 +17,6 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Upload,
@@ -27,14 +26,24 @@ import {
   X,
   File,
   Send,
+  Download,
+  Clock,
+  CheckCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 import {
   getDocuments,
   deleteDocument,
   uploadDocument,
+  getRequiredDocuments,
+  submitCompletedDocument,
+  getDocumentRequests,
+  uploadDocumentRequest,
   type Document,
+  type RequiredDocument,
+  type DocumentRequestRecord,
 } from '@/features/parent/api/applicant.api';
 import {
   searchInboxUsers,
@@ -46,7 +55,7 @@ import { Button } from '@/ui/components/Button';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
-import { staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
+import axiosInstance from '@/api/axios.config';
 
 // File types accepted by the hidden <input> and the drag-and-drop zone
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png,.webp';
@@ -412,23 +421,41 @@ function UploadArea({
 // ---------------------------------------------------------------------------
 
 export function ApplicantDocumentsPage() {
-  const [documents, setDocuments]   = useState<Document[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(false);
-  const [uploading, setUploading]   = useState(false);
+  const { t } = useTranslation();
+  const [documents, setDocuments]               = useState<Document[]>([]);
+  const [requiredDocs, setRequiredDocs]         = useState<RequiredDocument[]>([]);
+  const [documentRequests, setDocumentRequests] = useState<DocumentRequestRecord[]>([]);
+  const [loading, setLoading]                   = useState(true);
+  const [error, setError]                       = useState(false);
+  const [uploading, setUploading]               = useState(false);
   // null means no preview is open; set to a Document to open the preview modal
-  const [preview, setPreview]       = useState<Document | null>(null);
+  const [preview, setPreview]                   = useState<Document | null>(null);
   // Track which document ID is being deleted for a per-row spinner
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId]             = useState<number | null>(null);
   // null means the send modal is closed; set to a Document to open it
-  const [sendDoc, setSendDoc]       = useState<Document | null>(null);
+  const [sendDoc, setSendDoc]                   = useState<Document | null>(null);
+  // Required doc submission state — track per-doc ID
+  const [submittingId, setSubmittingId]         = useState<number | null>(null);
+  // Document request upload state — track per-request ID
+  const [uploadingRequestId, setUploadingRequestId] = useState<number | null>(null);
+  // Staged files for document requests — file is selected but not yet submitted
+  const [stagedFiles, setStagedFiles] = useState<Record<number, File>>({});
+  // Required doc preview modal state
+  const [requiredPreview, setRequiredPreview]   = useState<RequiredDocument | null>(null);
+  const reqUploadRefs    = useRef<Record<number, HTMLInputElement | null>>({});
+  const docReqUploadRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Named function so it can be passed directly to ErrorState's onRetry prop
   const load = () => {
     setLoading(true);
     setError(false);
-    getDocuments()
-      .then(setDocuments)
+    Promise.allSettled([getDocuments(), getRequiredDocuments(), getDocumentRequests()])
+      .then(([docsResult, reqResult, docReqResult]) => {
+        if (docsResult.status === 'fulfilled') setDocuments(docsResult.value);
+        else setError(true);
+        if (reqResult.status === 'fulfilled') setRequiredDocs(reqResult.value);
+        if (docReqResult.status === 'fulfilled') setDocumentRequests(docReqResult.value);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
@@ -454,6 +481,60 @@ export function ApplicantDocumentsPage() {
     }
   }
 
+  async function handleRequiredDownload(doc: RequiredDocument) {
+    try {
+      // download_url is a full URL — strip the origin to get the path for axiosInstance
+      const path = doc.download_url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api/, '');
+      const res = await axiosInstance.get(path, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.original_file_name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Download failed.');
+    }
+  }
+
+  async function handleRequiredSubmit(doc: RequiredDocument, file: File) {
+    setSubmittingId(doc.id);
+    try {
+      const updated = await submitCompletedDocument(doc.id, file);
+      setRequiredDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, ...updated } : d));
+      toast.success(t('required_documents.submit_success'));
+    } catch {
+      toast.error('Submission failed. Please try again.');
+    } finally {
+      setSubmittingId(null);
+    }
+  }
+
+  function requiredDocStatusBadge(status: RequiredDocument['status']) {
+    if (status === 'pending') {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
+          style={{ background: 'rgba(245,158,11,0.12)', color: '#b45309' }}>
+          <Clock className="h-3 w-3" /> {t('required_documents.status_pending')}
+        </span>
+      );
+    }
+    if (status === 'submitted') {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
+          style={{ background: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)' }}>
+          <CheckCircle className="h-3 w-3" /> {t('required_documents.status_submitted')}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
+        style={{ background: 'rgba(150,150,150,0.12)', color: 'var(--muted-foreground)' }}>
+        <CheckCircle className="h-3 w-3" /> {t('required_documents.status_reviewed')}
+      </span>
+    );
+  }
+
   async function handleDelete(doc: Document) {
     // Native confirm dialog — simple safeguard against accidental deletes
     if (!window.confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return;
@@ -471,6 +552,50 @@ export function ApplicantDocumentsPage() {
     }
   }
 
+  async function handleDocumentRequestUpload(req: DocumentRequestRecord) {
+    const file = stagedFiles[req.id];
+    if (!file) return;
+    setUploadingRequestId(req.id);
+    try {
+      const updated = await uploadDocumentRequest(req.id, file);
+      setDocumentRequests((prev) => prev.map((r) => r.id === req.id ? updated : r));
+      setStagedFiles((prev) => { const next = { ...prev }; delete next[req.id]; return next; });
+      toast.success('Document submitted successfully.');
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ? `Upload failed: ${msg}` : 'Upload failed. Please try again.');
+    } finally {
+      setUploadingRequestId(null);
+    }
+  }
+
+  function docRequestStatusBadge(status: DocumentRequestRecord['status']) {
+    const configs: Record<string, { label: string; bg: string; color: string }> = {
+      awaiting_upload: { label: 'Awaiting Upload', bg: 'rgba(245,158,11,0.12)', color: '#b45309' },
+      uploaded:        { label: 'Uploaded',         bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8' },
+      scanning:        { label: 'Scanning',         bg: 'rgba(99,102,241,0.12)', color: '#4338ca' },
+      under_review:    { label: 'Under Review',     bg: 'rgba(234,179,8,0.12)',  color: '#a16207' },
+      approved:        { label: 'Approved',         bg: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)' },
+      rejected:        { label: 'Rejected — Resubmit Required', bg: 'rgba(239,68,68,0.12)', color: '#dc2626' },
+      overdue:         { label: 'Overdue',          bg: 'rgba(239,68,68,0.12)', color: '#dc2626' },
+    };
+    const cfg = configs[status] ?? configs.awaiting_upload;
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
+        style={{ background: cfg.bg, color: cfg.color }}
+      >
+        {cfg.label}
+      </span>
+    );
+  }
+
+  const pendingDocRequestCount = documentRequests.filter(
+    (r) => ['awaiting_upload', 'rejected', 'overdue'].includes(r.status)
+  ).length;
+
+  const pendingRequiredCount = requiredDocs.filter((d) => d.status === 'pending').length;
+
   return (
     <>
       {/* Modals are rendered outside the main layout div to avoid z-index issues */}
@@ -480,8 +605,255 @@ export function ApplicantDocumentsPage() {
       {sendDoc && (
         <SendDocumentModal doc={sendDoc} onClose={() => setSendDoc(null)} />
       )}
+      {/* Required document preview modal */}
+      {requiredPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setRequiredPreview(null)}
+        >
+          <div
+            className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
+            style={{ background: 'var(--card)', maxHeight: '90vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                {requiredPreview.original_file_name}
+              </span>
+              <button type="button" onClick={() => setRequiredPreview(null)} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
+                <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col items-center gap-4">
+              <FileText className="h-12 w-12" style={{ color: 'var(--muted-foreground)' }} />
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                Download the file to view its contents.
+              </p>
+              <Button size="sm" onClick={() => void handleRequiredDownload(requiredPreview)} className="flex items-center gap-1.5">
+                <Download className="h-3.5 w-3.5" />
+                {t('required_documents.download')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 max-w-4xl">
+
+        {/* ── Requested Documents (new request lifecycle) ──────── */}
+        {!loading && documentRequests.length > 0 && (
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+                Requested Documents
+              </h3>
+              {pendingDocRequestCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'rgba(245,158,11,0.12)', color: '#b45309' }}>
+                  {pendingDocRequestCount} action{pendingDocRequestCount !== 1 ? 's' : ''} required
+                </span>
+              )}
+            </div>
+            <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                {documentRequests.map((req) => (
+                  <li key={req.id}>
+                    <div className="flex items-center justify-between gap-4 px-6 py-4 flex-wrap">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(234,88,12,0.10)' }}>
+                          <FileText className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                            {req.document_type}
+                          </p>
+                          {req.camper_name && (
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                              Camper: {req.camper_name}
+                            </p>
+                          )}
+                          {req.instructions && (
+                            <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--muted-foreground)' }}>
+                              {req.instructions}
+                            </p>
+                          )}
+                          {req.rejection_reason && (
+                            <p className="text-xs mt-0.5" style={{ color: '#dc2626' }}>
+                              Reason: {req.rejection_reason}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            {docRequestStatusBadge(req.status)}
+                            {req.due_date && (
+                              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                Due: {format(new Date(req.due_date), 'MMM d, yyyy')}
+                              </span>
+                            )}
+                            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                              Requested by {req.requested_by_name} · {format(new Date(req.created_at), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                        {/* Upload / Send — two-step flow when action is required */}
+                        {['awaiting_upload', 'rejected', 'overdue'].includes(req.status) && (
+                          <>
+                            {stagedFiles[req.id] ? (
+                              /* Step 2: file staged — show filename, Send, and clear (×) */
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs max-w-[140px] truncate" style={{ color: 'var(--muted-foreground)' }}>
+                                  {stagedFiles[req.id].name}
+                                </span>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={uploadingRequestId === req.id}
+                                  loading={uploadingRequestId === req.id}
+                                  onClick={() => void handleDocumentRequestUpload(req)}
+                                  className="flex items-center gap-1.5"
+                                >
+                                  <Send className="h-3.5 w-3.5" />
+                                  Send
+                                </Button>
+                                <button
+                                  type="button"
+                                  disabled={uploadingRequestId === req.id}
+                                  onClick={() => setStagedFiles((prev) => { const next = { ...prev }; delete next[req.id]; return next; })}
+                                  className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                                  title="Remove selected file"
+                                >
+                                  <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
+                                </button>
+                              </div>
+                            ) : (
+                              /* Step 1: no file staged yet — show Upload button */
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => docReqUploadRefs.current[req.id]?.click()}
+                                className="flex items-center gap-1.5"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                Upload Document
+                              </Button>
+                            )}
+                            <input
+                              type="file"
+                              className="sr-only"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              ref={(el) => { docReqUploadRefs.current[req.id] = el; }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setStagedFiles((prev) => ({ ...prev, [req.id]: file }));
+                                e.target.value = '';
+                              }}
+                            />
+                          </>
+                        )}
+                        {req.status === 'approved' && (
+                          <span className="flex items-center gap-1 text-xs font-medium"
+                            style={{ color: 'var(--forest-green)' }}>
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Approved
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* ── Documents Requiring Your Action (legacy) ─────────── */}
+        {!loading && requiredDocs.length > 0 && (
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+                {t('required_documents.title')}
+              </h3>
+              {pendingRequiredCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'rgba(245,158,11,0.12)', color: '#b45309' }}>
+                  {t('required_documents.count_badge', { count: pendingRequiredCount })}
+                </span>
+              )}
+            </div>
+            <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                {requiredDocs.map((doc) => (
+                  <li key={doc.id}>
+                    <div className="flex items-center justify-between gap-4 px-6 py-4 flex-wrap">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(239,68,68,0.10)' }}>
+                          <FileText className="h-4 w-4" style={{ color: '#ef4444' }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                            {doc.original_file_name}
+                          </p>
+                          {doc.instructions && (
+                            <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--muted-foreground)' }}>
+                              {doc.instructions}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-1.5">
+                            {requiredDocStatusBadge(doc.status)}
+                            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                              {t('required_documents.sent')}: {format(new Date(doc.created_at), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                        <Button variant="ghost" size="sm" onClick={() => setRequiredPreview(doc)} className="flex items-center gap-1.5">
+                          <Eye className="h-3.5 w-3.5" />
+                          {t('required_documents.view')}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => void handleRequiredDownload(doc)} className="flex items-center gap-1.5">
+                          <Download className="h-3.5 w-3.5" />
+                          {t('required_documents.download')}
+                        </Button>
+                        {doc.status === 'pending' && (
+                          <>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={submittingId === doc.id}
+                              loading={submittingId === doc.id}
+                              onClick={() => reqUploadRefs.current[doc.id]?.click()}
+                              className="flex items-center gap-1.5"
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              {t('required_documents.upload_completed')}
+                            </Button>
+                            <input
+                              type="file"
+                              className="sr-only"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              ref={(el) => { reqUploadRefs.current[doc.id] = el; }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void handleRequiredSubmit(doc, file);
+                                e.target.value = '';
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* Page header */}
         <div>
           <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -510,16 +882,12 @@ export function ApplicantDocumentsPage() {
               icon={FileText}
             />
           ) : (
-            // Stagger animation so each row fades in one after another
-            <motion.ul
-              variants={staggerContainerVariants}
-              initial="hidden"
-              animate="visible"
+            <ul
               className="divide-y"
               style={{ borderColor: 'var(--border)' }}
             >
               {documents.map((doc) => (
-                <motion.li key={doc.id} variants={staggerChildVariants}>
+                <li key={doc.id}>
                   <div className="flex items-center justify-between gap-4 px-6 py-4">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
                       <FileIcon mime={doc.mime_type} />
@@ -577,9 +945,9 @@ export function ApplicantDocumentsPage() {
                       </Button>
                     </div>
                   </div>
-                </motion.li>
+                </li>
               ))}
-            </motion.ul>
+            </ul>
           )}
         </div>
       </div>

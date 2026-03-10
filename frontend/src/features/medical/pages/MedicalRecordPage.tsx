@@ -19,7 +19,7 @@
 
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, AlertTriangle, Pill, Brain, Coffee,
@@ -57,7 +57,7 @@ import {
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import { ROUTES } from '@/shared/constants/routes';
 import type {
   Camper, MedicalRecord, Allergy, Medication, Diagnosis,
@@ -112,34 +112,26 @@ function SeverityBadge({ severity }: { severity: string }) {
  */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.5)' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl border p-6 w-full max-w-lg"
+        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        // Stop clicks inside the card from bubbling up and closing the modal
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          className="rounded-2xl border p-6 w-full max-w-lg"
-          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          // Stop clicks inside the card from bubbling up and closing the modal
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>{title}</h2>
-            <button onClick={onClose} className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)]" style={{ color: 'var(--muted-foreground)' }}>
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          {children}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>{title}</h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)]" style={{ color: 'var(--muted-foreground)' }}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -629,7 +621,7 @@ export function MedicalRecordPage() {
 
   return (
     <>
-      <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+      <div className="p-6 max-w-4xl">
 
         {/* Back navigation + quick-nav buttons to sub-pages */}
         <div className="flex items-center justify-between mb-6">
@@ -725,11 +717,11 @@ export function MedicalRecordPage() {
           </div>
         )}
 
-        {/* Collapsible data sections — each animates in with a stagger delay */}
-        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+        {/* Collapsible data sections */}
+        <div className="space-y-3">
 
           {/* Allergies — icon turns red if any allergy is life-threatening */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.allergies')}
               icon={<AlertTriangle className="h-3.5 w-3.5" />}
@@ -756,10 +748,10 @@ export function MedicalRecordPage() {
                 ))}
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Medications */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.medications')}
               icon={<Pill className="h-3.5 w-3.5" />}
@@ -786,10 +778,10 @@ export function MedicalRecordPage() {
                 ))}
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Diagnoses — ICD code shown as a monospace badge when present */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.diagnoses')}
               icon={<Clipboard className="h-3.5 w-3.5" />}
@@ -818,10 +810,10 @@ export function MedicalRecordPage() {
                 ))}
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* General Notes — special needs, dietary restrictions, free-form notes */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.notes')}
               icon={<Edit2 className="h-3.5 w-3.5" />}
@@ -837,10 +829,10 @@ export function MedicalRecordPage() {
                 <FieldRow label={t('medical.record.general_notes')} value={record?.notes} />
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Behavioral Profile */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.behavioral')}
               icon={<Brain className="h-3.5 w-3.5" />}
@@ -862,10 +854,10 @@ export function MedicalRecordPage() {
                 </div>
               )}
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Feeding Plan — collapsed by default since less commonly needed */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.feeding')}
               icon={<Coffee className="h-3.5 w-3.5" />}
@@ -887,10 +879,10 @@ export function MedicalRecordPage() {
                 </div>
               )}
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Assistive Devices — collapsed by default */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.devices')}
               icon={<Wrench className="h-3.5 w-3.5" />}
@@ -915,10 +907,10 @@ export function MedicalRecordPage() {
                 ))}
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Activity Permissions — toggle between yes/no with a single click */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.activity_permissions')}
               icon={<Activity className="h-3.5 w-3.5" />}
@@ -949,10 +941,10 @@ export function MedicalRecordPage() {
                 ))}
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
           {/* Emergency Contacts — read-only (managed via the parent portal) */}
-          <motion.div variants={staggerChild}>
+          <div>
             <MedSection
               title={t('medical.record.emergency_contacts')}
               icon={<Phone className="h-3.5 w-3.5" />}
@@ -974,10 +966,10 @@ export function MedicalRecordPage() {
                 ))}
               </div>
             </MedSection>
-          </motion.div>
+          </div>
 
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* ─── Modals ───────────────────────────────────────────────────────────── */}
       {/* Only one modal is rendered at a time based on the `modal` state value */}

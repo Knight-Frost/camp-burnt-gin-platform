@@ -14,12 +14,10 @@
  * Route: /super-admin
  */
 
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Users, Shield, FileText, Activity, ArrowRight } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
-import { pageEntry, staggerContainer, staggerChild, cardHover } from '@/shared/constants/motion';
 
 // Static list of quick-link cards — no API call needed, just navigation shortcuts
 const QUICK_LINKS = [
@@ -35,7 +33,7 @@ export function SuperAdminDashboardPage() {
   const user = useAppSelector((state) => state.auth.user);
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-5xl">
+    <div className="p-6 max-w-5xl">
       {/* Personalized greeting header */}
       <div className="mb-8">
         <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: 'var(--accent-label)' }}>
@@ -50,15 +48,10 @@ export function SuperAdminDashboardPage() {
         </p>
       </div>
 
-      {/* Quick-link card grid — staggered animation so cards appear one after another */}
-      <motion.div
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
-      >
+      {/* Quick-link card grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {QUICK_LINKS.map(({ to, icon: Icon, labelKey, color, bg }) => (
-          <motion.div key={to} variants={staggerChild} whileHover={cardHover}>
+          <div key={to}>
             <Link
               to={to}
               className="flex flex-col gap-3 rounded-xl border p-5 transition-all group"
@@ -83,15 +76,12 @@ export function SuperAdminDashboardPage() {
                 {t(labelKey)}
               </p>
             </Link>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
 
-      {/* HIPAA / compliance security notice — delayed entrance after the cards animate in */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+      {/* HIPAA / compliance security notice */}
+      <div
         className="rounded-xl border p-5 flex items-start gap-4"
         style={{
           background: 'rgba(22,163,74,0.06)',
@@ -113,7 +103,7 @@ export function SuperAdminDashboardPage() {
             {t('superadmin.dashboard.hipaa_notice_body')}
           </p>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

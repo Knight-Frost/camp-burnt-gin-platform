@@ -20,7 +20,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/auth.schema';
 import { login } from '@/features/auth/api/auth.api';
@@ -226,16 +225,13 @@ export function LoginPage() {
         subtitle={t('auth.mfa.description')}
       >
         <div className="flex flex-col items-center gap-8">
-          {/* Animated shield icon to make the MFA step feel trustworthy */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4 }}
+          {/* Shield icon to make the MFA step feel trustworthy */}
+          <div
             className="flex items-center justify-center w-16 h-16 rounded-2xl"
             style={{ background: 'rgba(30,58,110,0.08)' }}
           >
             <ShieldCheck className="h-8 w-8" style={{ color: '#1e3a6e' }} />
-          </motion.div>
+          </div>
 
           {/* Six individual digit boxes; each is linked via inputRefs for focus management */}
           <div className="flex gap-3" role="group" aria-label="MFA code">
@@ -263,20 +259,15 @@ export function LoginPage() {
             ))}
           </div>
 
-          {/* Error message animates in/out smoothly so it doesn't cause layout jumps */}
-          <AnimatePresence>
-            {mfaError && (
-              <motion.p
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                role="alert"
-                className="text-sm text-center text-red-500"
-              >
-                {mfaError}
-              </motion.p>
-            )}
-          </AnimatePresence>
+          {/* Error message */}
+          {mfaError && (
+            <p
+              role="alert"
+              className="text-sm text-center text-red-500"
+            >
+              {mfaError}
+            </p>
+          )}
 
           {/* Submit button — disabled until all 6 boxes are filled */}
           <button

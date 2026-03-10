@@ -31,7 +31,6 @@ import {
   FolderOpen,
   Settings,
   Megaphone,
-  ClipboardList,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
@@ -75,7 +74,6 @@ export function SuperAdminLayout() {
   const systemNavItems: NavItem[] = [
     { label: t('portal_nav.users_permissions'), to: ROUTES.SUPER_ADMIN_USERS, icon: Users },
     { label: t('portal_nav.audit_log'),         to: ROUTES.SUPER_ADMIN_AUDIT, icon: ScrollText },
-    { label: t('portal_nav.form_templates'),    to: ROUTES.SUPER_ADMIN_FORMS, icon: ClipboardList },
     { label: t('portal_nav.settings'),          to: '/super-admin/settings',  icon: Settings },
   ];
 

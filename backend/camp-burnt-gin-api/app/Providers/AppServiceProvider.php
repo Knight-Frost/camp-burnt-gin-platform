@@ -22,6 +22,7 @@ use App\Models\TreatmentLog;
 use App\Models\MedicalIncident;
 use App\Models\MedicalFollowUp;
 use App\Models\MedicalVisit;
+use App\Models\ApplicantDocument;
 use App\Models\MedicalRestriction;
 use App\Models\Message;
 use App\Models\Role;
@@ -54,6 +55,7 @@ use App\Policies\TreatmentLogPolicy;
 use App\Policies\MedicalIncidentPolicy;
 use App\Policies\MedicalFollowUpPolicy;
 use App\Policies\MedicalVisitPolicy;
+use App\Policies\ApplicantDocumentPolicy;
 use App\Policies\MedicalRestrictionPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -140,6 +142,9 @@ class AppServiceProvider extends ServiceProvider
         MedicalFollowUp::class => MedicalFollowUpPolicy::class,
         MedicalVisit::class => MedicalVisitPolicy::class,
         MedicalRestriction::class => MedicalRestrictionPolicy::class,
+
+        // Applicant Documents — admin-to-applicant document workflow
+        ApplicantDocument::class => ApplicantDocumentPolicy::class,
     ];
 
     /**

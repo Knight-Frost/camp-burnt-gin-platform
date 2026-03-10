@@ -60,6 +60,12 @@ class SystemNotificationService
     public const MEDICAL_PROVIDER_LINK_GENERATED = 'medical.provider_link_generated';
     public const MEDICAL_PROVIDER_LINK_REVOKED   = 'medical.provider_link_revoked';
 
+    // Document request lifecycle events
+    public const DOCUMENT_REQUESTED = 'document.requested';
+    public const DOCUMENT_UPLOADED  = 'document.uploaded';
+    public const DOCUMENT_APPROVED  = 'document.approved';
+    public const DOCUMENT_REJECTED  = 'document.rejected';
+
     // ─── Category labels ──────────────────────────────────────────────────────
     // Maps event prefix → human-readable category label for the UI badge
     private const EVENT_CATEGORIES = [
@@ -67,6 +73,7 @@ class SystemNotificationService
         'security'    => 'Security',
         'role'        => 'Role',
         'medical'     => 'Medical',
+        'document'    => 'Document',
     ];
 
     // ─── Core delivery method ─────────────────────────────────────────────────

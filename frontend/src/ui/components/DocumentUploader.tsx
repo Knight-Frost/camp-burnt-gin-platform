@@ -18,12 +18,10 @@
  */
 
 import { useCallback, useRef, useState, type DragEvent } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, File, X, CheckCircle, AlertCircle } from 'lucide-react';
 import axiosInstance from '@/api/axios.config';
 import type { Document } from '@/shared/types';
 import { cn } from '@/shared/utils/cn';
-import { fadeVariants } from '@/shared/constants/motion';
 
 // MIME types the component accepts — matched against File.type from the browser.
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
@@ -225,89 +223,77 @@ export function DocumentUploader({
         )}
       </div>
 
-      {/* ── File list — animates in when files are added ── */}
-      <AnimatePresence>
-        {files.length > 0 && (
-          <motion.ul
-            variants={fadeVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-col gap-2"
-          >
-            {files.map((f) => (
-              // `layout` animates height when items are removed.
-              <motion.li
-                key={f.id}
-                layout
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex items-center gap-3 rounded-xl border px-4 py-3"
-                style={{
-                  background: 'var(--card)',
-                  // Border color signals the outcome: red=error, green=success, gray=pending/uploading.
-                  borderColor: f.status === 'error'
-                    ? 'rgba(220,38,38,0.3)'
-                    : f.status === 'success'
-                    ? 'rgba(22,163,74,0.3)'
-                    : 'var(--border)',
-                }}
-              >
-                {/* Status icon on the left */}
-                <div className="flex-shrink-0">
-                  {f.status === 'success' ? (
-                    <CheckCircle className="h-5 w-5" style={{ color: 'var(--forest-green)' }} />
-                  ) : f.status === 'error' ? (
-                    <AlertCircle className="h-5 w-5" style={{ color: 'var(--destructive)' }} />
-                  ) : (
-                    // Neutral file icon while pending or uploading.
-                    <File className="h-5 w-5" style={{ color: 'var(--muted-foreground)' }} />
-                  )}
-                </div>
+      {/* ── File list ── */}
+      {files.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {files.map((f) => (
+            <li
+              key={f.id}
+              className="flex items-center gap-3 rounded-xl border px-4 py-3"
+              style={{
+                background: 'var(--card)',
+                // Border color signals the outcome: red=error, green=success, gray=pending/uploading.
+                borderColor: f.status === 'error'
+                  ? 'rgba(220,38,38,0.3)'
+                  : f.status === 'success'
+                  ? 'rgba(22,163,74,0.3)'
+                  : 'var(--border)',
+              }}
+            >
+              {/* Status icon on the left */}
+              <div className="flex-shrink-0">
+                {f.status === 'success' ? (
+                  <CheckCircle className="h-5 w-5" style={{ color: 'var(--forest-green)' }} />
+                ) : f.status === 'error' ? (
+                  <AlertCircle className="h-5 w-5" style={{ color: 'var(--destructive)' }} />
+                ) : (
+                  // Neutral file icon while pending or uploading.
+                  <File className="h-5 w-5" style={{ color: 'var(--muted-foreground)' }} />
+                )}
+              </div>
 
-                {/* File name + progress bar / error message */}
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-sm font-medium truncate"
-                    style={{ color: 'var(--foreground)' }}
-                  >
-                    {f.file.name}
-                  </p>
-                  {/* Animated progress bar — only visible while the upload is in flight */}
-                  {f.status === 'uploading' && (
-                    <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                      <motion.div
-                        className="h-full rounded-full"
-                        style={{ background: 'var(--ember-orange)' }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${f.progress}%` }}
-                        transition={{ ease: 'linear' }}
-                      />
-                    </div>
-                  )}
-                  {/* Error message below the file name on failure */}
-                  {f.status === 'error' && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--destructive)' }}>
-                      {f.error}
-                    </p>
-                  )}
-                </div>
-
-                {/* Remove button — notifies parent and removes from local list */}
-                <button
-                  type="button"
-                  onClick={() => handleRemove(f)}
-                  className="flex-shrink-0 p-1 rounded hover:bg-[var(--dash-nav-hover-bg)]"
-                  style={{ color: 'var(--muted-foreground)' }}
-                  aria-label={`Remove ${f.file.name}`}
+              {/* File name + progress bar / error message */}
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-sm font-medium truncate"
+                  style={{ color: 'var(--foreground)' }}
                 >
-                  <X className="h-4 w-4" />
-                </button>
-              </motion.li>
-            ))}
-          </motion.ul>
-        )}
-      </AnimatePresence>
+                  {f.file.name}
+                </p>
+                {/* Progress bar — only visible while the upload is in flight */}
+                {f.status === 'uploading' && (
+                  <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-100"
+                      style={{
+                        background: 'var(--ember-orange)',
+                        width: `${f.progress}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                {/* Error message below the file name on failure */}
+                {f.status === 'error' && (
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--destructive)' }}>
+                    {f.error}
+                  </p>
+                )}
+              </div>
+
+              {/* Remove button — notifies parent and removes from local list */}
+              <button
+                type="button"
+                onClick={() => handleRemove(f)}
+                className="flex-shrink-0 p-1 rounded hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--muted-foreground)' }}
+                aria-label={`Remove ${f.file.name}`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

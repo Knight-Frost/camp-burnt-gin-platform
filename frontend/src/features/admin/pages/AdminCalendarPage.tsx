@@ -18,7 +18,6 @@
  */
 
 import { useEffect, useState, type CSSProperties } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ChevronLeft, ChevronRight, X, Calendar, Clock, Trash2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
          isToday, addMonths, subMonths } from 'date-fns';
@@ -30,7 +29,6 @@ import {
 } from '@/features/admin/api/calendar.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
-import { scrollRevealVariants, staggerContainerVariants, staggerChildVariants, modalBackdrop, modalContent } from '@/shared/constants/motion';
 
 // Maps each event type to colors for background, text, dot indicator, and legend label.
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; label: string }> = {
@@ -180,7 +178,7 @@ export function AdminCalendarPage() {
   return (
     <div className="flex flex-col gap-8 max-w-6xl">
       {/* Page header with "Add Event" button */}
-      <motion.div variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <div>
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
@@ -198,7 +196,7 @@ export function AdminCalendarPage() {
             Add Event
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Calendar grid (takes 2 of 3 columns) */}
@@ -347,19 +345,12 @@ export function AdminCalendarPage() {
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No upcoming events.</p>
             </div>
           ) : (
-            // Stagger animation makes each event card slide in with a small delay after the previous.
-            <motion.ul
-              variants={staggerContainerVariants}
-              initial="hidden"
-              animate="visible"
-              className="flex flex-col gap-2"
-            >
+            <ul className="flex flex-col gap-2">
               {upcoming.map((ev) => {
                 const s = EVENT_COLORS[ev.event_type] ?? EVENT_COLORS.internal;
                 return (
-                  <motion.li
+                  <li
                     key={ev.id}
-                    variants={staggerChildVariants}
                     className="rounded-xl border p-3"
                     style={{ background: '#ffffff', borderColor: 'var(--border)' }}
                   >
@@ -387,147 +378,140 @@ export function AdminCalendarPage() {
                         )}
                       </button>
                     </div>
-                  </motion.li>
+                  </li>
                 );
               })}
-            </motion.ul>
+            </ul>
           )}
         </div>
       </div>
 
-      {/* Create event modal — AnimatePresence enables the exit animation when it closes. */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div
-            variants={modalBackdrop}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.35)' }}
-            onClick={() => setShowModal(false)}
+      {/* Create event modal */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-6"
+            style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              variants={modalContent}
-              className="w-full max-w-md rounded-2xl p-6"
-              style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                {/* Show the selected day in the modal title if the user clicked a specific day. */}
-                <h3 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
-                  New Event{selectedDay && ` — ${format(selectedDay, 'MMM d')}`}
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
-                  style={{ color: 'var(--muted-foreground)' }}
-                >
-                  <X className="h-4 w-4" />
-                </button>
+            <div className="flex items-center justify-between mb-6">
+              {/* Show the selected day in the modal title if the user clicked a specific day. */}
+              <h3 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
+                New Event{selectedDay && ` — ${format(selectedDay, 'MMM d')}`}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                style={{ color: 'var(--muted-foreground)' }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="cal-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
+                <input
+                  id="cal-title"
+                  // Red border if title is empty (required field).
+                  style={inputStyle(!form.title)}
+                  placeholder="Event title"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                />
               </div>
 
-              <div className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="cal-description" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Description</label>
+                <textarea
+                  id="cal-description"
+                  style={{ ...inputStyle(), height: 72, resize: 'none' }}
+                  placeholder="Optional description"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="cal-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
-                  <input
-                    id="cal-title"
-                    // Red border if title is empty (required field).
-                    style={inputStyle(!form.title)}
-                    placeholder="Event title"
-                    value={form.title}
-                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  />
+                  <label htmlFor="cal-type" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Type</label>
+                  <select
+                    id="cal-type"
+                    style={inputStyle()}
+                    value={form.event_type}
+                    onChange={(e) => setForm((f) => ({ ...f, event_type: e.target.value as EventType }))}
+                  >
+                    {EVENT_TYPES.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </div>
-
                 <div>
-                  <label htmlFor="cal-description" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Description</label>
-                  <textarea
-                    id="cal-description"
-                    style={{ ...inputStyle(), height: 72, resize: 'none' }}
-                    placeholder="Optional description"
-                    value={form.description}
-                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  />
+                  <label htmlFor="cal-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
+                  <select
+                    id="cal-audience"
+                    style={inputStyle()}
+                    value={form.audience}
+                    onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as EventFormState['audience'] }))}
+                  >
+                    <option value="all">All</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="staff">Staff</option>
+                    <option value="session">Session</option>
+                  </select>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="cal-type" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Type</label>
-                    <select
-                      id="cal-type"
-                      style={inputStyle()}
-                      value={form.event_type}
-                      onChange={(e) => setForm((f) => ({ ...f, event_type: e.target.value as EventType }))}
-                    >
-                      {EVENT_TYPES.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="cal-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
-                    <select
-                      id="cal-audience"
-                      style={inputStyle()}
-                      value={form.audience}
-                      onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as EventFormState['audience'] }))}
-                    >
-                      <option value="all">All</option>
-                      <option value="accepted">Accepted</option>
-                      <option value="staff">Staff</option>
-                      <option value="session">Session</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Start and end date-time pickers side by side. */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="cal-starts-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Start *</label>
-                    <input
-                      id="cal-starts-at"
-                      type="datetime-local"
-                      style={inputStyle(!form.starts_at)}
-                      value={form.starts_at}
-                      onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="cal-ends-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>End</label>
-                    <input
-                      id="cal-ends-at"
-                      type="datetime-local"
-                      style={inputStyle()}
-                      value={form.ends_at}
-                      onChange={(e) => setForm((f) => ({ ...f, ends_at: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
+              {/* Start and end date-time pickers side by side. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="cal-starts-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Start *</label>
                   <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded"
-                    checked={form.all_day}
-                    onChange={(e) => setForm((f) => ({ ...f, all_day: e.target.checked }))}
+                    id="cal-starts-at"
+                    type="datetime-local"
+                    style={inputStyle(!form.starts_at)}
+                    value={form.starts_at}
+                    onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))}
                   />
-                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>All day event</span>
-                </label>
+                </div>
+                <div>
+                  <label htmlFor="cal-ends-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>End</label>
+                  <input
+                    id="cal-ends-at"
+                    type="datetime-local"
+                    style={inputStyle()}
+                    value={form.ends_at}
+                    onChange={(e) => setForm((f) => ({ ...f, ends_at: e.target.value }))}
+                  />
+                </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowModal(false)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Saving…' : 'Create Event'}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded"
+                  checked={form.all_day}
+                  onChange={(e) => setForm((f) => ({ ...f, all_day: e.target.checked }))}
+                />
+                <span className="text-sm" style={{ color: 'var(--foreground)' }}>All day event</span>
+              </label>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Create Event'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 /**
  * StatCard.tsx
  *
- * Purpose: An animated statistic card used on all dashboard overview pages.
+ * Purpose: A statistic card used on all dashboard overview pages.
  *
  * Redesigned (Phase 12) for localization resilience:
  *   - Left-aligned layout with flexible width
@@ -12,16 +12,11 @@
  *
  * Responsibilities:
  *   - Displays a labeled numeric metric with an icon.
- *   - Animates the number from 0 to `value` over ~1.2 seconds using a
- *     requestAnimationFrame loop with an ease-out cubic curve.
- *   - Animates the card into view via a Framer Motion scroll-reveal.
- *   - Accepts a `delay` prop to stagger multiple cards on the same page.
+ *   - Displays the numeric value immediately (no count-up animation).
+ *   - Accepts a `delay` prop (kept for API compatibility, unused).
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
-import { scrollRevealVariants, scrollViewport } from '@/shared/constants/motion';
 
 interface StatCardProps {
   label: string;
@@ -31,34 +26,8 @@ interface StatCardProps {
   color?: string;
   /** Optional unit suffix appended after the number (e.g. "%", "hrs"). */
   suffix?: string;
-  /** Seconds to wait before the count-up animation starts (for stagger effects). */
+  /** Kept for API compatibility. */
   delay?: number;
-}
-
-/**
- * useCountUp — a custom hook that animates an integer from 0 to `target`.
- */
-function useCountUp(target: number, duration = 1200): number {
-  const [count, setCount] = useState(0);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    const start = performance.now();
-    const animate = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(eased * target));
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(animate);
-      } else {
-        setCount(target);
-      }
-    };
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [target, duration]);
-
-  return count;
 }
 
 export function StatCard({
@@ -67,17 +36,11 @@ export function StatCard({
   icon: Icon,
   color = 'var(--ember-orange)',
   suffix = '',
-  delay = 0,
 }: StatCardProps) {
-  const count = useCountUp(value, 1200);
+  const count = value;
 
   return (
-    <motion.div
-      variants={scrollRevealVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={scrollViewport}
-      transition={{ delay }}
+    <div
       className="rounded-2xl border p-4 sm:p-5 flex items-start gap-3 min-w-0"
       style={{
         background: 'var(--card)',
@@ -109,6 +72,6 @@ export function StatCard({
           {label}
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }

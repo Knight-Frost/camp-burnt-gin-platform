@@ -1,1119 +1,1139 @@
 /**
  * AdminDocumentsPage.tsx
  *
- * Redesigned (Phase 12) as a full document intake and management system.
+ * Redesigned (Phase 13) as a full Document Request system.
+ *
+ * The page is built around admin-initiated document requests rather than
+ * passively reviewing uploaded files.
+ *
+ * Full lifecycle:
+ *   Admin requests document → Applicant receives inbox notification
+ *   → Applicant uploads → Admin reviews → Admin approves or rejects
+ *   → If rejected, request reopens for resubmission
  *
  * Features:
- *  - Queue summary stats at top (pending, scanning, approved today, archived)
- *  - Active / Archived tab toggle
- *  - Full document lifecycle: Uploaded → Scanning → Pending Review → Approved/Rejected → Archived/Deleted
- *  - Delete with confirmation dialog
- *  - Archive / restore workflow
- *  - Rich search by uploader, camper, or document name
- *  - Status filters: Pending, Scanning, Approved, Rejected, Archived
- *  - Per-row actions: View preview, Download, Approve, Reject, Archive, Delete
- *  - Scan status indicators
- *  - All actions audit-loggable via API calls
+ *  - Dashboard metrics bar (7 statuses)
+ *  - "+ Request Document" modal
+ *  - Filterable / searchable requests table
+ *  - Per-row review: Download, Approve, Reject
+ *  - Reject modal with reason field
+ *  - Status badges with full lifecycle colours
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   FileText,
-  File,
+  Plus,
+  Search,
   Download,
   CheckCircle,
   XCircle,
   Clock,
   AlertCircle,
-  Search,
-  Loader2,
-  User,
   X,
-  Archive,
-  ArchiveRestore,
-  Trash2,
-  Shield,
   Eye,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
+  InboxIcon,
+  User,
+  FileCheck,
+  Bell,
+  CalendarClock,
+  Trash2,
+  RotateCcw,
+  MoreVertical,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 import {
-  getAdminDocuments,
-  verifyDocument,
-  downloadAdminDocument,
-  type AdminDocument,
+  getDocumentRequestStats,
+  getDocumentRequests,
+  createDocumentRequest,
+  approveDocumentRequest,
+  rejectDocumentRequest,
+  cancelDocumentRequest,
+  remindDocumentRequest,
+  extendDocumentRequestDeadline,
+  requestDocumentReupload,
+  getUsers,
+  type DocumentRequest,
+  type DocumentRequestStats,
+  type DocumentRequestStatus,
 } from '@/features/admin/api/admin.api';
-import type { PaginatedResponse } from '@/shared/types/api.types';
+import { axiosInstance } from '@/api/axios.config';
 import { Button } from '@/ui/components/Button';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
-import { staggerContainerVariants, staggerChildVariants } from '@/shared/constants/motion';
-import axiosInstance from '@/api/axios.config';
 
-// ─── Extended document status types ───────────────────────────────────────────
+// ── Status badge helpers ───────────────────────────────────────────────────────
 
-type DocTab = 'active' | 'archived';
-type StatusFilter = '' | 'pending' | 'scanning' | 'approved' | 'rejected';
+const STATUS_CONFIG: Record<
+  DocumentRequestStatus,
+  { label: string; bg: string; color: string; icon: React.FC<{ className?: string }> }
+> = {
+  awaiting_upload: { label: 'Awaiting Upload', bg: 'rgba(245,158,11,0.12)', color: '#b45309',              icon: Clock       },
+  uploaded:        { label: 'Pending Review',  bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8',              icon: FileCheck   },
+  scanning:        { label: 'Processing',      bg: 'rgba(99,102,241,0.12)', color: '#4338ca',              icon: RefreshCw   },
+  under_review:    { label: 'Under Review',    bg: 'rgba(234,179,8,0.12)',  color: '#a16207',              icon: Eye         },
+  approved:        { label: 'Approved',        bg: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)',   icon: CheckCircle },
+  rejected:        { label: 'Rejected',        bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: XCircle     },
+  overdue:         { label: 'Overdue',         bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: AlertCircle },
+};
 
-interface Filters {
-  search: string;
-  status: StatusFilter;
-}
-
-const DEFAULT_FILTERS: Filters = { search: '', status: '' };
-
-// ─── API helpers (archive/delete/restore) ─────────────────────────────────────
-
-async function archiveDocument(id: number): Promise<void> {
-  await axiosInstance.post(`/documents/${id}/archive`);
-}
-
-async function restoreDocument(id: number): Promise<void> {
-  await axiosInstance.post(`/documents/${id}/restore`);
-}
-
-async function deleteDocument(id: number): Promise<void> {
-  await axiosInstance.delete(`/documents/${id}`);
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getDocumentTypeLabel(doc: AdminDocument): string {
-  if (doc.document_type) return doc.document_type;
-  const mime = doc.mime_type ?? '';
-  if (mime === 'application/pdf') return 'PDF Document';
-  if (mime.startsWith('image/')) return 'Image File';
-  return 'Document';
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function FileIcon({ mime }: { mime: string }) {
-  const isPdf = mime === 'application/pdf';
+function StatusBadge({ status }: { status: DocumentRequestStatus }) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.awaiting_upload;
+  const Icon = cfg.icon;
   return (
-    <div
-      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-      style={{ background: isPdf ? 'rgba(239,68,68,0.10)' : 'rgba(96,165,250,0.10)' }}
+    <span
+      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+      style={{ background: cfg.bg, color: cfg.color }}
     >
-      {isPdf
-        ? <FileText className="h-5 w-5" style={{ color: '#ef4444' }} />
-        : <File className="h-5 w-5" style={{ color: 'var(--night-sky-blue)' }} />
-      }
-    </div>
-  );
-}
-
-function VerificationBadge({ status }: { status: AdminDocument['verification_status'] }) {
-  if (status === 'approved') {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
-        style={{ background: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)' }}>
-        <CheckCircle className="h-3 w-3" /> Approved
-      </span>
-    );
-  }
-  if (status === 'rejected') {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
-        style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}>
-        <XCircle className="h-3 w-3" /> Rejected
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
-      style={{ background: 'rgba(245,158,11,0.12)', color: '#b45309' }}>
-      <Clock className="h-3 w-3" /> Pending Review
+      <Icon className="h-3 w-3" />
+      {cfg.label}
     </span>
   );
 }
 
-function ScanBadge({ scanPassed }: { scanPassed: boolean | null }) {
-  if (scanPassed === false) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
-        style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}>
-        <AlertCircle className="h-3 w-3" /> Scan Failed
-      </span>
-    );
-  }
-  if (scanPassed === null) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
-        style={{ background: 'rgba(96,165,250,0.10)', color: 'var(--night-sky-blue)' }}>
-        <Loader2 className="h-3 w-3 animate-spin" /> Scanning
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium"
-      style={{ background: 'rgba(5,150,105,0.08)', color: 'var(--forest-green)' }}>
-      <Shield className="h-3 w-3" /> Scan Passed
-    </span>
-  );
-}
+// ── Metric card ────────────────────────────────────────────────────────────────
 
-// ─── Delete confirmation dialog ────────────────────────────────────────────────
-
-function DeleteConfirmDialog({
-  docName,
-  onConfirm,
-  onCancel,
-  loading,
+function MetricCard({
+  label,
+  value,
+  active,
+  onClick,
 }: {
-  docName: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
+  label: string;
+  value: number;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.5)' }}
-        onClick={onCancel}
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-1 rounded-xl p-4 border text-left transition-colors"
+      style={{
+        background: active ? 'var(--ember-orange)' : 'var(--card)',
+        borderColor: active ? 'var(--ember-orange)' : 'var(--border)',
+        color: active ? '#fff' : 'var(--foreground)',
+      }}
+    >
+      <span className="text-2xl font-bold font-headline">{value}</span>
+      <span className="text-xs font-medium" style={{ color: active ? 'rgba(255,255,255,0.8)' : 'var(--muted-foreground)' }}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+// ── Request Document modal ─────────────────────────────────────────────────────
+
+interface RequestDocumentModalProps {
+  onClose: () => void;
+  onCreated: (req: DocumentRequest) => void;
+}
+
+function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps) {
+  const [applicants, setApplicants] = useState<{ id: number; name: string }[]>([]);
+  const [campers, setCampers]       = useState<{ id: number; name: string }[]>([]);
+  const [loadingApplicants, setLoadingApplicants] = useState(true);
+  const [saving, setSaving]         = useState(false);
+
+  const [form, setForm] = useState({
+    applicant_id:  '',
+    camper_id:     '',
+    document_type: '',
+    instructions:  '',
+    due_date:      '',
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    getUsers({ role: 'applicant', page: 1 })
+      .then((res) => {
+        if (cancelled) return;
+        setApplicants((res.data ?? []).map((u) => ({ id: u.id, name: u.name })));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = (err as { message?: string })?.message;
+        toast.error(msg ? `Unable to load applicants: ${msg}` : 'Unable to load applicants. Please refresh and try again.');
+      })
+      .finally(() => { if (!cancelled) setLoadingApplicants(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // When applicant changes, load their campers
+  useEffect(() => {
+    if (!form.applicant_id) { setCampers([]); return; }
+    axiosInstance.get('/campers', { params: { user_id: Number(form.applicant_id) } })
+      .then((res) => {
+        const list = (res.data as any)?.data ?? res.data ?? [];
+        setCampers(
+          list.map((c: any) => ({
+            id: c.id,
+            name: `${c.first_name} ${c.last_name}`,
+          }))
+        );
+      })
+      .catch(() => setCampers([]));
+  }, [form.applicant_id]);
+
+  function set(field: keyof typeof form, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.applicant_id || !form.document_type.trim()) return;
+    setSaving(true);
+    try {
+      const req = await createDocumentRequest({
+        applicant_id:  Number(form.applicant_id),
+        camper_id:     form.camper_id ? Number(form.camper_id) : null,
+        document_type: form.document_type.trim(),
+        instructions:  form.instructions.trim() || undefined,
+        due_date:      form.due_date || undefined,
+      });
+      toast.success('Document request created and applicant notified.');
+      onCreated(req);
+    } catch {
+      toast.error('Failed to create document request.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls = 'rounded-lg px-3 py-2.5 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)] w-full';
+  const inputStyle = { background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' };
+  const labelCls = 'text-xs font-medium block mb-1';
+  const labelStyle = { color: 'var(--muted-foreground)' };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+        style={{ background: 'var(--card)' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="rounded-2xl border p-6 max-w-md w-full shadow-xl"
-          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-          onClick={(e) => e.stopPropagation()}
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: 'var(--border)' }}
         >
-          <div className="flex items-start gap-4 mb-5">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(220,38,38,0.10)' }}>
-              <Trash2 className="h-5 w-5" style={{ color: 'var(--destructive)' }} />
-            </div>
-            <div>
-              <h3 className="font-semibold text-base" style={{ color: 'var(--foreground)' }}>Delete Document</h3>
-              <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                Are you sure you want to permanently delete <span className="font-medium" style={{ color: 'var(--foreground)' }}>{docName}</span>?
-              </p>
-              <p className="text-xs mt-2 font-medium" style={{ color: 'var(--destructive)' }}>
-                This action cannot be undone.
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+              Request Document
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              The applicant will be notified via their inbox.
+            </p>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={onCancel} disabled={loading}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+          >
+            <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
+          {/* Applicant */}
+          <div>
+            <label className={labelCls} style={labelStyle}>Applicant *</label>
+            {loadingApplicants ? (
+              <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
+            ) : (
+              <select
+                required
+                value={form.applicant_id}
+                onChange={(e) => set('applicant_id', e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              >
+                <option value="">Select applicant…</option>
+                {applicants.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Camper (optional) */}
+          {campers.length > 0 && (
+            <div>
+              <label className={labelCls} style={labelStyle}>Camper (optional)</label>
+              <select
+                value={form.camper_id}
+                onChange={(e) => set('camper_id', e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              >
+                <option value="">All campers</option>
+                {campers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Document Type */}
+          <div>
+            <label className={labelCls} style={labelStyle}>Document Type *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Immunization Record, Physician Sign-off…"
+              value={form.document_type}
+              onChange={(e) => set('document_type', e.target.value)}
+              className={inputCls}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Instructions */}
+          <div>
+            <label className={labelCls} style={labelStyle}>Instructions (optional)</label>
+            <textarea
+              rows={3}
+              placeholder="What should the applicant upload or include?"
+              value={form.instructions}
+              onChange={(e) => set('instructions', e.target.value)}
+              className={inputCls + ' resize-none'}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Due Date */}
+          <div>
+            <label className={labelCls} style={labelStyle}>Due Date (optional)</label>
+            <input
+              type="date"
+              value={form.due_date}
+              onChange={(e) => set('due_date', e.target.value)}
+              className={inputCls}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Footer */}
+          <div
+            className="flex items-center justify-end gap-3 pt-2 border-t"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
               Cancel
             </Button>
             <Button
-              variant="destructive"
               size="sm"
-              onClick={onConfirm}
-              disabled={loading}
+              type="submit"
+              disabled={saving || loadingApplicants || !form.applicant_id || !form.document_type.trim()}
+              loading={saving}
+              className="flex items-center gap-1.5"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Delete Document
+              <InboxIcon className="h-3.5 w-3.5" />
+              Send Request
             </Button>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-// ─── Document viewer modal ────────────────────────────────────────────────────
-
-function DocumentViewerModal({
-  docId,
-  allDocs,
-  onClose,
-  onNavigate,
-  onVerify,
-  onDownload,
-  verifying,
-  downloading,
-}: {
-  docId: number;
-  allDocs: AdminDocument[];
-  onClose: () => void;
-  onNavigate: (id: number) => void;
-  onVerify: (id: number, status: 'approved' | 'rejected') => Promise<void>;
-  onDownload: (doc: AdminDocument) => Promise<void>;
-  verifying: number | null;
-  downloading: number | null;
-}) {
-  const [blobUrl, setBlobUrl]           = useState<string | null>(null);
-  const [loadingPreview, setLoading]    = useState(true);
-  const [previewError, setPreviewError] = useState(false);
-  const [zoom, setZoom]                 = useState(1);
-
-  const currentDoc   = allDocs.find((d) => d.id === docId) ?? allDocs[0];
-  const currentIndex = allDocs.findIndex((d) => d.id === docId);
-  const hasPrev      = currentIndex > 0;
-  const hasNext      = currentIndex < allDocs.length - 1;
-
-  const isPdf          = currentDoc?.mime_type === 'application/pdf';
-  const isImage        = currentDoc?.mime_type?.startsWith('image/') ?? false;
-  const isPreviewable  = isPdf || isImage;
-
-  // Load file as blob → object URL each time docId changes
-  useEffect(() => {
-    if (!currentDoc) return;
-    let objectUrl: string | null = null;
-    let cancelled = false;
-
-    setLoading(true);
-    setPreviewError(false);
-    setBlobUrl(null);
-    setZoom(1);
-
-    downloadAdminDocument(currentDoc.id)
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setBlobUrl(objectUrl);
-      })
-      .catch(() => { if (!cancelled) setPreviewError(true); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [docId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Keyboard navigation
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft'  && hasPrev) onNavigate(allDocs[currentIndex - 1].id);
-      if (e.key === 'ArrowRight' && hasNext) onNavigate(allDocs[currentIndex + 1].id);
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose, hasPrev, hasNext, currentIndex, allDocs, onNavigate]);
-
-  if (!currentDoc) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.78)' }}
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="relative flex flex-col rounded-2xl border shadow-2xl overflow-hidden"
-          style={{
-            background: 'var(--card)',
-            borderColor: 'var(--border)',
-            width: '90vw',
-            maxWidth: '1040px',
-            height: '90vh',
-            maxHeight: '900px',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* ── Header ─────────────────────────────────────────────── */}
-          <div
-            className="flex items-start justify-between gap-4 px-5 py-4 border-b flex-shrink-0"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <div className="flex items-start gap-3 min-w-0">
-              <FileIcon mime={currentDoc.mime_type} />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
-                  {currentDoc.file_name}
-                </p>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                  {currentDoc.uploaded_by_name && (
-                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      Uploader: {currentDoc.uploaded_by_name}
-                    </span>
-                  )}
-                  {currentDoc.documentable_name && (
-                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      Camper: {currentDoc.documentable_name}
-                    </span>
-                  )}
-                  <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                    Uploaded: {format(new Date(currentDoc.created_at), 'MMM d, yyyy')}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  <VerificationBadge status={currentDoc.verification_status} />
-                  <ScanBadge scanPassed={currentDoc.scan_passed} />
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="flex-shrink-0 p-1.5 rounded-lg transition-colors hover:bg-[var(--muted)]"
-              style={{ color: 'var(--muted-foreground)' }}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* ── Preview area ────────────────────────────────────────── */}
-          <div className="flex-1 relative overflow-hidden" style={{ background: '#111827' }}>
-
-            {/* Loading state */}
-            {loadingPreview && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'rgba(255,255,255,0.4)' }} />
-                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Loading preview…</span>
-              </div>
-            )}
-
-            {/* Fallback: unsupported type or load error */}
-            {!loadingPreview && (previewError || !isPreviewable) && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                <div
-                  className="flex items-center justify-center w-16 h-16 rounded-2xl"
-                  style={{ background: 'rgba(255,255,255,0.06)' }}
-                >
-                  <File className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.35)' }} />
-                </div>
-                <div className="text-center px-6">
-                  <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                    {previewError
-                      ? 'This document cannot be previewed.'
-                      : 'Preview not available for this file type.'}
-                  </p>
-                  <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Please download the file to view it.
-                  </p>
-                </div>
-                <button
-                  onClick={() => void onDownload(currentDoc)}
-                  disabled={downloading === currentDoc.id}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-opacity disabled:opacity-50"
-                  style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.7)' }}
-                >
-                  {downloading === currentDoc.id
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Download className="h-4 w-4" />}
-                  Download to View
-                </button>
-              </div>
-            )}
-
-            {/* PDF — rendered natively in iframe */}
-            {!loadingPreview && !previewError && blobUrl && isPdf && (
-              <iframe
-                src={blobUrl}
-                className="w-full h-full"
-                title={currentDoc.file_name ?? 'Document Preview'}
-                style={{ border: 'none' }}
-              />
-            )}
-
-            {/* Image — rendered directly with zoom support */}
-            {!loadingPreview && !previewError && blobUrl && isImage && (
-              <div className="flex items-center justify-center w-full h-full overflow-hidden p-6">
-                <img
-                  src={blobUrl}
-                  alt={currentDoc.file_name ?? 'Document Preview'}
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    transform: `scale(${zoom})`,
-                    transformOrigin: 'center center',
-                    transition: 'transform 0.15s ease',
-                    borderRadius: '4px',
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ── Footer ──────────────────────────────────────────────── */}
-          <div
-            className="flex items-center justify-between gap-2 px-5 py-3 border-t flex-shrink-0 flex-wrap"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            {/* Navigation */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => hasPrev && onNavigate(allDocs[currentIndex - 1].id)}
-                disabled={!hasPrev}
-                title="Previous document (← key)"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-35 hover:bg-[var(--muted)]"
-                style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" /> Prev
-              </button>
-              <span className="text-xs tabular-nums px-2" style={{ color: 'var(--muted-foreground)' }}>
-                {currentIndex + 1} / {allDocs.length}
-              </span>
-              <button
-                onClick={() => hasNext && onNavigate(allDocs[currentIndex + 1].id)}
-                disabled={!hasNext}
-                title="Next document (→ key)"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-35 hover:bg-[var(--muted)]"
-                style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-              >
-                Next <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            {/* Zoom controls (images only) */}
-            {isImage && !loadingPreview && blobUrl && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))}
-                  disabled={zoom <= 0.25}
-                  title="Zoom Out"
-                  className="p-1.5 rounded-lg border transition-colors disabled:opacity-35 hover:bg-[var(--muted)]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setZoom(1)}
-                  title="Fit to Screen"
-                  className="p-1.5 rounded-lg border transition-colors hover:bg-[var(--muted)]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}
-                  disabled={zoom >= 3}
-                  title="Zoom In"
-                  className="p-1.5 rounded-lg border transition-colors disabled:opacity-35 hover:bg-[var(--muted)]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </button>
-                <span className="text-xs tabular-nums ml-1 w-9" style={{ color: 'var(--muted-foreground)' }}>
-                  {Math.round(zoom * 100)}%
-                </span>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex items-center gap-1.5">
-              {/* Download */}
-              <button
-                onClick={() => void onDownload(currentDoc)}
-                disabled={downloading === currentDoc.id || currentDoc.scan_passed === false}
-                title={currentDoc.scan_passed === false ? 'Scan failed — download blocked' : 'Download file'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-                style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-              >
-                {downloading === currentDoc.id
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Download className="h-3.5 w-3.5" />}
-                Download
-              </button>
-
-              {/* Approve */}
-              {currentDoc.verification_status !== 'approved' && (
-                <button
-                  onClick={() => void onVerify(currentDoc.id, 'approved')}
-                  disabled={verifying === currentDoc.id}
-                  title="Approve document"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-                  style={{ borderColor: 'rgba(5,150,105,0.35)', color: 'var(--forest-green)' }}
-                >
-                  {verifying === currentDoc.id
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <CheckCircle className="h-3.5 w-3.5" />}
-                  Approve
-                </button>
-              )}
-
-              {/* Reject */}
-              {currentDoc.verification_status !== 'rejected' && (
-                <button
-                  onClick={() => void onVerify(currentDoc.id, 'rejected')}
-                  disabled={verifying === currentDoc.id}
-                  title="Reject document"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-                  style={{ borderColor: 'rgba(220,38,38,0.3)', color: 'var(--destructive)' }}
-                >
-                  {verifying === currentDoc.id
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <XCircle className="h-3.5 w-3.5" />}
-                  Reject
-                </button>
-              )}
-
-              {/* Close */}
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors hover:bg-[var(--muted)]"
-                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-              >
-                <X className="h-3.5 w-3.5" /> Close
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-// ─── Queue summary bar ────────────────────────────────────────────────────────
-
-function QueueSummary({ docs, tab }: { docs: AdminDocument[]; tab: DocTab }) {
-  const pending  = docs.filter((d) => d.verification_status === 'pending').length;
-  const scanning = docs.filter((d) => d.scan_passed === null).length;
-  const approved = docs.filter((d) => d.verification_status === 'approved').length;
-  const rejected = docs.filter((d) => d.verification_status === 'rejected').length;
-
-  if (tab === 'archived') {
-    return (
-      <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-        {docs.length} archived document{docs.length !== 1 ? 's' : ''}
+        </form>
       </div>
-    );
+    </div>
+  );
+}
+
+// ── Reject modal ───────────────────────────────────────────────────────────────
+
+function RejectModal({
+  requestId,
+  documentType,
+  onClose,
+  onRejected,
+}: {
+  requestId: number;
+  documentType: string;
+  onClose: () => void;
+  onRejected: (updated: DocumentRequest) => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const updated = await rejectDocumentRequest(requestId, reason.trim() || undefined);
+      toast.success('Document rejected. Applicant notified.');
+      onRejected(updated);
+    } catch {
+      toast.error('Failed to reject document.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div className="flex flex-wrap gap-3">
-      {[
-        { label: 'Pending Review', count: pending, bg: 'rgba(245,158,11,0.10)', color: '#b45309' },
-        { label: 'Scanning',       count: scanning, bg: 'rgba(96,165,250,0.10)', color: 'var(--night-sky-blue)' },
-        { label: 'Approved',       count: approved, bg: 'rgba(5,150,105,0.10)',  color: 'var(--forest-green)' },
-        { label: 'Rejected',       count: rejected, bg: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' },
-      ].map(({ label, count, bg, color }) => (
-        <div
-          key={label}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
-          style={{ background: bg, color }}
-        >
-          <span className="font-semibold tabular-nums">{count}</span>
-          <span className="font-medium">{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Document row ─────────────────────────────────────────────────────────────
-
-function DocumentRow({
-  doc,
-  tab,
-  onPreview,
-  onVerify,
-  onDownload,
-  onArchive,
-  onRestore,
-  onDeleteRequest,
-  verifying,
-  downloading,
-  archiving,
-}: {
-  doc: AdminDocument;
-  tab: DocTab;
-  onPreview: (doc: AdminDocument) => void;
-  onVerify: (id: number, status: 'approved' | 'rejected') => Promise<void>;
-  onDownload: (doc: AdminDocument) => Promise<void>;
-  onArchive: (id: number) => Promise<void>;
-  onRestore: (id: number) => Promise<void>;
-  onDeleteRequest: (doc: AdminDocument) => void;
-  verifying: number | null;
-  downloading: number | null;
-  archiving: number | null;
-}) {
-  const typeLabel = getDocumentTypeLabel(doc);
-  const isBusy = verifying === doc.id || archiving === doc.id;
-
-  return (
-    <motion.div
-      variants={staggerChildVariants}
-      className="flex items-start gap-4 px-5 py-4 border-b last:border-b-0 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-      style={{ borderColor: 'var(--border)' }}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
+      onClick={onClose}
     >
-      <FileIcon mime={doc.mime_type} />
-
-      {/* Main info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2 flex-wrap">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
-              {doc.file_name}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              {typeLabel}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5 flex-shrink-0">
-            <VerificationBadge status={doc.verification_status} />
-            <ScanBadge scanPassed={doc.scan_passed} />
-          </div>
-        </div>
-
-        {/* Metadata */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-          {doc.uploaded_by_name && (
-            <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              <User className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate max-w-32">{doc.uploaded_by_name}</span>
-            </div>
-          )}
-          {doc.documentable_name && (
-            <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              <FileText className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate max-w-32">{doc.documentable_name}</span>
-            </div>
-          )}
-          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            {formatBytes(doc.size)} · {format(new Date(doc.created_at), 'MMM d, yyyy')}
-          </span>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {/* View */}
-        <button
-          onClick={() => onPreview(doc)}
-          disabled={doc.scan_passed === false}
-          title={doc.scan_passed === false ? 'Scan failed — preview blocked' : 'Preview document'}
-          className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-          style={{ borderColor: 'var(--border)', color: 'var(--night-sky-blue)' }}
+      <div
+        className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        style={{ background: 'var(--card)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: 'var(--border)' }}
         >
-          <Eye className="h-4 w-4" />
-        </button>
-
-        {/* Download */}
-        <button
-          onClick={() => void onDownload(doc)}
-          disabled={downloading === doc.id || doc.scan_passed === false}
-          title={doc.scan_passed === false ? 'Scan failed — download blocked for safety' : 'Download'}
-          className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-          style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
-        >
-          {downloading === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        </button>
-
-        {tab === 'active' ? (
-          <>
-            {/* Approve */}
-            {doc.verification_status !== 'approved' && (
-              <button
-                onClick={() => void onVerify(doc.id, 'approved')}
-                disabled={isBusy}
-                title="Approve document"
-                className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-                style={{ borderColor: 'rgba(5,150,105,0.35)', color: 'var(--forest-green)' }}
-              >
-                {verifying === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-              </button>
-            )}
-
-            {/* Reject */}
-            {doc.verification_status !== 'rejected' && (
-              <button
-                onClick={() => void onVerify(doc.id, 'rejected')}
-                disabled={isBusy}
-                title="Reject document"
-                className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-                style={{ borderColor: 'rgba(220,38,38,0.3)', color: 'var(--destructive)' }}
-              >
-                {verifying === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-              </button>
-            )}
-
-            {/* Archive */}
-            <button
-              onClick={() => void onArchive(doc.id)}
-              disabled={isBusy}
-              title="Archive document"
-              className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-              style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-            >
-              {archiving === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
-            </button>
-          </>
-        ) : (
-          /* Restore from archive */
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+            Reject Document
+          </p>
           <button
-            onClick={() => void onRestore(doc.id)}
-            disabled={isBusy}
-            title="Restore document"
-            className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-            style={{ borderColor: 'rgba(5,150,105,0.35)', color: 'var(--forest-green)' }}
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
           >
-            {archiving === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArchiveRestore className="h-4 w-4" />}
+            <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
           </button>
-        )}
-
-        {/* Delete — always available */}
-        <button
-          onClick={() => onDeleteRequest(doc)}
-          disabled={isBusy}
-          title="Delete document permanently"
-          className="p-1.5 rounded-lg border transition-colors disabled:opacity-40 hover:bg-[var(--muted)]"
-          style={{ borderColor: 'rgba(220,38,38,0.25)', color: 'var(--destructive)' }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── Pagination ────────────────────────────────────────────────────────────────
-
-function Pagination({
-  meta,
-  onPage,
-}: {
-  meta: PaginatedResponse<AdminDocument>['meta'];
-  onPage: (page: number) => void;
-}) {
-  if (meta.last_page <= 1) return null;
-  return (
-    <div className="flex items-center justify-between px-5 py-3 border-t text-sm" style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
-      <span>Page {meta.current_page} of {meta.last_page} · {meta.total} documents</span>
-      <div className="flex gap-2">
-        <Button variant="ghost" size="sm" disabled={meta.current_page <= 1} onClick={() => onPage(meta.current_page - 1)}>
-          Previous
-        </Button>
-        <Button variant="ghost" size="sm" disabled={meta.current_page >= meta.last_page} onClick={() => onPage(meta.current_page + 1)}>
-          Next
-        </Button>
+        </div>
+        <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            You are rejecting <strong style={{ color: 'var(--foreground)' }}>{documentType}</strong>.
+            The applicant will be notified and asked to resubmit.
+          </p>
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              Reason (optional)
+            </label>
+            <textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. File is unreadable, wrong document type…"
+              className="rounded-lg px-3 py-2.5 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)] w-full resize-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
+          <div
+            className="flex items-center justify-end gap-3 pt-1 border-t"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>Cancel</Button>
+            <Button variant="destructive" size="sm" type="submit" loading={saving} disabled={saving}>
+              Reject
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ── Overflow menu ─────────────────────────────────────────────────────────────
+
+interface OverflowMenuItem {
+  label: string;
+  icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}
+
+function OverflowMenu({ items }: { items: OverflowMenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<React.CSSProperties>({});
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+        zIndex: 9999,
+      });
+    }
+    setOpen((v) => !v);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent) {
+      if (
+        !menuRef.current?.contains(e.target as Node) &&
+        !btnRef.current?.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        title="More actions"
+        onClick={handleToggle}
+        className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors flex-shrink-0"
+        style={{ color: open ? 'var(--foreground)' : 'var(--muted-foreground)' }}
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          style={{
+            ...menuPos,
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            minWidth: '188px',
+            overflow: 'hidden',
+          }}
+        >
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                disabled={item.disabled}
+                onClick={() => { item.onClick(); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[var(--dash-nav-hover-bg)] transition-colors text-left disabled:opacity-40"
+                style={{ color: item.danger ? '#dc2626' : 'var(--foreground)' }}
+              >
+                <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: item.danger ? '#dc2626' : 'var(--muted-foreground)' }} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Extend Deadline modal ──────────────────────────────────────────────────────
+
+function ExtendDeadlineModal({
+  req,
+  onClose,
+  onExtended,
+}: {
+  req: DocumentRequest;
+  onClose: () => void;
+  onExtended: (updated: DocumentRequest) => void;
+}) {
+  const [date, setDate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!date) return;
+    setSaving(true);
+    try {
+      const updated = await extendDocumentRequestDeadline(req.id, date);
+      toast.success('Deadline extended. Applicant notified.');
+      onExtended(updated);
+    } catch {
+      toast.error('Failed to extend deadline.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls = 'rounded-lg px-3 py-2.5 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)] w-full';
+  const inputStyle = { background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
+      <div className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Extend Deadline</p>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
+            <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          </button>
+        </div>
+        <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            Set a new due date for <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>.
+          </p>
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>New Due Date *</label>
+            <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>Cancel</Button>
+            <Button size="sm" type="submit" loading={saving} disabled={saving || !date}>Extend Deadline</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Cancel Confirm modal ───────────────────────────────────────────────────────
+
+function CancelConfirmModal({
+  req,
+  onClose,
+  onConfirm,
+}: {
+  req: DocumentRequest;
+  onClose: () => void;
+  onConfirm: (req: DocumentRequest) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleConfirm() {
+    setSaving(true);
+    try {
+      onConfirm(req);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
+      <div className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Cancel Request</p>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
+            <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+          </button>
+        </div>
+        <div className="p-5 flex flex-col gap-4">
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            Cancel the request for <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>? The applicant will be notified and this record will be removed.
+          </p>
+          <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>Keep</Button>
+            <Button variant="destructive" size="sm" loading={saving} disabled={saving} onClick={() => void handleConfirm()}>Cancel Request</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
+
+const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
+  { label: 'All',             value: '' },
+  { label: 'Awaiting Upload', value: 'awaiting_upload' },
+  { label: 'Pending Review',  value: 'uploaded' },
+  { label: 'Processing',      value: 'scanning' },
+  { label: 'Under Review',    value: 'under_review' },
+  { label: 'Approved',        value: 'approved' },
+  { label: 'Rejected',        value: 'rejected' },
+  { label: 'Overdue',         value: 'overdue' },
+];
 
 export function AdminDocumentsPage() {
-  const [result, setResult]           = useState<PaginatedResponse<AdminDocument> | null>(null);
+  const [stats, setStats]             = useState<DocumentRequestStats | null>(null);
+  const [requests, setRequests]       = useState<DocumentRequest[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);
-  const [filters, setFilters]         = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage]               = useState(1);
-  const [tab, setTab]                 = useState<DocTab>('active');
-  const [verifying, setVerifying]     = useState<number | null>(null);
-  const [downloading, setDownloading] = useState<number | null>(null);
-  const [archiving, setArchiving]     = useState<number | null>(null);
-  const [retryKey, setRetryKey]       = useState(0);
-  // Delete dialog state
-  const [deleteTarget, setDeleteTarget] = useState<AdminDocument | null>(null);
-  const [deleting, setDeleting]         = useState(false);
-  // Viewer state
-  const [viewTargetId, setViewTargetId] = useState<number | null>(null);
+  const [lastPage, setLastPage]       = useState(1);
+  const [total, setTotal]             = useState(0);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Local input for instant UI feedback, debounced for API
-  const [searchInput, setSearchInput] = useState('');
+  // Filters
+  const [search, setSearch]           = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
-  const load = useCallback(async () => {
+  // Modal state
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [rejectTarget, setRejectTarget]         = useState<DocumentRequest | null>(null);
+  const [extendTarget, setExtendTarget]         = useState<DocumentRequest | null>(null);
+  const [cancelTarget, setCancelTarget]         = useState<DocumentRequest | null>(null);
+
+  // Per-row action loading
+  const [approvingId, setApprovingId]   = useState<number | null>(null);
+  const [remindingId, setRemindingId]   = useState<number | null>(null);
+  const [reuploadingId, setReuploadingId] = useState<number | null>(null);
+
+  // Expanded instructions per row
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  function toggleExpand(id: number) {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  // Debounced search
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search]);
+
+  const load = useCallback(() => {
     setLoading(true);
     setError(false);
-    try {
-      const params: Parameters<typeof getAdminDocuments>[0] = { page };
-      if (filters.search) params.search = filters.search;
-      if (filters.status && filters.status !== 'scanning') params.verification_status = filters.status as 'pending' | 'approved' | 'rejected';
-      // Pass archived param based on current tab
-      if (tab === 'archived') (params as Record<string, unknown>).archived = true;
-      const res = await getAdminDocuments(params);
-      setResult(res);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filters, tab, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    Promise.all([
+      getDocumentRequestStats(),
+      getDocumentRequests({
+        status: statusFilter || undefined,
+        search: debouncedSearch || undefined,
+        page,
+      }),
+    ])
+      .then(([s, r]) => {
+        setStats(s);
+        setRequests(r.data);
+        setLastPage(r.meta?.last_page ?? 1);
+        setTotal(r.meta?.total ?? 0);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [statusFilter, debouncedSearch, page]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  function handleSearchChange(value: string) {
-    setSearchInput(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setPage(1);
-      setFilters((prev) => ({ ...prev, search: value }));
-    }, 300);
-  }
-
-  function handleStatusFilter(status: StatusFilter) {
+  function handleMetricClick(status: string) {
+    setStatusFilter((prev) => (prev === status ? '' : status));
     setPage(1);
-    setFilters((prev) => ({ ...prev, status }));
   }
 
-  function clearFilters() {
-    setSearchInput('');
-    setPage(1);
-    setFilters(DEFAULT_FILTERS);
-  }
-
-  async function handleVerify(id: number, status: 'approved' | 'rejected') {
-    setVerifying(id);
+  async function handleApprove(req: DocumentRequest) {
+    setApprovingId(req.id);
     try {
-      const updated = await verifyDocument(id, status);
-      setResult((prev) => prev
-        ? { ...prev, data: prev.data.map((d) => d.id === id ? { ...d, ...updated } : d) }
-        : prev
-      );
-      toast.success(`Document ${status}.`);
+      const updated = await approveDocumentRequest(req.id);
+      setRequests((prev) => prev.map((r) => r.id === req.id ? updated : r));
+      toast.success('Document approved.');
+      // Refresh stats
+      getDocumentRequestStats().then(setStats).catch(() => {});
     } catch {
-      toast.error('Failed to update document status.');
+      toast.error('Approval failed.');
     } finally {
-      setVerifying(null);
+      setApprovingId(null);
     }
   }
 
-  async function handleDownload(doc: AdminDocument) {
-    setDownloading(doc.id);
+  function handleRejected(updated: DocumentRequest) {
+    setRequests((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+    setRejectTarget(null);
+    getDocumentRequestStats().then(setStats).catch(() => {});
+  }
+
+  async function handleDownload(req: DocumentRequest) {
+    if (!req.download_url) return;
     try {
-      const blob = await downloadAdminDocument(doc.id);
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = doc.file_name ?? `document-${doc.id}`;
+      const path = req.download_url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api/, '');
+      const res = await axiosInstance.get(path, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = req.uploaded_file_name ?? 'document';
       a.click();
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Download failed.');
-    } finally {
-      setDownloading(null);
     }
   }
 
-  async function handleArchive(id: number) {
-    setArchiving(id);
+  function handleCreated(req: DocumentRequest) {
+    setShowRequestModal(false);
+    setRequests((prev) => [req, ...prev]);
+    setTotal((t) => t + 1);
+    getDocumentRequestStats().then(setStats).catch(() => {});
+  }
+
+  async function handleRemind(req: DocumentRequest) {
+    setRemindingId(req.id);
     try {
-      await archiveDocument(id);
-      setResult((prev) => prev ? { ...prev, data: prev.data.filter((d) => d.id !== id) } : prev);
-      toast.success('Document archived.');
+      await remindDocumentRequest(req.id);
+      toast.success('Reminder sent to applicant.');
     } catch {
-      toast.error('Failed to archive document.');
+      toast.error('Failed to send reminder.');
     } finally {
-      setArchiving(null);
+      setRemindingId(null);
     }
   }
 
-  async function handleRestore(id: number) {
-    setArchiving(id);
+  async function handleReupload(req: DocumentRequest) {
+    setReuploadingId(req.id);
     try {
-      await restoreDocument(id);
-      setResult((prev) => prev ? { ...prev, data: prev.data.filter((d) => d.id !== id) } : prev);
-      toast.success('Document restored.');
+      const updated = await requestDocumentReupload(req.id);
+      setRequests((prev) => prev.map((r) => r.id === req.id ? updated : r));
+      toast.success('Resubmission requested. Applicant notified.');
+      getDocumentRequestStats().then(setStats).catch(() => {});
     } catch {
-      toast.error('Failed to restore document.');
+      toast.error('Failed to request resubmission.');
     } finally {
-      setArchiving(null);
+      setReuploadingId(null);
     }
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  function handleExtended(updated: DocumentRequest) {
+    setRequests((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+    setExtendTarget(null);
+    getDocumentRequestStats().then(setStats).catch(() => {});
+  }
+
+  async function handleCancel(req: DocumentRequest) {
     try {
-      await deleteDocument(deleteTarget.id);
-      setResult((prev) => prev ? { ...prev, data: prev.data.filter((d) => d.id !== deleteTarget.id) } : prev);
-      toast.success('Document permanently deleted.');
-      setDeleteTarget(null);
+      await cancelDocumentRequest(req.id);
+      setRequests((prev) => prev.filter((r) => r.id !== req.id));
+      setTotal((t) => t - 1);
+      setCancelTarget(null);
+      toast.success('Document request cancelled.');
+      getDocumentRequestStats().then(setStats).catch(() => {});
     } catch {
-      toast.error('Failed to delete document.');
-    } finally {
-      setDeleting(false);
+      toast.error('Failed to cancel request.');
     }
   }
 
-  const docs          = result?.data ?? [];
-  const pendingCount  = docs.filter((d) => d.verification_status === 'pending').length;
-  const hasActiveFilter = filters.search || filters.status;
+  // Status → action rules
+  const canReview = (status: DocumentRequestStatus) =>
+    status === 'uploaded' || status === 'under_review';
 
-  // Client-side scanning filter (API may not support it directly)
-  const displayedDocs = filters.status === 'scanning'
-    ? docs.filter((d) => d.scan_passed === null)
-    : docs;
+  const canRemind = (status: DocumentRequestStatus) =>
+    status === 'awaiting_upload' || status === 'overdue';
+
+  const canReupload = (status: DocumentRequestStatus) =>
+    status === 'rejected';
 
   return (
     <>
-      {/* Document viewer modal */}
-      {viewTargetId !== null && (
-        <DocumentViewerModal
-          docId={viewTargetId}
-          allDocs={displayedDocs}
-          onClose={() => setViewTargetId(null)}
-          onNavigate={setViewTargetId}
-          onVerify={handleVerify}
-          onDownload={handleDownload}
-          verifying={verifying}
-          downloading={downloading}
+      {showRequestModal && (
+        <RequestDocumentModal
+          onClose={() => setShowRequestModal(false)}
+          onCreated={handleCreated}
         />
       )}
-
-      {/* Delete confirmation dialog */}
-      {deleteTarget && (
-        <DeleteConfirmDialog
-          docName={deleteTarget.file_name ?? 'this document'}
-          onConfirm={() => void handleDeleteConfirm()}
-          onCancel={() => setDeleteTarget(null)}
-          loading={deleting}
+      {rejectTarget && (
+        <RejectModal
+          requestId={rejectTarget.id}
+          documentType={rejectTarget.document_type}
+          onClose={() => setRejectTarget(null)}
+          onRejected={handleRejected}
+        />
+      )}
+      {extendTarget && (
+        <ExtendDeadlineModal
+          req={extendTarget}
+          onClose={() => setExtendTarget(null)}
+          onExtended={handleExtended}
+        />
+      )}
+      {cancelTarget && (
+        <CancelConfirmModal
+          req={cancelTarget}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={handleCancel}
         />
       )}
 
       <div className="flex flex-col gap-6 max-w-6xl">
 
-        {/* ── Header ────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        {/* ── Header ──────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-              Document Intake
+              Document Requests
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Review, verify, and manage documents submitted by applicants.
+              Request, track, and review required documents for applicants.
             </p>
           </div>
-          {!loading && pendingCount > 0 && tab === 'active' && (
-            <div
-              className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"
-              style={{ background: 'rgba(245,158,11,0.10)', color: '#b45309', border: '1px solid rgba(245,158,11,0.25)' }}
-            >
-              <Clock className="h-4 w-4" />
-              {pendingCount} pending review
-            </div>
-          )}
+          <Button
+            size="sm"
+            onClick={() => setShowRequestModal(true)}
+            className="flex items-center gap-1.5"
+          >
+            <Plus className="h-4 w-4" />
+            Request Document
+          </Button>
         </div>
 
-        {/* ── Queue summary ─────────────────────────────────────── */}
-        {!loading && !error && (
-          <QueueSummary docs={docs} tab={tab} />
+        {/* ── Metrics bar ─────────────────────────────────────────── */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+            <MetricCard label="Total"          value={stats.total}           active={statusFilter === ''}               onClick={() => handleMetricClick('')} />
+            <MetricCard label="Awaiting Upload" value={stats.awaiting_upload} active={statusFilter === 'awaiting_upload'} onClick={() => handleMetricClick('awaiting_upload')} />
+            <MetricCard label="Uploaded"        value={stats.uploaded}        active={statusFilter === 'uploaded'}        onClick={() => handleMetricClick('uploaded')} />
+            <MetricCard label="Under Review"    value={stats.under_review}    active={statusFilter === 'under_review'}    onClick={() => handleMetricClick('under_review')} />
+            <MetricCard label="Approved"        value={stats.approved}        active={statusFilter === 'approved'}        onClick={() => handleMetricClick('approved')} />
+            <MetricCard label="Rejected"        value={stats.rejected}        active={statusFilter === 'rejected'}        onClick={() => handleMetricClick('rejected')} />
+            <MetricCard label="Overdue"         value={stats.overdue}         active={statusFilter === 'overdue'}         onClick={() => handleMetricClick('overdue')} />
+          </div>
         )}
 
-        {/* ── Active / Archived tabs ────────────────────────────── */}
-        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--muted)' }}>
-          {(['active', 'archived'] as DocTab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => { setTab(t); setPage(1); setFilters(DEFAULT_FILTERS); setSearchInput(''); }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize"
-              style={{
-                background: tab === t ? 'var(--card)' : 'transparent',
-                color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)',
-                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              {t === 'active' ? <Eye className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-              {t === 'active' ? 'Active Documents' : 'Archived Documents'}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Search + Status filters ───────────────────────────── */}
+        {/* ── Search + filter bar ──────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+              style={{ color: 'var(--muted-foreground)' }}
+            />
             <input
               type="text"
-              placeholder="Search by uploader, camper, or document name…"
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[var(--ember-orange)]"
-              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              placeholder="Search applicant, camper, or document type…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
+              style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
             />
-            {searchInput && (
-              <button onClick={() => handleSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--muted-foreground)' }}>
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
           </div>
 
           {/* Status filter pills */}
-          <div className="flex flex-wrap gap-2">
-            {(['', 'pending', 'scanning', 'approved', 'rejected'] as StatusFilter[]).map((s) => {
-              const labels: Record<string, string> = { '': 'All', pending: 'Pending', scanning: 'Scanning', approved: 'Approved', rejected: 'Rejected' };
-              const active = filters.status === s;
-              return (
-                <button
-                  key={s}
-                  onClick={() => handleStatusFilter(s)}
-                  className="px-3 py-2 rounded-xl border text-xs font-medium transition-colors"
-                  style={{
-                    background: active ? 'var(--ember-orange)' : 'var(--input)',
-                    color: active ? '#fff' : 'var(--foreground)',
-                    borderColor: active ? 'var(--ember-orange)' : 'var(--border)',
-                  }}
-                >
-                  {labels[s]}
-                </button>
-              );
-            })}
-            {hasActiveFilter && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {STATUS_FILTER_OPTIONS.map((opt) => (
               <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border text-xs transition-colors hover:bg-[var(--muted)]"
-                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                key={opt.value}
+                type="button"
+                onClick={() => { setStatusFilter(opt.value); setPage(1); }}
+                className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors"
+                style={{
+                  background: statusFilter === opt.value ? 'var(--ember-orange)' : 'var(--card)',
+                  borderColor: statusFilter === opt.value ? 'var(--ember-orange)' : 'var(--border)',
+                  color: statusFilter === opt.value ? '#fff' : 'var(--foreground)',
+                }}
               >
-                <X className="h-3 w-3" /> Clear
+                {opt.label}
               </button>
-            )}
+            ))}
           </div>
         </div>
 
-        {/* ── Document list ─────────────────────────────────────── */}
+        {/* ── Requests table ───────────────────────────────────────── */}
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+
+          {/* Table header */}
+          <div
+            className="hidden md:grid gap-x-3 px-6 py-3 border-b text-xs font-semibold uppercase tracking-wide"
+            style={{
+              gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 140px 100px 80px',
+              borderColor: 'var(--border)',
+              color: 'var(--muted-foreground)',
+              background: 'var(--dash-bg)',
+            }}
+          >
+            <span>Applicant</span>
+            <span>Camper</span>
+            <span>Document</span>
+            <span>Status</span>
+            <span>Due Date</span>
+            <span className="text-right">Actions</span>
+          </div>
+
           {loading ? (
-            <div className="p-4"><SkeletonTable rows={5} /></div>
+            <div className="p-4">
+              <SkeletonTable rows={6} />
+            </div>
           ) : error ? (
-            <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
-          ) : displayedDocs.length === 0 ? (
+            <ErrorState onRetry={load} />
+          ) : requests.length === 0 ? (
             <EmptyState
-              title={tab === 'archived' ? 'No archived documents' : 'No documents found'}
+              title="No document requests"
               description={
-                hasActiveFilter ? 'Try adjusting your filters.'
-                : tab === 'archived' ? 'Documents you archive will appear here.'
-                : 'No documents have been submitted yet.'
+                statusFilter || debouncedSearch
+                  ? 'No requests match your filters.'
+                  : 'Click "Request Document" to create the first request.'
               }
               icon={FileText}
             />
           ) : (
-            <>
-              <motion.div variants={staggerContainerVariants} initial="hidden" animate="visible">
-                {displayedDocs.map((doc) => (
-                  <DocumentRow
-                    key={doc.id}
-                    doc={doc}
-                    tab={tab}
-                    onPreview={(d) => setViewTargetId(d.id)}
-                    onVerify={handleVerify}
-                    onDownload={handleDownload}
-                    onArchive={handleArchive}
-                    onRestore={handleRestore}
-                    onDeleteRequest={setDeleteTarget}
-                    verifying={verifying}
-                    downloading={downloading}
-                    archiving={archiving}
-                  />
-                ))}
-              </motion.div>
-              {result && <Pagination meta={result.meta} onPage={(p) => setPage(p)} />}
-            </>
+            <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {requests.map((req) => (
+                <li key={req.id}>
+                  {(() => {
+                    const hasDetails = !!(req.instructions || req.rejection_reason);
+
+                    const btnCls = 'p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40';
+
+                    // Inline actions — max 2 icons to keep column at 80px
+                    const inlineActions = canReview(req.status) ? (
+                      <>
+                        <button type="button" title="Approve"
+                          disabled={approvingId === req.id}
+                          onClick={() => void handleApprove(req)}
+                          className={btnCls}
+                          style={{ color: 'var(--forest-green)' }}>
+                          <CheckCircle className="h-4 w-4" />
+                        </button>
+                        <button type="button" title="Reject"
+                          onClick={() => setRejectTarget(req)}
+                          className={btnCls}
+                          style={{ color: '#dc2626' }}>
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : hasDetails ? (
+                      <button type="button"
+                        title={expandedRows.has(req.id) ? 'Hide details' : 'View details'}
+                        onClick={() => toggleExpand(req.id)}
+                        className={btnCls}
+                        style={{ color: expandedRows.has(req.id) ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}>
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    ) : null;
+
+                    // Overflow menu items
+                    const overflowItems: OverflowMenuItem[] = (() => {
+                      const items: OverflowMenuItem[] = [];
+                      if (canReview(req.status)) {
+                        if (req.download_url) items.push({ label: 'Download file', icon: Download, onClick: () => void handleDownload(req) });
+                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
+                      } else if (req.status === 'approved') {
+                        if (req.download_url) items.push({ label: 'Download file', icon: Download, onClick: () => void handleDownload(req) });
+                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
+                      } else if (canReupload(req.status)) {
+                        items.push({ label: 'Request resubmission', icon: RotateCcw, onClick: () => void handleReupload(req), disabled: reuploadingId === req.id });
+                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
+                      } else if (canRemind(req.status)) {
+                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
+                        items.push({ label: 'Send reminder', icon: Bell, onClick: () => void handleRemind(req), disabled: remindingId === req.id });
+                        items.push({ label: 'Extend deadline', icon: CalendarClock, onClick: () => setExtendTarget(req) });
+                        items.push({ label: 'Cancel request', icon: Trash2, onClick: () => setCancelTarget(req), danger: true });
+                      } else if (req.status === 'scanning') {
+                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
+                      }
+                      return items;
+                    })();
+
+                    return (
+                      <div
+                        className="hidden md:grid gap-x-3 px-6 py-3 items-center"
+                        style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 140px 100px 80px' }}
+                      >
+                        {/* Applicant */}
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'rgba(22,101,52,0.10)' }}>
+                            <User className="h-3 w-3" style={{ color: 'var(--forest-green)' }} />
+                          </div>
+                          <span className="text-sm font-medium truncate" title={req.applicant_name}
+                            style={{ color: 'var(--foreground)' }}>
+                            {req.applicant_name}
+                          </span>
+                        </div>
+
+                        {/* Camper */}
+                        <span className="text-sm truncate overflow-hidden" title={req.camper_name ?? undefined}
+                          style={{ color: 'var(--muted-foreground)' }}>
+                          {req.camper_name ?? '—'}
+                        </span>
+
+                        {/* Document — fixed-width icon container so text always starts at same position */}
+                        <div className="flex items-center overflow-hidden min-w-0">
+                          <span className="flex items-center justify-center flex-shrink-0" style={{ width: 20 }}>
+                            <FileText className="h-3.5 w-3.5" style={{ color: 'var(--ember-orange)' }} />
+                          </span>
+                          <span className="text-sm font-medium truncate ml-1.5" title={req.document_type}
+                            style={{ color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                            {req.document_type}
+                          </span>
+                        </div>
+
+                        {/* Status */}
+                        <div className="overflow-hidden">
+                          <StatusBadge status={req.status} />
+                        </div>
+
+                        {/* Due date */}
+                        <span className="text-sm whitespace-nowrap" style={{ color: 'var(--muted-foreground)' }}>
+                          {req.due_date ? format(new Date(req.due_date), 'MMM d, yyyy') : '—'}
+                        </span>
+
+                        {/* Actions — fixed 80px column, always right-aligned so icons anchor to the right edge */}
+                        <div className="flex items-center justify-end gap-0.5 w-full">
+                          {inlineActions}
+                          <OverflowMenu items={overflowItems} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Mobile fallback */}
+                  <div className="md:hidden px-4 py-3 flex flex-col gap-1">
+                    <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{req.applicant_name}</span>
+                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{req.document_type}</span>
+                    <StatusBadge status={req.status} />
+                  </div>
+
+                  {/* Instructions / rejection reason (collapsible secondary row) */}
+                  {expandedRows.has(req.id) && (req.instructions || req.rejection_reason) && (
+                    <div
+                      className="px-6 pb-4 pt-1 text-xs rounded-b-lg border-t mx-0"
+                      style={{ background: 'var(--dash-bg)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                    >
+                      {req.rejection_reason && (
+                        <p className="font-medium" style={{ color: '#dc2626' }}>
+                          <strong>Rejection reason:</strong> {req.rejection_reason}
+                        </p>
+                      )}
+                      {req.instructions && (
+                        <p className={req.rejection_reason ? 'mt-1' : ''}>
+                          <strong style={{ color: 'var(--foreground)' }}>Instructions:</strong> {req.instructions}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
+        {/* ── Pagination ───────────────────────────────────────────── */}
+        {lastPage > 1 && (
+          <div className="flex items-center justify-between">
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              {total} request{total !== 1 ? 's' : ''}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                {page} / {lastPage}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page >= lastPage}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

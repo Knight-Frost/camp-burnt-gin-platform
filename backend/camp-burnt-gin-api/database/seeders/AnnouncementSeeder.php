@@ -18,7 +18,9 @@ use Illuminate\Support\Str;
  *   - Standard parent-only (pre-camp medical review, welcome)
  *   - Admin-only (staff orientation)
  *
- * Calendar events cover deadlines, sessions, orientations, and internal reviews.
+ * Calendar events cover deadlines, sessions, orientations, internal reviews,
+ * and three medical-staff-targeted events (audience='medical') added to support
+ * the medical portal calendar view.
  *
  * Also seeds a small set of realistic audit log entries for the admin log viewer.
  */
@@ -102,6 +104,14 @@ class AnnouncementSeeder extends Seeder
             ['title' => 'Medical Records Review — Session 1 Cohort','type' => 'internal',    'color' => '#475569', 'start' => '2026-05-22 09:00:00', 'end' => '2026-05-22 12:00:00', 'all_day' => false, 'audience' => 'admin'],
             ['title' => 'Medical Records Review — Session 2 Cohort','type' => 'internal',    'color' => '#475569', 'start' => '2026-06-05 09:00:00', 'end' => '2026-06-05 12:00:00', 'all_day' => false, 'audience' => 'admin'],
             ['title' => 'Post-Camp Debrief & Documentation',        'type' => 'internal',    'color' => '#475569', 'start' => '2026-06-29 10:00:00', 'end' => '2026-06-29 13:00:00', 'all_day' => false, 'audience' => 'admin'],
+
+            // ── Medical staff-targeted events (audience = 'medical') ─────────
+            // Session 1 starts June 8 2026. The staff briefing is 07:00 the same morning,
+            // before the 08:00 session open. The dispensing schedule and record review
+            // cover the full in-session operational calendar for medical staff.
+            ['title' => 'Medical Staff Briefing — Session 1 2026',         'type' => 'staff',    'color' => '#0284c7', 'start' => '2026-06-08 07:00:00', 'end' => '2026-06-08 08:00:00', 'all_day' => false, 'audience' => 'medical'],
+            ['title' => 'Medication Dispensing Schedule — Session 1 2026', 'type' => 'internal', 'color' => '#0284c7', 'start' => '2026-06-08 08:00:00', 'end' => '2026-06-08 09:00:00', 'all_day' => false, 'audience' => 'medical'],
+            ['title' => 'End-of-Session Medical Record Review',            'type' => 'deadline', 'color' => '#dc2626', 'start' => '2026-06-12 23:59:00', 'end' => '2026-06-12 23:59:00', 'all_day' => true,  'audience' => 'medical'],
         ];
 
         foreach ($events as $e) {
@@ -151,7 +161,7 @@ class AnnouncementSeeder extends Seeder
             ],
             [
                 'user_id'        => $sarah ? $sarah->id : $admin->id,
-                'event_type'     => 'auth',
+                'event_type'     => 'authentication',
                 'action'         => 'login',
                 'description'    => 'User logged in successfully',
                 'auditable_type' => null,

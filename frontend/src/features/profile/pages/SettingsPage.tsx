@@ -9,7 +9,6 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle } from 'lucide-react';
 import {
@@ -28,7 +27,6 @@ import { getProfileRoute, getPrimaryRole, ADMIN_ROLES } from '@/shared/constants
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/ui/components/Button';
 import { FormField } from '@/ui/components/FormField';
-import { scrollRevealVariants } from '@/shared/constants/motion';
 import axiosInstance from '@/api/axios.config';
 import { requestDataExport, deleteAccount } from '@/features/profile/api/profile.api';
 import { clearAuth } from '@/features/auth/store/authSlice';
@@ -197,12 +195,7 @@ export function SettingsPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <motion.div
-      variants={scrollRevealVariants}
-      initial="hidden"
-      animate="visible"
-      className="max-w-3xl"
-    >
+    <div className="max-w-3xl">
       <div className="mb-8">
         <h2
           className="font-headline font-semibold text-2xl mb-1"
@@ -581,7 +574,7 @@ export function SettingsPage() {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

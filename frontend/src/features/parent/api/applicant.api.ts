@@ -79,11 +79,12 @@ export async function createApplication(
 
 export async function signApplication(
   id: number,
-  signatureName: string
+  signatureName: string,
+  signatureData: string
 ): Promise<Application> {
   const { data } = await axiosInstance.post<ApiResponse<Application>>(
     `/applications/${id}/sign`,
-    { signature_name: signatureName }
+    { signature_name: signatureName, signature_data: signatureData }
   );
   return data.data;
 }
@@ -265,4 +266,74 @@ export async function getDocuments(): Promise<Document[]> {
 
 export async function deleteDocument(id: number): Promise<void> {
   await axiosInstance.delete(`/documents/${id}`);
+}
+
+// ─── Required Documents (sent by admin) ──────────────────────────────────────
+
+export interface RequiredDocument {
+  id: number;
+  original_file_name: string;
+  instructions: string | null;
+  status: 'pending' | 'submitted' | 'reviewed';
+  created_at: string;
+  download_url: string;
+}
+
+export async function getRequiredDocuments(): Promise<RequiredDocument[]> {
+  const { data } = await axiosInstance.get('/applicant/documents');
+  return data;
+}
+
+export async function submitCompletedDocument(id: number, file: File): Promise<RequiredDocument> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('applicant_document_id', String(id));
+  const { data } = await axiosInstance.post('/applicant/documents/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}
+
+// ─── Document Requests (new request lifecycle system) ─────────────────────────
+
+export type DocumentRequestStatus =
+  | 'awaiting_upload'
+  | 'uploaded'
+  | 'scanning'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'overdue';
+
+export interface DocumentRequestRecord {
+  id: number;
+  applicant_id: number;
+  camper_id: number | null;
+  camper_name: string | null;
+  requested_by_admin_id: number;
+  requested_by_name: string;
+  document_type: string;
+  instructions: string | null;
+  status: DocumentRequestStatus;
+  due_date: string | null;
+  uploaded_file_name: string | null;
+  uploaded_at: string | null;
+  rejection_reason: string | null;
+  reviewed_at: string | null;
+  download_url: string | null;
+  created_at: string;
+}
+
+export async function getDocumentRequests(): Promise<DocumentRequestRecord[]> {
+  const { data } = await axiosInstance.get('/applicant/document-requests');
+  return data;
+}
+
+export async function uploadDocumentRequest(id: number, file: File): Promise<DocumentRequestRecord> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await axiosInstance.post(`/applicant/document-requests/${id}/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
 }

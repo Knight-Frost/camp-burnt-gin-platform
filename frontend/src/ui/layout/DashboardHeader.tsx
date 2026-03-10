@@ -21,7 +21,6 @@
 
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Bell, User, LogOut, Settings } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
@@ -34,7 +33,6 @@ import { NotificationPanel } from '@/ui/components/NotificationPanel';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
 import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getProfileRoute } from '@/shared/constants/roles';
-import { dropdownVariants } from '@/shared/constants/motion';
 
 interface DashboardHeaderProps {
   title: string;
@@ -127,9 +125,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
           </Link>
 
           {/* Notification bell — orange dot badge appears when there are unread notifications */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => setNotifOpen(true)}
             className="relative p-2 rounded-xl transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
@@ -145,15 +141,13 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                 aria-hidden="true"
               />
             )}
-          </motion.button>
+          </button>
 
           {/* User dropdown — opens a popover with profile, settings, and sign-out */}
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               {/* Avatar button: initial letter + first name on sm+ screens */}
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+              <button
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors ml-1"
                 style={{
                   borderColor: 'var(--border)',
@@ -174,17 +168,13 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                 </div>
                 {/* First name only — hidden on small screens to save space */}
                 <span className="text-sm hidden sm:block">{user?.name.split(' ')[0]}</span>
-              </motion.button>
+              </button>
             </DropdownMenu.Trigger>
 
             <DropdownMenu.Portal>
               <DropdownMenu.Content align="end" sideOffset={8} asChild>
-                {/* Animated dropdown panel — slides down and fades in */}
-                <motion.div
-                  variants={dropdownVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
+                {/* Dropdown panel */}
+                <div
                   className="w-52 rounded-xl border p-1.5 z-50"
                   style={{
                     background: 'var(--popover)',
@@ -248,7 +238,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                       {isLoggingOut ? 'Signing out...' : 'Sign out'}
                     </button>
                   </DropdownMenu.Item>
-                </motion.div>
+                </div>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>

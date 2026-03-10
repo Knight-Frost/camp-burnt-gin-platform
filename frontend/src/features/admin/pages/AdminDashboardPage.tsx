@@ -11,7 +11,6 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   FileText, Users, CheckCircle, XCircle, Clock,
   ArrowRight, MessageSquare, Plus,
@@ -27,11 +26,6 @@ import { StatCard } from '@/ui/components/StatCard';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { ErrorState } from '@/ui/components/EmptyState';
-import {
-  staggerContainerVariants,
-  staggerChildVariants,
-  scrollRevealVariants,
-} from '@/shared/constants/motion';
 
 export function AdminDashboardPage() {
   const { t } = useTranslation();
@@ -204,7 +198,7 @@ export function AdminDashboardPage() {
       )}
 
       {/* ── Pending Review queue ─────────────────────────────── */}
-      <motion.section variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <section>
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -247,15 +241,12 @@ export function AdminDashboardPage() {
               </div>
             </div>
           ) : (
-            <motion.ul
-              variants={staggerContainerVariants}
-              initial="hidden"
-              animate="visible"
+            <ul
               className="divide-y"
               style={{ borderColor: 'var(--border)' }}
             >
               {reviewQueue.map((app) => (
-                <motion.li key={app.id} variants={staggerChildVariants}>
+                <li key={app.id}>
                   <Link
                     to={ROUTES.ADMIN_APPLICATION_DETAIL(app.id)}
                     className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
@@ -281,15 +272,15 @@ export function AdminDashboardPage() {
                       <ArrowRight className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
                     </div>
                   </Link>
-                </motion.li>
+                </li>
               ))}
-            </motion.ul>
+            </ul>
           )}
         </div>
-      </motion.section>
+      </section>
 
       {/* ── Session Enrollment ───────────────────────────────── */}
-      <motion.section variants={scrollRevealVariants} initial="hidden" animate="visible">
+      <section>
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -361,7 +352,7 @@ export function AdminDashboardPage() {
             </div>
           )}
         </div>
-      </motion.section>
+      </section>
 
     </div>
   );

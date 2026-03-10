@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, Upload, Download, File,
@@ -24,7 +24,7 @@ import {
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { pageEntry, staggerContainer, staggerChild } from '@/shared/constants/motion';
+
 import type { Camper, Document } from '@/features/admin/types/admin.types';
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export function MedicalDocumentsPage() {
     new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <motion.div variants={pageEntry} initial="hidden" animate="visible" className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl">
 
       {/* Back */}
       <Link
@@ -220,9 +220,9 @@ export function MedicalDocumentsPage() {
       </div>
 
       {/* Pending uploads */}
-      <AnimatePresence>
-        {pending.length > 0 && (
-          <motion.div className="mb-4 space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      {pending.length > 0 && (
+        <>
+          <div className="mb-4 space-y-2">
             {pending.map((p) => (
               <div
                 key={p.id}
@@ -251,9 +251,9 @@ export function MedicalDocumentsPage() {
                 )}
               </div>
             ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </>
+      )}
 
       {/* Document list */}
       {loading ? (
@@ -272,11 +272,10 @@ export function MedicalDocumentsPage() {
           description={t('medical.documents.empty_desc')}
         />
       ) : (
-        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-2">
+        <div className="space-y-2">
           {documents.map((doc) => (
-            <motion.div
+            <div
               key={doc.id}
-              variants={staggerChild}
               className="flex items-center gap-4 rounded-xl border px-5 py-4"
               style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
             >
@@ -305,10 +304,10 @@ export function MedicalDocumentsPage() {
                   : <Download className="h-3.5 w-3.5" />}
                 {t('common.download')}
               </button>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }
