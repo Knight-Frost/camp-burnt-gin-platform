@@ -368,7 +368,6 @@ Renders the top bar with portal title, notification bell, and user profile dropd
 - All colors via CSS custom properties: `var(--card)`, `var(--ember-orange)`, `var(--dash-nav-hover-bg)`, etc.
 - Use `cn()` (`clsx` + `tailwind-merge`) for conditional class composition
 - Never use hardcoded hex or rgba values in component JSX
-- No `dark:` Tailwind prefixes (permanent light mode)
 
 ### Accessibility
 

@@ -25,7 +25,6 @@ Production-grade, HIPAA-conscious frontend for the Camp Burnt Gin camp registrat
 | Compliance | HIPAA-conscious, WCAG 2.1 AA |
 | Architecture | Feature-Driven Architecture (FDA) |
 | Auth Strategy | Bearer token (Redux-persist, sessionStorage) |
-| Theme | Permanent light mode |
 | i18n | English and Spanish |
 
 ---
@@ -97,7 +96,7 @@ pnpm test            # Watch mode
 
 ## 4. Portal Architecture
 
-The application serves four role-based portals, each with its own layout, navigation tree, and feature pages. There is no public landing page; the root path redirects to `/login`.
+The application serves four role-based portals, each with its own layout, navigation tree, and feature pages. The root path redirects to `/login`.
 
 | Portal | URL Prefix | Role | Key Features |
 |--------|-----------|------|--------------|
@@ -209,8 +208,7 @@ Execute before production deployment:
 1. Run full test suite
 2. Execute accessibility audit (`npm run a11y`)
 3. Execute performance audit (`npm run perf`)
-4. Verify bundle size within budget (less than 60KB gzipped for landing page chunk)
-5. Review Lighthouse report scores (accessibility minimum 90%, performance minimum 85%, best practices minimum 90%)
+4. Review Lighthouse report scores (accessibility minimum 90%, performance minimum 85%, best practices minimum 90%)
 
 ---
 

@@ -25,7 +25,6 @@ The Camp Burnt Gin design system is built on CSS custom properties (design token
 
 ### Key Principles
 
-- **Permanent light mode** — There is no dark mode. `:root` defines light-mode values directly.
 - **Single source of truth** — All tokens defined in `frontend/src/assets/styles/design-tokens.css`
 - **No hardcoded values** — All colors, shadows, and spacing reference CSS custom properties
 - **WCAG AA compliant** — Color contrasts meet minimum accessibility requirements
@@ -166,7 +165,6 @@ Shadows are defined as CSS custom property values and mapped to Tailwind shadow 
 | Tailwind Class | Use |
 |----------------|-----|
 | `shadow-card` | Standard card elevation |
-| `shadow-card-glass` | Glassmorphic card elevation |
 | `shadow-ember-primary` | Emerald accent button shadow |
 | `shadow-hero-panel` | Hero panel elevation |
 
@@ -250,10 +248,6 @@ import { cn } from '@/shared/utils/cn';
 
 <div className={cn('base-classes', isActive && 'active-classes')} />
 ```
-
-### No Dark Mode Prefixes
-
-The application has no dark mode. Do not use `dark:` Tailwind prefixes. Use CSS variable tokens directly.
 
 ---
 
