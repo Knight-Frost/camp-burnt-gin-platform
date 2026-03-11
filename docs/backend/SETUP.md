@@ -54,21 +54,18 @@ If you prefer manual control:
 # 1. Copy environment file
 cp .env.example .env
 
-# 2. Generate application key
-docker-compose run --rm app php artisan key:generate
-
-# 3. Start containers
+# 2. Start containers (entrypoint auto-generates APP_KEY and runs migrations)
 docker-compose up -d
 
-# 4. Install dependencies
-docker-compose exec app composer install
+# 3. Seed the database (roles, default admin user, form definitions)
+docker-compose exec app php artisan db:seed
+docker-compose exec app php artisan db:seed --class=FormDefinitionSeeder
 
-# 5. Run migrations
-docker-compose exec app php artisan migrate
-
-# 6. Run tests to verify
+# 4. Run tests to verify
 docker-compose exec app php artisan test
 ```
+
+> **Note:** The container entrypoint (`docker/entrypoint.sh`) automatically waits for MySQL, generates `APP_KEY` if missing, and runs `php artisan migrate` on every startup. You do not need to run these manually.
 
 ### Docker Services
 
@@ -78,6 +75,18 @@ The `docker-compose.yml` provides:
 - **mysql** - MySQL 8.0 database (port 3306)
 - **redis** - Redis cache/sessions (port 6379)
 - **mailhog** - Email testing (SMTP 1025, Web UI 8025)
+
+### Docker Environment Overrides
+
+The following `.env` values are **automatically overridden** by `docker-compose.yml` — you do not need to change them in your `.env` file when using Docker:
+
+| Variable | Docker value |
+|---|---|
+| `DB_HOST` | `mysql` |
+| `REDIS_HOST` | `redis` |
+| `MAIL_HOST` | `mailhog` |
+| `MAIL_PORT` | `1025` |
+| `APP_URL` | `http://localhost:8000` |
 
 ### Access Points
 
@@ -109,10 +118,10 @@ docker-compose exec app ./vendor/bin/pint
 # Stop containers
 docker-compose down
 
-# Rebuild containers
+# Rebuild containers (required after Dockerfile changes)
 docker-compose up -d --build
 
-# Clear volumes (fresh start)
+# Fresh start — wipes all database volumes
 docker-compose down -v
 ```
 
@@ -375,8 +384,9 @@ php artisan db:seed --class=RoleSeeder
 ```
 
 **Important:** Database seeding automatically creates:
-- Four system roles (super_admin, admin, parent, medical) via RoleSeeder
-- Default super_admin user (email: admin@campburntgin.org, password: ChangeThisPassword123!)
+- Four system roles (`super_admin`, `admin`, `applicant`, `medical`) via `RoleSeeder`
+- Default super_admin user (`admin@campburntgin.org` / `ChangeThisPassword123!`)
+- Dynamic form definition v1 (112 fields across 10 sections) via `FormDefinitionSeeder`
 
 **Security Warning:** The default super_admin password MUST be changed immediately in production environments.
 
@@ -384,9 +394,51 @@ php artisan db:seed --class=RoleSeeder
 
 ---
 
+## Frontend Setup
+
+The frontend is a separate Vite + React app and is **not included in the Docker Compose setup**. Run it independently.
+
+### Prerequisites
+
+- Node.js 18+ and pnpm
+
+### Steps
+
+```bash
+cd frontend
+
+# Install dependencies
+pnpm install
+
+# Start dev server (proxies API to http://localhost:8000)
+pnpm dev
+```
+
+The frontend runs at **http://localhost:5173** by default.
+
+> **CORS:** The backend is pre-configured to allow `http://localhost:5173` and `http://localhost:5174`. No changes needed for local development.
+
+---
+
 ## Troubleshooting
 
 ### Common Issues
+
+#### App won't start — "No application encryption key has been specified"
+
+The `APP_KEY` is empty. The Docker entrypoint should handle this automatically, but if you bypassed setup:
+
+```bash
+docker-compose exec app php artisan key:generate
+```
+
+#### Redis connection refused
+
+If not using Docker, ensure Redis is running locally and `REDIS_HOST=127.0.0.1` in `.env`. In Docker this is handled automatically.
+
+#### Emails not appearing in Mailhog
+
+Check that `MAIL_MAILER=smtp` in your `.env` (not `log`). In Docker, `MAIL_HOST` and `MAIL_PORT` are overridden automatically to point at Mailhog. Open http://localhost:8025 to view captured emails.
 
 #### "Class not found" errors
 
@@ -405,7 +457,9 @@ chmod -R 755 storage bootstrap/cache
 #### Port already in use
 
 ```bash
-# Docker: Change ports in docker-compose.yml
+# Docker: Change ports in docker-compose.yml or set in .env
+APP_PORT=8001
+
 # Local: Use different port
 php artisan serve --port=8080
 ```
@@ -485,7 +539,7 @@ After setup is complete:
 
 1.  Run tests to verify: `php artisan test`
 2.  Review [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines
-3.  Check [DEPLOYMENT.md](./DEPLOYMENT.md) for CI/CD workflows
+3.  Check [CI_CD.md](./CI_CD.md) for CI/CD workflows
 4.  Review [API Routes](#) documentation
 5.  Start coding!
 
@@ -495,7 +549,7 @@ After setup is complete:
 
 - **Documentation:** [docs/](./README.md)
 - **Issues:** Create GitHub issue
-- **CI/CD:** See [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **CI/CD:** See [CI_CD.md](./CI_CD.md)
 - **Security:** See [SECURITY.md](./SECURITY.md)
 
 ---

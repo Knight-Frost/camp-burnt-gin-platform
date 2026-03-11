@@ -139,6 +139,10 @@ if [ "$SETUP_MODE" = "--docker" ]; then
     info "Running migrations..."
     docker-compose exec app php artisan migrate
 
+    info "Seeding database..."
+    docker-compose exec app php artisan db:seed
+    docker-compose exec app php artisan db:seed --class=FormDefinitionSeeder
+
     section "Setup Complete (Docker Mode)"
 
     echo ""
@@ -172,6 +176,11 @@ else
         info "Running migrations..."
         php artisan migrate
         success "Migrations completed"
+
+        info "Seeding database..."
+        php artisan db:seed
+        php artisan db:seed --class=FormDefinitionSeeder
+        success "Seeding completed"
     fi
 
     section "Setup Complete (Local Mode)"

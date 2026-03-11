@@ -38,11 +38,16 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-local}
       - APP_DEBUG=${APP_DEBUG:-true}
+      - APP_URL=http://localhost:${APP_PORT:-8000}
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_DATABASE=${DB_DATABASE:-camp_burnt_gin}
       - DB_USERNAME=${DB_USERNAME:-camp_user}
       - DB_PASSWORD=${DB_PASSWORD:-password}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
     volumes:
       - .:/var/www/html
       - php_vendor:/var/www/html/vendor
@@ -52,7 +57,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    command: php artisan serve --host=0.0.0.0 --port=8000
+    command: sh /var/www/html/docker/entrypoint.sh
 
   # Redis (Optional - for cache/sessions)
   redis:

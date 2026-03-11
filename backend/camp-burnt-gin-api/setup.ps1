@@ -156,6 +156,10 @@ if ($Docker) {
     Write-Info "Running migrations..."
     & docker-compose exec app php artisan migrate
 
+    Write-Info "Seeding database..."
+    & docker-compose exec app php artisan db:seed
+    & docker-compose exec app php artisan db:seed --class=FormDefinitionSeeder
+
     Write-Section "Setup Complete (Docker Mode)"
 
     Write-Host ""
@@ -193,6 +197,11 @@ if ($Docker) {
         if ($LASTEXITCODE -eq 0) {
             Write-Success "Migrations completed"
         }
+
+        Write-Info "Seeding database..."
+        & php artisan db:seed
+        & php artisan db:seed --class=FormDefinitionSeeder
+        Write-Success "Seeding completed"
     }
 
     Write-Section "Setup Complete (Local Mode)"
