@@ -84,6 +84,14 @@ export const ROUTES = {
   SUPER_ADMIN_USERS: '/super-admin/users',
   // Audit log shows every action taken in the system (HIPAA requirement)
   SUPER_ADMIN_AUDIT: '/super-admin/audit',
+  // Dynamic application form management — edit sections and fields without code deploys
+  SUPER_ADMIN_FORM_BUILDER: '/super-admin/form-builder',
+  // Form structure editor for a specific form definition
+  SUPER_ADMIN_FORM_STRUCTURE: (formId: number | string) =>
+    `/super-admin/form-builder/${formId}`,
+  // Section field editor — manage fields within one section
+  SUPER_ADMIN_SECTION_EDITOR: (formId: number | string, sectionId: number | string) =>
+    `/super-admin/form-builder/${formId}/sections/${sectionId}`,
 
   // ─── Shared authenticated pages ─────────────────────────────────────────────
   // Each portal mounts these under its own prefix (e.g. /admin/inbox, /medical/inbox)

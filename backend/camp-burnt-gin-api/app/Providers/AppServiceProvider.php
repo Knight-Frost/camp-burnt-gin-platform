@@ -23,6 +23,9 @@ use App\Models\MedicalIncident;
 use App\Models\MedicalFollowUp;
 use App\Models\MedicalVisit;
 use App\Models\ApplicantDocument;
+use App\Models\FormDefinition;
+use App\Models\FormField;
+use App\Models\FormSection;
 use App\Models\MedicalRestriction;
 use App\Models\Message;
 use App\Models\Role;
@@ -56,6 +59,9 @@ use App\Policies\MedicalIncidentPolicy;
 use App\Policies\MedicalFollowUpPolicy;
 use App\Policies\MedicalVisitPolicy;
 use App\Policies\ApplicantDocumentPolicy;
+use App\Policies\FormDefinitionPolicy;
+use App\Policies\FormFieldPolicy;
+use App\Policies\FormSectionPolicy;
 use App\Policies\MedicalRestrictionPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -145,6 +151,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Applicant Documents — admin-to-applicant document workflow
         ApplicantDocument::class => ApplicantDocumentPolicy::class,
+
+        // Application form management (Phase 14 — dynamic form builder)
+        FormDefinition::class => FormDefinitionPolicy::class,
+        FormSection::class    => FormSectionPolicy::class,
+        FormField::class      => FormFieldPolicy::class,
     ];
 
     /**

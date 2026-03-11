@@ -23,51 +23,6 @@ import type { Conversation } from '@/features/messaging/api/messaging.api';
 const BRAND   = '#16a34a';
 const BRAND_T = 'rgba(22,163,74,0.10)';
 
-// ─── Badge helpers ────────────────────────────────────────────────────────────
-
-const BADGE_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  application:   { bg: 'rgba(22,163,74,0.12)',  color: BRAND,      label: 'Applicants'   },
-  medical:       { bg: 'rgba(37,99,235,0.12)',  color: '#2563eb',  label: 'Medical Team' },
-  general:       { bg: 'rgba(107,114,128,0.12)',color: '#6b7280',  label: 'System'       },
-  other:         { bg: 'rgba(107,114,128,0.12)',color: '#6b7280',  label: 'System'       },
-  announcements: { bg: 'rgba(245,158,11,0.12)', color: '#d97706',  label: 'Announcements'},
-};
-
-const SYSTEM_CATEGORY_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  application: { bg: 'rgba(22,163,74,0.12)',  color: BRAND,     label: 'Application' },
-  security:    { bg: 'rgba(239,68,68,0.12)',   color: '#dc2626', label: 'Security'    },
-  role:        { bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed', label: 'Role Change' },
-  medical:     { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb', label: 'Medical'     },
-};
-
-function CategoryBadge({ category, isSystem, systemCategory }: {
-  category?: string;
-  isSystem?: boolean;
-  systemCategory?: string;
-}) {
-  if (isSystem) {
-    const s = SYSTEM_CATEGORY_STYLES[systemCategory ?? ''] ?? { bg: 'rgba(107,114,128,0.12)', color: '#6b7280', label: 'System' };
-    return (
-      <span
-        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-        style={{ background: s.bg, color: s.color }}
-      >
-        <Bot className="h-3 w-3 flex-shrink-0" />
-        {s.label}
-      </span>
-    );
-  }
-  const s = BADGE_STYLES[category ?? 'other'] ?? BADGE_STYLES.other;
-  return (
-    <span
-      className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-      style={{ background: s.bg, color: s.color }}
-    >
-      {s.label}
-    </span>
-  );
-}
-
 // ─── Avatar helpers ───────────────────────────────────────────────────────────
 
 const PALETTE = ['#16a34a','#1d4ed8','#7c3aed','#0f766e','#b45309','#be123c','#0369a1','#4338ca'];
@@ -250,14 +205,8 @@ export function MessageRow({
         </div>
       </div>
 
-      {/* Right side: badge + (timestamp/dot or action icons) */}
+      {/* Right side: timestamp/dot or action icons */}
       <div className="flex items-center gap-2.5 flex-shrink-0">
-        <CategoryBadge
-          category={conv.category}
-          isSystem={isSystem}
-          systemCategory={conv.system_event_category}
-        />
-
         {/* Timestamp + unread dot — hidden on hover */}
         <div className="relative flex items-center gap-2.5">
           <div className={`flex items-center gap-2.5 transition-opacity duration-150 ${!isSystem ? 'group-hover:opacity-0' : ''}`}>

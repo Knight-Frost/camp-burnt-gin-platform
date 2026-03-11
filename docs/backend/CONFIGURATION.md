@@ -63,7 +63,7 @@ DB_PASSWORD=
 
 # Security
 BCRYPT_ROUNDS=14
-SANCTUM_EXPIRATION=60                 # minutes, null=no expiration
+SANCTUM_EXPIRATION=30                 # minutes; HIPAA: keep ≤ 30 min for PHI-bearing sessions
 AUTH_PASSWORD_TIMEOUT=900             # seconds
 
 # Session
@@ -136,7 +136,7 @@ FILESYSTEM_DISK=local                 # local|s3|spaces
 | Variable | Type | Default | Range/Values | Description |
 |----------|------|---------|--------------|-------------|
 | BCRYPT_ROUNDS | Integer | 14 | 4-31 | Password hashing cost factor |
-| SANCTUM_EXPIRATION | Integer or null | 60 | Minutes or null | API token expiration (HIPAA: 60) |
+| SANCTUM_EXPIRATION | Integer or null | 30 | Minutes or null | API token expiration (HIPAA: ≤ 30 min for PHI sessions) |
 | AUTH_PASSWORD_TIMEOUT | Integer | 900 | Seconds | Re-confirmation timeout for sensitive actions |
 
 ### BCRYPT_ROUNDS
@@ -155,7 +155,7 @@ FILESYSTEM_DISK=local                 # local|s3|spaces
 **HIPAA Compliance:** Required for automatic session timeout
 
 **Recommendations:**
-- Production: 60 minutes (HIPAA compliant)
+- Production: 30 minutes (HIPAA: PHI sessions must not exceed 30 min)
 - Development: null (no expiration for convenience)
 
 ---
@@ -274,7 +274,7 @@ QUEUE_CONNECTION=sync
 APP_ENV=staging
 APP_DEBUG=false
 BCRYPT_ROUNDS=14
-SANCTUM_EXPIRATION=60
+SANCTUM_EXPIRATION=30
 MAIL_MAILER=smtp
 CACHE_STORE=redis
 QUEUE_CONNECTION=redis
@@ -292,7 +292,7 @@ QUEUE_CONNECTION=redis
 APP_ENV=production
 APP_DEBUG=false
 BCRYPT_ROUNDS=14
-SANCTUM_EXPIRATION=60
+SANCTUM_EXPIRATION=30
 MAIL_MAILER=smtp
 CACHE_STORE=redis
 QUEUE_CONNECTION=redis
@@ -338,7 +338,7 @@ SESSION_ENCRYPT=true
 - [ ] Routes cached: `php artisan route:cache`
 
 **HIPAA Compliance:**
-- [ ] SANCTUM_EXPIRATION=60
+- [ ] SANCTUM_EXPIRATION=30
 - [ ] SESSION_LIFETIME=30
 - [ ] SESSION_ENCRYPT=true
 - [ ] Audit logging enabled

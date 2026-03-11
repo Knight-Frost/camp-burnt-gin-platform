@@ -65,13 +65,14 @@ class MedicalRecordPolicy
     /**
      * Can the user create a new medical record?
      *
-     * Admins create records for administrative purposes.
-     * Parents create the initial medical record when registering their child.
-     * Medical staff do not create records — they update existing ones.
+     * Only admins may create medical records. Records are created automatically
+     * by ApplicationService::reviewApplication() at the moment of application
+     * approval — never during application submission.
+     * Medical staff and applicants do not create records directly.
      */
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isApplicant();
+        return $user->isAdmin();
     }
 
     /**

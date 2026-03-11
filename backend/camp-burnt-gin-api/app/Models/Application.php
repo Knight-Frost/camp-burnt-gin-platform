@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ApplicationStatus;
+use App\Models\FormDefinition;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,18 +34,19 @@ class Application extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'camper_id',          // Which camper this application is for.
-        'camp_session_id',    // Which specific session they want to attend.
-        'status',             // Current workflow state (ApplicationStatus enum).
-        'is_draft',           // True while the parent is still filling it out.
-        'submitted_at',       // Timestamp when the parent officially submitted.
-        'reviewed_at',        // Timestamp when an admin completed their review.
-        'reviewed_by',        // FK to the User who performed the review.
-        'notes',              // Admin notes visible only internally.
-        'signature_data',     // Raw signature image/data — hidden from API output.
-        'signature_name',     // Typed name accompanying the signature.
-        'signed_at',          // When the signature was captured.
-        'signed_ip_address',  // IP address for legal proof of consent.
+        'camper_id',            // Which camper this application is for.
+        'camp_session_id',      // Which specific session they want to attend.
+        'form_definition_id',   // FK to the form version active at submission time (nullable; null = pre-Phase 14).
+        'status',               // Current workflow state (ApplicationStatus enum).
+        'is_draft',             // True while the parent is still filling it out.
+        'submitted_at',         // Timestamp when the parent officially submitted.
+        'reviewed_at',          // Timestamp when an admin completed their review.
+        'reviewed_by',          // FK to the User who performed the review.
+        'notes',                // Admin notes visible only internally.
+        'signature_data',       // Raw signature image/data — hidden from API output.
+        'signature_name',       // Typed name accompanying the signature.
+        'signed_at',            // When the signature was captured.
+        'signed_ip_address',    // IP address for legal proof of consent.
     ];
 
     /**
@@ -135,6 +137,17 @@ class Application extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * Get the form definition version that was active when this application was submitted.
+     *
+     * Null means the application predates the dynamic form system (Phase 14).
+     * Those applications are rendered using the current active definition for display.
+     */
+    public function formDefinition(): BelongsTo
+    {
+        return $this->belongsTo(FormDefinition::class);
     }
 
     /**

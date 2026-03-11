@@ -92,6 +92,8 @@ const MedicalEmergencyViewPage = withSuspense(lazy(() => import('@/features/medi
 const SuperAdminDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/SuperAdminDashboardPage').then(m => ({ default: m.SuperAdminDashboardPage }))));
 const UserManagementPage      = withSuspense(lazy(() => import('@/features/superadmin/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage }))));
 const AuditLogPage            = withSuspense(lazy(() => import('@/features/superadmin/pages/AuditLogPage').then(m => ({ default: m.AuditLogPage }))));
+const FormDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/FormDashboardPage').then(m => ({ default: m.FormDashboardPage }))));
+const FormEditorPage    = withSuspense(lazy(() => import('@/features/superadmin/pages/FormEditorPage').then(m => ({ default: m.FormEditorPage }))));
 
 // ─── Shared pages ─────────────────────────────────────────────────────────────
 // These pages are reused across multiple portals (each portal mounts them under its own prefix)
@@ -241,6 +243,9 @@ export const router = createBrowserRouter([
           // Governance-only pages (not available in the regular admin portal)
           { path: '/super-admin/users',                element: <UserManagementPage /> },
           { path: '/super-admin/audit',                element: <AuditLogPage /> },
+          // Form Builder — multi-screen workflow
+          { path: '/super-admin/form-builder',          element: <FormDashboardPage /> },
+          { path: '/super-admin/form-builder/:formId', element: <FormEditorPage /> },
           // Shared admin pages also mounted under super-admin prefix
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
           { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },

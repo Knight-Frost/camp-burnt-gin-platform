@@ -239,6 +239,55 @@ public function ownsCamper(Camper $camper): bool
 
 ---
 
+## Document Request Rules (Phase 13)
+
+### Status Lifecycle
+
+```
+awaiting_upload → uploaded → scanning → under_review → approved (final)
+                                                      → rejected (final)
+awaiting_upload → overdue (when due_date passes without upload)
+```
+
+### Rules
+
+1. Only admin and super_admin roles can create document requests.
+2. A document request may be optionally linked to a specific application or camper, but neither is required.
+3. The applicant receives a system inbox notification when a document request is created.
+4. Status updates (approval, rejection, reupload requests) are appended as new messages to the same inbox thread.
+5. An applicant may only upload one document per request. To allow resubmission, an admin must explicitly invoke the reupload action.
+6. A request with `canUpload()` returning true accepts uploads. The `canUpload()` helper returns true only for status values: `awaiting_upload`, `rejected` (if reupload requested).
+7. Rejection requires a reason (stored in `rejection_reason`).
+8. Admins can extend the deadline of a request regardless of its current status.
+9. A request cannot be deleted after a document has been submitted — it can only be cancelled.
+
+---
+
+## Form Definition Rules (Phase 14)
+
+### Version Management
+
+1. Only one form definition may have `status = published` at any given time. Publishing a new definition automatically supersedes the previous one.
+2. A form definition begins in `draft` status. Only published definitions are served to applicants.
+3. Draft definitions can be edited freely. Published definitions cannot be directly edited — they must be duplicated first.
+4. The active form schema is publicly cached for 10 minutes under key `form.active.v{version}`.
+
+### Field Key Rules
+
+1. A field's `field_key` is a stable machine-readable identifier used to store application data.
+2. Once at least one application has been submitted that references a `field_key`, that key cannot be renamed. Attempts will raise a `FormFieldKeyChangeException` and return a 422 response.
+3. Field keys must be unique within a form definition.
+
+### Reorder Rules
+
+1. Sections, fields, and options can be reordered using batch reorder endpoints. Reorder operations are scoped to the parent (a section's fields cannot be moved to another section via reorder).
+
+### Field Deactivation
+
+1. A field can be deactivated without being deleted. Deactivated fields are hidden from applicants but remain in the database for data integrity.
+
+---
+
 ## Related Documentation
 
 - [APPLICATION_WORKFLOWS.md](APPLICATION_WORKFLOWS.md) - Application lifecycle
@@ -248,4 +297,4 @@ public function ownsCamper(Camper $camper): bool
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** February 2026
+**Last Updated:** March 2026

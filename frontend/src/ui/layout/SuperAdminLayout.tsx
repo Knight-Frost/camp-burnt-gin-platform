@@ -31,6 +31,7 @@ import {
   FolderOpen,
   Settings,
   Megaphone,
+  Layout,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
@@ -72,9 +73,10 @@ export function SuperAdminLayout() {
 
   // System items are pinned to the bottom of the sidebar — always visible regardless of viewport height.
   const systemNavItems: NavItem[] = [
-    { label: t('portal_nav.users_permissions'), to: ROUTES.SUPER_ADMIN_USERS, icon: Users },
-    { label: t('portal_nav.audit_log'),         to: ROUTES.SUPER_ADMIN_AUDIT, icon: ScrollText },
-    { label: t('portal_nav.settings'),          to: '/super-admin/settings',  icon: Settings },
+    { label: t('portal_nav.users_permissions'), to: ROUTES.SUPER_ADMIN_USERS,         icon: Users },
+    { label: t('portal_nav.audit_log'),         to: ROUTES.SUPER_ADMIN_AUDIT,         icon: ScrollText },
+    { label: t('portal_nav.form_builder'),      to: ROUTES.SUPER_ADMIN_FORM_BUILDER,  icon: Layout },
+    { label: t('portal_nav.settings'),          to: '/super-admin/settings',           icon: Settings },
   ];
 
   return (

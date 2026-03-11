@@ -288,7 +288,7 @@ export function RegisterPage() {
 
           {/* Criteria checklist — always visible so the user knows the rules up front */}
           <ul className="flex flex-col gap-1 mt-0.5 pl-0.5">
-            <CriterionRow met={criteria.length}    typing={isTyping} label="Must be 8–16 characters" />
+            <CriterionRow met={criteria.length}    typing={isTyping} label="Must be 8–64 characters" />
             <CriterionRow met={criteria.uppercase} typing={isTyping} label="Must include 1 uppercase letter (A–Z)" />
             <CriterionRow met={criteria.lowercase} typing={isTyping} label="Must include 1 lowercase letter (a–z)" />
             <CriterionRow met={criteria.number}    typing={isTyping} label="Must include 1 number (0–9)" />

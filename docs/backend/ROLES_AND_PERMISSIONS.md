@@ -256,6 +256,50 @@ The system implements a four-tier role hierarchy:
 | Revoke link | Yes | Yes (own links) | No |
 | Resend link | Yes | No | No |
 
+### Form Builder (Phase 14)
+
+| Action | super_admin | admin | applicant | medical |
+|--------|-------------|-------|-----------|---------|
+| View active form schema | Yes | Yes | Yes | No |
+| View form definitions list | Yes | Yes | No | No |
+| Create form definition | Yes | No | No | No |
+| Edit form definition | Yes | No | No | No |
+| Delete form definition | Yes (draft only) | No | No | No |
+| Publish form definition | Yes | No | No | No |
+| Duplicate form definition | Yes | No | No | No |
+| Manage form sections | Yes | No | No | No |
+| Manage form fields | Yes | No | No | No |
+| Manage field options | Yes | No | No | No |
+
+**Key rule:** Only super_admin can modify form structure. Admins can view form definitions for reference. The active form schema is readable by all authenticated users so the application form can render dynamically.
+
+### Document Requests (Phase 13)
+
+| Action | super_admin | admin | applicant | medical |
+|--------|-------------|-------|-----------|---------|
+| Create document request | Yes | Yes | No | No |
+| View all document requests | Yes | Yes | No | No |
+| View own document requests | Yes | Yes | Yes (own only) | No |
+| Approve/reject document request | Yes | Yes | No | No |
+| Cancel document request | Yes | Yes | No | No |
+| Send reminder | Yes | Yes | No | No |
+| Extend deadline | Yes | Yes | No | No |
+| Upload in response to request | No | No | Yes (own only) | No |
+| Download submitted document | Yes | Yes | Yes (own only) | No |
+| View stats dashboard | Yes | Yes | No | No |
+
+### Applicant Documents
+
+| Action | super_admin | admin | applicant | medical |
+|--------|-------------|-------|-----------|---------|
+| Send document to applicant | Yes | Yes | No | No |
+| View all applicant documents | Yes | Yes | No | No |
+| Download original/submitted | Yes | Yes | No | No |
+| Mark as reviewed | Yes | Yes | No | No |
+| Replace document | Yes | Yes | No | No |
+| View own received documents | No | No | Yes (own only) | No |
+| Upload/submit document | No | No | Yes (own only) | No |
+
 ### Reports
 
 | Operation | Admin | Parent | Medical |
@@ -376,11 +420,11 @@ This command:
 
 ## Related Documentation
 
-- [AUTHENTICATION_AND_AUTHORIZATION.md](AUTHENTICATION_AND_AUTHORIZATION.md) - Authentication system
+- [AUTHENTICATION.md](AUTHENTICATION.md) - Authentication system
 - [SECURITY.md](SECURITY.md) - Security implementation
 - [API_REFERENCE.md](API_REFERENCE.md) - API endpoint reference
 
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 11 — Medical Portal Expansion (2026-03-07))
+**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 11 — Medical Portal Expansion (2026-03-07); Phase 13 — Document Request System; Phase 14 — Dynamic Application Form Management)

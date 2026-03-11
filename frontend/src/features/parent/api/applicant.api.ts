@@ -117,24 +117,6 @@ export async function createEmergencyContact(
   await axiosInstance.post('/emergency-contacts', payload);
 }
 
-export interface CreateMedicalRecordPayload {
-  camper_id: number;
-  physician_name: string;
-  physician_phone: string;
-  insurance_provider: string;
-  insurance_policy_number: string;
-  special_needs?: string;
-}
-
-export async function createMedicalRecord(
-  payload: CreateMedicalRecordPayload
-): Promise<{ id: number }> {
-  const { data } = await axiosInstance.post<{ data: { id: number } }>(
-    '/medical-records',
-    payload
-  );
-  return data.data;
-}
 
 export interface CreateDiagnosisPayload {
   camper_id: number;
@@ -336,4 +318,20 @@ export async function uploadDocumentRequest(id: number, file: File): Promise<Doc
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// Active Form Schema
+// ---------------------------------------------------------------------------
+
+import type { FormSchema } from '@/features/forms/types/form.types';
+
+/**
+ * Fetch the currently active application form schema.
+ * Returns sections, fields, options, and conditional logic rules.
+ * Used by ApplicationFormPage to optionally fetch schema for future schema-driven rendering.
+ */
+export async function getActiveFormSchema(): Promise<FormSchema> {
+  const { data } = await axiosInstance.get<{ data: FormSchema }>('/form/active');
+  return data.data;
 }

@@ -100,9 +100,11 @@ class ApplicationService
             }
         }
 
-        // ── Step 2: Guarantee a medical record exists before approval ────────────
-        // The application form normally creates one during submission, but this
-        // firstOrCreate is a safety net for any path that bypassed that step.
+        // ── Step 2: Create the medical record at the moment of approval ─────────
+        // This is the sole point in the system where a medical record is created.
+        // Submitting an application intentionally does NOT create a medical record —
+        // the record must only exist for campers whose application has been accepted.
+        // firstOrCreate is used so retried approvals remain idempotent.
         if ($newStatus === ApplicationStatus::Approved) {
             $application->loadMissing('camper');
             MedicalRecord::firstOrCreate(

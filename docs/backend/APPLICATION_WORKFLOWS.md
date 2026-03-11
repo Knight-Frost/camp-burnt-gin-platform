@@ -332,6 +332,48 @@ camper_age_on_start = session_start_date - camper_date_of_birth
 
 ---
 
+## Dynamic Form Schema Integration (Phase 14)
+
+When an applicant begins a new application, the system fetches the currently active form schema from `GET /api/form/active`. The response contains:
+- The form definition version
+- All active sections in display order
+- All active fields per section, including type, label, validation rules, and options (for select/radio/checkbox fields)
+
+The `form_definition_id` is stored on the application record at creation time, linking that application to the specific form version used. This ensures that historical applications can be rendered correctly even after the form schema is updated.
+
+**Key behaviors:**
+- If no form definition is published, the application form falls back to the hardcoded form structure. The applicant experience is preserved regardless of whether a dynamic schema exists.
+- Field keys are the stable identifiers linking form field definitions to application data. Once an application references a field key, that key is immutable.
+- The schema is cached for 10 minutes. Form builder changes made by a super administrator take effect for new sessions within 10 minutes.
+
+---
+
+## Document Request Workflow Integration (Phase 13)
+
+The document request system runs in parallel with the application lifecycle. Document requests are not a blocking step in the application status workflow — an application can be approved or rejected regardless of outstanding document requests.
+
+**Typical workflow:**
+
+```
+Admin creates document request (POST /api/document-requests)
+    ↓
+Applicant receives system inbox notification
+    ↓
+Applicant uploads document (POST /api/applicant/document-requests/{id}/upload)
+    ↓
+Status transitions: awaiting_upload → uploaded → scanning → under_review
+    ↓
+Admin reviews and approves or rejects
+    ↓
+Applicant receives inbox message with decision
+```
+
+**Status notifications:** Each status change triggers an inbox message appended to the original system conversation thread, ensuring the applicant has a complete communication history in one place.
+
+**Expiration:** If the applicant does not upload by the `due_date`, the system marks the request as `overdue`. The admin can extend the deadline at any time.
+
+---
+
 ## Cross-References
 
 For related documentation, see:
@@ -346,5 +388,5 @@ For related documentation, see:
 ---
 
 **Document Status:** Authoritative
-**Last Updated:** February 2026
+**Last Updated:** March 2026
 **Version:** 1.0.0

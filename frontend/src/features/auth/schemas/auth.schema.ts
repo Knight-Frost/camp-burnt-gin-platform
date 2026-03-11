@@ -8,7 +8,7 @@ import { z } from 'zod';
 const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
-  .max(100, 'Password is too long');
+  .max(64, 'Password must be 64 characters or fewer');
 
 // ---------------------------------------------------------------------------
 // Login

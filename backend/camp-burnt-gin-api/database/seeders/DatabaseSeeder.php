@@ -67,6 +67,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RequiredDocumentRuleSeeder::class,
             ActivityPermissionSeeder::class,
+            FormDefinitionSeeder::class,  // Phase 14: seeds the v1 dynamic form schema
         ]);
 
         // Bootstrap super admin — always created; this is the only account

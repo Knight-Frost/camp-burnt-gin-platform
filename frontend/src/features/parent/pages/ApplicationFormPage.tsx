@@ -52,7 +52,6 @@ import {
   createCamper,
   createApplication,
   createEmergencyContact,
-  createMedicalRecord,
   createDiagnosis,
   createAllergy,
   createBehavioralProfile,
@@ -257,6 +256,7 @@ export interface FormState {
     dressing_level: string;
     dressing_notes: string;
     oral_hygiene_level: string;
+    oral_hygiene_notes: string;
     positioning_notes: string;
     sleep_notes: string;
   };
@@ -398,6 +398,7 @@ const INITIAL_STATE: FormState = {
     dressing_level: '',
     dressing_notes: '',
     oral_hygiene_level: '',
+    oral_hygiene_notes: '',
     positioning_notes: '',
     sleep_notes: '',
   },
@@ -1731,8 +1732,8 @@ function Section6({
         label="Oral hygiene (brushing teeth)"
         value={data.oral_hygiene_level}
         onChange={(v) => onChange({ oral_hygiene_level: v })}
-        notes={''}
-        onNotesChange={() => {}}
+        notes={data.oral_hygiene_notes}
+        onNotesChange={(v) => onChange({ oral_hygiene_notes: v })}
         notesPlaceholder="e.g. Electric toothbrush, special toothpaste, staff must supervise"
       />
 
@@ -2757,17 +2758,7 @@ export function ApplicationFormPage() {
         });
       }
 
-      // ── Step 3: Medical record ────────────────────────────────────────────
-      await createMedicalRecord({
-        camper_id:               camperId,
-        physician_name:          form.s2.physician_name,
-        physician_phone:         form.s2.physician_phone,
-        insurance_provider:      form.s2.insurance_provider,
-        insurance_policy_number: form.s2.insurance_policy,
-        special_needs:           form.s3.behavior_notes || undefined,
-      });
-
-      // ── Step 4: Diagnoses ─────────────────────────────────────────────────
+      // ── Step 3: Diagnoses ─────────────────────────────────────────────────
       for (const dx of form.s2.diagnoses) {
         if (!dx.condition.trim()) continue;
         await createDiagnosis({
@@ -2778,7 +2769,7 @@ export function ApplicationFormPage() {
         });
       }
 
-      // ── Step 5: Allergies ─────────────────────────────────────────────────
+      // ── Step 4: Allergies ─────────────────────────────────────────────────
       for (const al of form.s2.allergies) {
         if (!al.allergen.trim()) continue;
         await createAllergy({
@@ -2790,7 +2781,7 @@ export function ApplicationFormPage() {
         });
       }
 
-      // ── Step 6: Behavioral profile ────────────────────────────────────────
+      // ── Step 5: Behavioral profile ────────────────────────────────────────
       await createBehavioralProfile({
         camper_id:              camperId,
         aggression:             form.s3.aggression === true,
@@ -2803,7 +2794,7 @@ export function ApplicationFormPage() {
         notes: form.s3.behavior_notes || undefined,
       });
 
-      // ── Step 7: Assistive devices ─────────────────────────────────────────
+      // ── Step 6: Assistive devices ─────────────────────────────────────────
       for (const dev of form.s4.devices) {
         if (!dev.device_type.trim()) continue;
         await createAssistiveDevice({
@@ -2814,7 +2805,7 @@ export function ApplicationFormPage() {
         });
       }
 
-      // ── Step 8: Feeding plan ──────────────────────────────────────────────
+      // ── Step 7: Feeding plan ──────────────────────────────────────────────
       if (form.s5.special_diet || form.s5.g_tube) {
         await createFeedingPlan({
           camper_id:          camperId,
@@ -2831,7 +2822,7 @@ export function ApplicationFormPage() {
         });
       }
 
-      // ── Step 9: Medications ───────────────────────────────────────────────
+      // ── Step 8: Medications ───────────────────────────────────────────────
       if (!form.s8.no_medications) {
         for (const med of form.s8.medications) {
           if (!med.name.trim()) continue;
@@ -2852,7 +2843,7 @@ export function ApplicationFormPage() {
         }
       }
 
-      // ── Step 10: Activity permissions ─────────────────────────────────────
+      // ── Step 9: Activity permissions ──────────────────────────────────────
       const activityMap: Record<keyof typeof form.s7, string> = {
         swimming:      'Swimming',
         hiking:        'Hiking',
@@ -2879,14 +2870,14 @@ export function ApplicationFormPage() {
         });
       }
 
-      // ── Step 11: Create application ───────────────────────────────────────
+      // ── Step 10: Create application ───────────────────────────────────────
       const application = await createApplication({
         camper_id:  camperId,
         session_id: Number(form.s1.session_id),
       });
       const applicationId = application.id;
 
-      // ── Step 12: Upload documents ─────────────────────────────────────────
+      // ── Step 11: Upload documents ─────────────────────────────────────────
       const docTypeLabels: Record<string, string> = {
         immunization:   'Immunization Record',
         medical_exam:   'Medical Examination',
@@ -2907,7 +2898,7 @@ export function ApplicationFormPage() {
         await uploadDocument(fd);
       }
 
-      // ── Step 13: Sign application ─────────────────────────────────────────
+      // ── Step 12: Sign application ─────────────────────────────────────────
       // For typed signatures the signature_data is the typed name itself.
       // For drawn signatures it is the base64-encoded PNG captured from the canvas.
       const signatureData = form.s10.signature_type === 'drawn' && form.s10.signature_data

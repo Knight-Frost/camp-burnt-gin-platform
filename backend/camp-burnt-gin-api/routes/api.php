@@ -37,6 +37,11 @@ use App\Http\Controllers\Api\System\ReportController;
 use App\Http\Controllers\Api\System\UserController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\CalendarEventController;
+use App\Http\Controllers\Api\Form\FormDefinitionController;
+use App\Http\Controllers\Api\Form\FormFieldController;
+use App\Http\Controllers\Api\Form\FormFieldOptionController;
+use App\Http\Controllers\Api\Form\FormSectionController;
+use App\Http\Controllers\Api\Form\PublicFormController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -787,13 +792,94 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
                 ->middleware('throttle:60,1')
                 ->name('inbox.messages.show');
             // Download a file attached to a message (throttled at 10/hour per user)
-            Route::get('/{message}/attachments/{document}', [MessageController::class, 'downloadAttachment'])
+            Route::get('/{message}/attachments/{documentId}', [MessageController::class, 'downloadAttachment'])
                 ->middleware('throttle:10,60')
                 ->name('inbox.messages.download-attachment');
+            // Preview a file inline — images/PDFs open in the browser instead of downloading
+            Route::get('/{message}/attachments/{documentId}/preview', [MessageController::class, 'previewAttachment'])
+                ->middleware('throttle:30,1')
+                ->name('inbox.messages.preview-attachment');
             // Soft-delete a message (admin moderation only)
             Route::delete('/{message}', [MessageController::class, 'destroy'])
                 ->middleware('admin')
                 ->name('inbox.messages.destroy');
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Form Management Routes
+    |--------------------------------------------------------------------------
+    |
+    | The form schema drives the applicant's multi-step application form.
+    |
+    | Public (any authenticated user):
+    |   GET /form/active    — active form schema; applicants use this to render the form
+    |   GET /form/{form}    — specific version by ID; admin use for reviewing old apps
+    |
+    | Admin-readable (admin + super_admin):
+    |   GET /form/definitions          — list all versions
+    |   GET /form/definitions/{form}   — full definition with sections and fields
+    |
+    | Super admin only (structural mutations):
+    |   POST   /form/definitions                          — create draft
+    |   PUT    /form/definitions/{form}                   — update draft metadata
+    |   DELETE /form/definitions/{form}                   — delete unpublished draft
+    |   POST   /form/definitions/{form}/publish           — publish draft → active
+    |   POST   /form/definitions/{form}/duplicate         — copy into new draft
+    |   CRUD   /form/definitions/{form}/sections          — section management
+    |   POST   /form/definitions/{form}/sections/reorder  — batch reorder sections
+    |   CRUD   /form/sections/{section}/fields            — field management
+    |   POST   /form/sections/{section}/fields/reorder    — batch reorder fields
+    |   POST   /form/fields/{field}/activate              — set is_active = true
+    |   POST   /form/fields/{field}/deactivate            — set is_active = false
+    |   CRUD   /form/fields/{field}/options               — option management
+    |   POST   /form/fields/{field}/options/reorder       — batch reorder options
+    |
+    */
+    Route::prefix('form')->group(function () {
+
+        // ── Public schema endpoints (any authenticated user) ──────────────────
+        Route::get('/active', [PublicFormController::class, 'active'])->name('form.active');
+        Route::get('/version/{form}', [PublicFormController::class, 'version'])->name('form.version');
+
+        // ── Admin-readable (form builder viewing) ─────────────────────────────
+        Route::middleware(['role:admin,super_admin'])->group(function () {
+            Route::get('/definitions', [FormDefinitionController::class, 'index'])->name('form.definitions.index');
+            Route::get('/definitions/{form}', [FormDefinitionController::class, 'show'])->name('form.definitions.show');
+        });
+
+        // ── Super admin only (structural mutations) ───────────────────────────
+        Route::middleware(['role:super_admin'])->group(function () {
+            // Form definition lifecycle
+            Route::post('/definitions', [FormDefinitionController::class, 'store'])->name('form.definitions.store');
+            Route::put('/definitions/{form}', [FormDefinitionController::class, 'update'])->name('form.definitions.update');
+            Route::delete('/definitions/{form}', [FormDefinitionController::class, 'destroy'])->name('form.definitions.destroy');
+            Route::post('/definitions/{form}/publish', [FormDefinitionController::class, 'publish'])->name('form.definitions.publish');
+            Route::post('/definitions/{form}/duplicate', [FormDefinitionController::class, 'duplicate'])->name('form.definitions.duplicate');
+
+            // Section management within a definition
+            Route::get('/definitions/{form}/sections', [FormSectionController::class, 'index'])->name('form.sections.index');
+            Route::post('/definitions/{form}/sections', [FormSectionController::class, 'store'])->name('form.sections.store');
+            Route::put('/definitions/{form}/sections/{section}', [FormSectionController::class, 'update'])->name('form.sections.update');
+            Route::delete('/definitions/{form}/sections/{section}', [FormSectionController::class, 'destroy'])->name('form.sections.destroy');
+            Route::post('/definitions/{form}/sections/reorder', [FormSectionController::class, 'reorder'])->name('form.sections.reorder');
+
+            // Field management within a section
+            Route::get('/sections/{section}/fields', [FormFieldController::class, 'index'])->name('form.fields.index');
+            Route::post('/sections/{section}/fields', [FormFieldController::class, 'store'])->name('form.fields.store');
+            Route::put('/sections/{section}/fields/{field}', [FormFieldController::class, 'update'])->name('form.fields.update');
+            Route::delete('/sections/{section}/fields/{field}', [FormFieldController::class, 'destroy'])->name('form.fields.destroy');
+            Route::post('/sections/{section}/fields/reorder', [FormFieldController::class, 'reorder'])->name('form.fields.reorder');
+            Route::post('/fields/{field}/activate', [FormFieldController::class, 'activate'])->name('form.fields.activate');
+            Route::post('/fields/{field}/deactivate', [FormFieldController::class, 'deactivate'])->name('form.fields.deactivate');
+
+            // Option management within a field
+            Route::get('/fields/{field}/options', [FormFieldOptionController::class, 'index'])->name('form.options.index');
+            Route::post('/fields/{field}/options', [FormFieldOptionController::class, 'store'])->name('form.options.store');
+            Route::put('/fields/{field}/options/{option}', [FormFieldOptionController::class, 'update'])->name('form.options.update');
+            Route::delete('/fields/{field}/options/{option}', [FormFieldOptionController::class, 'destroy'])->name('form.options.destroy');
+            Route::post('/fields/{field}/options/reorder', [FormFieldOptionController::class, 'reorder'])->name('form.options.reorder');
         });
     });
 });

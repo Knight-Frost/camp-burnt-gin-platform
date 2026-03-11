@@ -417,7 +417,7 @@ async function apiRequestWithAuth(url, options) {
 For related documentation, see:
 
 - [API Reference](./API_REFERENCE.md) — Complete endpoint specifications
-- [Authentication and Authorization](./AUTHENTICATION_AND_AUTHORIZATION.md) — Auth error details
+- [Authentication](./AUTHENTICATION.md) — Auth error details
 - [Troubleshooting](./TROUBLESHOOTING.md) — Common issues and solutions
 - [Testing](./TESTING.md) — Error testing strategies
 

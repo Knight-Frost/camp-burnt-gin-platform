@@ -294,26 +294,24 @@ php artisan test --coverage
 
 | Change | Documentation Update Required |
 |--------|-------------------------------|
-| New API endpoint | [API_OVERVIEW.md](docs/API_OVERVIEW.md) |
+| New API endpoint | [API_REFERENCE.md](API_REFERENCE.md) |
 | New environment variable | [README.md](../../../README.md), [SETUP.md](SETUP.md), .env.example |
-| Security-related change | [SECURITY.md](docs/SECURITY.md) |
-| Architectural change | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| New requirement implemented | [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) |
-| New feature completed | [BACKEND_COMPLETION_STATUS.md](docs/BACKEND_COMPLETION_STATUS.md) |
+| Security-related change | [SECURITY.md](SECURITY.md) |
+| Architectural change | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| New feature completed | [CHANGELOG.md](../../decisions/CHANGELOG.md) |
 
 ### Documentation Files
 
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
-| [README.md](../../../README.md) | Project overview, quick start | As needed |
+| [README.md](../../../README.md) | Project overview, quick start, debugging guide | As needed |
 | [SETUP.md](SETUP.md) | Development environment setup instructions | When setup changes |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design documentation | When architecture changes |
-| [SECURITY.md](docs/SECURITY.md) | Security implementation details | When security changes |
-| [API_OVERVIEW.md](docs/API_OVERVIEW.md) | API capabilities documentation | When API changes |
-| [REQUIREMENTS_AND_TRACEABILITY.md](docs/REQUIREMENTS_AND_TRACEABILITY.md) | Requirements mapping | When requirements change |
-| [BACKEND_COMPLETION_STATUS.md](docs/BACKEND_COMPLETION_STATUS.md) | Completion status | When features complete |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design and performance documentation | When architecture changes |
+| [SECURITY.md](SECURITY.md) | Security implementation details | When security changes |
+| [API_REFERENCE.md](API_REFERENCE.md) | API capabilities and endpoint documentation | When API changes |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines | When process changes |
-| [TESTING.md](docs/TESTING.md) | Backend testing documentation | When tests change |
+| [TESTING.md](TESTING.md) | Backend testing documentation | When tests change |
+| [docs/decisions/CHANGELOG.md](../../decisions/CHANGELOG.md) | Version and phase history | When phases complete |
 
 ### Documentation Standards
 
@@ -536,3 +534,141 @@ If any guideline in this document is unclear, seek clarification before proceedi
 **Document Status:** Authoritative
 **Effective Date:** See repository commit history
 **Applies To:** All contributors
+
+---
+
+## Documentation Standards
+
+### Core Principles
+
+#### Single Source of Truth
+
+**Rule:** Each topic must have exactly ONE canonical document.
+
+**Enforcement:**
+- No duplicate documents on the same topic
+- Cross-references instead of copying content
+- Consolidate overlapping documents immediately
+- Archive superseded documents with clear replacement links
+
+#### Anti-Duplication Policy
+
+**Prohibited:**
+- Creating new documents when existing ones cover the topic
+- Copying content between documents
+- Maintaining multiple versions of the same information
+
+**Required:**
+- Search existing docs before creating new ones
+- Use cross-references: `See [Topic](./DOCUMENT.md)`
+- Consolidate when overlap > 30%
+
+---
+
+### Document Standards
+
+#### Required Metadata
+
+Every documentation file MUST include at bottom:
+
+```markdown
+---
+
+**Document Status:** [Authoritative|Draft|Deprecated|Archived]
+**Last Updated:** [Month Year]
+**Version:** [X.Y.Z]
+```
+
+**Optional Metadata:**
+```markdown
+**Supersedes:** [Old document names]
+**Superseded By:** [New document name]
+```
+
+#### Status Definitions
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| Authoritative | Current, official reference | Use this document |
+| Draft | Work in progress | Review before using |
+| Deprecated | Being phased out | Use replacement document |
+| Archived | Historical reference only | Do not use for current work |
+
+---
+
+### File Naming Conventions
+
+#### Backend Documentation
+
+**Location:** `/docs/backend/`
+
+**Naming Pattern:**
+- ALL_CAPS_WITH_UNDERSCORES.md for technical docs
+- lowercase-with-hyphens.md for plans/guides
+
+**Examples:**
+- `API_REFERENCE.md` (technical reference)
+- `TROUBLESHOOTING.md` (technical guide)
+- `deployment-checklist.md` (operational guide)
+
+#### Frontend Documentation
+
+**Location:** `/docs/frontend/`
+
+**Naming Pattern:**
+- ALL_CAPS for major technical docs
+- lowercase-with-hyphens for plans/reports
+- PascalCase for component guides
+
+**Examples:**
+- `DESIGN_SYSTEM.md` (major reference)
+- `COMPONENT_GUIDE.md` (component reference)
+
+#### Decisions and History
+
+**Location:** `/docs/decisions/`
+
+**Naming Pattern:** ALL_CAPS_WITH_UNDERSCORES.md
+
+**Examples:**
+- `ARCHITECTURE_DECISIONS.md`
+- `CHANGELOG.md`
+
+---
+
+### Update Requirements
+
+#### When to Update
+
+Update documentation when:
+- Code changes affect documented behavior
+- New features added
+- Bugs fixed that were documented as "known issues"
+- Configuration options change
+- Deployment procedures change
+- Security vulnerabilities addressed
+
+#### Update Process
+
+1. **Make Changes:** Edit the canonical document
+2. **Update Metadata:** Change "Last Updated" date and increment version
+3. **Test Examples:** Verify code examples still work
+4. **Review Cross-References:** Ensure links still valid
+5. **Commit:** Include docs in the same PR as code changes
+
+---
+
+### Documentation Review Checklist
+
+Before committing documentation changes:
+
+- [ ] No duplicate content from other docs
+- [ ] All cross-references valid and working
+- [ ] Code examples tested and functional
+- [ ] Metadata updated (status, date, version)
+- [ ] Naming conventions followed
+- [ ] File placed in correct directory
+- [ ] Table of contents updated (if applicable)
+- [ ] No sensitive information (passwords, keys)
+- [ ] Spelling and grammar checked
+- [ ] Follows project style guide

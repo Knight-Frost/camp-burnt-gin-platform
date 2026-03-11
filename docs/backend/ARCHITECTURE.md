@@ -4,6 +4,101 @@ This document provides a comprehensive overview of the Camp Burnt Gin API archit
 
 ---
 
+## System Purpose and Scope
+
+### Business Context
+
+Camp Burnt Gin is a camp program that requires a secure, compliant system to manage camp registration, medical information, staff workflows, and administrative operations. The system replaces a third-party platform and serves as the authoritative system of record for all camp-related data.
+
+### Included Functionality
+
+The backend system provides:
+
+- **User Management** - Registration, authentication, multi-factor authentication, profile management, avatar uploads, data export, account deletion
+- **Camp Management** - Camp definitions, session scheduling, age restrictions, capacity tracking
+- **Camper Management** - Camper profiles linked to parent accounts with age calculation, risk summaries, compliance status, and medical alerts
+- **Application Processing** - Draft support, submission, review, digital signatures, status tracking; dynamic form schema binding via the Form Builder
+- **Medical Information** - Medical records, allergies, medications, diagnoses, behavioral profiles, feeding plans, assistive devices, activity permissions, and emergency contacts
+- **Medical Incidents and Visits** - Incident recording, follow-up tracking, visit logging, medical restrictions, and clinical statistics dashboard
+- **Treatment Logs** - Clinical notes recorded by medical staff, linked to visits and camper records
+- **Medical Provider Links** - Secure, time-limited token-based access for external providers
+- **Document Management** - Secure file uploads with MIME validation and security scanning; applicant document distribution and collection
+- **Document Requests** - Admin-initiated document request lifecycle with inbox integration, deadline management, and approval workflow
+- **Inbox and Messaging** - Threaded conversation system with participant management, read receipts, attachments, star/important/trash states, and system-generated notifications
+- **Announcements** - Admin-created announcements pinnable to user dashboards
+- **Calendar Events** - Camp-related event management
+- **Notification System** - Email and in-app notifications for status changes, administrative actions, and document requests; user-configurable notification preferences
+- **Reporting** - Administrative reports including acceptance/rejection lists, mailing labels, ID labels, and application summaries
+- **Form Builder** - Dynamic application form management with versioned schema definitions, section/field/option CRUD, field deactivation, and cache-backed schema serving
+- **Audit Logging** - Full audit trail for all PHI access, authentication events, and administrative actions; exportable in CSV and JSON
+- **Security Controls** - Rate limiting, account lockout, token expiration, PHI encryption, HIPAA-compliant session management
+
+### Excluded Functionality
+
+The backend system explicitly does NOT include:
+
+- **Payment Processing** - Financial transactions are deferred to future implementation
+- **Third-Party Integrations** - External service integrations beyond SMTP email are not implemented
+- **Mobile Applications** - The API is device-agnostic but mobile apps are not developed
+- **Real-Time Features** - WebSockets or server-sent events are not implemented
+
+### Integration Points
+
+#### Email Notifications
+
+The system sends email notifications via SMTP for:
+
+- Application submission confirmations
+- Application status changes (approved/rejected/waitlisted)
+- Medical provider link creation
+- Medical provider link expiration warnings
+- Acceptance and rejection letters
+- Incomplete application reminders
+
+**Configuration:** SMTP credentials configured in `.env` file
+
+#### Medical Provider Links
+
+External medical providers access the system via secure, time-limited links:
+
+- **Access Method:** Unauthenticated token-based access
+- **Token Length:** 64-character cryptographically secure random string
+- **Default Expiration:** 72 hours
+- **Single Use:** Links are marked as used after submission
+- **Revocable:** Parents and admins can revoke links at any time
+
+#### Frontend Integration
+
+The backend exposes a RESTful API for frontend consumption:
+
+- **Protocol:** HTTP/JSON
+- **Authentication:** Bearer token in Authorization header
+- **CORS:** Configured for specified frontend domains
+- **Rate Limiting:** 60 requests/minute per user for general API endpoints
+
+### Performance and Known Limitations
+
+#### Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| Test Suite Runtime | < 3 seconds |
+| API Response Time | < 500ms average |
+| Database Query Performance | 5-10x improvement via indexing |
+| Notification Processing | 81% faster via async queuing |
+
+#### Known Limitations
+
+The following limitations are by design:
+
+1. **Payment Processing** - Deferred to future implementation
+2. **File Type Restrictions** - Limited to PDF, images, Word documents
+3. **File Size Limit** - Maximum 10 MB per upload
+4. **Email Dependency** - Notifications require SMTP configuration
+5. **Real-Time Features** - WebSockets or server-sent events are not implemented; all messaging is asynchronous
+
+---
+
 ## 1. High-Level Overview
 
 The Camp Burnt Gin API is a Laravel 12-based RESTful backend designed to manage camp registration, medical records, staff workflows, and administrative oversight. The system serves as the authoritative data source for all camp operations and is built to handle Protected Health Information (PHI) in compliance with HIPAA security requirements.
@@ -150,8 +245,7 @@ routes/
 
 ```
 docs/
-├── API_OVERVIEW.md          # API capabilities overview
-├── API_REFERENCE.md         # Complete endpoint documentation
+├── API_REFERENCE.md         # Complete endpoint documentation (includes API overview)
 ├── ARCHITECTURE.md          # This document
 ├── SECURITY.md              # Security architecture and HIPAA compliance
 ├── TESTING.md               # Testing strategy and execution
@@ -575,7 +669,7 @@ class Application extends Model
 - Tokens generated on successful login
 - Tokens transmitted via `Authorization: Bearer {token}` header
 - Tokens validated on every request via middleware
-- Tokens expire after configurable period (default: 60 minutes)
+- Tokens expire after configurable period (default: 30 minutes)
 - Tokens revoked on logout
 
 ### Authorization Policies

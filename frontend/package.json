@@ -23,6 +23,7 @@
     "perf": "npm run build && npm run preview & sleep 3 && npm run a11y:lighthouse"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-dialog": "^1.1.15",

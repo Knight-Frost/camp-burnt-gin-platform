@@ -255,20 +255,20 @@ API tokens expire automatically to enforce session timeouts:
 **Configuration:** `config/sanctum.php`
 
 ```php
-'expiration' => 60, // 60 minutes (1 hour) - HIPAA compliant
+'expiration' => 30, // 30 minutes - HIPAA compliant (PHI sessions ≤ 30 min)
 ```
 
 **Behavior:**
-- Tokens expire 60 minutes after creation
+- Tokens expire 30 minutes after creation
 - Expired tokens return HTTP 401 (Unauthorized)
 - Users must re-authenticate after expiration
 - Expiration enforces automatic logout for inactive users
 
-**Why 60 Minutes:**
+**Why 30 Minutes:**
 - HIPAA requires automatic session termination for PHI systems
-- Balances security (shorter window) with usability
+- 30-minute limit enforces strict access control for sensitive health data
 - Prevents unauthorized access from abandoned sessions
-- Industry standard for healthcare applications
+- Matches `SANCTUM_EXPIRATION=30` in `.env.example`
 
 ### Concurrent Sessions
 
@@ -279,7 +279,7 @@ The system supports multiple concurrent sessions (tokens) per user. Each device/
 Users can terminate sessions by:
 - **Logout:** Revokes current token immediately
 - **Admin Revocation:** Admin can revoke all tokens for a user
-- **Automatic:** Tokens automatically expire after 60 minutes
+- **Automatic:** Tokens automatically expire after 30 minutes
 
 ---
 
@@ -313,7 +313,7 @@ Password validation enforced at registration:
 2. Server generates cryptographically secure token
       │
       ▼
-3. Token hashed and stored with expiration (60 minutes)
+3. Token hashed and stored with expiration (30 minutes)
       │
       ▼
 4. Reset link emailed to user
@@ -332,7 +332,7 @@ Password validation enforced at registration:
 
 - Reset tokens are 64-character random strings
 - Tokens are hashed before storage
-- Tokens expire after 60 minutes
+- Tokens expire after 30 minutes
 - Used tokens are immediately deleted
 
 ---
@@ -382,8 +382,8 @@ Cryptographic secrets and credentials are critical security assets that require 
 | `APP_KEY` | Application encryption key | `.env` | Annually or on compromise |
 | Database credentials | Database access | `.env` | Annually or on compromise |
 | Mail credentials | Email sending | `.env` | Quarterly or on compromise |
-| API tokens (user) | Authentication | Database (hashed) | 60-minute expiration |
-| Password reset tokens | Password recovery | Database (hashed) | 60-minute expiration |
+| API tokens (user) | Authentication | Database (hashed) | 30-minute expiration |
+| Password reset tokens | Password recovery | Database (hashed) | 30-minute expiration |
 | MFA secrets | Two-factor authentication | Database | User-controlled |
 | Medical provider link tokens | Temporary PHI access | Database | 72-hour expiration |
 
@@ -532,7 +532,7 @@ The `APP_KEY` is used for encrypting session data, signed URLs, and other Larave
 
 ### API Token Rotation
 
-User authentication tokens automatically expire after 60 minutes. No manual rotation is required.
+User authentication tokens automatically expire after 30 minutes. No manual rotation is required.
 
 **Force Token Revocation (When Needed):**
 

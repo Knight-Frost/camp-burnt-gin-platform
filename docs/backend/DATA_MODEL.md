@@ -6,7 +6,7 @@ This document describes the database schema, entity relationships, and data mode
 
 ## Database Tables
 
-The system implements 25 database tables:
+The system implements 39 database tables:
 
 | Table | Records | Description |
 |-------|---------|-------------|
@@ -35,6 +35,16 @@ The system implements 25 database tables:
 | `personal_access_tokens` | Variable | Sanctum API tokens |
 | `sessions` | Variable | Laravel session storage |
 | `password_reset_tokens` | Temporary | Password reset tokens |
+| `document_requests` | Variable | Admin-initiated requests for applicants to submit specific documents |
+| `applicant_documents` | Variable | Documents sent from admins to applicants and their submission status |
+| `form_definitions` | Variable | Versioned application form definitions managed by super administrators |
+| `form_sections` | Variable | Sections grouping related fields within a form definition |
+| `form_fields` | Variable | Individual input fields within a form section |
+| `form_field_options` | Variable | Selectable options for select, checkbox, and radio form fields |
+| `announcements` | Variable | Admin-created announcements shown to users in portal dashboards |
+| `calendar_events` | Variable | Camp-related calendar events |
+| `user_emergency_contacts` | Variable | Emergency contacts linked to user profiles (distinct from camper emergency_contacts) |
+| `required_document_rules` | Variable | Defines which documents are required for application submission |
 
 ---
 
@@ -198,6 +208,7 @@ The system implements 25 database tables:
 | `signature_name` | varchar(255) | nullable | Signer name |
 | `signed_at` | timestamp | nullable | Signature timestamp |
 | `signed_ip_address` | varchar(45) | nullable | Signer IP |
+| `form_definition_id` | bigint | FK to form_definitions, nullable | Form version used to create this application (Phase 14) |
 | `created_at` | timestamp | not null | Creation timestamp |
 | `updated_at` | timestamp | not null | Last update timestamp |
 
@@ -208,9 +219,11 @@ The system implements 25 database tables:
 - KEY (`status`)
 - KEY (`is_draft`)
 - KEY (`reviewed_at`)
+- KEY (`form_definition_id`)
 
 **Relationships:**
 - belongs to: `campers`, `camp_sessions`, `users` (reviewer)
+- belongs to: `form_definitions` (optional — links the application to the dynamic form version used at submission time)
 
 ### medical_records
 
@@ -469,6 +482,201 @@ The system implements 25 database tables:
 - belongs to: `messages`
 - belongs to: `users`
 
+### document_requests
+
+**Purpose:** Tracks admin-initiated requests for applicants to submit specific documents. Drives the Document Request workflow (Phase 13).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `applicant_id` | bigint FK → users | The applicant receiving the request |
+| `application_id` | bigint FK → applications (nullable) | Optional application context |
+| `camper_id` | bigint FK → campers (nullable) | Optional camper context |
+| `admin_id` | bigint FK → users | Admin who created the request |
+| `title` | string | Document name/title requested |
+| `description` | text (nullable) | Instructions for the applicant |
+| `status` | enum | `awaiting_upload`, `uploaded`, `scanning`, `under_review`, `approved`, `rejected`, `overdue` |
+| `due_date` | date (nullable) | Optional deadline |
+| `rejection_reason` | text (nullable) | Populated when status = rejected |
+| `submitted_at` | timestamp (nullable) | When applicant uploaded |
+| `reviewed_at` | timestamp (nullable) | When admin reviewed |
+| `document_id` | bigint FK → documents (nullable) | The uploaded document |
+| `created_at`, `updated_at` | timestamps | |
+
+**Relationships:**
+- belongs to: `users` (applicant), `users` (admin), `applications` (optional), `campers` (optional), `documents` (optional)
+
+---
+
+### applicant_documents
+
+**Purpose:** Tracks documents sent from admins to applicants and their submission status.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `applicant_id` | bigint FK → users | Receiving applicant |
+| `admin_id` | bigint FK → users (nullable) | Sending admin |
+| `original_document_id` | bigint FK → documents (nullable) | Template/original file |
+| `submitted_document_id` | bigint FK → documents (nullable) | Applicant's submitted file |
+| `title` | string | Document title |
+| `description` | text (nullable) | Instructions |
+| `status` | enum | `pending`, `submitted`, `reviewed` |
+| `is_reviewed` | boolean | Whether admin has reviewed submission |
+| `reviewed_at` | timestamp (nullable) | When admin reviewed |
+| `created_at`, `updated_at` | timestamps | |
+
+**Relationships:**
+- belongs to: `users` (applicant), `users` (admin), `documents` (original), `documents` (submitted)
+
+---
+
+### form_definitions
+
+**Purpose:** Stores versioned application form definitions managed by super administrators. Only one definition may be published at a time. (Phase 14)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `name` | string | Human-readable form name |
+| `version` | integer | Auto-incrementing version number |
+| `status` | enum | `draft`, `published` |
+| `published_at` | timestamp (nullable) | When the form was published |
+| `created_by` | bigint FK → users (nullable) | Super admin who created it |
+| `created_at`, `updated_at` | timestamps | |
+
+**Relationships:**
+- belongs to: `users` (creator)
+- has many: `form_sections`
+- has many: `applications` (via nullable FK)
+
+---
+
+### form_sections
+
+**Purpose:** Defines sections within a form definition. Each section groups related fields. (Phase 14)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `form_definition_id` | bigint FK → form_definitions | Parent form |
+| `title` | string | Section display title |
+| `description` | text (nullable) | Optional section instructions |
+| `order` | integer | Display order within the form |
+| `is_active` | boolean | Whether the section is shown |
+| `created_at`, `updated_at` | timestamps | |
+
+**Relationships:**
+- belongs to: `form_definitions`
+- has many: `form_fields`
+
+---
+
+### form_fields
+
+**Purpose:** Defines individual input fields within a form section. (Phase 14)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `form_section_id` | bigint FK → form_sections | Parent section |
+| `field_key` | string | Stable identifier used in application data. Cannot be changed once applications reference it. |
+| `label` | string | Display label |
+| `type` | enum | `text`, `textarea`, `select`, `checkbox`, `radio`, `date`, `file`, `number`, `email`, `phone` |
+| `placeholder` | string (nullable) | Input placeholder text |
+| `help_text` | text (nullable) | Helper text shown below the field |
+| `is_required` | boolean | Whether the field is mandatory |
+| `is_active` | boolean | Whether the field is shown |
+| `validation_rules` | json (nullable) | Additional validation constraints |
+| `order` | integer | Display order within the section |
+| `created_at`, `updated_at` | timestamps | |
+
+**Relationships:**
+- belongs to: `form_sections`
+- has many: `form_field_options`
+
+---
+
+### form_field_options
+
+**Purpose:** Stores selectable options for select, checkbox, and radio form fields. (Phase 14)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `form_field_id` | bigint FK → form_fields | Parent field |
+| `label` | string | Display label |
+| `value` | string | Stored value |
+| `order` | integer | Display order |
+| `created_at`, `updated_at` | timestamps | |
+
+**Relationships:**
+- belongs to: `form_fields`
+
+---
+
+### announcements
+
+**Purpose:** Stores admin-created announcements shown to users in their portal dashboards.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `title` | string | Announcement title |
+| `body` | text | Announcement content |
+| `author_id` | bigint FK → users | Admin who created the announcement |
+| `is_pinned` | boolean | Whether the announcement is pinned to the top |
+| `created_at`, `updated_at` | timestamps | |
+
+---
+
+### calendar_events
+
+**Purpose:** Stores camp-related calendar events visible to users in the portal.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `title` | string | Event title |
+| `description` | text (nullable) | Event details |
+| `start_date` | date | Event start date |
+| `end_date` | date (nullable) | Event end date |
+| `all_day` | boolean | Whether the event spans a full day |
+| `created_by` | bigint FK → users | User who created the event |
+| `created_at`, `updated_at` | timestamps | |
+
+---
+
+### user_emergency_contacts
+
+**Purpose:** Stores emergency contacts linked to user (applicant) profiles. Distinct from camper-level `emergency_contacts`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `user_id` | bigint FK → users | Owning user |
+| `name` | string | Contact name |
+| `relationship` | string | Relationship to user |
+| `phone_primary` | string | Primary phone number |
+| `phone_secondary` | string (nullable) | Secondary phone number |
+| `created_at`, `updated_at` | timestamps | |
+
+---
+
+### required_document_rules
+
+**Purpose:** Defines which documents are required for application submission, used to enforce document completeness before an application can be finalized.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigint PK | Auto-increment |
+| `document_type` | string | Machine-readable document type identifier |
+| `label` | string | Human-readable document label |
+| `is_required` | boolean | Whether the document is mandatory for submission |
+| `created_at`, `updated_at` | timestamps | |
+
+---
+
 ### Other Tables
 
 Refer to database migrations in `database/migrations/` for complete schema definitions of:
@@ -485,6 +693,9 @@ Refer to database migrations in `database/migrations/` for complete schema defin
 - User → Conversations (created_by)
 - User → Messages (sender)
 - User → Message Reads
+- User → DocumentRequests (as applicant or admin)
+- User → ApplicantDocuments (as applicant or admin)
+- User → UserEmergencyContacts
 - Camper → Applications
 - Camper → Allergies
 - Camper → Medications
@@ -498,6 +709,9 @@ Refer to database migrations in `database/migrations/` for complete schema defin
 - Conversation → Messages
 - Conversation → Conversation Participants
 - Message → Message Reads
+- FormDefinition → FormSections
+- FormSection → FormFields
+- FormField → FormFieldOptions
 
 ### Many-to-Many
 
@@ -524,4 +738,4 @@ Refer to database migrations in `database/migrations/` for complete schema defin
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** February 2026
+**Last Updated:** March 2026

@@ -58,6 +58,10 @@ import {
   extendDocumentRequestDeadline,
   requestDocumentReupload,
   getUsers,
+  getAdminDocuments,
+  verifyDocument,
+  downloadAdminDocument,
+  type AdminDocument,
   type DocumentRequest,
   type DocumentRequestStats,
   type DocumentRequestStatus,
@@ -648,6 +652,10 @@ const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
 ];
 
 export function AdminDocumentsPage() {
+  // ── Tab ─────────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<'requests' | 'uploads'>('requests');
+
+  // ── Document Requests state ──────────────────────────────────────────────────
   const [stats, setStats]             = useState<DocumentRequestStats | null>(null);
   const [requests, setRequests]       = useState<DocumentRequest[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -659,6 +667,19 @@ export function AdminDocumentsPage() {
   // Filters
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  // ── Uploaded Documents state ─────────────────────────────────────────────────
+  const [uploads, setUploads]                 = useState<AdminDocument[]>([]);
+  const [uploadsLoading, setUploadsLoading]   = useState(false);
+  const [uploadsError, setUploadsError]       = useState(false);
+  const [uploadsPage, setUploadsPage]         = useState(1);
+  const [uploadsLastPage, setUploadsLastPage] = useState(1);
+  const [uploadsTotal, setUploadsTotal]       = useState(0);
+  const [uploadsSearch, setUploadsSearch]     = useState('');
+  const [uploadsDebouncedSearch, setUploadsDebouncedSearch] = useState('');
+  const [uploadsStatusFilter, setUploadsStatusFilter] = useState('');
+  const [verifyingId, setVerifyingId]         = useState<number | null>(null);
+  const uploadsSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal state
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -716,6 +737,63 @@ export function AdminDocumentsPage() {
   }, [statusFilter, debouncedSearch, page]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Debounced search for uploads tab
+  useEffect(() => {
+    if (uploadsSearchTimer.current) clearTimeout(uploadsSearchTimer.current);
+    uploadsSearchTimer.current = setTimeout(() => {
+      setUploadsDebouncedSearch(uploadsSearch);
+      setUploadsPage(1);
+    }, 350);
+    return () => { if (uploadsSearchTimer.current) clearTimeout(uploadsSearchTimer.current); };
+  }, [uploadsSearch]);
+
+  const loadUploads = useCallback(() => {
+    if (tab !== 'uploads') return;
+    setUploadsLoading(true);
+    setUploadsError(false);
+    getAdminDocuments({
+      page: uploadsPage,
+      search: uploadsDebouncedSearch || undefined,
+      verification_status: uploadsStatusFilter || undefined,
+    })
+      .then((r) => {
+        setUploads(r.data);
+        setUploadsLastPage(r.meta?.last_page ?? 1);
+        setUploadsTotal(r.meta?.total ?? 0);
+      })
+      .catch(() => setUploadsError(true))
+      .finally(() => setUploadsLoading(false));
+  }, [tab, uploadsPage, uploadsDebouncedSearch, uploadsStatusFilter]);
+
+  useEffect(() => { loadUploads(); }, [loadUploads]);
+
+  async function handleVerifyDocument(doc: AdminDocument, status: 'approved' | 'rejected') {
+    setVerifyingId(doc.id);
+    try {
+      const updated = await verifyDocument(doc.id, status);
+      setUploads((prev) => prev.map((d) => d.id === doc.id ? updated : d));
+      toast.success(`Document ${status}.`);
+    } catch {
+      toast.error('Action failed.');
+    } finally {
+      setVerifyingId(null);
+    }
+  }
+
+  async function handleDownloadUpload(doc: AdminDocument) {
+    try {
+      const blob = await downloadAdminDocument(doc.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Download failed.');
+    }
+  }
 
   function handleMetricClick(status: string) {
     setStatusFilter((prev) => (prev === status ? '' : status));
@@ -858,21 +936,212 @@ export function AdminDocumentsPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-              Document Requests
+              Documents
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Request, track, and review required documents for applicants.
+              Manage document requests and review applicant-uploaded files.
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setShowRequestModal(true)}
-            className="flex items-center gap-1.5"
-          >
-            <Plus className="h-4 w-4" />
-            Request Document
-          </Button>
+          {tab === 'requests' && (
+            <Button
+              size="sm"
+              onClick={() => setShowRequestModal(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Request Document
+            </Button>
+          )}
         </div>
+
+        {/* ── Tabs ──────────────────────────────────────────────────── */}
+        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)' }}>
+          {(['requests', 'uploads'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className="px-4 py-1.5 text-sm font-medium rounded-lg transition-colors"
+              style={{
+                background: tab === t ? 'var(--card)' : 'transparent',
+                color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)',
+                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              }}
+            >
+              {t === 'requests' ? 'Document Requests' : 'Uploaded Documents'}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'uploads' && (
+          <>
+            {/* ── Uploads search bar ──────────────────────────────── */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+                <input
+                  type="text"
+                  placeholder="Search by uploader name…"
+                  value={uploadsSearch}
+                  onChange={(e) => setUploadsSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {[
+                  { label: 'All',      value: '' },
+                  { label: 'Pending',  value: 'pending' },
+                  { label: 'Approved', value: 'approved' },
+                  { label: 'Rejected', value: 'rejected' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { setUploadsStatusFilter(opt.value); setUploadsPage(1); }}
+                    className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors"
+                    style={{
+                      background: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--card)',
+                      borderColor: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--border)',
+                      color: uploadsStatusFilter === opt.value ? '#fff' : 'var(--foreground)',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Uploads table ───────────────────────────────────── */}
+            <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+              <div
+                className="hidden md:grid gap-x-3 px-6 py-3 border-b text-xs font-semibold uppercase tracking-wide"
+                style={{
+                  gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 110px 90px 110px',
+                  borderColor: 'var(--border)',
+                  color: 'var(--muted-foreground)',
+                  background: 'var(--dash-bg)',
+                }}
+              >
+                <span>File</span>
+                <span>Uploaded By</span>
+                <span>Document Type</span>
+                <span>Scan</span>
+                <span>Status</span>
+                <span className="text-right">Actions</span>
+              </div>
+
+              {uploadsLoading ? (
+                <div className="p-4"><SkeletonTable rows={5} /></div>
+              ) : uploadsError ? (
+                <ErrorState onRetry={loadUploads} />
+              ) : uploads.length === 0 ? (
+                <EmptyState
+                  title="No uploaded documents"
+                  description={uploadsSearch || uploadsStatusFilter ? 'No documents match your filters.' : 'Applicants have not uploaded any documents yet.'}
+                  icon={FileText}
+                />
+              ) : (
+                <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                  {uploads.map((doc) => (
+                    <li key={doc.id} className="hidden md:grid gap-x-3 px-6 py-3 items-center"
+                      style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 110px 90px 110px' }}>
+                      {/* File name */}
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                        <span className="text-sm font-medium truncate" title={doc.file_name} style={{ color: 'var(--foreground)' }}>
+                          {doc.file_name}
+                        </span>
+                      </div>
+                      {/* Uploaded by */}
+                      <span className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>
+                        {doc.uploaded_by_name ?? '—'}
+                      </span>
+                      {/* Document type */}
+                      <span className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>
+                        {doc.document_type ?? '—'}
+                      </span>
+                      {/* Scan status */}
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
+                        style={{
+                          background: doc.scan_passed === true ? 'rgba(5,150,105,0.10)' : doc.scan_passed === false ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                          color: doc.scan_passed === true ? 'var(--forest-green)' : doc.scan_passed === false ? '#dc2626' : '#b45309',
+                        }}>
+                        {doc.scan_passed === true ? <CheckCircle className="h-3 w-3" /> : doc.scan_passed === false ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                        {doc.scan_passed === true ? 'Passed' : doc.scan_passed === false ? 'Failed' : 'Pending'}
+                      </span>
+                      {/* Verification status */}
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
+                        style={{
+                          background: doc.verification_status === 'approved' ? 'rgba(5,150,105,0.10)' : doc.verification_status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                          color: doc.verification_status === 'approved' ? 'var(--forest-green)' : doc.verification_status === 'rejected' ? '#dc2626' : '#b45309',
+                        }}>
+                        {doc.verification_status === 'approved' ? <CheckCircle className="h-3 w-3" /> : doc.verification_status === 'rejected' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                        {doc.verification_status === 'approved' ? 'Approved' : doc.verification_status === 'rejected' ? 'Rejected' : 'Pending'}
+                      </span>
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          type="button"
+                          title="Download"
+                          onClick={() => void handleDownloadUpload(doc)}
+                          className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                          style={{ color: 'var(--muted-foreground)' }}
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                        {doc.verification_status === 'pending' && (
+                          <>
+                            <button
+                              type="button"
+                              title="Approve"
+                              disabled={verifyingId === doc.id}
+                              onClick={() => void handleVerifyDocument(doc, 'approved')}
+                              className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
+                              style={{ color: 'var(--forest-green)' }}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Reject"
+                              disabled={verifyingId === doc.id}
+                              onClick={() => void handleVerifyDocument(doc, 'rejected')}
+                              className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
+                              style={{ color: '#dc2626' }}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* ── Uploads pagination ──────────────────────────────── */}
+            {uploadsLastPage > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  {uploadsTotal} document{uploadsTotal !== 1 ? 's' : ''}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" disabled={uploadsPage <= 1} onClick={() => setUploadsPage((p) => p - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{uploadsPage} / {uploadsLastPage}</span>
+                  <Button variant="ghost" size="sm" disabled={uploadsPage >= uploadsLastPage} onClick={() => setUploadsPage((p) => p + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === 'requests' && (<>
 
         {/* ── Metrics bar ─────────────────────────────────────────── */}
         {stats && (
@@ -1134,6 +1403,7 @@ export function AdminDocumentsPage() {
             </div>
           </div>
         )}
+        </>)}
       </div>
     </>
   );

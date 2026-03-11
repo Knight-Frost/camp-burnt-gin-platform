@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** Post Phase 13 — Issues #7, #8, #9
+**Last Updated:** Phase 14 — Issues #057–#061 (security fixes)
 **Format:** ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -835,19 +835,79 @@
 
 ---
 
+### BUG-057
+**Title:** FormSectionController::store() and update() had no authorization — any authenticated user could create/modify form sections
+**Module:** Form Builder — Backend
+**Severity:** Critical
+**Status:** Resolved — Phase 14
+**Description:** `FormSectionController::store()` and `update()` contained no `$this->authorize()` calls. Any authenticated user (including applicants and medical staff) could POST to create a section or PUT to update one on any form definition, bypassing the super_admin + draft-status requirement entirely.
+**Resolution:** `store()` now builds a transient `FormSection` with the formDefinition relation pre-loaded and calls `$this->authorize('create', $transient)`. `update()` calls `$this->authorize('update', $section)`.
+**Affected Files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Form/FormSectionController.php`
+
+---
+
+### BUG-058
+**Title:** FormSectionController::reorder() did not scope batch UPDATE to the request's definition — cross-definition reordering possible
+**Module:** Form Builder — Backend
+**Severity:** High
+**Status:** Resolved — Phase 14
+**Description:** `FormSectionController::reorder()` executed `FormSection::where('id', $id)->update(...)` without scoping to the definition supplied in the route. A super_admin could pass section IDs from a different definition and reorder them, silently corrupting form structure across versions.
+**Resolution:** Added `->where('form_definition_id', $form->id)` to the WHERE clause inside the transaction loop.
+**Affected Files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Form/FormSectionController.php`
+
+---
+
+### BUG-059
+**Title:** FormFieldController::store() and update() had no authorization — any authenticated user could create/modify form fields
+**Module:** Form Builder — Backend
+**Severity:** Critical
+**Status:** Resolved — Phase 14
+**Description:** Same pattern as BUG-057 for fields. `FormFieldController::store()` and `update()` contained no `$this->authorize()` calls, allowing any authenticated user to create or modify fields on any section/definition.
+**Resolution:** `store()` uses the transient model pattern (pre-loads formDefinition on section, builds transient FormField, calls `$this->authorize('create', $transient)`). `update()` calls `$this->authorize('update', $field)`. `index()` changed from fragile `firstOrNew()` to `$this->authorize('viewAny', FormField::class)`.
+**Affected Files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Form/FormFieldController.php`
+
+---
+
+### BUG-060
+**Title:** FormFieldController::reorder() used firstOrNew() for authorization and did not scope batch UPDATE to the section
+**Module:** Form Builder — Backend
+**Severity:** High
+**Status:** Resolved — Phase 14
+**Description:** `$this->authorize('update', $section->fields()->firstOrNew())` is fragile — if the section has no fields, `firstOrNew()` returns an unsaved model with no `form_section_id`, causing the policy to fail with a null traversal. Additionally the batch UPDATE was not scoped to the section, allowing cross-section reordering.
+**Resolution:** Authorization changed to `$this->authorize('update', $section->formDefinition)` (same pattern as FormSectionController::reorder). Batch UPDATE now scoped with `->where('form_section_id', $section->id)`.
+**Affected Files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Form/FormFieldController.php`
+
+---
+
+### BUG-061
+**Title:** FormFieldOptionController had no authorization on index(), store(), and update()
+**Module:** Form Builder — Backend
+**Severity:** Critical
+**Status:** Resolved — Phase 14
+**Description:** `FormFieldOptionController::index()`, `store()`, and `update()` had no authorization at all. Any authenticated user could list, create, or update options on any field. `destroy()` and `reorder()` had inline `isSuperAdmin()` checks but no editable-status guard, and `reorder()` did not scope the batch UPDATE to the parent field.
+**Resolution:** All methods now use `$this->authorize('view'/'update', $field)` (parent FormField as authorization proxy via FormFieldPolicy). Reorder scoped with `->where('form_field_id', $field->id)`.
+**Affected Files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Form/FormFieldOptionController.php`
+
+---
+
 ## Summary
 
 | Severity | Count |
 |----------|-------|
-| Critical | 14 |
-| High | 19 |
+| Critical | 17 |
+| High | 21 |
 | Medium | 14 |
 | Low | 7 |
-| **Total** | **54** |
+| **Total** | **59** |
 
 | Status | Count |
 |--------|-------|
-| Resolved | 46 |
+| Resolved | 51 |
 | Open | 8 |
 
 | Module | Issues |
@@ -874,3 +934,4 @@
 | Admin — Application Review | BUG-035, BUG-038, BUG-039, BUG-048 |
 | Auth — Login / Session | BUG-044, BUG-045, BUG-046, BUG-051 |
 | UI — Status Badges | BUG-052, BUG-053 |
+| Form Builder — Backend | BUG-057, BUG-058, BUG-059, BUG-060, BUG-061 |

@@ -53,9 +53,9 @@ export interface Message {
 
 export interface MessageAttachment {
   id: number;
-  name: string;
+  original_filename: string;
   mime_type: string;
-  size: number;
+  file_size: number;
 }
 
 export type MessageCategory = 'general' | 'medical' | 'application' | 'other';
@@ -191,4 +191,13 @@ export async function downloadAttachment(messageId: number, documentId: number, 
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/** Fetch an attachment as a blob URL for inline preview. Caller is responsible for revoking it. */
+export async function getAttachmentBlobUrl(messageId: number, documentId: number): Promise<string> {
+  const response = await axiosInstance.get(
+    `/inbox/messages/${messageId}/attachments/${documentId}/preview`,
+    { responseType: 'blob' }
+  );
+  return URL.createObjectURL(response.data as Blob);
 }

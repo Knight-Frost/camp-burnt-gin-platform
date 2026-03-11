@@ -265,6 +265,23 @@ The application has no dark mode. Do not use `dark:` Tailwind prefixes. Use CSS 
 
 ---
 
+## Design Token Reference
+
+The canonical implementation of all design tokens is `frontend/src/assets/styles/design-tokens.css`.
+
+The token system covers the following categories:
+- Typography system (font families: Crimson Pro for headlines, Outfit for body; scale, weights, letter spacing)
+- Spacing scale
+- Color system
+- Shadow system
+- Blur and backdrop effects
+- Animation curves and durations (EASING and DURATION constants in `src/utils/motion.ts`)
+- Border radius values
+
+For Figma-sourced token values and component-specific patterns, refer to the Figma source files directly. The CSS file is the authoritative implementation.
+
+---
+
 **Document Status:** Authoritative
 **Last Updated:** March 2026
 **Version:** 2.0.0

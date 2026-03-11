@@ -485,7 +485,7 @@ After setup is complete:
 
 1.  Run tests to verify: `php artisan test`
 2.  Review [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines
-3.  Check [CI_CD.md](./CI_CD.md) for CI/CD workflows
+3.  Check [DEPLOYMENT.md](./DEPLOYMENT.md) for CI/CD workflows
 4.  Review [API Routes](#) documentation
 5.  Start coding!
 
@@ -495,7 +495,7 @@ After setup is complete:
 
 - **Documentation:** [docs/](./README.md)
 - **Issues:** Create GitHub issue
-- **CI/CD:** See [CI_CD.md](./CI_CD.md)
+- **CI/CD:** See [DEPLOYMENT.md](./DEPLOYMENT.md)
 - **Security:** See [SECURITY.md](./SECURITY.md)
 
 ---
