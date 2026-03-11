@@ -79,7 +79,7 @@ Camp_Burnt_Gin_Project/
 ├── docs/
 │   ├── backend/                           # Backend reference documentation
 │   ├── frontend/                          # Frontend reference documentation
-│   └── decisions/                         # Architecture decisions and changelog
+│   └── decisions/                         # Architecture decisions
 └── design/                                # Design assets
 ```
 
@@ -244,7 +244,6 @@ If a user has TOTP-based MFA enabled:
 | Document | Purpose |
 |----------|---------|
 | [docs/decisions/ARCHITECTURE_DECISIONS.md](docs/decisions/ARCHITECTURE_DECISIONS.md) | Architectural Decision Records (ADRs) |
-| [docs/decisions/CHANGELOG.md](docs/decisions/CHANGELOG.md) | Version history and notable changes by phase |
 
 ---
 
