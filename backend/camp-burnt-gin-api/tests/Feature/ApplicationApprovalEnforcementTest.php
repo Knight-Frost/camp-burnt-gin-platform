@@ -231,22 +231,8 @@ class ApplicationApprovalEnforcementTest extends TestCase
         $this->assertEquals(ApplicationStatus::Rejected, $this->application->status);
     }
 
-    public function test_waitlist_not_blocked_by_missing_documents(): void
-    {
-        // Waitlisting should NOT be blocked by document compliance
-        $response = $this->actingAs($this->admin)
-            ->postJson("/api/applications/{$this->application->id}/review", [
-                'status' => ApplicationStatus::Waitlisted->value,
-                'notes' => 'Placing on waitlist',
-            ]);
 
-        $response->assertStatus(200);
-
-        $this->application->refresh();
-        $this->assertEquals(ApplicationStatus::Waitlisted, $this->application->status);
-    }
-
-    public function test_high_complexity_camper_requires_additional_documents(): void
+public function test_high_complexity_camper_requires_additional_documents(): void
     {
         // Create high complexity camper
         $this->camper->medicalRecord()->update([

@@ -111,11 +111,13 @@ class PhiAuditingTest extends TestCase
 
     public function test_medical_record_creation_is_audited(): void
     {
+        // Medical record creation is admin-only (created at application approval time).
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
 
-        // Create medical record
-        $response = $this->actingAs($parent)->postJson('/api/medical-records', [
+        // Create medical record as admin
+        $response = $this->actingAs($admin)->postJson('/api/medical-records', [
             'camper_id' => $camper->id,
             'physician_name' => 'Dr. Test',
             'physician_phone' => '555-1234',
@@ -125,7 +127,7 @@ class PhiAuditingTest extends TestCase
 
         // Verify audit log was created
         $this->assertDatabaseHas('audit_logs', [
-            'user_id' => $parent->id,
+            'user_id' => $admin->id,
             'event_type' => AuditLog::EVENT_TYPE_PHI_ACCESS,
             'action' => 'create',
         ]);

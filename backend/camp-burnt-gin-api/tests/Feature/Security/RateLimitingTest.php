@@ -72,20 +72,9 @@ class RateLimitingTest extends TestCase
 
     public function test_provider_link_endpoint_rate_limited_after_two_attempts(): void
     {
-        // Make 2 requests (should succeed or fail with 403, but not rate limited)
-        for ($i = 0; $i < 2; $i++) {
-            $response = $this->postJson('/api/provider-access/invalid-token/submit', [
-                'data' => 'test',
-            ]);
-            $this->assertNotEquals(429, $response->status()); // Not rate limited yet
-        }
-
-        // 3rd request should be rate limited
-        $response = $this->postJson('/api/provider-access/invalid-token/submit', [
-            'data' => 'test',
-        ]);
-
-        $response->assertStatus(429);
+        // Phase 6: the provider-access/token-submit route was removed when provider link gates
+        // were replaced with direct medical provider access to all records. This test is skipped.
+        $this->markTestSkipped('Provider link endpoint was removed in Phase 6.');
     }
 
     public function test_upload_endpoint_rate_limited_after_five_attempts(): void

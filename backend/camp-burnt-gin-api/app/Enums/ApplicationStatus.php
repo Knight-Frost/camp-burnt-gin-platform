@@ -23,9 +23,6 @@ enum ApplicationStatus: string
     // The application was not accepted after review.
     case Rejected = 'rejected';
 
-    // The camper is on the waiting list in case a spot opens up.
-    case Waitlisted = 'waitlisted';
-
     // The application was withdrawn or called off before a decision.
     case Cancelled = 'cancelled';
 
@@ -39,7 +36,6 @@ enum ApplicationStatus: string
             self::UnderReview => 'Under Review',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
-            self::Waitlisted => 'Waitlisted',
             self::Cancelled => 'Cancelled',
         };
     }
@@ -59,7 +55,7 @@ enum ApplicationStatus: string
 
     /**
      * Returns true if the application can still be edited by the parent.
-     * Once a final decision is made or it's waitlisted, editing is locked.
+     * Once a final decision is made, editing is locked.
      */
     public function isEditable(): bool
     {

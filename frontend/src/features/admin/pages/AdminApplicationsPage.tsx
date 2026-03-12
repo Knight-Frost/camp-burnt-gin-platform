@@ -29,7 +29,7 @@ import type { Application } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
 // All possible status filter values — 'all' means no filter is applied.
-const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'rejected', 'waitlisted', 'cancelled'] as const;
+const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'rejected', 'cancelled'] as const;
 
 // Consolidated filter state — keeps search, status, and page together to avoid double-fetch races.
 interface Filters {

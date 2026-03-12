@@ -73,7 +73,7 @@ class RoleSeedTest extends TestCase
 
         $parent = Role::where('name', 'applicant')->first();
         $this->assertNotNull($parent->description);
-        $this->assertStringContainsString('Parent', $parent->description);
+        $this->assertStringContainsString('Applicant', $parent->description);
 
         $medical = Role::where('name', 'medical')->first();
         $this->assertNotNull($medical->description);

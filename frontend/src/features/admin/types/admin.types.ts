@@ -34,7 +34,7 @@ export interface Application {
   id: number;
   camper_id: number;
   camp_session_id: number;
-  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'waitlisted' | 'cancelled';
+  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'cancelled';
   notes?: string;
   submitted_at?: string;
   reviewed_at?: string;

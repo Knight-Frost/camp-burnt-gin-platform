@@ -57,17 +57,17 @@ class WaitlistedApplicationSeeder extends Seeder
         $tyler = Camper::where('first_name', 'Tyler')->where('last_name', 'Wilson')->firstOrFail();
         $mia   = Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail();
 
-        // ── A. Tyler Wilson — Waitlisted (Session 1 2026) ──────────────────────
+        // ── A. Tyler Wilson — Under Review (Session 1 2026) ───────────────────
 
         Application::firstOrCreate(
             ['camper_id' => $tyler->id, 'camp_session_id' => $session1Upcoming->id],
             [
-                'status'            => ApplicationStatus::Waitlisted,
+                'status'            => ApplicationStatus::UnderReview,
                 'is_draft'          => false,
                 'submitted_at'      => now()->subDays(25),
                 'reviewed_at'       => now()->subDays(15),
                 'reviewed_by'       => $admin->id,
-                'notes'             => 'Session 1 is at capacity. Tyler has been placed on the waitlist and will be notified if a spot opens. Application is complete and meets all requirements.',
+                'notes'             => 'Application is complete and under review by camp staff.',
                 'signature_name'    => 'Grace Wilson',
                 'signed_at'         => now()->subDays(25),
                 'signed_ip_address' => '10.0.3.77',
@@ -191,6 +191,6 @@ class WaitlistedApplicationSeeder extends Seeder
             ]
         );
 
-        $this->command->line('  Waitlisted/draft/paper applications seeded (Tyler waitlisted, Mia draft, Henry Carter paper).');
+        $this->command->line('  Draft/paper applications seeded (Tyler under_review, Mia draft, Henry Carter paper).');
     }
 }

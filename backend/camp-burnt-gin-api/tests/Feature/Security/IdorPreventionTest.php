@@ -141,18 +141,19 @@ class IdorPreventionTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_medical_provider_cannot_access_unlinked_medical_record(): void
+    public function test_medical_provider_can_access_any_medical_record(): void
     {
+        // Phase 6: provider link gates were removed. Medical providers now have
+        // direct read/update access to all camper medical records for active clinical care.
         $provider = $this->createMedicalProvider();
         $parent = $this->createParent();
 
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $medicalRecord = MedicalRecord::factory()->create(['camper_id' => $camper->id]);
 
-        // Provider tries to access medical record without a valid link
         $response = $this->actingAs($provider)->getJson("/api/medical-records/{$medicalRecord->id}");
 
-        $response->assertStatus(403);
+        $response->assertOk();
     }
 
     public function test_parent_cannot_create_application_for_other_parents_camper(): void

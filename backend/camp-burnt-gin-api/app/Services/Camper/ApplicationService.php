@@ -80,9 +80,9 @@ class ApplicationService
         $previousStatus = $application->status->value;
 
         // ── Step 1: Document compliance gate ────────────────────────────────────
-        // CRITICAL SAFETY CHECK: Only non-admins are blocked by this compliance check.
-        // Admins and super-admins can override it to handle edge cases or manual reviews.
-        if ($newStatus === ApplicationStatus::Approved && ! $reviewedBy->isAdmin() && ! $reviewedBy->isSuperAdmin()) {
+        // CRITICAL SAFETY CHECK: All reviewers (including admins) are blocked if documents
+        // are missing, expired, or unverified. This enforces medical compliance before approval.
+        if ($newStatus === ApplicationStatus::Approved) {
             // Load the camper relationship if it hasn't been loaded yet
             $application->loadMissing('camper');
             $compliance = $this->documentEnforcement->checkCompliance($application->camper);
@@ -141,7 +141,7 @@ class ApplicationService
             ApplicationStatus::Rejected => $this->systemNotifications->applicationRejected(
                 $parentUser, $application->id, $camperName, $notes
             ),
-            // For any other status (Waitlisted, etc.) use the generic change notification
+            // For any other status use the generic change notification
             default => $this->systemNotifications->applicationStatusChanged(
                 $parentUser, $application->id, $camperName, $newStatus->value
             ),

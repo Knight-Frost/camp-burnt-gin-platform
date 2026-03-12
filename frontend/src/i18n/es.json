@@ -1212,6 +1212,7 @@
       "gender": "Género",
       "preferred_name": "Nombre preferido",
       "county": "Condado",
+      "tshirt_size": "Talla de camiseta",
       "relationship": "Parentesco",
       "phone_home": "Teléfono de casa",
       "phone_cell": "Teléfono celular",

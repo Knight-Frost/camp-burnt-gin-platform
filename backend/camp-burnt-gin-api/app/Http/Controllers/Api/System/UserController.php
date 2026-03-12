@@ -145,6 +145,7 @@ class UserController extends Controller
         }
 
         $user->is_active = false;
+        $user->email_verified_at = null;
         $user->save();
 
         // Revoke all active tokens so the user is immediately signed out.
@@ -170,6 +171,7 @@ class UserController extends Controller
         }
 
         $user->is_active = true;
+        $user->email_verified_at = now();
         $user->save();
 
         return response()->json(['message' => 'User reactivated.']);

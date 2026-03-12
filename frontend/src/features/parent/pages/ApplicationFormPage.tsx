@@ -166,6 +166,7 @@ export interface FormState {
     camper_last_name: string;
     camper_dob: string;
     camper_gender: string;
+    tshirt_size: string;
     camper_preferred_name: string;
     county: string;
     g1_name: string;
@@ -313,6 +314,7 @@ const INITIAL_STATE: FormState = {
     camper_last_name: '',
     camper_dob: '',
     camper_gender: '',
+    tshirt_size: '',
     camper_preferred_name: '',
     county: '',
     g1_name: '',
@@ -799,6 +801,26 @@ function Section1({
             <FieldLabel>{t('applicant.form.county')}</FieldLabel>
             <TextInput value={data.county} onChange={set('county')} placeholder={t('applicant.form.county')} />
           </div>
+        </FormRow>
+        <FormRow>
+          <div>
+            <FieldLabel>{t('applicant.form.tshirt_size')}</FieldLabel>
+            <SelectInput value={data.tshirt_size} onChange={set('tshirt_size')}>
+              <option value="">Select size</option>
+              <option value="YXS">Youth XS</option>
+              <option value="YS">Youth S</option>
+              <option value="YM">Youth M</option>
+              <option value="YL">Youth L</option>
+              <option value="YXL">Youth XL</option>
+              <option value="AS">Adult S</option>
+              <option value="AM">Adult M</option>
+              <option value="AL">Adult L</option>
+              <option value="AXL">Adult XL</option>
+              <option value="A2XL">Adult 2XL</option>
+              <option value="A3XL">Adult 3XL</option>
+            </SelectInput>
+          </div>
+          <div />
         </FormRow>
       </SectionCard>
 
@@ -2740,7 +2762,7 @@ export function ApplicationFormPage() {
           last_name:     form.s1.camper_last_name,
           date_of_birth: form.s1.camper_dob,
           gender:        form.s1.camper_gender,
-          tshirt_size:   '',
+          tshirt_size:   form.s1.tshirt_size || undefined,
         });
         camperId = camper.id;
         pendingCamperIdRef.current = camperId;

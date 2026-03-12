@@ -248,26 +248,28 @@ class CamperAuthorizationTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_medical_provider_cannot_view_campers_list(): void
+    public function test_medical_provider_can_view_campers_list(): void
     {
+        // Phase 11: medical providers have full read access to camper profiles for clinical workflows.
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
         Camper::factory()->count(3)->forUser($parent)->create();
 
         $response = $this->actingAs($medical)->getJson('/api/campers');
 
-        $response->assertStatus(403);
+        $response->assertOk();
     }
 
-    public function test_medical_provider_cannot_view_camper(): void
+    public function test_medical_provider_can_view_camper(): void
     {
+        // Phase 11: medical providers can view individual camper profiles.
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
 
         $response = $this->actingAs($medical)->getJson("/api/campers/{$camper->id}");
 
-        $response->assertStatus(403);
+        $response->assertOk();
     }
 
     public function test_medical_provider_cannot_create_camper(): void
@@ -313,12 +315,14 @@ class CamperAuthorizationTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_user_without_role_cannot_access_campers(): void
+    public function test_user_without_role_gets_empty_campers_list(): void
     {
+        // Users with no recognised role receive an empty result set rather than 403.
         $user = $this->createUserWithoutRole();
 
         $response = $this->actingAs($user)->getJson('/api/campers');
 
-        $response->assertStatus(403);
+        $response->assertOk();
+        $response->assertJsonPath('data', []);
     }
 }

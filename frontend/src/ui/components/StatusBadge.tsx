@@ -72,12 +72,7 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     text: '#dc2626',   // --destructive
     label: 'Rejected',
   },
-  waitlisted: {
-    bg: 'rgba(109,40,217,0.12)',
-    text: '#6d28d9',   // purple-700
-    label: 'Waitlisted',
-  },
-  withdrawn: {
+withdrawn: {
     bg: 'rgba(107,114,128,0.12)',
     text: '#374151',
     label: 'Withdrawn',

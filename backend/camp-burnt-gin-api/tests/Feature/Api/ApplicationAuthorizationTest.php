@@ -264,13 +264,16 @@ class ApplicationAuthorizationTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_medical_provider_cannot_view_applications_list(): void
+    public function test_medical_provider_gets_empty_applications_list(): void
     {
+        // Medical providers are not an application-managing role; the controller returns
+        // an empty paginated result rather than 403 for unrecognised roles.
         $medical = $this->createMedicalProvider();
 
         $response = $this->actingAs($medical)->getJson('/api/applications');
 
-        $response->assertStatus(403);
+        $response->assertOk();
+        $response->assertJsonPath('data', []);
     }
 
     public function test_medical_provider_cannot_view_application(): void

@@ -80,7 +80,6 @@ export type ApplicationStatus =
   | 'under_review'
   | 'approved'
   | 'rejected'
-  | 'waitlisted'
   | 'cancelled'
   | 'withdrawn';
 

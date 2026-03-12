@@ -233,8 +233,10 @@ class MedicalRecordAuthorizationTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_parent_can_create_medical_record_for_own_camper(): void
+    public function test_parent_cannot_create_medical_record_directly(): void
     {
+        // Medical records are created by the system at approval time (admin-only policy).
+        // Parents cannot create them directly via the API.
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
 
@@ -243,7 +245,7 @@ class MedicalRecordAuthorizationTest extends TestCase
             'physician_name' => 'Dr. Test',
         ]);
 
-        $response->assertStatus(201);
+        $response->assertStatus(403);
     }
 
     public function test_parent_cannot_create_medical_record_for_other_camper(): void

@@ -556,7 +556,6 @@
       "filter_under_review": "Under Review",
       "filter_approved": "Approved",
       "filter_rejected": "Rejected",
-      "filter_waitlisted": "Waitlisted",
       "filter_cancelled": "Cancelled"
     },
     "campers": {
@@ -1213,6 +1212,7 @@
       "gender": "Gender",
       "preferred_name": "Preferred name",
       "county": "County",
+      "tshirt_size": "T-shirt size",
       "relationship": "Relationship",
       "phone_home": "Home phone",
       "phone_cell": "Cell phone",
