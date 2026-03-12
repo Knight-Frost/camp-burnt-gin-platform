@@ -662,7 +662,7 @@ the document list, updating the UI to show the new status.
 
 ---
 
-## 8. Questions a Professor Might Ask
+## 8. Common Technical Questions
 
 **Q: What frontend framework was used?**
 React 18 with TypeScript 5 in strict mode. React was chosen for its
