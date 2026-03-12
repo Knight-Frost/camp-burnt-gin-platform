@@ -568,6 +568,7 @@
       "col_risk": "Risk Level",
       "col_compliance": "Compliance",
       "compliant": "Compliant",
+      "non_compliant": "Non-Compliant",
       "view_risk": "View Risk",
       "empty_title": "No campers found",
       "empty_desc": "Registered campers will appear here."

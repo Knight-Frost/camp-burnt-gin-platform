@@ -19,10 +19,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getCampers } from '@/features/admin/api/admin.api';
+import { getCampers, getCamperComplianceStatus } from '@/features/admin/api/admin.api';
+import type { ComplianceStatus } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import type { Camper } from '@/features/admin/types/admin.types';
@@ -41,6 +42,10 @@ export function AdminCampersPage() {
   const [response, setResponse] = useState<PaginatedResponse<Camper> | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
+
+  // Per-camper compliance results, keyed by camper ID.
+  // undefined = not yet fetched, null = fetch failed
+  const [compliance, setCompliance] = useState<Record<number, ComplianceStatus | null>>({});
 
   // Consolidated filters — single object prevents the double-fetch race that occurs when
   // search changes reset `page` via a separate useEffect (which would fire fetchCampers twice).
@@ -72,6 +77,18 @@ export function AdminCampersPage() {
       // Pass undefined for search when empty so the API ignores the parameter.
       const data = await getCampers({ page: filters.page, search: filters.search || undefined });
       setResponse(data);
+
+      // Clear stale compliance entries for the previous page, then fetch for new page in parallel.
+      setCompliance({});
+      const results = await Promise.allSettled(
+        data.data.map((camper) => getCamperComplianceStatus(camper.id))
+      );
+      const map: Record<number, ComplianceStatus | null> = {};
+      data.data.forEach((camper, i) => {
+        const result = results[i];
+        map[camper.id] = result.status === 'fulfilled' ? result.value : null;
+      });
+      setCompliance(map);
     } catch {
       setError(true);
     } finally {
@@ -182,10 +199,23 @@ export function AdminCampersPage() {
                     </Link>
                   </div>
                   <div className="col-span-2">
-                    <span className="inline-flex items-center gap-1 text-xs">
-                      <CheckCircle className="h-3 w-3" style={{ color: 'var(--forest-green)' }} />
-                      <span style={{ color: 'var(--muted-foreground)' }}>{t('admin.campers.compliant')}</span>
-                    </span>
+                    {!(camper.id in compliance) ? (
+                      // Still loading compliance for this camper
+                      <div className="h-3 w-20 rounded animate-pulse" style={{ background: 'var(--glass-medium)' }} />
+                    ) : compliance[camper.id] === null ? (
+                      // Fetch failed — show neutral dash
+                      <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>—</span>
+                    ) : compliance[camper.id]!.is_compliant ? (
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <CheckCircle className="h-3 w-3" style={{ color: 'var(--forest-green)' }} />
+                        <span style={{ color: 'var(--muted-foreground)' }}>{t('admin.campers.compliant')}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <XCircle className="h-3 w-3" style={{ color: 'var(--ember-orange)' }} />
+                        <span style={{ color: 'var(--ember-orange)' }}>{t('admin.campers.non_compliant')}</span>
+                      </span>
+                    )}
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <Link

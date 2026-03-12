@@ -568,6 +568,7 @@
       "col_risk": "Nivel de Riesgo",
       "col_compliance": "Cumplimiento",
       "compliant": "Cumple",
+      "non_compliant": "No Cumple",
       "view_risk": "Ver Riesgo",
       "empty_title": "No se encontraron campistas",
       "empty_desc": "Los campistas registrados aparecerán aquí."

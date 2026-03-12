@@ -109,9 +109,13 @@ class ApplicationController extends Controller
                 $query->whereDate('submitted_at', '<=', $request->date_to);
             }
 
-            // Optionally show only saved drafts (is_draft = true).
+            // By default exclude unsubmitted drafts from the admin review queue —
+            // admins should only see applications the parent has actually submitted.
+            // Pass drafts_only=true to flip this and see only drafts instead.
             if ($request->boolean('drafts_only')) {
                 $query->where('is_draft', true);
+            } else {
+                $query->where('is_draft', false);
             }
 
             // Dynamic sorting — only allow whitelisted columns to prevent SQL injection.
