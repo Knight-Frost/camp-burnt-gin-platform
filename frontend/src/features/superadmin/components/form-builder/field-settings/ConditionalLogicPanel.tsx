@@ -57,7 +57,9 @@ export function ConditionalLogicPanel({
       >
         {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         <span className="flex-1 text-left">Conditional Logic</span>
-        <span
+        <button
+          type="button"
+          disabled={disabled}
           onClick={(e) => { e.stopPropagation(); handleToggle(); }}
           className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
             enabled
@@ -66,7 +68,7 @@ export function ConditionalLogicPanel({
           }`}
         >
           {enabled ? 'On' : 'Off'}
-        </span>
+        </button>
       </button>
 
       {open && enabled && (
@@ -74,8 +76,9 @@ export function ConditionalLogicPanel({
           <p className="text-xs text-[var(--muted-foreground)] pt-2">Show this field when:</p>
 
           <div className="space-y-1">
-            <label className="text-xs text-[var(--muted-foreground)]">Field</label>
+            <label htmlFor="clp-field-key" className="text-xs text-[var(--muted-foreground)]">Field</label>
             <select
+              id="clp-field-key"
               value={value.show_if.field_key}
               onChange={(e) => updateFieldKey(e.target.value)}
               disabled={disabled}
@@ -89,8 +92,9 @@ export function ConditionalLogicPanel({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-[var(--muted-foreground)]">Equals</label>
+            <label htmlFor="clp-equals" className="text-xs text-[var(--muted-foreground)]">Equals</label>
             <input
+              id="clp-equals"
               value={String(value.show_if.equals ?? '')}
               onChange={(e) => updateEquals(e.target.value)}
               disabled={disabled}

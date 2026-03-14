@@ -310,11 +310,15 @@ export function ApplicantDashboardPage() {
                 return (
                   <li
                     key={n.id}
-                    className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
                     style={{
                       background: isUnread ? 'rgba(22,163,74,0.04)' : 'transparent',
                       borderColor: 'var(--border)',
                     }}
+                  >
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 w-full text-left cursor-pointer"
                     onClick={() => isUnread && handleMarkRead(n.id)}
                   >
                     {/* Icon */}
@@ -349,6 +353,7 @@ export function ApplicantDashboardPage() {
                         <div className="w-2 h-2 rounded-full" style={{ background: 'var(--ember-orange)' }} />
                       )}
                     </div>
+                  </button>
                   </li>
                 );
               })}

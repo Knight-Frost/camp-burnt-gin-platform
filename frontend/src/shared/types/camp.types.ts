@@ -200,6 +200,7 @@ export interface Document {
   user_id: number;
   filename: string;
   original_filename: string;
+  name?: string;
   mime_type: string;
   size: number;
   document_type?: string;

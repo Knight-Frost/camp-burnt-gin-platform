@@ -20,7 +20,7 @@
  *  - Status badges with full lifecycle colours
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FC, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -75,7 +75,7 @@ import { SkeletonTable } from '@/ui/components/Skeletons';
 
 const STATUS_CONFIG: Record<
   DocumentRequestStatus,
-  { label: string; bg: string; color: string; icon: React.FC<{ className?: string }> }
+  { label: string; bg: string; color: string; icon: FC<{ className?: string }> }
 > = {
   awaiting_upload: { label: 'Awaiting Upload', bg: 'rgba(245,158,11,0.12)', color: '#b45309',              icon: Clock       },
   uploaded:        { label: 'Pending Review',  bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8',              icon: FileCheck   },
@@ -189,7 +189,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.applicant_id || !form.document_type.trim()) return;
     setSaving(true);
@@ -217,14 +217,20 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       <div
+        role="presentation"
         className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
         style={{ background: 'var(--card)' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
@@ -252,11 +258,12 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
         <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
           {/* Applicant */}
           <div>
-            <label className={labelCls} style={labelStyle}>Applicant *</label>
+            <label htmlFor="doc-req-applicant" className={labelCls} style={labelStyle}>Applicant *</label>
             {loadingApplicants ? (
               <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
             ) : (
               <select
+                id="doc-req-applicant"
                 required
                 value={form.applicant_id}
                 onChange={(e) => set('applicant_id', e.target.value)}
@@ -274,8 +281,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
           {/* Camper (optional) */}
           {campers.length > 0 && (
             <div>
-              <label className={labelCls} style={labelStyle}>Camper (optional)</label>
+              <label htmlFor="doc-req-camper" className={labelCls} style={labelStyle}>Camper (optional)</label>
               <select
+                id="doc-req-camper"
                 value={form.camper_id}
                 onChange={(e) => set('camper_id', e.target.value)}
                 className={inputCls}
@@ -291,8 +299,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
           {/* Document Type */}
           <div>
-            <label className={labelCls} style={labelStyle}>Document Type *</label>
+            <label htmlFor="doc-req-type" className={labelCls} style={labelStyle}>Document Type *</label>
             <input
+              id="doc-req-type"
               type="text"
               required
               placeholder="e.g. Immunization Record, Physician Sign-off…"
@@ -305,8 +314,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
           {/* Instructions */}
           <div>
-            <label className={labelCls} style={labelStyle}>Instructions (optional)</label>
+            <label htmlFor="doc-req-instructions" className={labelCls} style={labelStyle}>Instructions (optional)</label>
             <textarea
+              id="doc-req-instructions"
               rows={3}
               placeholder="What should the applicant upload or include?"
               value={form.instructions}
@@ -318,8 +328,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
           {/* Due Date */}
           <div>
-            <label className={labelCls} style={labelStyle}>Due Date (optional)</label>
+            <label htmlFor="doc-req-due-date" className={labelCls} style={labelStyle}>Due Date (optional)</label>
             <input
+              id="doc-req-due-date"
               type="date"
               value={form.due_date}
               onChange={(e) => set('due_date', e.target.value)}
@@ -369,7 +380,7 @@ function RejectModal({
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -385,14 +396,20 @@ function RejectModal({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       <div
+        role="presentation"
         className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
         style={{ background: 'var(--card)' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div
           className="flex items-center justify-between px-5 py-4 border-b"
@@ -415,10 +432,11 @@ function RejectModal({
             The applicant will be notified and asked to resubmit.
           </p>
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="reject-reason" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>
               Reason (optional)
             </label>
             <textarea
+              id="reject-reason"
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -446,7 +464,7 @@ function RejectModal({
 
 interface OverflowMenuItem {
   label: string;
-  icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
+  icon: FC<{ className?: string; style?: CSSProperties }>;
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
@@ -456,7 +474,7 @@ function OverflowMenu({ items }: { items: OverflowMenuItem[] }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPos, setMenuPos] = useState<React.CSSProperties>({});
+  const [menuPos, setMenuPos] = useState<CSSProperties>({});
 
   function handleToggle() {
     if (!open && btnRef.current) {
@@ -548,7 +566,7 @@ function ExtendDeadlineModal({
   const [date, setDate] = useState('');
   const [saving, setSaving] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!date) return;
     setSaving(true);
@@ -567,8 +585,8 @@ function ExtendDeadlineModal({
   const inputStyle = { background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
-      <div className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()}>
+    <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
+      <div role="presentation" className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Extend Deadline</p>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
@@ -580,8 +598,8 @@ function ExtendDeadlineModal({
             Set a new due date for <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>.
           </p>
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>New Due Date *</label>
-            <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} style={inputStyle} />
+            <label htmlFor="extend-due-date" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>New Due Date *</label>
+            <input id="extend-due-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
           <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
             <Button variant="ghost" size="sm" type="button" onClick={onClose}>Cancel</Button>
@@ -616,8 +634,8 @@ function CancelConfirmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
-      <div className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()}>
+    <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
+      <div role="presentation" className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Cancel Request</p>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
@@ -697,7 +715,7 @@ export function AdminDocumentsPage() {
   function toggleExpand(id: number) {
     setExpandedRows((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
   }

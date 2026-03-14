@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** Phase 14 — Issues BUG-057 through BUG-061 (security fixes)
+**Last Updated:** 2026-03-12 — BUG-081, BUG-082 (CamperController full_name SQL error; RoleGuard login redirect loop)
 **Format:** Sequential ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -114,6 +114,27 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-059 | FormFieldController store() and update() had no authorization | Form Builder — Backend | Critical | Resolved |
 | BUG-060 | FormFieldController reorder() used firstOrNew() for authorization; unscoped batch UPDATE | Form Builder — Backend | High | Resolved |
 | BUG-061 | FormFieldOptionController had no authorization on index(), store(), and update() | Form Builder — Backend | Critical | Resolved |
+| BUG-062 | Backend test failure — TokenExpirationTest fails when SANCTUM_EXPIRATION=null in .env | Auth — Login / Session | High | Resolved |
+| BUG-063 | Page-open animation glitch — content briefly appears at full opacity then disappears on each navigation | UI — Layout | High | Resolved |
+| BUG-064 | 188 ESLint errors — accessibility violations and missing React type imports across frontend | Frontend — Multiple | Medium | Resolved |
+| BUG-065 | FormDefinitionPolicy::view() exposes draft form definitions to all authenticated users | Security — Form Builder | Critical | Resolved |
+| BUG-066 | FormSectionController — section not scoped to parent form in URL (IDOR) | Security — Form Builder | High | Resolved |
+| BUG-067 | FormFieldController — field not scoped to parent section in URL (IDOR) | Security — Form Builder | High | Resolved |
+| BUG-068 | FormFieldOptionController — option not scoped to parent field in URL (IDOR) | Security — Form Builder | High | Resolved |
+| BUG-069 | MedicalRestrictionPolicy::delete() permits medical providers to permanently delete restrictions | Security — Medical Portal | Medium | Resolved |
+| BUG-070 | DocumentPolicy::view() medical provider check unreachable — providers blocked from authorized documents | Security — Document Access Control | High | Resolved |
+| BUG-071 | Announcement update/destroy routes lacked admin middleware — route-level enforcement gap | Security — Announcements | High | Resolved |
+| BUG-072 | RateLimitingTest MFA assertion incorrect — test asserted wrong effective rate limit | Backend Tests — Security | Low | Resolved |
+| BUG-073 | DocumentRequestController lacks a dedicated Policy class — no second layer of authorization | Security — Document Requests | Low | Open |
+| BUG-074 | All FormData uploads broken — explicit Content-Type header omits boundary, Laravel rejects multipart body | Frontend — File Uploads | Critical | Resolved |
+| BUG-075 | Auth token stored in sessionStorage — causes logout on every page refresh across all portals | Auth — Token Storage | Critical | Resolved |
+| BUG-076 | Admin Campers page shows "Failed to load data" — CamperController::index() eager-loads encrypted PHI | Admin Portal — Campers | Critical | Resolved |
+| BUG-077 | Admin Applications page shows "Failed to load data" — ApplicationController::index() eager-loads encrypted PHI | Admin Portal — Applications | Critical | Resolved |
+| BUG-078 | Admin Reports shows 0 accepted applications — ReportController uses key 'accepted' but enum value is 'approved' | Admin Portal — Reports | High | Resolved |
+| BUG-079 | Wrong MFA code triggers global logout — `/mfa/` not in `isPublicAuthEndpoint` list in axios interceptor | Auth — MFA | High | Resolved |
+| BUG-080 | Admin/super-admin portal switches to applicant portal when idle — `AdminLayout`/`SuperAdminLayout` redirect to `getDashboardRoute(role)` on access denial, which resolves to `/applicant/dashboard` when Redux role is stale | Auth — Layout Guards | Critical | Resolved |
+| BUG-081 | Campers page search causes 500 — `CamperController::index()` uses `full_name` in SQL WHERE clause but `full_name` is a virtual computed attribute with no backing DB column | Admin Portal — Campers | Critical | Resolved |
+| BUG-082 | `RoleGuard` redirects authenticated users with missing role data to `/login`, causing a redirect loop with `ProtectedRoute` | Auth — RBAC | High | Resolved |
 
 ---
 
@@ -1295,24 +1316,443 @@ All methods now use `$this->authorize('view'/'update', $field)`, using the paren
 
 ---
 
+### BUG-062
+
+**Title:** Backend test failure — TokenExpirationTest fails when SANCTUM_EXPIRATION=null in .env
+**Module:** Auth — Login / Session
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+`TokenExpirationTest::sanctum_token_expiration_is_configured` was failing because the local `.env` file sets `SANCTUM_EXPIRATION=null`. Laravel's `env()` helper converts the string literal `"null"` to PHP `null`, overriding the default value of `60` configured in `config/sanctum.php`. The test asserted `assertNotNull(Config::get('sanctum.expiration'))` and received `null`, causing a CI failure.
+
+**Resolution:**
+Added `<env name="SANCTUM_EXPIRATION" value="60"/>` to `phpunit.xml` inside the `<php>` block. PHPUnit environment overrides take precedence over `.env`, ensuring the test suite always validates token expiration regardless of local developer configuration.
+
+**Affected Files:**
+- `backend/camp-burnt-gin-api/phpunit.xml`
+
+---
+
+### BUG-063
+
+**Title:** Page-open animation glitch — content briefly appears at full opacity then disappears on each navigation
+**Module:** UI — Layout
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+The `<main>` element in `DashboardShell.tsx` was animated with `style={{ animation: 'pageIn 160ms ease-out' }}`. The `pageIn` keyframe starts at `opacity: 0, translateY(6px)`. Without `animation-fill-mode: backwards`, the browser painted the element at its default CSS state (opacity: 1) for one frame before the animation engine applied the `from` keyframe. Combined with `key={location.pathname}` forcing a remount on every route change, this produced a visible three-phase glitch: full-opacity flash → snap to transparent → fade in.
+
+**Resolution:**
+Changed to `style={{ animation: 'pageIn 160ms ease-out backwards' }}`. The `backwards` fill-mode holds the element at the `from` keyframe state before and during the animation start, eliminating the flash entirely.
+
+**Affected Files:**
+- `frontend/src/ui/layout/DashboardShell.tsx`
+
+---
+
+### BUG-064
+
+**Title:** 188 ESLint errors — accessibility violations and missing React type imports across frontend
+**Module:** Frontend — Multiple
+**Severity:** Medium
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+A full ESLint scan of the frontend codebase revealed 188 errors across three categories:
+1. `no-undef` — files using `React.ReactNode`, `React.FormEvent`, `React.MouseEvent`, etc. without importing the React namespace, relying on a global that is not available in the project's ESLint configuration.
+2. `jsx-a11y/click-events-have-key-events` + `jsx-a11y/no-static-element-interactions` — backdrop overlays and clickable rows implemented as `<div onClick>` with no keyboard event handling, making them inaccessible to keyboard-only users.
+3. `jsx-a11y/label-has-associated-control` — form labels missing `htmlFor` attributes or paired `id` on native controls, preventing screen readers from correctly associating labels with inputs.
+
+**Resolution:**
+All errors were corrected across ~30 files. Pattern fixes:
+- `React.ReactNode` → add named type import, replace with `ReactNode`
+- Backdrop `<div onClick>` → `<button type="button" aria-label="Close">`
+- Interactive `<div onClick>` → add `role="button"`, `tabIndex={0}`, `onKeyDown`
+- Labels → add `htmlFor`/`id` pairs or nest control directly
+
+Final state: 0 errors, 11 acceptable warnings (`jsx-a11y/no-autofocus` on intentional modal inputs).
+
+**Affected Files:**
+All files listed in Appendix A of `docs/audits/full-audit-and-cleansing-report.md`.
+
+### BUG-065
+
+**Title:** FormDefinitionPolicy::view() exposes draft form definitions to all authenticated users
+**Module:** Security — Form Builder
+**Severity:** Critical
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+`FormDefinitionPolicy::view()` returned `true` for any authenticated user regardless of the form's status. This allowed applicants and medical providers to access draft form definitions (containing unpublished field structures, validation rules, and conditional logic) via `GET /api/form/version/{form}` by supplying the form ID.
+
+**Resolution:**
+Fixed `view()` to restrict non-admin users to forms with `status === 'active'` only. Admins retain full access for management purposes.
+
+```php
+public function view(User $user, FormDefinition $form): bool
+{
+    if ($user->isAdmin()) {
+        return true;
+    }
+    return $form->status === 'active';
+}
+```
+
+---
+
+### BUG-066
+
+**Title:** FormSectionController — section not scoped to parent form in URL (IDOR)
+**Module:** Security — Form Builder
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+`FormSectionController::update()` and `destroy()` used route model binding to resolve the `{section}` parameter independently of the `{form}` parameter in the URL. A `super_admin` could manipulate a section belonging to a *different* form definition (potentially a published one) by crafting a URL with a mismatched form and section ID. Authorization checks ran against the section's actual parent, bypassing the URL's form.
+
+**Resolution:**
+Added `abort_if($section->form_definition_id !== $form->id, 404)` before the authorization check in both `update()` and `destroy()`.
+
+---
+
+### BUG-067
+
+**Title:** FormFieldController — field not scoped to parent section in URL (IDOR)
+**Module:** Security — Form Builder
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+Same IDOR pattern as BUG-066. `FormFieldController::update()` and `destroy()` resolved `{field}` independently of `{section}`. A `super_admin` could mutate a field from a different section (possibly in a published definition) by crafting the URL.
+
+**Resolution:**
+Added `abort_if($field->form_section_id !== $section->id, 404)` before the authorization check in both methods.
+
+---
+
+### BUG-068
+
+**Title:** FormFieldOptionController — option not scoped to parent field in URL (IDOR)
+**Module:** Security — Form Builder
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+Same IDOR pattern as BUG-066 and BUG-067. `FormFieldOptionController::update()` and `destroy()` resolved `{option}` independently of `{field}`. Cross-field option manipulation was possible.
+
+**Resolution:**
+Added `abort_if($option->form_field_id !== $field->id, 404)` before the authorization check in both methods.
+
+---
+
+### BUG-069
+
+**Title:** MedicalRestrictionPolicy::delete() permits medical providers to permanently delete restrictions
+**Module:** Security — Medical Portal
+**Severity:** Medium
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+`MedicalRestrictionPolicy::delete()` returned `true` for both admins and medical providers. All other Phase 11 medical policies (`MedicalIncidentPolicy`, `MedicalFollowUpPolicy`, `MedicalVisitPolicy`) restrict deletion to admins only. Medical restrictions affect camper safety and represent clinical decisions; allowing medical providers to permanently delete them without admin oversight breaks the audit trail and creates a safety risk.
+
+**Resolution:**
+Changed `delete()` to `return $user->isAdmin()` only, consistent with all other Phase 11 medical record deletion policies.
+
+---
+
+### BUG-070
+
+**Title:** DocumentPolicy::view() medical provider check unreachable — providers blocked from authorized documents
+**Module:** Security — Document Access Control
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+In `DocumentPolicy::view()`, the medical provider access check for `Camper`-attached documents was placed *after* a generic camper ownership check (`$user->campers()->where('id', ...)->exists()`). For medical providers, `campers()` returns an empty collection (they do not own campers), so the ownership check silently returned `false`, and the medical provider check below it was never reached. Medical providers were incorrectly denied access to camper documents they are authorized to view.
+
+**Resolution:**
+Moved the medical provider check before the camper ownership check so it runs first. Medical providers pass immediately; applicants fall through to the ownership check.
+
+---
+
+### BUG-071
+
+**Title:** Announcement update/destroy routes lacked admin middleware — route-level enforcement gap
+**Module:** Security — Announcements
+**Severity:** High
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+The `PUT /{announcement}` and `DELETE /{announcement}` routes in the announcements route group were missing the `->middleware('admin')` directive that `store()` and `togglePin()` had. While the controller methods contained `abort_unless($user->isAdmin(), 403)` checks, the route-level middleware was absent, breaking the defense-in-depth pattern used throughout the API.
+
+**Resolution:**
+Added `->middleware('admin')` to both routes in `routes/api.php`.
+
+---
+
+### BUG-072
+
+**Title:** RateLimitingTest MFA assertion incorrect — test asserted wrong effective rate limit
+**Module:** Backend Tests — Security
+**Severity:** Low
+**Status:** Resolved — Full Audit 2026-03-12
+
+**Description:**
+`RateLimitingTest::test_mfa_endpoint_rate_limited` was testing the wrong rate limit. `AppServiceProvider` defines a 5/min MFA limit, but `bootstrap/app.php` defines the authoritative rate limiter (which takes precedence since it runs after service provider boot) at **3/min** with a secondary 10/hour limit. The test's loop count did not match the actual effective limit, causing the 429 assertion to fire inside the loop rather than after it.
+
+**Root cause investigation** revealed the actual cache keys used by Laravel 12's `ThrottleRequests` middleware: per-limit keys incorporate `{userId}:attempts:{maxAttempts}:decay:{decaySeconds}` rather than just the user ID, producing keys like `md5('mfa' . '1:attempts:3:decay:60')`.
+
+**Resolution:**
+Updated loop count to 3 (matching 3/min effective limit) and renamed method to `test_mfa_endpoint_rate_limited_after_three_attempts`. Updated comment to reference `bootstrap/app.php` as authoritative. The `AppServiceProvider` rate limiter definitions should be reconciled with `bootstrap/app.php` to avoid future confusion — only one location should define named rate limiters.
+
+---
+
+### BUG-073
+
+**Title:** DocumentRequestController lacks a dedicated Policy class — no second layer of authorization
+**Module:** Security — Document Requests
+**Severity:** Low
+**Status:** Open
+
+**Description:**
+`DocumentRequestController` relies entirely on route-level middleware (`role:admin,super_admin` for admin actions, `role:applicant` for applicant actions) and inline ownership checks (`abort_unless(auth()->id() === $documentRequest->applicant_id, 403)`). Unlike most other controllers in the codebase, there is no `DocumentRequestPolicy` registered in the service container. This creates a single-layer authorization model for this controller, inconsistent with the defense-in-depth pattern used elsewhere.
+
+**Impact:** No current exploit path identified. The inline checks are correct. This is a structural gap, not an active vulnerability.
+
+**Recommended fix:** Create `App\Policies\DocumentRequestPolicy` with `view()`, `create()`, `update()`, `adminView()` methods and register it in `AppServiceProvider`. This would allow `$this->authorize()` calls instead of inline `abort_unless()` and make authorization intent explicit.
+
+---
+
+### BUG-074
+
+**Title:** All FormData uploads broken — explicit `Content-Type: multipart/form-data` header omits boundary, causing Laravel to reject multipart body as unparseable
+**Module:** Frontend — File Uploads (all portals)
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+Every `FormData` upload call in the frontend used `{ headers: { 'Content-Type': 'multipart/form-data' } }` as the Axios request config. In Axios 1.x, manually setting this header prevents Axios from automatically injecting the multipart boundary token (e.g. `Content-Type: multipart/form-data; boundary=----FormBoundary...`). Without the boundary, Laravel's HTTP kernel cannot delimit the parts of the multipart body and treats the entire payload as unparseable, returning a validation error or empty body — which surfaces to the user as "Failed to send message. Please try again." or silent upload failures.
+
+The correct pattern for FormData in Axios 1.x is `{ headers: { 'Content-Type': undefined } }`, which removes the instance default `application/json` and allows Axios/the browser to set the correct `multipart/form-data; boundary=...` header automatically. This pattern was already used in `profile.api.ts` (avatar upload) — the only working upload prior to this fix.
+
+**Affected files (8 occurrences fixed):**
+- `frontend/src/features/messaging/api/messaging.api.ts` — `sendMessage()` with attachments
+- `frontend/src/ui/components/DocumentUploader.tsx` — `uploadFile()`
+- `frontend/src/features/admin/api/admin.api.ts` — `sendDocumentToApplicant()`, `replaceApplicantDocument()`
+- `frontend/src/features/parent/api/applicant.api.ts` — `uploadDocument()`, `submitCompletedDocument()`, `uploadDocumentRequest()`
+- `frontend/src/features/provider/pages/ProviderAccessPage.tsx` — `uploadProviderDocument()`
+- `frontend/src/features/medical/api/medical.api.ts` — `uploadMedicalDocument()`
+
+**Fix:** Changed `{ headers: { 'Content-Type': 'multipart/form-data' } }` → `{ headers: { 'Content-Type': undefined } }` in all 8 locations.
+
+---
+
+### BUG-075
+
+**Title:** Auth token stored in `sessionStorage` — causes logout on every page refresh across all portals
+**Module:** Auth — Token Storage
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+`localStorage.setItem('auth_token', token)` was written in comments and project memory as the intended storage, but every write/read/remove call in the codebase still used `sessionStorage`. `sessionStorage` is scoped to the current browser tab and is cleared when the tab is refreshed in most browsers, making it impossible to stay logged in after a page refresh.
+
+The affected operations:
+- **Write on login**: `LoginPage.tsx` lines 105, 197 → `sessionStorage.setItem('auth_token', token)`
+- **Read in request interceptor**: `axios.config.ts` line 59 → `sessionStorage.getItem('auth_token')`
+- **Read on mount**: `useAuthInit.ts` line 44 → `sessionStorage.getItem('auth_token')`
+- **Check on error**: `useAuthInit.ts` line 70 → `sessionStorage.getItem('auth_token')`
+- **Remove on unauthorized**: `useAuthInit.ts` line 33 → `sessionStorage.removeItem('auth_token')`
+- **Remove on logout**: `auth.api.ts` line 142 → `sessionStorage.removeItem('auth_token')`
+
+**Sequence**: Refresh → Redux resets (in-memory) → `sessionStorage.getItem('auth_token')` returns null → `hydrateAuth()` with no token → `isAuthenticated = false` → `ProtectedRoute` redirects to `/login`.
+
+**Fix:** Changed all 6 `sessionStorage` calls to `localStorage` across `useAuthInit.ts`, `axios.config.ts`, `auth.api.ts`, and `LoginPage.tsx`. Updated all stale comments in `App.tsx`, `ProtectedRoute.tsx`, `store/index.ts`.
+
+---
+
+### BUG-076
+
+**Title:** Admin/Super-Admin Campers page always shows "Failed to load data" — `CamperController::index()` unnecessarily eager-loads encrypted PHI causing `DecryptException` (500)
+**Module:** Admin Portal — Campers
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+`CamperController::index()` for admin/super_admin roles eagerly loaded `['user', 'medicalRecord.allergies', 'medicalRecord.medications']`. Both `Allergy` and `Medication` models have fully encrypted PHI fields (via Laravel's `encrypted` cast): `allergen`, `reaction`, `treatment` (Allergy) and `name`, `dosage`, `frequency`, `purpose`, `prescribing_physician`, `notes` (Medication). `MedicalRecord` itself also has 8 encrypted PHI columns.
+
+Loading and serializing these encrypted models in a paginated list context means decrypting PHI for every allergy and medication for every camper on every page load. If any encryption key mismatch or decryption error occurs (e.g. rows seeded with a different `APP_KEY`, or null/corrupt ciphertext), PHP throws `DecryptException` → Laravel returns HTTP 500 → frontend's catch block sets `setError(true)` → "Failed to load data." appears.
+
+**Secondary problem fixed**: The admin campers list page displays a `Session` column using `camper.applications?.[0]?.session?.name`, but `applications` was never loaded in the index. The column always showed "None". This is now fixed by loading `applications.campSession` (which the `Application` model exposes as the `session` virtual attribute).
+
+**Affected file**: `backend/app/Http/Controllers/Api/Camper/CamperController.php` line 55
+
+**Fix:** Changed `Camper::with(['user', 'medicalRecord.allergies', 'medicalRecord.medications'])` to `Camper::with(['user', 'applications.campSession'])` in the admin branch of `index()`. Medical data is loaded only on the individual camper detail page (`show()`), not on the list page.
+
+---
+
+### BUG-077
+
+**Title:** Admin/Super-Admin Applications page always shows "Failed to load data" — `ApplicationController::index()` unnecessarily eager-loads encrypted PHI via `camper.medicalRecord`
+**Module:** Admin Portal — Applications
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+Same encrypted PHI eager-load pattern as BUG-076. `ApplicationController::index()` for both the admin branch (lines 74-79) and the applicant branch (lines 133-140) eager-loaded `'camper.medicalRecord'`. The `MedicalRecord` model has 8 fully-encrypted PHI columns (via Laravel's `encrypted` cast). Loading and serializing these fields for every application in the list caused potential `DecryptException` → HTTP 500 → "Failed to load data" in the frontend.
+
+The Applications list page does not display any medical record data — it shows camper name, parent name, session, status, and submission date only. Loading `medicalRecord` was both unnecessary and dangerous.
+
+**Fix:** Removed `'camper.medicalRecord'` from both the admin and applicant eager-load chains in `ApplicationController::index()`.
+
+**Affected file:** `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Camper/ApplicationController.php`
+
+---
+
+### BUG-078
+
+**Title:** Admin Reports page shows 0 accepted applications and charts show "No data yet" — `ReportController::summary()` uses key `'accepted'` but `ApplicationStatus` enum value is `'approved'`
+**Module:** Admin Portal — Reports
+**Severity:** High
+**Status:** Resolved
+
+**Description:**
+`ReportController::summary()` at line 92 used `$apps['accepted'] ?? 0` to populate the `accepted_applications` dashboard counter. The `ApplicationStatus` enum has no `Accepted` case — the correct case is `Approved` with a value of `'approved'`. Since `$apps` is keyed by the raw DB status string, `$apps['accepted']` was always `null`, falling back to `0`. The `accepted_applications` field in the API response was always 0 regardless of how many approved applications existed.
+
+Additionally `AdminReportsPage.tsx` referenced `byStatus['accepted']` (always 0) and `byStatus['submitted']` (no such status exists in the enum) for chart data, meaning the "Applications by Status" bar chart never showed approved applications, and the acceptance rate donut chart always showed 0%.
+
+**Fixes:**
+1. `ReportController::summary()`: `$apps['accepted'] ?? 0` → `$apps['approved'] ?? 0`; removed `($apps['submitted'] ?? 0)` from the pending aggregation.
+2. `AdminReportsPage.tsx`: `byStatus['accepted']` → `byStatus['approved']`; removed stale `submitted` status from chart data; added `cancelled` as a chart bar; updated `CHART_COLORS` to use `approved` key; updated pie chart label "Accepted" → "Approved".
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/System/ReportController.php`
+- `frontend/src/features/admin/pages/AdminReportsPage.tsx`
+
+---
+
+### BUG-079
+
+**Title:** Wrong MFA code triggers global logout — `/mfa/` not in `isPublicAuthEndpoint` exclusion list
+**Module:** Auth — MFA
+**Severity:** High
+**Status:** Resolved
+
+**Description:**
+The axios response interceptor fires the `auth:unauthorized` custom window event whenever a 401 response is received from any endpoint not in the `isPublicAuthEndpoint` whitelist. The whitelist only covered `/auth/login`, `/auth/register`, `/auth/forgot-password`, and `/auth/reset-password`. The MFA endpoint (`/mfa/verify`) was not included.
+
+When a user entered a wrong MFA code, the backend returned 401. The interceptor treated this as a session expiry event, fired `auth:unauthorized`, which triggered `handleUnauthorized` in `useAuthInit`. The previous (unfixed) version of `handleUnauthorized` immediately cleared the token from localStorage and dispatched `clearAuth()`, logging the user out entirely. Even with the `handleUnauthorized` re-validation fix (BUG context), excluding the MFA endpoint is still the correct fix: a wrong MFA code is not a session expiry and should never trigger global auth re-validation logic.
+
+**Fix:**
+Added `url.includes('/mfa/')` to the `isPublicAuthEndpoint` check in the response interceptor. MFA 401s now pass through as normal rejected promises so the MFA page can display its own "invalid code" error message.
+
+**Affected file:**
+- `frontend/src/api/axios.config.ts`
+
+---
+
+### BUG-080
+
+**Title:** Admin/super-admin portal turns into applicant portal when left idle — layout guards redirect to `getDashboardRoute(role)` which resolves to `/applicant/dashboard` when Redux role is stale
+**Module:** Auth — Layout Guards
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+`AdminLayout` and `SuperAdminLayout` guard access by checking the Redux auth state. If `!hasAccess` (either because the user is not authenticated, or their role in Redux is wrong), both layouts redirected to `getDashboardRoute(getPrimaryRole(user?.roles ?? []))`.
+
+The problem is that `getPrimaryRole([])` returns `'applicant'` as a fallback, and `getDashboardRoute('applicant')` returns `/applicant/dashboard`. So whenever Redux auth state becomes stale (e.g. after a 401 triggered `clearAuth()`, or cross-tab login as a different user), an admin visiting `/admin/*` would be silently routed into the applicant portal — the entire applicant sidebar, nav, and UI would render under the admin user's session.
+
+This was the root cause of the reported symptom: "when super admin and admin are left idle, the portal turns into the applicant portal."
+
+The trigger chain:
+1. Admin leaves the portal idle.
+2. A background API call (e.g., `DashboardHeader` notification poll, or a stale Axios retry) returns 401.
+3. The 401 interceptor fires `auth:unauthorized`.
+4. `handleUnauthorized` (before the BUG-079 / re-validation fix) clears auth → `clearAuth()` dispatches.
+5. Redux `user` becomes `null` / `roles` becomes `[]`.
+6. On next render, `AdminLayout` detects `!hasAccess`, calls `getDashboardRoute(getPrimaryRole([]))` → `/applicant/dashboard`.
+7. The admin is now in the applicant portal.
+
+**Fix:**
+Changed both `AdminLayout` and `SuperAdminLayout` to redirect to `/forbidden` when `!hasAccess`, instead of computing a role-derived route. `/forbidden` is a standalone page with no portal layout — it surfaces a clear "access denied" message and a link back to login. This eliminates the incorrect portal-switch entirely.
+
+**Affected files:**
+- `frontend/src/ui/layout/AdminLayout.tsx`
+- `frontend/src/ui/layout/SuperAdminLayout.tsx`
+
+---
+
+### BUG-081
+
+**Title:** Campers page search causes 500 "Column not found: full_name" — `CamperController::index()` uses `full_name` in SQL WHERE clause but it's a virtual accessor with no DB column
+**Module:** Admin Portal — Campers
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+`CamperController::index()` used `$q->where('full_name', 'like', '%' . $search . '%')` in both the admin and medical provider search branches. `full_name` is computed at runtime by `getFullNameAttribute()` (concatenating `first_name` and `last_name`) and is declared in `$appends`. It has no backing column in the `campers` table — the migration only creates `first_name` and `last_name`.
+
+Any search in the Campers page triggered:
+```
+SQLSTATE[42S22]: Column not found: 1054 Unknown column 'full_name' in 'where clause'
+```
+This returned a 500 to the frontend, setting `setError(true)` and displaying "Failed to load data." The error state persisted even after clearing the search box because the `error` state flag stayed `true` until a Retry was clicked.
+
+**Fix:**
+Replaced `WHERE full_name LIKE %term%` with `WHERE first_name LIKE %term% OR last_name LIKE %term%` in both the admin branch and medical provider branch search closures.
+
+**Affected file:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Camper/CamperController.php`
+
+---
+
+### BUG-082
+
+**Title:** `RoleGuard` sends authenticated users with missing role data to `/login`, causing an infinite redirect loop with `ProtectedRoute`
+**Module:** Auth — RBAC
+**Severity:** High
+**Status:** Resolved
+
+**Description:**
+When a user is authenticated (`isAuthenticated = true`) but `user.roles` is empty or malformed (e.g., after a `setUser()` call with incomplete data), `RoleGuard` could not determine a `roleName` and redirected to `/login`. This created a loop:
+
+1. `ProtectedRoute` sees `isAuthenticated = true` → renders children
+2. `RoleGuard` sees `!roleName` → redirects to `/login`
+3. `LoginPage` renders. If it redirects authenticated users away, back to step 1.
+
+This was a secondary cause of the "all pages fail" symptom — not a 401 loop but a route-guard loop that could prevent any protected page from loading.
+
+**Fix:**
+Split the `!user || !roleName` condition into two separate checks:
+- `!user` → redirect to `/login` (user is not authenticated at all)
+- `!roleName` → redirect to `/forbidden` (user is authenticated but role data is bad — a data/config issue, not an auth issue)
+
+**Affected file:**
+- `frontend/src/core/auth/RoleGuard.tsx`
+
+---
+
 ## Summary
 
 ### By Severity
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
-| Critical | 17 | 14 | 3 |
-| High | 21 | 19 | 2 |
-| Medium | 14 | 11 | 3 |
-| Low | 9 | 9 | 0 |
-| **Total** | **61** | **53** | **8** |
+| Critical | 24 | 21 | 3 |
+| High | 31 | 29 | 2 |
+| Medium | 16 | 13 | 3 |
+| Low | 11 | 10 | 1 |
+| **Total** | **82** | **73** | **9** |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| Resolved | 53 |
-| Open | 8 |
+| Resolved | 73 |
+| Open | 9 |
 
 ### Open Issues
 
@@ -1325,6 +1765,7 @@ All methods now use `$this->authorize('view'/'update', $field)`, using the paren
 | BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium |
 | BUG-033 | Super Admin role filter uses raw slugs, not user-friendly labels | Low |
 | BUG-046 | Applicant login broken — known blocking issue | Critical |
+| BUG-073 | DocumentRequestController lacks dedicated Policy class (defense-in-depth gap) | Low |
 
 ### By Module
 
@@ -1341,7 +1782,7 @@ All methods now use `$this->authorize('view'/'update', $field)`, using the paren
 | Audit Log | BUG-013 |
 | Profile System | BUG-014, BUG-036, BUG-037, BUG-040, BUG-041 |
 | Inbox / Messaging | BUG-015, BUG-016, BUG-017, BUG-049, BUG-050, BUG-056 |
-| Document Upload | BUG-055 |
+| Document Upload | BUG-055, BUG-074 |
 | Recent Updates | BUG-018 |
 | Super Admin Portal | BUG-019 |
 | Form Management | BUG-020, BUG-021 |
@@ -1350,6 +1791,22 @@ All methods now use `$this->authorize('view'/'update', $field)`, using the paren
 | Documentation | BUG-025, BUG-026 |
 | Security | BUG-031, BUG-032 |
 | Admin — Application Review | BUG-035, BUG-038, BUG-039, BUG-048 |
-| Auth — Login / Session | BUG-044, BUG-045, BUG-046, BUG-051 |
+| Auth — Login / Session | BUG-044, BUG-045, BUG-046, BUG-051, BUG-075 |
 | UI — Status Badges | BUG-052, BUG-053 |
 | Form Builder — Backend | BUG-057, BUG-058, BUG-059, BUG-060, BUG-061 |
+| UI — Layout | BUG-063 |
+| Frontend — Accessibility / Static Analysis | BUG-064 |
+| Auth — Token Configuration | BUG-062 |
+| Security — Form Builder (IDOR / Authorization) | BUG-065, BUG-066, BUG-067, BUG-068 |
+| Security — Medical Portal | BUG-069 |
+| Security — Document Access Control | BUG-070 |
+| Security — Announcements | BUG-071 |
+| Backend Tests — Security | BUG-072 |
+| Security — Document Requests | BUG-073 |
+| Frontend — File Uploads (all portals) | BUG-074 |
+| Admin Portal — Campers | BUG-076, BUG-081 |
+| Admin Portal — Applications | BUG-077 |
+| Admin Portal — Reports | BUG-078 |
+| Auth — MFA | BUG-079 |
+| Auth — Layout Guards | BUG-080 |
+| Auth — RBAC | BUG-082 |

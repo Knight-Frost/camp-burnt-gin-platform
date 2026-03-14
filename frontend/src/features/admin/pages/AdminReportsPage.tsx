@@ -36,9 +36,8 @@ type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 
 const CHART_COLORS = {
   pending: '#f59e0b',
   under_review: '#3b82f6',
-  accepted: '#16a34a',
+  approved: '#16a34a',
   rejected: '#dc2626',
-  submitted: '#8b5cf6',
 };
 
 // Drives the "Export Reports" button grid — one entry per downloadable report type.
@@ -84,11 +83,11 @@ export function AdminReportsPage() {
   // Build the status bar chart data — filter out statuses with 0 applications.
   const byStatus = summary?.applications_by_status ?? {};
   const statusCounts = [
-    { name: 'Submitted',    value: byStatus['submitted']    ?? 0, color: CHART_COLORS.submitted },
     { name: 'Under Review', value: byStatus['under_review'] ?? 0, color: CHART_COLORS.under_review },
-    { name: 'Accepted',     value: byStatus['accepted']     ?? 0, color: CHART_COLORS.accepted },
+    { name: 'Approved',     value: byStatus['approved']     ?? 0, color: CHART_COLORS.approved },
     { name: 'Rejected',     value: byStatus['rejected']     ?? 0, color: CHART_COLORS.rejected },
     { name: 'Pending',      value: byStatus['pending']      ?? 0, color: CHART_COLORS.pending },
+    { name: 'Cancelled',    value: byStatus['cancelled']    ?? 0, color: '#9ca3af' },
   ].filter((s) => s.value > 0); // Don't show bars for statuses with no applications.
 
   const total    = summary?.total_applications ?? 0;
@@ -97,9 +96,9 @@ export function AdminReportsPage() {
   // Rate is a percentage; guard against division by zero.
   const rate     = total > 0 ? Math.round((accepted / total) * 100) : 0;
 
-  // Donut pie slices: accepted (green), rejected (red), and all others (gray).
+  // Donut pie slices: approved (green), rejected (red), and all others (gray).
   const acceptancePieData = [
-    { name: 'Accepted', value: accepted,                        color: '#16a34a' },
+    { name: 'Approved', value: accepted,                        color: '#16a34a' },
     { name: 'Rejected', value: rejected,                        color: '#dc2626' },
     { name: 'Pending',  value: Math.max(0, total - accepted - rejected), color: '#e5e7eb' },
   ].filter((d) => d.value > 0); // Don't include zero-value slices.

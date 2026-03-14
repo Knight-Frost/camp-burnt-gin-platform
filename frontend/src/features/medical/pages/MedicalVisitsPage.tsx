@@ -7,7 +7,7 @@
  * - /medical/visits                   — global view, read-only
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -23,7 +23,6 @@ import {
   type MedicalVisit,
   type MedicalVisitVitals,
   type VisitDisposition,
-  type TreatmentLog,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -327,7 +326,7 @@ function AddVisitForm({
   const setField = (k: keyof typeof form) => (v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.chief_complaint || !form.symptoms || !form.disposition || !form.visit_date) {
       setError(t('medical.visits.form_error') || 'Please fill in all required fields.');

@@ -7,7 +7,7 @@
  * Route: /medical/records/:camperId/emergency
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -51,11 +51,11 @@ function Section({
   accentBg,
   children,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   accentColor: string;
   accentBg: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
@@ -105,7 +105,7 @@ function SeverityBadge({ severity, size = 'sm' }: { severity: string; size?: 'sm
 
 // ─── Emergency alert banners ──────────────────────────────────────────────────
 
-function CriticalAlertBanner({ children }: { children: React.ReactNode }) {
+function CriticalAlertBanner({ children }: { children: ReactNode }) {
   return (
     <div
       className="flex items-start gap-3 p-4 rounded-xl border"

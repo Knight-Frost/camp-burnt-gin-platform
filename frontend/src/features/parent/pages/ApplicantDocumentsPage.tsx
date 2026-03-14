@@ -16,7 +16,7 @@
  * a document is ready, or remove files they uploaded by mistake.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { toast } from 'sonner';
 import {
   Upload,
@@ -94,15 +94,21 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
   return (
     // Clicking the dark backdrop closes the modal
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       {/* e.stopPropagation prevents clicks inside the card from closing the modal */}
       <div
+        role="presentation"
         className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
         style={{ background: 'var(--card)', maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div
           className="flex items-center justify-between px-5 py-3 border-b"
@@ -217,14 +223,20 @@ function SendDocumentModal({
   return (
     // Backdrop click closes the modal
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       <div
+        role="presentation"
         className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
         style={{ background: 'var(--card)' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
@@ -252,7 +264,7 @@ function SendDocumentModal({
         <div className="p-5 flex flex-col gap-4">
           {/* Recipient dropdown — populated after searchInboxUsers resolves */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="send-doc-recipient" className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
               Send to
             </label>
             {loadingAdmins ? (
@@ -263,6 +275,7 @@ function SendDocumentModal({
               </p>
             ) : (
               <select
+                id="send-doc-recipient"
                 value={selectedId ?? ''}
                 onChange={(e) => setSelectedId(Number(e.target.value))}
                 className="rounded-lg px-3 py-2 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
@@ -279,10 +292,11 @@ function SendDocumentModal({
 
           {/* Editable message body — parent can customize before sending */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="send-doc-message" className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
               Message
             </label>
             <textarea
+              id="send-doc-message"
               rows={5}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -345,7 +359,7 @@ function UploadArea({
     setDocType('');
   }
 
-  function handleDrop(e: React.DragEvent) {
+  function handleDrop(e: DragEvent) {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
@@ -378,10 +392,13 @@ function UploadArea({
 
       {/* Drop zone: border turns orange and background tints when dragging */}
       <div
+        role="button"
+        tabIndex={0}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
         className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
         style={{
           borderColor: dragging ? 'var(--ember-orange)' : 'var(--border)',
@@ -608,14 +625,20 @@ export function ApplicantDocumentsPage() {
       {/* Required document preview modal */}
       {requiredPreview && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close"
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={() => setRequiredPreview(null)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setRequiredPreview(null); }}
         >
           <div
+            role="presentation"
             className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl"
             style={{ background: 'var(--card)', maxHeight: '90vh' }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
               <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>

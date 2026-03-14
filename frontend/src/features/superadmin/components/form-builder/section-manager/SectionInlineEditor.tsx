@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Check, X } from 'lucide-react';
 import type { FormSectionAdmin, CreateSectionPayload } from '@/features/forms/types/form.types';
 
@@ -31,7 +31,7 @@ export function SectionInlineEditor({ section, onSave, onCancel }: SectionInline
     }
   }, [title, shortTitleTouched, isEdit]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) { setTitleError('Title is required'); return; }
     setSaving(true);
@@ -54,8 +54,9 @@ export function SectionInlineEditor({ section, onSave, onCancel }: SectionInline
       </p>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-[var(--muted-foreground)]">Title *</label>
+        <label htmlFor="sie-title" className="text-xs font-medium text-[var(--muted-foreground)]">Title *</label>
         <input
+          id="sie-title"
           value={title}
           onChange={(e) => { setTitle(e.target.value); setTitleError(''); }}
           placeholder="e.g. Camper Information"
@@ -67,8 +68,9 @@ export function SectionInlineEditor({ section, onSave, onCancel }: SectionInline
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-[var(--muted-foreground)]">Short Title</label>
+        <label htmlFor="sie-short-title" className="text-xs font-medium text-[var(--muted-foreground)]">Short Title</label>
         <input
+          id="sie-short-title"
           value={shortTitle}
           onChange={(e) => { setShortTitle(e.target.value); setShortTitleTouched(true); }}
           placeholder="Sidebar label"
@@ -77,8 +79,9 @@ export function SectionInlineEditor({ section, onSave, onCancel }: SectionInline
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-[var(--muted-foreground)]">Description</label>
+        <label htmlFor="sie-description" className="text-xs font-medium text-[var(--muted-foreground)]">Description</label>
         <textarea
+          id="sie-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Optional description"
@@ -88,8 +91,9 @@ export function SectionInlineEditor({ section, onSave, onCancel }: SectionInline
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-[var(--muted-foreground)]">Icon</label>
+        <label htmlFor="sie-icon" className="text-xs font-medium text-[var(--muted-foreground)]">Icon</label>
         <input
+          id="sie-icon"
           value={iconName}
           onChange={(e) => setIconName(e.target.value)}
           placeholder="Lucide icon name"

@@ -12,7 +12,7 @@
  *
  * Supported status values:
  *   Application statuses: draft, submitted, under_review, approved, accepted,
- *                         rejected, waitlisted, withdrawn
+ *                         rejected, withdrawn
  *   General statuses:     pending, active, inactive, open, closed, cancelled, waitlist
  *   Medical severity:     low, moderate, high, critical
  */
@@ -24,6 +24,8 @@ import type { ApplicationStatus } from '@/shared/types';
 type BadgeVariant =
   | ApplicationStatus
   | 'pending'
+  | 'submitted'
+  | 'accepted'
   | 'active'
   | 'inactive'
   | 'open'

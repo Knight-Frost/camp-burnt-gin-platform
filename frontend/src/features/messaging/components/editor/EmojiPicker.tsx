@@ -6,7 +6,7 @@
  * No window.prompt — controlled React popover via Popover.tsx.
  */
 
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { Popover } from '@/ui/overlay/Popover';
 
@@ -14,7 +14,7 @@ interface EmojiPickerProps {
   editor: Editor | null;
   open: boolean;
   onClose: () => void;
-  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  anchorRef: RefObject<HTMLButtonElement | null>;
 }
 
 interface EmojiEntry {

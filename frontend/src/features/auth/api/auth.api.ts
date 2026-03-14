@@ -41,7 +41,7 @@ function normalizeUser(user: User & { role?: Role | string }): User {
 
   // Case 1: role is a full Role object — extract the name property
   if (typeof user.role === 'object' && user.role !== null) {
-    roleName = user.role.name as RoleName;
+    roleName = (user.role as Role).name as RoleName;
   // Case 2: role is already a plain string
   } else if (typeof user.role === 'string') {
     roleName = user.role as RoleName;
@@ -139,7 +139,7 @@ export async function register(
 export async function logout(): Promise<void> {
   await axiosInstance.post('/logout');
   // Remove the persisted token from the browser so the next page load is clean
-  sessionStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_token');
 }
 
 /** POST /api/auth/forgot-password — Send a password reset email */

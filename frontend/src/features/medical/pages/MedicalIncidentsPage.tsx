@@ -6,7 +6,7 @@
  * - /medical/incidents               — global read-only view
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode, type FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -59,7 +59,7 @@ const SEVERITY_META: Record<IncidentSeverity, { label: string; color: string; bg
   },
 };
 
-const TYPE_META: Record<IncidentType, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
+const TYPE_META: Record<IncidentType, { label: string; icon: ReactNode; color: string; bg: string }> = {
   behavioral: {
     label: 'Behavioral',
     icon: <Brain className="h-3.5 w-3.5" />,
@@ -275,7 +275,7 @@ function AddIncidentForm({
   const setField = (k: keyof typeof form) => (v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.type || !form.severity || !form.title || !form.description || !form.incident_date) {
       setError(t('medical.incidents.form_error') || 'Please fill in all required fields.');

@@ -39,7 +39,10 @@ export function SectionFieldRow({
     <div
       ref={provided.innerRef}
       {...provided.draggableProps}
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }}
       className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-all ${
         isSelected
           ? 'bg-[var(--ember-orange)]/5 border-[var(--ember-orange)]/40 shadow-sm'
@@ -52,7 +55,11 @@ export function SectionFieldRow({
       {isEditable ? (
         <div
           {...provided.dragHandleProps}
+          role="button"
+          tabIndex={0}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          aria-label="Drag to reorder"
           className="cursor-grab active:cursor-grabbing text-[var(--muted-foreground)] flex-shrink-0 opacity-30 group-hover:opacity-80 transition-opacity"
         >
           <GripVertical size={15} />

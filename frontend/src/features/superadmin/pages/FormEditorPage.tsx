@@ -126,7 +126,10 @@ function CanvasFieldCard({
     <div
       ref={provided.innerRef}
       {...provided.draggableProps}
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }}
       className={[
         'group relative flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer select-none',
         'transition-all duration-100',
@@ -141,7 +144,11 @@ function CanvasFieldCard({
       {isEditable ? (
         <div
           {...provided.dragHandleProps}
+          role="button"
+          tabIndex={0}
+          aria-label="Drag to reorder"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity hover:text-[var(--card-foreground)]"
         >
           <GripVertical size={14} />
@@ -168,7 +175,9 @@ function CanvasFieldCard({
       {/* Hover action buttons — positioned over the right edge */}
       {isEditable && (
         <div
+          role="toolbar"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity bg-[var(--card)] pl-2"
         >
           <button
@@ -219,18 +228,25 @@ function LeftPanelSectionItem({
     <div className={`rounded-lg overflow-hidden ${isDragging ? 'ring-2 ring-[var(--ember-orange)] shadow-md' : ''}`}>
       {/* Section header row */}
       <div
+        role="button"
+        tabIndex={0}
         className={[
           'group flex items-center gap-1.5 px-2 py-2 rounded-lg cursor-pointer',
           'hover:bg-[var(--dash-nav-hover-bg)] transition-colors',
           !section.is_active ? 'opacity-60' : '',
         ].join(' ')}
         onClick={onToggleExpand}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onToggleExpand(); }}
       >
         {/* Drag handle */}
         {isEditable && (
           <div
             {...dragHandleProps}
+            role="button"
+            tabIndex={0}
+            aria-label="Drag to reorder section"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
             className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <GripVertical size={12} />
@@ -255,7 +271,9 @@ function LeftPanelSectionItem({
         {/* Action buttons (hover reveal) */}
         {isEditable && (
           <div
+            role="toolbar"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
             className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <button

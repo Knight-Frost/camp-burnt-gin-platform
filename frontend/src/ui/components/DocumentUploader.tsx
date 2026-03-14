@@ -78,7 +78,7 @@ export function DocumentUploader({
 
     try {
       const { data } = await axiosInstance.post('/documents', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
         // onUploadProgress fires repeatedly as chunks are sent — use it to update the progress bar.
         onUploadProgress: (event) => {
           const progress = event.total

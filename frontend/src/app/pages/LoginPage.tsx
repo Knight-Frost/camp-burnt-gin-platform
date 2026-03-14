@@ -6,7 +6,7 @@
  *   - Phase 1: Collects email + password, sends to POST /api/auth/login.
  *   - Phase 2: If the server says MFA is required, switches to a 6-box
  *     one-time-code entry form and re-submits with the code.
- *   - On success: saves the token in sessionStorage, hydrates Redux auth
+ *   - On success: saves the token in localStorage, hydrates Redux auth
  *     state, and navigates the user to their role-specific dashboard.
  *
  * Why two phases in one page?
@@ -99,13 +99,13 @@ export function LoginPage() {
         return;
       }
 
-      // Normal login (no MFA) — write token and user to session + Redux.
+      // Normal login (no MFA) — write token and user to storage + Redux.
       const { user, token } = response.data!;
-      // sessionStorage is tab-isolated; using it lets multiple roles be tested side by side.
-      sessionStorage.setItem('auth_token', token);
+      // localStorage persists across page refreshes and tabs.
+      localStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
-      // hydrateAuth syncs the Redux slice with the token in sessionStorage.
+      // hydrateAuth syncs the Redux slice with the token in localStorage.
       dispatch(hydrateAuth());
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
       // Send the user to the dashboard that matches their primary role.
@@ -194,7 +194,7 @@ export function LoginPage() {
       const { user, token } = response.data!;
       // Wipe credentials from memory immediately after a successful verification.
       mfaCredentials.current = null;
-      sessionStorage.setItem('auth_token', token);
+      localStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
       dispatch(hydrateAuth());

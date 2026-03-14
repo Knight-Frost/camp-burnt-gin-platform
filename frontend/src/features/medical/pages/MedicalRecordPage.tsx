@@ -113,15 +113,21 @@ function SeverityBadge({ severity }: { severity: string }) {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       <div
+        role="presentation"
         className="rounded-2xl border p-6 w-full max-w-lg"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
         // Stop clicks inside the card from bubbling up and closing the modal
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-headline text-base font-semibold" style={{ color: 'var(--foreground)' }}>{title}</h2>

@@ -14,7 +14,7 @@
  * download any files they attached.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -39,8 +39,8 @@ function SectionCard({
   children,
 }: {
   title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
+  icon: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
@@ -82,7 +82,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 // ─── Status timeline ──────────────────────────────────────────────────────────
 
 // Defines the three main forward-progress steps for a typical application
-const STATUS_STEPS: { status: string; label: string; icon: React.ReactNode }[] = [
+const STATUS_STEPS: { status: string; label: string; icon: ReactNode }[] = [
   { status: 'pending',      label: 'Submitted',    icon: <FileText className="h-3.5 w-3.5" /> },
   { status: 'under_review', label: 'Under review', icon: <Clock className="h-3.5 w-3.5" /> },
   { status: 'approved',     label: 'Approved',     icon: <CheckCircle className="h-3.5 w-3.5" /> },
@@ -330,7 +330,7 @@ export function ApplicantApplicationDetailPage() {
                       <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
                       <div className="min-w-0">
                         <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>
-                          {doc.name}
+                          {doc.name ?? doc.file_name}
                         </p>
                         {/* Convert bytes to KB for a friendlier size display */}
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
@@ -339,7 +339,7 @@ export function ApplicantApplicationDetailPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleDownload(doc.id, doc.name)}
+                      onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
                       style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
                     >

@@ -31,7 +31,7 @@ export interface CreateCamperPayload {
   last_name: string;
   date_of_birth: string;
   gender: string;
-  tshirt_size: string;
+  tshirt_size?: string;
 }
 
 export async function createCamper(
@@ -223,7 +223,7 @@ export async function createActivityPermission(
 
 export async function uploadDocument(formData: FormData): Promise<void> {
   await axiosInstance.post('/documents', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
 }
 
@@ -271,7 +271,7 @@ export async function submitCompletedDocument(id: number, file: File): Promise<R
   formData.append('file', file);
   formData.append('applicant_document_id', String(id));
   const { data } = await axiosInstance.post('/applicant/documents/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return data;
 }
@@ -315,7 +315,7 @@ export async function uploadDocumentRequest(id: number, file: File): Promise<Doc
   const formData = new FormData();
   formData.append('file', file);
   const { data } = await axiosInstance.post(`/applicant/document-requests/${id}/upload`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return data;
 }

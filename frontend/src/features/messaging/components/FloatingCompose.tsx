@@ -214,9 +214,13 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
       {/* Fullscreen backdrop */}
       {maximized && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Exit fullscreen"
           className="fixed inset-0 bg-black/30"
           style={{ zIndex: 999 }}
           onClick={() => setMaximized(false)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setMaximized(false); }}
         />
       )}
 
@@ -239,9 +243,13 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div
+          role="button"
+          tabIndex={0}
+          aria-label={minimized ? 'Expand compose' : 'Minimize compose'}
           className="flex items-center justify-between px-4 py-2.5 cursor-pointer select-none flex-shrink-0 border-b"
           style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
           onClick={() => { if (!maximized) setMinimized((v) => !v); }}
+          onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !maximized) setMinimized((v) => !v); }}
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm font-semibold truncate max-w-[240px]">

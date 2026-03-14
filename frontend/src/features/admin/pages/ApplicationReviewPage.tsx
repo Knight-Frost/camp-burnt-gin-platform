@@ -31,8 +31,7 @@ import {
   Users, PenLine, Stethoscope,
 } from 'lucide-react';
 
-import { getApplication, reviewApplication, getCamperComplianceStatus } from '@/features/admin/api/admin.api';
-import type { ComplianceStatus, ComplianceDocument } from '@/features/admin/api/admin.api';
+import { getApplication, reviewApplication } from '@/features/admin/api/admin.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -83,25 +82,18 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
 
 interface ReviewPanelProps {
   applicationId: number;
-  camperId: number;
   currentStatus: Application['status'];
   // Callback fired after a successful review — updates the parent's application state.
   onReviewed: (updated: Application) => void;
 }
 
-function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: ReviewPanelProps) {
+function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelProps) {
   const { t } = useTranslation();
   const [notes, setNotes] = useState('');
   // Tracks which action is in-flight to show a spinner on the right button.
   const [submitting, setSubmitting] = useState<'approved' | 'rejected' | 'under_review' | null>(null);
-  // bypassDialog holds whether the non-compliant warning is open and its details.
-  const [bypassDialog, setBypassDialog] = useState<{ open: boolean; details: ComplianceStatus | null }>({
-    open: false,
-    details: null,
-  });
 
-  // Actually fires the review API call and updates the parent with the returned application.
-  async function doReview(status: 'approved' | 'rejected' | 'under_review') {
+  async function handleReview(status: 'approved' | 'rejected' | 'under_review') {
     setSubmitting(status);
     try {
       const updated = await reviewApplication(applicationId, { status, notes });
@@ -113,23 +105,6 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
     } finally {
       setSubmitting(null);
     }
-  }
-
-  // handleReview checks compliance before approving; all other statuses skip the check.
-  async function handleReview(status: 'approved' | 'rejected' | 'under_review') {
-    if (status === 'approved') {
-      try {
-        const compliance = await getCamperComplianceStatus(camperId);
-        if (!compliance.is_compliant) {
-          // Show the bypass dialog instead of approving immediately.
-          setBypassDialog({ open: true, details: compliance });
-          return;
-        }
-      } catch {
-        // If compliance check itself fails, don't block the admin — proceed anyway.
-      }
-    }
-    await doReview(status);
   }
 
   return (
@@ -206,127 +181,6 @@ function ReviewPanel({ applicationId, camperId, currentStatus, onReviewed }: Rev
         </div>
       </div>
 
-      {/* Non-compliant bypass dialog — portal-level overlay, shown over the whole page. */}
-      {bypassDialog.open && bypassDialog.details && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          // Clicking the backdrop cancels the dialog.
-          onClick={() => setBypassDialog({ open: false, details: null })}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl p-6 border shadow-2xl"
-            style={{
-              background: 'var(--card)',
-              borderColor: 'var(--border)',
-            }}
-            // Stop propagation so clicking inside the card doesn't close it.
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div
-                className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 mt-0.5"
-                style={{ background: 'rgba(234,179,8,0.15)' }}
-              >
-                <AlertTriangle className="h-5 w-5" style={{ color: 'var(--warm-amber)' }} />
-              </div>
-              <div>
-                <h2 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
-                  This application is incomplete
-                </h2>
-                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                  Some required fields have not been submitted. Accepting this application will bypass normal validation requirements. Are you sure?
-                </p>
-              </div>
-            </div>
-
-            {/* Show missing, expired, and unverified documents as separate lists. */}
-            {bypassDialog.details.missing_documents.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  Missing documents
-                </p>
-                <ul className="space-y-0.5">
-                  {bypassDialog.details.missing_documents.map((d, i) => {
-                    // The API may return a string or an object with a document_type field.
-                    const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
-                    return (
-                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--destructive)' }} />
-                        {label}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            {bypassDialog.details.expired_documents.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  Expired documents
-                </p>
-                <ul className="space-y-0.5">
-                  {bypassDialog.details.expired_documents.map((d, i) => {
-                    const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
-                    return (
-                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--warm-amber)' }} />
-                        {label}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            {bypassDialog.details.unverified_documents.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                  Unverified documents
-                </p>
-                <ul className="space-y-0.5">
-                  {bypassDialog.details.unverified_documents.map((d, i) => {
-                    const label = typeof d === 'string' ? d : (d as ComplianceDocument).document_type;
-                    return (
-                      <li key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--muted-foreground)' }} />
-                        {label}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-
-            <div className="flex gap-3 mt-5">
-              <button
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors"
-                style={{
-                  borderColor: 'var(--border)',
-                  color: 'var(--foreground)',
-                  background: 'var(--card)',
-                }}
-                onClick={() => setBypassDialog({ open: false, details: null })}
-              >
-                Cancel
-              </button>
-              <button
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                style={{
-                  background: 'var(--ember-orange)',
-                  color: '#fff',
-                }}
-                // Close the dialog first, then fire the actual review call.
-                onClick={() => {
-                  setBypassDialog({ open: false, details: null });
-                  void doReview('approved');
-                }}
-              >
-                Proceed Anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
@@ -728,14 +582,14 @@ export function ApplicationReviewPage() {
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
                         <div className="min-w-0">
-                          <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>{doc.name}</p>
+                          <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>{doc.name ?? doc.file_name}</p>
                           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                             {(doc.size / 1024).toFixed(1)} KB
                           </p>
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDownload(doc.id, doc.name)}
+                        onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
                         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
                         style={{
                           borderColor: 'var(--border)',
@@ -781,7 +635,6 @@ export function ApplicationReviewPage() {
         <div>
           <ReviewPanel
             applicationId={application.id}
-            camperId={application.camper_id}
             currentStatus={application.status}
             // When a review completes, update the application state so the status badge refreshes.
             onReviewed={setApplication}

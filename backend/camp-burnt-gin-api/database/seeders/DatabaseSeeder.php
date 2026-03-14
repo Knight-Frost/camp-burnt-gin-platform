@@ -227,7 +227,7 @@ class DatabaseSeeder extends Seeder
             $this->command->line('  jennifer.thompson@example.com    (Noah — rejected/S1, pending/S2)');
             $this->command->line('  michael.williams@example.com     (Ava + Lucas — approved + pending)');
             $this->command->line('  patricia.davis@example.com       (Mia — past approved + 2026 draft)');
-            $this->command->line('  grace.wilson@example.com         (Tyler — waitlisted)');
+            $this->command->line('  grace.wilson@example.com         (Tyler — under review)');
             $this->command->line('  james.carter@example.com         (Henry — paper application)');
             $this->command->newLine();
             $this->command->line('  Provider link states:');

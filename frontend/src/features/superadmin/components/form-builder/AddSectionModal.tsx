@@ -3,7 +3,7 @@
  * Used in the Form Builder's section list.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FormSectionAdmin } from '@/features/forms/types/form.types';
@@ -39,7 +39,7 @@ export function AddSectionModal({ section, onSave, onClose }: AddSectionModalPro
     }
   }, [title, isEdit, shortTitle]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim() || !shortTitle.trim()) return;
     setSaving(true);

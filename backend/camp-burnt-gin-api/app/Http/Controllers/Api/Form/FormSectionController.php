@@ -54,6 +54,12 @@ class FormSectionController extends Controller
 
     public function update(UpdateFormSectionRequest $request, FormDefinition $form, FormSection $section): JsonResponse
     {
+        // Verify the section actually belongs to the form in the URL.
+        // Without this check a super_admin could edit a section from a different
+        // definition by crafting the URL (e.g. PUT /definitions/1/sections/99
+        // where section 99 belongs to definition 5).
+        abort_if($section->form_definition_id !== $form->id, 404);
+
         $this->authorize('update', $section);
 
         $section->update($request->validated());
@@ -63,6 +69,9 @@ class FormSectionController extends Controller
 
     public function destroy(FormDefinition $form, FormSection $section): JsonResponse
     {
+        // Verify the section actually belongs to the form in the URL.
+        abort_if($section->form_definition_id !== $form->id, 404);
+
         $this->authorize('delete', $section);
 
         $section->delete();

@@ -54,6 +54,11 @@ class FormFieldOptionController extends Controller
 
     public function update(UpdateFormFieldOptionRequest $request, FormField $field, FormFieldOption $option): JsonResponse
     {
+        // Verify the option actually belongs to the field in the URL.
+        // Prevents cross-field IDOR: a super_admin could update an option from a
+        // different field (possibly in a published definition) by crafting the URL.
+        abort_if($option->form_field_id !== $field->id, 404);
+
         $this->authorize('update', $field);
 
         $option->update($request->validated());
@@ -63,6 +68,9 @@ class FormFieldOptionController extends Controller
 
     public function destroy(FormField $field, FormFieldOption $option): JsonResponse
     {
+        // Verify the option actually belongs to the field in the URL.
+        abort_if($option->form_field_id !== $field->id, 404);
+
         $this->authorize('update', $field);
 
         $option->delete();

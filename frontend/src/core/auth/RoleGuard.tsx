@@ -41,9 +41,16 @@ export function RoleGuard({
   // Read from normalized roles[] first; fall back to role string only (never the object)
   const roleName = user?.roles?.[0]?.name ?? (typeof user?.role === 'string' ? user.role : undefined);
 
-  // No user or no detectable role — redirect to login as a safety measure
-  if (!user || !roleName) {
+  // No user at all — ProtectedRoute should have caught this, redirect to login.
+  if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  // User is authenticated but role data is missing or malformed — send to /forbidden.
+  // Sending to /login here would create a redirect loop: ProtectedRoute passes the user
+  // through (isAuthenticated=true), then RoleGuard sends them to /login, then
+  // ProtectedRoute passes them through again, etc.
+  if (!roleName) {
+    return <Navigate to="/forbidden" replace />;
   }
 
   // super_admin inherits admin permissions — they can access the admin portal too

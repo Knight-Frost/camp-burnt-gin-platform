@@ -91,7 +91,7 @@ function fieldLabel(key: string): string {
 }
 
 // Turns any field value into a displayable string, handling booleans and objects
-function formatFieldValue(key: string, value: unknown): string {
+function formatFieldValue(_key: string, value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
@@ -675,10 +675,11 @@ export function AuditLogPage() {
         >
           {/* Category / event type filter */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="alp-event-type" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               Category
             </label>
             <select
+              id="alp-event-type"
               value={filters.event_type}
               onChange={(e) => updateFilter('event_type', e.target.value)}
               className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
@@ -692,10 +693,11 @@ export function AuditLogPage() {
 
           {/* User ID filter — shows actions by a specific user */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="alp-user-id" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               User ID
             </label>
             <input
+              id="alp-user-id"
               type="number"
               value={filters.user_id}
               onChange={(e) => updateFilter('user_id', e.target.value)}
@@ -707,10 +709,11 @@ export function AuditLogPage() {
 
           {/* Date range: from */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="alp-from-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               From date
             </label>
             <input
+              id="alp-from-date"
               type="date"
               value={filters.from}
               onChange={(e) => updateFilter('from', e.target.value)}
@@ -721,10 +724,11 @@ export function AuditLogPage() {
 
           {/* Date range: to */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="alp-to-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               To date
             </label>
             <input
+              id="alp-to-date"
               type="date"
               value={filters.to}
               onChange={(e) => updateFilter('to', e.target.value)}

@@ -73,7 +73,6 @@ class ApplicationController extends Controller
             // Eager-load related records so we don't hit the DB again for each application row.
             $query = Application::with([
                 'camper.user',
-                'camper.medicalRecord',
                 'campSession.camp',
                 'reviewer',
             ]);
@@ -133,7 +132,6 @@ class ApplicationController extends Controller
             $applications = Application::whereIn('camper_id', $camperIds)
                 ->with([
                     'camper.user',
-                    'camper.medicalRecord',
                     'campSession.camp',
                     'reviewer',
                 ])

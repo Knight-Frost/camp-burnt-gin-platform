@@ -96,8 +96,10 @@ export function ConfirmDialog({
         <>
           {/* ── Backdrop ──────────────────────────────────────────────────── */}
           {/* Semi-transparent black overlay — clicking it calls onCancel */}
-          <div
-            className="fixed inset-0"
+          <button
+            type="button"
+            aria-label="Cancel"
+            className="fixed inset-0 cursor-default"
             style={{ zIndex: 599, background: 'rgba(0,0,0,0.40)' }}
             onClick={onCancel}
           />
@@ -113,13 +115,15 @@ export function ConfirmDialog({
             style={{ zIndex: 600 }}
           >
             <div
+              role="presentation"
               className="w-full max-w-sm rounded-2xl p-6 pointer-events-auto"
               style={{
                 background: '#ffffff',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
               }}
-              // Stop clicks inside the card from reaching the backdrop and triggering onCancel.
+              // Stop clicks and key events inside the card from reaching the backdrop.
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
             >
               {/* ── Icon + Title + Message ── */}
               <div className="flex items-start gap-3 mb-3">

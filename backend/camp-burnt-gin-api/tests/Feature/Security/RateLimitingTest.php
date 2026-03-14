@@ -4,6 +4,7 @@ namespace Tests\Feature\Security;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
@@ -20,11 +21,11 @@ class RateLimitingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        RateLimiter::clear('auth');
-        RateLimiter::clear('mfa');
-        RateLimiter::clear('provider-link');
-        RateLimiter::clear('uploads');
-        RateLimiter::clear('sensitive');
+        // Flush the array cache between tests so rate limiter counters do not carry
+        // over. RefreshDatabase reuses the same auto-increment user IDs across tests,
+        // meaning user-scoped limiter keys (e.g. throttle:mfa|1) would accumulate
+        // hits and fire prematurely if not cleared.
+        Cache::flush();
     }
 
     public function test_auth_endpoint_rate_limited_after_five_attempts(): void
@@ -54,7 +55,9 @@ class RateLimitingTest extends TestCase
             'mfa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
-        // Make 3 requests (should succeed)
+        // The MFA limiter is defined in bootstrap/app.php as 3 req/min per user
+        // (plus 10/hr). The per-minute limit is the binding constraint: 3 requests
+        // are allowed before the 4th triggers a 429.
         for ($i = 0; $i < 3; $i++) {
             $response = $this->actingAs($user)->postJson('/api/mfa/verify', [
                 'code' => '000000',
@@ -62,7 +65,7 @@ class RateLimitingTest extends TestCase
             $response->assertStatus(401); // Invalid code, but not rate limited
         }
 
-        // 4th request should be rate limited
+        // 4th request should be rate limited.
         $response = $this->actingAs($user)->postJson('/api/mfa/verify', [
             'code' => '000000',
         ]);

@@ -9,7 +9,7 @@
  *   - insertContent({ type: 'text', marks: [{ type: 'link' }] }) for empty selection
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject, type KeyboardEvent } from 'react';
 import type { Editor } from '@tiptap/react';
 import { Popover } from '@/ui/overlay/Popover';
 
@@ -17,7 +17,7 @@ interface LinkPopoverProps {
   editor: Editor | null;
   open: boolean;
   onClose: () => void;
-  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  anchorRef: RefObject<HTMLButtonElement | null>;
 }
 
 export function LinkPopover({ editor, open, onClose, anchorRef }: LinkPopoverProps) {
@@ -72,7 +72,7 @@ export function LinkPopover({ editor, open, onClose, anchorRef }: LinkPopoverPro
     onClose();
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleKeyDown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleInsert();

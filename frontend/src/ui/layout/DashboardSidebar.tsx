@@ -193,21 +193,23 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
               >
                 {({ isActive }) => (
                   <>
-                    {/* Active state background highlight — plain div, no animation, no layout shift */}
-                    {isActive && (
-                      <div
-                        className="absolute inset-0 rounded-xl"
-                        style={{ background: 'var(--dash-nav-active-bg)' }}
-                      />
-                    )}
+                    {/* Active background — always rendered, fades in/out via opacity */}
+                    <div
+                      className="absolute inset-0 rounded-xl transition-opacity duration-150"
+                      style={{
+                        background: 'var(--dash-nav-active-bg)',
+                        opacity: isActive ? 1 : 0,
+                      }}
+                    />
 
-                    {/* Thin orange left accent bar — visual indicator of the active route */}
-                    {isActive && (
-                      <div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
-                        style={{ background: 'var(--ember-orange)' }}
-                      />
-                    )}
+                    {/* Left accent bar — always rendered, slides in/out via opacity + scaleY */}
+                    <div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r transition-opacity duration-150"
+                      style={{
+                        background: 'var(--ember-orange)',
+                        opacity: isActive ? 1 : 0,
+                      }}
+                    />
 
                     {/* Route icon — orange when active, inherits muted color otherwise */}
                     <item.icon
@@ -270,18 +272,20 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
             >
               {({ isActive }) => (
                 <>
-                  {isActive && (
-                    <div
-                      className="absolute inset-0 rounded-xl"
-                      style={{ background: 'var(--dash-nav-active-bg)' }}
-                    />
-                  )}
-                  {isActive && (
-                    <div
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
-                      style={{ background: 'var(--ember-orange)' }}
-                    />
-                  )}
+                  <div
+                    className="absolute inset-0 rounded-xl transition-opacity duration-150"
+                    style={{
+                      background: 'var(--dash-nav-active-bg)',
+                      opacity: isActive ? 1 : 0,
+                    }}
+                  />
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r transition-opacity duration-150"
+                    style={{
+                      background: 'var(--ember-orange)',
+                      opacity: isActive ? 1 : 0,
+                    }}
+                  />
                   <item.icon
                     className={cn(
                       'relative z-10 h-4 w-4 flex-shrink-0',
@@ -390,9 +394,11 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
       {mobileOpen && (
         <>
           {/* Semi-transparent backdrop — clicking it closes the drawer */}
-          <div
+          <button
+            type="button"
+            aria-label="Close navigation"
             onClick={() => setMobileOpen(false)}
-            className="lg:hidden fixed inset-0 z-40"
+            className="lg:hidden fixed inset-0 z-40 cursor-default"
             style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
           />
 

@@ -51,13 +51,17 @@ class CamperController extends Controller
         if ($user->isAdmin()) {
             // Confirm this admin is allowed to list all campers via CamperPolicy.
             $this->authorize('viewAny', Camper::class);
-            // Eager-load the parent user and the most common medical fields for the admin table.
-            $query = Camper::with(['user', 'medicalRecord.allergies', 'medicalRecord.medications']);
+            // Eager-load the parent user and the latest application with session info.
+            // Medical data (allergies, medications, etc.) is intentionally excluded here —
+            // the list view does not display PHI; it is loaded on the individual camper detail page.
+            $query = Camper::with(['user', 'applications.campSession']);
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
-                    // Allow searching by camper name or by numeric ID.
-                    $q->where('full_name', 'like', '%' . $search . '%');
+                    // full_name is a virtual computed attribute — not a stored DB column.
+                    // Search first_name and last_name separately to avoid a SQL column-not-found error.
+                    $q->where('first_name', 'like', '%' . $search . '%')
+                      ->orWhere('last_name', 'like', '%' . $search . '%');
                     if (ctype_digit($search)) {
                         $q->orWhere('id', (int) $search);
                     }
@@ -71,7 +75,9 @@ class CamperController extends Controller
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
-                    $q->where('full_name', 'like', '%' . $search . '%');
+                    // Same fix as admin branch — full_name is virtual, search real columns.
+                    $q->where('first_name', 'like', '%' . $search . '%')
+                      ->orWhere('last_name', 'like', '%' . $search . '%');
                     if (ctype_digit($search)) {
                         $q->orWhere('id', (int) $search);
                     }

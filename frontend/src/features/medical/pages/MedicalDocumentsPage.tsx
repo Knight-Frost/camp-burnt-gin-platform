@@ -7,7 +7,7 @@
  * Route: /medical/records/:camperId/documents
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -128,7 +128,7 @@ export function MedicalDocumentsPage() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     void handleFiles(Array.from(e.dataTransfer.files));
   };

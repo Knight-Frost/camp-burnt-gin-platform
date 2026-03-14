@@ -109,8 +109,10 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
   return (
     <>
       {/* Transparent backdrop — clicking it triggers onClose without a visual overlay */}
-      <div
-        className="fixed inset-0 z-40 bg-transparent"
+      <button
+        type="button"
+        aria-label="Close notifications"
+        className="fixed inset-0 z-40 bg-transparent cursor-default"
         onClick={onClose}
       />
 

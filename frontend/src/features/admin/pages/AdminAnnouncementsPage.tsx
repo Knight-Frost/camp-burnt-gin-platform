@@ -261,14 +261,20 @@ export function AdminAnnouncementsPage() {
       {/* Create / Edit modal */}
       {showModal && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close"
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.35)' }}
           onClick={() => setShowModal(false)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowModal(false); }}
         >
           <div
+            role="presentation"
             className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
             style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               {/* Title changes based on whether we're editing or creating. */}

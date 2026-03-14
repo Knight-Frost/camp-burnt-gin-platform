@@ -31,7 +31,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
-import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
 export function AdminLayout() {
@@ -45,9 +44,11 @@ export function AdminLayout() {
   );
 
   if (!hasAccess) {
-    // Redirect to the user's actual dashboard instead of a dead-end Forbidden page.
-    const role = getPrimaryRole(user?.roles ?? []);
-    return <Navigate to={getDashboardRoute(role)} replace />;
+    // Redirect to /forbidden rather than getDashboardRoute(role).
+    // The old pattern was the root cause of "admin portal turns into applicant
+    // portal": if Redux role resolved to 'applicant' (stale state or cross-tab
+    // contamination), the admin was silently routed into the applicant portal.
+    return <Navigate to="/forbidden" replace />;
   }
 
   // Nav items are defined here (inside the component) so they are translated

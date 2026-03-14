@@ -673,8 +673,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
         Route::post('/', [AnnouncementController::class, 'store'])->middleware('admin')->name('announcements.store');
-        Route::put('/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
-        Route::delete('/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::put('/{announcement}', [AnnouncementController::class, 'update'])->middleware('admin')->name('announcements.update');
+        Route::delete('/{announcement}', [AnnouncementController::class, 'destroy'])->middleware('admin')->name('announcements.destroy');
         // Toggle the pinned-to-top state (admin only)
         Route::post('/{announcement}/pin', [AnnouncementController::class, 'togglePin'])->middleware('admin')->name('announcements.pin');
     });

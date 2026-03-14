@@ -9,8 +9,8 @@
  * 2. Adds the PHI protection middleware (HIPAA compliance).
  * 3. Exports TypeScript types so hooks stay type-safe.
  *
- * Auth token persistence is handled via sessionStorage directly (not redux-persist),
- * so PHI never accidentally lands in browser storage.
+ * Auth token persistence is handled via localStorage directly (not redux-persist).
+ * PHI is never written to storage — only the opaque Bearer token is stored.
  */
 
 import { configureStore } from '@reduxjs/toolkit';

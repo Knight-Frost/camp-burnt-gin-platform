@@ -147,6 +147,7 @@ export interface EmergencyContact {
   relationship: string;
   phone_primary: string;
   phone_secondary?: string;
+  phone?: string;
   email?: string;
   is_primary?: boolean;
   is_authorized_pickup?: boolean;
@@ -155,6 +156,7 @@ export interface EmergencyContact {
 export interface Document {
   id: number;
   file_name: string;
+  name?: string;
   document_type: string | null;
   mime_type: string;
   size: number;

@@ -81,18 +81,15 @@ function ToolbarButton({
   disabled,
   icon: Icon,
   title,
-  buttonRef,
 }: {
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
   icon: ElementType;
   title: string;
-  buttonRef?: React.RefObject<HTMLButtonElement>;
 }) {
   return (
     <button
-      ref={buttonRef}
       type="button"
       // onMouseDown preventDefault keeps editor selection intact when clicking toolbar
       onMouseDown={(e) => e.preventDefault()}

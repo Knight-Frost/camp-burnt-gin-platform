@@ -66,12 +66,6 @@ class ApplicationStatusChangedNotification extends Notification
             }
 
             $message->line('If you have any questions, please contact us.');
-        } elseif ($this->application->status === ApplicationStatus::Waitlisted) {
-            $message->subject('Application Waitlisted - Camp Burnt Gin')
-                ->line('Your application has been placed on the waitlist.')
-                ->line('Camper: '.$this->application->camper->full_name)
-                ->line('Camp Session: '.$this->application->campSession->name)
-                ->line('We will notify you if a spot becomes available.');
         } else {
             $message->subject('Application Status Update - Camp Burnt Gin')
                 ->line('Your application status has been updated.')

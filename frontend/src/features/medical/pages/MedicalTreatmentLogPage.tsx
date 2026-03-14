@@ -12,7 +12,7 @@
  *   /medical/treatments                    — global view
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode, type FormEvent } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -38,7 +38,7 @@ import type { Camper } from '@/features/admin/types/admin.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const TYPE_META: Record<TreatmentType, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
+const TYPE_META: Record<TreatmentType, { label: string; icon: ReactNode; color: string; bg: string }> = {
   medication_administered: {
     label: 'Medication Administered',
     icon: <Pill className="h-3.5 w-3.5" />,
@@ -242,7 +242,7 @@ function AddLogForm({
     form.type === 'medication_administered' ||
     form.medication_given.trim() !== '';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.type || !form.title || !form.description || !form.treatment_date) {
       setError('Please fill in all required fields.');
@@ -315,8 +315,9 @@ function AddLogForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Time</label>
+            <label htmlFor="tl-time" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Time</label>
             <input
+              id="tl-time"
               type="time"
               className={BASE_INPUT}
               style={INPUT_STYLE}
@@ -328,10 +329,11 @@ function AddLogForm({
 
         {/* Type */}
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label htmlFor="tl-type" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
             Treatment Type {REQ}
           </label>
           <select
+            id="tl-type"
             className={BASE_INPUT}
             style={INPUT_STYLE}
             value={form.type}
@@ -344,10 +346,11 @@ function AddLogForm({
 
         {/* Chief complaint */}
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label htmlFor="tl-title" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
             Chief Complaint {REQ}
           </label>
           <input
+            id="tl-title"
             type="text"
             className={BASE_INPUT}
             style={INPUT_STYLE}
@@ -360,10 +363,11 @@ function AddLogForm({
 
         {/* Symptoms & description */}
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+          <label htmlFor="tl-description" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
             Symptoms & Description {REQ}
           </label>
           <textarea
+            id="tl-description"
             className={BASE_INPUT}
             style={INPUT_STYLE}
             rows={3}
@@ -375,8 +379,9 @@ function AddLogForm({
 
         {/* Treatment provided */}
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Treatment Provided</label>
+          <label htmlFor="tl-outcome" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Treatment Provided</label>
           <textarea
+            id="tl-outcome"
             className={BASE_INPUT}
             style={INPUT_STYLE}
             rows={2}
@@ -401,8 +406,9 @@ function AddLogForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Medication Given</label>
+              <label htmlFor="tl-medication" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Medication Given</label>
               <input
+                id="tl-medication"
                 type="text"
                 className={BASE_INPUT}
                 style={INPUT_STYLE}
@@ -413,8 +419,9 @@ function AddLogForm({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Dosage</label>
+              <label htmlFor="tl-dosage" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Dosage</label>
               <input
+                id="tl-dosage"
                 type="text"
                 className={BASE_INPUT}
                 style={INPUT_STYLE}
@@ -444,10 +451,11 @@ function AddLogForm({
 
           {form.follow_up_required && (
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                <label htmlFor="tl-followup-notes" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
                   Follow-up Notes
                 </label>
                 <textarea
+                  id="tl-followup-notes"
                   className={BASE_INPUT}
                   style={INPUT_STYLE}
                   rows={2}

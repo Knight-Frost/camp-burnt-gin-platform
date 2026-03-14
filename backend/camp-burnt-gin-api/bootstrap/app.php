@@ -89,35 +89,30 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // This is an API-only application — always return JSON for every exception type.
+        // Without this, Laravel's fallback exception handler calls route('login') which
+        // does not exist, causing a RouteNotFoundException (500) instead of a clean 401.
         $exceptions->render(function (AuthenticationException $e, Request $request) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Authentication required.',
-                ], Response::HTTP_UNAUTHORIZED);
-            }
+            return response()->json([
+                'message' => 'Authentication required.',
+            ], Response::HTTP_UNAUTHORIZED);
         });
 
         $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Access denied.',
-                ], Response::HTTP_FORBIDDEN);
-            }
+            return response()->json([
+                'message' => 'Access denied.',
+            ], Response::HTTP_FORBIDDEN);
         });
 
         $exceptions->render(function (ModelNotFoundException $e, Request $request) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Resource not found.',
-                ], Response::HTTP_NOT_FOUND);
-            }
+            return response()->json([
+                'message' => 'Resource not found.',
+            ], Response::HTTP_NOT_FOUND);
         });
 
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Endpoint not found.',
-                ], Response::HTTP_NOT_FOUND);
-            }
+            return response()->json([
+                'message' => 'Endpoint not found.',
+            ], Response::HTTP_NOT_FOUND);
         });
     })->create();

@@ -34,11 +34,24 @@ class FormDefinitionPolicy
 
     /**
      * View a specific form definition (including sections and fields).
-     * Any authenticated user may read — applicants need this to render the active form.
+     *
+     * Active forms are visible to any authenticated user — applicants need to read
+     * the active schema to render the application form.
+     *
+     * Draft and archived definitions are internal admin artifacts and must not be
+     * accessible to non-admin users (e.g., via GET /api/form/version/{form}).
+     * Exposing drafts would leak unreleased form structure to applicants.
      */
     public function view(User $user, FormDefinition $form): bool
     {
-        return true; // any authenticated user
+        // Admins can inspect any version (needed for builder and review).
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Non-admin users (applicants, medical providers) may only access the
+        // active (published) form — never drafts or archived versions.
+        return $form->status === 'active';
     }
 
     /**

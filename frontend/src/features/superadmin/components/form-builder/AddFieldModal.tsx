@@ -3,7 +3,7 @@
  * Includes inline OptionsEditor for select/radio/checkbox_group types.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { OptionsEditor, type OptionDraft } from './OptionsEditor';
@@ -87,7 +87,7 @@ export function AddFieldModal({ field, onSave, onClose }: AddFieldModalProps) {
     }
   }, [fieldKey, field?.field_key, isEdit]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!fieldKey.trim() || !label.trim() || !fieldType) return;
 

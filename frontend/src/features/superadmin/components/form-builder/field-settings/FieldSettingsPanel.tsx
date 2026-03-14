@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Settings, Trash2 } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FormFieldAdmin, FormSectionAdmin, UpdateFieldPayload, FieldWidth } from '@/features/forms/types/form.types';
 import { OptionsEditor, type OptionDraft } from '../OptionsEditor';
@@ -131,7 +131,7 @@ export function FieldSettingsPanel({
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {/* Field type (read-only badge) */}
           <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Field Type</label>
+            <span className="text-xs font-medium text-[var(--muted-foreground)]">Field Type</span>
             <div className="mt-1">
               <span className="inline-block px-2 py-1 text-xs font-mono rounded border border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]">
                 {field.field_type}
@@ -141,8 +141,9 @@ export function FieldSettingsPanel({
 
           {/* Label */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Label</label>
+            <label htmlFor="fsp-label" className="text-xs font-medium text-[var(--muted-foreground)]">Label</label>
             <input
+              id="fsp-label"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onBlur={() => { if (label.trim() !== field.label) saveField({ label: label.trim() }); }}
@@ -165,8 +166,9 @@ export function FieldSettingsPanel({
           {/* Placeholder (skip for layout types) */}
           {!['divider', 'section_header', 'checkbox', 'yesno', 'file', 'signature', 'address'].includes(field.field_type) && (
             <div className="space-y-1">
-              <label className="text-xs font-medium text-[var(--muted-foreground)]">Placeholder</label>
+              <label htmlFor="fsp-placeholder" className="text-xs font-medium text-[var(--muted-foreground)]">Placeholder</label>
               <input
+                id="fsp-placeholder"
                 value={placeholder}
                 onChange={(e) => setPlaceholder(e.target.value)}
                 onBlur={() => { if ((placeholder || null) !== field.placeholder) saveField({ placeholder: placeholder || null }); }}
@@ -179,8 +181,9 @@ export function FieldSettingsPanel({
 
           {/* Help text */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Help Text</label>
+            <label htmlFor="fsp-help-text" className="text-xs font-medium text-[var(--muted-foreground)]">Help Text</label>
             <textarea
+              id="fsp-help-text"
               value={helpText}
               onChange={(e) => setHelpText(e.target.value)}
               onBlur={() => { if ((helpText || null) !== field.help_text) saveField({ help_text: helpText || null }); }}
@@ -194,7 +197,7 @@ export function FieldSettingsPanel({
           {/* Required toggle */}
           {!['divider', 'section_header'].includes(field.field_type) && (
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-[var(--muted-foreground)]">Required</label>
+              <span className="text-xs font-medium text-[var(--muted-foreground)]">Required</span>
               <RequiredToggle
                 value={isRequired}
                 onChange={(v) => { setIsRequired(v); saveField({ is_required: v }); }}
@@ -206,7 +209,7 @@ export function FieldSettingsPanel({
           {/* Width selector */}
           {!['divider', 'section_header'].includes(field.field_type) && (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--muted-foreground)]">Width</label>
+              <span className="text-xs font-medium text-[var(--muted-foreground)]">Width</span>
               <WidthSelector
                 value={width}
                 onChange={(v) => { setWidth(v); saveField({ width: v }); }}

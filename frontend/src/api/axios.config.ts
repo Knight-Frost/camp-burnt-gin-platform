@@ -56,7 +56,7 @@ axiosInstance.interceptors.request.use(
     // Inject Bearer token — prefer Redux store (set after login / init validation),
     // fall back to localStorage for the init validation request itself which fires
     // before the store is populated on page refresh.
-    const token = store.getState().auth.token ?? sessionStorage.getItem('auth_token');
+    const token = store.getState().auth.token ?? localStorage.getItem('auth_token');
     if (token) {
       // The "Bearer" prefix is standard HTTP authentication format
       config.headers.Authorization = `Bearer ${token}`;
@@ -97,7 +97,8 @@ axiosInstance.interceptors.response.use(
         url.endsWith('/auth/login') ||
         url.endsWith('/auth/register') ||
         url.endsWith('/auth/forgot-password') ||
-        url.endsWith('/auth/reset-password');
+        url.endsWith('/auth/reset-password') ||
+        url.includes('/mfa/');
 
       if (!isPublicAuthEndpoint) {
         // Token expired or invalid on a protected endpoint — fire a global event

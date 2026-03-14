@@ -21,8 +21,12 @@ import {
   useMemo,
   Fragment,
   type ChangeEvent,
+  type ReactNode,
+  type MouseEvent,
+  type TouchEvent,
 } from 'react';
-import { useTranslation, type TFunction } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -572,7 +576,7 @@ function countMissing(form: FormState): number {
 // Shared sub-components
 // ---------------------------------------------------------------------------
 
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function FieldLabel({ children, required }: { children: ReactNode; required?: boolean }) {
   return (
     <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--foreground)' }}>
       {children}
@@ -618,7 +622,7 @@ function SelectInput({
   id?: string;
   value: string;
   onChange: (v: string) => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <select
@@ -634,11 +638,13 @@ function SelectInput({
 }
 
 function TextArea({
+  id,
   value,
   onChange,
   placeholder = '',
   rows = 3,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -646,6 +652,7 @@ function TextArea({
 }) {
   return (
     <textarea
+      id={id}
       value={value}
       onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -719,7 +726,7 @@ function YesNoField({
   );
 }
 
-function SectionCard({ children }: { children: React.ReactNode }) {
+function SectionCard({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-col gap-5">
       {children}
@@ -727,7 +734,7 @@ function SectionCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SubHeading({ children }: { children: React.ReactNode }) {
+function SubHeading({ children }: { children: ReactNode }) {
   return (
     <h4 className="text-xs font-semibold uppercase tracking-widest mb-4 pb-2 border-b" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)' }}>
       {children}
@@ -735,7 +742,7 @@ function SubHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function FormRow({ children, cols = 2 }: { children: React.ReactNode; cols?: 1 | 2 | 3 }) {
+function FormRow({ children, cols = 2 }: { children: ReactNode; cols?: 1 | 2 | 3 }) {
   const gridClass = cols === 1 ? 'grid-cols-1' : cols === 3 ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-1 xl:grid-cols-2';
   return <div className={`grid ${gridClass} gap-y-6 gap-x-6`}>{children}</div>;
 }
@@ -931,6 +938,7 @@ function Section1({
               return (
                 <label
                   key={session.id}
+                  aria-label={session.name}
                   className="flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all"
                   style={{
                     background: selected ? 'rgba(22,163,74,0.06)' : 'var(--card)',
@@ -1976,7 +1984,7 @@ function Section8({ data, onChange }: {
   return (
     <div className="p-5 flex flex-col gap-5">
       {/* No medications checkbox */}
-      <label className="flex items-center gap-3 cursor-pointer select-none">
+      <label aria-label="Camper takes no medications" className="flex items-center gap-3 cursor-pointer select-none">
         <input
           type="checkbox"
           className="w-4 h-4 rounded"
@@ -2025,20 +2033,22 @@ function Section8({ data, onChange }: {
               {/* Row 1: name + dosage */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  <label htmlFor={`med-name-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                     Medication name *
                   </label>
                   <TextInput
+                    id={`med-name-${med.id}`}
                     placeholder="e.g. Metformin"
                     value={med.name}
                     onChange={(v) => updateMed(med.id, { name: v })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  <label htmlFor={`med-dosage-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                     Dosage *
                   </label>
                   <TextInput
+                    id={`med-dosage-${med.id}`}
                     placeholder="e.g. 500 mg"
                     value={med.dosage}
                     onChange={(v) => updateMed(med.id, { dosage: v })}
@@ -2049,19 +2059,19 @@ function Section8({ data, onChange }: {
               {/* Row 2: frequency + route */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  <label htmlFor={`med-frequency-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                     Frequency
                   </label>
-                  <SelectInput value={med.frequency} onChange={(v) => updateMed(med.id, { frequency: v })}>
+                  <SelectInput id={`med-frequency-${med.id}`} value={med.frequency} onChange={(v) => updateMed(med.id, { frequency: v })}>
                     <option value="">Select frequency</option>
                     {MEDICATION_FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
                   </SelectInput>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  <label htmlFor={`med-route-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                     Route
                   </label>
-                  <SelectInput value={med.route} onChange={(v) => updateMed(med.id, { route: v })}>
+                  <SelectInput id={`med-route-${med.id}`} value={med.route} onChange={(v) => updateMed(med.id, { route: v })}>
                     <option value="">Select route</option>
                     {MEDICATION_ROUTES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </SelectInput>
@@ -2071,20 +2081,22 @@ function Section8({ data, onChange }: {
               {/* Row 3: reason + prescribing physician */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  <label htmlFor={`med-reason-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                     Reason / condition treated
                   </label>
                   <TextInput
+                    id={`med-reason-${med.id}`}
                     placeholder="e.g. Type 2 diabetes"
                     value={med.reason}
                     onChange={(v) => updateMed(med.id, { reason: v })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  <label htmlFor={`med-physician-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                     Prescribing physician
                   </label>
                   <TextInput
+                    id={`med-physician-${med.id}`}
                     placeholder="Dr. Smith"
                     value={med.physician}
                     onChange={(v) => updateMed(med.id, { physician: v })}
@@ -2116,10 +2128,11 @@ function Section8({ data, onChange }: {
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                <label htmlFor={`med-notes-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                   Administration notes (optional)
                 </label>
                 <TextArea
+                  id={`med-notes-${med.id}`}
                   placeholder="Special instructions, side effects to watch for, etc."
                   value={med.notes}
                   onChange={(v) => updateMed(med.id, { notes: v })}
@@ -2359,7 +2372,7 @@ function SignaturePad({
   const isDrawing  = useRef(false);
   const hasStrokes = useRef(false);
 
-  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+  function getPos(e: MouseEvent<HTMLCanvasElement> | TouchEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width  / rect.width;
@@ -2376,7 +2389,7 @@ function SignaturePad({
     };
   }
 
-  function startDraw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+  function startDraw(e: MouseEvent<HTMLCanvasElement> | TouchEvent<HTMLCanvasElement>) {
     e.preventDefault();
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -2386,7 +2399,7 @@ function SignaturePad({
     ctx.moveTo(x, y);
   }
 
-  function draw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+  function draw(e: MouseEvent<HTMLCanvasElement> | TouchEvent<HTMLCanvasElement>) {
     e.preventDefault();
     if (!isDrawing.current) return;
     const ctx = canvasRef.current?.getContext('2d');
@@ -2400,7 +2413,7 @@ function SignaturePad({
     hasStrokes.current = true;
   }
 
-  function endDraw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+  function endDraw(e: MouseEvent<HTMLCanvasElement> | TouchEvent<HTMLCanvasElement>) {
     e.preventDefault();
     if (!isDrawing.current) return;
     isDrawing.current = false;
@@ -2477,6 +2490,7 @@ function Section10({
         {CONSENT_DEFS.map((c) => (
           <label
             key={c.key}
+            aria-label={c.title}
             className="flex gap-3 cursor-pointer rounded-xl border p-4 transition-colors"
             style={{
               borderColor: data[c.key] ? 'rgba(22,163,74,0.35)' : 'var(--border)',
@@ -2547,20 +2561,22 @@ function Section10({
           {/* Printed name + date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+              <label htmlFor="sig-name" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                 Printed name *
               </label>
               <TextInput
+                id="sig-name"
                 placeholder="Guardian full legal name"
                 value={data.signed_name}
                 onChange={(v) => onChange({ signed_name: v })}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+              <label htmlFor="sig-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                 Date *
               </label>
               <TextInput
+                id="sig-date"
                 type="date"
                 value={data.signed_date || today}
                 onChange={(v) => onChange({ signed_date: v })}

@@ -89,9 +89,9 @@ class ReportController extends Controller
                 // Full breakdown map, e.g. {"pending": 12, "accepted": 45, "rejected": 3}
                 'applications_by_status'     => $apps,
                 // Individual status shortcuts for the dashboard counter cards.
-                'accepted_applications'      => $apps['accepted'] ?? 0,
-                // Group pending, submitted, and under_review together as "awaiting action".
-                'pending_applications'       => ($apps['pending'] ?? 0) + ($apps['submitted'] ?? 0) + ($apps['under_review'] ?? 0),
+                'accepted_applications'      => $apps['approved'] ?? 0,
+                // Group pending and under_review together as "awaiting action".
+                'pending_applications'       => ($apps['pending'] ?? 0) + ($apps['under_review'] ?? 0),
                 'rejected_applications'      => $apps['rejected'] ?? 0,
                 'sessions'                   => $sessions,
                 'applications_over_time'     => $timeline,

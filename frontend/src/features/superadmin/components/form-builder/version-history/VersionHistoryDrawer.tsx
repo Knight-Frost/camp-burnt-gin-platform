@@ -18,8 +18,10 @@ export function VersionHistoryDrawer({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-30 bg-black/20"
+      <button
+        type="button"
+        aria-label="Close version history"
+        className="fixed inset-0 z-30 bg-black/20 cursor-default"
         onClick={onClose}
       />
 

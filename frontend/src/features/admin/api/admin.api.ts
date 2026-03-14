@@ -35,23 +35,6 @@ export async function getCamper(id: number): Promise<Camper> {
 export async function getCamperRiskSummary(id: number): Promise<unknown> {
   const { data } = await axiosInstance.get(`/campers/${id}/risk-summary`); return data.data;
 }
-export interface ComplianceDocument {
-  document_type: string;
-  description: string;
-}
-
-export interface ComplianceStatus {
-  is_compliant: boolean;
-  missing_documents: (string | ComplianceDocument)[];
-  expired_documents: (string | ComplianceDocument)[];
-  unverified_documents: (string | ComplianceDocument)[];
-}
-
-export async function getCamperComplianceStatus(id: number): Promise<ComplianceStatus> {
-  const { data } = await axiosInstance.get<{ data: ComplianceStatus }>(`/campers/${id}/compliance-status`);
-  return data.data;
-}
-
 export async function getCamps(): Promise<Camp[]> {
   const { data } = await axiosInstance.get<ApiResponse<Camp[]>>('/camps'); return data.data;
 }
@@ -225,7 +208,7 @@ export interface ApplicantDocumentRecord {
 
 export const sendDocumentToApplicant = async (formData: FormData): Promise<ApplicantDocumentRecord> => {
   const { data } = await axiosInstance.post('/admin/documents/send', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return data;
 };
@@ -251,7 +234,7 @@ export const markApplicantDocumentReviewed = async (id: number): Promise<Applica
 
 export const replaceApplicantDocument = async (id: number, formData: FormData): Promise<ApplicantDocumentRecord> => {
   const { data } = await axiosInstance.post(`/admin/applicant-documents/${id}/replace`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return data;
 };

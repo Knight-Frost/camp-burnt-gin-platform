@@ -37,7 +37,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
-import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 
 export function SuperAdminLayout() {
@@ -51,9 +50,10 @@ export function SuperAdminLayout() {
   );
 
   if (!hasAccess) {
-    // Redirect to the user's actual dashboard instead of a dead-end Forbidden page.
-    const role = getPrimaryRole(user?.roles ?? []);
-    return <Navigate to={getDashboardRoute(role)} replace />;
+    // Redirect to /forbidden rather than getDashboardRoute(role).
+    // Same fix as AdminLayout — the old pattern silently routed stale-role
+    // users into the applicant portal when role resolved to 'applicant'.
+    return <Navigate to="/forbidden" replace />;
   }
 
   // Main scrollable nav — same general structure as AdminLayout.

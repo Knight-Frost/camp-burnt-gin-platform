@@ -6,7 +6,7 @@
  * Route: /medical/follow-ups
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -384,7 +384,7 @@ function AddFollowUpForm({
   const setField = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedCamper || !form.title || !form.due_date) {
       setError(t('medical.follow_ups.form_error') || 'Please fill in all required fields including camper selection.');

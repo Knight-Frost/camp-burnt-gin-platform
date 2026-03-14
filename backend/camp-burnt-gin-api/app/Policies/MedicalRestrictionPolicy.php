@@ -56,10 +56,17 @@ class MedicalRestrictionPolicy
 
     /**
      * Can the user delete a medical restriction?
-     * Only admins and medical staff can remove restrictions.
+     *
+     * Restricted to admins only — consistent with all other Phase 11 medical
+     * record policies (MedicalIncidentPolicy, MedicalFollowUpPolicy,
+     * MedicalVisitPolicy) which all require isAdmin() for delete.
+     *
+     * Rationale: medical restrictions affect camper safety and represent
+     * clinical decisions; permanent deletion should require admin oversight
+     * to preserve the audit trail and prevent accidental data loss.
      */
     public function delete(User $user, MedicalRestriction $medicalRestriction): bool
     {
-        return $user->isAdmin() || $user->isMedicalProvider();
+        return $user->isAdmin();
     }
 }

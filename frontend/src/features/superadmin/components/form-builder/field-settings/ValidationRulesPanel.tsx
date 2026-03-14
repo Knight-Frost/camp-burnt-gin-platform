@@ -50,8 +50,9 @@ export function ValidationRulesPanel({ fieldType, value, onChange, disabled = fa
         <div className="px-3 pb-3 space-y-2 border-t border-[var(--border)] pt-2">
           {showMin && (
             <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--muted-foreground)] w-16">Min</label>
+              <label htmlFor="vrp-min" className="text-xs text-[var(--muted-foreground)] w-16">Min</label>
               <input
+                id="vrp-min"
                 type="number"
                 value={String(rules['min'] ?? '')}
                 onChange={(e) => update('min', e.target.value)}
@@ -63,8 +64,9 @@ export function ValidationRulesPanel({ fieldType, value, onChange, disabled = fa
           )}
           {showMax && (
             <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--muted-foreground)] w-16">Max</label>
+              <label htmlFor="vrp-max" className="text-xs text-[var(--muted-foreground)] w-16">Max</label>
               <input
+                id="vrp-max"
                 type="number"
                 value={String(rules['max'] ?? '')}
                 onChange={(e) => update('max', e.target.value)}
@@ -76,8 +78,9 @@ export function ValidationRulesPanel({ fieldType, value, onChange, disabled = fa
           )}
           {showPattern && (
             <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--muted-foreground)] w-16">Pattern</label>
+              <label htmlFor="vrp-pattern" className="text-xs text-[var(--muted-foreground)] w-16">Pattern</label>
               <input
+                id="vrp-pattern"
                 type="text"
                 value={String(rules['pattern'] ?? '')}
                 onChange={(e) => update('pattern', e.target.value)}

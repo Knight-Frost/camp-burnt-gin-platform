@@ -550,17 +550,20 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
       {/* ── Attachment preview modal ───────────────────────────────────────── */}
       {previewModal && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label={`Preview ${previewModal.name}`}
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.72)' }}
           onClick={() => setPreviewModal(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Preview ${previewModal.name}`}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') setPreviewModal(null); }}
         >
           <div
+            role="presentation"
             className="relative rounded-2xl overflow-hidden shadow-2xl flex flex-col"
             style={{ maxWidth: '90vw', maxHeight: '90vh', background: 'var(--card)' }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             {/* Preview content */}
             {previewModal.mimeType.startsWith('image/') ? (

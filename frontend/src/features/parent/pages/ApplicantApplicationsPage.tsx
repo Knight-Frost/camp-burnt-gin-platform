@@ -45,7 +45,7 @@ type ViewMode = 'all' | 'active' | 'past';
 type SortOrder = 'newest' | 'oldest';
 
 // Statuses that mean the application is still in flight and needs monitoring
-const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review', 'waitlisted'];
+const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review'];
 // Statuses that mean the process is finished (one way or another)
 const PAST_STATUSES: ApplicationStatus[]   = ['approved', 'rejected', 'withdrawn', 'cancelled'];
 
@@ -56,7 +56,6 @@ const STATUS_LABELS: Record<ApplicationStatus, string> = {
   under_review: 'Under Review',
   approved:     'Approved',
   rejected:     'Rejected',
-  waitlisted:   'Waitlisted',
   withdrawn:    'Withdrawn',
   cancelled:    'Cancelled',
 };

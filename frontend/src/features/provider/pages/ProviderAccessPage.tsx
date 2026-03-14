@@ -39,7 +39,7 @@ async function uploadProviderDocument(token: string, file: File): Promise<void> 
   const form = new FormData();
   form.append('file', file);
   await axiosInstance.post(`/provider-access/${token}/upload`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
 }
 

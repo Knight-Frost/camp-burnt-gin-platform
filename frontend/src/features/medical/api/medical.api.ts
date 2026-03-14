@@ -316,7 +316,7 @@ export async function uploadDocument(payload: UploadDocumentPayload): Promise<Do
   }
 
   const { data } = await axiosInstance.post<ApiResponse<Document>>('/documents', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return data.data;
 }

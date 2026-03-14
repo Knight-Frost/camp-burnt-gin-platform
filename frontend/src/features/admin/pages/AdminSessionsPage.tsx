@@ -29,7 +29,7 @@ import {
 } from '@/features/admin/api/admin.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
-import { EmptyState } from '@/ui/components/EmptyState';
+import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
 import type { Camp, CampSession } from '@/features/admin/types/admin.types';
 
 // ---------------------------------------------------------------------------
@@ -72,15 +72,21 @@ function CampModal({ camp, onClose, onSaved }: CampModalProps) {
   return (
     // Backdrop — clicking it calls onClose.
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       {/* Dialog card — stop click from bubbling up to the backdrop. */}
       <div
+        role="presentation"
         className="w-full max-w-md rounded-2xl border p-6"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -167,14 +173,20 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
     >
       <div
+        role="presentation"
         className="w-full max-w-md rounded-2xl border p-6"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -268,6 +280,8 @@ export function AdminSessionsPage() {
   const [camps, setCamps]             = useState<Camp[]>([]);
   const [sessions, setSessions]       = useState<CampSession[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(false);
+  const [retryKey, setRetryKey]       = useState(0);
 
   // Modal state objects hold both whether the modal is open and which item is being edited.
   const [campModal, setCampModal]     = useState<{ open: boolean; camp: Camp | null }>({ open: false, camp: null });
@@ -276,16 +290,19 @@ export function AdminSessionsPage() {
   // Fetch both camps and sessions in parallel on mount.
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const [campsData, sessionsData] = await Promise.all([getCamps(), getSessions()]);
       setCamps(campsData);
       setSessions(sessionsData);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [retryKey]);
 
-  useEffect(() => { void fetchData(); }, [fetchData]);
+  useEffect(() => { void fetchData(); }, [fetchData, retryKey]);
 
   // Delete a camp after user confirmation — removes it from local state on success.
   async function handleDeleteCamp(id: number) {
@@ -301,6 +318,10 @@ export function AdminSessionsPage() {
     await deleteSession(id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
     toast.success(t('admin.sessions.session_deleted'));
+  }
+
+  if (error) {
+    return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
   }
 
   return (

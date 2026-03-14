@@ -290,6 +290,12 @@
   background-color: rgba(22, 163, 74, 0.20);
 }
 
+/* ─── Page Transition ───────────────────────────────────────────────────── */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── Reduced Motion ────────────────────────────────────────────────────── */
 /* Framer Motion: handled by MotionConfig reducedMotion="user" in providers  */
 /* CSS transitions: scoped to [data-cbg-app] only — avoids nuking third-party */

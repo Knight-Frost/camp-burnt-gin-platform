@@ -5,7 +5,7 @@
  * users must pass all checks before they can see the page content.
  *
  * Check order (fail = redirect immediately, don't evaluate further):
- * 1. Still loading?    → Show a full-page spinner (auth is being hydrated from sessionStorage).
+ * 1. Still loading?    → Show a full-page spinner (auth is being hydrated from localStorage).
  * 2. Not logged in?    → Redirect to /login, preserving where the user was trying to go
  *                        so they can be sent there after a successful login.
  * 3. MFA incomplete?   → Redirect to /mfa-verify so the user completes two-factor auth.

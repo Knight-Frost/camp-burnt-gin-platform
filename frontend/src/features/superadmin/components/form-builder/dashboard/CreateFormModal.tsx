@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { X, FileText } from 'lucide-react';
 
 interface CreateFormModalProps {
@@ -12,7 +12,7 @@ export function CreateFormModal({ onSave, onClose }: CreateFormModalProps) {
   const [nameError, setNameError]     = useState('');
   const [saving, setSaving]           = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setNameError('Name is required'); return; }
     setSaving(true);
@@ -46,10 +46,11 @@ export function CreateFormModal({ onSave, onClose }: CreateFormModalProps) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[var(--card-foreground)]">
+            <label htmlFor="cfm-name" className="text-sm font-medium text-[var(--card-foreground)]">
               Form Name <span className="text-red-500">*</span>
             </label>
             <input
+              id="cfm-name"
               value={name}
               onChange={(e) => { setName(e.target.value); setNameError(''); }}
               placeholder="e.g. Camp Application Form"
@@ -64,10 +65,11 @@ export function CreateFormModal({ onSave, onClose }: CreateFormModalProps) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[var(--card-foreground)]">
+            <label htmlFor="cfm-description" className="text-sm font-medium text-[var(--card-foreground)]">
               Description <span className="text-[var(--muted-foreground)] font-normal">(optional)</span>
             </label>
             <textarea
+              id="cfm-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this form used for?"

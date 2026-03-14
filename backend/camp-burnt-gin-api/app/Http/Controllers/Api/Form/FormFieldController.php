@@ -62,6 +62,11 @@ class FormFieldController extends Controller
 
     public function update(UpdateFormFieldRequest $request, FormSection $section, FormField $field): JsonResponse
     {
+        // Verify the field actually belongs to the section in the URL.
+        // Prevents cross-section IDOR: a super_admin editing a field from a different
+        // section (possibly in a published definition) by crafting the URL.
+        abort_if($field->form_section_id !== $section->id, 404);
+
         $this->authorize('update', $field);
 
         $validated = $request->validated();
@@ -83,6 +88,9 @@ class FormFieldController extends Controller
 
     public function destroy(FormSection $section, FormField $field): JsonResponse
     {
+        // Verify the field actually belongs to the section in the URL.
+        abort_if($field->form_section_id !== $section->id, 404);
+
         $this->authorize('delete', $field);
 
         $field->delete();

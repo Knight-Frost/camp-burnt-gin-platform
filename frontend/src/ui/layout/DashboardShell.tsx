@@ -84,16 +84,23 @@ export function DashboardShell({
          * All other routes get standard padding and an overflow-y-auto scroll container.
          */}
         {location.pathname.endsWith('/inbox') ? (
-          <div className="flex-1 overflow-hidden" id="main-content" tabIndex={-1}>
+          <div
+            key={location.pathname}
+            className="flex-1 overflow-hidden"
+            id="main-content"
+            tabIndex={-1}
+          >
             <div className="h-full">
               {children}
             </div>
           </div>
         ) : (
           <main
+            key={location.pathname}
             className="flex-1 overflow-y-auto p-6 lg:p-8"
             id="main-content"
             tabIndex={-1}
+            style={{ animation: 'pageIn 160ms ease-out backwards' }}
           >
             {children}
           </main>

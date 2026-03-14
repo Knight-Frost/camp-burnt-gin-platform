@@ -51,23 +51,22 @@ class DocumentPolicy
             return true;
         }
 
+        // Medical providers can view documents on campers and medical records —
+        // they need access to clinical documents to provide proper care.
+        // This check must come before the Camper ownership check below so that
+        // medical providers are not incorrectly blocked by campers()->where()
+        // (which returns nothing for medical providers since they do not own campers).
+        if ($user->isMedicalProvider()) {
+            if ($document->documentable_type === 'App\\Models\\Camper' ||
+                $document->documentable_type === 'App\\Models\\MedicalRecord') {
+                return true;
+            }
+        }
+
         // If the document is attached to a Camper, the parent who owns that
         // camper can view it. campers() scopes the query to this user's children.
         if ($document->documentable_type === 'App\\Models\\Camper') {
             return $user->campers()->where('id', $document->documentable_id)->exists();
-        }
-
-        if ($user->isMedicalProvider()) {
-            // Camp medical staff can view documents attached to campers or medical records.
-            // They need these documents to provide proper clinical care.
-            if ($document->documentable_type === 'App\\Models\\Camper') {
-                return true;
-            }
-
-            // Medical providers also need access to documents on medical records.
-            if ($document->documentable_type === 'App\\Models\\MedicalRecord') {
-                return true;
-            }
         }
 
         return false;

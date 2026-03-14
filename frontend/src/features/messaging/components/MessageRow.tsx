@@ -125,7 +125,10 @@ export function MessageRow({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(conv)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(conv); }}
       className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group"
       style={{ background: rowBg }}
       onMouseEnter={(e) => {
@@ -225,8 +228,10 @@ export function MessageRow({
           {/* Action icons — visible on hover, suppressed for system convs */}
           {!isSystem && (
             <div
+              role="presentation"
               className="absolute right-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
