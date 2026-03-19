@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendNotificationJob;
 use App\Models\AuditLog;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -116,9 +117,10 @@ class MessageService
             // Get all participants except the sender to notify them
             $otherParticipants = $this->inboxService->getParticipantsExcept($conversation, $sender);
 
-            // Send a notification to each participant (email + database)
+            // Dispatch notification via queued job so a mail failure (e.g. rate-limit)
+            // cannot roll back the transaction or block the HTTP response.
             foreach ($otherParticipants as $participant) {
-                $participant->notify(new NewMessageNotification($message, $conversation));
+                dispatch(new SendNotificationJob($participant, new NewMessageNotification($message, $conversation)));
             }
 
             // Write an audit log entry recording this send event

@@ -31,6 +31,7 @@ type BadgeVariant =
   | 'open'
   | 'closed'
   | 'waitlist'
+  | 'waitlisted'
   | 'cancelled'
   | 'low'
   | 'moderate'
@@ -108,6 +109,11 @@ withdrawn: {
     bg: 'rgba(22,163,74,0.10)',
     text: '#16a34a',
     label: 'Waitlist',
+  },
+  waitlisted: {
+    bg: 'rgba(234,179,8,0.15)',
+    text: '#854d0e',   // yellow-800 — amber tint, same as under_review
+    label: 'Waitlisted',
   },
   // Medical severity levels — green → amber → orange → red as risk increases.
   low: {

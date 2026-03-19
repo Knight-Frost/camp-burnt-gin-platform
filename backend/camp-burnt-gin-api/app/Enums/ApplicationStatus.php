@@ -26,6 +26,9 @@ enum ApplicationStatus: string
     // The application was withdrawn or called off before a decision.
     case Cancelled = 'cancelled';
 
+    // The session is full; the camper is queued and may be promoted if space opens.
+    case Waitlisted = 'waitlisted';
+
     /**
      * Returns a friendly, readable version of the status for display in the UI.
      */
@@ -37,6 +40,7 @@ enum ApplicationStatus: string
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
             self::Cancelled => 'Cancelled',
+            self::Waitlisted => 'Waitlisted',
         };
     }
 
@@ -51,6 +55,15 @@ enum ApplicationStatus: string
             self::Rejected,
             self::Cancelled,
         ]);
+    }
+
+    /**
+     * Returns true if the application can still be promoted off the waitlist.
+     * Waitlisted applications are not final — staff can approve them when capacity opens.
+     */
+    public function isPromotable(): bool
+    {
+        return $this === self::Waitlisted;
     }
 
     /**

@@ -1,0 +1,494 @@
+/**
+ * SessionDetailPage.tsx
+ *
+ * Operational dashboard for a single camp session.
+ *
+ * Staff use this page to monitor:
+ *  - Capacity usage (enrolled vs available spots, fill %)
+ *  - Application breakdown by status
+ *  - Recent application activity feed
+ *  - Age and gender distribution of enrolled campers
+ *
+ * Route: /admin/sessions/:id
+ * API:   GET /api/sessions/{id}/dashboard
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import {
+  ArrowLeft, Calendar, Users, CheckCircle2, Clock,
+  AlertTriangle, TrendingUp, BarChart3, UserCheck, ListFilter, Archive,
+} from 'lucide-react';
+
+import { getSessionDashboard, archiveSession } from '@/features/admin/api/admin.api';
+import { Button } from '@/ui/components/Button';
+import { Skeletons } from '@/ui/components/Skeletons';
+import { ErrorState } from '@/ui/components/EmptyState';
+import type { SessionDashboardStats } from '@/features/admin/types/admin.types';
+import { ROUTES } from '@/shared/constants/routes';
+import { toast } from 'sonner';
+
+// ---------------------------------------------------------------------------
+// Status badge — converts a raw status string to a colour-coded pill
+// ---------------------------------------------------------------------------
+function StatusBadge({ status }: { status: string }) {
+  const styleMap: Record<string, React.CSSProperties> = {
+    approved:     { background: 'rgba(22,163,74,0.12)',   color: '#166534' },
+    pending:      { background: 'rgba(234,179,8,0.12)',   color: '#854d0e' },
+    under_review: { background: 'rgba(59,130,246,0.12)',  color: '#1e40af' },
+    rejected:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
+    waitlisted:   { background: 'rgba(124,58,237,0.12)',  color: '#6b21a8' },
+    cancelled:    { background: 'rgba(107,114,128,0.12)', color: '#374151' },
+  };
+  const labels: Record<string, string> = {
+    approved: 'Approved', pending: 'Pending', under_review: 'Under Review',
+    rejected: 'Rejected', waitlisted: 'Waitlisted', cancelled: 'Cancelled',
+  };
+  const style = styleMap[status] ?? styleMap.cancelled;
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+      style={style}
+    >
+      {labels[status] ?? status}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Capacity bar — visual fill indicator with colour coding
+// ---------------------------------------------------------------------------
+function CapacityBar({ enrolled, capacity }: { enrolled: number; capacity: number }) {
+  const pct   = capacity > 0 ? Math.min(100, Math.round((enrolled / capacity) * 100)) : 0;
+  const color = pct >= 100 ? '#dc2626' : pct >= 80 ? '#d97706' : '#166534';
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+          {enrolled} / {capacity} enrolled
+        </span>
+        <span className="text-xs font-bold" style={{ color }}>{pct}%</span>
+      </div>
+      <div
+        className="h-2.5 rounded-full overflow-hidden"
+        style={{ background: 'var(--border)' }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stat card
+// ---------------------------------------------------------------------------
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  sub?: string;
+  valueColor?: string;
+}
+
+function StatCard({ icon, label, value, sub, valueColor }: StatCardProps) {
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+    >
+      <div className="flex items-center gap-2 mb-2.5">
+        <div
+          className="p-1.5 rounded-lg"
+          style={{ background: 'rgba(22,101,52,0.08)' }}
+        >
+          {icon}
+        </div>
+        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+          {label}
+        </span>
+      </div>
+      <p className="text-2xl font-bold font-headline" style={{ color: valueColor ?? 'var(--foreground)' }}>
+        {value}
+      </p>
+      {sub && (
+        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mini horizontal bar for distribution charts
+// ---------------------------------------------------------------------------
+function DistributionRow({ label, count, maxCount }: { label: string; count: number; maxCount: number }) {
+  const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs capitalize" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+        <span className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>{count}</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: 'var(--ember-orange)' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
+export function SessionDetailPage() {
+  const { id }       = useParams<{ id: string }>();
+  const navigate     = useNavigate();
+
+  const [data, setData]           = useState<SessionDashboardStats | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(false);
+  const [retryKey, setRetryKey]   = useState(0);
+  const [archiving, setArchiving] = useState(false);
+
+  const load = useCallback(async (signal: AbortSignal) => {
+    if (!id) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const result = await getSessionDashboard(Number(id), signal);
+      setData(result);
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'ERR_CANCELED') return;
+      setError(true);
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, [id, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void load(ac.signal);
+    return () => ac.abort();
+  }, [load]);
+
+  async function handleArchive() {
+    if (!id) return;
+    if (!window.confirm('Archive this session? It will be hidden from the parent portal but all data is preserved.')) return;
+    setArchiving(true);
+    try {
+      await archiveSession(Number(id));
+      toast.success('Session archived successfully.');
+      navigate(ROUTES.ADMIN_SESSIONS);
+    } catch {
+      toast.error('Failed to archive session. Please try again.');
+    } finally {
+      setArchiving(false);
+    }
+  }
+
+  // ── Loading skeleton ───────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="p-6 max-w-7xl space-y-6">
+        <Skeletons.Card />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeletons.Card key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeletons.Card />
+          <Skeletons.Card />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeletons.Card />
+          <Skeletons.Card />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
+  }
+
+  const { session, capacity_stats, application_stats, recent_applications, age_distribution, gender_distribution } = data;
+
+  const formatDate = (d: string) => {
+    try { return format(parseISO(d), 'MMM d, yyyy'); }
+    catch { return d; }
+  };
+
+  // Build sorted age distribution entries (skip zero counts for cleanliness)
+  const ageEntries = Object.entries(age_distribution).filter(([, v]) => v > 0);
+  const maxAgeCount = Math.max(...ageEntries.map(([, v]) => v), 1);
+
+  // Gender distribution — skip zero counts
+  const genderEntries = Object.entries(gender_distribution).filter(([, v]) => v > 0);
+  const maxGenderCount = Math.max(...genderEntries.map(([, v]) => v), 1);
+
+  return (
+    <div className="p-6 max-w-7xl space-y-6">
+
+      {/* ── Page header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-start gap-4 flex-wrap">
+        <button
+          onClick={() => navigate(ROUTES.ADMIN_SESSIONS)}
+          className="p-2 rounded-lg border transition-colors hover:bg-[var(--glass-medium)] flex-shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+          title="Back to sessions"
+        >
+          <ArrowLeft className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="font-headline font-bold text-2xl" style={{ color: 'var(--foreground)' }}>
+              {session.name}
+            </h1>
+            {session.camp && (
+              <span
+                className="text-xs px-2.5 py-1 rounded-full font-medium"
+                style={{ background: 'rgba(22,101,52,0.10)', color: '#166534' }}
+              >
+                {session.camp}
+              </span>
+            )}
+            <span
+              className="text-xs px-2.5 py-1 rounded-full font-medium"
+              style={
+                session.is_active
+                  ? { background: 'rgba(22,163,74,0.12)', color: '#166534' }
+                  : { background: 'rgba(107,114,128,0.12)', color: 'var(--muted-foreground)' }
+              }
+            >
+              {session.is_active ? 'Active' : 'Archived'}
+            </span>
+          </div>
+          <p className="text-sm mt-1 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
+            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+            {formatDate(session.start_date)} — {formatDate(session.end_date)}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            to={`${ROUTES.ADMIN_APPLICATIONS}?camp_session_id=${session.id}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-[var(--glass-medium)]"
+            style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          >
+            <ListFilter className="h-3.5 w-3.5" />
+            Applications
+          </Link>
+          {session.is_active && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Archive className="h-3.5 w-3.5" />}
+              loading={archiving}
+              onClick={handleArchive}
+            >
+              Archive
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* ── At-capacity warning banner ───────────────────────────────────────── */}
+      {capacity_stats.is_at_capacity && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl border"
+          style={{ background: 'rgba(220,38,38,0.06)', borderColor: 'rgba(220,38,38,0.3)' }}
+        >
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#dc2626' }} />
+          <p className="text-sm font-medium" style={{ color: '#dc2626' }}>
+            This session is at full capacity ({capacity_stats.enrolled}/{capacity_stats.capacity}).
+            New approvals are blocked — waitlist applicants until a spot opens.
+          </p>
+        </div>
+      )}
+
+      {/* ── Key stats row ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={<UserCheck className="h-4 w-4" style={{ color: '#166534' }} />}
+          label="Enrolled"
+          value={capacity_stats.enrolled}
+          sub={`${capacity_stats.remaining} spot${capacity_stats.remaining !== 1 ? 's' : ''} remaining`}
+          valueColor="#166534"
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4" style={{ color: '#d97706' }} />}
+          label="Pending Review"
+          value={application_stats.pending}
+          sub="awaiting decision"
+        />
+        <StatCard
+          icon={<Users className="h-4 w-4" style={{ color: '#7c3aed' }} />}
+          label="Waitlisted"
+          value={application_stats.waitlisted}
+          sub="can be promoted"
+          valueColor="#7c3aed"
+        />
+        <StatCard
+          icon={<TrendingUp className="h-4 w-4" style={{ color: '#1e40af' }} />}
+          label="Acceptance Rate"
+          value={`${application_stats.acceptance_rate}%`}
+          sub={`${application_stats.total_submitted} total submitted`}
+          valueColor="#1e40af"
+        />
+      </div>
+
+      {/* ── Capacity + Application breakdown ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Capacity card */}
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="font-semibold text-sm mb-4" style={{ color: 'var(--foreground)' }}>
+            Capacity Overview
+          </h2>
+          <CapacityBar enrolled={capacity_stats.enrolled} capacity={capacity_stats.capacity} />
+          <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+            {[
+              { label: 'Total Capacity', value: capacity_stats.capacity, color: undefined },
+              { label: 'Enrolled',       value: capacity_stats.enrolled,  color: '#166534' },
+              { label: 'Available',      value: capacity_stats.remaining, color: capacity_stats.remaining === 0 ? '#dc2626' : '#1e40af' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-lg p-3" style={{ background: 'var(--glass-medium)' }}>
+                <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                <p className="text-xl font-bold" style={{ color: color ?? 'var(--foreground)' }}>{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Application breakdown card */}
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="font-semibold text-sm mb-4" style={{ color: 'var(--foreground)' }}>
+            Application Breakdown
+          </h2>
+          <div className="space-y-3">
+            {[
+              { label: 'Approved / Enrolled',    count: application_stats.approved,   bgColor: 'rgba(22,163,74,0.12)',   textColor: '#166534' },
+              { label: 'Pending / Under Review', count: application_stats.pending,    bgColor: 'rgba(234,179,8,0.12)',   textColor: '#d97706' },
+              { label: 'Waitlisted',             count: application_stats.waitlisted, bgColor: 'rgba(124,58,237,0.12)', textColor: '#7c3aed' },
+              { label: 'Rejected',               count: application_stats.rejected,   bgColor: 'rgba(220,38,38,0.12)',  textColor: '#dc2626' },
+              { label: 'Cancelled',              count: application_stats.cancelled,  bgColor: 'rgba(107,114,128,0.12)', textColor: '#6b7280' },
+            ].map(({ label, count, bgColor, textColor }) => (
+              <div key={label} className="flex items-center justify-between">
+                <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full min-w-[2rem] text-center"
+                  style={{ background: bgColor, color: textColor }}
+                >
+                  {count}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div
+            className="mt-4 pt-4 flex items-center justify-between"
+            style={{ borderTop: '1px solid var(--border)' }}
+          >
+            <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>Total submitted</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+              {application_stats.total_submitted}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Age distribution + Recent applications ───────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Age distribution */}
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+            <BarChart3 className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+            Age Distribution — Enrolled Campers
+          </h2>
+          {ageEntries.length === 0 ? (
+            <p className="text-sm text-center py-6" style={{ color: 'var(--muted-foreground)' }}>
+              No enrolled campers yet
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {ageEntries.map(([range, count]) => (
+                <DistributionRow key={range} label={`${range} yrs`} count={count} maxCount={maxAgeCount} />
+              ))}
+            </div>
+          )}
+
+          {genderEntries.length > 0 && (
+            <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+              <h3 className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--muted-foreground)' }}>
+                Gender Distribution
+              </h3>
+              <div className="space-y-3">
+                {genderEntries.map(([gender, count]) => (
+                  <DistributionRow key={gender} label={gender} count={count} maxCount={maxGenderCount} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Recent applications activity feed */}
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+            <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+            Recent Applications
+          </h2>
+          {recent_applications.length === 0 ? (
+            <p className="text-sm text-center py-6" style={{ color: 'var(--muted-foreground)' }}>
+              No applications yet
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {recent_applications.map((app) => (
+                <div key={app.id} className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                      {app.camper_name || '—'}
+                    </p>
+                    {app.submitted_at && (
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                        {formatDate(app.submitted_at)}
+                      </p>
+                    )}
+                  </div>
+                  <StatusBadge status={app.status} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+            <Link
+              to={`${ROUTES.ADMIN_APPLICATIONS}?camp_session_id=${session.id}`}
+              className="text-xs font-medium transition-colors hover:underline"
+              style={{ color: 'var(--ember-orange)' }}
+            >
+              View all applications for this session →
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

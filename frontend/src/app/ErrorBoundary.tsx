@@ -21,6 +21,7 @@ import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
+  resetKey?: string;
 }
 
 interface ErrorBoundaryState {
@@ -47,6 +48,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    */
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
+  }
+
+  /**
+   * componentDidUpdate — resets the error state when the route changes.
+   * When the user navigates away from a crashed page, resetKey changes
+   * (it's the current pathname), which clears hasError and lets the new
+   * page render normally instead of staying stuck on the error screen.
+   */
+  componentDidUpdate(prevProps: ErrorBoundaryProps): void {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null, errorInfo: null });
+    }
   }
 
   /**

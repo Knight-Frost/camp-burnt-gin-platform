@@ -128,48 +128,64 @@ export function CamperDetailPage() {
   // --- Effect 1: fetch core camper profile ---
   useEffect(() => {
     if (!camperId) return;
-    setLoading(true);
-    getCamper(camperId)
-      .then(setCamper)
-      .catch(() => {
-        setError(true);
-        toast.error('Failed to load camper record.');
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+
+    const run = async () => {
+      if (!cancelled) setLoading(true);
+      try {
+        const data = await getCamper(camperId);
+        if (!cancelled) setCamper(data);
+      } catch {
+        if (!cancelled) { setError(true); toast.error('Failed to load camper record.'); }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => { cancelled = true; };
   }, [camperId]);
 
   // --- Effect 2: fetch all medical data in parallel ---
   // Runs independently so medical info loads without waiting for camper details.
   useEffect(() => {
     if (!camperId) return;
-    setMedLoading(true);
+    let cancelled = false;
 
-    const fetchMedical = async () => {
-      // Step 1: get the medical record to obtain its ID (needed for sub-resource endpoints)
-      const record = await getMedicalRecordByCamper(camperId).catch(() => null);
+    const run = async () => {
+      if (!cancelled) setMedLoading(true);
+      try {
+        // Step 1: get the medical record to obtain its ID (needed for sub-resource endpoints)
+        const record = await getMedicalRecordByCamper(camperId).catch(() => null);
 
-      // Step 2: fire all remaining requests at the same time with Promise.all.
-      // Each call falls back to [] or null on failure so a single 404 doesn't break the page.
-      const [
-        allergies, medications, diagnoses,
-        emergencyContacts, activityPermissions,
-        behavioralProfile, feedingPlan, assistiveDevices,
-      ] = await Promise.all([
-        record ? getAllergies(record.id).catch(() => [])            : Promise.resolve([]),
-        record ? getMedications(record.id).catch(() => [])          : Promise.resolve([]),
-        record ? getDiagnoses(record.id).catch(() => [])            : Promise.resolve([]),
-        // Emergency contacts and activity permissions are keyed by camper ID, not record ID
-        getEmergencyContacts(camperId).catch(() => []),
-        getActivityPermissions(camperId).catch(() => []),
-        getBehavioralProfile(camperId).catch(() => null),
-        getFeedingPlan(camperId).catch(() => null),
-        getAssistiveDevices(camperId).catch(() => []),
-      ]);
+        // Step 2: fire all remaining requests at the same time with Promise.all.
+        // Each call falls back to [] or null on failure so a single 404 doesn't break the page.
+        const [
+          allergies, medications, diagnoses,
+          emergencyContacts, activityPermissions,
+          behavioralProfile, feedingPlan, assistiveDevices,
+        ] = await Promise.all([
+          record ? getAllergies(record.id).catch(() => [])            : Promise.resolve([]),
+          record ? getMedications(record.id).catch(() => [])          : Promise.resolve([]),
+          record ? getDiagnoses(record.id).catch(() => [])            : Promise.resolve([]),
+          // Emergency contacts and activity permissions are keyed by camper ID, not record ID
+          getEmergencyContacts(camperId).catch(() => []),
+          getActivityPermissions(camperId).catch(() => []),
+          getBehavioralProfile(camperId).catch(() => null),
+          getFeedingPlan(camperId).catch(() => null),
+          getAssistiveDevices(camperId).catch(() => []),
+        ]);
 
-      setMed({ record, allergies, medications, diagnoses, emergencyContacts, activityPermissions, behavioralProfile, feedingPlan, assistiveDevices });
+        if (!cancelled) setMed({ record, allergies, medications, diagnoses, emergencyContacts, activityPermissions, behavioralProfile, feedingPlan, assistiveDevices });
+      } catch {
+        // individual failures already handled with .catch(() => []) above
+      } finally {
+        if (!cancelled) setMedLoading(false);
+      }
     };
 
-    fetchMedical().finally(() => setMedLoading(false));
+    void run();
+    return () => { cancelled = true; };
   }, [camperId]);
 
   // Detect prefix from the current URL so back-navigation goes to the right portal

@@ -17,7 +17,7 @@
  *  disabled when there are no camps yet, because every session must belong to a camp.
  */
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users } from 'lucide-react';
@@ -287,22 +287,32 @@ export function AdminSessionsPage() {
   const [campModal, setCampModal]     = useState<{ open: boolean; camp: Camp | null }>({ open: false, camp: null });
   const [sessionModal, setSessionModal] = useState<{ open: boolean; session: CampSession | null }>({ open: false, session: null });
 
-  // Fetch both camps and sessions in parallel on mount.
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const [campsData, sessionsData] = await Promise.all([getCamps(), getSessions()]);
-      setCamps(campsData);
-      setSessions(sessionsData);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [retryKey]);
+  // Inline async effect with a cancelled flag so setState is never called on an unmounted
+  // component (e.g. when the user switches tabs quickly mid-flight).
+  useEffect(() => {
+    let cancelled = false;
 
-  useEffect(() => { void fetchData(); }, [fetchData, retryKey]);
+    const run = async () => {
+      if (!cancelled) setLoading(true);
+      if (!cancelled) setError(false);
+      try {
+        const [campsData, sessionsData] = await Promise.all([getCamps(), getSessions()]);
+        if (!cancelled) {
+          setCamps(campsData);
+          setSessions(sessionsData);
+        }
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+
+    // Cleanup: ignore the in-flight response if the component unmounts before it settles.
+    return () => { cancelled = true; };
+  }, [retryKey]); // Depend on data, not the callback reference.
 
   // Delete a camp after user confirmation — removes it from local state on success.
   async function handleDeleteCamp(id: number) {

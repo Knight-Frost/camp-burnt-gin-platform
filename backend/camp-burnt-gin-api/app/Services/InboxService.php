@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendNotificationJob;
 use App\Models\AuditLog;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
@@ -126,8 +127,9 @@ class InboxService
 
             foreach ($participantUsers as $participant) {
                 $this->addParticipant($conversation, $participant);
-                // Notify each new participant that a conversation was started with them
-                $participant->notify(new NewConversationNotification($conversation));
+                // Dispatch notification via queued job so a mail failure (e.g. rate-limit)
+                // cannot roll back the transaction or block the HTTP response.
+                dispatch(new SendNotificationJob($participant, new NewConversationNotification($conversation)));
             }
 
             // Write an audit log entry for HIPAA compliance and security review

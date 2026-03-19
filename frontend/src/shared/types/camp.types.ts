@@ -81,6 +81,7 @@ export type ApplicationStatus =
   | 'approved'
   | 'rejected'
   | 'cancelled'
+  | 'waitlisted'
   | 'withdrawn';
 
 export interface Application {

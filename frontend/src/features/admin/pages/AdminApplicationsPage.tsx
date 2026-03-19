@@ -15,7 +15,7 @@
  *  `filters` object so they always stay in sync and only trigger a single fetch when any of them change.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
@@ -52,6 +52,8 @@ export function AdminApplicationsPage() {
   const [error, setError]       = useState(false);
   // All filter values live in one object so a single setFilters call updates everything atomically.
   const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', page: 1 });
+  // retryKey is incremented by the error-state retry button to re-trigger the fetch effect.
+  const [retryKey, setRetryKey] = useState(0);
 
   // searchInput is the controlled input value — updates on every keystroke for responsive UX.
   // filters.search is the debounced value that actually triggers an API call.
@@ -76,26 +78,35 @@ export function AdminApplicationsPage() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
-  const fetchApplications = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const data = await getApplications({
-        page: filters.page,
-        // Don't send empty strings to the API — use undefined to omit the param.
-        search: filters.search || undefined,
-        // 'all' means "no filter" — send undefined so the API returns everything.
-        status: filters.status === 'all' ? undefined : filters.status,
-      });
-      setResponse(data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]); // Re-runs whenever any filter value (including page) changes.
+  // Inline async effect with a cancelled flag so setState is never called on an unmounted
+  // component (e.g. when the user switches tabs quickly mid-flight).
+  useEffect(() => {
+    let cancelled = false;
 
-  useEffect(() => { void fetchApplications(); }, [fetchApplications]);
+    const run = async () => {
+      if (!cancelled) setLoading(true);
+      if (!cancelled) setError(false);
+      try {
+        const data = await getApplications({
+          page: filters.page,
+          // Don't send empty strings to the API — use undefined to omit the param.
+          search: filters.search || undefined,
+          // 'all' means "no filter" — send undefined so the API returns everything.
+          status: filters.status === 'all' ? undefined : filters.status,
+        });
+        if (!cancelled) setResponse(data);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+
+    // Cleanup: ignore the in-flight response if the component unmounts before it settles.
+    return () => { cancelled = true; };
+  }, [filters, retryKey]); // Depend on data, not the callback reference.
 
   return (
     <div className="p-6 max-w-7xl">
@@ -157,7 +168,7 @@ export function AdminApplicationsPage() {
         <EmptyState
           title={t('common.error_loading')}
           description={t('common.try_again')}
-          action={{ label: t('common.retry'), onClick: fetchApplications }}
+          action={{ label: t('common.retry'), onClick: () => setRetryKey((k) => k + 1) }}
         />
       ) : !response || response.data.length === 0 ? (
         <EmptyState

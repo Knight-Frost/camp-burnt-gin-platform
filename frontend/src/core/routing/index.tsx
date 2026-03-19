@@ -9,7 +9,9 @@
  */
 
 import { lazy, Suspense, type ComponentType } from 'react';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
+
+import { ErrorBoundary } from '@/app/ErrorBoundary';
 
 import { ProtectedRoute } from '@/core/auth/ProtectedRoute';
 import { RoleGuard } from '@/core/auth/RoleGuard';
@@ -102,6 +104,18 @@ const ProfilePage  = withSuspense(lazy(() => import('@/features/profile/pages/Pr
 const SettingsPage = withSuspense(lazy(() => import('@/features/profile/pages/SettingsPage').then(m => ({ default: m.SettingsPage }))));
 
 /**
+ * RouteErrorBoundary — route-aware error boundary wrapper.
+ *
+ * Lives inside the router so it can call useLocation(). Passes the current
+ * pathname as resetKey to ErrorBoundary, which resets the error state on
+ * navigation so the new page renders normally instead of staying crashed.
+ */
+function RouteErrorBoundary() {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}><Outlet /></ErrorBoundary>;
+}
+
+/**
  * createBrowserRouter builds the route tree.
  *
  * The nesting pattern used here is:
@@ -113,6 +127,11 @@ const SettingsPage = withSuspense(lazy(() => import('@/features/profile/pages/Se
  * Outlet is a placeholder that renders the matched child route inside its parent.
  */
 export const router = createBrowserRouter([
+  {
+    // Root layout: wraps every route in a route-aware ErrorBoundary that
+    // resets on navigation. No path — just an Outlet that renders children.
+    element: <RouteErrorBoundary />,
+    children: [
 
   // Root → login redirect
   { path: '/', element: <Navigate to="/login" replace /> },
@@ -263,4 +282,7 @@ export const router = createBrowserRouter([
       }],
     }],
   },
+
+    ], // end RouteErrorBoundary children
+  },   // end RouteErrorBoundary route
 ]);

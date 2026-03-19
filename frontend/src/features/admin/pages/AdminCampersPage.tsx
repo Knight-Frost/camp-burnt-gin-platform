@@ -16,7 +16,7 @@
  *  The page number resets whenever you change the search so you always start at page 1.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
@@ -45,6 +45,8 @@ export function AdminCampersPage() {
   // Consolidated filters — single object prevents the double-fetch race that occurs when
   // search changes reset `page` via a separate useEffect (which would fire fetchCampers twice).
   const [filters, setFilters]   = useState({ search: '', page: 1 });
+  // retryKey is incremented by the error-state retry button to re-trigger the fetch effect.
+  const [retryKey, setRetryKey] = useState(0);
 
   // searchInput is the controlled input value; `filters.search` is the debounced API value.
   const [searchInput, setSearchInput] = useState('');
@@ -64,23 +66,29 @@ export function AdminCampersPage() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
-  // useCallback ensures fetchCampers only gets a new reference when `filters` changes.
-  const fetchCampers = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      // Pass undefined for search when empty so the API ignores the parameter.
-      const data = await getCampers({ page: filters.page, search: filters.search || undefined });
-      setResponse(data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+  // Inline async effect with a cancelled flag so setState is never called on an unmounted
+  // component (e.g. when the user switches tabs quickly mid-flight).
+  useEffect(() => {
+    let cancelled = false;
 
-  // Single useEffect — fires once per filters change, no double-fetch possible.
-  useEffect(() => { void fetchCampers(); }, [fetchCampers]);
+    const run = async () => {
+      if (!cancelled) setLoading(true);
+      if (!cancelled) setError(false);
+      try {
+        const data = await getCampers({ page: filters.page, search: filters.search || undefined });
+        if (!cancelled) setResponse(data);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+
+    // Cleanup: ignore the in-flight response if the component unmounts before it settles.
+    return () => { cancelled = true; };
+  }, [filters, retryKey]); // Depend on data, not the callback reference.
 
   return (
     <div className="p-6 max-w-7xl">
@@ -119,7 +127,7 @@ export function AdminCampersPage() {
         <EmptyState
           title={t('common.error_loading')}
           description={t('common.try_again')}
-          action={{ label: t('common.retry'), onClick: fetchCampers }}
+          action={{ label: t('common.retry'), onClick: () => setRetryKey((k) => k + 1) }}
         />
       ) : !response || response.data.length === 0 ? (
         <EmptyState title={t('admin.campers.empty_title')} description={t('admin.campers.empty_desc')} />
