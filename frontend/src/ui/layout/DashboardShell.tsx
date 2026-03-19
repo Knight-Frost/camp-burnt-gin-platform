@@ -85,7 +85,6 @@ export function DashboardShell({
          */}
         {location.pathname.endsWith('/inbox') ? (
           <div
-            key={location.pathname}
             className="flex-1 overflow-hidden"
             id="main-content"
             tabIndex={-1}
@@ -96,13 +95,13 @@ export function DashboardShell({
           </div>
         ) : (
           <main
-            key={location.pathname}
             className="flex-1 overflow-y-auto p-6 lg:p-8"
             id="main-content"
             tabIndex={-1}
-            style={{ animation: 'pageIn 160ms ease-out backwards' }}
           >
-            {children}
+            <div key={location.pathname} style={{ animation: 'pageIn 160ms ease-out backwards' }}>
+              {children}
+            </div>
           </main>
         )}
       </div>

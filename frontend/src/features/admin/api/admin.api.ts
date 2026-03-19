@@ -347,3 +347,12 @@ export const requestDocumentReupload = async (id: number): Promise<DocumentReque
   const { data } = await axiosInstance.patch(`/document-requests/${id}/reupload`);
   return data;
 };
+
+export const getSessionDashboard = async (id: number, signal?: AbortSignal): Promise<import('@/features/admin/types/admin.types').SessionDashboardStats> => {
+  const { data } = await axiosInstance.get(`/sessions/${id}/dashboard`, { signal });
+  return data;
+};
+
+export const archiveSession = async (id: number): Promise<void> => {
+  await axiosInstance.post(`/sessions/${id}/archive`);
+};

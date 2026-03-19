@@ -215,3 +215,39 @@ export interface User {
   mfa_enabled?: boolean;
   created_at: string;
 }
+
+export interface SessionDashboardStats {
+  session: {
+    id: number;
+    name: string;
+    camp: string | null;
+    start_date: string;
+    end_date: string;
+    is_active: boolean;
+  };
+  capacity_stats: {
+    capacity: number;
+    enrolled: number;
+    remaining: number;
+    fill_pct: number;
+    is_at_capacity: boolean;
+  };
+  application_stats: {
+    total_submitted: number;
+    pending: number;
+    under_review: number;
+    approved: number;
+    rejected: number;
+    waitlisted: number;
+    cancelled: number;
+    acceptance_rate: number;
+  };
+  recent_applications: Array<{
+    id: number;
+    camper_name: string | null;
+    status: string;
+    submitted_at: string | null;
+  }>;
+  age_distribution: Record<string, number>;
+  gender_distribution: Record<string, number>;
+}

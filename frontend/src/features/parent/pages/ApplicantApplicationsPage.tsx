@@ -58,6 +58,7 @@ const STATUS_LABELS: Record<ApplicationStatus, string> = {
   rejected:     'Rejected',
   withdrawn:    'Withdrawn',
   cancelled:    'Cancelled',
+  waitlisted:   'Waitlisted',
 };
 
 // Sort a copy of the list so we never mutate the original state array
