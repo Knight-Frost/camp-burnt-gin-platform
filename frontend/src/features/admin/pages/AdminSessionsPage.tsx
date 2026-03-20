@@ -10,27 +10,52 @@
  *  - Allow admins to create, edit, or delete sessions (linked to a camp) via SessionModal.
  *  - After save, update local state optimistically (no full re-fetch needed).
  *
- * Plain-English summary:
- *  Camps are the main programs (e.g., "Summer Camp 2025"). Sessions are time-slots within
- *  a camp (e.g., "Week 1 — June 2-8"). This page manages both. Each modal opens in an
- *  overlay, and clicking the backdrop dismisses it. The "New Session" button is
- *  disabled when there are no camps yet, because every session must belong to a camp.
+ * Phase 15 additions:
+ *  - Active/Archived status badge on each session card.
+ *  - Capacity fill bar with colour warning at 80%/100%.
+ *  - "View Dashboard" link navigates to /admin/sessions/:id (SessionDetailPage).
+ *  - "Archive" button for sessions that have applications (safe alternative to delete).
+ *  - Delete handler now catches 422 and shows a descriptive toast instead of crashing.
  */
 
 import { useState, useEffect, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users, Archive, ExternalLink, FolderOpen } from 'lucide-react';
 import { format } from 'date-fns';
 
 import {
   getCamps, createCamp, updateCamp, deleteCamp,
-  getSessions, createSession, updateSession, deleteSession,
+  getSessions, createSession, updateSession, deleteSession, archiveSession,
 } from '@/features/admin/api/admin.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
 import type { Camp, CampSession } from '@/features/admin/types/admin.types';
+import { ROUTES } from '@/shared/constants/routes';
+
+// ---------------------------------------------------------------------------
+// Capacity bar — visual fill indicator with colour coding
+// ---------------------------------------------------------------------------
+
+function CapacityFill({ enrolled, capacity }: { enrolled: number; capacity: number }) {
+  const pct   = capacity > 0 ? Math.min(100, Math.round((enrolled / capacity) * 100)) : 0;
+  const color = pct >= 100 ? '#dc2626' : pct >= 80 ? '#d97706' : '#166534';
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+          {enrolled} / {capacity} enrolled
+        </span>
+        <span className="text-xs font-semibold" style={{ color }}>{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Camp form modal
@@ -282,6 +307,8 @@ export function AdminSessionsPage() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);
   const [retryKey, setRetryKey]       = useState(0);
+  // Track which sessions are mid-archive request so buttons show a loading state.
+  const [archivingId, setArchivingId] = useState<number | null>(null);
 
   // Modal state objects hold both whether the modal is open and which item is being edited.
   const [campModal, setCampModal]     = useState<{ open: boolean; camp: Camp | null }>({ open: false, camp: null });
@@ -317,153 +344,283 @@ export function AdminSessionsPage() {
   // Delete a camp after user confirmation — removes it from local state on success.
   async function handleDeleteCamp(id: number) {
     if (!window.confirm(t('admin.sessions.confirm_delete_camp'))) return;
-    await deleteCamp(id);
-    setCamps((prev) => prev.filter((c) => c.id !== id));
-    toast.success(t('admin.sessions.camp_deleted'));
+    try {
+      await deleteCamp(id);
+      setCamps((prev) => prev.filter((c) => c.id !== id));
+      toast.success(t('admin.sessions.camp_deleted'));
+    } catch {
+      toast.error(t('common.delete_error'));
+    }
   }
 
-  // Delete a session after user confirmation — filters it out of local state.
+  // Delete a session — catches 422 when applications exist and prompts to archive instead.
   async function handleDeleteSession(id: number) {
     if (!window.confirm(t('admin.sessions.confirm_delete_session'))) return;
-    await deleteSession(id);
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    toast.success(t('admin.sessions.session_deleted'));
+    try {
+      await deleteSession(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      toast.success(t('admin.sessions.session_deleted'));
+    } catch (err) {
+      const apiError = err as { message?: string };
+      if (apiError?.message?.includes('applications')) {
+        // Backend returns 422 when applications are linked — deletion would orphan records.
+        toast.error('Cannot delete: this session has applications. Use Archive instead.');
+      } else {
+        toast.error(t('common.delete_error'));
+      }
+    }
+  }
+
+  // Archive a session — sets is_active=false, preserving all application records.
+  async function handleArchiveSession(id: number) {
+    if (!window.confirm('Archive this session? It will be hidden from the parent portal but all data is preserved.')) return;
+    setArchivingId(id);
+    try {
+      await archiveSession(id);
+      // Update local state to reflect the archived status without a full re-fetch.
+      setSessions((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, is_active: false } : s))
+      );
+      toast.success('Session archived successfully.');
+    } catch {
+      toast.error('Failed to archive session. Please try again.');
+    } finally {
+      setArchivingId(null);
+    }
   }
 
   if (error) {
     return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
   }
 
+  // Group sessions by camp_id for the hierarchical layout
+  const sessionsByCamp = sessions.reduce((acc, session) => {
+    const campId = session.camp_id;
+    if (!acc[campId]) acc[campId] = [];
+    acc[campId].push(session);
+    return acc;
+  }, {} as Record<number, typeof sessions>);
+
   return (
-    <div className="p-6 max-w-7xl">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="p-6 max-w-4xl">
 
-        {/* Left column: Camps */}
+      {/* Page header with actions */}
+      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
-              {t('admin.sessions.camps_title')}
-            </h2>
-            {/* Opens the camp modal in "create" mode (camp=null). */}
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Plus className="h-4 w-4" />}
-              onClick={() => setCampModal({ open: true, camp: null })}
-            >
-              {t('admin.sessions.new_camp')}
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeletons.Card key={i} />)}</div>
-          ) : camps.length === 0 ? (
-            <EmptyState title={t('admin.sessions.no_camps')} description={t('admin.sessions.no_camps_desc')} />
-          ) : (
-            <div className="space-y-3">
-              {camps.map((camp) => (
-                <div
-                  key={camp.id}
-                  className="rounded-xl border p-4"
-                  style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{camp.name}</p>
-                      <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
-                        <MapPin className="h-3 w-3" /> {camp.location}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* Edit button — opens modal with this camp pre-loaded. */}
-                      <button
-                        onClick={() => setCampModal({ open: true, camp })}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ color: 'var(--muted-foreground)' }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteCamp(camp.id)}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ color: 'var(--muted-foreground)' }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <h1 className="font-headline text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
+            {t('admin.sessions.camps_title')}
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+            Manage camp programs and their sessions.
+          </p>
         </div>
-
-        {/* Right column: Sessions */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-headline font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
-              {t('admin.sessions.sessions_title')}
-            </h2>
-            {/* Disabled when no camps exist — every session must belong to a camp. */}
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Plus className="h-4 w-4" />}
-              onClick={() => setSessionModal({ open: true, session: null })}
-              disabled={camps.length === 0}
-            >
-              {t('admin.sessions.new_session')}
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeletons.Card key={i} />)}</div>
-          ) : sessions.length === 0 ? (
-            <EmptyState title={t('admin.sessions.no_sessions')} description={t('admin.sessions.no_sessions_desc')} />
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="rounded-xl border p-4"
-                  style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{session.name}</p>
-                      <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(session.start_date), 'MMM d')} — {format(new Date(session.end_date), 'MMM d, yyyy')}
-                      </p>
-                      {/* Show enrolled / capacity fraction. */}
-                      <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
-                        <Users className="h-3 w-3" />
-                        {session.enrolled_count ?? 0} / {session.capacity} {t('admin.sessions.enrolled')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSessionModal({ open: true, session })}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ color: 'var(--muted-foreground)' }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSession(session.id)}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ color: 'var(--muted-foreground)' }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View Archived Sessions */}
+          <Link
+            to={ROUTES.ADMIN_ARCHIVED_SESSIONS}
+            className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
+            style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'var(--glass-medium)' }}
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            View Archived
+          </Link>
+          {/* Add Session */}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setSessionModal({ open: true, session: null })}
+            disabled={camps.length === 0}
+          >
+            {t('admin.sessions.new_session')}
+          </Button>
+          {/* Add Camp */}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setCampModal({ open: true, camp: null })}
+          >
+            {t('admin.sessions.new_camp')}
+          </Button>
         </div>
       </div>
+
+      {/* Hierarchical layout: each camp is a section with its sessions nested beneath */}
+      {loading ? (
+        <div className="space-y-4">{Array.from({ length: 2 }).map((_, i) => <Skeletons.Card key={i} />)}</div>
+      ) : camps.length === 0 ? (
+        <EmptyState title={t('admin.sessions.no_camps')} description={t('admin.sessions.no_camps_desc')} />
+      ) : (
+        <div className="space-y-6">
+          {camps.map((camp) => {
+            const campSessions = sessionsByCamp[camp.id] ?? [];
+            return (
+              <div key={camp.id}>
+                {/* Camp header card */}
+                <div
+                  className="rounded-xl border px-4 py-3 flex items-center justify-between"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                >
+                  <div>
+                    <p className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+                      {camp.name}
+                    </p>
+                    <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
+                      <MapPin className="h-3 w-3" /> {camp.location}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCampModal({ open: true, camp })}
+                      className="p-1.5 rounded transition-colors hover:bg-[var(--glass-strong)]"
+                      style={{ color: 'var(--muted-foreground)' }}
+                      title="Edit camp"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCamp(camp.id)}
+                      className="p-1.5 rounded transition-colors hover:bg-[var(--glass-strong)]"
+                      style={{ color: 'var(--muted-foreground)' }}
+                      title="Delete camp"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sessions nested under this camp */}
+                <div className="mt-2 ml-4 pl-4 space-y-2 border-l-2" style={{ borderColor: 'var(--border)' }}>
+                  {campSessions.length === 0 ? (
+                    <p className="text-xs py-2" style={{ color: 'var(--muted-foreground)' }}>
+                      No sessions yet.
+                    </p>
+                  ) : (
+                    campSessions.map((session) => {
+                      const enrolled    = session.enrolled_count ?? 0;
+                      const fillPct     = session.capacity > 0
+                        ? Math.min(100, Math.round((enrolled / session.capacity) * 100))
+                        : 0;
+                      const isNearFull  = fillPct >= 80 && fillPct < 100;
+                      const isFull      = fillPct >= 100;
+
+                      return (
+                        <div
+                          key={session.id}
+                          className="rounded-xl border p-4"
+                          style={{
+                            background: 'var(--glass-medium)',
+                            borderColor: isFull ? 'rgba(220,38,38,0.4)' : isNearFull ? 'rgba(217,119,6,0.4)' : 'var(--border)',
+                          }}
+                        >
+                          {/* Session header: name + status badges + action buttons */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+                                  {session.name}
+                                </p>
+                                {/* Active / Archived badge */}
+                                <span
+                                  className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                                  style={
+                                    session.is_active
+                                      ? { background: 'rgba(22,163,74,0.12)', color: '#166534' }
+                                      : { background: 'rgba(107,114,128,0.12)', color: '#6b7280' }
+                                  }
+                                >
+                                  {session.is_active ? 'Active' : 'Archived'}
+                                </span>
+                                {isFull && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                                    style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}>
+                                    Full
+                                  </span>
+                                )}
+                                {isNearFull && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                                    style={{ background: 'rgba(217,119,6,0.12)', color: '#d97706' }}>
+                                    {fillPct}% full
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(session.start_date), 'MMM d')} — {format(new Date(session.end_date), 'MMM d, yyyy')}
+                              </p>
+                              <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
+                                <Users className="h-3 w-3" />
+                                {enrolled} / {session.capacity} {t('admin.sessions.enrolled')}
+                              </p>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <Link
+                                to={ROUTES.ADMIN_SESSION_DETAIL(session.id)}
+                                className="p-1.5 rounded transition-colors hover:bg-[var(--glass-dark)]"
+                                title="View session dashboard"
+                                style={{ color: 'var(--muted-foreground)' }}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Link>
+                              <button
+                                onClick={() => setSessionModal({ open: true, session })}
+                                className="p-1.5 rounded transition-colors"
+                                style={{ color: 'var(--muted-foreground)' }}
+                                title="Edit session"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              {session.is_active && (
+                                <button
+                                  onClick={() => handleArchiveSession(session.id)}
+                                  disabled={archivingId === session.id}
+                                  className="p-1.5 rounded transition-colors"
+                                  style={{ color: 'var(--muted-foreground)' }}
+                                  title="Archive session"
+                                >
+                                  <Archive className="h-4 w-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteSession(session.id)}
+                                className="p-1.5 rounded transition-colors"
+                                style={{ color: 'var(--muted-foreground)' }}
+                                title="Delete session"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Capacity fill bar */}
+                          <CapacityFill enrolled={enrolled} capacity={session.capacity} />
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {/* Add Session shortcut under this camp */}
+                  <button
+                    onClick={() => {
+                      // Open session modal pre-seeded to this camp — user can change it if needed
+                      setSessionModal({ open: true, session: null });
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-dashed transition-colors hover:opacity-70"
+                    style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add session to {camp.name}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
 
       {/* Camp modal */}
       {campModal.open && (

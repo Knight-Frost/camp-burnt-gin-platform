@@ -28,7 +28,7 @@ import {
   ArrowLeft, User, FileText, Heart, Pill, AlertTriangle,
   CheckCircle, XCircle, Clock, Download, ChevronRight,
   Phone, Brain, Utensils, Wrench, Activity,
-  Users, PenLine, Stethoscope,
+  Users, PenLine, Stethoscope, ListOrdered,
 } from 'lucide-react';
 
 import { getApplication, reviewApplication } from '@/features/admin/api/admin.api';
@@ -91,9 +91,9 @@ function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelPr
   const { t } = useTranslation();
   const [notes, setNotes] = useState('');
   // Tracks which action is in-flight to show a spinner on the right button.
-  const [submitting, setSubmitting] = useState<'approved' | 'rejected' | 'under_review' | null>(null);
+  const [submitting, setSubmitting] = useState<'approved' | 'rejected' | 'under_review' | 'waitlisted' | null>(null);
 
-  async function handleReview(status: 'approved' | 'rejected' | 'under_review') {
+  async function handleReview(status: 'approved' | 'rejected' | 'under_review' | 'waitlisted') {
     setSubmitting(status);
     try {
       const updated = await reviewApplication(applicationId, { status, notes });
@@ -167,6 +167,15 @@ function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelPr
             icon={<Clock className="h-4 w-4" />}
           >
             {t('admin.review.mark_under_review')}
+          </Button>
+          <Button
+            onClick={() => handleReview('waitlisted')}
+            loading={submitting === 'waitlisted'}
+            disabled={!!submitting}
+            variant="secondary"
+            icon={<ListOrdered className="h-4 w-4" />}
+          >
+            {t('admin.review.waitlist')}
           </Button>
           <Button
             onClick={() => handleReview('rejected')}

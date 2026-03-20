@@ -38,6 +38,7 @@ const CHART_COLORS = {
   under_review: '#3b82f6',
   approved: '#16a34a',
   rejected: '#dc2626',
+  waitlisted: '#ea580c',
 };
 
 // Drives the "Export Reports" button grid — one entry per downloadable report type.
@@ -87,6 +88,7 @@ export function AdminReportsPage() {
     { name: 'Approved',     value: byStatus['approved']     ?? 0, color: CHART_COLORS.approved },
     { name: 'Rejected',     value: byStatus['rejected']     ?? 0, color: CHART_COLORS.rejected },
     { name: 'Pending',      value: byStatus['pending']      ?? 0, color: CHART_COLORS.pending },
+    { name: 'Waitlisted',   value: byStatus['waitlisted']   ?? 0, color: CHART_COLORS.waitlisted },
     { name: 'Cancelled',    value: byStatus['cancelled']    ?? 0, color: '#9ca3af' },
   ].filter((s) => s.value > 0); // Don't show bars for statuses with no applications.
 

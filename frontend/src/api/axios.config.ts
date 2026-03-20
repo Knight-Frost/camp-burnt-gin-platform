@@ -20,14 +20,16 @@ import axios, {
 } from 'axios';
 import { phiSanitizer as sanitizePhi } from '@/shared/utils/phiSanitizer';
 import { store } from '@/store';
+import { DEMO_MODE } from '@/lib/demo/demoMode';
+import { demoAdapter } from '@/lib/demo/demoAdapter';
 
 // ---------------------------------------------------------------------------
 // Instance
 // ---------------------------------------------------------------------------
 
 // In production builds VITE_API_BASE_URL must be defined.
-// A missing value in production means all API calls will hit localhost and fail silently.
-if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
+// Skip this check in demo mode — no backend is needed.
+if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL && !DEMO_MODE) {
   throw new Error(
     '[Config] VITE_API_BASE_URL is not set. ' +
     'Add it to your .env.production file before building.'
@@ -36,6 +38,8 @@ if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
 
 // Create the shared Axios instance with sensible defaults
 // All requests go to /api/* under the configured base URL
+// In demo mode, the custom demoAdapter intercepts every request and returns
+// mock data — no network calls are made at all.
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api`,
   // 30 seconds — requests that take longer are considered failed
@@ -44,6 +48,7 @@ const axiosInstance: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
+  ...(DEMO_MODE ? { adapter: demoAdapter } : {}),
 });
 
 // ---------------------------------------------------------------------------

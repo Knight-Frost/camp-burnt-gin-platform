@@ -105,7 +105,7 @@ class CampSessionController extends Controller
         // 201 Created indicates a new resource was successfully persisted
         return response()->json([
             'message' => 'Camp session created successfully.',
-            'data'    => $session,
+            'data' => $session,
         ], Response::HTTP_CREATED);
     }
 
@@ -124,25 +124,78 @@ class CampSessionController extends Controller
 
         return response()->json([
             'message' => 'Camp session updated successfully.',
-            'data'    => $session,
+            'data' => $session,
         ]);
     }
 
     /**
      * Delete a camp session.
      *
-     * This should be done with caution — deleting a session with existing applications
-     * may break applicant records. Consider deactivating (is_active = false) instead.
+     * Blocked if any applications (draft or submitted) are linked to the session —
+     * deleting would orphan applicant records. Use archive() to deactivate instead.
      */
     public function destroy(CampSession $session): JsonResponse
     {
         // CampSessionPolicy::delete restricts this to admin and super_admin roles
         $this->authorize('delete', $session);
 
+        // Refuse deletion when applications exist — data integrity + orphan prevention
+        if ($session->applications()->exists()) {
+            return response()->json([
+                'message' => 'Cannot delete a session that has applications. Archive the session instead.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $session->delete();
 
         return response()->json([
             'message' => 'Camp session deleted successfully.',
+        ]);
+    }
+
+    /**
+     * Archive a camp session by marking it inactive.
+     *
+     * POST /api/sessions/{session}/archive
+     *
+     * Unlike deletion, archiving preserves all application records while
+     * hiding the session from the applicant portal (is_active = false).
+     * This is the safe alternative when applications already exist.
+     */
+    public function archive(CampSession $session): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        $session->update(['is_active' => false]);
+
+        return response()->json([
+            'message' => 'Session archived successfully.',
+            'data' => $session,
+        ]);
+    }
+
+    /**
+     * Restore an archived session by marking it active again.
+     *
+     * POST /api/sessions/{session}/restore
+     *
+     * Reverses an archive() call. Sets is_active = true so the session
+     * reappears in the applicant portal and can accept new applications.
+     * Returns a 422 if the session is already active (idempotency guard).
+     */
+    public function restore(CampSession $session): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        if ($session->is_active) {
+            return response()->json(['message' => 'Session is already active.'], 422);
+        }
+
+        $session->update(['is_active' => true]);
+
+        return response()->json([
+            'message' => 'Session restored successfully.',
+            'session' => $session->fresh(),
         ]);
     }
 }

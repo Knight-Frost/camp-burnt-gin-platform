@@ -9,7 +9,7 @@ import type {
   Camp, Camper, CampSession, ProviderLink, User,
 } from '@/features/admin/types/admin.types';
 
-export async function getApplications(params?: { page?: number; status?: string; search?: string }): Promise<PaginatedResponse<Application>> {
+export async function getApplications(params?: { page?: number; status?: string; search?: string; camp_session_id?: number }): Promise<PaginatedResponse<Application>> {
 
   const { data } = await axiosInstance.get<PaginatedResponse<Application>>('/applications', { params });
   return data;
@@ -356,3 +356,8 @@ export const getSessionDashboard = async (id: number, signal?: AbortSignal): Pro
 export const archiveSession = async (id: number): Promise<void> => {
   await axiosInstance.post(`/sessions/${id}/archive`);
 };
+
+export async function restoreSession(id: number): Promise<CampSession> {
+  const res = await axiosInstance.post<{ message: string; session: CampSession }>(`/sessions/${id}/restore`);
+  return res.data.session;
+}

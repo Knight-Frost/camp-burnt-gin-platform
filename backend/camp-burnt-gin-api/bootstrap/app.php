@@ -3,9 +3,9 @@
 use App\Http\Middleware\AddRequestId;
 use App\Http\Middleware\AuditPhiAccess;
 use App\Http\Middleware\EnsureUserHasRole;
-use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsMedicalProvider;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -34,7 +34,13 @@ return Application::configure(basePath: dirname(__DIR__))
              * - General API: Standard limits for normal operations
              */
             RateLimiter::for('api', function (Request $request) {
-                return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+                // Authenticated users get a higher limit — the admin/medical portals make
+                // many parallel sub-requests per page (allergies, medications, contacts, etc.).
+                // 60/min was too low for normal browsing and caused cascade 429 failures.
+                // Unauthenticated requests keep the lower limit to block enumeration attacks.
+                $limit = $request->user() ? 300 : 60;
+
+                return Limit::perMinute($limit)->by($request->user()?->id ?: $request->ip());
             });
 
             RateLimiter::for('auth', function (Request $request) {

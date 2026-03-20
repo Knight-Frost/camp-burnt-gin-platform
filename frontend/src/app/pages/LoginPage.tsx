@@ -43,7 +43,7 @@ const CODE_LENGTH = 6;
 function inputCls(hasError: boolean, extra = '') {
   return [
     'w-full pl-11 py-3.5 rounded-xl border outline-none bg-white',
-    'transition-all focus:ring-2 focus:ring-[#1e3a6e]/20 focus:border-[#1e3a6e]',
+    'transition-all focus:ring-2 focus:ring-[#166534]/20 focus:border-[#166534]',
     hasError ? 'border-red-400' : 'border-[#d1dce8]',
     'text-[#1e293b] placeholder:text-slate-400',
     extra,
@@ -228,9 +228,9 @@ export function LoginPage() {
           {/* Shield icon to make the MFA step feel trustworthy */}
           <div
             className="flex items-center justify-center w-16 h-16 rounded-2xl"
-            style={{ background: 'rgba(30,58,110,0.08)' }}
+            style={{ background: 'rgba(22,101,52,0.08)' }}
           >
-            <ShieldCheck className="h-8 w-8" style={{ color: '#1e3a6e' }} />
+            <ShieldCheck className="h-8 w-8" style={{ color: '#166534' }} />
           </div>
 
           {/* Six individual digit boxes; each is linked via inputRefs for focus management */}
@@ -247,12 +247,12 @@ export function LoginPage() {
                 onKeyDown={(e) => handleMfaKeyDown(index, e)}
                 onPaste={handleMfaPaste}
                 aria-label={`Digit ${index + 1}`}
-                className="w-12 h-14 text-center text-xl font-semibold rounded-xl border outline-none transition-all duration-200 focus:ring-2 focus:ring-[#1e3a6e]/30"
+                className="w-12 h-14 text-center text-xl font-semibold rounded-xl border outline-none transition-all duration-200 focus:ring-2 focus:ring-[#166534]/30"
                 style={{
                   background: '#f8fafc',
                   color: '#1e293b',
-                  // Red border on error; navy when a digit is filled; light gray when empty.
-                  borderColor: mfaError ? '#f87171' : digit ? '#1e3a6e' : '#d1dce8',
+                  // Red border on error; green when a digit is filled; light gray when empty.
+                  borderColor: mfaError ? '#f87171' : digit ? '#166534' : '#d1dce8',
                   fontSize: '1.375rem',
                 }}
               />
@@ -302,7 +302,7 @@ export function LoginPage() {
       footer={
         <p>
           {t('auth.login.no_account')}{' '}
-          <Link to={ROUTES.REGISTER} className="text-blue-600 font-semibold hover:underline">
+          <Link to={ROUTES.REGISTER} className="text-green-700 font-semibold hover:underline">
             {t('auth.login.create_account')}
           </Link>
         </p>
@@ -344,7 +344,7 @@ export function LoginPage() {
             {/* Forgot password link lives next to the label for easy discovery */}
             <Link
               to={ROUTES.FORGOT_PASSWORD}
-              className="text-slate-500 hover:text-[#1e3a6e] transition-colors"
+              className="text-slate-500 hover:text-[#166534] transition-colors"
               style={{ fontSize: '0.875rem' }}
             >
               {t('auth.login.forgot_password')}
@@ -395,7 +395,7 @@ export function LoginPage() {
           type="submit"
           disabled={isSubmitting || lockoutSeconds > 0}
           className="w-full mt-1 py-3.5 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: '#1e3a6e', fontSize: '1rem' }}
+          style={{ background: '#166534', fontSize: '1rem' }}
         >
           {isSubmitting ? t('common.loading') : t('auth.login.submit')}
         </button>

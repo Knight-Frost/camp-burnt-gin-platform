@@ -51,6 +51,8 @@ export const ROUTES = {
   ADMIN_APPLICATION_DETAIL: (id: number | string) =>
     `/admin/applications/${id}`,
   ADMIN_SESSIONS: '/admin/sessions',
+  ADMIN_ARCHIVED_SESSIONS: '/admin/sessions/archived',
+  ADMIN_SESSION_DETAIL: (id: number | string) => `/admin/sessions/${id}`,
   ADMIN_CAMPS: '/admin/camps',
   ADMIN_REPORTS: '/admin/reports',
   ADMIN_ANNOUNCEMENTS: '/admin/announcements',

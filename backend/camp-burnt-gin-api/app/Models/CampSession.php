@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ApplicationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,16 +52,16 @@ class CampSession extends Model
     {
         return [
             // Carbon date objects for start/end enable easy duration and overlap checks.
-            'start_date'              => 'date',
-            'end_date'                => 'date',
+            'start_date' => 'date',
+            'end_date' => 'date',
             // Integer casts ensure arithmetic (e.g. capacity - enrolled) works correctly.
-            'capacity'                => 'integer',
-            'min_age'                 => 'integer',
-            'max_age'                 => 'integer',
+            'capacity' => 'integer',
+            'min_age' => 'integer',
+            'max_age' => 'integer',
             // Full datetime objects for the registration window (includes time-of-day).
-            'registration_opens_at'   => 'datetime',
-            'registration_closes_at'  => 'datetime',
-            'is_active'               => 'boolean',
+            'registration_opens_at' => 'datetime',
+            'registration_closes_at' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -81,5 +82,49 @@ class CampSession extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);
+    }
+
+    /**
+     * Scope to only approved (enrolled) applications for this session.
+     */
+    public function enrolledApplications(): HasMany
+    {
+        return $this->hasMany(Application::class)->where('status', ApplicationStatus::Approved->value);
+    }
+
+    /**
+     * Count of approved (enrolled) campers for this session.
+     *
+     * Uses the already-eager-loaded withCount result when available (set by
+     * CampController::index() via withCount(['applications as enrolled_count'])).
+     * Falls back to a direct COUNT query only when not pre-loaded.
+     */
+    public function getEnrolledCountAttribute(): int
+    {
+        // withCount attaches the result as an integer attribute named enrolled_count.
+        // Use it when present to avoid an extra query.
+        if (array_key_exists('enrolled_count', $this->attributes)) {
+            return (int) $this->attributes['enrolled_count'];
+        }
+
+        return $this->applications()
+            ->where('status', ApplicationStatus::Approved->value)
+            ->count();
+    }
+
+    /**
+     * Remaining spots available in this session.
+     */
+    public function getRemainingCapacityAttribute(): int
+    {
+        return max(0, $this->capacity - $this->enrolled_count);
+    }
+
+    /**
+     * Whether this session has reached its maximum capacity.
+     */
+    public function isAtCapacity(): bool
+    {
+        return $this->enrolled_count >= $this->capacity;
     }
 }

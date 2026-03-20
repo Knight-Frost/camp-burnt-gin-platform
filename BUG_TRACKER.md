@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** 2026-03-12 — BUG-081, BUG-082 (CamperController full_name SQL error; RoleGuard login redirect loop)
+**Last Updated:** 2026-03-19 — System Audit (BUG-073 resolved; BUG-102–BUG-105 added and resolved)
 **Format:** Sequential ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -46,6 +46,7 @@ The table below maps each development phase to the bugs it resolved.
 | Post Phase 9 | Auth and UI corrections | BUG-051, BUG-052, BUG-053 |
 | Post Phase 13 | Application submission corrections | BUG-054, BUG-055, BUG-056 |
 | Phase 14 | Form Builder security | BUG-057, BUG-058, BUG-059, BUG-060, BUG-061 |
+| System Audit 2026-03-19 | Full system audit + hardening | BUG-073, BUG-102, BUG-103, BUG-104, BUG-105 |
 
 ---
 
@@ -125,7 +126,7 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-070 | DocumentPolicy::view() medical provider check unreachable — providers blocked from authorized documents | Security — Document Access Control | High | Resolved |
 | BUG-071 | Announcement update/destroy routes lacked admin middleware — route-level enforcement gap | Security — Announcements | High | Resolved |
 | BUG-072 | RateLimitingTest MFA assertion incorrect — test asserted wrong effective rate limit | Backend Tests — Security | Low | Resolved |
-| BUG-073 | DocumentRequestController lacks a dedicated Policy class — no second layer of authorization | Security — Document Requests | Low | Open |
+| BUG-073 | DocumentRequestController lacks a dedicated Policy class — no second layer of authorization | Security — Document Requests | Low | Resolved |
 | BUG-074 | All FormData uploads broken — explicit Content-Type header omits boundary, Laravel rejects multipart body | Frontend — File Uploads | Critical | Resolved |
 | BUG-075 | Auth token stored in sessionStorage — causes logout on every page refresh across all portals | Auth — Token Storage | Critical | Resolved |
 | BUG-076 | Admin Campers page shows "Failed to load data" — CamperController::index() eager-loads encrypted PHI | Admin Portal — Campers | Critical | Resolved |
@@ -135,6 +136,9 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-080 | Admin/super-admin portal switches to applicant portal when idle — `AdminLayout`/`SuperAdminLayout` redirect to `getDashboardRoute(role)` on access denial, which resolves to `/applicant/dashboard` when Redux role is stale | Auth — Layout Guards | Critical | Resolved |
 | BUG-081 | Campers page search causes 500 — `CamperController::index()` uses `full_name` in SQL WHERE clause but `full_name` is a virtual computed attribute with no backing DB column | Admin Portal — Campers | Critical | Resolved |
 | BUG-082 | `RoleGuard` redirects authenticated users with missing role data to `/login`, causing a redirect loop with `ProtectedRoute` | Auth — RBAC | High | Resolved |
+| BUG-099 | Admin Campers page "Failed to load data" — `ApplicationStatus` PHP enum missing `Waitlisted` case causes `ValueError` on any endpoint loading applications with `waitlisted` status | Admin Portal — Applications | Critical | Resolved |
+| BUG-100 | `SessionDetailPage` 404 — `SessionDashboardController` routes (`GET /sessions/{id}/dashboard`, `GET /sessions/{id}/applications`, `POST /sessions/{id}/archive`) never registered in `api.php` | Admin Portal — Sessions | Critical | Resolved |
+| BUG-101 | `CampSessionController::destroy()` permits deletion of sessions with applications; `archive()` action missing entirely | Admin Portal — Sessions | High | Resolved |
 
 ---
 
@@ -1514,14 +1518,16 @@ Updated loop count to 3 (matching 3/min effective limit) and renamed method to `
 **Title:** DocumentRequestController lacks a dedicated Policy class — no second layer of authorization
 **Module:** Security — Document Requests
 **Severity:** Low
-**Status:** Open
+**Status:** Resolved (2026-03-19 — System Audit)
 
 **Description:**
-`DocumentRequestController` relies entirely on route-level middleware (`role:admin,super_admin` for admin actions, `role:applicant` for applicant actions) and inline ownership checks (`abort_unless(auth()->id() === $documentRequest->applicant_id, 403)`). Unlike most other controllers in the codebase, there is no `DocumentRequestPolicy` registered in the service container. This creates a single-layer authorization model for this controller, inconsistent with the defense-in-depth pattern used elsewhere.
+`DocumentRequestController` relied entirely on route-level middleware. No `DocumentRequestPolicy` existed, inconsistent with the defense-in-depth pattern used elsewhere.
 
-**Impact:** No current exploit path identified. The inline checks are correct. This is a structural gap, not an active vulnerability.
-
-**Recommended fix:** Create `App\Policies\DocumentRequestPolicy` with `view()`, `create()`, `update()`, `adminView()` methods and register it in `AppServiceProvider`. This would allow `$this->authorize()` calls instead of inline `abort_unless()` and make authorization intent explicit.
+**Resolution:**
+- Created `app/Policies/DocumentRequestPolicy.php` with 8 policy methods: `viewAny`, `view`, `create`, `update`, `delete`, `approve`, `reject`, `upload`, `download`
+- Registered `DocumentRequest::class => DocumentRequestPolicy::class` in `AppServiceProvider`
+- Added `$this->authorize()` as the first statement in all 14 `DocumentRequestController` methods
+- Route list verified: 235 routes, no errors
 
 ---
 
@@ -1735,23 +1741,173 @@ Split the `!user || !roleName` condition into two separate checks:
 
 ---
 
+### BUG-099
+
+**Title:** Admin Campers page "Failed to load data" — `ApplicationStatus` enum missing `Waitlisted` case
+**Module:** Admin Portal — Applications
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+`CamperController::index()` (admin branch) eager-loads `applications.campSession`. The `Application` model casts the `status` column to the `ApplicationStatus` PHP enum. When any application in the database had `status = 'waitlisted'` (set by the Phase 15 capacity gate), Laravel's `::from('waitlisted')` call threw a `ValueError` during JSON serialization, returning a 500 to the frontend. The Campers page caught this with `catch { setError(true) }` and rendered "Failed to load data".
+
+Log evidence (20+ identical entries 2026-03-16):
+```
+"waitlisted" is not a valid backing value for enum App\Enums\ApplicationStatus
+[...] CamperController.php(104): ResponseFactory->json(Array)
+```
+
+**Fix:**
+Added `case Waitlisted = 'waitlisted'` to `app/Enums/ApplicationStatus.php`. No errors in logs after this fix.
+
+**Affected file:**
+- `backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php`
+
+---
+
+### BUG-100
+
+**Title:** `SessionDetailPage` always 404s — `SessionDashboardController` routes not registered
+**Module:** Admin Portal — Sessions
+**Severity:** Critical
+**Status:** Resolved
+
+**Description:**
+Phase 15 created `SessionDashboardController` with `dashboard()` and `applications()` methods, and the frontend `SessionDetailPage` calls `GET /api/sessions/{id}/dashboard`. However the routes were never added to `routes/api.php`. Every request to the session detail page returned 404, rendering the page permanently broken.
+
+**Fix:**
+Added three routes inside the `sessions` prefix group in `api.php`:
+```php
+Route::get('/{session}/dashboard', [SessionDashboardController::class, 'dashboard'])->middleware('admin');
+Route::get('/{session}/applications', [SessionDashboardController::class, 'applications'])->middleware('admin');
+Route::post('/{session}/archive', [CampSessionController::class, 'archive'])->middleware('admin');
+```
+Also imported `SessionDashboardController` at the top of `api.php`.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/routes/api.php`
+
+---
+
+### BUG-101
+
+**Title:** `CampSessionController` allows deleting sessions with applications; archive action missing
+**Module:** Admin Portal — Sessions
+**Severity:** High
+**Status:** Resolved
+
+**Description:**
+`CampSessionController::destroy()` deleted a session unconditionally even when applications existed, which would orphan application records and break the applicant portal. Phase 15 MEMORY documented this as fixed (BUG-096) but the actual code change was never applied. Additionally, the `archive()` action (set `is_active = false`) was documented as added but also missing.
+
+**Fix:**
+1. Added application-existence guard to `destroy()` — returns 422 if any applications are linked.
+2. Added `archive()` action — sets `is_active = false`, preserving all application records.
+Added `enrolled_count`, `remaining_capacity` accessors and `isAtCapacity()` helper to `CampSession` model.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Camp/CampSessionController.php`
+- `backend/camp-burnt-gin-api/app/Models/CampSession.php`
+
+---
+
+### BUG-102
+
+**Title:** `waitlisted` and `under_review` share identical amber color in StatusBadge — visually indistinguishable
+**Module:** UI — Status Badges
+**Severity:** High
+**Status:** Resolved (2026-03-19 — System Audit)
+
+**Description:**
+Both `waitlisted` and `under_review` used the same amber styling (`rgba(234,179,8,0.15)`, `#854d0e`). Staff could not visually distinguish waitlisted applicants from those under active review.
+
+**Fix:**
+- `under_review` → blue: `rgba(37,99,235,0.12)` / `#2563eb`
+- `waitlisted` → orange: `rgba(234,88,12,0.12)` / `#ea580c`
+- Removed legacy `submitted` and `accepted` variants (not in ApplicationStatus enum, never referenced)
+
+**Affected files:**
+- `frontend/src/ui/components/StatusBadge.tsx`
+
+---
+
+### BUG-103
+
+**Title:** Email verification not enforced — unverified users access full system after registration
+**Module:** Auth — Email Verification
+**Severity:** High
+**Status:** Resolved (2026-03-19 — System Audit)
+
+**Description:**
+`User` model implements `MustVerifyEmail` and `/auth/email/verify` route exists, but the `verified` middleware was never applied to the main protected route group. Newly registered users could access applications, campers, and all admin functions without verifying their email.
+
+**Fix:**
+Restructured `routes/api.php` into three tiers:
+1. Public (no auth): login, register, forgot-password, reset-password, email verify
+2. Auth-only unverified (`auth:sanctum`): logout, MFA, resend verification
+3. Protected (`auth:sanctum` + `verified`): all 200+ remaining routes
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/routes/api.php`
+
+---
+
+### BUG-104
+
+**Title:** AdminReportsPage silently drops `waitlisted` applications from all charts
+**Module:** Admin Portal — Reports
+**Severity:** High
+**Status:** Resolved (2026-03-19 — System Audit)
+
+**Description:**
+`CHART_COLORS` and `statusCounts` in AdminReportsPage only covered 4 statuses (pending, under_review, approved, rejected). Any `waitlisted` applications were filtered out by `.filter((s) => s.value > 0)` since the key was missing — producing incorrect totals and acceptance rate calculations.
+
+**Fix:**
+- Added `waitlisted: '#ea580c'` to `CHART_COLORS`
+- Added `{ name: 'Waitlisted', value: byStatus['waitlisted'] ?? 0, color: CHART_COLORS.waitlisted }` to `statusCounts`
+
+**Affected files:**
+- `frontend/src/features/admin/pages/AdminReportsPage.tsx`
+
+---
+
+### BUG-105
+
+**Title:** Risk level never displayed in UI — backend endpoint and API client exist but CamperDetailPage never calls them
+**Module:** Admin Portal — Camper Management
+**Severity:** Medium
+**Status:** Resolved (2026-03-19 — System Audit)
+
+**Description:**
+`GET /api/campers/{id}/risk-summary` endpoint and `getCamperRiskSummary()` API client function both existed but `CamperDetailPage` and `MedicalEmergencyViewPage` never called them. Risk assessment data was silently discarded.
+
+**Fix:**
+- Added risk data fetch (non-blocking) to `CamperDetailPage` useEffect
+- Added "Risk Assessment" section card showing: color-coded score (green/orange/red), supervision label + staffing ratio, complexity label, flags list
+- Added inline risk badge to `MedicalEmergencyViewPage` header
+
+**Affected files:**
+- `frontend/src/features/admin/pages/CamperDetailPage.tsx`
+- `frontend/src/features/medical/pages/MedicalEmergencyViewPage.tsx`
+
+---
+
 ## Summary
 
 ### By Severity
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
-| Critical | 24 | 21 | 3 |
-| High | 31 | 29 | 2 |
-| Medium | 16 | 13 | 3 |
+| Critical | 26 | 23 | 3 |
+| High | 36 | 35 | 1 |
+| Medium | 17 | 14 | 3 |
 | Low | 11 | 10 | 1 |
-| **Total** | **82** | **73** | **9** |
+| **Total** | **85** | **76** | **9** |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| Resolved | 73 |
+| Resolved | 76 |
 | Open | 9 |
 
 ### Open Issues
@@ -1765,7 +1921,6 @@ Split the `!user || !roleName` condition into two separate checks:
 | BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium |
 | BUG-033 | Super Admin role filter uses raw slugs, not user-friendly labels | Low |
 | BUG-046 | Applicant login broken — known blocking issue | Critical |
-| BUG-073 | DocumentRequestController lacks dedicated Policy class (defense-in-depth gap) | Low |
 
 ### By Module
 
@@ -1810,3 +1965,4 @@ Split the `!user || !roleName` condition into two separate checks:
 | Auth — MFA | BUG-079 |
 | Auth — Layout Guards | BUG-080 |
 | Auth — RBAC | BUG-082 |
+| Admin Portal — Stability (Enum / Routes) | BUG-099, BUG-100, BUG-101 |

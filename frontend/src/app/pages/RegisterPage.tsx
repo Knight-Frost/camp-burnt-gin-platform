@@ -40,7 +40,7 @@ const ICON_SIZE = { width: '1.125rem', height: '1.125rem' };
 function inputCls(hasError: boolean, extra = '') {
   return [
     'w-full pl-11 py-3.5 rounded-xl border outline-none bg-white',
-    'transition-all focus:ring-2 focus:ring-[#1e3a6e]/20 focus:border-[#1e3a6e]',
+    'transition-all focus:ring-2 focus:ring-[#166534]/20 focus:border-[#166534]',
     hasError ? 'border-red-400' : 'border-[#d1dce8]',
     'text-[#1e293b] placeholder:text-slate-400',
     extra,
@@ -188,7 +188,7 @@ export function RegisterPage() {
       footer={
         <p>
           Already have an account?{' '}
-          <Link to={ROUTES.LOGIN} className="text-blue-600 font-semibold hover:underline">
+          <Link to={ROUTES.LOGIN} className="text-green-700 font-semibold hover:underline">
             Log in
           </Link>
         </p>
@@ -356,9 +356,9 @@ export function RegisterPage() {
             />
             <span className="leading-relaxed text-[#374151]" style={{ fontSize: '0.9375rem' }}>
               I agree to the{' '}
-              <span className="text-blue-600 font-medium hover:underline cursor-pointer">Terms of Use</span>
+              <span className="text-green-700 font-medium hover:underline cursor-pointer">Terms of Use</span>
               {' '}and{' '}
-              <span className="text-blue-600 font-medium hover:underline cursor-pointer">Privacy Policy</span>.
+              <span className="text-green-700 font-medium hover:underline cursor-pointer">Privacy Policy</span>.
             </span>
           </label>
           {termsError && (
@@ -373,7 +373,7 @@ export function RegisterPage() {
           type="submit"
           disabled={isSubmitting}
           className="w-full mt-1 py-3.5 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: '#1e3a6e', fontSize: '1rem' }}
+          style={{ background: '#166534', fontSize: '1rem' }}
         >
           {isSubmitting ? 'Creating account…' : 'Create Account'}
         </button>

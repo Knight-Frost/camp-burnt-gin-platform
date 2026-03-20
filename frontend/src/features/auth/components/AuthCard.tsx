@@ -44,7 +44,7 @@ export function AuthCard({
         <div className="mb-8">
           <h1
             className="font-bold leading-tight"
-            style={{ fontSize: '2rem', color: '#1e3a6e' }}
+            style={{ fontSize: '2rem', color: '#166534' }}
           >
             {title}
           </h1>

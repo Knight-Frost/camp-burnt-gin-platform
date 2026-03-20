@@ -21,6 +21,7 @@ import { useEffect, useRef } from 'react';
 import { useAppDispatch } from '@/store/hooks';
 import { setUser, setToken, clearAuth, hydrateAuth } from '@/features/auth/store/authSlice';
 import { getAuthenticatedUser } from '@/features/auth/api/auth.api';
+import { DEMO_MODE, DEMO_USER } from '@/lib/demo/demoMode';
 
 export function useAuthInit(): void {
   const dispatch = useAppDispatch();
@@ -33,9 +34,22 @@ export function useAuthInit(): void {
   // This prevents a single misconfigured endpoint (or a transient 401) from logging
   // the user out when their token is actually still valid.
   useEffect(() => {
+    // Demo mode: API calls will return 401 (no real token). Suppress the unauthorized
+    // event so the demo session is never cleared by a failed API response.
+    if (DEMO_MODE) return;
+
     function handleUnauthorized() {
       // De-duplicate: if a re-validation is already in flight, ignore this event.
       if (isRevalidating.current) return;
+
+      // Short-circuit: if there's no token, auth is already gone — no API call needed.
+      // Without this guard, handleUnauthorized would call getAuthenticatedUser() with no
+      // token → server returns 401 → auth:unauthorized fires again → infinite loop.
+      if (!localStorage.getItem('auth_token')) {
+        dispatch(clearAuth());
+        return;
+      }
+
       isRevalidating.current = true;
 
       getAuthenticatedUser()
@@ -61,6 +75,15 @@ export function useAuthInit(): void {
 
   // Effect 2: On mount, restore the session if a token exists in localStorage
   useEffect(() => {
+    // Demo mode: skip the real auth flow entirely. Inject the mock admin user
+    // directly into Redux so ProtectedRoute passes without any API call.
+    if (DEMO_MODE) {
+      dispatch(setToken({ token: 'demo-token' }));
+      dispatch(setUser(DEMO_USER));
+      dispatch(hydrateAuth());
+      return;
+    }
+
     const token = localStorage.getItem('auth_token');
 
     // No stored token — nothing to restore, mark hydration complete immediately
@@ -70,9 +93,20 @@ export function useAuthInit(): void {
     }
 
     // Token found — validate it with the API to ensure it's still active.
-    // Uses a retry loop: transient failures (network errors, 5xx) retry up to 2 times
-    // before giving up, keeping isLoading true during retries so ProtectedRoute shows
-    // a spinner rather than immediately redirecting to /login.
+    //
+    // Retry strategy (two tiers):
+    //   Tier 1 — fast retries (0→1→2): 2 s gap each. Covers brief network blips.
+    //   Tier 2 — slow retries (3→4): 8 s gap each. Covers server restarts (php artisan serve,
+    //            container cold-starts) that take 10–30 s to come back up.
+    //
+    // A 401 response from getAuthenticatedUser() causes the axios interceptor to fire
+    // auth:unauthorized, which calls handleUnauthorized (above) and removes the token from
+    // localStorage if re-validation also fails. The catch block checks for that: an empty
+    // localStorage means this is a confirmed auth failure, not a transient one.
+    //
+    // Network/5xx failures leave the token in localStorage → retries proceed.
+    // Only after exhausting all 5 attempts with the token still present do we give up
+    // and redirect to /login (the server appears to be genuinely unreachable).
     let cancelled = false;
 
     function tryValidate(retryCount: number) {
@@ -83,7 +117,7 @@ export function useAuthInit(): void {
           dispatch(setUser(user));
           dispatch(hydrateAuth());
         })
-        .catch(() => {
+        .catch((err: { retryAfter?: number } | undefined) => {
           if (cancelled) return;
           // If the token was removed, the axios interceptor already fired
           // auth:unauthorized (a real 401) — clear auth and redirect to login.
@@ -91,14 +125,25 @@ export function useAuthInit(): void {
             dispatch(clearAuth());
             return;
           }
-          // Transient failure: retry with a 2-second delay, keeping the spinner
-          // visible so the user is not immediately kicked to /login.
+          // 429 Too Many Requests — the server IS reachable, we're just rate-limited.
+          // Retrying immediately makes it worse. Surface the app so the user can act,
+          // and the rate limit window will clear by the next page interaction.
+          if (err?.retryAfter !== undefined) {
+            dispatch(hydrateAuth());
+            return;
+          }
+          // Transient failure (5xx / network) — the token is still valid but the server
+          // is momentarily unreachable. Retry rather than redirecting to /login.
           if (retryCount < 2) {
+            // Tier 1: fast retries at 2 s each
             setTimeout(() => tryValidate(retryCount + 1), 2000);
+          } else if (retryCount < 4) {
+            // Tier 2: slow retries at 8 s each — allows ~30 s for a server restart
+            setTimeout(() => tryValidate(retryCount + 1), 8000);
           } else {
-            // Retries exhausted — stop loading. isAuthenticated stays false so
-            // ProtectedRoute redirects to /login. The token remains in localStorage,
-            // so the next page load will attempt validation again.
+            // All 5 attempts exhausted. Server appears unreachable — stop the spinner
+            // and let ProtectedRoute redirect to /login. The token stays in localStorage
+            // so the next page load will try again once the server is back.
             dispatch(hydrateAuth());
           }
         });

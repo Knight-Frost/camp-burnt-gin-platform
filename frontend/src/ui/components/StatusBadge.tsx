@@ -11,9 +11,9 @@
  *     tinted backgrounds — ensuring accessibility compliance.
  *
  * Supported status values:
- *   Application statuses: draft, submitted, under_review, approved, accepted,
- *                         rejected, withdrawn
- *   General statuses:     pending, active, inactive, open, closed, cancelled, waitlist
+ *   Application statuses: draft, pending, under_review, approved, rejected,
+ *                         withdrawn, cancelled, waitlisted
+ *   General statuses:     active, inactive, open, closed, waitlist
  *   Medical severity:     low, moderate, high, critical
  */
 
@@ -24,8 +24,6 @@ import type { ApplicationStatus } from '@/shared/types';
 type BadgeVariant =
   | ApplicationStatus
   | 'pending'
-  | 'submitted'
-  | 'accepted'
   | 'active'
   | 'inactive'
   | 'open'
@@ -50,25 +48,15 @@ const variantConfig: Record<BadgeVariant, { bg: string; text: string; label: str
     text: '#374151',   // gray-700
     label: 'Draft',
   },
-  submitted: {
-    bg: 'rgba(37,99,235,0.12)',
-    text: '#2563eb',   // blue-700 = --night-sky-blue
-    label: 'Submitted',
-  },
   under_review: {
-    bg: 'rgba(234,179,8,0.15)',
-    text: '#854d0e',   // yellow-800 — WCAG AA on yellow tint
+    bg: 'rgba(37,99,235,0.12)',
+    text: '#2563eb',   // blue-600 — WCAG AA on blue tint
     label: 'Under Review',
   },
   approved: {
     bg: 'rgba(22,163,74,0.10)',
     text: '#16a34a',
     label: 'Approved',
-  },
-  accepted: {
-    bg: 'rgba(22,163,74,0.10)',
-    text: '#16a34a',
-    label: 'Accepted',
   },
   rejected: {
     bg: 'rgba(220,38,38,0.12)',
@@ -111,8 +99,8 @@ withdrawn: {
     label: 'Waitlist',
   },
   waitlisted: {
-    bg: 'rgba(234,179,8,0.15)',
-    text: '#854d0e',   // yellow-800 — amber tint, same as under_review
+    bg: 'rgba(234,88,12,0.12)',
+    text: '#ea580c',   // orange-600 — WCAG AA on orange tint
     label: 'Waitlisted',
   },
   // Medical severity levels — green → amber → orange → red as risk increases.

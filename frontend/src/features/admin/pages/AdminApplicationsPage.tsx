@@ -21,20 +21,21 @@ import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplications } from '@/features/admin/api/admin.api';
+import { getApplications, getSessions } from '@/features/admin/api/admin.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import type { Application } from '@/features/admin/types/admin.types';
+import type { Application, CampSession } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 
 // All possible status filter values — 'all' means no filter is applied.
-const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'rejected', 'cancelled'] as const;
+const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled'] as const;
 
-// Consolidated filter state — keeps search, status, and page together to avoid double-fetch races.
+// Consolidated filter state — keeps search, status, session, and page together to avoid double-fetch races.
 interface Filters {
   search: string;
   status: string;
+  session_id: string;
   page: number;
 }
 
@@ -51,9 +52,12 @@ export function AdminApplicationsPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   // All filter values live in one object so a single setFilters call updates everything atomically.
-  const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', page: 1 });
+  const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', session_id: '', page: 1 });
   // retryKey is incremented by the error-state retry button to re-trigger the fetch effect.
   const [retryKey, setRetryKey] = useState(0);
+
+  // Sessions list — fetched once on mount for the session filter dropdown.
+  const [sessions, setSessions] = useState<CampSession[]>([]);
 
   // searchInput is the controlled input value — updates on every keystroke for responsive UX.
   // filters.search is the debounced value that actually triggers an API call.
@@ -72,11 +76,18 @@ export function AdminApplicationsPage() {
     }, 300);
   }
   // Changing the status dropdown also resets to page 1.
-  const setStatus = (status: string) => setFilters((f) => ({ ...f, status, page: 1 }));
+  const setStatus    = (status: string)    => setFilters((f) => ({ ...f, status, page: 1 }));
+  // Changing the session dropdown also resets to page 1.
+  const setSessionId = (session_id: string) => setFilters((f) => ({ ...f, session_id, page: 1 }));
   // Direct page navigation — doesn't reset other filters.
-  const setPage   = (page: number)   => setFilters((f) => ({ ...f, page }));
+  const setPage      = (page: number)      => setFilters((f) => ({ ...f, page }));
 
   // ── Data fetching ──────────────────────────────────────────────────────────
+
+  // Fetch the sessions list once on mount — used to populate the session filter dropdown.
+  useEffect(() => {
+    getSessions().then(setSessions).catch(() => { /* non-critical; dropdown stays empty */ });
+  }, []);
 
   // Inline async effect with a cancelled flag so setState is never called on an unmounted
   // component (e.g. when the user switches tabs quickly mid-flight).
@@ -93,6 +104,8 @@ export function AdminApplicationsPage() {
           search: filters.search || undefined,
           // 'all' means "no filter" — send undefined so the API returns everything.
           status: filters.status === 'all' ? undefined : filters.status,
+          // '' means "all sessions" — send undefined so the API returns all sessions.
+          camp_session_id: filters.session_id ? Number(filters.session_id) : undefined,
         });
         if (!cancelled) setResponse(data);
       } catch {
@@ -155,6 +168,31 @@ export function AdminApplicationsPage() {
             ))}
           </select>
         </div>
+
+        {/* Session filter dropdown — only rendered once sessions have loaded */}
+        {sessions.length > 0 && (
+          <div
+            className="flex items-center gap-2 rounded-lg px-3 py-2 border"
+            style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
+          >
+            <Filter className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+            <select
+              value={filters.session_id}
+              onChange={(e) => setSessionId(e.target.value)}
+              className="bg-transparent text-sm outline-none"
+              style={{ color: 'var(--foreground)' }}
+            >
+              <option value="" style={{ background: 'var(--card)' }}>
+                {t('admin.applications.filter_all_sessions', 'All Sessions')}
+              </option>
+              {sessions.map((s) => (
+                <option key={s.id} value={String(s.id)} style={{ background: 'var(--card)' }}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Table: shows skeletons → error → empty state → rows */}

@@ -4,7 +4,7 @@
  */
 
 export interface ApplicationReviewPayload {
-  status: 'approved' | 'rejected' | 'under_review';
+  status: 'approved' | 'rejected' | 'under_review' | 'waitlisted';
   notes?: string;
 }
 
@@ -27,6 +27,12 @@ export interface CampSession {
   end_date: string;
   capacity: number;
   enrolled_count?: number;
+  remaining_capacity?: number;
+  is_active?: boolean;
+  registration_opens_at?: string;
+  registration_closes_at?: string;
+  min_age?: number;
+  max_age?: number;
   created_at?: string;
 }
 
@@ -34,7 +40,7 @@ export interface Application {
   id: number;
   camper_id: number;
   camp_session_id: number;
-  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'cancelled';
+  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn' | 'draft';
   notes?: string;
   submitted_at?: string;
   reviewed_at?: string;

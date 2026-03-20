@@ -19,10 +19,10 @@ import { format } from 'date-fns';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, User, Heart, Phone, FileText, Activity, Shield, AlertTriangle,
+  ArrowLeft, User, Heart, Phone, FileText, Activity, Shield, AlertTriangle, TrendingUp,
 } from 'lucide-react';
 
-import { getCamper } from '@/features/admin/api/admin.api';
+import { getCamper, getCamperRiskSummary } from '@/features/admin/api/admin.api';
 import {
   getMedicalRecordByCamper,
   getAllergies,
@@ -117,6 +117,8 @@ export function CamperDetailPage() {
   const [camper, setCamper]         = useState<Camper | null>(null);
   // All medical sub-resources live in one state object to avoid many useState calls
   const [med, setMed]               = useState<MedData | null>(null);
+  // Risk assessment data fetched independently alongside camper data
+  const [riskData, setRiskData]     = useState<any>(null);
   const [loading, setLoading]       = useState(true);
   // Separate loading flag for medical data — it loads after core camper data
   const [medLoading, setMedLoading] = useState(true);
@@ -135,6 +137,8 @@ export function CamperDetailPage() {
       try {
         const data = await getCamper(camperId);
         if (!cancelled) setCamper(data);
+        // Fetch risk summary in parallel with camper — silently ignore failures
+        getCamperRiskSummary(camperId).then(data => { if (!cancelled) setRiskData(data as any); }).catch(() => {});
       } catch {
         if (!cancelled) { setError(true); toast.error('Failed to load camper record.'); }
       } finally {
@@ -305,6 +309,82 @@ export function CamperDetailPage() {
             </div>
           )}
         </SectionCard>
+
+        {/* Risk Assessment card — only shown once risk data has loaded */}
+        {riskData && (
+          <SectionCard title="Risk Assessment" icon={<TrendingUp className="h-4 w-4" />}>
+            <div className="space-y-4">
+              {/* Risk score row with color-coded badge */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                    Risk Score
+                  </p>
+                  {(() => {
+                    const score = riskData.risk_score ?? 0;
+                    const pct   = Math.min(100, Math.round(score));
+                    const color = pct >= 67 ? '#dc2626' : pct >= 34 ? '#d97706' : '#166534';
+                    const label = pct >= 67 ? 'High' : pct >= 34 ? 'Moderate' : 'Low';
+                    return (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1 rounded-full"
+                        style={{ background: `${color}18`, color }}
+                      >
+                        {pct}% — {label}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* Supervision level */}
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                    Supervision Level
+                  </p>
+                  <p className="text-sm" style={{ color: 'var(--foreground)' }}>
+                    {riskData.supervision_label ?? '—'}
+                    {riskData.staffing_ratio ? (
+                      <span className="ml-1.5 text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--glass-strong)', color: 'var(--muted-foreground)' }}>
+                        {riskData.staffing_ratio}
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+
+                {/* Medical complexity */}
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                    Medical Complexity
+                  </p>
+                  <p className="text-sm" style={{ color: 'var(--foreground)' }}>
+                    {riskData.complexity_label ?? '—'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Active flags */}
+              {Array.isArray(riskData.flags) && riskData.flags.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>
+                    Risk Flags
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {riskData.flags.map((flag: string) => (
+                      <span
+                        key={flag}
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border"
+                        style={{ borderColor: 'rgba(220,38,38,0.35)', color: '#dc2626', background: 'rgba(220,38,38,0.07)' }}
+                      >
+                        <AlertTriangle className="h-3 w-3" />
+                        {flag.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        )}
 
         {/* Medical Record card — has its own medLoading state */}
         <SectionCard title="Medical Record" icon={<Heart className="h-4 w-4" />}>

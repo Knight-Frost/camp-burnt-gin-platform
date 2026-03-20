@@ -13,6 +13,7 @@ use App\Models\CampSession;
 use App\Models\Conversation;
 use App\Models\Diagnosis;
 use App\Models\Document;
+use App\Models\DocumentRequest;
 use App\Models\EmergencyContact;
 use App\Models\FeedingPlan;
 use App\Models\MedicalProviderLink;
@@ -47,6 +48,7 @@ use App\Policies\CampSessionPolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\DiagnosisPolicy;
 use App\Policies\DocumentPolicy;
+use App\Policies\DocumentRequestPolicy;
 use App\Policies\EmergencyContactPolicy;
 use App\Policies\FeedingPlanPolicy;
 use App\Policies\MedicalProviderLinkPolicy;
@@ -156,6 +158,9 @@ class AppServiceProvider extends ServiceProvider
         FormDefinition::class => FormDefinitionPolicy::class,
         FormSection::class    => FormSectionPolicy::class,
         FormField::class      => FormFieldPolicy::class,
+
+        // Document requests — admin-initiated document request workflow (Phase 13)
+        DocumentRequest::class => DocumentRequestPolicy::class,
     ];
 
     /**

@@ -47,6 +47,8 @@ class DocumentRequestController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', DocumentRequest::class);
+
         $validated = $request->validate([
             'applicant_id'   => ['required', 'integer', 'exists:users,id'],
             'application_id' => ['nullable', 'integer', 'exists:applications,id'],
@@ -122,6 +124,8 @@ class DocumentRequestController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', DocumentRequest::class);
+
         $query = DocumentRequest::with('applicant', 'requestedByAdmin', 'camper')
             ->latest();
 
@@ -176,6 +180,8 @@ class DocumentRequestController extends Controller
      */
     public function stats(): JsonResponse
     {
+        $this->authorize('viewAny', DocumentRequest::class);
+
         $total          = DocumentRequest::count();
         $awaitingUpload = DocumentRequest::where('status', 'awaiting_upload')->count();
         $underReview    = DocumentRequest::where('status', 'under_review')->count();
@@ -205,6 +211,8 @@ class DocumentRequestController extends Controller
      */
     public function show(DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('view', $documentRequest);
+
         $documentRequest->load('applicant', 'requestedByAdmin', 'camper', 'reviewedByAdmin');
         return response()->json($this->format($documentRequest, true));
     }
@@ -216,6 +224,8 @@ class DocumentRequestController extends Controller
      */
     public function download(DocumentRequest $documentRequest): StreamedResponse
     {
+        $this->authorize('download', $documentRequest);
+
         abort_if(is_null($documentRequest->uploaded_document_path), 404, 'No uploaded file.');
         abort_unless(Storage::disk('local')->exists($documentRequest->uploaded_document_path), 404, 'File not found.');
 
@@ -234,6 +244,8 @@ class DocumentRequestController extends Controller
      */
     public function approve(DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('approve', $documentRequest);
+
         abort_unless(
             in_array($documentRequest->status->value, ['uploaded', 'under_review'], true),
             422,
@@ -270,6 +282,8 @@ class DocumentRequestController extends Controller
      */
     public function reject(Request $request, DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('reject', $documentRequest);
+
         abort_unless(
             in_array($documentRequest->status->value, ['uploaded', 'under_review'], true),
             422,
@@ -316,6 +330,8 @@ class DocumentRequestController extends Controller
      */
     public function cancel(DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('delete', $documentRequest);
+
         abort_unless(
             in_array($documentRequest->status->value, ['awaiting_upload', 'overdue'], true),
             422,
@@ -347,6 +363,8 @@ class DocumentRequestController extends Controller
      */
     public function remind(DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('update', $documentRequest);
+
         abort_unless(
             $documentRequest->status->canUpload(),
             422,
@@ -378,6 +396,8 @@ class DocumentRequestController extends Controller
      */
     public function extend(Request $request, DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('update', $documentRequest);
+
         abort_unless(
             $documentRequest->status->canUpload(),
             422,
@@ -414,6 +434,8 @@ class DocumentRequestController extends Controller
      */
     public function requestReupload(DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('update', $documentRequest);
+
         abort_unless(
             $documentRequest->status === DocumentRequestStatus::Rejected,
             422,
@@ -445,6 +467,8 @@ class DocumentRequestController extends Controller
      */
     public function applicantIndex(): JsonResponse
     {
+        $this->authorize('viewAny', DocumentRequest::class);
+
         $requests = DocumentRequest::with('requestedByAdmin', 'camper')
             ->where('applicant_id', auth()->id())
             ->latest()
@@ -462,6 +486,8 @@ class DocumentRequestController extends Controller
      */
     public function applicantUpload(Request $request, DocumentRequest $documentRequest): JsonResponse
     {
+        $this->authorize('upload', $documentRequest);
+
         // Verify this request belongs to the authenticated applicant
         abort_unless(auth()->id() === $documentRequest->applicant_id, 403);
         abort_unless($documentRequest->canUpload(), 403, 'This request cannot accept uploads in its current status.');
@@ -526,6 +552,8 @@ class DocumentRequestController extends Controller
      */
     public function applicantDownload(DocumentRequest $documentRequest): StreamedResponse
     {
+        $this->authorize('download', $documentRequest);
+
         abort_unless(auth()->id() === $documentRequest->applicant_id, 403);
         abort_if(is_null($documentRequest->uploaded_document_path), 404, 'No uploaded file.');
         abort_unless(Storage::disk('local')->exists($documentRequest->uploaded_document_path), 404, 'File not found.');

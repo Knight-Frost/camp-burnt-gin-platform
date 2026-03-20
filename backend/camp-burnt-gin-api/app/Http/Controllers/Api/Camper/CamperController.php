@@ -67,6 +67,13 @@ class CamperController extends Controller
                     }
                 });
             }
+            // Filter by session — narrows to campers who have at least one application
+            // for the specified camp session ID.
+            if ($request->filled('session_id')) {
+                $query->whereHas('applications', function ($q) use ($request) {
+                    $q->where('camp_session_id', $request->session_id);
+                });
+            }
             $campers = $query->paginate(15);
         } elseif ($user->isMedicalProvider()) {
             // Medical providers can browse all camper profiles to support clinical workflows.

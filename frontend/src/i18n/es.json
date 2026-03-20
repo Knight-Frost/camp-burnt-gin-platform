@@ -556,7 +556,9 @@
       "filter_submitted": "Enviada",
       "filter_under_review": "En revisión",
       "filter_accepted": "Aceptada",
-      "filter_rejected": "Rechazada"
+      "filter_rejected": "Rechazada",
+      "filter_cancelled": "Cancelada",
+      "filter_waitlisted": "En lista de espera"
     },
     "campers": {
       "title": "Campistas",
@@ -639,6 +641,7 @@
       "unknown_camper": "Campista Desconocido",
       "mark_under_review": "Marcar en Revisión",
       "accept": "Aceptar",
+      "waitlist": "Mover a lista de espera",
       "reject": "Rechazar",
       "success": "Estado de solicitud actualizado.",
       "error": "Error al actualizar el estado. Inténtalo de nuevo.",

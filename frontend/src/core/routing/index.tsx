@@ -10,6 +10,7 @@
 
 import { lazy, Suspense, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { DEMO_MODE } from '@/lib/demo/demoMode';
 
 import { ErrorBoundary } from '@/app/ErrorBoundary';
 
@@ -71,6 +72,8 @@ const ApplicationReviewPage   = withSuspense(lazy(() => import('@/features/admin
 const AdminCampersPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminCampersPage').then(m => ({ default: m.AdminCampersPage }))));
 const CamperDetailPage        = withSuspense(lazy(() => import('@/features/admin/pages/CamperDetailPage').then(m => ({ default: m.CamperDetailPage }))));
 const AdminSessionsPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminSessionsPage').then(m => ({ default: m.AdminSessionsPage }))));
+const ArchivedSessionsPage    = withSuspense(lazy(() => import('@/features/admin/pages/ArchivedSessionsPage').then(m => ({ default: m.ArchivedSessionsPage }))));
+const SessionDetailPage       = withSuspense(lazy(() => import('@/features/admin/pages/SessionDetailPage').then(m => ({ default: m.SessionDetailPage }))));
 const AdminReportsPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminReportsPage').then(m => ({ default: m.AdminReportsPage }))));
 const AdminAnnouncementsPage  = withSuspense(lazy(() => import('@/features/admin/pages/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage }))));
 const AdminCalendarPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminCalendarPage').then(m => ({ default: m.AdminCalendarPage }))));
@@ -133,8 +136,8 @@ export const router = createBrowserRouter([
     element: <RouteErrorBoundary />,
     children: [
 
-  // Root → login redirect
-  { path: '/', element: <Navigate to="/login" replace /> },
+  // Root → login redirect (demo mode skips login and goes straight to admin dashboard)
+  { path: '/', element: <Navigate to={DEMO_MODE ? '/admin/dashboard' : '/login'} replace /> },
 
   // Utility pages — standalone (no layout, no auth required)
   { path: '/forbidden', element: <ForbiddenPage /> },
@@ -199,6 +202,8 @@ export const router = createBrowserRouter([
           { path: '/admin/campers',             element: <AdminCampersPage /> },
           { path: '/admin/campers/:id',         element: <CamperDetailPage /> },
           { path: '/admin/sessions',            element: <AdminSessionsPage /> },
+          { path: '/admin/sessions/archived',   element: <ArchivedSessionsPage /> },
+          { path: '/admin/sessions/:id',        element: <SessionDetailPage /> },
           { path: '/admin/reports',             element: <AdminReportsPage /> },
           { path: '/admin/announcements',       element: <AdminAnnouncementsPage /> },
           { path: '/admin/calendar',            element: <AdminCalendarPage /> },
@@ -271,6 +276,8 @@ export const router = createBrowserRouter([
           { path: '/super-admin/campers',              element: <AdminCampersPage /> },
           { path: '/super-admin/campers/:id',          element: <CamperDetailPage /> },
           { path: '/super-admin/sessions',             element: <AdminSessionsPage /> },
+          { path: '/super-admin/sessions/archived',    element: <ArchivedSessionsPage /> },
+          { path: '/super-admin/sessions/:id',         element: <SessionDetailPage /> },
           { path: '/super-admin/reports',              element: <AdminReportsPage /> },
           { path: '/super-admin/announcements',        element: <AdminAnnouncementsPage /> },
           { path: '/super-admin/calendar',             element: <AdminCalendarPage /> },

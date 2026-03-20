@@ -44,7 +44,7 @@ export function AuthLayout() {
       }}
     >
       {/* Brand top bar */}
-      <div className="w-full h-1.5 flex-shrink-0" style={{ background: '#1e3a6e' }} />
+      <div className="w-full h-1.5 flex-shrink-0" style={{ background: '#166534' }} />
 
       {/* Centred content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-10 sm:px-6">

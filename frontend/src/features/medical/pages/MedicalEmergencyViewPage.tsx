@@ -30,7 +30,7 @@ import {
   type MedicalVisit,
   type MedicalRestriction,
 } from '@/features/medical/api/medical.api';
-import { getCamper } from '@/features/admin/api/admin.api';
+import { getCamper, getCamperRiskSummary } from '@/features/admin/api/admin.api';
 
 import { ROUTES } from '@/shared/constants/routes';
 import type {
@@ -136,6 +136,7 @@ export function MedicalEmergencyViewPage() {
   const [recentTreatments, setRecentTreatments] = useState<TreatmentLog[]>([]);
   const [recentVisits, setRecentVisits] = useState<MedicalVisit[]>([]);
 
+  const [riskData, setRiskData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -170,6 +171,8 @@ export function MedicalEmergencyViewPage() {
 
         setCamper(camperData);
         setRecord(recordData);
+        // Fetch risk summary independently — failure is non-fatal
+        getCamperRiskSummary(id).then((d) => setRiskData(d as any)).catch(() => {});
         setAllergies(allergyData);
         setMedications(medData);
         setDiagnoses(diagData);
@@ -272,6 +275,20 @@ export function MedicalEmergencyViewPage() {
                 {new Date(camper.date_of_birth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
             )}
+            {/* Risk level badge — shown once risk data loads */}
+            {riskData && (() => {
+              const pct   = Math.min(100, Math.round(riskData.risk_score ?? 0));
+              const color = pct >= 67 ? '#dc2626' : pct >= 34 ? '#d97706' : '#166534';
+              const label = pct >= 67 ? 'High Risk' : pct >= 34 ? 'Moderate Risk' : 'Low Risk';
+              return (
+                <span
+                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold mt-1"
+                  style={{ background: `${color}18`, color }}
+                >
+                  {label} · {riskData.supervision_label}
+                </span>
+              );
+            })()}
           </div>
         </div>
         <div

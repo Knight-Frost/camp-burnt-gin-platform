@@ -1,17 +1,28 @@
 <?php
 
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\Camp\CampController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
+use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
 use App\Http\Controllers\Api\Camper\CamperController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
 use App\Http\Controllers\Api\Document\ApplicantDocumentController;
 use App\Http\Controllers\Api\Document\DocumentController;
 use App\Http\Controllers\Api\Document\DocumentRequestController;
+use App\Http\Controllers\Api\Form\FormDefinitionController;
+use App\Http\Controllers\Api\Form\FormFieldController;
+use App\Http\Controllers\Api\Form\FormFieldOptionController;
+use App\Http\Controllers\Api\Form\FormSectionController;
+use App\Http\Controllers\Api\Form\PublicFormController;
+use App\Http\Controllers\Api\Inbox\ConversationController;
+use App\Http\Controllers\Api\Inbox\InboxUserController;
+use App\Http\Controllers\Api\Inbox\MessageController;
 use App\Http\Controllers\Api\Medical\ActivityPermissionController;
 use App\Http\Controllers\Api\Medical\AllergyController;
 use App\Http\Controllers\Api\Medical\AssistiveDeviceController;
@@ -19,29 +30,19 @@ use App\Http\Controllers\Api\Medical\BehavioralProfileController;
 use App\Http\Controllers\Api\Medical\DiagnosisController;
 use App\Http\Controllers\Api\Medical\EmergencyContactController;
 use App\Http\Controllers\Api\Medical\FeedingPlanController;
-use App\Http\Controllers\Api\Medical\MedicalRecordController;
-use App\Http\Controllers\Api\Medical\MedicationController;
-use App\Http\Controllers\Api\Medical\TreatmentLogController;
-use App\Http\Controllers\Api\Medical\MedicalIncidentController;
 use App\Http\Controllers\Api\Medical\MedicalFollowUpController;
-use App\Http\Controllers\Api\Medical\MedicalVisitController;
+use App\Http\Controllers\Api\Medical\MedicalIncidentController;
+use App\Http\Controllers\Api\Medical\MedicalRecordController;
 use App\Http\Controllers\Api\Medical\MedicalRestrictionController;
 use App\Http\Controllers\Api\Medical\MedicalStatsController;
-use App\Http\Controllers\Api\Inbox\ConversationController;
-use App\Http\Controllers\Api\Inbox\InboxUserController;
-use App\Http\Controllers\Api\Inbox\MessageController;
+use App\Http\Controllers\Api\Medical\MedicalVisitController;
+use App\Http\Controllers\Api\Medical\MedicationController;
+use App\Http\Controllers\Api\Medical\TreatmentLogController;
+use App\Http\Controllers\Api\System\AuditLogController;
 use App\Http\Controllers\Api\System\HealthController;
 use App\Http\Controllers\Api\System\NotificationController;
-use App\Http\Controllers\Api\System\AuditLogController;
 use App\Http\Controllers\Api\System\ReportController;
 use App\Http\Controllers\Api\System\UserController;
-use App\Http\Controllers\Api\AnnouncementController;
-use App\Http\Controllers\Api\CalendarEventController;
-use App\Http\Controllers\Api\Form\FormDefinitionController;
-use App\Http\Controllers\Api\Form\FormFieldController;
-use App\Http\Controllers\Api\Form\FormFieldOptionController;
-use App\Http\Controllers\Api\Form\FormSectionController;
-use App\Http\Controllers\Api\Form\PublicFormController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -104,28 +105,53 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->name('verification.verify');
 });
 
-// Resend verification email — requires the user to be logged in but not yet verified
-// Separate from the auth group above so it can have its own tighter rate limit (6/min)
-Route::middleware(['auth:sanctum'])->post('/auth/email/resend', [EmailVerificationController::class, 'resend'])
-    ->middleware('throttle:6,1')
-    ->name('verification.resend');
+/*
+|--------------------------------------------------------------------------
+| Auth-Only Routes (authenticated but NOT required to be verified)
+|--------------------------------------------------------------------------
+|
+| These routes must be accessible to authenticated users who have not yet
+| verified their email address:
+|  - Resend verification email
+|  - Logout (unverified users must be able to log out)
+|  - MFA setup / verify / disable (MFA is part of the login flow)
+|
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Resend verification email — tighter rate limit (6/min) to prevent abuse
+    Route::post('/auth/email/resend', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:6,1')
+        ->name('verification.resend');
 
+    // Logout — unverified users must be able to revoke their token
+    Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
+
+    // MFA routes — MFA verification is part of authentication; must not require verified email
+    Route::prefix('mfa')->middleware('throttle:mfa')->group(function () {
+        // Step 1: Generate secret + QR code for the user to scan
+        Route::post('/setup', [MfaController::class, 'setup'])->name('mfa.setup');
+        // Step 2: Confirm the authenticator app is working by submitting the first code
+        Route::post('/verify', [MfaController::class, 'verify'])->name('mfa.verify');
+        // Disable MFA after verifying password + current TOTP code
+        Route::post('/disable', [MfaController::class, 'disable'])->name('mfa.disable');
+    });
+});
 
 /*
 |--------------------------------------------------------------------------
-| All Authenticated Routes
+| All Authenticated + Verified Routes
 |--------------------------------------------------------------------------
 |
 | Every route in this group requires:
 |  - A valid Sanctum bearer token (auth:sanctum)
+|  - A verified email address (verified)
 |  - Respects the 'api' rate limit (60 req/min)
 |
 | Model-level authorization (who can view/edit which records) is enforced
 | by policies via $this->authorize() calls in each controller.
 |
 */
-Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
-
+Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function () {
     /*
     |--------------------------------------------------------------------------
     | Current User Routes
@@ -133,8 +159,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     */
     // GET /user — returns the authenticated user's profile with role
     Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
-    // POST /logout — revokes the current Sanctum token
-    Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
     /*
     |--------------------------------------------------------------------------
@@ -199,24 +223,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/', [CampSessionController::class, 'store'])->middleware('admin')->name('sessions.store');
         Route::put('/{session}', [CampSessionController::class, 'update'])->middleware('admin')->name('sessions.update');
         Route::delete('/{session}', [CampSessionController::class, 'destroy'])->middleware('admin')->name('sessions.destroy');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | MFA Setup Routes
-    |--------------------------------------------------------------------------
-    |
-    | All MFA routes use the 'mfa' rate limiter (5 req/min) to prevent
-    | code-guessing attacks during the enable/disable flow.
-    |
-    */
-    Route::prefix('mfa')->middleware('throttle:mfa')->group(function () {
-        // Step 1: Generate secret + QR code for the user to scan
-        Route::post('/setup', [MfaController::class, 'setup'])->name('mfa.setup');
-        // Step 2: Confirm the authenticator app is working by submitting the first code
-        Route::post('/verify', [MfaController::class, 'verify'])->name('mfa.verify');
-        // Disable MFA after verifying password + current TOTP code
-        Route::post('/disable', [MfaController::class, 'disable'])->name('mfa.disable');
+        // Session dashboard + operations (Phase 15)
+        Route::get('/{session}/dashboard', [SessionDashboardController::class, 'dashboard'])->middleware('admin')->name('sessions.dashboard');
+        Route::get('/{session}/applications', [SessionDashboardController::class, 'applications'])->middleware('admin')->name('sessions.applications');
+        Route::post('/{session}/archive', [CampSessionController::class, 'archive'])->middleware('admin')->name('sessions.archive');
+        Route::post('/{session}/restore', [CampSessionController::class, 'restore'])->middleware('admin')->name('sessions.restore');
     });
 
     /*
@@ -282,7 +293,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/applicant/documents', [ApplicantDocumentController::class, 'applicantList']);
         Route::get('/applicant/applicant-documents/{applicantDocument}/download', [ApplicantDocumentController::class, 'applicantDownload']);
         Route::post('/applicant/documents/upload', [ApplicantDocumentController::class, 'applicantSubmit'])
-             ->middleware('throttle:uploads');
+            ->middleware('throttle:uploads');
     });
 
     /*
@@ -302,7 +313,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/document-requests', [DocumentRequestController::class, 'store']);
         Route::get('/document-requests/{documentRequest}', [DocumentRequestController::class, 'show']);
         Route::get('/document-requests/{documentRequest}/download', [DocumentRequestController::class, 'download'])
-             ->middleware('throttle:sensitive');
+            ->middleware('throttle:sensitive');
         Route::patch('/document-requests/{documentRequest}/approve', [DocumentRequestController::class, 'approve']);
         Route::patch('/document-requests/{documentRequest}/reject', [DocumentRequestController::class, 'reject']);
         Route::delete('/document-requests/{documentRequest}', [DocumentRequestController::class, 'cancel']);
@@ -315,9 +326,9 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::middleware(['role:applicant'])->group(function () {
         Route::get('/applicant/document-requests', [DocumentRequestController::class, 'applicantIndex']);
         Route::post('/applicant/document-requests/{documentRequest}/upload', [DocumentRequestController::class, 'applicantUpload'])
-             ->middleware('throttle:uploads');
+            ->middleware('throttle:uploads');
         Route::get('/applicant/document-requests/{documentRequest}/download', [DocumentRequestController::class, 'applicantDownload'])
-             ->middleware('throttle:sensitive');
+            ->middleware('throttle:sensitive');
     });
 
     /*
@@ -682,7 +693,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // ── Audit Log (super_admin only) ─────────────────────────────────────────
     // Full audit history and CSV/JSON export of all system actions
     Route::middleware('role:super_admin')->prefix('audit-log')->group(function () {
-        Route::get('/',       [AuditLogController::class, 'index'])->name('audit-log.index');
+        Route::get('/', [AuditLogController::class, 'index'])->name('audit-log.index');
         // Export up to 5,000 audit log rows as CSV or JSON
         Route::get('/export', [AuditLogController::class, 'export'])->name('audit-log.export');
     });
@@ -708,7 +719,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // ── Inbox Routes ──────────────────────────────────────────────────────────
     Route::prefix('inbox')->group(function () {
-
         // User search for the compose recipient autocomplete field
         // Throttled at 30/min to prevent user enumeration via autocomplete
         Route::get('/users', [InboxUserController::class, 'index'])
@@ -838,7 +848,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     |
     */
     Route::prefix('form')->group(function () {
-
         // ── Public schema endpoints (any authenticated user) ──────────────────
         Route::get('/active', [PublicFormController::class, 'active'])->name('form.active');
         Route::get('/version/{form}', [PublicFormController::class, 'version'])->name('form.version');
