@@ -1444,14 +1444,21 @@ export const MEDICAL_INCIDENTS = [
   {
     id: 1,
     camper_id: 1,
-    camper: { id: 1, first_name: 'Elijah', last_name: 'Harmon', full_name: 'Elijah Harmon' },
+    recorded_by: 9004,
+    camper: { id: 1, full_name: 'Elijah Harmon' },
+    // type matches IncidentType union; incident_type kept for any legacy references
+    type: 'injury' as const,
     incident_type: 'fall',
-    severity: 'minor',
+    severity: 'minor' as const,
+    title: 'Minor Knee Abrasion',
     description: 'Camper slipped on wet path near dining hall. Minor abrasion on left knee.',
     location: 'Dining Hall Path',
+    escalation_required: false,
+    // incident_date matches MedicalIncident.incident_date (date string); occurred_at kept as alias
+    incident_date: '2025-07-10',
     occurred_at: '2025-07-10T14:30:00Z',
-    reported_by: 'Counselor Jamie Brooks',
     created_at: '2025-07-10T15:00:00Z',
+    updated_at: '2025-07-10T15:00:00Z',
   },
 ];
 
@@ -1459,12 +1466,16 @@ export const MEDICAL_FOLLOW_UPS = [
   {
     id: 1,
     camper_id: 5,
-    camper: { id: 5, first_name: 'Ava', last_name: 'Thompson', full_name: 'Ava Thompson' },
-    status: 'pending',
-    priority: 'high',
+    created_by: 9004,
+    camper: { id: 5, full_name: 'Ava Thompson' },
+    // title matches MedicalFollowUp.title (required); description kept as alias
+    title: 'Neurologist Clearance Required',
     description: 'Neurologist report required before final clearance.',
+    status: 'pending' as const,
+    priority: 'high' as const,
     due_date: '2026-04-01',
     created_at: '2026-03-19T09:00:00Z',
+    updated_at: '2026-03-19T09:00:00Z',
   },
 ];
 
@@ -1472,12 +1483,20 @@ export const MEDICAL_VISITS = [
   {
     id: 1,
     camper_id: 1,
-    camper: { id: 1, first_name: 'Elijah', last_name: 'Harmon', full_name: 'Elijah Harmon' },
+    recorded_by: 9004,
+    camper: { id: 1, full_name: 'Elijah Harmon' },
+    // visit_date matches MedicalVisit.visit_date (date string); visited_at kept as alias
+    visit_date: '2025-07-10',
     visited_at: '2025-07-10T15:00:00Z',
+    // chief_complaint matches MedicalVisit.chief_complaint; complaint kept as alias
+    chief_complaint: 'Knee abrasion following fall',
     complaint: 'Knee abrasion following fall',
+    symptoms: 'Minor abrasion on left knee, no active bleeding.',
     assessment: 'Minor abrasion, cleaned and bandaged. No further intervention required.',
-    disposition: 'returned_to_activity',
+    disposition: 'returned_to_activity' as const,
+    follow_up_required: false,
     created_at: '2025-07-10T15:10:00Z',
+    updated_at: '2025-07-10T15:10:00Z',
   },
 ];
 

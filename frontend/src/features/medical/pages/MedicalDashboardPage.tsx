@@ -90,13 +90,13 @@ interface ActivityItem {
 function buildActivity(stats: MedicalStats): ActivityItem[] {
   const items: ActivityItem[] = [];
 
-  for (const t of (stats.recent_activity.treatments ?? []) as TreatmentLog[]) {
+  for (const t of (stats.recent_activity?.treatments ?? []) as TreatmentLog[]) {
     items.push({ id: t.id, kind: 'treatment', camperId: t.camper_id, camperName: t.camper?.full_name ?? 'Unknown', title: t.title, timestamp: t.created_at });
   }
-  for (const inc of (stats.recent_activity.incidents ?? []) as MedicalIncident[]) {
+  for (const inc of (stats.recent_activity?.incidents ?? []) as MedicalIncident[]) {
     items.push({ id: inc.id, kind: 'incident', camperId: inc.camper_id, camperName: inc.camper?.full_name ?? 'Unknown', title: inc.title, timestamp: inc.created_at, severity: inc.severity });
   }
-  for (const v of (stats.recent_activity.visits ?? []) as MedicalVisit[]) {
+  for (const v of (stats.recent_activity?.visits ?? []) as MedicalVisit[]) {
     items.push({ id: v.id, kind: 'visit', camperId: v.camper_id, camperName: v.camper?.full_name ?? 'Unknown', title: v.chief_complaint, timestamp: v.created_at });
   }
 
@@ -244,8 +244,8 @@ export function MedicalDashboardPage() {
 
   // ── Derived data ──────────────────────────────────────────────────────────────
   const activityItems = stats ? buildActivity(stats) : [];
-  const overdueCount  = stats?.follow_ups.overdue ?? 0;
-  const dueTodayCount = stats?.follow_ups.due_today ?? 0;
+  const overdueCount  = stats?.follow_ups?.overdue ?? 0;
+  const dueTodayCount = stats?.follow_ups?.due_today ?? 0;
   const urgentFollowUps = followUps.filter((f) => f.priority === 'urgent' || f.priority === 'high');
 
   // ─────────────────────────────────────────────────────────────────────────────

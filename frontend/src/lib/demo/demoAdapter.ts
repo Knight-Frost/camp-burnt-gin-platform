@@ -526,13 +526,27 @@ export function demoAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
   // ── Medical portal ────────────────────────────────────────────────────────
 
   if (url === '/medical/stats') {
+    // Shape must match the MedicalStats interface exactly (nested structure).
+    // Previous flat object caused TypeError: Cannot read properties of undefined (reading 'treatments')
     return ok(config, apiEnvelope({
-      total_campers: 12,
-      campers_with_allergies: 4,
-      campers_with_medications: 8,
-      open_incidents: 0,
-      pending_follow_ups: 1,
-      visits_this_session: 1,
+      campers: {
+        total: 12,
+        with_severe_allergies: 2,
+        on_medications: 8,
+        with_active_restrictions: 3,
+        missing_medical_record: 4,
+      },
+      follow_ups: {
+        due_today: 1,
+        overdue: 0,
+        open: 1,
+      },
+      recent_activity: {
+        treatments: [],
+        incidents: MEDICAL_INCIDENTS.slice(0, 3),
+        visits: MEDICAL_VISITS.slice(0, 3),
+      },
+      treatment_type_counts: {},
     }));
   }
 
