@@ -10,7 +10,7 @@
 
 import { lazy, Suspense, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { DEMO_MODE } from '@/lib/demo/demoMode';
+import { DEMO_MODE, getDemoDashboardRoute } from '@/config/runtime';
 
 import { ErrorBoundary } from '@/app/ErrorBoundary';
 
@@ -137,7 +137,9 @@ export const router = createBrowserRouter([
     children: [
 
   // Root → login redirect (demo mode skips login and goes straight to admin dashboard)
-  { path: '/', element: <Navigate to={DEMO_MODE ? '/admin/dashboard' : '/login'} replace /> },
+  // In demo mode, redirect to the dashboard for the currently active demo role
+  // (reads localStorage at router creation time — stable for the session).
+  { path: '/', element: <Navigate to={DEMO_MODE ? getDemoDashboardRoute() : '/login'} replace /> },
 
   // Utility pages — standalone (no layout, no auth required)
   { path: '/forbidden', element: <ForbiddenPage /> },

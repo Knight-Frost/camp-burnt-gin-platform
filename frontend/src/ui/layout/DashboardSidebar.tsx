@@ -35,6 +35,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { ROLE_LABELS, getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
 import { cn } from '@/shared/utils/cn';
+import { DemoRoleSwitcher } from '@/ui/components/DemoRoleSwitcher';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -133,6 +134,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
           )}
         </div>
       </div>
+      {/* Demo mode indicator + role switcher — hidden in production */}
+      <DemoRoleSwitcher />
     </div>
   );
 
