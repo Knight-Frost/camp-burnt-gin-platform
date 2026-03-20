@@ -626,6 +626,12 @@ export function demoAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
     return ok(config, { data: APPLICANT_DOCUMENT_REQUESTS, meta: { current_page: 1, last_page: 1, per_page: 15, total: APPLICANT_DOCUMENT_REQUESTS.length } });
   }
 
+  // getRequiredDocuments() calls GET /applicant/documents and returns data directly (no envelope).
+  // Without this handler the catch-all returns a plain object, causing .filter() to crash.
+  if (url === '/applicant/documents' && method === 'get') {
+    return ok(config, []);
+  }
+
   if (url.match(/^\/applicant\/document-requests\/\d+\/(upload|download)$/)) {
     return ok(config, APPLICANT_DOCUMENT_REQUESTS[0] ?? {});
   }

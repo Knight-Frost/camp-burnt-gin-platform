@@ -76,7 +76,7 @@ export function ApplicantDashboardPage() {
 
   const firstName    = user?.name.split(' ')[0] ?? 'there';
   const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
-  const pendingDocsCount = requiredDocs.filter((d) => d.status === 'pending').length;
+  const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
   const handleMarkRead = (id: string) => {
     markNotificationRead(id).catch(() => {/* non-critical */});
