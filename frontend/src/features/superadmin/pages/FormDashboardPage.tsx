@@ -63,7 +63,7 @@ export function FormDashboardPage() {
     setError(null);
     try {
       const data = await listFormDefinitions();
-      setDefinitions(data);
+      setDefinitions(Array.isArray(data) ? data : []);
     } catch {
       setError('Failed to load forms. Please try again.');
     } finally {

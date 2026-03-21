@@ -604,10 +604,10 @@ export function MedicalTreatmentLogPage() {
           getTreatmentLogs({ camper_id: id! }),
         ]);
         setCamper(c);
-        setLogs(l.data);
+        setLogs(Array.isArray(l.data) ? l.data : []);
       } else {
         const l = await getTreatmentLogs();
-        setLogs(l.data);
+        setLogs(Array.isArray(l.data) ? l.data : []);
       }
     } catch {
       setError(true);

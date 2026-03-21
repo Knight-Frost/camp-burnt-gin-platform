@@ -1500,6 +1500,29 @@ export const MEDICAL_VISITS = [
   },
 ];
 
+export const TREATMENT_LOGS = [
+  {
+    id: 1,
+    camper_id: 1,
+    medical_visit_id: null,
+    recorded_by: 9004,
+    recorder: { id: 9004, name: 'Dr. Demo Medical' },
+    camper: { id: 1, full_name: 'Elijah Harmon' },
+    treatment_date: '2025-07-10',
+    treatment_time: '15:15',
+    type: 'first_aid' as const,
+    title: 'Knee abrasion treated',
+    description: 'Cleaned and bandaged minor abrasion on left knee. No signs of infection.',
+    outcome: 'Returned to activity after 15-minute rest.',
+    medication_given: null,
+    dosage_given: null,
+    follow_up_required: false,
+    follow_up_notes: null,
+    created_at: '2025-07-10T15:15:00Z',
+    updated_at: '2025-07-10T15:15:00Z',
+  },
+];
+
 // ---------------------------------------------------------------------------
 // Applicant portal data
 // ---------------------------------------------------------------------------

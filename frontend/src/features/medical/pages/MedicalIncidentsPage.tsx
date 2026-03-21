@@ -525,11 +525,11 @@ export function MedicalIncidentsPage() {
           getMedicalIncidents(params),
         ]);
         setCamper(c);
-        setIncidents(res.data);
+        setIncidents(Array.isArray(res.data) ? res.data : []);
         setHasMore(res.meta.current_page < res.meta.last_page);
       } else {
         const res = await getMedicalIncidents(params);
-        setIncidents(res.data);
+        setIncidents(Array.isArray(res.data) ? res.data : []);
         setHasMore(res.meta.current_page < res.meta.last_page);
       }
     } catch {
@@ -551,7 +551,7 @@ export function MedicalIncidentsPage() {
         ...(filterSeverity && { severity: filterSeverity }),
         page: nextPage,
       });
-      setIncidents((prev) => [...prev, ...res.data]);
+      setIncidents((prev) => [...prev, ...(Array.isArray(res.data) ? res.data : [])]);
       setPage(nextPage);
       setHasMore(res.meta.current_page < res.meta.last_page);
     } catch {

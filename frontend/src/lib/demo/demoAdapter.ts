@@ -39,6 +39,7 @@ import {
   MEDICAL_INCIDENTS,
   MEDICAL_FOLLOW_UPS,
   MEDICAL_VISITS,
+  TREATMENT_LOGS,
   FORM_DEFINITIONS,
   APPLICANT_APPLICATIONS,
   APPLICANT_DOCUMENT_REQUESTS,
@@ -550,43 +551,115 @@ export function demoAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
     }));
   }
 
-  if (url === '/medical/incidents' && method === 'get') {
+  // ── Medical incidents ─────────────────────────────────────────────────────
+  // getMedicalIncidents() calls GET /medical-incidents (hyphenated)
+  if (url === '/medical-incidents' && method === 'get') {
     return ok(config, paginated(MEDICAL_INCIDENTS, page));
   }
-
-  if (url.match(/^\/medical\/incidents\/\d+$/)) {
+  if (url.match(/^\/medical-incidents\/\d+$/)) {
     return ok(config, apiEnvelope(MEDICAL_INCIDENTS[0]));
   }
-
-  if (url === '/medical/follow-ups' && method === 'get') {
-    return ok(config, paginated(MEDICAL_FOLLOW_UPS, page));
-  }
-
-  if (url === '/medical/visits' && method === 'get') {
-    return ok(config, paginated(MEDICAL_VISITS, page));
-  }
-
+  // camper-scoped
   if (url.match(/^\/campers\/\d+\/incidents$/)) {
     return ok(config, paginated(MEDICAL_INCIDENTS, page));
   }
 
+  // ── Medical follow-ups ────────────────────────────────────────────────────
+  // getMedicalFollowUps() calls GET /medical-follow-ups (hyphenated)
+  if (url === '/medical-follow-ups' && method === 'get') {
+    return ok(config, paginated(MEDICAL_FOLLOW_UPS, page));
+  }
+  if (url.match(/^\/medical-follow-ups\/\d+$/)) {
+    return ok(config, apiEnvelope(MEDICAL_FOLLOW_UPS[0]));
+  }
+
+  // ── Medical visits ────────────────────────────────────────────────────────
+  // getMedicalVisits() calls GET /medical-visits (hyphenated)
+  if (url === '/medical-visits' && method === 'get') {
+    return ok(config, paginated(MEDICAL_VISITS, page));
+  }
+  if (url.match(/^\/medical-visits\/\d+$/)) {
+    return ok(config, apiEnvelope(MEDICAL_VISITS[0]));
+  }
+  // camper-scoped
   if (url.match(/^\/campers\/\d+\/visits$/)) {
     return ok(config, paginated(MEDICAL_VISITS, page));
   }
 
+  // ── Medical restrictions ──────────────────────────────────────────────────
+  if (url === '/medical-restrictions' && method === 'get') {
+    return ok(config, paginated([], page));
+  }
+  if (url.match(/^\/medical-restrictions\/\d+$/)) {
+    return ok(config, apiEnvelope(null));
+  }
+
+  // ── Treatment logs ────────────────────────────────────────────────────────
+  // getTreatmentLogs() calls GET /treatment-logs
+  if (url === '/treatment-logs' && method === 'get') {
+    return ok(config, paginated(TREATMENT_LOGS, page));
+  }
+  if (url.match(/^\/treatment-logs\/\d+$/)) {
+    return ok(config, apiEnvelope(TREATMENT_LOGS[0]));
+  }
+
+  // ── Medical record sub-resources (called with query params, not path params) ──
+  // e.g. GET /allergies?camper_id=1 — must return array wrapped in ApiResponse
+  if (url === '/allergies' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+  if (url === '/medications' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+  if (url === '/diagnoses' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+  if (url === '/emergency-contacts' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+  if (url === '/activity-permissions' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+  if (url === '/assistive-devices' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+  // behavioral-profiles and feeding-plans return a single nullable object
+  if (url === '/behavioral-profiles' && method === 'get') {
+    return ok(config, apiEnvelope(null));
+  }
+  if (url === '/feeding-plans' && method === 'get') {
+    return ok(config, apiEnvelope(null));
+  }
+
+  // ── Profile emergency contacts ────────────────────────────────────────────
+  // getEmergencyContacts() in profile.api.ts calls /profile/emergency-contacts
+  if (url === '/profile/emergency-contacts' && method === 'get') {
+    return ok(config, apiEnvelope([]));
+  }
+
+  // ── Camper medical record + camper-scoped path sub-resources ─────────────
   if (url.match(/^\/campers\/\d+\/medical-record$/)) {
     const id = extractId(url, '/campers');
     const record = id !== null && MEDICAL_RECORDS[id] ? MEDICAL_RECORDS[id] : MEDICAL_RECORDS[1];
     return ok(config, apiEnvelope(record));
   }
 
-  // Medical sub-resources (allergies, medications, etc.)
-  if (url.match(/^\/campers\/\d+\/(allergies|medications|diagnoses|assistive-devices|emergency-contacts|behavioral-profile|feeding-plan|treatment-logs|documents|activity-permissions)/) ||
-      url.match(/^\/medical\/(allergies|medications|diagnoses|assistive-devices|emergency-contacts|behavioral-profile|feeding-plan|treatment-logs|documents|activity-permissions)\//)) {
-    return ok(config, apiEnvelope(null), method === 'post' || method === 'put' ? 201 : 200);
+  // Camper-scoped sub-resources via path (legacy paths — return safe empty values)
+  if (url.match(/^\/campers\/\d+\/(allergies|medications|diagnoses|assistive-devices|emergency-contacts|behavioral-profile|feeding-plan|treatment-logs|documents|activity-permissions)/)) {
+    const isListEndpoint = url.match(/(allergies|medications|diagnoses|assistive-devices|emergency-contacts|treatment-logs|documents|activity-permissions)$/);
+    return ok(config, apiEnvelope(isListEndpoint ? [] : null), method === 'post' || method === 'put' ? 201 : 200);
   }
 
   // ── Forms (super-admin form builder) ─────────────────────────────────────
+
+  // listFormDefinitions() calls GET /form/definitions and unwraps data.data
+  if (url === '/form/definitions' && method === 'get') {
+    return ok(config, apiEnvelope(FORM_DEFINITIONS));
+  }
+
+  if (url.match(/^\/form\/definitions\/\d+$/)) {
+    return ok(config, apiEnvelope({ ...FORM_DEFINITIONS[0], sections: [] }));
+  }
 
   if (url === '/forms' && method === 'get') {
     return ok(config, paginated(FORM_DEFINITIONS, page));
@@ -622,8 +695,9 @@ export function demoAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
     return ok(config, apiEnvelope([CAMPERS[0]]));
   }
 
+  // getDocumentRequests() returns `data` raw (no .data unwrap), so the body must be the array.
   if (url === '/applicant/document-requests' && method === 'get') {
-    return ok(config, { data: APPLICANT_DOCUMENT_REQUESTS, meta: { current_page: 1, last_page: 1, per_page: 15, total: APPLICANT_DOCUMENT_REQUESTS.length } });
+    return ok(config, APPLICANT_DOCUMENT_REQUESTS);
   }
 
   // getRequiredDocuments() calls GET /applicant/documents and returns data directly (no envelope).

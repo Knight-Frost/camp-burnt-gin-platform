@@ -471,7 +471,7 @@ export function ApplicantDocumentsPage() {
         if (docsResult.status === 'fulfilled') setDocuments(docsResult.value);
         else setError(true);
         if (reqResult.status === 'fulfilled') setRequiredDocs(reqResult.value);
-        if (docReqResult.status === 'fulfilled') setDocumentRequests(docReqResult.value);
+        if (docReqResult.status === 'fulfilled') setDocumentRequests(Array.isArray(docReqResult.value) ? docReqResult.value : []);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
