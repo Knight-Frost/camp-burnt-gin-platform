@@ -14,12 +14,8 @@
  */
 
 import type { ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '@/store/hooks';
-import { setUser } from '@/features/auth/store/authSlice';
 import {
   isDemoMode,
-  getDemoUser,
   setDemoRole,
   currentDemoRole,
 } from '@/config/runtime';
@@ -34,9 +30,6 @@ const DEMO_ROLE_OPTIONS: { value: RoleName; label: string }[] = [
 ];
 
 export function DemoRoleSwitcher() {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-
   // Not in demo mode — render nothing. This check is on a build-time constant
   // so bundlers can eliminate the component entirely in non-demo production builds.
   if (!isDemoMode) return null;
@@ -46,17 +39,23 @@ export function DemoRoleSwitcher() {
   function handleRoleChange(e: ChangeEvent<HTMLSelectElement>) {
     const newRole = e.target.value as RoleName;
 
-    // 1. Persist to localStorage (synchronous)
+    // 1. Persist the new role to localStorage before navigation.
     setDemoRole(newRole);
 
-    // 2. Update Redux auth state — all role-dependent UI re-renders immediately.
-    //    getDemoUser() reads the updated localStorage value just written above.
-    dispatch(setUser(getDemoUser()));
-
-    // 3. Navigate to the correct portal for the new role.
-    //    React Router batches this with the Redux update — the RoleGuard at
-    //    the destination route will see the new user object and pass through.
-    navigate(getDashboardRoute(newRole), { replace: true });
+    // 2. Navigate via full page load to avoid a RoleGuard race condition.
+    //
+    //    Why not dispatch(setUser()) + navigate() in place?
+    //    The DemoRoleSwitcher is mounted inside the CURRENT portal's route tree
+    //    (e.g., AdminLayout with RoleGuard(['admin', 'super_admin'])). Dispatching
+    //    a new user role updates Redux synchronously, which causes React to re-render
+    //    the current tree with the new user. The current tree's RoleGuard then sees
+    //    a role it doesn't allow and redirects to /forbidden before the programmatic
+    //    navigate() to the new portal can fire.
+    //
+    //    A full page load sidesteps this entirely: localStorage is updated, the page
+    //    reloads, useAuthInit reads the stored role and injects the correct demo user,
+    //    and every RoleGuard evaluates fresh against the correct user — no races.
+    window.location.href = getDashboardRoute(newRole);
   }
 
   return (
