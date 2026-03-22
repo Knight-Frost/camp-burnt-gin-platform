@@ -45,7 +45,7 @@ function getDisplayName(user: User | null): string {
   if (!user) return 'there';
   const preferred = user.preferred_name?.trim();
   if (preferred) return preferred;
-  return user.name.split(' ')[0] ?? 'there';
+  return user.name ?? 'there';
 }
 
 function buildSubtitles(role: GreetingRole, stats: GreetingStats): string[] {

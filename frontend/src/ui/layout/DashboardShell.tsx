@@ -100,6 +100,12 @@ export function DashboardShell({
             className="flex-1 overflow-y-auto p-6 lg:p-8"
             id="main-content"
             tabIndex={-1}
+            style={{
+              // Hero sections at the top of dashboard pages are transparent (photos show through).
+              // Below the hero (~360px in), the background fades to an opaque surface so the
+              // photo doesn't bleed through the gaps between content cards.
+              background: 'linear-gradient(to bottom, transparent 0, transparent 360px, rgba(248,249,250,0.97) 420px)',
+            }}
           >
             <div key={location.pathname} style={{ animation: 'pageIn 160ms ease-out backwards' }}>
               {children}
