@@ -259,7 +259,13 @@ class AppServiceProvider extends ServiceProvider
     {
         // General API limit: 60 requests per minute per user (or IP if unauthenticated)
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Too many requests. Please wait a moment and try again.',
+                        'retry_after' => 60,
+                    ], 429);
+                });
         });
 
         // Authentication limit: 5 requests per minute per IP — prevents brute-force attacks

@@ -26,7 +26,7 @@ import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { X, Minus, Maximize2, Minimize2, Upload, Send } from 'lucide-react';
 import {
-  createConversation, sendMessage, searchInboxUsers,
+  createConversation, sendMessage, searchInboxUsers, deleteConversation,
   type Conversation, type ConversationParticipant,
   type MessageCategory, type NewConversationPayload,
 } from '@/features/messaging/api/messaging.api';
@@ -169,12 +169,19 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
       };
       if (subject.trim()) payload.subject = subject.trim();
       const conv = await createConversation(payload);
-      await sendMessage(conv.id, bodyHtml, attachments.length > 0 ? attachments : undefined);
+      try {
+        await sendMessage(conv.id, bodyHtml, attachments.length > 0 ? attachments : undefined);
+      } catch (sendErr: unknown) {
+        // Conversation was created but message send failed — clean up the ghost conversation
+        deleteConversation(conv.id).catch(() => {/* best-effort */});
+        throw sendErr;
+      }
       clearDraft();
       onCreated(conv);
       toast.success('Message sent.');
-    } catch {
-      toast.error('Failed to send message. Please try again.');
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg && msg !== 'Validation failed.' ? msg : 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
@@ -436,7 +443,17 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
                   multiple
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   className="hidden"
-                  onChange={(e) => setAttachments((p) => [...p, ...Array.from(e.target.files ?? [])])}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    const oversized = files.filter((f) => f.size > 10 * 1024 * 1024);
+                    if (oversized.length > 0) {
+                      toast.error(`File too large: "${oversized[0].name}". Maximum size is 10 MB.`);
+                      e.target.value = '';
+                      return;
+                    }
+                    setAttachments((p) => [...p, ...files]);
+                    e.target.value = '';
+                  }}
                 />
                 {/* Upload button */}
                 <button

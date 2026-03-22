@@ -95,7 +95,7 @@ axiosInstance.interceptors.response.use(
     // Cancelled requests (AbortController) must propagate as-is so callers
     // can detect err.code === 'ERR_CANCELED' and suppress error UI.
     if (axios.isCancel(error)) return Promise.reject(error);
-    return errorInterceptor(error);
+    return errorInterceptor(error as Parameters<typeof errorInterceptor>[0]);
   }
 );
 
@@ -168,6 +168,7 @@ function errorInterceptor(error: AxiosError<{
     // 429 Too Many Requests — client is sending requests too fast
     if (status === 429) {
       return Promise.reject({
+        message: responseData?.message ?? 'Too many requests. Please wait a moment and try again.',
         retryAfter: responseData?.retry_after ?? 60,
       });
     }

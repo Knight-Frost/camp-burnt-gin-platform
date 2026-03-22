@@ -168,8 +168,8 @@ export async function sendMessage(
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const { data } = await axiosInstance.get<ApiResponse<{ count: number }>>('/inbox/messages/unread-count');
-  return data.data.count;
+  const { data } = await axiosInstance.get<{ success: boolean; unread_count: number }>('/inbox/messages/unread-count');
+  return data.unread_count ?? 0;
 }
 
 export async function searchInboxUsers(query: string): Promise<ConversationParticipant[]> {

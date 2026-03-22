@@ -457,9 +457,10 @@ class InboxService
      */
     public function trashConversation(Conversation $conversation, User $user): void
     {
-        // Set trashed_at on only this user's participant record
+        // Set trashed_at on only this user's active participant record (left_at IS NULL)
         \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
             ->where('user_id', $user->id)
+            ->whereNull('left_at')
             ->update(['trashed_at' => now()]);
 
         AuditLog::create([
@@ -487,6 +488,7 @@ class InboxService
         // Clear trashed_at so the conversation reappears in normal folders
         \App\Models\ConversationParticipant::where('conversation_id', $conversation->id)
             ->where('user_id', $user->id)
+            ->whereNull('left_at')
             ->update(['trashed_at' => null]);
 
         AuditLog::create([

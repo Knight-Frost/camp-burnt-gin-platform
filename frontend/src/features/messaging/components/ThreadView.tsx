@@ -90,19 +90,18 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
   const [previewModal, setPreviewModal]           = useState<{ url: string; mimeType: string; name: string } | null>(null);
   const fileInputRef          = useRef<HTMLInputElement>(null);
   const bottomRef             = useRef<HTMLDivElement>(null);
-  const cancelled             = useRef(false);
   const loadingPreviewsRef    = useRef<Set<number>>(new Set());
   const blobUrlsRef           = useRef<string[]>([]);
 
   // Load messages when conversation changes
   useEffect(() => {
-    cancelled.current = false;
+    let isCancelled = false;
     setLoading(true);
     getMessages(conversation.id)
-      .then((res) => { if (!cancelled.current) setMessages(res.data); })
-      .catch(() => { if (!cancelled.current) toast.error('Could not load messages.'); })
-      .finally(() => { if (!cancelled.current) setLoading(false); });
-    return () => { cancelled.current = true; };
+      .then((res) => { if (!isCancelled) setMessages(res.data); })
+      .catch(() => { if (!isCancelled) toast.error('Could not load messages.'); })
+      .finally(() => { if (!isCancelled) setLoading(false); });
+    return () => { isCancelled = true; };
   }, [conversation.id]);
 
   // Auto-scroll to bottom on new messages
@@ -125,6 +124,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
   // Eager-load image attachment previews via authenticated fetch.
   // PDFs are loaded on-demand via handlePreview to avoid fetching large files unnecessarily.
   useEffect(() => {
+    let isStale = false;
     for (const msg of messages) {
       for (const att of msg.attachments ?? []) {
         if (!att.mime_type?.startsWith('image/')) continue;
@@ -135,7 +135,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
         getAttachmentBlobUrl(msgId, attId)
           .then((url) => {
             blobUrlsRef.current.push(url);
-            if (!cancelled.current) {
+            if (!isStale) {
               setPreviewUrls((prev) => ({ ...prev, [attId]: url }));
             } else {
               URL.revokeObjectURL(url);
@@ -146,6 +146,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
           });
       }
     }
+    return () => { isStale = true; };
   }, [messages]);
 
   async function handleSend() {
@@ -161,8 +162,9 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
       setMessages((p) => [...p, msg]);
       setReplyHtml('');
       setAttachments([]);
-    } catch {
-      toast.error('Failed to send reply.');
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg && msg !== 'Validation failed.' ? msg : 'Failed to send reply.');
     } finally {
       setSending(false);
     }
@@ -521,7 +523,17 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png"
                 className="hidden"
-                onChange={(e) => setAttachments((p) => [...p, ...Array.from(e.target.files ?? [])])}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  const oversized = files.filter((f) => f.size > 10 * 1024 * 1024);
+                  if (oversized.length > 0) {
+                    toast.error(`File too large: "${oversized[0].name}". Maximum size is 10 MB.`);
+                    e.target.value = '';
+                    return;
+                  }
+                  setAttachments((p) => [...p, ...files]);
+                  e.target.value = '';
+                }}
               />
               <button
                 type="button"

@@ -395,16 +395,26 @@ export function InboxPage() {
       setSelectedConv((prev) => prev ? { ...prev, is_starred: !prev.is_starred } : prev);
     }
     try {
-      await starConversation(id);
+      const actualIsStarred = await starConversation(id);
+      // Sync with server's actual state (overrides the optimistic flip)
+      setConversations((prev) =>
+        prev.map((c) => c.id === id ? { ...c, is_starred: actualIsStarred } : c)
+      );
+      if (selectedConv?.id === id) {
+        setSelectedConv((prev) => prev ? { ...prev, is_starred: actualIsStarred } : prev);
+      }
       // If we're in the starred folder and just unstarred, remove from list
-      if (folder === 'starred') {
-        setConversations((prev) => prev.filter((c) => c.id !== id || c.is_starred));
+      if (folder === 'starred' && !actualIsStarred) {
+        setConversations((prev) => prev.filter((c) => c.id !== id));
       }
     } catch {
       // Revert
       setConversations((prev) =>
         prev.map((c) => c.id === id ? { ...c, is_starred: !c.is_starred } : c)
       );
+      if (selectedConv?.id === id) {
+        setSelectedConv((prev) => prev ? { ...prev, is_starred: !prev.is_starred } : prev);
+      }
       toast.error('Failed to update star.');
     }
   }
@@ -414,9 +424,12 @@ export function InboxPage() {
       prev.map((c) => c.id === id ? { ...c, is_important: !c.is_important } : c)
     );
     try {
-      await markImportant(id);
-      if (folder === 'important') {
-        setConversations((prev) => prev.filter((c) => c.id !== id || c.is_important));
+      const actualIsImportant = await markImportant(id);
+      setConversations((prev) =>
+        prev.map((c) => c.id === id ? { ...c, is_important: actualIsImportant } : c)
+      );
+      if (folder === 'important' && !actualIsImportant) {
+        setConversations((prev) => prev.filter((c) => c.id !== id));
       }
     } catch {
       setConversations((prev) =>
@@ -499,13 +512,16 @@ export function InboxPage() {
 
   async function handleBulkTrash() {
     const ids = [...selected];
-    await Promise.all(ids.map((id) =>
-      folder === 'trash' ? deleteConversation(id) : trashConversation(id)
-    )).then(() => {
-      setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
-      setSelected(new Set());
-      toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} ${folder === 'trash' ? 'deleted' : 'moved to trash'}.`);
-    }).catch(() => toast.error('Bulk action failed.'));
+    const action = folder === 'trash'
+      ? (id: number) => isAdmin ? deleteConversation(id) : leaveConversation(id)
+      : (id: number) => trashConversation(id);
+    await Promise.all(ids.map(action))
+      .then(() => {
+        setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
+        setSelected(new Set());
+        toast.success(`${ids.length} conversation${ids.length > 1 ? 's' : ''} ${folder === 'trash' ? (isAdmin ? 'deleted' : 'removed') : 'moved to trash'}.`);
+      })
+      .catch(() => toast.error('Bulk action failed.'));
   }
 
   async function handleBulkRestore() {

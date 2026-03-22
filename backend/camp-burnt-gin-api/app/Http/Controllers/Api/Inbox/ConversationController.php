@@ -197,7 +197,7 @@ class ConversationController extends Controller
         Gate::authorize('view', $conversation);
 
         // Eager-load relationships to avoid N+1 queries when serializing the resource
-        $conversation->load(['participants.role', 'creator', 'lastMessage.sender.role']);
+        $conversation->load(['participants.role', 'creator', 'lastMessage.sender.role', 'activeParticipantRecords']);
 
         return response()->json([
             'success' => true,
