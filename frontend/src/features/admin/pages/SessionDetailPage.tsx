@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import {
   ArrowLeft, Calendar, Users, CheckCircle2, Clock,
@@ -38,7 +38,7 @@ function StatusBadge({ status }: { status: string }) {
     pending:      { background: 'rgba(234,179,8,0.12)',   color: '#854d0e' },
     under_review: { background: 'rgba(59,130,246,0.12)',  color: '#1e40af' },
     rejected:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
-    waitlisted:   { background: 'rgba(124,58,237,0.12)',  color: '#6b21a8' },
+    waitlisted:   { background: 'rgba(234,88,12,0.12)',   color: '#9a3412' },
     cancelled:    { background: 'rgba(107,114,128,0.12)', color: '#374151' },
   };
   const labels: Record<string, string> = {
@@ -148,6 +148,9 @@ function DistributionRow({ label, count, maxCount }: { label: string; count: num
 export function SessionDetailPage() {
   const { id }       = useParams<{ id: string }>();
   const navigate     = useNavigate();
+  const location     = useLocation();
+  // Detect portal prefix so back navigation works for both /admin and /super-admin.
+  const sessionsBase = location.pathname.startsWith('/super-admin') ? '/super-admin/sessions' : ROUTES.ADMIN_SESSIONS;
 
   const [data, setData]           = useState<SessionDashboardStats | null>(null);
   const [loading, setLoading]     = useState(true);
@@ -183,7 +186,7 @@ export function SessionDetailPage() {
     try {
       await archiveSession(Number(id));
       toast.success('Session archived successfully.');
-      navigate(ROUTES.ADMIN_SESSIONS);
+      navigate(sessionsBase);
     } catch {
       toast.error('Failed to archive session. Please try again.');
     } finally {
@@ -236,7 +239,7 @@ export function SessionDetailPage() {
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <div className="flex items-start gap-4 flex-wrap">
         <button
-          onClick={() => navigate(ROUTES.ADMIN_SESSIONS)}
+          onClick={() => navigate(sessionsBase)}
           className="p-2 rounded-lg border transition-colors hover:bg-[var(--glass-medium)] flex-shrink-0"
           style={{ borderColor: 'var(--border)' }}
           title="Back to sessions"
@@ -276,7 +279,7 @@ export function SessionDetailPage() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link
-            to={`${ROUTES.ADMIN_APPLICATIONS}?camp_session_id=${session.id}`}
+            to={`${location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : ROUTES.ADMIN_APPLICATIONS}?camp_session_id=${session.id}`}
             className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-[var(--glass-medium)]"
             style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
           >
@@ -480,7 +483,7 @@ export function SessionDetailPage() {
 
           <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
             <Link
-              to={`${ROUTES.ADMIN_APPLICATIONS}?camp_session_id=${session.id}`}
+              to={`${location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : ROUTES.ADMIN_APPLICATIONS}?camp_session_id=${session.id}`}
               className="text-xs font-medium transition-colors hover:underline"
               style={{ color: 'var(--ember-orange)' }}
             >

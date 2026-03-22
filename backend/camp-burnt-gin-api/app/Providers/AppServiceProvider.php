@@ -182,6 +182,22 @@ class AppServiceProvider extends ServiceProvider
         $this->registerPolicies();
         $this->registerObservers();
         $this->configureRateLimiting();
+        $this->registerGateAbilities();
+    }
+
+    /**
+     * Register standalone Gate abilities that are not tied to a specific model/policy.
+     *
+     * These abilities cover cross-cutting access rules that don't map cleanly to a
+     * single model (e.g. "view-families" operates on User but with different semantics
+     * than the UserPolicy which governs super_admin user-management).
+     */
+    protected function registerGateAbilities(): void
+    {
+        // 'view-families' — grants admin and super_admin access to the family management
+        // endpoints (GET /api/families and GET /api/families/{user}).
+        // Regular admins need this for daily operations; super_admin inherits it via isAdmin().
+        Gate::define('view-families', fn (\App\Models\User $user): bool => $user->isAdmin());
     }
 
     /**

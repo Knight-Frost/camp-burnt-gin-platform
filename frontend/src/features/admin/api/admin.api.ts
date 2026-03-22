@@ -6,7 +6,7 @@ import { axiosInstance } from '@/api/axios.config';
 import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 import type {
   Application, ApplicationReviewPayload, AuditLogEntry,
-  Camp, Camper, CampSession, ProviderLink, User,
+  Camp, Camper, CampSession, FamilyCard, FamilyWorkspace, ProviderLink, User,
 } from '@/features/admin/types/admin.types';
 
 export async function getApplications(params?: { page?: number; status?: string; search?: string; camp_session_id?: number }): Promise<PaginatedResponse<Application>> {
@@ -23,6 +23,28 @@ export async function reviewApplication(id: number, payload: ApplicationReviewPa
   return data.data;
 }
 export async function deleteApplication(id: number): Promise<void> { await axiosInstance.delete(`/applications/${id}`); }
+
+// ─── Family endpoints ──────────────────────────────────────────────────────
+
+/** Fetch paginated family summary cards for the Families index page. */
+export async function getFamilies(params?: {
+  page?: number;
+  search?: string;
+  session_id?: number;
+  status?: string;
+  multi_camper?: boolean;
+}): Promise<PaginatedResponse<FamilyCard>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<FamilyCard>>('/families', { params });
+  return data;
+}
+
+/** Fetch the full family workspace for a single guardian (by their user ID). */
+export async function getFamily(userId: number): Promise<FamilyWorkspace> {
+  const { data } = await axiosInstance.get<ApiResponse<FamilyWorkspace>>(`/families/${userId}`);
+  return data.data;
+}
+
+// ─── Camper endpoints ──────────────────────────────────────────────────────
 
 export async function getCampers(params?: { page?: number; search?: string; session_id?: number; id?: number }): Promise<PaginatedResponse<Camper>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Camper>>('/campers', { params });
@@ -46,7 +68,7 @@ export async function updateCamp(id: number, payload: Partial<Omit<Camp, 'id'>>)
 }
 export async function deleteCamp(id: number): Promise<void> { await axiosInstance.delete(`/camps/${id}`); }
 
-export async function getSessions(params?: { camp_id?: number }): Promise<CampSession[]> {
+export async function getSessions(params?: { camp_id?: number; per_page?: number }): Promise<CampSession[]> {
   const { data } = await axiosInstance.get<ApiResponse<CampSession[]>>('/sessions', { params }); return data.data;
 }
 export async function createSession(payload: Omit<CampSession, 'id' | 'created_at' | 'camp'>): Promise<CampSession> {
@@ -350,7 +372,7 @@ export const requestDocumentReupload = async (id: number): Promise<DocumentReque
 
 export const getSessionDashboard = async (id: number, signal?: AbortSignal): Promise<import('@/features/admin/types/admin.types').SessionDashboardStats> => {
   const { data } = await axiosInstance.get(`/sessions/${id}/dashboard`, { signal });
-  return data;
+  return data.data;
 };
 
 export const archiveSession = async (id: number): Promise<void> => {

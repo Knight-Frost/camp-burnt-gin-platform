@@ -222,6 +222,87 @@ export interface User {
   created_at: string;
 }
 
+// ─── Family Management Types ────────────────────────────────────────────────
+// These types power the 3-level family-first admin IA:
+//   FamilyCamperSummary  → used in FamilyCard (Level 1 summary cards)
+//   FamilyCard           → one item in the GET /families paginated list
+//   FamilyWorkspaceCamperApplication → one application row in the workspace
+//   FamilyWorkspaceCamper → one child card in the family workspace (Level 2)
+//   FamilyWorkspace      → full family workspace data (Level 2)
+
+export interface FamilyCamperSummary {
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  date_of_birth: string;
+  gender?: string;
+  applications_count: number;
+  latest_application?: {
+    id: number;
+    status: Application['status'];
+    submitted_at?: string | null;
+    session_name?: string | null;
+    session_id?: number | null;
+  } | null;
+}
+
+export interface FamilyCard {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  city?: string | null;
+  state?: string | null;
+  created_at: string;
+  campers_count: number;
+  campers: FamilyCamperSummary[];
+  active_applications_count: number;
+  application_statuses: Application['status'][];
+}
+
+export interface FamilyWorkspaceApplication {
+  id: number;
+  status: Application['status'];
+  submitted_at?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  camp_session_id: number;
+  session?: {
+    id: number;
+    name: string;
+    start_date: string;
+    end_date: string;
+    is_active?: boolean;
+  } | null;
+}
+
+export interface FamilyWorkspaceCamper {
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  date_of_birth: string;
+  gender?: string | null;
+  tshirt_size?: string | null;
+  created_at: string;
+  applications: FamilyWorkspaceApplication[];
+}
+
+export interface FamilyWorkspace {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  address_line_1?: string | null;
+  address_line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  created_at: string;
+  campers: FamilyWorkspaceCamper[];
+}
+
 export interface SessionDashboardStats {
   session: {
     id: number;
@@ -235,7 +316,7 @@ export interface SessionDashboardStats {
     capacity: number;
     enrolled: number;
     remaining: number;
-    fill_pct: number;
+    fill_percentage: number;
     is_at_capacity: boolean;
   };
   application_stats: {

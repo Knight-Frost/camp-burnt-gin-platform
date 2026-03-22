@@ -5,12 +5,13 @@
  */
 
 import { useState, useEffect, type ReactNode, type ComponentType } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle } from 'lucide-react';
+import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle, Languages } from 'lucide-react';
 import {
   applyFontScale,
   applyHighContrast,
@@ -76,8 +77,13 @@ export function SettingsPage() {
   const user = useAppSelector((state) => state.auth.user);
   const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
+  const { i18n } = useTranslation();
   const [fontScale, setFontScaleState] = useState<FontScale>(getSavedFontScale);
   const [highContrast, setHighContrastState] = useState(getSavedHighContrast);
+  // Derive current language from the hook — reactive, re-renders when language changes.
+  const currentLanguage = i18n.language?.slice(0, 2) || 'en';
+  // All registered languages, derived from the i18n config (same source as LanguageToggle).
+  const availableLanguages = Object.keys(i18n.options.resources ?? {});
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
@@ -109,6 +115,13 @@ export function SettingsPage() {
     setHighContrastState(val);
     applyHighContrast(val);
     toast.success(val ? 'High contrast enabled.' : 'High contrast disabled.');
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    void i18n.changeLanguage(lang);
+    localStorage.setItem('language', lang);
+    document.documentElement.lang = lang;
+    toast.success(lang === 'es' ? 'Idioma cambiado a Español.' : 'Language set to English.');
   };
 
   // Load notification preferences eagerly on mount so they are ready before
@@ -276,6 +289,39 @@ export function SettingsPage() {
                   onChange={handleHighContrast}
                   label="Enable high contrast mode"
                 />
+              </SettingsCard>
+
+              {/* Language — options derived from registered i18n resources */}
+              <SettingsCard
+                icon={Languages}
+                title="Language"
+                description="Choose the display language for the application."
+              >
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  {availableLanguages.map((code) => {
+                    const meta: Record<string, { native: string; label: string }> = {
+                      en: { native: 'English', label: 'English' },
+                      es: { native: 'Español', label: 'Spanish' },
+                    };
+                    const display = meta[code] ?? { native: code.toUpperCase(), label: code.toUpperCase() };
+                    const isActive = currentLanguage === code;
+                    return (
+                      <button
+                        key={code}
+                        onClick={() => handleLanguageChange(code)}
+                        className="flex flex-col items-center gap-0.5 py-3 px-2 rounded-xl border text-sm font-medium transition-all"
+                        style={{
+                          background: isActive ? 'var(--dash-nav-active-bg)' : 'transparent',
+                          borderColor: isActive ? 'var(--ember-orange)' : 'var(--border)',
+                          color: isActive ? 'var(--ember-orange)' : 'var(--muted-foreground)',
+                        }}
+                      >
+                        <span className="font-semibold">{display.native}</span>
+                        <span className="text-xs opacity-70">{display.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </SettingsCard>
 
             </div>

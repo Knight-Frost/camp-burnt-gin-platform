@@ -66,18 +66,21 @@ const ParentCalendarPage           = withSuspense(lazy(() => import('@/features/
 const ParentAnnouncementsPage      = withSuspense(lazy(() => import('@/features/parent/pages/ParentAnnouncementsPage').then(m => ({ default: m.ParentAnnouncementsPage }))));
 
 // ─── Admin pages ──────────────────────────────────────────────────────────────
-const AdminDashboardPage      = withSuspense(lazy(() => import('@/features/admin/pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage }))));
-const AdminApplicationsPage   = withSuspense(lazy(() => import('@/features/admin/pages/AdminApplicationsPage').then(m => ({ default: m.AdminApplicationsPage }))));
-const ApplicationReviewPage   = withSuspense(lazy(() => import('@/features/admin/pages/ApplicationReviewPage').then(m => ({ default: m.ApplicationReviewPage }))));
-const AdminCampersPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminCampersPage').then(m => ({ default: m.AdminCampersPage }))));
-const CamperDetailPage        = withSuspense(lazy(() => import('@/features/admin/pages/CamperDetailPage').then(m => ({ default: m.CamperDetailPage }))));
-const AdminSessionsPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminSessionsPage').then(m => ({ default: m.AdminSessionsPage }))));
-const ArchivedSessionsPage    = withSuspense(lazy(() => import('@/features/admin/pages/ArchivedSessionsPage').then(m => ({ default: m.ArchivedSessionsPage }))));
-const SessionDetailPage       = withSuspense(lazy(() => import('@/features/admin/pages/SessionDetailPage').then(m => ({ default: m.SessionDetailPage }))));
-const AdminReportsPage        = withSuspense(lazy(() => import('@/features/admin/pages/AdminReportsPage').then(m => ({ default: m.AdminReportsPage }))));
-const AdminAnnouncementsPage  = withSuspense(lazy(() => import('@/features/admin/pages/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage }))));
-const AdminCalendarPage       = withSuspense(lazy(() => import('@/features/admin/pages/AdminCalendarPage').then(m => ({ default: m.AdminCalendarPage }))));
-const AdminDocumentsPage      = withSuspense(lazy(() => import('@/features/admin/pages/AdminDocumentsPage').then(m => ({ default: m.AdminDocumentsPage }))));
+const AdminDashboardPage         = withSuspense(lazy(() => import('@/features/admin/pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage }))));
+const AdminApplicationsPage      = withSuspense(lazy(() => import('@/features/admin/pages/AdminApplicationsPage').then(m => ({ default: m.AdminApplicationsPage }))));
+const ApplicationReviewPage      = withSuspense(lazy(() => import('@/features/admin/pages/ApplicationReviewPage').then(m => ({ default: m.ApplicationReviewPage }))));
+// Family management — 3-level IA: Families index → Family workspace → Camper/Application detail
+const AdminFamiliesPage          = withSuspense(lazy(() => import('@/features/admin/pages/AdminFamiliesPage').then(m => ({ default: m.AdminFamiliesPage }))));
+const AdminFamilyWorkspacePage   = withSuspense(lazy(() => import('@/features/admin/pages/AdminFamilyWorkspacePage').then(m => ({ default: m.AdminFamilyWorkspacePage }))));
+const AdminCampersPage           = withSuspense(lazy(() => import('@/features/admin/pages/AdminCampersPage').then(m => ({ default: m.AdminCampersPage }))));
+const CamperDetailPage           = withSuspense(lazy(() => import('@/features/admin/pages/CamperDetailPage').then(m => ({ default: m.CamperDetailPage }))));
+const AdminSessionsPage          = withSuspense(lazy(() => import('@/features/admin/pages/AdminSessionsPage').then(m => ({ default: m.AdminSessionsPage }))));
+const ArchivedSessionsPage       = withSuspense(lazy(() => import('@/features/admin/pages/ArchivedSessionsPage').then(m => ({ default: m.ArchivedSessionsPage }))));
+const SessionDetailPage          = withSuspense(lazy(() => import('@/features/admin/pages/SessionDetailPage').then(m => ({ default: m.SessionDetailPage }))));
+const AdminReportsPage           = withSuspense(lazy(() => import('@/features/admin/pages/AdminReportsPage').then(m => ({ default: m.AdminReportsPage }))));
+const AdminAnnouncementsPage     = withSuspense(lazy(() => import('@/features/admin/pages/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage }))));
+const AdminCalendarPage          = withSuspense(lazy(() => import('@/features/admin/pages/AdminCalendarPage').then(m => ({ default: m.AdminCalendarPage }))));
+const AdminDocumentsPage         = withSuspense(lazy(() => import('@/features/admin/pages/AdminDocumentsPage').then(m => ({ default: m.AdminDocumentsPage }))));
 
 // ─── Medical pages ────────────────────────────────────────────────────────────
 // Medical staff have their own portal with HIPAA-protected camper health data
@@ -201,6 +204,9 @@ export const router = createBrowserRouter([
           { path: '/admin/dashboard',           element: <AdminDashboardPage /> },
           { path: '/admin/applications',        element: <AdminApplicationsPage /> },
           { path: '/admin/applications/:id',    element: <ApplicationReviewPage /> },
+          // Family management — 3-level IA
+          { path: '/admin/families',            element: <AdminFamiliesPage /> },
+          { path: '/admin/families/:userId',    element: <AdminFamilyWorkspacePage /> },
           { path: '/admin/campers',             element: <AdminCampersPage /> },
           { path: '/admin/campers/:id',         element: <CamperDetailPage /> },
           { path: '/admin/sessions',            element: <AdminSessionsPage /> },
@@ -213,6 +219,11 @@ export const router = createBrowserRouter([
           { path: '/admin/inbox',               element: <InboxPage /> },
           { path: '/admin/profile',             element: <ProfilePage /> },
           { path: '/admin/settings',            element: <SettingsPage /> },
+          // Governance pages — accessible by both admin and super_admin
+          { path: '/admin/users',               element: <UserManagementPage /> },
+          { path: '/admin/audit',               element: <AuditLogPage /> },
+          { path: '/admin/form-builder',        element: <FormDashboardPage /> },
+          { path: '/admin/form-builder/:formId', element: <FormEditorPage /> },
         ],
       }],
     }],
@@ -275,6 +286,9 @@ export const router = createBrowserRouter([
           // Shared admin pages also mounted under super-admin prefix
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
           { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },
+          // Family management — 3-level IA (mirrored from admin portal)
+          { path: '/super-admin/families',             element: <AdminFamiliesPage /> },
+          { path: '/super-admin/families/:userId',     element: <AdminFamilyWorkspacePage /> },
           { path: '/super-admin/campers',              element: <AdminCampersPage /> },
           { path: '/super-admin/campers/:id',          element: <CamperDetailPage /> },
           { path: '/super-admin/sessions',             element: <AdminSessionsPage /> },

@@ -44,6 +44,9 @@ export const ROUTES = {
 
   // ─── Admin portal ───────────────────────────────────────────────────────────
   ADMIN_DASHBOARD: '/admin/dashboard',
+  // Family management — 3-level IA: Families index → Family workspace → Camper/Application detail
+  ADMIN_FAMILIES: '/admin/families',
+  ADMIN_FAMILY_DETAIL: (userId: number | string) => `/admin/families/${userId}`,
   ADMIN_CAMPERS: '/admin/campers',
   // Function: returns /admin/campers/123 when called with id=123
   ADMIN_CAMPER_DETAIL: (id: number | string) => `/admin/campers/${id}`,

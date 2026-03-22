@@ -157,7 +157,6 @@ export async function sendMessage(
     const { data } = await axiosInstance.post<ApiResponse<Message>>(
       `/inbox/conversations/${conversationId}/messages`,
       form,
-      { headers: { 'Content-Type': undefined } },
     );
     return data.data;
   }

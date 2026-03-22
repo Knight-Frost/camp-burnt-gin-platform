@@ -21,21 +21,22 @@ import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplications, getSessions } from '@/features/admin/api/admin.api';
+import { getApplications } from '@/features/admin/api/admin.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
-import type { Application, CampSession } from '@/features/admin/types/admin.types';
+import type { Application } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
+import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
+import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBanner';
 
 // All possible status filter values — 'all' means no filter is applied.
 const STATUS_FILTERS = ['all', 'pending', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled'] as const;
 
-// Consolidated filter state — keeps search, status, session, and page together to avoid double-fetch races.
+// Consolidated filter state — session scoping comes from the workspace context, not a dropdown.
 interface Filters {
   search: string;
   status: string;
-  session_id: string;
   page: number;
 }
 
@@ -46,28 +47,29 @@ export function AdminApplicationsPage() {
   // Build the correct link prefix depending on whether we're in admin or super-admin.
   const reviewBase = location.pathname.startsWith('/super-admin') ? '/super-admin/applications' : '/admin/applications';
 
+  // Session workspace drives the scope of this page.
+  // URL param ?camp_session_id=X takes precedence (deep-link from SessionDetailPage);
+  // otherwise the global workspace session scopes the data.
+  const sessionCtx = useSessionWorkspace();
+  const urlParams  = new URLSearchParams(location.search);
+  const urlSession = urlParams.get('camp_session_id');
+  const workspaceSessionId = urlSession
+    ? Number(urlSession)
+    : (sessionCtx?.currentSession?.id ?? undefined);
+
   // ── State ──────────────────────────────────────────────────────────────────
 
   const [response, setResponse] = useState<PaginatedResponse<Application> | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
-  // All filter values live in one object so a single setFilters call updates everything atomically.
-  const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', session_id: '', page: 1 });
-  // retryKey is incremented by the error-state retry button to re-trigger the fetch effect.
+  const [filters, setFilters]   = useState<Filters>({ search: '', status: 'all', page: 1 });
   const [retryKey, setRetryKey] = useState(0);
 
-  // Sessions list — fetched once on mount for the session filter dropdown.
-  const [sessions, setSessions] = useState<CampSession[]>([]);
-
-  // searchInput is the controlled input value — updates on every keystroke for responsive UX.
-  // filters.search is the debounced value that actually triggers an API call.
   const [searchInput, setSearchInput] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Filter helpers ─────────────────────────────────────────────────────────
 
-  // Debounced search — updates the input immediately but waits 300ms before touching
-  // filters.search so we don't fire an API request on every keystroke.
   function setSearch(value: string) {
     setSearchInput(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -75,22 +77,11 @@ export function AdminApplicationsPage() {
       setFilters((f) => ({ ...f, search: value, page: 1 }));
     }, 300);
   }
-  // Changing the status dropdown also resets to page 1.
-  const setStatus    = (status: string)    => setFilters((f) => ({ ...f, status, page: 1 }));
-  // Changing the session dropdown also resets to page 1.
-  const setSessionId = (session_id: string) => setFilters((f) => ({ ...f, session_id, page: 1 }));
-  // Direct page navigation — doesn't reset other filters.
-  const setPage      = (page: number)      => setFilters((f) => ({ ...f, page }));
+  const setStatus = (status: string) => setFilters((f) => ({ ...f, status, page: 1 }));
+  const setPage   = (page: number)   => setFilters((f) => ({ ...f, page }));
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
-  // Fetch the sessions list once on mount — used to populate the session filter dropdown.
-  useEffect(() => {
-    getSessions().then(setSessions).catch(() => { /* non-critical; dropdown stays empty */ });
-  }, []);
-
-  // Inline async effect with a cancelled flag so setState is never called on an unmounted
-  // component (e.g. when the user switches tabs quickly mid-flight).
   useEffect(() => {
     let cancelled = false;
 
@@ -100,12 +91,9 @@ export function AdminApplicationsPage() {
       try {
         const data = await getApplications({
           page: filters.page,
-          // Don't send empty strings to the API — use undefined to omit the param.
           search: filters.search || undefined,
-          // 'all' means "no filter" — send undefined so the API returns everything.
           status: filters.status === 'all' ? undefined : filters.status,
-          // '' means "all sessions" — send undefined so the API returns all sessions.
-          camp_session_id: filters.session_id ? Number(filters.session_id) : undefined,
+          camp_session_id: workspaceSessionId,
         });
         if (!cancelled) setResponse(data);
       } catch {
@@ -117,12 +105,22 @@ export function AdminApplicationsPage() {
 
     void run();
 
-    // Cleanup: ignore the in-flight response if the component unmounts before it settles.
     return () => { cancelled = true; };
-  }, [filters, retryKey]); // Depend on data, not the callback reference.
+  }, [filters, workspaceSessionId, retryKey]);
 
   return (
     <div className="p-6 max-w-7xl">
+      {/* Session hero banner — unconditionally rendered.
+          The component owns its own visibility: it returns null outside admin portals
+          and switches between global and session mode internally.
+          Never guarded here so it cannot be suppressed by a falsy context check. */}
+      <div
+        key={sessionCtx?.isGlobalMode ? 'global' : (sessionCtx?.currentSession?.id ?? 'loading')}
+        className="-mt-6 -mx-6 lg:-mt-8 lg:-mx-8 mb-6"
+      >
+        <SessionHeroBanner />
+      </div>
+
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -168,31 +166,6 @@ export function AdminApplicationsPage() {
             ))}
           </select>
         </div>
-
-        {/* Session filter dropdown — only rendered once sessions have loaded */}
-        {sessions.length > 0 && (
-          <div
-            className="flex items-center gap-2 rounded-lg px-3 py-2 border"
-            style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
-          >
-            <Filter className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-            <select
-              value={filters.session_id}
-              onChange={(e) => setSessionId(e.target.value)}
-              className="bg-transparent text-sm outline-none"
-              style={{ color: 'var(--foreground)' }}
-            >
-              <option value="" style={{ background: 'var(--card)' }}>
-                {t('admin.applications.filter_all_sessions', 'All Sessions')}
-              </option>
-              {sessions.map((s) => (
-                <option key={s.id} value={String(s.id)} style={{ background: 'var(--card)' }}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {/* Table: shows skeletons → error → empty state → rows */}

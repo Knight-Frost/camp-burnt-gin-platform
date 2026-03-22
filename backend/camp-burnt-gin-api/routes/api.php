@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\Camp\CampController;
+use App\Http\Controllers\Api\Family\FamilyController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
@@ -329,6 +330,31 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             ->middleware('throttle:uploads');
         Route::get('/applicant/document-requests/{documentRequest}/download', [DocumentRequestController::class, 'applicantDownload'])
             ->middleware('throttle:sensitive');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Family Routes (Admin Only)
+    |--------------------------------------------------------------------------
+    |
+    | Family-first admin view of guardian accounts and their registered campers.
+    | A "family" is an applicant User with one or more associated campers.
+    |
+    | These endpoints power the 3-level family management IA:
+    |   Level 1 — GET /families          → paginated family summary cards
+    |   Level 2 — GET /families/{user}   → full family workspace
+    |   Level 3 — existing /campers/{id} and /applications/{id} endpoints
+    |
+    | Authorization: admin and super_admin only (enforced by FamilyController
+    | via the 'view-families' Gate ability defined in AppServiceProvider).
+    |
+    | PHI safety: no medical record data is loaded in either endpoint.
+    | Only structural/application data (names, DOB, session, status) is returned.
+    |
+    */
+    Route::middleware('admin')->prefix('families')->group(function () {
+        Route::get('/', [FamilyController::class, 'index'])->name('families.index');
+        Route::get('/{user}', [FamilyController::class, 'show'])->name('families.show');
     });
 
     /*

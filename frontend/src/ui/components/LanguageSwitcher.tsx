@@ -12,8 +12,9 @@ export function LanguageSwitcher() {
   const currentLanguage = i18n.language as Language;
 
   const handleSelect = (lang: Language) => {
-    i18n.changeLanguage(lang);
+    void i18n.changeLanguage(lang);
     localStorage.setItem('language', lang);
+    document.documentElement.lang = lang;
     setIsOpen(false);
   };
 

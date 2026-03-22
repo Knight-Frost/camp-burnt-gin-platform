@@ -45,8 +45,12 @@ class CampSessionController extends Controller
     {
         $this->authorize('viewAny', CampSession::class);
 
-        // Each session includes its parent camp so the frontend can display the camp name
-        $query = CampSession::with('camp');
+        // Each session includes its parent camp so the frontend can display the camp name.
+        // withCount eager-loads enrolled_count so capacity bars render correctly.
+        $query = CampSession::with('camp')
+            ->withCount(['applications as enrolled_count' => function ($q) {
+                $q->where('status', 'approved');
+            }]);
 
         // Non-admins should not see inactive/hidden sessions in the portal
         if (! $request->user()->isAdmin()) {
@@ -64,10 +68,17 @@ class CampSessionController extends Controller
                 ->where('registration_closes_at', '>=', now());
         }
 
+        // Admins may request a larger page for workspace selectors (e.g. per_page=100).
+        // Capped at 100 and restricted to admin users to prevent abuse.
+        $perPage = config('app.pagination_per_page', 15);
+        if ($request->user()->isAdmin() && $request->filled('per_page')) {
+            $perPage = min((int) $request->per_page, 100);
+        }
+
         // PERFORMANCE: Paginate to prevent loading all sessions at once
         // Order by start_date so the soonest upcoming session appears first
         $sessions = $query->orderBy('start_date')
-            ->paginate(config('app.pagination_per_page', 15));
+            ->paginate($perPage);
 
         return response()->json($sessions);
     }

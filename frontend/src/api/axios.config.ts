@@ -70,6 +70,15 @@ axiosInstance.interceptors.request.use(
     // Add a unique ID to each request so server logs can be correlated with frontend errors
     config.headers['X-Request-ID'] = crypto.randomUUID();
 
+    // For FormData payloads (file uploads), remove the instance-level
+    // 'application/json' Content-Type so the browser can set the correct
+    // 'multipart/form-data; boundary=...' header automatically.
+    // Setting it to undefined or null in per-request config does not reliably
+    // override the instance default — deleting it here is the only safe approach.
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error: AxiosError) => Promise.reject(error)
@@ -82,14 +91,23 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   // Successful responses pass through unchanged
   (response: AxiosResponse) => response,
-  (error: AxiosError<{
+  (error: AxiosError) => {
+    // Cancelled requests (AbortController) must propagate as-is so callers
+    // can detect err.code === 'ERR_CANCELED' and suppress error UI.
+    if (axios.isCancel(error)) return Promise.reject(error);
+    return errorInterceptor(error);
+  }
+);
+
+// Extracted so the cancel guard above can call it without nesting.
+function errorInterceptor(error: AxiosError<{
     message?: string;
     errors?: Record<string, string[]>;
     lockout?: boolean;
     retry_after?: number;
     attempts_remaining?: number;
     status?: number;
-  }>) => {
+  }>) {
     const status = error.response?.status;
     const responseData = error.response?.data;
 
@@ -177,8 +195,7 @@ axiosInstance.interceptors.response.use(
       message: responseData?.message ?? 'An unexpected error occurred.',
       status,
     });
-  }
-);
+}
 
 export { axiosInstance };
 export default axiosInstance;

@@ -454,7 +454,7 @@ export function AdminSessionsPage() {
       ) : (
         <div className="space-y-6">
           {camps.map((camp) => {
-            const campSessions = sessionsByCamp[camp.id] ?? [];
+            const campSessions = (sessionsByCamp[camp.id] ?? []).filter((s) => s.is_active);
             return (
               <div key={camp.id}>
                 {/* Camp header card */}
@@ -510,8 +510,8 @@ export function AdminSessionsPage() {
                           key={session.id}
                           className="rounded-xl border p-4"
                           style={{
-                            background: 'var(--glass-medium)',
-                            borderColor: isFull ? 'rgba(220,38,38,0.4)' : isNearFull ? 'rgba(217,119,6,0.4)' : 'var(--border)',
+                            background: 'var(--card)',
+                            borderColor: 'var(--border)',
                           }}
                         >
                           {/* Session header: name + status badges + action buttons */}

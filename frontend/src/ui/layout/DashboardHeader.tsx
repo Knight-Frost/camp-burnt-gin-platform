@@ -93,24 +93,25 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
   return (
     <>
       <header
-        className="h-16 flex items-center justify-between px-6 border-b flex-shrink-0"
+        className="h-16 flex items-center px-6 border-b flex-shrink-0"
         style={{
           background: 'var(--dash-header-bg)',
           borderColor: 'var(--dash-sidebar-border)',
-          // Frosted-glass effect — blurs content scrolling behind the header.
           backdropFilter: 'blur(16px)',
         }}
       >
-        {/* Current page title — derived from the pathname by DashboardShell */}
-        <h1
-          className="text-base font-headline font-semibold"
-          style={{ color: 'var(--foreground)' }}
-        >
-          {title}
-        </h1>
+        {/* Left side: page title */}
+        <div className="flex-1 flex items-center min-w-0">
+          <h1
+            className="text-base font-headline font-semibold truncate"
+            style={{ color: 'var(--foreground)' }}
+          >
+            {title}
+          </h1>
+        </div>
 
         {/* Right-side controls — always grouped in a flex row */}
-        <div className="flex items-center gap-1">
+        <div className="flex-1 flex items-center justify-end gap-1">
           {/* Language toggle switches between English and Spanish */}
           <LanguageToggle />
 

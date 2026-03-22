@@ -19,6 +19,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
+  Home,
   FileText,
   FolderOpen,
   CalendarDays,
@@ -26,12 +27,16 @@ import {
   MessageSquare,
   Settings,
   Megaphone,
+  ScrollText,
+  Layout,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
 import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
 import type { NavItem } from './DashboardSidebar';
+import { SessionWorkspaceProvider } from '@/features/sessions/context/SessionWorkspaceContext';
+import { SessionSelectorModal } from '@/features/sessions/components/SessionSelectorModal';
 
 export function AdminLayout() {
   const { t } = useTranslation();
@@ -54,23 +59,33 @@ export function AdminLayout() {
   // Nav items are defined here (inside the component) so they are translated
   // on every render, picking up any language change from i18next immediately.
   const navItems: NavItem[] = [
-    { group: t('portal_nav.group_primary'),       label: t('portal_nav.dashboard'),      to: ROUTES.ADMIN_DASHBOARD,      icon: LayoutDashboard },
-    { group: t('portal_nav.group_primary'),       label: t('portal_nav.applications'),   to: ROUTES.ADMIN_APPLICATIONS,   icon: FileText },
-    { group: t('portal_nav.group_primary'),       label: t('portal_nav.campers'),        to: ROUTES.ADMIN_CAMPERS,        icon: Users },
-    { group: t('portal_nav.group_primary'),       label: t('portal_nav.sessions_camps'), to: ROUTES.ADMIN_SESSIONS,       icon: CalendarDays },
-    { group: t('portal_nav.group_communication'), label: t('portal_nav.inbox'),          to: '/admin/inbox',              icon: MessageSquare },
-    { group: t('portal_nav.group_communication'), label: t('portal_nav.announcements'),  to: ROUTES.ADMIN_ANNOUNCEMENTS,  icon: Megaphone },
-    // 'Documents' has no i18n key yet — kept as a string literal until the key is added.
-    { group: t('portal_nav.group_communication'), label: 'Documents',                   to: ROUTES.ADMIN_DOCUMENTS,      icon: FolderOpen },
-    { group: t('portal_nav.group_operations'),    label: t('portal_nav.calendar'),       to: ROUTES.ADMIN_CALENDAR,       icon: CalendarDays },
-    { group: t('portal_nav.group_operations'),    label: t('portal_nav.reports'),        to: ROUTES.ADMIN_REPORTS,        icon: BarChart3 },
-    { group: t('portal_nav.group_system'),        label: t('portal_nav.settings'),       to: '/admin/settings',           icon: Settings },
+    // PRIMARY — core operational pages
+    { group: 'Primary',       label: 'Dashboard',        to: ROUTES.ADMIN_DASHBOARD,     icon: LayoutDashboard },
+    { group: 'Primary',       label: 'Applications',     to: ROUTES.ADMIN_APPLICATIONS,  icon: FileText },
+    { group: 'Primary',       label: 'Families',         to: ROUTES.ADMIN_FAMILIES,      icon: Home },
+    { group: 'Primary',       label: 'Camper Directory', to: ROUTES.ADMIN_CAMPERS,       icon: Users },
+    { group: 'Primary',       label: 'Sessions & Camps', to: ROUTES.ADMIN_SESSIONS,      icon: CalendarDays },
+    // COMMUNICATION
+    { group: 'Communication', label: 'Inbox',            to: '/admin/inbox',             icon: MessageSquare },
+    { group: 'Communication', label: 'Announcements',    to: ROUTES.ADMIN_ANNOUNCEMENTS, icon: Megaphone },
+    { group: 'Communication', label: 'Documents',        to: ROUTES.ADMIN_DOCUMENTS,     icon: FolderOpen },
+    // OPERATIONS
+    { group: 'Operations',    label: 'Calendar',         to: ROUTES.ADMIN_CALENDAR,      icon: CalendarDays },
+    { group: 'Operations',    label: 'Reports',          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
+    // SYSTEM — governance & configuration
+    { group: 'System',        label: 'Manage Users & Permissions', to: '/admin/users',         icon: Users },
+    { group: 'System',        label: 'Audit Log',                  to: '/admin/audit',         icon: ScrollText },
+    { group: 'System',        label: 'Form Builder',               to: '/admin/form-builder',  icon: Layout },
+    { group: 'System',        label: 'Settings',                   to: '/admin/settings',      icon: Settings },
   ];
 
   return (
-    // DashboardShell handles the sidebar + header layout; Outlet renders the matched child page.
-    <DashboardShell navItems={navItems} pageTitle={t('portal_nav.dashboard')}>
-      <Outlet />
-    </DashboardShell>
+    <SessionWorkspaceProvider>
+      {/* SessionSelectorModal renders via portal; visibility driven by context state */}
+      <SessionSelectorModal />
+      <DashboardShell navItems={navItems} pageTitle={t('portal_nav.dashboard')}>
+        <Outlet />
+      </DashboardShell>
+    </SessionWorkspaceProvider>
   );
 }
