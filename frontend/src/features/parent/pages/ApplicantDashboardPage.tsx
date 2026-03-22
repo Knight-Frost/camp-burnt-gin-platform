@@ -34,7 +34,6 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
-import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 export function ApplicantDashboardPage() {
@@ -95,15 +94,15 @@ export function ApplicantDashboardPage() {
     <div className="flex flex-col gap-6 max-w-5xl">
 
       {/* ── Liquid glass hero ────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: '200px' }}>
-        <BackgroundSlideshow />
-        {/* Dark gradient overlay — ensures text on the glass card stays readable */}
+      {/* No background here — the global BackgroundSlideshow in DashboardShell shows through */}
+      <div className="relative flex flex-col justify-end" style={{ minHeight: '340px' }}>
+        {/* Gradient scrim darkens the bottom for text readability, fades to transparent above */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           aria-hidden="true"
-          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 45%, transparent 80%)' }}
         />
-        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+        <div className="relative z-10 p-6 lg:p-8">
           <PersonalGreeting
             user={user}
             role="applicant"

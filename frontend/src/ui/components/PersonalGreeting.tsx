@@ -1,18 +1,14 @@
 /**
  * PersonalGreeting.tsx
  *
- * A liquid-glass greeting card displayed at the top of each role's dashboard.
+ * Full-width liquid glass greeting panel shown at the top of each dashboard.
  *
- * Features:
- *  - Time-aware salutation (Good morning / afternoon / evening / Welcome back)
- *  - Uses preferred_name if set, otherwise first word of name
- *  - Role-aware rotating subtitle that can incorporate real stat data
- *  - Liquid glass panel: backdrop-blur + specular highlight + soft shadow
- *  - Text contrast guaranteed: dark overlay gradient behind the card,
- *    white text with subtle shadow so letters never blend into the photo
- *
- * Usage:
- *   <PersonalGreeting user={user} role="admin" stats={{ pendingCount: 3 }} />
+ * Design intent:
+ *  - Spans the full hero width — no constrained max-width
+ *  - Large headline name (using Crimson Pro at ~3rem) so it reads at a glance
+ *  - Time-aware salutation + rotating role-aware subtitle
+ *  - Liquid glass: backdrop-blur + specular top highlight + depth shadow
+ *  - Text is white with shadows — readable over any photo background
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -82,7 +78,6 @@ function buildSubtitles(role: GreetingRole, stats: GreetingStats): string[] {
 
   const messages = [...base[role]];
 
-  // Inject data-aware messages at the front when relevant
   if (role === 'applicant' && stats.camperCount && stats.camperCount > 0) {
     const noun = stats.camperCount === 1 ? 'camper' : 'campers';
     messages.unshift(`${stats.camperCount} ${noun} registered for camp.`);
@@ -115,7 +110,6 @@ export function PersonalGreeting({ user, role, stats = {} }: PersonalGreetingPro
     if (subtitles.length <= 1) return;
 
     intervalRef.current = setInterval(() => {
-      // Fade out → swap text → fade in
       setVisible(false);
       setTimeout(() => {
         setSubtitleIndex((i) => (i + 1) % subtitles.length);
@@ -126,7 +120,6 @@ export function PersonalGreeting({ user, role, stats = {} }: PersonalGreetingPro
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  // subtitles array identity changes only when stats changes — intentional
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtitles.length, role]);
 
@@ -135,70 +128,72 @@ export function PersonalGreeting({ user, role, stats = {} }: PersonalGreetingPro
 
   return (
     <div
-      className="relative rounded-2xl px-6 py-5 max-w-sm"
+      className="w-full rounded-2xl px-7 py-6 relative"
       style={{
-        // ── Liquid glass core ──────────────────────────────────────────────
+        // ── Liquid glass ───────────────────────────────────────────────────
         background: 'rgba(255, 255, 255, 0.13)',
-        backdropFilter: 'blur(28px) saturate(200%) brightness(108%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(200%) brightness(108%)',
-        // ── Borders: bright top/left edge, dimmer bottom/right ─────────────
-        border: '1px solid rgba(255, 255, 255, 0.42)',
-        borderBottomColor: 'rgba(255, 255, 255, 0.14)',
-        borderRightColor: 'rgba(255, 255, 255, 0.14)',
-        // ── Depth shadows ──────────────────────────────────────────────────
+        backdropFilter: 'blur(32px) saturate(200%) brightness(108%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(200%) brightness(108%)',
+        border: '1px solid rgba(255, 255, 255, 0.40)',
+        borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+        borderRightColor: 'rgba(255, 255, 255, 0.12)',
         boxShadow: [
-          '0 20px 60px rgba(0, 0, 0, 0.22)',
-          '0 4px 16px rgba(0, 0, 0, 0.12)',
-          'inset 0 1.5px 0 rgba(255, 255, 255, 0.55)', // specular top
-          'inset 1.5px 0 0 rgba(255, 255, 255, 0.22)', // specular left
-          'inset -1px -1px 0 rgba(0, 0, 0, 0.06)',     // inner shadow bottom/right
+          '0 24px 64px rgba(0, 0, 0, 0.24)',
+          '0 4px 16px rgba(0, 0, 0, 0.14)',
+          'inset 0 1.5px 0 rgba(255, 255, 255, 0.55)',
+          'inset 1.5px 0 0 rgba(255, 255, 255, 0.20)',
+          'inset -1px -1px 0 rgba(0, 0, 0, 0.06)',
         ].join(', '),
-        // ── Subtle iridescent refraction tint ──────────────────────────────
-        // A faint cool shimmer overlaid via a pseudo-element isn't possible here,
-        // but the saturate() filter on backdrop-filter achieves a similar effect
-        // by enriching the colors of whatever is behind the glass.
       }}
     >
-      {/* Inner highlight strip — simulates light catching the top rim */}
+      {/* Specular rim highlight — simulates light on the top edge of glass */}
       <div
-        className="absolute top-0 left-4 right-4 h-px rounded-full"
+        className="absolute top-0 left-6 right-6 h-px rounded-full pointer-events-none"
         style={{
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 70%, transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.65) 25%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.65) 75%, transparent)',
         }}
         aria-hidden="true"
       />
 
       {/* Greeting salutation */}
       <p
-        className="text-xs font-semibold uppercase tracking-[0.18em] mb-1.5 select-none"
+        className="text-xs font-semibold uppercase tracking-[0.2em] mb-2 select-none"
         style={{
-          color: 'rgba(255, 255, 255, 0.72)',
-          textShadow: '0 1px 4px rgba(0,0,0,0.35)',
+          color: 'rgba(255, 255, 255, 0.68)',
+          textShadow: '0 1px 4px rgba(0,0,0,0.45)',
         }}
       >
         {greeting}
       </p>
 
-      {/* Name */}
+      {/* Name — large headline */}
       <h2
-        className="font-headline text-2xl font-semibold leading-tight mb-2 select-none"
+        className="font-headline font-semibold leading-none mb-3 select-none"
         style={{
+          fontSize: 'clamp(2.2rem, 4vw, 3.2rem)',
           color: '#ffffff',
-          textShadow: '0 1px 6px rgba(0,0,0,0.45), 0 0 24px rgba(0,0,0,0.15)',
+          textShadow: '0 2px 10px rgba(0,0,0,0.50), 0 0 32px rgba(0,0,0,0.18)',
         }}
       >
         {name}
       </h2>
 
+      {/* Thin separator */}
+      <div
+        className="mb-3"
+        style={{ height: '1px', background: 'rgba(255,255,255,0.20)', width: '100%' }}
+        aria-hidden="true"
+      />
+
       {/* Rotating subtitle */}
       <p
         className="text-sm leading-snug select-none"
         style={{
-          color: 'rgba(255, 255, 255, 0.82)',
-          textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+          color: 'rgba(255, 255, 255, 0.80)',
+          textShadow: '0 1px 4px rgba(0,0,0,0.45)',
           transition: 'opacity 400ms ease-in-out',
           opacity: visible ? 1 : 0,
-          minHeight: '1.25rem', // prevent layout shift during text swap
+          minHeight: '1.3rem',
         }}
       >
         {subtitles[subtitleIndex]}

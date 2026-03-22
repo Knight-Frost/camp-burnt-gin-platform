@@ -154,9 +154,9 @@
   --cta-secondary-shadow:  0 2px 8px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.80);
 
   /* Dashboard surfaces */
-  --dash-bg: #f8f9fa;
-  --dash-sidebar-bg: #ffffff;
-  --dash-header-bg: rgba(255, 255, 255, 0.97);
+  --dash-bg: transparent;
+  --dash-sidebar-bg: rgba(255, 255, 255, 0.82);
+  --dash-header-bg: rgba(255, 255, 255, 0.72);
   --dash-sidebar-border: rgba(0, 0, 0, 0.07);
   --dash-nav-active-bg: rgba(22, 163, 74, 0.08);
   --dash-nav-hover-bg: rgba(0, 0, 0, 0.04);

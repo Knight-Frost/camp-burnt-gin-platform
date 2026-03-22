@@ -366,6 +366,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
         style={{
           background: 'var(--dash-sidebar-bg)',
           borderColor: 'var(--dash-sidebar-border)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
         }}
         aria-label="Sidebar"
       >
@@ -411,6 +413,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
             style={{
               background: 'var(--dash-sidebar-bg)',
               borderColor: 'var(--dash-sidebar-border)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
             }}
             aria-label="Mobile navigation"
           >

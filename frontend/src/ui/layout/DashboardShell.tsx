@@ -28,6 +28,7 @@ import { useLocation } from 'react-router-dom';
 
 import { DashboardSidebar, type NavItem } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
+import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
 
 interface DashboardShellProps {
   navItems: NavItem[];
@@ -65,15 +66,16 @@ export function DashboardShell({
 
   return (
     // overflow-hidden on the outer div prevents any horizontal scroll from leaking out.
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: 'var(--dash-bg)' }}
-    >
+    // No background set here — BackgroundSlideshow fills the space absolutely.
+    <div className="flex h-screen overflow-hidden relative">
+      {/* Global nature photo background — sits behind all content */}
+      <BackgroundSlideshow />
+
       {/* Left sidebar — fixed width, never scrolls with the page content */}
       <DashboardSidebar navItems={navItems} pinnedBottomItems={pinnedBottomItems} />
 
       {/* Right column: header + scrollable content area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         {/* Sticky top bar — shows page title, notifications, user menu */}
         <DashboardHeader title={currentTitle} />
 

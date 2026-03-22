@@ -27,7 +27,6 @@ import { StatCard } from '@/ui/components/StatCard';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { ErrorState } from '@/ui/components/EmptyState';
-import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 export function AdminDashboardPage() {
@@ -84,25 +83,24 @@ export function AdminDashboardPage() {
     <div className="max-w-6xl space-y-8">
 
       {/* ── Liquid glass hero ────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: '200px' }}>
-        <BackgroundSlideshow />
+      <div className="relative flex flex-col justify-end" style={{ minHeight: '340px' }}>
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           aria-hidden="true"
-          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 45%, transparent 80%)' }}
         />
-        {/* Quick actions float top-right inside the hero */}
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
+        {/* Quick actions float top-right */}
+        <div className="absolute top-4 right-0 z-10 flex gap-2">
           <Link
             to={ROUTES.ADMIN_APPLICATIONS}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{
-              background: 'rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.14)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.35)',
+              border: '1px solid rgba(255,255,255,0.32)',
               color: '#fff',
-              textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              textShadow: '0 1px 3px rgba(0,0,0,0.35)',
             }}
           >
             <FileText className="h-4 w-4" />
@@ -112,12 +110,12 @@ export function AdminDashboardPage() {
             to="/admin/inbox"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors relative"
             style={{
-              background: 'rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.14)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.35)',
+              border: '1px solid rgba(255,255,255,0.32)',
               color: '#fff',
-              textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              textShadow: '0 1px 3px rgba(0,0,0,0.35)',
             }}
           >
             <MessageSquare className="h-4 w-4" />
@@ -130,7 +128,7 @@ export function AdminDashboardPage() {
             )}
           </Link>
         </div>
-        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+        <div className="relative z-10 p-6 lg:p-8">
           <PersonalGreeting
             user={user}
             role="admin"

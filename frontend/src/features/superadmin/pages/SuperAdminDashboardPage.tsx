@@ -18,7 +18,6 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Users, Shield, FileText, Activity, ArrowRight } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
-import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 // Static list of quick-link cards — no API call needed, just navigation shortcuts
@@ -37,14 +36,13 @@ export function SuperAdminDashboardPage() {
   return (
     <div className="p-6 max-w-5xl">
       {/* ── Liquid glass hero ────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: '200px' }}>
-        <BackgroundSlideshow />
+      <div className="relative flex flex-col justify-end mb-8" style={{ minHeight: '340px' }}>
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           aria-hidden="true"
-          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 45%, transparent 80%)' }}
         />
-        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+        <div className="relative z-10 p-6 lg:p-8">
           <PersonalGreeting user={user} role="super_admin" />
         </div>
       </div>
