@@ -21,14 +21,18 @@ import { useTranslation } from 'react-i18next';
 import { getAdminApplications, getCamps } from '@/features/admin/api/admin.api';
 import { getUnreadCount } from '@/features/messaging/api/messaging.api';
 import type { Application, Camp } from '@/features/admin/types/admin.types';
+import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { StatCard } from '@/ui/components/StatCard';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { ErrorState } from '@/ui/components/EmptyState';
+import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
+import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 export function AdminDashboardPage() {
   const { t } = useTranslation();
+  const user = useAppSelector((state) => state.auth.user);
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [camps, setCamps]               = useState<Camp[]>([]);
@@ -79,30 +83,42 @@ export function AdminDashboardPage() {
   return (
     <div className="max-w-6xl space-y-8">
 
-      {/* ── Header with context ──────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-            {t('admin.dashboard.title')}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            {t('admin.dashboard.subtitle')}
-          </p>
-        </div>
-        {/* Quick actions */}
-        <div className="flex gap-2 flex-shrink-0">
+      {/* ── Liquid glass hero ────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: '200px' }}>
+        <BackgroundSlideshow />
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+        />
+        {/* Quick actions float top-right inside the hero */}
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
           <Link
             to={ROUTES.ADMIN_APPLICATIONS}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors hover:bg-[var(--muted)]"
-            style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.35)',
+              color: '#fff',
+              textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }}
           >
             <FileText className="h-4 w-4" />
             {t('admin.dashboard.all_applications')}
           </Link>
           <Link
             to="/admin/inbox"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors hover:opacity-90 relative"
-            style={{ background: 'var(--ember-orange)', color: '#fff' }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors relative"
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.35)',
+              color: '#fff',
+              textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }}
           >
             <MessageSquare className="h-4 w-4" />
             {t('portal_nav.inbox')}
@@ -113,6 +129,13 @@ export function AdminDashboardPage() {
               </span>
             )}
           </Link>
+        </div>
+        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+          <PersonalGreeting
+            user={user}
+            role="admin"
+            stats={{ pendingCount: stats.pending, unreadCount: unread }}
+          />
         </div>
       </div>
 

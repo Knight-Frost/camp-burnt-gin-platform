@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Users, Shield, FileText, Activity, ArrowRight } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
+import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
+import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 // Static list of quick-link cards — no API call needed, just navigation shortcuts
 const QUICK_LINKS = [
@@ -34,18 +36,17 @@ export function SuperAdminDashboardPage() {
 
   return (
     <div className="p-6 max-w-5xl">
-      {/* Personalized greeting header */}
-      <div className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: 'var(--accent-label)' }}>
-          {t('superadmin.dashboard.eyebrow')}
-        </p>
-        <h1 className="font-headline text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
-          {/* Extract first name from the full name string */}
-          {t('superadmin.dashboard.greeting', { name: user?.name?.split(' ')[0] ?? 'Admin' })}
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-          {t('superadmin.dashboard.subtitle')}
-        </p>
+      {/* ── Liquid glass hero ────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: '200px' }}>
+        <BackgroundSlideshow />
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+        />
+        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+          <PersonalGreeting user={user} role="super_admin" />
+        </div>
       </div>
 
       {/* Quick-link card grid */}

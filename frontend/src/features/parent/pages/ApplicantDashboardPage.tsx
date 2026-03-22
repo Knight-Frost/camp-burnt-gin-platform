@@ -34,6 +34,8 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
+import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
+import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 export function ApplicantDashboardPage() {
   const { t } = useTranslation();
@@ -74,7 +76,6 @@ export function ApplicantDashboardPage() {
       .finally(() => setLoading(false));
   }, [retryKey]);
 
-  const firstName    = user?.name.split(' ')[0] ?? 'there';
   const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
@@ -93,17 +94,22 @@ export function ApplicantDashboardPage() {
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
 
-      {/* ── Welcome header ───────────────────────────────────── */}
-      <div>
-        <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
-          {t('applicant.dashboard.welcome_back')}
-        </p>
-        <h2 className="text-2xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-          {firstName}
-        </h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-          {t('applicant.dashboard.subtitle')}
-        </p>
+      {/* ── Liquid glass hero ────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: '200px' }}>
+        <BackgroundSlideshow />
+        {/* Dark gradient overlay — ensures text on the glass card stays readable */}
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+        />
+        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+          <PersonalGreeting
+            user={user}
+            role="applicant"
+            stats={{ camperCount: campers.length }}
+          />
+        </div>
       </div>
 
       {/* ── Document action alert ────────────────────────────── */}

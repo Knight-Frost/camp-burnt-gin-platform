@@ -52,6 +52,9 @@ import { StatCard } from '@/ui/components/StatCard';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ROUTES } from '@/shared/constants/routes';
+import { useAppSelector } from '@/store/hooks';
+import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
+import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -196,6 +199,7 @@ function ActivitySkeleton() {
 export function MedicalDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const user = useAppSelector((state) => state.auth.user);
 
   const [stats, setStats]               = useState<MedicalStats | null>(null);
   const [followUps, setFollowUps]       = useState<MedicalFollowUp[]>([]);
@@ -252,29 +256,38 @@ export function MedicalDashboardPage() {
   return (
     <div className="p-6 max-w-7xl space-y-6">
 
-      {/* ── SECTION 1: Header with context ──────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
-            {t('medical.dashboard.title')}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            {t('medical.dashboard.subtitle')}
-          </p>
-        </div>
-        {/* Quick status context pill */}
+      {/* ── SECTION 1: Liquid glass hero ──────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: '200px' }}>
+        <BackgroundSlideshow />
+        <div
+          className="absolute inset-0"
+          aria-hidden="true"
+          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.30) 100%)' }}
+        />
+        {/* Alert pill floats top-right if there are overdue items */}
         {!statsLoading && stats && (overdueCount > 0 || dueTodayCount > 0) && (
           <div
-            className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"
-            style={{ background: overdueCount > 0 ? 'rgba(220,38,38,0.08)' : 'rgba(217,119,6,0.08)', color: overdueCount > 0 ? 'var(--destructive)' : '#d97706', border: `1px solid ${overdueCount > 0 ? 'rgba(220,38,38,0.20)' : 'rgba(217,119,6,0.20)'}` }}
+            className="absolute top-4 right-4 z-10 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: `1px solid ${overdueCount > 0 ? 'rgba(248,113,113,0.6)' : 'rgba(251,191,36,0.6)'}`,
+              color: overdueCount > 0 ? '#fca5a5' : '#fde68a',
+              textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+            }}
           >
             <AlertOctagon className="h-4 w-4" />
-            {overdueCount > 0
-              ? `${overdueCount} overdue`
-              : `${dueTodayCount} due today`
-            }
+            {overdueCount > 0 ? `${overdueCount} overdue` : `${dueTodayCount} due today`}
           </div>
         )}
+        <div className="relative z-10 p-6 flex items-end" style={{ minHeight: '200px' }}>
+          <PersonalGreeting
+            user={user}
+            role="medical"
+            stats={{ overdueCount }}
+          />
+        </div>
       </div>
 
       {/* ── SECTION 2: Stats Bar ─────────────────────────────────────────────── */}
