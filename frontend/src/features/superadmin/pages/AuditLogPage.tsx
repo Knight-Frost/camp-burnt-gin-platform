@@ -257,8 +257,7 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+      className="glass-data rounded-xl overflow-hidden"
     >
       {/* Main row — always visible */}
       <div className="flex items-start gap-3 px-4 py-3">
@@ -670,8 +669,7 @@ export function AuditLogPage() {
       {/* Expandable advanced-filter panel */}
       {showFilters && (
         <div
-          className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 p-4 rounded-xl border"
-          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+          className="glass-panel grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 p-4 rounded-xl"
         >
           {/* Category / event type filter */}
           <div>

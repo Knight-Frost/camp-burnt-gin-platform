@@ -5,16 +5,30 @@
  * All images are always mounted; opacity transitions handle the crossfade.
  * Pure CSS — no Framer Motion, minimal JS.
  *
- * Usage: place inside a `position: relative; overflow: hidden` container.
+ * Positioned fixed to the viewport (z-index: 0, pointer-events: none).
+ * Place anywhere in the DOM — it escapes all containing blocks and covers the full screen.
+ *
+ * Adaptive Glass Integration:
+ * Each image has a pre-assigned BgTone that describes its luminosity.
+ * When the active slide changes, onToneChange is called so the
+ * BackgroundBrightnessContext can update the CSS data-bg-tone attribute,
+ * which in turn adapts glass opacity/blur values across all cards.
  */
 
 import { useState, useEffect } from 'react';
+import type { BgTone } from '@/ui/context/BackgroundBrightnessContext';
 
-const IMAGES = [
-  '/backgrounds/bg-mountain-river.jpg',
-  '/backgrounds/bg-italy.jpg',
-  '/backgrounds/bg-rocky-stream.jpg',
-  '/backgrounds/bg-lantern.jpg',
+interface SlideConfig {
+  src: string;
+  /** Pre-assigned luminosity tone for adaptive glass system */
+  tone: BgTone;
+}
+
+const SLIDES: SlideConfig[] = [
+  { src: '/backgrounds/bg-mountain-river.jpg', tone: 'dark'    },
+  { src: '/backgrounds/bg-italy.jpg',          tone: 'light'   },
+  { src: '/backgrounds/bg-rocky-stream.jpg',   tone: 'neutral' },
+  { src: '/backgrounds/bg-lantern.jpg',        tone: 'dark'    },
 ];
 
 /** Milliseconds each photo stays visible before crossfading */
@@ -22,20 +36,46 @@ const HOLD_MS = 9000;
 /** Crossfade duration — must match the CSS transition below */
 const FADE_MS = 2200;
 
-export function BackgroundSlideshow() {
+interface BackgroundSlideshowProps {
+  onToneChange?: (tone: BgTone) => void;
+}
+
+export function BackgroundSlideshow({ onToneChange }: BackgroundSlideshowProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Emit the initial tone immediately on mount
+  useEffect(() => {
+    onToneChange?.(SLIDES[0].tone);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveIndex((i) => (i + 1) % IMAGES.length);
+      setActiveIndex((i) => {
+        const next = (i + 1) % SLIDES.length;
+        // Emit tone change slightly before the fade completes for a smooth feel
+        setTimeout(() => onToneChange?.(SLIDES[next].tone), FADE_MS * 0.4);
+        return next;
+      });
     }, HOLD_MS + FADE_MS);
 
     return () => clearInterval(timer);
+  // onToneChange is stable (useCallback) — safe to omit from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-      {IMAGES.map((src, i) => (
+    <div
+      className="overflow-hidden"
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: -1,
+        pointerEvents: 'none',
+      }}
+    >
+      {SLIDES.map(({ src }, i) => (
         <img
           key={src}
           src={src}
@@ -56,6 +96,19 @@ export function BackgroundSlideshow() {
           }}
         />
       ))}
+      {/*
+       * Dimming overlay — sits on top of all slide images.
+       * Reduces photo brightness so the background feels atmospheric
+       * rather than dominant, and improves contrast for glass surfaces.
+       */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.40)',
+          pointerEvents: 'none',
+        }}
+      />
     </div>
   );
 }

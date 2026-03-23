@@ -45,12 +45,15 @@ return [
     | considered expired. This will override any values set in the token's
     | "expires_at" attribute, but first-party sessions are not affected.
     |
-    | Set to 60 minutes for HIPAA compliance - tokens must expire to enforce
-    | session timeout requirements.
+    | Set to 480 minutes (8 hours) as the absolute maximum lifetime for any
+    | token. The HIPAA inactivity requirement (60 min idle → logout) is
+    | enforced on the frontend by the useIdleTimeout hook, not here.
+    | Keeping a reasonable absolute maximum prevents tokens from living forever
+    | if a user never explicitly logs out.
     |
     */
 
-    'expiration' => env('SANCTUM_EXPIRATION', 60),
+    'expiration' => env('SANCTUM_EXPIRATION', 480),
 
     /*
     |--------------------------------------------------------------------------

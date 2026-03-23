@@ -55,6 +55,7 @@ import {
   type EmergencyContactPayload,
 } from '@/features/profile/api/profile.api';
 import { resendVerificationEmail } from '@/features/auth/api/auth.api';
+import { Avatar } from '@/ui/components/Avatar';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -160,11 +161,15 @@ function AvatarSection({
 }) {
   const fileRef    = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('File too large. Please choose an image under 8 MB.');
+      e.target.value = '';
+      return;
+    }
     setBusy(true);
     try {
       await onUpload(file);
@@ -183,18 +188,7 @@ function AvatarSection({
     <div className="flex items-center gap-5">
       {/* Avatar circle */}
       <div className="relative flex-shrink-0">
-        <div
-          className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-xl font-bold"
-          style={{
-            background: avatarUrl ? undefined : 'rgba(22,163,74,0.15)',
-            color: 'var(--ember-orange)',
-          }}
-        >
-          {avatarUrl
-            ? <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-            : initials
-          }
-        </div>
+        <Avatar src={avatarUrl} name={name} size="xl" />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -364,12 +358,7 @@ function EmergencyContactsSection() {
           style={{ borderColor: 'var(--border)', background: 'var(--dash-bg)' }}
         >
           <div className="flex items-start gap-3 min-w-0">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-              style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--ember-orange)' }}
-            >
-              {contact.name.charAt(0).toUpperCase()}
-            </div>
+            <Avatar name={contact.name} size="md" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
@@ -593,7 +582,7 @@ function MfaSection({
           </div>
         </div>
         <div className="flex justify-center">
-          <div className="p-4 rounded-xl border" style={{ background: '#ffffff', borderColor: 'var(--border)' }}>
+          <div className="glass-data p-4 rounded-xl">
             <QRCode value={setup.qr_code_url} size={144} />
           </div>
         </div>

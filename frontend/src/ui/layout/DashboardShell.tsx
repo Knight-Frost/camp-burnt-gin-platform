@@ -10,13 +10,16 @@
  *     individual pages don't have to pass it in explicitly.
  *   - Gives the /inbox route special full-bleed treatment (no padding,
  *     overflow-hidden) because the messaging panel manages its own scroll.
+ *   - Hosts the BackgroundBrightnessProvider and wires the adaptive glass system:
+ *     BackgroundSlideshow emits a BgTone → context updates → data-bg-tone
+ *     attribute is applied to the shell root → CSS adapts glass values.
  *
  * Layout structure:
- *   <div flex h-screen>            ← full-viewport row
- *     <DashboardSidebar />         ← fixed-width left column
- *     <div flex-col>               ← expanding right column
- *       <DashboardHeader />        ← sticky top bar
- *       <main overflow-y-auto>     ← scrollable page content
+ *   <div flex h-screen data-bg-tone>   ← full-viewport row + adaptive glass root
+ *     <DashboardSidebar />             ← fixed-width left column
+ *     <div flex-col>                   ← expanding right column
+ *       <DashboardHeader />            ← sticky top bar
+ *       <main overflow-y-auto>         ← scrollable page content
  *         {children}
  *       </main>
  *     </div>
@@ -28,7 +31,10 @@ import { useLocation } from 'react-router-dom';
 
 import { DashboardSidebar, type NavItem } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
-import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
+import {
+  BackgroundBrightnessProvider,
+  useBackgroundTone,
+} from '@/ui/context/BackgroundBrightnessContext';
 
 interface DashboardShellProps {
   navItems: NavItem[];
@@ -50,32 +56,39 @@ function deriveTitleFromPath(pathname: string): string {
     .join(' ');
 }
 
-export function DashboardShell({
+/** Inner shell — needs access to the BackgroundBrightnessContext */
+function ShellInner({
   navItems,
   pinnedBottomItems,
   pageTitle,
   children,
 }: DashboardShellProps) {
   const location = useLocation();
+  const { tone } = useBackgroundTone();
 
-  // useMemo means deriveTitleFromPath only reruns when the URL changes — not on every render.
   const currentTitle = useMemo(
     () => deriveTitleFromPath(location.pathname) || pageTitle,
     [location.pathname, pageTitle]
   );
 
   return (
-    // overflow-hidden on the outer div prevents any horizontal scroll from leaking out.
-    // No background set here — BackgroundSlideshow fills the space absolutely.
-    <div className="flex h-screen overflow-hidden relative">
-      {/* Global nature photo background — sits behind all content */}
-      <BackgroundSlideshow />
-
+    /*
+     * data-bg-tone drives the adaptive glass CSS custom properties.
+     * CSS attribute selectors in design-tokens.css read this and override
+     * --glass-card-bg, --glass-card-blur, etc. accordingly.
+     *
+     * No z-index tricks needed here. BackgroundSlideshow uses position:fixed, z-index:-1
+     * which sits between the html canvas background (layer 1) and non-positioned content
+     * (layer 3). All shell content paints naturally above it.
+     * backdrop-filter on sidebar/header/main can sample the photo because they are in the
+     * root stacking context (no ancestor stacking context blocking them).
+     */
+    <div className="flex h-screen overflow-hidden" data-bg-tone={tone}>
       {/* Left sidebar — fixed width, never scrolls with the page content */}
       <DashboardSidebar navItems={navItems} pinnedBottomItems={pinnedBottomItems} />
 
       {/* Right column: header + scrollable content area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Sticky top bar — shows page title, notifications, user menu */}
         <DashboardHeader title={currentTitle} />
 
@@ -97,15 +110,10 @@ export function DashboardShell({
           </div>
         ) : (
           <main
-            className="flex-1 overflow-y-auto p-6 lg:p-8"
+            className="flex-1 overflow-y-auto px-6 pb-6 lg:px-8 lg:pb-8"
             id="main-content"
             tabIndex={-1}
-            style={{
-              // Hero sections at the top of dashboard pages are transparent (photos show through).
-              // Below the hero (~360px in), the background fades to an opaque surface so the
-              // photo doesn't bleed through the gaps between content cards.
-              background: 'linear-gradient(to bottom, transparent 0, transparent 360px, rgba(248,249,250,0.97) 420px)',
-            }}
+            style={{ background: 'var(--dash-main-bg)' }}
           >
             <div key={location.pathname} style={{ animation: 'pageIn 160ms ease-out backwards' }}>
               {children}
@@ -114,5 +122,13 @@ export function DashboardShell({
         )}
       </div>
     </div>
+  );
+}
+
+export function DashboardShell(props: DashboardShellProps) {
+  return (
+    <BackgroundBrightnessProvider>
+      <ShellInner {...props} />
+    </BackgroundBrightnessProvider>
   );
 }

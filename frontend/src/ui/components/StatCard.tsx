@@ -10,10 +10,10 @@
  *   - Minimum width safeguard prevents awkward squishing
  *   - Works in English and Spanish without layout breakage
  *
- * Responsibilities:
- *   - Displays a labeled numeric metric with an icon.
- *   - Displays the numeric value immediately (no count-up animation).
- *   - Accepts a `delay` prop (kept for API compatibility, unused).
+ * Adaptive glass (glass system upgrade):
+ *   Uses .glass-card CSS class instead of inline styles.
+ *   The class adapts automatically to the background tone via data-bg-tone
+ *   on the DashboardShell root — see design-tokens.css.
  */
 
 import type { LucideIcon } from 'lucide-react';
@@ -37,15 +37,9 @@ export function StatCard({
   color = 'var(--ember-orange)',
   suffix = '',
 }: StatCardProps) {
-  const count = value;
-
   return (
     <div
-      className="rounded-2xl border p-4 sm:p-5 flex items-start gap-3 min-w-0"
-      style={{
-        background: 'var(--card)',
-        borderColor: 'var(--border)',
-      }}
+      className="glass-card rounded-2xl p-4 sm:p-5 flex items-start gap-3 min-w-0"
     >
       {/* Icon container — 10% opacity tint of the accent color */}
       <div
@@ -57,14 +51,12 @@ export function StatCard({
 
       {/* Stat value and label — min-w-0 enables text wrapping instead of overflow */}
       <div className="flex-1 min-w-0">
-        {/* Large animated number */}
         <p
           className="text-2xl font-headline font-semibold leading-none"
           style={{ color: 'var(--foreground)' }}
         >
-          {count.toLocaleString()}{suffix}
+          {value.toLocaleString()}{suffix}
         </p>
-        {/* Metric label — allows wrapping for long/translated strings */}
         <p
           className="text-xs sm:text-sm mt-1.5 leading-snug"
           style={{ color: 'var(--muted-foreground)' }}

@@ -18,6 +18,7 @@ import {
   type Conversation, type Message, type MessageAttachment,
 } from '@/features/messaging/api/messaging.api';
 import { Skeletons } from '@/ui/components/Skeletons';
+import { Avatar } from '@/ui/components/Avatar';
 import { RichTextEditor } from './editor/RichTextEditor';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -30,11 +31,6 @@ function avatarBg(name: string): string {
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/);
-  return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
-}
-
 function formatFileSize(bytes: number): string {
   if (!bytes) return '—';
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -48,21 +44,6 @@ function getFileTypeStyle(mimeType: string): { color: string; isImage: boolean; 
   if (mimeType?.includes('word') || mimeType?.includes('document'))
                                        return { color: '#7c3aed', isImage: false, isPdf: false };
   return                                      { color: '#6b7280', isImage: false, isPdf: false };
-}
-
-function Avatar({ name, size = 36 }: { name: string; size?: number }) {
-  return (
-    <div
-      className="flex items-center justify-center rounded-full font-semibold flex-shrink-0 select-none"
-      style={{
-        width: size, height: size,
-        background: avatarBg(name), color: '#fff',
-        fontSize: size < 32 ? 10 : 12, lineHeight: 1,
-      }}
-    >
-      {initials(name)}
-    </div>
-  );
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -247,7 +228,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
             <Bot className="h-4 w-4" style={{ color: BRAND }} />
           </div>
         ) : (
-          <Avatar name={displayName} size={32} />
+          <Avatar name={displayName} size="md" fallbackColor={avatarBg(displayName)} />
         )}
 
         <div className="flex-1 min-w-0">
@@ -306,7 +287,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                   />
                 ) : (
                   <>
-                    {!isMine && <Avatar name={senderName} size={30} />}
+                    {!isMine && <Avatar name={senderName} size="md" fallbackColor={avatarBg(senderName)} />}
                     <div className={`max-w-[75%] flex flex-col gap-1 ${isMine ? 'items-end' : ''}`}>
                       {!isMine && (
                         <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>

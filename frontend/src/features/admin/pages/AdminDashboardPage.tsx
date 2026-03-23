@@ -83,7 +83,15 @@ export function AdminDashboardPage() {
     <div className="max-w-6xl space-y-8">
 
       {/* ── Liquid glass hero ────────────────────────────────── */}
-      <div className="relative flex flex-col justify-end" style={{ minHeight: '340px' }}>
+      <div
+        className="relative flex flex-col justify-end rounded-2xl overflow-hidden"
+        style={{
+          minHeight: '340px',
+          backgroundImage: 'url(/backgrounds/bg-rocky-stream.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         <div
           className="absolute inset-0 pointer-events-none"
           aria-hidden="true"
@@ -174,8 +182,7 @@ export function AdminDashboardPage() {
           {/* Unread messages — clickable stat card */}
           <Link to="/admin/inbox" className="block group">
             <div
-              className="rounded-2xl border p-4 sm:p-5 flex items-start gap-3 min-w-0 transition-shadow hover:shadow-md h-full"
-              style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+              className="glass-card rounded-2xl p-4 sm:p-5 flex items-start gap-3 min-w-0 transition-shadow hover:shadow-md h-full"
             >
               <div
                 className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
@@ -238,7 +245,7 @@ export function AdminDashboardPage() {
           </Link>
         </div>
 
-        <div className="rounded-2xl border overflow-hidden shadow-sm" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+        <div className="glass-panel rounded-2xl overflow-hidden">
           {loading ? (
             <div className="p-6"><SkeletonTable rows={5} /></div>
           ) : reviewQueue.length === 0 ? (
@@ -320,7 +327,7 @@ export function AdminDashboardPage() {
           </Link>
         </div>
 
-        <div className="rounded-2xl border overflow-hidden shadow-sm" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+        <div className="glass-panel rounded-2xl overflow-hidden">
           {loading ? (
             <div className="p-6"><SkeletonTable rows={4} /></div>
           ) : sessionRows.length === 0 ? (

@@ -201,7 +201,7 @@ export function AdminCalendarPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Calendar grid (takes 2 of 3 columns) */}
         <div className="lg:col-span-2">
-          <div className="rounded-2xl border overflow-hidden" style={{ background: '#ffffff', borderColor: 'var(--border)' }}>
+          <div className="glass-panel rounded-2xl overflow-hidden">
             {/* Month navigation bar */}
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
               <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
@@ -265,13 +265,13 @@ export function AdminCalendarPage() {
                       style={{
                         borderColor: 'var(--border)',
                         // Today's cell gets a subtle green wash.
-                        background: today ? 'rgba(22,163,74,0.04)' : '#ffffff',
+                        background: today ? 'rgba(22,163,74,0.04)' : 'transparent',
                       }}
                       // Clicking a day opens the create modal with that day pre-filled.
                       onClick={() => openNewEvent(day)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNewEvent(day); } }}
                       onMouseEnter={(e) => { if (!today) e.currentTarget.style.background = 'rgba(0,0,0,0.02)'; }}
-                      onMouseLeave={(e) => { if (!today) e.currentTarget.style.background = '#ffffff'; }}
+                      onMouseLeave={(e) => { if (!today) e.currentTarget.style.background = 'transparent'; }}
                     >
                       {/* Date number — green circle for today. */}
                       <span
@@ -351,8 +351,7 @@ export function AdminCalendarPage() {
                 return (
                   <li
                     key={ev.id}
-                    className="rounded-xl border p-3"
-                    style={{ background: '#ffffff', borderColor: 'var(--border)' }}
+                    className="glass-panel rounded-xl p-3"
                   >
                     <div className="flex items-start gap-2">
                       {/* Colored dot indicates the event type. */}
@@ -399,8 +398,8 @@ export function AdminCalendarPage() {
         >
           <div
             role="presentation"
-            className="w-full max-w-md rounded-2xl p-6"
-            style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            className="glass-panel w-full max-w-md rounded-2xl p-6"
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >

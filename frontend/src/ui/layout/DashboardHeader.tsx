@@ -31,6 +31,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { getNotifications } from '@/features/admin/api/notifications.api';
 import { NotificationPanel } from '@/ui/components/NotificationPanel';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
+import { Avatar } from '@/ui/components/Avatar';
 import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getProfileRoute } from '@/shared/constants/roles';
 
@@ -97,7 +98,8 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
         style={{
           background: 'var(--dash-header-bg)',
           borderColor: 'var(--dash-sidebar-border)',
-          backdropFilter: 'blur(16px)',
+          backdropFilter: 'blur(16px) saturate(180%) brightness(106%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(180%) brightness(106%)',
         }}
       >
         {/* Left side: page title */}
@@ -157,16 +159,8 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                 }}
                 aria-label="User menu"
               >
-                {/* Initial-based avatar circle */}
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
-                  style={{
-                    background: 'var(--overlay-primary)',
-                    color: 'var(--ember-orange)',
-                  }}
-                >
-                  {user?.name.charAt(0).toUpperCase()}
-                </div>
+                {/* User avatar — photo if available, initials fallback */}
+                <Avatar src={user?.avatar_url} name={user?.name ?? ''} size="sm" />
                 {/* First name only — hidden on small screens to save space */}
                 <span className="text-sm hidden sm:block">{user?.name.split(' ')[0]}</span>
               </button>

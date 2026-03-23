@@ -36,6 +36,7 @@ import { ROLE_LABELS, getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
 import { cn } from '@/shared/utils/cn';
 import { DemoRoleSwitcher } from '@/ui/components/DemoRoleSwitcher';
+import { Avatar } from '@/ui/components/Avatar';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,13 +107,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
   const brandHeader = (
     <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-3">
-        {/* "CB" monogram — colored square that acts as a quick brand identifier */}
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'var(--ember-orange)' }}
-        >
-          <span className="text-white font-headline font-bold text-sm">CB</span>
-        </div>
+        {/* User profile avatar */}
+        <Avatar src={user?.avatar_url} name={user?.name ?? ''} size="md" />
         <div>
           <p
             className="text-sm font-headline font-semibold leading-tight"
@@ -316,16 +312,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
     >
       {/* Avatar + name + email row */}
       <div className="flex items-center gap-3 px-3 py-2 mb-1">
-        {/* Initial-based avatar — e.g. "J" for "Jane Smith" */}
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-medium"
-          style={{
-            background: 'var(--overlay-primary)',
-            color: 'var(--ember-orange)',
-          }}
-        >
-          {user?.name.charAt(0).toUpperCase()}
-        </div>
+        {/* User avatar — photo if available, initials fallback */}
+        <Avatar src={user?.avatar_url} name={user?.name ?? ''} size="md" />
         <div className="flex-1 min-w-0">
           {/* truncate prevents long names from breaking the sidebar width */}
           <p
@@ -366,8 +354,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
         style={{
           background: 'var(--dash-sidebar-bg)',
           borderColor: 'var(--dash-sidebar-border)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(20px) saturate(180%) brightness(106%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%) brightness(106%)',
         }}
         aria-label="Sidebar"
       >
@@ -413,8 +401,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
             style={{
               background: 'var(--dash-sidebar-bg)',
               borderColor: 'var(--dash-sidebar-border)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
+              backdropFilter: 'blur(20px) saturate(180%) brightness(106%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%) brightness(106%)',
             }}
             aria-label="Mobile navigation"
           >

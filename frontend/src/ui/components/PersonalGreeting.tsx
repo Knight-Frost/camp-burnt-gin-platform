@@ -23,6 +23,7 @@ interface GreetingStats {
   unreadCount?: number;
   camperCount?: number;
   overdueCount?: number;
+  docOverdueCount?: number;
 }
 
 interface PersonalGreetingProps {
@@ -86,9 +87,13 @@ function buildSubtitles(role: GreetingRole, stats: GreetingStats): string[] {
     const noun = stats.pendingCount === 1 ? 'application needs' : 'applications need';
     messages.unshift(`${stats.pendingCount} ${noun} your review.`);
   }
-  if (role === 'admin' && stats.unreadCount && stats.unreadCount > 0) {
+  if ((role === 'admin' || role === 'super_admin') && stats.unreadCount && stats.unreadCount > 0) {
     const noun = stats.unreadCount === 1 ? 'unread message' : 'unread messages';
-    messages.unshift(`${stats.unreadCount} ${noun} in your inbox.`);
+    messages.unshift(`${stats.unreadCount} ${noun} waiting in your inbox.`);
+  }
+  if (role === 'super_admin' && stats.docOverdueCount && stats.docOverdueCount > 0) {
+    const noun = stats.docOverdueCount === 1 ? 'document request is' : 'document requests are';
+    messages.unshift(`${stats.docOverdueCount} ${noun} overdue.`);
   }
   if (role === 'medical' && stats.overdueCount && stats.overdueCount > 0) {
     const noun = stats.overdueCount === 1 ? 'follow-up is' : 'follow-ups are';
@@ -159,8 +164,8 @@ export function PersonalGreeting({ user, role, stats = {} }: PersonalGreetingPro
       <p
         className="text-xs font-semibold uppercase tracking-[0.2em] mb-2 select-none"
         style={{
-          color: 'rgba(255, 255, 255, 0.68)',
-          textShadow: '0 1px 4px rgba(0,0,0,0.45)',
+          color: 'rgba(255, 255, 255, 0.85)',
+          textShadow: '0 1px 4px rgba(0,0,0,0.55)',
         }}
       >
         {greeting}
@@ -187,13 +192,16 @@ export function PersonalGreeting({ user, role, stats = {} }: PersonalGreetingPro
 
       {/* Rotating subtitle */}
       <p
-        className="text-sm leading-snug select-none"
+        className="leading-snug select-none"
         style={{
-          color: 'rgba(255, 255, 255, 0.80)',
-          textShadow: '0 1px 4px rgba(0,0,0,0.45)',
+          fontSize: 'clamp(0.9375rem, 1.5vw, 1.0625rem)',
+          fontWeight: 500,
+          color: 'rgba(255, 255, 255, 0.96)',
+          textShadow: '0 1px 6px rgba(0,0,0,0.55)',
           transition: 'opacity 400ms ease-in-out',
           opacity: visible ? 1 : 0,
-          minHeight: '1.3rem',
+          minHeight: '1.5rem',
+          letterSpacing: '0.01em',
         }}
       >
         {subtitles[subtitleIndex]}

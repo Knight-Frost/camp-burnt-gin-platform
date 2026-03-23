@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
+import { Avatar } from '@/ui/components/Avatar';
 import type { Conversation } from '@/features/messaging/api/messaging.api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -33,25 +34,7 @@ function avatarBg(name: string): string {
   return PALETTE[h % PALETTE.length];
 }
 
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/);
-  return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
-}
 
-function Avatar({ name, size = 36 }: { name: string; size?: number }) {
-  return (
-    <div
-      className="flex items-center justify-center rounded-full font-semibold flex-shrink-0 select-none"
-      style={{
-        width: size, height: size,
-        background: avatarBg(name), color: '#fff',
-        fontSize: size < 32 ? 10 : 12, lineHeight: 1,
-      }}
-    >
-      {initials(name)}
-    </div>
-  );
-}
 
 function relativeTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -179,7 +162,7 @@ export function MessageRow({
           <Bot className="h-4.5 w-4.5" style={{ color: BRAND }} />
         </div>
       ) : (
-        <Avatar name={senderName} size={36} />
+        <Avatar name={senderName} size="md" fallbackColor={avatarBg(senderName)} />
       )}
 
       {/* Content */}

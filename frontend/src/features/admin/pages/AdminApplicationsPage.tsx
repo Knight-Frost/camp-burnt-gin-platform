@@ -190,8 +190,7 @@ export function AdminApplicationsPage() {
         <>
           {/* Table container */}
           <div
-            className="rounded-xl border overflow-hidden"
-            style={{ borderColor: 'var(--border)' }}
+            className="glass-data rounded-xl overflow-hidden"
           >
             {/* Column header */}
             <div

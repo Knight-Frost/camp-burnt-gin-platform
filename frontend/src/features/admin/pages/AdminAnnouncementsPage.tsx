@@ -271,8 +271,8 @@ export function AdminAnnouncementsPage() {
         >
           <div
             role="presentation"
-            className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
-            style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            className="glass-panel w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
@@ -347,12 +347,11 @@ function AnnouncementRow({
 }) {
   return (
     <div
-      className="rounded-2xl border px-5 py-4"
-      style={{
-        // Urgent announcements get a subtle red-tinted background for visual distinction.
-        background: ann.is_urgent ? 'rgba(220,38,38,0.03)' : '#ffffff',
-        borderColor: ann.is_urgent ? 'rgba(220,38,38,0.18)' : 'var(--border)',
-      }}
+      className={`rounded-2xl px-5 py-4 ${ann.is_urgent ? 'border' : 'glass-card'}`}
+      style={ann.is_urgent ? {
+        background: 'rgba(220,38,38,0.03)',
+        borderColor: 'rgba(220,38,38,0.18)',
+      } : undefined}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">

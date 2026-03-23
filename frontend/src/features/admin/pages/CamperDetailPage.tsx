@@ -49,8 +49,7 @@ interface SectionCardProps { title: string; icon: ReactNode; children: ReactNode
 function SectionCard({ title, icon, children }: SectionCardProps) {
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', backdropFilter: 'blur(12px)' }}
+      className="glass-panel rounded-xl p-5"
     >
       <div className="flex items-center gap-3 mb-4">
         {/* Colored icon badge — same visual language as the rest of the app */}

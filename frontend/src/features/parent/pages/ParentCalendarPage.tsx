@@ -119,8 +119,7 @@ export function ParentCalendarPage() {
         {/* Calendar grid */}
         <div className="lg:col-span-2">
           <div
-            className="rounded-2xl border overflow-hidden"
-            style={{ background: '#ffffff', borderColor: 'var(--border)' }}
+            className="glass-panel rounded-2xl overflow-hidden"
           >
             {/* Month navigation header */}
             <div
@@ -193,7 +192,7 @@ export function ParentCalendarPage() {
                       style={{
                         borderColor: 'var(--border)',
                         // Today gets a subtle green tint; other-month days get a dimmer grey
-                        background: today ? 'rgba(22,163,74,0.04)' : inMonth ? '#ffffff' : 'rgba(0,0,0,0.01)',
+                        background: today ? 'rgba(22,163,74,0.04)' : inMonth ? 'transparent' : 'rgba(0,0,0,0.01)',
                       }}
                     >
                       {/* Day number — circled in green for today */}
@@ -267,8 +266,7 @@ export function ParentCalendarPage() {
                 return (
                   <li
                     key={ev.id}
-                    className="rounded-xl border p-3"
-                    style={{ background: '#ffffff', borderColor: 'var(--border)' }}
+                    className="glass-card rounded-xl p-3"
                   >
                     <div className="flex items-start gap-2">
                       {/* Colored dot matching the event type color */}

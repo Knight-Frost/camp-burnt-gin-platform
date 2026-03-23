@@ -29,6 +29,7 @@ import {
 import { format, parseISO, differenceInYears } from 'date-fns';
 
 import { getFamily } from '@/features/admin/api/admin.api';
+import { Avatar } from '@/ui/components/Avatar';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import type { FamilyWorkspace, FamilyWorkspaceCamper, FamilyWorkspaceApplication } from '@/features/admin/types/admin.types';
@@ -146,8 +147,7 @@ function CamperCard({
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+      className="glass-panel rounded-xl overflow-hidden"
     >
       {/* Camper identity header */}
       <div
@@ -155,12 +155,7 @@ function CamperCard({
         style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)' }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0"
-            style={{ background: 'rgba(22,101,52,0.10)', color: '#166534' }}
-          >
-            {camper.first_name.charAt(0).toUpperCase()}
-          </div>
+          <Avatar name={camper.full_name} size="md" />
           <div>
             <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
               {camper.full_name}
@@ -224,8 +219,7 @@ function GuardianPanel({ family }: { family: FamilyWorkspace }) {
 
   return (
     <div
-      className="rounded-xl border p-5 grid grid-cols-1 sm:grid-cols-3 gap-4"
-      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+      className="glass-panel rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4"
     >
       {/* Email */}
       <div className="flex items-start gap-2">
@@ -352,12 +346,7 @@ export function AdminFamilyWorkspacePage() {
         <>
           {/* Family header */}
           <div className="flex items-center gap-3 mb-4">
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold flex-shrink-0"
-              style={{ background: 'rgba(22,101,52,0.10)', color: '#166534' }}
-            >
-              {family.name.charAt(0).toUpperCase()}
-            </div>
+            <Avatar name={family.name} size="lg" />
             <div>
               <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
                 {family.name}
@@ -379,8 +368,7 @@ export function AdminFamilyWorkspacePage() {
 
             {family.campers.length === 0 ? (
               <div
-                className="rounded-xl border p-6 flex items-center gap-3"
-                style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                className="glass-card rounded-xl p-6 flex items-center gap-3"
               >
                 <AlertCircle className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>

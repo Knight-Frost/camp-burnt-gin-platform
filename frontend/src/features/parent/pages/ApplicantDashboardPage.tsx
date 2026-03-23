@@ -94,8 +94,15 @@ export function ApplicantDashboardPage() {
     <div className="flex flex-col gap-6 max-w-5xl">
 
       {/* ── Liquid glass hero ────────────────────────────────── */}
-      {/* No background here — the global BackgroundSlideshow in DashboardShell shows through */}
-      <div className="relative flex flex-col justify-end" style={{ minHeight: '340px' }}>
+      <div
+        className="relative flex flex-col justify-end rounded-2xl overflow-hidden"
+        style={{
+          minHeight: '340px',
+          backgroundImage: 'url(/backgrounds/bg-mountain-river.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         {/* Gradient scrim darkens the bottom for text readability, fades to transparent above */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -171,11 +178,11 @@ export function ApplicantDashboardPage() {
             {announcements.map((ann) => (
               <div
                 key={ann.id}
-                className="rounded-xl border px-4 py-3"
-                style={{
-                  background: ann.is_urgent ? 'rgba(220,38,38,0.05)' : 'var(--card)',
-                  borderColor: ann.is_urgent ? 'rgba(220,38,38,0.25)' : 'var(--border)',
-                }}
+                className={`rounded-xl px-4 py-3 ${ann.is_urgent ? 'border' : 'glass-card'}`}
+                style={ann.is_urgent ? {
+                  background: 'rgba(220,38,38,0.05)',
+                  borderColor: 'rgba(220,38,38,0.25)',
+                } : undefined}
               >
                 <div className="flex items-start gap-2 min-w-0">
                   {ann.is_pinned && <Pin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--ember-orange)' }} />}
@@ -220,7 +227,7 @@ export function ApplicantDashboardPage() {
             {[1, 2].map((i) => <SkeletonCard key={i} lines={2} />)}
           </div>
         ) : campers.length === 0 ? (
-          <div className="rounded-2xl border p-6" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div className="glass-panel rounded-2xl p-6">
             <EmptyState
               title={t('applicant.dashboard.no_campers_title')}
               description={t('applicant.dashboard.no_campers_desc')}
@@ -238,8 +245,7 @@ export function ApplicantDashboardPage() {
               return (
                 <li key={camper.id}>
                   <div
-                    className="rounded-2xl border p-4 flex items-center justify-between gap-4"
-                    style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                    className="glass-card rounded-2xl p-4 flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
@@ -297,7 +303,7 @@ export function ApplicantDashboardPage() {
         {loading ? (
           <SkeletonTable rows={3} />
         ) : notifications.length === 0 ? (
-          <div className="rounded-xl border p-5 text-center" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div className="glass-panel rounded-xl p-5 text-center">
             <Bell className="h-5 w-5 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
               {t('applicant.dashboard.no_updates')}
@@ -305,8 +311,7 @@ export function ApplicantDashboardPage() {
           </div>
         ) : (
           <div
-            className="rounded-2xl border overflow-hidden divide-y"
-            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+            className="glass-panel rounded-2xl overflow-hidden divide-y"
           >
             <ul>
               {notifications.map((n) => {

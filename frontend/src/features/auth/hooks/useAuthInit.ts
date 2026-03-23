@@ -56,6 +56,7 @@ export function useAuthInit(): void {
         .then((user) => {
           // Token is valid — the 401 came from a specific endpoint, not the session.
           // Keep the user logged in and update the user object in case it drifted.
+          dispatch(setToken({ token: localStorage.getItem('auth_token') as string }));
           dispatch(setUser(user));
         })
         .catch(() => {
@@ -110,6 +111,12 @@ export function useAuthInit(): void {
     let cancelled = false;
 
     function tryValidate(retryCount: number) {
+      // Block handleUnauthorized (Effect 1) from starting a concurrent re-validation
+      // while tryValidate is already in flight. Without this, the axios interceptor
+      // fires auth:unauthorized synchronously during the 401 response, which would
+      // cause both tryValidate AND handleUnauthorized to run the same API call at once.
+      isRevalidating.current = true;
+
       getAuthenticatedUser()
         .then((user) => {
           if (cancelled) return;
@@ -146,6 +153,11 @@ export function useAuthInit(): void {
             // so the next page load will try again once the server is back.
             dispatch(hydrateAuth());
           }
+        })
+        .finally(() => {
+          // Release the guard so handleUnauthorized can respond to genuine 401s
+          // that fire after startup validation completes.
+          isRevalidating.current = false;
         });
     }
 

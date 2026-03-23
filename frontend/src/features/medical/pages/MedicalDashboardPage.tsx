@@ -253,10 +253,18 @@ export function MedicalDashboardPage() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-7xl space-y-6">
+    <div className="max-w-7xl space-y-6">
 
       {/* ── SECTION 1: Liquid glass hero ──────────────────────────────────── */}
-      <div className="relative flex flex-col justify-end" style={{ minHeight: '340px' }}>
+      <div
+        className="relative flex flex-col justify-end rounded-2xl overflow-hidden"
+        style={{
+          minHeight: '340px',
+          backgroundImage: 'url(/backgrounds/bg-italy.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         <div
           className="absolute inset-0 pointer-events-none"
           aria-hidden="true"
@@ -446,7 +454,7 @@ export function MedicalDashboardPage() {
             </Link>
           </div>
 
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div className="glass-panel rounded-2xl overflow-hidden">
             {statsLoading ? (
               <div className="p-4"><ActivitySkeleton /></div>
             ) : statsError ? (
@@ -511,7 +519,7 @@ export function MedicalDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div className="glass-panel rounded-2xl overflow-hidden">
             {statsLoading ? (
               <div className="p-4"><ActivitySkeleton /></div>
             ) : statsError ? (

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { getFamilies } from '@/features/admin/api/admin.api';
+import { Avatar } from '@/ui/components/Avatar';
 import { EmptyState } from '@/ui/components/EmptyState';
 import type { FamilyCard } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
@@ -72,8 +73,7 @@ function ageFromDob(dob: string): number {
 function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div
-      className="rounded-xl border px-5 py-4"
-      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+      className="glass-card rounded-xl px-5 py-4"
     >
       <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
         {label}
@@ -95,8 +95,7 @@ function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase
 
   return (
     <div
-      className="rounded-xl border flex flex-col"
-      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+      className="glass-panel rounded-xl flex flex-col"
     >
       {/* Card header — guardian identity */}
       <div
@@ -106,12 +105,7 @@ function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold"
-                style={{ background: 'rgba(22,101,52,0.10)', color: '#166534' }}
-              >
-                {family.name.charAt(0).toUpperCase()}
-              </div>
+              <Avatar name={family.name} size="md" />
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
                 {family.name}
               </p>

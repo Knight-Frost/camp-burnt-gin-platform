@@ -198,8 +198,7 @@ export function UserManagementPage() {
         <>
           {/* User table */}
           <div
-            className="rounded-xl border overflow-hidden"
-            style={{ borderColor: 'var(--border)' }}
+            className="glass-data rounded-xl overflow-hidden"
           >
             {/* Column header row */}
             <div
@@ -325,8 +324,7 @@ export function UserManagementPage() {
           style={{ background: 'rgba(0,0,0,0.40)' }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border p-6 shadow-2xl"
-            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+            className="glass-panel w-full max-w-sm rounded-2xl p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"

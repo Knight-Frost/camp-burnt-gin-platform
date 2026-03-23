@@ -152,8 +152,7 @@ export function AdminCampersPage() {
       ) : (
         <>
           <div
-            className="rounded-xl border overflow-hidden"
-            style={{ borderColor: 'var(--border)' }}
+            className="glass-data rounded-xl overflow-hidden"
           >
             {/* Column headers — Name | DOB | Parent/Guardian | Risk | Action */}
             <div

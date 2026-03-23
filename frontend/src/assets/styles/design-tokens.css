@@ -49,7 +49,7 @@
   --secondary: rgba(22, 163, 74, 0.10);
   --secondary-foreground: #111827;
   --muted: #f3f4f6;
-  --muted-foreground: #6b7280;
+  --muted-foreground: #374151;
   --accent: rgba(22, 163, 74, 0.12);
   --accent-foreground: #111827;
   --destructive: #dc2626;
@@ -60,7 +60,7 @@
   --ring: rgba(22, 163, 74, 0.35);
 
   /* Navigation Colors */
-  --nav-text: rgba(17, 24, 39, 0.80);
+  --nav-text: rgba(17, 24, 39, 0.95);
   --nav-text-active: #111827;
 
   /* Brand Accent Colors — emerald green */
@@ -153,13 +153,18 @@
   --cta-secondary-border:  rgba(0, 0, 0, 0.12);
   --cta-secondary-shadow:  0 2px 8px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.80);
 
-  /* Dashboard surfaces */
+  /* Dashboard surfaces — glass nav chrome, transparent main area */
   --dash-bg: transparent;
-  --dash-sidebar-bg: rgba(255, 255, 255, 0.82);
-  --dash-header-bg: rgba(255, 255, 255, 0.72);
+  --dash-sidebar-bg: rgba(255, 255, 255, 0.92);
+  --dash-header-bg: rgba(255, 255, 255, 0.92);
   --dash-sidebar-border: rgba(0, 0, 0, 0.07);
   --dash-nav-active-bg: rgba(22, 163, 74, 0.08);
   --dash-nav-hover-bg: rgba(0, 0, 0, 0.04);
+
+  /* Main content area surface — provides a readable frosted ground for all
+     page titles and content that sit outside explicit glass cards.
+     10% transparent so the dimmed background still adds depth and warmth. */
+  --dash-main-bg: rgba(250, 251, 252, 0.90);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -219,10 +224,13 @@
   html {
     font-size: var(--font-size);
     scroll-behavior: smooth;
+    /* Fallback background for non-dashboard pages (login, register, etc.).
+       Body is transparent so position:fixed z-index:-1 backgrounds can show through. */
+    background-color: var(--background);
   }
 
   body {
-    background-color: var(--background);
+    background: #ffffff;
     color: var(--foreground);
     font-family: var(--font-body);
     line-height: 1.65;
@@ -294,6 +302,210 @@
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ADAPTIVE GLASS SYSTEM — Elite Premium Tier
+   ──────────────────────────────────────────────────────────────
+   RULES:
+   1. Text MUST sit inside a glass or solid container — never on raw background.
+   2. Glass is a CONTAINER ONLY — cards, banners, panels, nav chrome.
+   3. NEVER apply glass to <body>, root layout wrappers, or page overlays.
+   4. System adapts based on [data-bg-tone] on the shell root.
+
+   Hierarchy:
+     .glass        → light breathable glass (metric cards, quick-links)
+     .glass-card   → adaptive glass (primary content cards — preferred)
+     .glass-panel  → semi-opaque glass (tables, lists, section containers)
+     .glass-strong → richer glass (hero banners, prominent panels)
+     .glass-data   → solid fallback (dense tables, audit logs, logs)
+     .glass-nav    → navigation chrome (sidebar, header)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Adaptive CSS custom properties (default: neutral background) ── */
+:root {
+  --glass-card-bg:      rgba(255, 255, 255, 0.10);
+  --glass-card-border:  rgba(255, 255, 255, 0.18);
+  --glass-card-blur:    12px;
+
+  /* glass-panel raised from 0.82 → 0.88 for WCAG AA compliance at neutral tone */
+  --glass-panel-bg:     rgba(255, 255, 255, 0.88);
+  --glass-panel-blur:   10px;
+  --glass-panel-border: rgba(0, 0, 0, 0.07);
+
+  --glass-hero-bg:      rgba(255, 255, 255, 0.14);
+  --glass-hero-border:  rgba(255, 255, 255, 0.22);
+  --glass-hero-blur:    14px;
+
+  /* ── CASS — Contrast-Aware Surface System ─────────────────────────────
+     Three canonical surface tiers that map directly to the decision engine.
+     Use these via .surface-primary / .surface-glass / .surface-solid CSS
+     classes, or via GlassCard variant="primary" | "hero" | "solid".
+
+     Tier rules:
+       surface-primary  → text-heavy content (panels, tables, dashboards, lists)
+       surface-glass    → decorative only (stat cards, visual accents, hero PROTECTED)
+       surface-solid    → critical clarity (medical data, audit logs, compliance forms)
+  ── */
+  --surface-primary-bg:     rgba(255, 255, 255, 0.88);
+  --surface-primary-blur:   8px;
+  --surface-primary-border: rgba(0, 0, 0, 0.07);
+
+  --surface-glass-bg:       rgba(255, 255, 255, 0.14);
+  --surface-glass-blur:     12px;
+  --surface-glass-border:   rgba(255, 255, 255, 0.22);
+
+  --surface-solid-border:   rgba(0, 0, 0, 0.07);
+}
+
+/* Dark background tone — increase opacity for readability */
+[data-bg-tone='dark'] {
+  --glass-card-bg:      rgba(255, 255, 255, 0.13);
+  --glass-card-border:  rgba(255, 255, 255, 0.22);
+  --glass-card-blur:    14px;
+
+  --glass-panel-bg:     rgba(255, 255, 255, 0.92);
+  --glass-panel-blur:   12px;
+  --glass-panel-border: rgba(0, 0, 0, 0.06);
+
+  --glass-hero-bg:      rgba(255, 255, 255, 0.18);
+  --glass-hero-border:  rgba(255, 255, 255, 0.28);
+  --glass-hero-blur:    16px;
+
+  --surface-primary-bg:     rgba(255, 255, 255, 0.92);
+  --surface-glass-bg:       rgba(255, 255, 255, 0.18);
+  --surface-glass-border:   rgba(255, 255, 255, 0.28);
+}
+
+/* Light background tone — reduce opacity, let background breathe */
+[data-bg-tone='light'] {
+  --glass-card-bg:      rgba(255, 255, 255, 0.08);
+  --glass-card-border:  rgba(255, 255, 255, 0.15);
+  --glass-card-blur:    10px;
+
+  /* Raised from 0.78 → 0.84 — WCAG AA floor enforced even on light backgrounds */
+  --glass-panel-bg:     rgba(255, 255, 255, 0.84);
+  --glass-panel-blur:   8px;
+  --glass-panel-border: rgba(0, 0, 0, 0.06);
+
+  --glass-hero-bg:      rgba(255, 255, 255, 0.11);
+  --glass-hero-border:  rgba(255, 255, 255, 0.18);
+  --glass-hero-blur:    12px;
+
+  --surface-primary-bg:     rgba(255, 255, 255, 0.85);
+  --surface-glass-bg:       rgba(255, 255, 255, 0.11);
+  --surface-glass-border:   rgba(255, 255, 255, 0.18);
+}
+
+/* ── Light glass — metric cards, quick-link cards, small panels ── */
+.glass {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px) saturate(180%) brightness(108%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%) brightness(108%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* ── Adaptive glass card — primary content cards (recommended) ── */
+.glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: blur(var(--glass-card-blur)) saturate(180%) brightness(108%);
+  -webkit-backdrop-filter: blur(var(--glass-card-blur)) saturate(180%) brightness(108%);
+  border: 1px solid var(--glass-card-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: background 0.9s ease, border-color 0.9s ease;
+}
+
+/* ── Adaptive glass panel — section containers, tables, lists ── */
+.glass-panel {
+  background: var(--glass-panel-bg);
+  backdrop-filter: blur(var(--glass-panel-blur)) saturate(160%) brightness(102%);
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(160%) brightness(102%);
+  border: 1px solid var(--glass-panel-border);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.50);
+  transition: background 0.9s ease, border-color 0.9s ease;
+}
+
+/* ── Stronger glass — hero banners, welcome cards ── */
+.glass-strong {
+  background: var(--glass-hero-bg);
+  backdrop-filter: blur(var(--glass-hero-blur)) saturate(200%) brightness(110%);
+  -webkit-backdrop-filter: blur(var(--glass-hero-blur)) saturate(200%) brightness(110%);
+  border: 1px solid var(--glass-hero-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10),
+              inset 0 1px 0 rgba(255, 255, 255, 0.30);
+  transition: background 0.9s ease, border-color 0.9s ease;
+}
+
+/* ── Solid fallback — dense data tables, logs, complex data grids ── */
+.glass-data {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px) saturate(140%) brightness(102%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%) brightness(102%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.80);
+}
+
+/* ── Navigation glass — sidebar, header (higher opacity for chrome) ── */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(180%) brightness(105%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(105%);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CASS — Contrast-Aware Surface System
+   ──────────────────────────────────────────────────────────────
+   Three enforceable surface tiers. Apply exactly one per container.
+
+   Decision rules (highest priority first):
+     1. critical data (medical, audit, compliance)     → .surface-solid
+     2. dense text / data-heavy / interactive content  → .surface-primary
+     3. over background image with any non-trivial text → .surface-primary
+     4. minimal text + decorative / stat card           → .surface-glass
+
+   Protected components (never change surface):
+     • Green CTA / action buttons     → keep as-is
+     • Status badges                  → keep as-is
+     • Hero section                   → keep glass-strong / surface-glass
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── TIER 1: PRIMARY — default for all text-heavy content ── */
+/* Tables · Dashboards · Inbox · Documents · Analytics · Lists */
+.surface-primary {
+  background: var(--surface-primary-bg);
+  backdrop-filter: blur(var(--surface-primary-blur)) saturate(150%) brightness(102%);
+  -webkit-backdrop-filter: blur(var(--surface-primary-blur)) saturate(150%) brightness(102%);
+  border: 1px solid var(--surface-primary-border);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.60);
+  transition: background 0.9s ease, border-color 0.9s ease;
+}
+
+/* ── TIER 2: GLASS — decorative only (minimal text) ── */
+/* Stat cards · Visual accents · Hero panels (PROTECTED) */
+/* HARD RULE: if text density > minimal → use surface-primary instead */
+.surface-glass {
+  background: var(--surface-glass-bg);
+  backdrop-filter: blur(var(--surface-glass-blur)) saturate(180%) brightness(108%);
+  -webkit-backdrop-filter: blur(var(--surface-glass-blur)) saturate(180%) brightness(108%);
+  border: 1px solid var(--surface-glass-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: background 0.9s ease, border-color 0.9s ease;
+}
+
+/* ── TIER 3: SOLID — critical clarity, no background bleed ── */
+/* Medical data · Audit logs · Compliance forms */
+.surface-solid {
+  background: #ffffff;
+  border: 1px solid var(--surface-solid-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.80);
 }
 
 /* ─── Reduced Motion ────────────────────────────────────────────────────── */

@@ -50,9 +50,9 @@ function normalizeUser(user: User & { role?: Role | string }): User {
     roleName = user.roles[0].name as RoleName;
   }
 
-  // Normalize legacy 'parent' role name from backend → 'applicant'
-  // The backend still stores "parent" in the DB; the frontend uses "applicant"
-  // Cast to string for comparison since 'parent' is not in the RoleName union
+  // Guard against a legacy migration scenario where 'parent' may appear instead of 'applicant'.
+  // The DB now stores 'applicant'; this mapping is a defensive fallback only.
+  // Cast to string for comparison since 'parent' is not in the RoleName union.
   if ((roleName as string) === 'parent') {
     roleName = 'applicant';
   }

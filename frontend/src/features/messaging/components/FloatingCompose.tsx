@@ -32,6 +32,7 @@ import {
 } from '@/features/messaging/api/messaging.api';
 import { useRichEditor, EditorBody, EditorToolbar } from './editor/RichTextEditor';
 import { ConfirmDialog } from '@/ui/overlay/ConfirmDialog';
+import { Avatar } from '@/ui/components/Avatar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -54,22 +55,6 @@ function avatarBg(name: string): string {
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/);
-  return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
-}
-
-function Avatar({ name, size = 24 }: { name: string; size?: number }) {
-  return (
-    <div
-      className="flex items-center justify-center rounded-full font-semibold flex-shrink-0 select-none"
-      style={{ width: size, height: size, background: avatarBg(name), color: '#fff', fontSize: 10, lineHeight: 1 }}
-    >
-      {initials(name)}
-    </div>
-  );
-}
-
 // ─── SaveStatus ───────────────────────────────────────────────────────────────
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
@@ -357,7 +342,7 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
                       onMouseDown={() => addRecipient(u)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
                     >
-                      <Avatar name={u.name} size={24} />
+                      <Avatar name={u.name} size="sm" fallbackColor={avatarBg(u.name)} />
                       <span className="text-sm" style={{ color: 'var(--foreground)' }}>{u.name}</span>
                       <span className="text-xs ml-auto" style={{ color: 'var(--muted-foreground)' }}>{u.role}</span>
                     </button>

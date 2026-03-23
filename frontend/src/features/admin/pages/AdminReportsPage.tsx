@@ -50,13 +50,10 @@ const EXPORT_REPORTS = [
   { type: 'id-labels' as ReportType,      label: 'ID Labels',          icon: Tag,        color: '#059669' },
 ];
 
-// Reusable chart wrapper — applies consistent border, background, and title styling.
+// Reusable chart wrapper — applies consistent glass panel background and title styling.
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div
-      className="rounded-2xl border p-6"
-      style={{ background: '#ffffff', borderColor: 'var(--border)' }}
-    >
+    <div className="glass-panel rounded-2xl p-6">
       <h3 className="font-headline font-semibold text-base mb-5" style={{ color: 'var(--foreground)' }}>
         {title}
       </h3>
@@ -164,8 +161,7 @@ export function AdminReportsPage() {
           ].map(({ label, value, color }) => (
             <div
               key={label}
-              className="rounded-2xl border px-5 py-4 flex flex-col gap-1"
-              style={{ background: '#ffffff', borderColor: 'var(--border)' }}
+              className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-1"
             >
               <p className="text-xs uppercase tracking-widest font-medium" style={{ color: 'var(--muted-foreground)' }}>
                 {label}
@@ -322,11 +318,8 @@ export function AdminReportsPage() {
               onClick={() => handleDownload(type)}
               // Disable all buttons while any download is in progress.
               disabled={!!downloading}
-              className="flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all hover:shadow-sm"
+              className="glass-card flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all hover:shadow-sm"
               style={{
-                background: '#ffffff',
-                borderColor: 'var(--border)',
-                // Dim other buttons while this specific type is downloading.
                 opacity: downloading && downloading !== type ? 0.6 : 1,
               }}
             >

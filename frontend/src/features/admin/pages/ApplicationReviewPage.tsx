@@ -111,12 +111,7 @@ function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelPr
     <>
       {/* Sticky card — stays visible as admin scrolls through application details. */}
       <div
-        className="rounded-xl p-6 border sticky top-6"
-        style={{
-          background: 'var(--glass-medium)',
-          borderColor: 'var(--border)',
-          backdropFilter: 'blur(12px)',
-        }}
+        className="glass-panel rounded-xl p-6 sticky top-6"
       >
         <h3 className="font-headline font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
           {t('admin.review.title')}
@@ -469,8 +464,7 @@ export function ApplicationReviewPage() {
                   {camper.emergency_contacts.map((ec) => (
                     <div
                       key={ec.id}
-                      className="rounded-lg p-3 border"
-                      style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+                      className="glass-card rounded-lg p-3"
                     >
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
