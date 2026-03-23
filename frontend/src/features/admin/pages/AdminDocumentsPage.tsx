@@ -140,49 +140,63 @@ interface RequestDocumentModalProps {
 }
 
 function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps) {
-  const [applicants, setApplicants] = useState<{ id: number; name: string }[]>([]);
-  const [campers, setCampers]       = useState<{ id: number; name: string }[]>([]);
-  const [loadingApplicants, setLoadingApplicants] = useState(true);
-  const [saving, setSaving]         = useState(false);
+  const [parents, setParents]           = useState<{ id: number; name: string }[]>([]);
+  const [children, setChildren]         = useState<{ id: number; name: string }[]>([]);
+  const [loadingParents, setLoadingParents]   = useState(true);
+  const [loadingChildren, setLoadingChildren] = useState(false);
+  const [saving, setSaving]             = useState(false);
 
   const [form, setForm] = useState({
     applicant_id:  '',
-    camper_id:     '',
+    camper_id:     '',   // '' = not yet chosen, 'all' = all children, numeric string = specific child
     document_type: '',
     instructions:  '',
     due_date:      '',
   });
 
+  // Load parent/guardian list on mount
   useEffect(() => {
     let cancelled = false;
     getUsers({ role: 'applicant', page: 1 })
       .then((res) => {
         if (cancelled) return;
-        setApplicants((res.data ?? []).map((u) => ({ id: u.id, name: u.name })));
+        setParents((res.data ?? []).map((u) => ({ id: u.id, name: u.name })));
       })
       .catch((err) => {
         if (cancelled) return;
         const msg = (err as { message?: string })?.message;
-        toast.error(msg ? `Unable to load applicants: ${msg}` : 'Unable to load applicants. Please refresh and try again.');
+        toast.error(msg ? `Unable to load parents: ${msg}` : 'Unable to load parents. Please refresh and try again.');
       })
-      .finally(() => { if (!cancelled) setLoadingApplicants(false); });
+      .finally(() => { if (!cancelled) setLoadingParents(false); });
     return () => { cancelled = true; };
   }, []);
 
-  // When applicant changes, load their campers
+  // When parent changes, load their children and apply auto-selection
   useEffect(() => {
-    if (!form.applicant_id) { setCampers([]); return; }
+    if (!form.applicant_id) {
+      setChildren([]);
+      setForm((prev) => ({ ...prev, camper_id: '' }));
+      return;
+    }
+    setLoadingChildren(true);
+    setChildren([]);
+    setForm((prev) => ({ ...prev, camper_id: '' }));
     axiosInstance.get('/campers', { params: { user_id: Number(form.applicant_id) } })
       .then((res) => {
         const list = (res.data as any)?.data ?? res.data ?? [];
-        setCampers(
-          list.map((c: any) => ({
-            id: c.id,
-            name: `${c.first_name} ${c.last_name}`,
-          }))
-        );
+        const mapped: { id: number; name: string }[] = list.map((c: any) => ({
+          id: c.id,
+          name: `${c.first_name} ${c.last_name}`,
+        }));
+        setChildren(mapped);
+        // Auto-select the only child; otherwise require explicit selection
+        if (mapped.length === 1) {
+          setForm((prev) => ({ ...prev, camper_id: String(mapped[0].id) }));
+        }
       })
-      .catch(() => setCampers([]));
+      .catch(() => setChildren([]))
+      .finally(() => setLoadingChildren(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.applicant_id]);
 
   function set(field: keyof typeof form, value: string) {
@@ -191,17 +205,19 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.applicant_id || !form.document_type.trim()) return;
+    if (!form.applicant_id || !form.camper_id || !form.document_type.trim()) return;
     setSaving(true);
     try {
+      // 'all' maps to null (all children for this parent); otherwise use the specific child id
+      const camperId = form.camper_id === 'all' ? null : Number(form.camper_id);
       const req = await createDocumentRequest({
         applicant_id:  Number(form.applicant_id),
-        camper_id:     form.camper_id ? Number(form.camper_id) : null,
+        camper_id:     camperId,
         document_type: form.document_type.trim(),
         instructions:  form.instructions.trim() || undefined,
         due_date:      form.due_date || undefined,
       });
-      toast.success('Document request created and applicant notified.');
+      toast.success('Document request created and parent notified.');
       onCreated(req);
     } catch {
       toast.error('Failed to create document request.');
@@ -214,6 +230,13 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
   const inputStyle = { background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' };
   const labelCls = 'text-xs font-medium block mb-1';
   const labelStyle = { color: 'var(--muted-foreground)' };
+
+  const canSubmit =
+    !saving &&
+    !loadingParents &&
+    !!form.applicant_id &&
+    !!form.camper_id &&
+    !!form.document_type.trim();
 
   return (
     <div
@@ -242,7 +265,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
               Request Document
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              The applicant will be notified via their inbox.
+              The parent/guardian will be notified via their inbox.
             </p>
           </div>
           <button
@@ -256,44 +279,55 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
         {/* Form */}
         <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
-          {/* Applicant */}
+          {/* Parent / Guardian */}
           <div>
-            <label htmlFor="doc-req-applicant" className={labelCls} style={labelStyle}>Applicant *</label>
-            {loadingApplicants ? (
+            <label htmlFor="doc-req-parent" className={labelCls} style={labelStyle}>Parent / Guardian *</label>
+            {loadingParents ? (
               <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
             ) : (
               <select
-                id="doc-req-applicant"
+                id="doc-req-parent"
                 required
                 value={form.applicant_id}
                 onChange={(e) => set('applicant_id', e.target.value)}
                 className={inputCls}
                 style={inputStyle}
               >
-                <option value="">Select applicant…</option>
-                {applicants.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                <option value="">Select parent/guardian…</option>
+                {parents.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             )}
+            <p className="text-xs mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
+              Select the parent/guardian, then choose which child this document is for.
+            </p>
           </div>
 
-          {/* Camper (optional) */}
-          {campers.length > 0 && (
+          {/* Child — shown as soon as a parent is selected */}
+          {form.applicant_id && (
             <div>
-              <label htmlFor="doc-req-camper" className={labelCls} style={labelStyle}>Camper (optional)</label>
-              <select
-                id="doc-req-camper"
-                value={form.camper_id}
-                onChange={(e) => set('camper_id', e.target.value)}
-                className={inputCls}
-                style={inputStyle}
-              >
-                <option value="">All campers</option>
-                {campers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <label htmlFor="doc-req-child" className={labelCls} style={labelStyle}>Child *</label>
+              {loadingChildren ? (
+                <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
+              ) : (
+                <select
+                  id="doc-req-child"
+                  required
+                  value={form.camper_id}
+                  onChange={(e) => set('camper_id', e.target.value)}
+                  className={inputCls}
+                  style={inputStyle}
+                >
+                  <option value="">Select child…</option>
+                  {children.length > 1 && (
+                    <option value="all">All children</option>
+                  )}
+                  {children.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
@@ -318,7 +352,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
             <textarea
               id="doc-req-instructions"
               rows={3}
-              placeholder="What should the applicant upload or include?"
+              placeholder="What should the parent/guardian upload or include?"
               value={form.instructions}
               onChange={(e) => set('instructions', e.target.value)}
               className={inputCls + ' resize-none'}
@@ -350,7 +384,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
             <Button
               size="sm"
               type="submit"
-              disabled={saving || loadingApplicants || !form.applicant_id || !form.document_type.trim()}
+              disabled={!canSubmit}
               loading={saving}
               className="flex items-center gap-1.5"
             >
@@ -1031,7 +1065,7 @@ export function AdminDocumentsPage() {
             </div>
 
             {/* ── Uploads table ───────────────────────────────────── */}
-            <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <div className="glass-data rounded-2xl overflow-hidden">
               <div
                 className="hidden md:grid gap-x-3 px-6 py-3 border-b text-xs font-semibold uppercase tracking-wide"
                 style={{
@@ -1213,7 +1247,7 @@ export function AdminDocumentsPage() {
         </div>
 
         {/* ── Requests table ───────────────────────────────────────── */}
-        <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+        <div className="glass-data rounded-2xl overflow-hidden">
 
           {/* Table header */}
           <div
