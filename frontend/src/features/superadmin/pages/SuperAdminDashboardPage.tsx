@@ -12,16 +12,15 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Users, Shield, FileText, Activity, ArrowRight,
+  Users, FileText, Activity, ArrowRight,
   AlertTriangle, CheckCircle, Clock, XCircle,
   TrendingUp, ChevronRight,
 } from 'lucide-react';
-import { format, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { differenceInDays, formatDistanceToNow } from 'date-fns';
 import { useAppSelector } from '@/store/hooks';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { ErrorState } from '@/ui/components/EmptyState';
-import { StatusBadge } from '@/ui/components/StatusBadge';
 import { SessionsCarousel, type SessionCardData } from '@/ui/components/SessionsCarousel';
 import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
 import {
@@ -58,21 +57,35 @@ const URGENCY_BADGE: Record<UrgencyLevel, React.CSSProperties> = {
 
 // ─── Activity icon + color mapping ────────────────────────────────────────────
 
-function activityIcon(action: string) {
-  const lower = action.toLowerCase();
-  if (lower.includes('approved'))  return CheckCircle;
-  if (lower.includes('rejected'))  return XCircle;
-  if (lower.includes('waitlisted')) return Clock;
-  if (lower.includes('upload'))    return TrendingUp;
-  return FileText;
+function activityIcon(status: string): typeof FileText {
+  switch (status) {
+    case 'approved':     return CheckCircle;
+    case 'rejected':     return XCircle;
+    case 'waitlisted':   return Clock;
+    case 'under_review': return Clock;
+    default:             return FileText;
+  }
 }
 
-function activityColor(action: string): string {
-  const lower = action.toLowerCase();
-  if (lower.includes('approved'))  return 'var(--forest-green)';
-  if (lower.includes('rejected'))  return 'var(--destructive)';
-  if (lower.includes('waitlisted')) return '#d97706';
-  return 'var(--ember-orange)';
+function activityColor(status: string): string {
+  switch (status) {
+    case 'approved':     return 'var(--forest-green)';
+    case 'rejected':     return 'var(--destructive)';
+    case 'waitlisted':   return '#d97706';
+    case 'under_review': return '#2563eb';
+    default:             return 'var(--ember-orange)';
+  }
+}
+
+function getActivityMessage(status: string, camperName: string): string {
+  switch (status) {
+    case 'approved':     return `${camperName}'s application was approved`;
+    case 'rejected':     return `${camperName}'s application was not approved`;
+    case 'waitlisted':   return `${camperName} was added to the waitlist`;
+    case 'under_review': return `${camperName}'s application is under review`;
+    case 'pending':      return `New application submitted for ${camperName}`;
+    default:             return `Application updated for ${camperName}`;
+  }
 }
 
 // ─── Priority item type ───────────────────────────────────────────────────────
@@ -102,7 +115,7 @@ interface ActivityItem {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SuperAdminDashboardPage() {
-  const { t } = useTranslation();
+  useTranslation(); // reserved for future i18n strings
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
 
@@ -152,13 +165,13 @@ export function SuperAdminDashboardPage() {
           .slice(0, 2);
         setOverdueDocs(overdueList);
 
-        // Recent Activity: reviewed applications (approved/rejected/waitlisted)
+        // Recent Activity: all active applications, most recently updated first
         const reviewed = apps
-          .filter((a) => ['approved', 'rejected', 'waitlisted'].includes(a.status))
+          .filter((a) => !['draft', 'cancelled'].includes(a.status))
           .sort((a, b) => {
-            const da = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0;
-            const db = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0;
-            return db - da;
+            const aTime = a.reviewed_at ?? a.updated_at ?? a.submitted_at ?? a.created_at;
+            const bTime = b.reviewed_at ?? b.updated_at ?? b.submitted_at ?? b.created_at;
+            return new Date(bTime ?? 0).getTime() - new Date(aTime ?? 0).getTime();
           })
           .slice(0, 6);
         setRecentApps(reviewed);
@@ -214,12 +227,12 @@ export function SuperAdminDashboardPage() {
     return order[a.urgency] - order[b.urgency];
   }).slice(0, 5);
 
-  // Activity feed from reviewed apps
+  // Activity feed from recently updated apps
   const activityFeed: ActivityItem[] = recentApps.map((a) => ({
     id:         `app-${a.id}`,
     camperName: a.camper?.full_name ?? `Camper #${a.camper_id}`,
     subtitle:   a.session?.name ?? `Session #${a.camp_session_id}`,
-    time:       a.reviewed_at ?? a.submitted_at ?? a.created_at,
+    time:       a.reviewed_at ?? a.updated_at ?? a.submitted_at ?? a.created_at,
     action:     a.status,
     status:     a.status,
     to:         `/super-admin/applications/${a.id}`,
@@ -481,22 +494,17 @@ export function SuperAdminDashboardPage() {
             ) : (
               <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
                 {activityFeed.map((entry) => {
-                  const Icon  = activityIcon(entry.action);
-                  const color = activityColor(entry.action);
+                  const Icon    = activityIcon(entry.action);
+                  const color   = activityColor(entry.action);
                   const timeAgo = entry.time
                     ? formatDistanceToNow(new Date(entry.time), { addSuffix: true })
-                    : null;
-                  const fullDate = entry.time
-                    ? format(new Date(entry.time), 'MMM d, yyyy h:mm a')
                     : null;
                   return (
                     <li key={entry.id}>
                       <Link
                         to={entry.to}
-                        className="group flex items-center gap-3 px-4 py-3 transition-colors"
+                        className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
                         style={{ textDecoration: 'none' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--dash-nav-hover-bg)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
@@ -505,17 +513,11 @@ export function SuperAdminDashboardPage() {
                           <Icon className="h-4 w-4" style={{ color }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium leading-snug" style={{ color: 'var(--foreground)' }}>
-                              {entry.camperName}
-                            </span>
-                            <StatusBadge status={entry.status} />
-                          </div>
+                          <p className="text-xs font-medium leading-snug truncate" style={{ color: 'var(--foreground)' }}>
+                            {getActivityMessage(entry.status, entry.camperName)}
+                          </p>
                           <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                            {entry.subtitle}
-                            {fullDate && (
-                              <span title={fullDate}> · {timeAgo}</span>
-                            )}
+                            {entry.subtitle && `${entry.subtitle} · `}{timeAgo}
                           </p>
                         </div>
                         <ChevronRight

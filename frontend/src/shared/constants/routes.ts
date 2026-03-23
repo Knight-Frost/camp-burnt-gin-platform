@@ -90,6 +90,11 @@ export const ROUTES = {
   // Audit log shows every action taken in the system (HIPAA requirement)
   SUPER_ADMIN_AUDIT: '/super-admin/audit',
   // Dynamic application form management — edit sections and fields without code deploys
+  ADMIN_FORM_BUILDER: '/admin/form-builder',
+  ADMIN_FORM_STRUCTURE: (formId: number | string) =>
+    `/admin/form-builder/${formId}`,
+  ADMIN_SECTION_EDITOR: (formId: number | string, sectionId: number | string) =>
+    `/admin/form-builder/${formId}/sections/${sectionId}`,
   SUPER_ADMIN_FORM_BUILDER: '/super-admin/form-builder',
   // Form structure editor for a specific form definition
   SUPER_ADMIN_FORM_STRUCTURE: (formId: number | string) =>

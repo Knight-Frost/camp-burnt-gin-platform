@@ -60,44 +60,44 @@ class FormDefinitionPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isSuperAdmin();
+        return $user->isAdmin();
     }
 
     /**
      * Update a form definition's metadata (name, description).
-     * Super admin only, and only while the definition is in 'draft' status.
+     * Admin and super_admin, and only while the definition is in 'draft' status.
      */
     public function update(User $user, FormDefinition $form): bool
     {
-        return $user->isSuperAdmin() && $form->isEditable();
+        return $user->isAdmin() && $form->isEditable();
     }
 
     /**
      * Permanently delete a form definition.
-     * Super admin only, and only if it has never been published (status = 'draft').
+     * Admin and super_admin, and only if it has never been published (status = 'draft').
      * Active and archived definitions cannot be deleted to preserve audit history.
      */
     public function delete(User $user, FormDefinition $form): bool
     {
-        return $user->isSuperAdmin() && $form->status === 'draft';
+        return $user->isAdmin() && $form->status === 'draft';
     }
 
     /**
      * Publish a draft definition, making it the live active form.
-     * Super admin only, and only when the definition is in 'draft' status.
+     * Admin and super_admin, and only when the definition is in 'draft' status.
      * Active and archived definitions cannot be re-published.
      */
     public function publish(User $user, FormDefinition $form): bool
     {
-        return $user->isSuperAdmin() && $form->status === 'draft';
+        return $user->isAdmin() && $form->status === 'draft';
     }
 
     /**
      * Duplicate an existing definition into a new draft.
-     * Super admin only.
+     * Admin and super_admin.
      */
     public function duplicate(User $user, FormDefinition $form): bool
     {
-        return $user->isSuperAdmin();
+        return $user->isAdmin();
     }
 }

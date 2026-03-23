@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AlertTriangle, Plus, FileText } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -42,6 +42,9 @@ const staggerChild = {
 
 export function FormDashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminPortal = location.pathname.startsWith('/admin');
+  const formStructureRoute = isAdminPortal ? ROUTES.ADMIN_FORM_STRUCTURE : ROUTES.SUPER_ADMIN_FORM_STRUCTURE;
 
   const [definitions, setDefinitions]   = useState<FormDefinitionListItem[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -77,7 +80,7 @@ export function FormDashboardPage() {
     try {
       const newDef = await createFormDefinition({ name, description });
       setShowCreateModal(false);
-      navigate(ROUTES.SUPER_ADMIN_FORM_STRUCTURE(newDef.id));
+      navigate(formStructureRoute(newDef.id));
     } catch {
       setError('Failed to create form. Please try again.');
       setShowCreateModal(false);
@@ -89,7 +92,7 @@ export function FormDashboardPage() {
     try {
       const newDef = await duplicateFormDefinition(id);
       await loadDefinitions();
-      navigate(ROUTES.SUPER_ADMIN_FORM_STRUCTURE(newDef.id));
+      navigate(formStructureRoute(newDef.id));
     } finally {
       setActionLoading(null);
     }
@@ -200,7 +203,7 @@ export function FormDashboardPage() {
                 <FormDefinitionCard
                   def={def}
                   actionLoading={actionLoading}
-                  onEdit={() => navigate(ROUTES.SUPER_ADMIN_FORM_STRUCTURE(def.id))}
+                  onEdit={() => navigate(formStructureRoute(def.id))}
                   onPreview={() => handlePreview(def.id)}
                   onDuplicate={() => handleDuplicate(def.id)}
                   onArchive={() => setConfirmArchive({ id: def.id, name: def.name })}

@@ -50,6 +50,7 @@ export interface Application {
   signed_at?: string;
   signature_name?: string;
   created_at: string;
+  updated_at?: string;
   camper?: Camper;
   session?: CampSession;
   documents?: Document[];

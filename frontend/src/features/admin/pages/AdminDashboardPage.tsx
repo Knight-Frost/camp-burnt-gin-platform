@@ -5,7 +5,7 @@
  *  - System Overview: backend-driven global stats (ReportsSummary)
  *  - Sessions: full-width capacity banner with color-coded fill
  *  - Needs Attention: priority engine — oldest pending first, urgency-scored
- *  - Recent Activity: audit log filtered to meaningful events only
+ *  - Recent Activity: application-based activity feed (most recently updated apps)
  */
 
 import { useEffect, useState } from 'react';
@@ -15,18 +15,17 @@ import {
   ArrowRight, MessageSquare, AlertTriangle,
   TrendingUp, Activity, ChevronRight,
 } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { differenceInDays, formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
 import {
   getAdminApplications,
   getCamps,
   getReportsSummary,
-  getAuditLog,
   type ReportsSummary,
 } from '@/features/admin/api/admin.api';
 import { getUnreadCount } from '@/features/messaging/api/messaging.api';
-import type { Application, Camp, AuditLogEntry } from '@/features/admin/types/admin.types';
+import type { Application, Camp } from '@/features/admin/types/admin.types';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
@@ -65,39 +64,37 @@ const URGENCY_STYLES: Record<UrgencyLevel, { dot: string; label: string; labelSt
   },
 };
 
-// ─── Activity icon mapping ─────────────────────────────────────────────────────
+// ─── Activity helpers ─────────────────────────────────────────────────────────
 
-const ACTIVITY_ICONS: Record<string, typeof FileText> = {
-  approved: CheckCircle,
-  rejected: XCircle,
-  submitted: FileText,
-  waitlisted: Clock,
-  uploaded: TrendingUp,
-};
-
-function activityIcon(action: string) {
-  const lower = action.toLowerCase();
-  for (const [key, Icon] of Object.entries(ACTIVITY_ICONS)) {
-    if (lower.includes(key)) return Icon;
+function activityIcon(status: string): typeof FileText {
+  switch (status) {
+    case 'approved':     return CheckCircle;
+    case 'rejected':     return XCircle;
+    case 'waitlisted':   return Clock;
+    case 'under_review': return Clock;
+    default:             return FileText;
   }
-  return Activity;
 }
 
-function activityColor(action: string): string {
-  const lower = action.toLowerCase();
-  if (lower.includes('approved')) return 'var(--forest-green)';
-  if (lower.includes('rejected') || lower.includes('denied')) return 'var(--destructive)';
-  if (lower.includes('waitlisted')) return '#d97706';
-  return 'var(--ember-orange)';
+function activityColor(status: string): string {
+  switch (status) {
+    case 'approved':     return 'var(--forest-green)';
+    case 'rejected':     return 'var(--destructive)';
+    case 'waitlisted':   return '#d97706';
+    case 'under_review': return '#2563eb';
+    default:             return 'var(--ember-orange)';
+  }
 }
 
-// ─── Meaningful activity filter ───────────────────────────────────────────────
-
-const MEANINGFUL_ACTIONS = ['submitted', 'approved', 'rejected', 'waitlisted', 'upload', 'review'];
-
-function isMeaningfulEvent(entry: AuditLogEntry): boolean {
-  const text = ((entry.human_description ?? '') + ' ' + (entry.action ?? '')).toLowerCase();
-  return MEANINGFUL_ACTIONS.some((kw) => text.includes(kw));
+function getActivityMessage(status: string, camperName: string): string {
+  switch (status) {
+    case 'approved':     return `${camperName}'s application was approved`;
+    case 'rejected':     return `${camperName}'s application was not approved`;
+    case 'waitlisted':   return `${camperName} was added to the waitlist`;
+    case 'under_review': return `${camperName}'s application is under review`;
+    case 'pending':      return `New application submitted for ${camperName}`;
+    default:             return `Application updated for ${camperName}`;
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -110,7 +107,7 @@ export function AdminDashboardPage() {
   const [pendingApps,  setPendingApps]  = useState<Application[]>([]);
   const [camps,        setCamps]        = useState<Camp[]>([]);
   const [unread,       setUnread]       = useState(0);
-  const [activity,     setActivity]     = useState<AuditLogEntry[]>([]);
+  const [activity,     setActivity]     = useState<Application[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(false);
   const [retryKey,     setRetryKey]     = useState(0);
@@ -123,9 +120,8 @@ export function AdminDashboardPage() {
       getAdminApplications().then((res) => res.data),
       getCamps().catch(() => [] as Camp[]),
       getUnreadCount().catch(() => 0),
-      getAuditLog({ per_page: 20 }).catch(() => ({ data: [] as AuditLogEntry[] })),
     ])
-      .then(([rptSummary, apps, campsData, unreadCount, auditPage]) => {
+      .then(([rptSummary, apps, campsData, unreadCount]) => {
         setSummary(rptSummary);
         // Needs Attention: pending + under_review, sorted oldest-first (most urgent)
         const actionable = apps
@@ -139,10 +135,16 @@ export function AdminDashboardPage() {
         setPendingApps(actionable);
         setCamps(campsData);
         setUnread(unreadCount);
-        const meaningful = (auditPage.data ?? [])
-          .filter(isMeaningfulEvent)
+        // Recent Activity: all active applications, most recently updated first
+        const recentActivity = apps
+          .filter((a) => !['draft', 'cancelled'].includes(a.status))
+          .sort((a, b) => {
+            const da = new Date(a.updated_at ?? a.created_at).getTime();
+            const db = new Date(b.updated_at ?? b.created_at).getTime();
+            return db - da;
+          })
           .slice(0, 6);
-        setActivity(meaningful);
+        setActivity(recentActivity);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -460,36 +462,36 @@ export function AdminDashboardPage() {
               </div>
             ) : (
               <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {activity.map((entry) => {
-                  const Icon  = activityIcon(entry.action);
-                  const color = activityColor(entry.action);
-                  const label = entry.human_description ?? entry.action;
+                {activity.map((app) => {
+                  const name    = app.camper?.full_name ?? `Camper #${app.camper_id}`;
+                  const Icon    = activityIcon(app.status);
+                  const color   = activityColor(app.status);
+                  const timeAgo = formatDistanceToNow(new Date(app.updated_at ?? app.created_at), { addSuffix: true });
+                  const session = app.session?.name ?? null;
 
                   return (
-                    <li key={entry.id} className="px-4 py-3 flex items-start gap-3">
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                        style={{ background: `${color}14` }}
+                    <li key={app.id}>
+                      <Link
+                        to={ROUTES.ADMIN_APPLICATION_DETAIL(app.id)}
+                        className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                        style={{ textDecoration: 'none' }}
                       >
-                        <Icon className="h-3.5 w-3.5" style={{ color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs leading-snug" style={{ color: 'var(--foreground)' }}>
-                          {label}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {entry.user?.name && (
-                            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                              {entry.user.name}
-                            </span>
-                          )}
-                          {entry.created_at && (
-                            <span className="text-xs" style={{ color: 'var(--muted-foreground)', opacity: 0.7 }}>
-                              · {format(new Date(entry.created_at), 'MMM d, h:mm a')}
-                            </span>
-                          )}
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: `${color}18` }}
+                        >
+                          <Icon className="h-3.5 w-3.5" style={{ color }} />
                         </div>
-                      </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium leading-snug truncate" style={{ color: 'var(--foreground)' }}>
+                            {getActivityMessage(app.status, name)}
+                          </p>
+                          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
+                            {session ? `${session} · ` : ''}{timeAgo}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" style={{ color: 'var(--foreground)' }} />
+                      </Link>
                     </li>
                   );
                 })}

@@ -29,16 +29,16 @@ class FormSectionPolicy
 
     public function create(User $user, FormSection $section): bool
     {
-        return $user->isSuperAdmin() && $section->formDefinition->isEditable();
+        return $user->isAdmin() && $section->formDefinition->isEditable();
     }
 
     public function update(User $user, FormSection $section): bool
     {
-        return $user->isSuperAdmin() && $section->formDefinition->isEditable();
+        return $user->isAdmin() && $section->formDefinition->isEditable();
     }
 
     public function delete(User $user, FormSection $section): bool
     {
-        return $user->isSuperAdmin() && $section->formDefinition->isEditable();
+        return $user->isAdmin() && $section->formDefinition->isEditable();
     }
 }

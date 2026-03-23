@@ -62,10 +62,17 @@ import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
 function relativeTime(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 3600) {
+    const m = Math.floor(diff / 60);
+    return `${m} ${m === 1 ? 'minute' : 'minutes'} ago`;
+  }
+  if (diff < 86400) {
+    const h = Math.floor(diff / 3600);
+    return `${h} ${h === 1 ? 'hour' : 'hours'} ago`;
+  }
   if (diff < 172800) return 'yesterday';
-  return `${Math.floor(diff / 86400)}d ago`;
+  const d = Math.floor(diff / 86400);
+  return `${d} days ago`;
 }
 
 function isOverdue(dueDateStr: string): boolean {
@@ -94,13 +101,13 @@ function buildActivity(stats: MedicalStats): ActivityItem[] {
   const items: ActivityItem[] = [];
 
   for (const t of (stats.recent_activity?.treatments ?? []) as TreatmentLog[]) {
-    items.push({ id: t.id, kind: 'treatment', camperId: t.camper_id, camperName: t.camper?.full_name ?? 'Unknown', title: t.title, timestamp: t.created_at });
+    items.push({ id: t.id, kind: 'treatment', camperId: t.camper_id, camperName: t.camper?.full_name ?? 'Unknown camper', title: `Treatment recorded: ${t.title}`, timestamp: t.created_at });
   }
   for (const inc of (stats.recent_activity?.incidents ?? []) as MedicalIncident[]) {
-    items.push({ id: inc.id, kind: 'incident', camperId: inc.camper_id, camperName: inc.camper?.full_name ?? 'Unknown', title: inc.title, timestamp: inc.created_at, severity: inc.severity });
+    items.push({ id: inc.id, kind: 'incident', camperId: inc.camper_id, camperName: inc.camper?.full_name ?? 'Unknown camper', title: `Incident reported: ${inc.title}`, timestamp: inc.created_at, severity: inc.severity });
   }
   for (const v of (stats.recent_activity?.visits ?? []) as MedicalVisit[]) {
-    items.push({ id: v.id, kind: 'visit', camperId: v.camper_id, camperName: v.camper?.full_name ?? 'Unknown', title: v.chief_complaint, timestamp: v.created_at });
+    items.push({ id: v.id, kind: 'visit', camperId: v.camper_id, camperName: v.camper?.full_name ?? 'Unknown camper', title: `Clinic visit — ${v.chief_complaint}`, timestamp: v.created_at });
   }
 
   return items

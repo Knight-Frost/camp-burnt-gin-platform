@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   AlertTriangle, Plus, Upload, History,
   Monitor, Tablet, Smartphone,
@@ -388,6 +388,10 @@ function DeleteDialog({ title, body, loading, onConfirm, onCancel }: DeleteDialo
 export function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminPortal = location.pathname.startsWith('/admin');
+  const formBuilderRoute = isAdminPortal ? ROUTES.ADMIN_FORM_BUILDER : ROUTES.SUPER_ADMIN_FORM_BUILDER;
+  const formStructureRoute = isAdminPortal ? ROUTES.ADMIN_FORM_STRUCTURE : ROUTES.SUPER_ADMIN_FORM_STRUCTURE;
   const id = parseInt(formId ?? '0', 10);
 
   // Core data
@@ -637,7 +641,7 @@ export function FormEditorPage() {
     setActionLoading(`dup-${defId}`);
     try {
       const newDef = await duplicateFormDefinition(defId);
-      navigate(ROUTES.SUPER_ADMIN_FORM_STRUCTURE(newDef.id));
+      navigate(formStructureRoute(newDef.id));
     } finally {
       setActionLoading(null);
     }
@@ -717,7 +721,7 @@ export function FormEditorPage() {
       <div className="flex-shrink-0 px-6 py-4 border-b border-[var(--border)] bg-[var(--card)]">
         <FormBreadcrumb
           items={[
-            { label: 'Form Builder', to: ROUTES.SUPER_ADMIN_FORM_BUILDER },
+            { label: 'Form Builder', to: formBuilderRoute },
             { label: def?.name ?? '…' },
           ]}
         />
@@ -1142,7 +1146,7 @@ export function FormEditorPage() {
             actionLoading={actionLoading}
             onClose={() => setShowVersionHistory(false)}
             onSelect={(did) => {
-              navigate(ROUTES.SUPER_ADMIN_FORM_STRUCTURE(did));
+              navigate(formStructureRoute(did));
               setShowVersionHistory(false);
             }}
             onDuplicate={handleDuplicate}

@@ -27,7 +27,6 @@ import {
   MessageSquare,
   Settings,
   Megaphone,
-  ScrollText,
   Layout,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -73,8 +72,6 @@ export function AdminLayout() {
     { group: 'Operations',    label: 'Calendar',         to: ROUTES.ADMIN_CALENDAR,      icon: CalendarDays },
     { group: 'Operations',    label: 'Reports',          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
     // SYSTEM — governance & configuration
-    { group: 'System',        label: 'Manage Users & Permissions', to: '/admin/users',         icon: Users },
-    { group: 'System',        label: 'Audit Log',                  to: '/admin/audit',         icon: ScrollText },
     { group: 'System',        label: 'Form Builder',               to: '/admin/form-builder',  icon: Layout },
     { group: 'System',        label: 'Settings',                   to: '/admin/settings',      icon: Settings },
   ];

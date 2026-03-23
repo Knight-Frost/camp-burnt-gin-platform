@@ -29,16 +29,16 @@ class FormFieldPolicy
 
     public function create(User $user, FormField $field): bool
     {
-        return $user->isSuperAdmin() && $field->formSection->formDefinition->isEditable();
+        return $user->isAdmin() && $field->formSection->formDefinition->isEditable();
     }
 
     public function update(User $user, FormField $field): bool
     {
-        return $user->isSuperAdmin() && $field->formSection->formDefinition->isEditable();
+        return $user->isAdmin() && $field->formSection->formDefinition->isEditable();
     }
 
     public function delete(User $user, FormField $field): bool
     {
-        return $user->isSuperAdmin() && $field->formSection->formDefinition->isEditable();
+        return $user->isAdmin() && $field->formSection->formDefinition->isEditable();
     }
 }
