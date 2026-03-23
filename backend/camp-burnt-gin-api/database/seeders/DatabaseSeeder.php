@@ -8,71 +8,141 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Main database seeder for Camp Burnt Gin.
+ * DatabaseSeeder — scenario-driven orchestrator for Camp Burnt Gin.
  *
- * Execution order:
- *   1. Roles                       — always (required for all user creation)
- *   2. System data                 — always (document rules, activity permissions)
- *   3. Super admin account         — always (production-safe bootstrap)
- *   4. Core demo data stack        — non-production, controlled by config/seeding.php
- *   5. Extended scenario stack     — non-production, adds edge cases and missing coverage
+ * This seeder turns the database into a full simulation of the system.
+ * Every record exists for a reason. Every scenario is documented.
  *
- * Core demo data stack (in dependency order):
- *   UserSeeder             → staff accounts (admin, medical, deputy super admin)
- *   ApplicantSeeder        → 6 families with campers and emergency contacts
- *   CampSeeder             → Camp Burnt Gin + 3 sessions
- *   ApplicationSeeder      → applications across all status variants
- *   MedicalSeeder          → diagnoses, allergies, medications
- *   MedicalPhase11Seeder   → incidents, visits, follow-ups, restrictions
- *   TreatmentLogSeeder     → 12 treatment log entries (all 5 types, 8 campers)
- *   DocumentSeeder         → document metadata records (no actual files)
- *   MessageSeeder          → inbox conversations and messages
- *   AnnouncementSeeder     → announcements, calendar events, audit log entries
- *   NotificationSeeder     → database notifications for demo applicant accounts
+ * ─── EXECUTION TIERS ────────────────────────────────────────────────────────
  *
- * Extended scenario stack (runs after core stack; adds missing coverage):
- *   ExtendedUserSeeder            → inactive, locked, MFA users; address data; user emergency contacts
- *   WaitlistedApplicationSeeder   → waitlisted, draft, paper-entered, and returning-applicant applications
- *   ExtendedEmergencyContactSeeder → secondary contacts, non-pickup contacts
- *   ProviderLinkSeeder            → medical provider link workflow (all lifecycle states)
- *   CamperProfileSeeder           → behavioral profiles, assistive devices, feeding plans
- *   ExtendedMedicalRecordSeeder   → has_seizures fields; activity permission overrides (restricted/denied)
- *   ExtendedMessageSeeder         → medical staff threads, archived conversation, long thread, unanswered
- *   ExtendedAuditLogSeeder        → comprehensive audit log entries across all categories
- *   ExtendedNotificationSeeder    → admin, medical, and additional applicant notifications
- *   ApplicantDocumentSeeder       → admin-to-applicant documents (3 states: pending, submitted, reviewed)
- *   DocumentRequestSeeder         → full document request lifecycle (7 states) + system inbox threads
- *   MessageReadSeeder             → read receipts for all existing conversations
- *   MedicalCrossLinkSeeder        → incident/follow-up treatment_log_id cross-links;
- *                                   restrictions for Ava + Mia; behavioral profiles for Ava + Mia
+ *   Tier 1 — System bootstrap (production-safe, always runs)
+ *     RoleSeeder              → 4 roles (super_admin, admin, applicant, medical)
+ *     Super admin account     → admin@campburntgin.org (inline, production bootstrap)
  *
- * Environment flags (config/seeding.php / .env):
- *   ENABLE_DEMO_DATA          — master switch (default: true)
- *   ENABLE_MEDICAL_SEEDS      — medical data including treatment logs (default: true)
- *   ENABLE_DOCUMENT_SEEDS     — document metadata records (default: true)
- *   ENABLE_NOTIFICATION_SEEDS — database notifications (default: true)
- *   ENABLE_EXTENDED_SEEDS     — extended edge-case scenario stack (default: true)
+ *   Tier 2 — People and structure (dev/staging only)
+ *     StaffSeeder             → 7 staff accounts + 2 edge-case accounts (inactive, locked)
+ *     CampSeeder              → Camp Burnt Gin + 3 sessions (1 past, 2 upcoming)
+ *     FamilySeeder            → 8 applicant families with campers and emergency contacts
  *
- * Reset (local dev only):
+ *   Tier 3 — Application workflow scenarios (all 6 statuses + draft + paper)
+ *     ApplicationSeeder       → 14 applications covering every status and edge case
+ *
+ *   Tier 4 — Medical data scenarios (5 complexity tiers + all medical states)
+ *     MedicalSeeder           → Records, diagnoses, allergies, medications, treatment logs
+ *     MedicalPhase11Seeder    → Incidents, visits, follow-ups, restrictions (Phase 11)
+ *     TreatmentLogSeeder      → Visit-linked treatment log entries
+ *     CamperProfileSeeder     → Behavioral profiles, assistive devices, feeding plans
+ *     ExtendedMedicalRecordSeeder → Seizure data, activity permission overrides
+ *     MedicalCrossLinkSeeder  → Incident/follow-up cross-links; restrictions for Ava+Mia
+ *
+ *   Tier 5 — Communication and operations
+ *     DocumentSeeder          → Document metadata records (no actual files)
+ *     ApplicantDocumentSeeder → Admin-to-applicant documents (3 states)
+ *     DocumentRequestSeeder   → Full document request lifecycle (7 states)
+ *     ProviderLinkSeeder      → Medical provider link workflow (all lifecycle states)
+ *     MessagingSeeder         → Conversations, messages, read receipts
+ *     AnnouncementSeeder      → Announcements + calendar events
+ *     AuditLogSeeder          → Audit trail entries (35 entries, all categories)
+ *     NotificationSeeder      → Database notifications
+ *
+ *   Tier 6 — System configuration (always runs, safe to repeat)
+ *     RequiredDocumentRuleSeeder → Required document rule definitions
+ *     ActivityPermissionSeeder   → System activity permission defaults
+ *     FormDefinitionSeeder       → Phase 14 dynamic form schema v1
+ *
+ * ─── SCENARIO COVERAGE ──────────────────────────────────────────────────────
+ *
+ *   Application statuses   : pending, under_review, approved, rejected, cancelled, waitlisted
+ *   Draft applications     : 2 (Mia returning draft, Olivia new family draft)
+ *   Paper application      : 1 (Henry Carter — admin-entered from physical form)
+ *   Medical complexity     : no record, partial, complete (mild/moderate/severe)
+ *   Family structures      : single child, multi-child, returning, new, mixed outcomes
+ *   Session distribution   : past, upcoming × 2, capacity variation
+ *   Admin interactions     : reviewed, pending, rejected, waitlisted with notes
+ *   Edge-case accounts     : inactive user, locked-out user, MFA-enabled admin
+ *
+ * ─── RESET (local dev only) ─────────────────────────────────────────────────
+ *
  *   php artisan migrate:fresh --seed
  */
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // CRITICAL: Roles must be seeded first — all users require a role_id.
+        // ── Tier 1: System bootstrap ──────────────────────────────────────────
+        // Roles must be seeded first — every user record requires a role_id.
         $this->call(RoleSeeder::class);
 
-        // System configuration data — always seeded in all environments.
+        // System configuration — safe to run in all environments.
         $this->call([
             RequiredDocumentRuleSeeder::class,
             ActivityPermissionSeeder::class,
-            FormDefinitionSeeder::class,  // Phase 14: seeds the v1 dynamic form schema
+            FormDefinitionSeeder::class,
         ]);
 
-        // Bootstrap super admin — always created; this is the only account
-        // that must exist in production before any staff can log in.
-        $superAdminRole = Role::where('name', 'super_admin')->first();
+        // Super admin — the only account that must exist before any staff can log in.
+        // This runs in production too. Change the password immediately after deploy.
+        $this->bootstrapSuperAdmin();
+
+        // ── Production gate ───────────────────────────────────────────────────
+        if (app()->environment('production')) {
+            $this->command->info('Production environment — demo data skipped.');
+            $this->printProductionSummary();
+            return;
+        }
+
+        // ── Tier 2: People and structure ──────────────────────────────────────
+        $this->command->info('Seeding people and structure...');
+        $this->call([
+            StaffSeeder::class,                  // 7 staff + 2 edge-case accounts (inactive, locked)
+            CampSeeder::class,                   // Camp Burnt Gin + 3 sessions (1 past, 2 upcoming)
+            FamilySeeder::class,                 // 30 applicant families with campers
+            ExtendedEmergencyContactSeeder::class, // secondary/edge-case emergency contacts
+        ]);
+
+        // ── Tier 3: Application workflow scenarios ────────────────────────────
+        $this->command->info('Seeding application scenarios...');
+        $this->call(ApplicationSeeder::class);
+
+        // ── Tier 4: Medical data scenarios ────────────────────────────────────
+        $this->command->info('Seeding medical data scenarios...');
+        $this->call([
+            MedicalSeeder::class,              // core records, diagnoses, medications, treatment logs
+            MedicalPhase11Seeder::class,       // incidents, visits, follow-ups, restrictions
+            TreatmentLogSeeder::class,         // visit-linked treatment logs (all 5 types)
+            CamperProfileSeeder::class,        // behavioral profiles, assistive devices, feeding plans
+            ExtendedMedicalRecordSeeder::class, // seizure data, activity permission overrides
+            MedicalCrossLinkSeeder::class,     // incident/follow-up cross-links
+        ]);
+
+        // ── Tier 5: Communication and operations ──────────────────────────────
+        $this->command->info('Seeding communication and documents...');
+        $this->call([
+            // Documents
+            DocumentSeeder::class,              // uploaded document metadata (no real files)
+            ApplicantDocumentSeeder::class,     // admin-to-applicant docs (pending/submitted/reviewed)
+            DocumentRequestSeeder::class,       // full document request lifecycle (7 states)
+            ProviderLinkSeeder::class,          // medical provider links (all lifecycle states)
+
+            // Messaging — MessagingSeeder is the comprehensive replacement for
+            // MessageSeeder + ExtendedMessageSeeder + MessageReadSeeder.
+            // It covers 10 human threads + 4 system threads with read receipts.
+            MessagingSeeder::class,
+
+            // Admin content
+            AnnouncementSeeder::class,          // announcements + calendar events
+            AuditLogSeeder::class,              // 55+ audit entries across all 6 categories
+            NotificationSeeder::class,          // database notifications
+        ]);
+
+        $this->printDemoSummary();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function bootstrapSuperAdmin(): void
+    {
+        $superAdminRole = Role::where('name', 'super_admin')->firstOrFail();
 
         User::firstOrCreate(
             ['email' => 'admin@campburntgin.org'],
@@ -84,159 +154,60 @@ class DatabaseSeeder extends Seeder
                 'is_active'         => true,
             ]
         );
-
-        // Demo data — non-production environments only.
-        if (app()->environment('production')) {
-            $this->command->info('Production environment — demo data skipped.');
-            $this->printSummary();
-            return;
-        }
-
-        if (! config('seeding.enable_demo_data', true)) {
-            $this->command->warn('Demo data disabled (ENABLE_DEMO_DATA=false).');
-            $this->printSummary();
-            return;
-        }
-
-        $this->command->info('Seeding core demo data stack...');
-
-        // Core demo data — always together (each depends on the previous).
-        $this->call([
-            UserSeeder::class,        // staff accounts
-            ApplicantSeeder::class,   // 6 families + campers + emergency contacts
-            CampSeeder::class,        // camp + 3 sessions
-            ApplicationSeeder::class, // all status variants
-        ]);
-
-        // Medical data — diagnoses, allergies, medications, treatment logs.
-        if (config('seeding.enable_medical_seeds', true)) {
-            $this->call(MedicalSeeder::class);
-            $this->call(MedicalPhase11Seeder::class); // incidents, visits, follow-ups, restrictions
-            $this->call(TreatmentLogSeeder::class);   // treatment log entries (all types)
-        } else {
-            $this->command->warn('Medical seeds disabled (ENABLE_MEDICAL_SEEDS=false).');
-        }
-
-        // Document metadata records (no actual files on disk).
-        if (config('seeding.enable_document_seeds', true)) {
-            $this->call(DocumentSeeder::class);
-        } else {
-            $this->command->warn('Document seeds disabled (ENABLE_DOCUMENT_SEEDS=false).');
-        }
-
-        // Messaging and announcements — depend on users + applications.
-        $this->call([
-            MessageSeeder::class,      // inbox conversations + messages
-            AnnouncementSeeder::class, // announcements + calendar + audit log
-        ]);
-
-        // Database notifications — depend on users + applications.
-        if (config('seeding.enable_notification_seeds', true)) {
-            $this->call(NotificationSeeder::class);
-        } else {
-            $this->command->warn('Notification seeds disabled (ENABLE_NOTIFICATION_SEEDS=false).');
-        }
-
-        // ── Extended scenario stack ────────────────────────────────────────────
-        // Adds edge cases, missing coverage, and full workflow simulation on top
-        // of the core demo stack. Depends on all core seeders having run.
-
-        if (config('seeding.enable_extended_seeds', true)) {
-            $this->command->info('Seeding extended scenario stack...');
-
-            $this->call([
-                // User variety: inactive, locked, MFA-enabled, address data, user emergency contacts
-                ExtendedUserSeeder::class,
-
-                // Applications: waitlisted, pure draft, paper-entered, returning-applicant
-                // Also creates Henry Carter (new family) for paper app scenario
-                WaitlistedApplicationSeeder::class,
-
-                // Secondary and edge-case emergency contacts
-                ExtendedEmergencyContactSeeder::class,
-
-                // Medical provider links: all lifecycle states (active, accessed, submitted, expired, revoked)
-                ProviderLinkSeeder::class,
-
-                // Behavioral profiles, assistive devices, feeding plans for all campers
-                CamperProfileSeeder::class,
-
-                // Fill has_seizures fields in MedicalRecord + override activity permissions
-                // with realistic restricted/denied entries (not all-yes defaults)
-                ExtendedMedicalRecordSeeder::class,
-
-                // More conversations: medical staff threads, archived, long-thread, unanswered, internal
-                ExtendedMessageSeeder::class,
-
-                // Comprehensive audit log entries (~35 entries across all event categories)
-                ExtendedAuditLogSeeder::class,
-
-                // Admin, medical staff, and additional applicant notifications
-                ExtendedNotificationSeeder::class,
-
-                // Admin-to-applicant documents (3 states: pending, submitted, reviewed)
-                ApplicantDocumentSeeder::class,
-
-                // Document request full lifecycle (7 states) + system inbox threads per request
-                // Depends on: users, campers, applications, conversations infrastructure
-                DocumentRequestSeeder::class,
-
-                // Read receipts: system conversations fully read; active threads have unread tail;
-                // Patricia/Mia unanswered thread preserved as unread for admin
-                // Depends on: all conversation and message seeders having run
-                MessageReadSeeder::class,
-
-                // Cross-links: incident/follow-up treatment_log_id back-filled;
-                // activity restrictions for Ava and Mia; behavioral profiles for Ava and Mia;
-                // Depends on: MedicalPhase11Seeder, TreatmentLogSeeder, CamperProfileSeeder
-                MedicalCrossLinkSeeder::class,
-            ]);
-        } else {
-            $this->command->warn('Extended seeds disabled (ENABLE_EXTENDED_SEEDS=false).');
-        }
-
-        $this->printSummary();
     }
 
-    private function printSummary(): void
+    private function printProductionSummary(): void
     {
         $this->command->newLine();
-        $this->command->info('Database seeding completed successfully.');
+        $this->command->warn('SECURITY: Change the super admin password immediately!');
+        $this->command->warn('  Email:    admin@campburntgin.org');
+        $this->command->warn('  Password: ChangeThisPassword123!');
         $this->command->newLine();
-        $this->command->warn('SECURITY WARNING: Change the super admin password immediately!');
-        $this->command->warn('  Email: admin@campburntgin.org');
-        $this->command->warn('  Default password: ChangeThisPassword123!');
+    }
 
-        if (! app()->environment('production') && config('seeding.enable_demo_data', true)) {
-            $this->command->newLine();
-            $this->command->line('  Staff accounts (password: <comment>password</comment>):');
-            $this->command->line('  Admin:    admin@example.com');
-            $this->command->line('  Medical:  medical@example.com');
-            $this->command->line('  Medical2: medical2@campburntgin.org  (Nurse Jamie Santos)');
-            $this->command->line('  Coord:    admin3@campburntgin.org    (Taylor Brooks)');
-            $this->command->line('  Deputy:   admin2@campburntgin.org');
-            $this->command->line('  MFA:      mfa.admin@campburntgin.org (MFA-enabled, TOTP required)');
-            $this->command->newLine();
-            $this->command->line('  Edge-state accounts:');
-            $this->command->line('  Inactive: inactive@example.com       (is_active=false, login denied)');
-            $this->command->line('  Locked:   locked.applicant@example.com (lockout active)');
-            $this->command->newLine();
-            $this->command->line('  Applicant accounts (password: <comment>password</comment>):');
-            $this->command->line('  sarah.johnson@example.com        (Ethan + Lily — approved/pending)');
-            $this->command->line('  david.martinez@example.com       (Sofia — under review)');
-            $this->command->line('  jennifer.thompson@example.com    (Noah — rejected/S1, pending/S2)');
-            $this->command->line('  michael.williams@example.com     (Ava + Lucas — approved + pending)');
-            $this->command->line('  patricia.davis@example.com       (Mia — past approved + 2026 draft)');
-            $this->command->line('  grace.wilson@example.com         (Tyler — under review)');
-            $this->command->line('  james.carter@example.com         (Henry — paper application)');
-            $this->command->newLine();
-            $this->command->line('  Provider link states:');
-            $this->command->line('  Sofia → Dr. Owens  : active, not accessed');
-            $this->command->line('  Tyler → Dr. Bradley: active, accessed not submitted');
-            $this->command->line('  Noah  → Dr. Kim    : submitted');
-            $this->command->line('  Lucas → Dr. Gonzalez: expired (no submission)');
-            $this->command->line('  Mia   → Dr. Patel  : revoked');
-            $this->command->line('  Lily  → Dr. Hill   : active (just sent today)');
-        }
+    private function printDemoSummary(): void
+    {
+        $this->command->newLine();
+        $this->command->info('✓ Database seeded — full scenario simulation ready.');
+        $this->command->newLine();
+
+        $this->command->warn('SECURITY: Change the super admin password immediately!');
+        $this->command->warn('  admin@campburntgin.org / ChangeThisPassword123!');
+        $this->command->newLine();
+
+        $this->command->line('<comment>Staff accounts</comment> (password: password):');
+        $this->command->line('  Super Admin : admin@campburntgin.org         Jordan Blake (deputy)');
+        $this->command->line('  Admin       : admin@example.com              Alex Rivera');
+        $this->command->line('  Coordinator : admin3@campburntgin.org        Taylor Brooks');
+        $this->command->line('  Medical Dir : medical@example.com            Dr. Morgan Chen');
+        $this->command->line('  Nurse       : medical2@campburntgin.org      Jamie Santos RN');
+        $this->command->line('  MFA Admin   : mfa.admin@campburntgin.org     Dana Forsythe (TOTP required)');
+        $this->command->newLine();
+
+        $this->command->line('<comment>Applicant accounts</comment> (password: password):');
+        $this->command->line('  sarah.johnson@example.com        Ethan (approved S1) + Lily (pending S2)');
+        $this->command->line('  david.martinez@example.com       Sofia (under review S1)');
+        $this->command->line('  jennifer.thompson@example.com    Noah (rejected S1, pending S2)');
+        $this->command->line('  michael.williams@example.com     Ava (approved S2) + Lucas (pending S1)');
+        $this->command->line('  patricia.davis@example.com       Mia (past approved + 2026 draft)');
+        $this->command->line('  grace.wilson@example.com         Tyler (waitlisted S1)');
+        $this->command->line('  james.carter@example.com         Henry (paper app approved S1 + pending S2)');
+        $this->command->line('  michelle.robinson@example.com    Olivia (draft S2 — no medical data)');
+        $this->command->newLine();
+
+        $this->command->line('<comment>Edge-case accounts</comment>:');
+        $this->command->line('  inactive@example.com             Login denied (is_active=false)');
+        $this->command->line('  locked.applicant@example.com     Login denied (lockout active)');
+        $this->command->newLine();
+
+        $this->command->line('<comment>Application status coverage</comment>:');
+        $this->command->line('  pending      : Lily (S2), Lucas (S1), Noah (S2), Henry (S2)');
+        $this->command->line('  under_review : Sofia (S1)');
+        $this->command->line('  approved     : Ethan (S1), Ava (S2), Mia (2025), Henry (S1)');
+        $this->command->line('  rejected     : Noah (S1 — capacity)');
+        $this->command->line('  cancelled    : Lucas (S2 — draft abandoned)');
+        $this->command->line('  waitlisted   : Tyler (S1 — on waitlist, promotable)');
+        $this->command->line('  draft        : Mia (S1 2026 in-progress), Olivia (S2 brand new)');
+        $this->command->newLine();
     }
 }

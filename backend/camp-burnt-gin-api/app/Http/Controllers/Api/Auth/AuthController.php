@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -149,9 +150,13 @@ class AuthController extends Controller
      */
     public function user(Request $request): JsonResponse
     {
-        return response()->json([
-            // load('role') fetches the role record from the DB and attaches it to the user object.
-            'data' => $request->user()->load('role'),
-        ]);
+        $user = $request->user()->load('role');
+
+        $data = $user->toArray();
+        $data['avatar_url'] = $user->avatar_path
+            ? Storage::disk('public')->url($user->avatar_path)
+            : null;
+
+        return response()->json(['data' => $data]);
     }
 }

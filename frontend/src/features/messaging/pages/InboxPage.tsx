@@ -44,6 +44,7 @@ import { useBootstrapReady } from '@/shared/hooks/useBootstrapReady';
 import { MessageRow } from '@/features/messaging/components/MessageRow';
 import { ThreadView } from '@/features/messaging/components/ThreadView';
 import { FloatingCompose } from '@/features/messaging/components/FloatingCompose';
+import DOMPurify from 'dompurify';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -894,8 +895,7 @@ function AnnouncementList({ announcements }: { announcements: Announcement[] }) 
           <p
             className="text-xs leading-relaxed line-clamp-2"
             style={{ color: 'var(--muted-foreground)' }}
-            // Announcement body from our own server — sanitized at API layer
-            dangerouslySetInnerHTML={{ __html: ann.body }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ann.body) }}
           />
         </div>
       ))}

@@ -248,10 +248,16 @@ export function SessionSelectorModal() {
   // Both early-exit conditions are now AFTER all hooks.
   if (!ctx || !selectorOpen) return null;
 
-  // Show ONLY active/upcoming sessions — archived sessions are managed on the Archived Sessions page.
-  const activeSessions = [...sessions]
+  // Show non-archived sessions only. Split into two groups based on date-derived status:
+  //   activeSessions  — currently running (start_date <= today <= end_date)
+  //   upcomingSessions — not yet started (today < start_date)
+  // Completed sessions are excluded — they are no longer viable workspaces.
+  const nonArchived = [...sessions]
     .filter((s) => s.is_active)
     .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+  const activeSessions   = nonArchived.filter((s) => getSessionStatus(s).label === 'Active');
+  const upcomingSessions = nonArchived.filter((s) => getSessionStatus(s).label === 'Upcoming');
 
   const modal = (
     <div
@@ -338,47 +344,101 @@ export function SessionSelectorModal() {
             </button>
           </div>
 
-          {/* Session cards — active and upcoming sessions only */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
-                Active Sessions {activeSessions.length > 0 && `(${activeSessions.length})`}
-              </p>
+          {/* Session cards — active and upcoming sessions, clearly separated */}
+          <div className="space-y-6">
+
+            {/* ── Currently Running ── */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span
+                  className="h-2 w-2 rounded-full flex-shrink-0"
+                  style={{ background: 'rgba(22,163,74,1)' }}
+                  aria-hidden
+                />
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
+                  Active — Currently Running {activeSessions.length > 0 && `(${activeSessions.length})`}
+                </p>
+              </div>
+
+              {sessionsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 2 }).map((_, i) => <SessionCardSkeleton key={i} />)}
+                </div>
+              ) : activeSessions.length === 0 ? (
+                <div
+                  className="rounded-xl border flex items-center justify-center py-8 text-center"
+                  style={{ borderColor: 'var(--border)', borderStyle: 'dashed' }}
+                >
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    No sessions are currently running
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {activeSessions.map((session) => (
+                    <SessionCard
+                      key={session.id}
+                      session={session}
+                      isSelected={currentSession?.id === session.id}
+                      onSelect={() => setCurrentSession(session)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {sessionsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 3 }).map((_, i) => <SessionCardSkeleton key={i} />)}
+            {/* ── Upcoming ── */}
+            {(sessionsLoading || upcomingSessions.length > 0) && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span
+                    className="h-2 w-2 rounded-full flex-shrink-0"
+                    style={{ background: 'rgba(37,99,235,1)' }}
+                    aria-hidden
+                  />
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
+                    Upcoming — Not Yet Started {upcomingSessions.length > 0 && `(${upcomingSessions.length})`}
+                  </p>
+                </div>
+
+                {sessionsLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 1 }).map((_, i) => <SessionCardSkeleton key={i} />)}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {upcomingSessions.map((session) => (
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        isSelected={currentSession?.id === session.id}
+                        onSelect={() => setCurrentSession(session)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : activeSessions.length === 0 ? (
+            )}
+
+            {/* Empty state — no sessions at all */}
+            {!sessionsLoading && activeSessions.length === 0 && upcomingSessions.length === 0 && (
               <div
                 className="rounded-xl border flex flex-col items-center justify-center py-12 text-center"
                 style={{ borderColor: 'var(--border)', borderStyle: 'dashed' }}
               >
                 <Calendar className="h-8 w-8 mb-3" style={{ color: 'var(--border)' }} />
                 <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
-                  No active sessions
+                  No active or upcoming sessions
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
                   Create a session to get started
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeSessions.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    isSelected={currentSession?.id === session.id}
-                    onSelect={() => setCurrentSession(session)}
-                  />
-                ))}
-              </div>
             )}
 
             {/* Archived sessions — separated, accessible via link, never mixed in */}
             <div
-              className="mt-5 pt-4 flex items-center gap-3"
+              className="pt-4 flex items-center gap-3"
               style={{ borderTop: '1px solid var(--border)' }}
             >
               <Archive className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />

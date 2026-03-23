@@ -2,38 +2,49 @@
  * AuditLogPage.tsx
  *
  * Phase 9 — Audit Log Redesign.
+ * Upgraded — Audit Intelligence Center.
  *
- * Purpose: System audit log viewer for super admins — a chronological record
- *          of every significant action taken in the application.
+ * Purpose: System audit intelligence center for super admins — a chronological
+ *          record of every significant action taken in the application.
+ *
  * Responsibilities:
- *   - Fetch paginated audit log entries with search + category/event_type/user/date filters
- *   - Render each entry as a timeline card with a category badge and expandable detail panel
+ *   - Fetch paginated audit log entries with search + category/event_type/entity_type/user/date filters
+ *   - Render each entry as a timeline card with severity indicator and expandable detail panel
  *   - Translate technical field names, HTTP methods, and status codes into plain English
+ *   - Classify logs by type (message, application, document, user, permission, medical, system)
+ *   - Score entries by severity (info → success → warning → critical)
+ *   - Show type-specific context in expanded panels (actor, resource, source, diffs, quick actions)
+ *   - Surface a daily intelligence summary strip to orient the super admin at a glance
  *   - Parse the user-agent string into a "Browser on OS" label
  *   - Show before/after diff blocks when an entry has old_values or new_values
  *   - Support CSV and JSON export of the currently filtered result set
  *
- * Plain-English: This page is like the security camera footage for the whole
- * system. Every time someone logs in, changes a record, or accesses medical
- * data, an entry appears here so super admins can investigate anything unusual.
+ * Plain-English: This is the security camera footage and investigation panel for
+ * the whole system. Every login, record change, message sent, or permission
+ * modification appears here so super admins can understand what happened, who
+ * did it, and navigate directly to affected records.
  *
  * Route: /super-admin/audit
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Download, Filter, X, User, Globe, Monitor,
   Shield, MessageSquare, FileText, Bell, Stethoscope,
   Settings, FolderOpen, LogIn, RefreshCw,
+  AlertTriangle, AlertCircle, CheckCircle, Info,
+  ExternalLink, Calendar, Activity, Clock,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isToday, parseISO } from 'date-fns';
 import type { ElementType } from 'react';
 
 import { getAuditLog, exportAuditLog } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import type { AuditLogEntry } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
+import { ROUTES } from '@/shared/constants/routes';
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 
@@ -73,14 +84,25 @@ const EVENT_TYPES = [
   { value: 'user',           label: 'System / User'     },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Entity type filter options — map to partial class name strings the backend LIKE-searches
+const ENTITY_TYPES = [
+  { value: '',              label: 'All resources'   },
+  { value: 'Camper',        label: 'Campers'         },
+  { value: 'Application',   label: 'Applications'    },
+  { value: 'Document',      label: 'Documents'       },
+  { value: 'User',          label: 'Users'           },
+  { value: 'Message',       label: 'Messages'        },
+  { value: 'Conversation',  label: 'Conversations'   },
+  { value: 'MedicalRecord', label: 'Medical Records' },
+  { value: 'CampSession',   label: 'Sessions'        },
+];
 
-// Falls back to the System definition for any category not in the map
+// ─── Base Helpers ─────────────────────────────────────────────────────────────
+
 function getCategoryDef(category?: string): CategoryDef {
   return CATEGORIES[category ?? ''] ?? CATEGORIES.System;
 }
 
-// Converts snake_case / camelCase database field names to "Title Case" labels
 function fieldLabel(key: string): string {
   return key
     .replace(/_id$/, ' ID')
@@ -90,15 +112,16 @@ function fieldLabel(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Turns any field value into a displayable string, handling booleans and objects
 function formatFieldValue(_key: string, value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  const str = String(value);
+  // Strip HTML tags if string contains markup (avoids showing <p>Hi there</p>)
+  if (/<[a-z][\s\S]*>/i.test(str)) return stripHtml(str);
+  return str;
 }
 
-// Converts a before/after values object into an array of labeled display rows
 function formatDiffEntries(obj: Record<string, unknown>): Array<{ key: string; label: string; value: string }> {
   return Object.entries(obj).map(([k, v]) => ({
     key: k,
@@ -107,22 +130,6 @@ function formatDiffEntries(obj: Record<string, unknown>): Array<{ key: string; l
   }));
 }
 
-// ── Metadata interpreters ─────────────────────────────────────────────────────
-
-// Maps HTTP method verbs to plain-English descriptions for non-technical users
-const HTTP_METHOD_LABELS: Record<string, string> = {
-  GET:    'Viewed / Retrieved',
-  POST:   'Created or submitted',
-  PUT:    'Updated (full)',
-  PATCH:  'Updated',
-  DELETE: 'Deleted',
-};
-
-function httpMethodLabel(method: string): string {
-  return HTTP_METHOD_LABELS[method?.toUpperCase()] ?? method;
-}
-
-// Translates HTTP status codes to plain-English results with a success/failure flag
 function httpStatusLabel(status: number): { text: string; ok: boolean } {
   if (status >= 200 && status < 300) return { text: 'Success',           ok: true  };
   if (status === 400)                return { text: 'Bad request',        ok: false };
@@ -134,7 +141,6 @@ function httpStatusLabel(status: number): { text: string; ok: boolean } {
   return { text: `Code ${status}`, ok: false };
 }
 
-// Maps Laravel route names to plain-English sentences shown in the metadata panel
 const ROUTE_LABELS: Record<string, string> = {
   'campers.show':            'Viewed a camper profile',
   'campers.index':           'Browsed the camper list',
@@ -166,12 +172,136 @@ const ROUTE_LABELS: Record<string, string> = {
   'documents.destroy':       'Deleted a document',
 };
 
-// Falls back to converting "campers.show" → "campers › show" for unmapped routes
 function routeLabel(route: string): string {
   return ROUTE_LABELS[route] ?? route.replace(/\./g, ' › ').replace(/-/g, ' ');
 }
 
-// Converts route params like { camper: 5 } → "Camper #5"
+// ── Endpoint humanization ─────────────────────────────────────────────────────
+// Maps short API path segments (after "api/") to plain-English resource names.
+// Used to translate raw "GET api/assistive-devices" action strings.
+
+const ENDPOINT_LABELS: Record<string, string> = {
+  'assistive-devices':     'assistive devices',
+  'feeding-plans':         'feeding plans',
+  'behavioral-profiles':   'behavioral profiles',
+  'medical-records':       'medical records',
+  'medical-incidents':     'medical incidents',
+  'medical-visits':        'medical visits',
+  'medical-follow-ups':    'medical follow-ups',
+  'medical-restrictions':  'medical restrictions',
+  'treatment-logs':        'treatment logs',
+  'allergies':             'allergies',
+  'medications':           'medications',
+  'diagnoses':             'diagnoses',
+  'documents':             'documents',
+  'document-requests':     'document requests',
+  'applications':          'applications',
+  'messages':              'messages',
+  'conversations':         'conversations',
+  'users':                 'users',
+  'campers':               'campers',
+  'sessions':              'sessions',
+  'families':              'families',
+  'reports':               'reports',
+  'announcements':         'announcements',
+  'notifications':         'notifications',
+  'form-definitions':      'form templates',
+  'form-sections':         'form sections',
+  'form-fields':           'form fields',
+  'audit-log':             'audit log',
+  'auth':                  'authentication',
+  'login':                 'authentication',
+  'logout':                'session',
+  'profile':               'profile',
+  'settings':              'settings',
+  'camps':                 'camps',
+  'calendar':              'calendar',
+};
+
+function humanizePath(path: string): string {
+  // Strip leading "api/" if present
+  const clean = path.replace(/^api\//i, '');
+  // Remove numeric IDs from the path (e.g. "campers/5/allergies" → "campers allergies")
+  const noIds = clean.replace(/\/\d+/g, '');
+  // Use first path segment as the primary resource label
+  const segment = noIds.split('/')[0];
+  return ENDPOINT_LABELS[segment] ?? segment.replace(/-/g, ' ');
+}
+
+/**
+ * Sanitizes a raw action string that might contain HTTP verb prefixes or
+ * "api/" paths. Returns a plain-English phrase. Called as a last resort when
+ * human_description, description, and metadata.route are all absent.
+ *
+ * Examples:
+ *   "GET api/assistive-devices"  →  "Viewed assistive devices"
+ *   "assistive-devices:index"   →  "Viewed assistive devices"
+ *   "POST api/messages"          →  "Sent a message"
+ */
+function sanitizeActionText(raw: string, actor?: string): string {
+  if (!raw) return 'System event';
+
+  const HTTP_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+  const parts = raw.trim().split(/\s+/);
+  const verb  = parts[0].toUpperCase();
+
+  // Pattern 1: "GET api/assistive-devices/5" — HTTP verb + URL path
+  if (HTTP_VERBS.includes(verb) && parts[1]) {
+    const path     = parts[1];
+    const resource = humanizePath(path);
+    const verbMap: Record<string, string> = {
+      GET:    'Viewed',
+      POST:   resource.includes('message') ? 'Sent a message —' : 'Created',
+      PUT:    'Updated',
+      PATCH:  'Updated',
+      DELETE: 'Deleted',
+    };
+    const action = verbMap[verb] ?? 'Accessed';
+    if (action.endsWith('—')) {
+      // Special case: "Sent a message — messages"
+      return actor ? `${actor} sent a message` : 'Message sent';
+    }
+    return actor ? `${actor} ${action.toLowerCase()} ${resource}` : `${action} ${resource}`;
+  }
+
+  // Pattern 2: "resource:action" like "assistive-devices:index"
+  const colonMatch = raw.match(/^([\w-]+):(index|show|store|update|destroy)$/);
+  if (colonMatch) {
+    const resource = humanizePath(colonMatch[1]);
+    const actMap: Record<string, string> = {
+      index:   'viewed',
+      show:    'viewed',
+      store:   'created',
+      update:  'updated',
+      destroy: 'deleted',
+    };
+    const a = actMap[colonMatch[2]] ?? colonMatch[2];
+    return actor ? `${actor} ${a} ${resource}` : `${a.charAt(0).toUpperCase() + a.slice(1)} ${resource}`;
+  }
+
+  // If raw still starts with an HTTP verb but no path (edge case), drop the verb
+  if (HTTP_VERBS.includes(verb) && parts.length === 1) {
+    return 'System event';
+  }
+
+  // Return as-is if it already looks human
+  return raw;
+}
+
+// Strips all HTML tags from a string, returning plain text.
+// Used to sanitize message content that may contain HTML markup.
+function stripHtml(html: string): string {
+  if (typeof window !== 'undefined' && window.DOMParser) {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      return doc.body.textContent ?? html;
+    } catch {
+      // Fallback to regex if DOMParser throws
+    }
+  }
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function formatRouteParams(params: unknown): string {
   if (!params || typeof params !== 'object') return '';
   return Object.entries(params as Record<string, unknown>)
@@ -179,7 +309,6 @@ function formatRouteParams(params: unknown): string {
     .join(', ');
 }
 
-// Parses a raw user-agent string into "Chrome 120 on macOS" style readable text
 function parseUserAgent(ua: string): string {
   let browser = 'Unknown browser';
   if (ua.includes('Edg/')) {
@@ -206,25 +335,294 @@ function parseUserAgent(ua: string): string {
   return os ? `${browser.trim()} on ${os}` : browser.trim();
 }
 
+// Interprets a source IP into a human-readable label
+function parseSource(ip?: string | null, ua?: string | null): string {
+  if (!ip && !ua) return 'Unknown source';
+  if (ip === '127.0.0.1' || ip === '::1') return 'Internal system';
+  if (ua) {
+    if (ua.includes('iPhone') || ua.includes('iPad') || ua.includes('Android')) {
+      return 'Mobile device';
+    }
+    return 'Web browser';
+  }
+  return ip ?? 'Unknown source';
+}
+
+// ─── Log Intelligence Layer ───────────────────────────────────────────────────
+//
+// These helpers classify every audit entry by type and severity, produce richer
+// human-readable summaries as a fallback, and enumerate relevant quick actions.
+// They operate entirely on the data already in AuditLogEntry — no extra API calls.
+
+export type LogType =
+  | 'message'
+  | 'application'
+  | 'document'
+  | 'user'
+  | 'permission'
+  | 'medical'
+  | 'system'
+  | 'generic';
+
+export type LogSeverity = 'info' | 'success' | 'warning' | 'critical';
+
+export interface LogAction {
+  label: string;
+  href:  string;
+  icon:  ElementType;
+}
+
+/** Classifies an audit entry into a semantic log type. */
+export function getLogType(entry: AuditLogEntry): LogType {
+  const cat  = (entry.category ?? '').toLowerCase();
+  const evt  = (entry.event_type ?? '').toLowerCase();
+  const atype = (entry.auditable_type ?? '').toLowerCase();
+  const act  = (entry.action ?? '').toLowerCase();
+
+  if (cat === 'messaging' || evt.includes('message') || evt.includes('conversation') || atype.includes('message') || atype.includes('conversation')) {
+    return 'message';
+  }
+  if (cat === 'applications' || evt.includes('application') || atype.includes('application')) {
+    return 'application';
+  }
+  if (cat === 'documents' || evt.includes('document') || atype.includes('document')) {
+    return 'document';
+  }
+  if (cat === 'medical' || evt === 'phi_access' || atype.includes('medical')) {
+    return 'medical';
+  }
+  // Permission changes are a sub-type of security events
+  if (evt === 'security' && (act.includes('permission') || act.includes('role') || act.includes('assign'))) {
+    return 'permission';
+  }
+  if (cat === 'security' && (act.includes('permission') || act.includes('role'))) {
+    return 'permission';
+  }
+  if (cat === 'authentication' || evt === 'authentication' || evt === 'auth' || atype.includes('user')) {
+    return 'user';
+  }
+  if (cat === 'system' || evt === 'system') {
+    return 'system';
+  }
+  return 'generic';
+}
+
+/**
+ * Scores an audit entry with a four-level severity.
+ *
+ * critical  — destructive or security-impacting actions (deletes, permission changes,
+ *             failed logins, server errors, access denials)
+ * warning   — rejected records, overdue items, client-side errors
+ * success   — approvals, completions, creations
+ * info      — view/retrieve, notifications, system events
+ */
+export function getLogSeverity(entry: AuditLogEntry): LogSeverity {
+  const act  = (entry.action ?? '').toLowerCase();
+  const evt  = (entry.event_type ?? '').toLowerCase();
+  const meta = entry.metadata ?? {};
+  const method = String(meta.method ?? '').toUpperCase();
+  const status = Number(meta.status ?? 0);
+
+  // Critical: deletes, security failures, server errors, permission changes
+  if (method === 'DELETE') return 'critical';
+  if (status === 401 || status === 403) return 'critical';
+  if (status >= 500) return 'critical';
+  if (evt === 'security') return 'critical';
+  if (act.includes('delete') || act.includes('destroy')) return 'critical';
+  if (act.includes('permission') || act.includes('role assign') || act.includes('role removed')) return 'critical';
+  if (act.includes('login failed') || act.includes('login_failed') || act.includes('failed login')) return 'critical';
+
+  // Warning: rejections, overdue, validation failures, 4xx errors
+  if (act.includes('reject') || act.includes('rejected')) return 'warning';
+  if (act.includes('overdue') || act.includes('failed') || act.includes('error')) return 'warning';
+  if (status >= 400 && status < 500 && status !== 401 && status !== 403 && status !== 404) return 'warning';
+
+  // Success: approvals, creations, completions
+  if (act.includes('approved') || act.includes('approve')) return 'success';
+  if (act.includes('created') || act.includes('uploaded') || act.includes('sent')) return 'success';
+  if (act.includes('completed') || act.includes('registered') || act.includes('login')) return 'success';
+  if (method === 'POST' && status >= 200 && status < 300) return 'success';
+
+  return 'info';
+}
+
+/**
+ * Builds a plain-English summary from available entry data.
+ * Fallback priority:
+ *   1. human_description (server-generated authoritative text)
+ *   2. metadata.route translated via ROUTE_LABELS
+ *   3. HTTP method + entity label + ID
+ *   4. sanitizeActionText() to clean up raw "GET api/..." strings
+ *   5. Generic fallback
+ *
+ * This function NEVER returns raw HTTP verbs or "api/" path strings.
+ */
+// Returns true if a string looks like a raw API call that should never be shown
+// to users (e.g. "GET api/assistive-devices", "POST /api/messages").
+function isRawApiText(text: string): boolean {
+  const t = text.trim();
+  return (
+    /^(GET|POST|PUT|PATCH|DELETE)\s/i.test(t) ||
+    /\bapi\//i.test(t)
+  );
+}
+
+export function formatActivitySummary(entry: AuditLogEntry): string {
+  const actor  = entry.user?.name ?? 'System';
+  const meta   = entry.metadata ?? {};
+  const method = String(meta.method ?? '').toUpperCase();
+  const label  = entry.entity_label ?? '';
+  const id     = entry.auditable_id;
+
+  // 1. Server-generated human_description — but ONLY if it's actually human.
+  //    The backend sometimes generates "GET api/assistive-devices" as the description.
+  //    Detect and skip those so the fallback chain produces something readable.
+  if (entry.human_description && !isRawApiText(entry.human_description)) {
+    return entry.human_description;
+  }
+
+  // 2. Route label from metadata — the named Laravel route is the most reliable
+  //    non-technical source ("messages.store" → "Sent a message").
+  if (meta.route) {
+    const rl = routeLabel(String(meta.route));
+    return actor !== 'System' ? `${actor} — ${rl}` : rl;
+  }
+
+  // 3. HTTP method + entity label + optional ID
+  const verbMap: Record<string, string> = {
+    GET:    'viewed',
+    POST:   'created',
+    PUT:    'updated',
+    PATCH:  'updated',
+    DELETE: 'deleted',
+  };
+  const verb = verbMap[method];
+
+  if (verb && label && id) {
+    return `${actor} ${verb} ${label.toLowerCase()} #${id}`;
+  }
+  if (verb && label) {
+    return `${actor} ${verb} ${label.toLowerCase()}`;
+  }
+
+  // 4. Sanitize the raw action string (handles "GET api/..." and "resource:action")
+  const raw = entry.action ?? '';
+  if (raw) {
+    const sanitized = sanitizeActionText(raw, actor !== 'System' ? actor : undefined);
+    if (sanitized && sanitized !== raw) return sanitized;
+    // If sanitization didn't transform it, only use it if it looks human
+    if (!raw.match(/^(GET|POST|PUT|PATCH|DELETE)\s/i) && !raw.includes('api/')) {
+      return raw;
+    }
+  }
+
+  // 5. Generic fallback
+  return 'System event';
+}
+
+/**
+ * Returns relevant navigation actions for a log entry.
+ * Only returns actions when a valid target ID exists — never fabricates links.
+ */
+export function getLogActions(entry: AuditLogEntry): LogAction[] {
+  const actions: LogAction[] = [];
+  const atype = (entry.auditable_type ?? '').toLowerCase();
+  const id    = entry.auditable_id;
+
+  if (!id) return actions;
+
+  if (atype.includes('application')) {
+    actions.push({
+      label: 'View application',
+      href:  ROUTES.ADMIN_APPLICATION_DETAIL(id),
+      icon:  FileText,
+    });
+  }
+  if (atype.includes('camper')) {
+    actions.push({
+      label: 'View camper',
+      href:  ROUTES.ADMIN_CAMPER_DETAIL(id),
+      icon:  User,
+    });
+  }
+  if (atype.includes('message') || atype.includes('conversation')) {
+    // ROUTES.INBOX = '/inbox' does not exist — inbox is portal-scoped.
+    // This page is super-admin only, so the correct path is /super-admin/inbox.
+    actions.push({
+      label: 'Open inbox',
+      href:  '/super-admin/inbox',
+      icon:  MessageSquare,
+    });
+  }
+  if (atype.includes('user')) {
+    actions.push({
+      label: 'View users',
+      href:  ROUTES.SUPER_ADMIN_USERS,
+      icon:  User,
+    });
+  }
+  if (atype.includes('session')) {
+    actions.push({
+      label: 'View session',
+      href:  ROUTES.ADMIN_SESSION_DETAIL(id),
+      icon:  Calendar,
+    });
+  }
+
+  return actions;
+}
+
+// ─── Severity visual system ───────────────────────────────────────────────────
+
+interface SeverityDef {
+  color:      string;        // text / icon color
+  bg:         string;        // badge background
+  border:     string;        // left-border color on the row card
+  icon:       ElementType;
+  label:      string;
+}
+
+const SEVERITY_DEFS: Record<LogSeverity, SeverityDef> = {
+  info:     { color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'transparent',    icon: Info,          label: 'Info'     },
+  success:  { color: '#166534', bg: 'rgba(22,163,74,0.10)',   border: '#16a34a',        icon: CheckCircle,   label: 'Success'  },
+  warning:  { color: '#92400e', bg: 'rgba(217,119,6,0.10)',   border: '#d97706',        icon: AlertTriangle, label: 'Warning'  },
+  critical: { color: '#991b1b', bg: 'rgba(220,38,38,0.10)',   border: '#dc2626',        icon: AlertCircle,   label: 'Critical' },
+};
+
+// Small severity badge shown inside the expanded panel header
+function SeverityBadge({ severity }: { severity: LogSeverity }) {
+  const def  = SEVERITY_DEFS[severity];
+  const Icon = def.icon;
+  if (severity === 'info') return null; // don't clutter info entries
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+      style={{ background: def.bg, color: def.color }}
+    >
+      <Icon className="h-3 w-3" />
+      {def.label}
+    </span>
+  );
+}
+
 // ─── Filters state ────────────────────────────────────────────────────────────
 
-// Consolidated filters — all in one object to avoid double-fetch race conditions
 interface Filters {
-  search:     string;
-  event_type: string;
-  user_id:    string;
-  from:       string;
-  to:         string;
-  page:       number;
+  search:      string;
+  event_type:  string;
+  entity_type: string;
+  user_id:     string;
+  from:        string;
+  to:          string;
+  page:        number;
 }
 
 const DEFAULT_FILTERS: Filters = {
-  search: '', event_type: '', user_id: '', from: '', to: '', page: 1,
+  search: '', event_type: '', entity_type: '', user_id: '', from: '', to: '', page: 1,
 };
 
 // ─── CategoryBadge ────────────────────────────────────────────────────────────
 
-// Renders a color-coded pill with an icon and label for a given audit category
 function CategoryBadge({ category }: { category?: string }) {
   const def  = getCategoryDef(category);
   const Icon = def.icon;
@@ -239,29 +637,444 @@ function CategoryBadge({ category }: { category?: string }) {
   );
 }
 
+// ─── Intelligence Summary Strip ───────────────────────────────────────────────
+//
+// A compact informational bar at the top of the page. It reads the current
+// page's entries and the pagination meta to give the super admin an instant
+// orientation of what's happening.
+
+interface IntelligenceSummaryProps {
+  entries:    AuditLogEntry[];
+  totalEvents?: number;
+  isFiltered:   boolean;
+  onShowToday:  () => void;
+  isTodayActive: boolean;
+}
+
+function IntelligenceSummaryStrip({
+  entries,
+  totalEvents,
+  isFiltered,
+  onShowToday,
+  isTodayActive,
+}: IntelligenceSummaryProps) {
+  // Compute page-level severity counts for orientation
+  const criticalCount = entries.filter(e => getLogSeverity(e) === 'critical').length;
+  const warningCount  = entries.filter(e => getLogSeverity(e) === 'warning').length;
+  const messageCount  = entries.filter(e => getLogType(e) === 'message').length;
+  const applicationCount = entries.filter(e => getLogType(e) === 'application').length;
+
+  const needsAttention = criticalCount + warningCount;
+
+  return (
+    <div
+      className="rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 border"
+      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+    >
+      {/* Total events count */}
+      <div className="flex items-center gap-2">
+        <Activity className="h-4 w-4 flex-shrink-0" style={{ color: '#6b7280' }} />
+        <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--foreground)' }}>
+          {totalEvents != null ? totalEvents.toLocaleString() : '—'}
+        </span>
+        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+          {isFiltered ? 'matching events' : 'total events'}
+        </span>
+      </div>
+
+      <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--border)' }} />
+
+      {/* Needs attention pill — only shown when there are critical/warning items on this page */}
+      {needsAttention > 0 ? (
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="h-3.5 w-3.5" style={{ color: '#d97706' }} />
+          <span className="text-xs font-medium" style={{ color: '#92400e' }}>
+            {needsAttention} item{needsAttention !== 1 ? 's' : ''} need attention
+          </span>
+          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>(this page)</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <CheckCircle className="h-3.5 w-3.5" style={{ color: '#16a34a' }} />
+          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>No critical items on this page</span>
+        </div>
+      )}
+
+      {/* Message count if relevant */}
+      {messageCount > 0 && (
+        <>
+          <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--border)' }} />
+          <div className="flex items-center gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5" style={{ color: '#16a34a' }} />
+            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              {messageCount} message{messageCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Application count if relevant */}
+      {applicationCount > 0 && (
+        <>
+          <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--border)' }} />
+          <div className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" style={{ color: '#d97706' }} />
+            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              {applicationCount} application event{applicationCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Spacer + Today quick filter */}
+      <div className="ml-auto">
+        <button
+          type="button"
+          onClick={onShowToday}
+          className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+          style={{
+            borderColor: isTodayActive ? '#2563eb' : 'var(--border)',
+            color: isTodayActive ? '#2563eb' : 'var(--muted-foreground)',
+            background: isTodayActive ? 'rgba(37,99,235,0.08)' : undefined,
+          }}
+        >
+          <Clock className="h-3 w-3" />
+          Today only
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Expanded Panel sub-components ───────────────────────────────────────────
+
+// Actor section: shows who performed the action with their email as secondary info
+function ActorSection({ entry }: { entry: AuditLogEntry }) {
+  if (!entry.user) return null;
+  return (
+    <div className="flex items-start gap-2">
+      <div
+        className="flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 mt-0.5"
+        style={{ background: 'rgba(37,99,235,0.10)' }}
+      >
+        <User className="h-3 w-3" style={{ color: '#2563eb' }} />
+      </div>
+      <div>
+        <p className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>
+          {entry.user.name}
+        </p>
+        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+          {entry.user.email}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Resource section: shows what entity was affected
+function ResourceSection({ entry }: { entry: AuditLogEntry }) {
+  if (!entry.entity_label && !entry.auditable_type) return null;
+
+  // Strip the Laravel model namespace to get just the model name
+  const rawType = entry.auditable_type ?? '';
+  const shortType = rawType.includes('\\')
+    ? rawType.split('\\').pop() ?? rawType
+    : rawType;
+
+  // Convert PascalCase to "Title Case"
+  const typeLabel = shortType.replace(/([a-z])([A-Z])/g, '$1 $2');
+  const display   = entry.entity_label ?? typeLabel;
+
+  return (
+    <div className="flex items-center gap-2">
+      <FolderOpen className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+      <span className="text-xs" style={{ color: 'var(--foreground)' }}>
+        {display}
+        {entry.auditable_id ? (
+          <span style={{ color: 'var(--muted-foreground)' }}> #{entry.auditable_id}</span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+// Full timestamp section: shows exact time alongside relative time
+function TimestampSection({ createdAt }: { createdAt: string }) {
+  const date = new Date(createdAt);
+  const isTodayEntry = isToday(parseISO(createdAt));
+  return (
+    <div className="flex items-center gap-2">
+      <Clock className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+      <span className="text-xs" style={{ color: 'var(--foreground)' }}>
+        {format(date, isTodayEntry ? "'Today at' HH:mm:ss" : 'MMM d, yyyy \'at\' HH:mm:ss')}
+      </span>
+      <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+        ({formatDistanceToNow(date, { addSuffix: true })})
+      </span>
+    </div>
+  );
+}
+
+// Source section: shows origin of the request in human-readable form
+function SourceSection({ entry }: { entry: AuditLogEntry }) {
+  const source = parseSource(entry.ip_address, entry.user_agent);
+  const device = entry.user_agent ? parseUserAgent(entry.user_agent) : null;
+  return (
+    <div className="flex items-center gap-2">
+      <Globe className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+      <span className="text-xs" style={{ color: 'var(--foreground)' }}>
+        {source}
+      </span>
+      {device && (
+        <>
+          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>·</span>
+          <Monitor className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{device}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Type-specific context panel: renders relevant details based on log type
+function TypeContextPanel({
+  entry,
+  logType,
+}: {
+  entry:   AuditLogEntry;
+  logType: LogType;
+}) {
+  const meta      = entry.metadata ?? {};
+  const oldValues = entry.old_values ?? {};
+  const newValues = entry.new_values ?? {};
+
+  // Helper to convert unknown record value to string | undefined
+  const toStr = (v: unknown): string | undefined =>
+    v != null ? String(v) : undefined;
+
+  // Application: highlight the status transition if available
+  if (logType === 'application') {
+    const oldStatus = toStr(oldValues['status'] ?? oldValues['application_status']);
+    const newStatus = toStr(newValues['status'] ?? newValues['application_status']);
+
+    if (oldStatus || newStatus) {
+      return (
+        <div
+          className="rounded-lg px-3 py-2 border"
+          style={{ borderColor: 'rgba(217,119,6,0.25)', background: 'rgba(217,119,6,0.04)' }}
+        >
+          <p className="text-xs font-semibold mb-1.5" style={{ color: '#92400e' }}>
+            Application status change
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {oldStatus && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(107,114,128,0.12)', color: '#374151' }}
+              >
+                {oldStatus}
+              </span>
+            )}
+            {oldStatus && newStatus && (
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>→</span>
+            )}
+            {newStatus && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(22,163,74,0.12)', color: '#166534' }}
+              >
+                {newStatus}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Message: show conversation context with HTML-stripped content
+  if (logType === 'message') {
+    const routeParams = meta['route_parameters'];
+    const conversationId = toStr(
+      meta['conversation_id'] ??
+      (routeParams && typeof routeParams === 'object'
+        ? (routeParams as Record<string, unknown>)['conversation']
+        : undefined)
+    );
+    // Strip HTML tags from subject/title in case rich content was stored
+    const rawSubject = toStr(meta['subject'] ?? meta['title']);
+    const subject = rawSubject ? stripHtml(rawSubject) : undefined;
+
+    // Also check for message body in old_values/new_values and strip HTML
+    const rawBody = toStr(
+      newValues['body'] ?? newValues['content'] ?? newValues['message'] ??
+      oldValues['body'] ?? oldValues['content'] ?? oldValues['message']
+    );
+    const bodyPreview = rawBody
+      ? stripHtml(rawBody).slice(0, 120) + (rawBody.length > 120 ? '…' : '')
+      : undefined;
+
+    if (conversationId || subject || bodyPreview) {
+      return (
+        <div
+          className="rounded-lg px-3 py-2 border"
+          style={{ borderColor: 'rgba(22,163,74,0.25)', background: 'rgba(22,163,74,0.04)' }}
+        >
+          <p className="text-xs font-semibold mb-1" style={{ color: '#166534' }}>
+            Message details
+          </p>
+          {subject && (
+            <p className="text-xs" style={{ color: 'var(--foreground)' }}>
+              Subject: {subject}
+            </p>
+          )}
+          {bodyPreview && (
+            <p className="text-xs mt-0.5 italic" style={{ color: 'var(--muted-foreground)' }}>
+              "{bodyPreview}"
+            </p>
+          )}
+          {conversationId && (
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              Conversation #{conversationId}
+            </p>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // Document: highlight document name and status
+  if (logType === 'document') {
+    const docName   = toStr(newValues['file_name'] ?? newValues['name'] ?? oldValues['file_name'] ?? oldValues['name']);
+    const docStatus = toStr(newValues['status'] ?? oldValues['status']);
+
+    if (docName || docStatus) {
+      return (
+        <div
+          className="rounded-lg px-3 py-2 border"
+          style={{ borderColor: 'rgba(3,105,161,0.25)', background: 'rgba(3,105,161,0.04)' }}
+        >
+          <p className="text-xs font-semibold mb-1" style={{ color: '#0369a1' }}>
+            Document details
+          </p>
+          {docName && (
+            <p className="text-xs" style={{ color: 'var(--foreground)' }}>
+              File: {docName}
+            </p>
+          )}
+          {docStatus && (
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              Status: {docStatus}
+            </p>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // Permission: surface what changed
+  if (logType === 'permission') {
+    const oldRole = toStr(oldValues['role'] ?? oldValues['permissions']);
+    const newRole = toStr(newValues['role'] ?? newValues['permissions']);
+
+    if (oldRole || newRole) {
+      return (
+        <div
+          className="rounded-lg px-3 py-2 border"
+          style={{ borderColor: 'rgba(220,38,38,0.25)', background: 'rgba(220,38,38,0.04)' }}
+        >
+          <p className="text-xs font-semibold mb-1.5" style={{ color: '#991b1b' }}>
+            Permission / role change
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {oldRole && (
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(220,38,38,0.10)', color: '#991b1b' }}>
+                {oldRole}
+              </span>
+            )}
+            {oldRole && newRole && (
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>→</span>
+            )}
+            {newRole && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.12)', color: '#166534' }}>
+                {newRole}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  return null;
+}
+
+// Quick action links for the expanded panel
+function QuickActionsBar({ actions }: { actions: LogAction[] }) {
+  if (actions.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2 pt-1">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <Link
+            key={action.href + action.label}
+            to={action.href}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+            style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          >
+            <Icon className="h-3 w-3" />
+            {action.label}
+            <ExternalLink className="h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── AuditEntry row ───────────────────────────────────────────────────────────
 
 function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
-  // Local toggle for the expandable detail panel
   const [expanded, setExpanded] = useState(false);
 
-  // Only show the expand chevron when there's actually something to show
+  const logType    = getLogType(entry);
+  const severity   = getLogSeverity(entry);
+  const severityDef = SEVERITY_DEFS[severity];
+  const quickActions = getLogActions(entry);
+
+  // Always allow expansion — there is always at least metadata (IP, user, timestamp details)
+  // hasDetails controls whether the expand button is shown
   const hasDetails =
     (entry.old_values && Object.keys(entry.old_values).length > 0) ||
     (entry.new_values && Object.keys(entry.new_values).length > 0) ||
     (entry.metadata   && Object.keys(entry.metadata).length > 0)   ||
-    entry.user_agent;
+    entry.user_agent ||
+    entry.user ||
+    quickActions.length > 0;
 
-  // Prefer the server-generated human description, then fallback through less readable fields
-  const displayText = entry.human_description || entry.description || entry.action;
+  const displayText = formatActivitySummary(entry);
 
   return (
     <div
       className="glass-data rounded-xl overflow-hidden"
+      style={{
+        // Severity left border accent (critical/warning/success get a colored left edge)
+        borderLeft: severity !== 'info'
+          ? `3px solid ${severityDef.border}`
+          : '3px solid transparent',
+      }}
     >
-      {/* Main row — always visible */}
-      <div className="flex items-start gap-3 px-4 py-3">
-        {/* Category icon in a colored badge */}
+      {/* Main row — clickable to expand */}
+      <div
+        className="flex items-start gap-3 px-4 py-3 cursor-pointer select-none"
+        onClick={() => { if (hasDetails) setExpanded((v) => !v); }}
+        role={hasDetails ? 'button' : undefined}
+        tabIndex={hasDetails ? 0 : undefined}
+        onKeyDown={(e) => { if (hasDetails && (e.key === 'Enter' || e.key === ' ')) setExpanded((v) => !v); }}
+        aria-expanded={hasDetails ? expanded : undefined}
+      >
+        {/* Category icon */}
         <div
           className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 mt-0.5"
           style={{ background: getCategoryDef(entry.category).bg }}
@@ -274,15 +1087,16 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
 
         {/* Content area */}
         <div className="flex-1 min-w-0">
-          {/* Human-readable description + category badge */}
+          {/* Human-readable description + badges */}
           <div className="flex items-start gap-2 flex-wrap">
             <p className="text-sm font-medium leading-snug flex-1" style={{ color: 'var(--foreground)' }}>
               {displayText}
             </p>
             <CategoryBadge category={entry.category} />
+            <SeverityBadge severity={severity} />
           </div>
 
-          {/* Secondary metadata: user name, entity label, IP address */}
+          {/* Secondary metadata: user name, entity label, IP */}
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             {entry.user && (
               <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--muted-foreground)' }}>
@@ -290,7 +1104,6 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
                 {entry.user.name}
               </span>
             )}
-            {/* entity_label is a human name like "Application" or "Camper" */}
             {entry.entity_label && entry.auditable_id && (
               <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {entry.entity_label} #{entry.auditable_id}
@@ -299,15 +1112,16 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
             {entry.ip_address && (
               <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 <Globe className="h-3 w-3" />
-                {entry.ip_address}
+                {entry.ip_address === '127.0.0.1' || entry.ip_address === '::1'
+                  ? 'Internal'
+                  : entry.ip_address}
               </span>
             )}
           </div>
         </div>
 
-        {/* Right column: timestamp + expand toggle */}
+        {/* Right column: timestamp + chevron */}
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          {/* Full datetime shown on hover via the title attribute */}
           <time
             className="text-xs tabular-nums"
             style={{ color: 'var(--muted-foreground)' }}
@@ -318,31 +1132,47 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
           <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
             {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
           </span>
-          {/* Expand button only rendered when there are details to show */}
           {hasDetails && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-1 p-1 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-              aria-label={expanded ? 'Collapse details' : 'Expand details'}
-              title={expanded ? 'Collapse details' : 'Expand details'}
-            >
+            <span className="mt-1 p-1 rounded" aria-hidden>
               {expanded
                 ? <ChevronUp   className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
                 : <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
               }
-            </button>
+            </span>
           )}
         </div>
       </div>
 
-      {/* Expandable detail panel */}
+      {/* Expanded detail panel */}
       {expanded && (
         <div
-          className="px-4 pb-3 pt-1 border-t space-y-3"
+          className="px-4 pb-4 pt-2 border-t space-y-3"
           style={{ borderColor: 'var(--border)', background: 'rgba(248,249,250,0.6)' }}
+          onClick={(e) => e.stopPropagation()} // prevent row-click collapsing from panel interactions
         >
-          {/* Before / After diff blocks when a record was changed */}
+          {/* ── Section header with severity badge */}
+          <div className="flex items-center gap-2 pb-1 border-b" style={{ borderColor: 'var(--border)' }}>
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+              Event details
+            </span>
+          </div>
+
+          {/* ── Who: Actor */}
+          <ActorSection entry={entry} />
+
+          {/* ── What: Resource affected */}
+          <ResourceSection entry={entry} />
+
+          {/* ── When: Full timestamp */}
+          <TimestampSection createdAt={entry.created_at} />
+
+          {/* ── Where: Source / device */}
+          <SourceSection entry={entry} />
+
+          {/* ── Type-specific context (status transitions, doc details, etc.) */}
+          <TypeContextPanel entry={entry} logType={logType} />
+
+          {/* ── Before / After diff blocks */}
           {entry.old_values && Object.keys(entry.old_values).length > 0 && (
             <DiffBlock label="Before" rows={formatDiffEntries(entry.old_values)} variant="removed" />
           )}
@@ -350,34 +1180,28 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
             <DiffBlock label="After" rows={formatDiffEntries(entry.new_values)} variant="added" />
           )}
 
-          {/* Metadata panel — translates route, method, status, params to readable text */}
+          {/* ── Technical metadata (route, method, status) */}
           {entry.metadata && Object.keys(entry.metadata).length > 0 && (
             <MetadataPanel metadata={entry.metadata} />
           )}
 
-          {/* Device info parsed from the user-agent header */}
-          {entry.user_agent && (
-            <div className="flex items-center gap-2">
-              <Monitor className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                {parseUserAgent(entry.user_agent)}
-              </p>
-            </div>
-          )}
-
-          {/* Request ID — useful as a support reference when investigating issues */}
+          {/* ── Request ID */}
           {entry.request_id && (
             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
               Reference ID: <span className="font-mono">{entry.request_id}</span>
             </p>
           )}
+
+          {/* ── Quick actions */}
+          <QuickActionsBar actions={quickActions} />
         </div>
       )}
     </div>
   );
 }
 
-// Renders a "Before" (red) or "After" (green) block showing field-by-field diff rows
+// ─── DiffBlock ─────────────────────────────────────────────────────────────────
+
 function DiffBlock({
   label,
   rows,
@@ -387,7 +1211,6 @@ function DiffBlock({
   rows: Array<{ key: string; label: string; value: string }>;
   variant: 'added' | 'removed';
 }) {
-  // Color palette differs between the before (red) and after (green) blocks
   const colors = {
     added:   { border: 'rgba(22,163,74,0.30)',  bg: 'rgba(22,163,74,0.04)',  header: '#166534' },
     removed: { border: 'rgba(220,38,38,0.30)',  bg: 'rgba(220,38,38,0.04)', header: '#991b1b' },
@@ -401,7 +1224,6 @@ function DiffBlock({
       <div className="divide-y" style={{ borderColor: colors.border }}>
         {rows.map(({ key, label: lbl, value }) => (
           <div key={key} className="flex items-start gap-3 px-3 py-1.5">
-            {/* Fixed-width label column so values all align */}
             <span className="text-xs font-medium flex-shrink-0 w-36" style={{ color: 'var(--muted-foreground)' }}>
               {lbl}
             </span>
@@ -415,26 +1237,27 @@ function DiffBlock({
   );
 }
 
-// Translates technical metadata fields (route, method, status, params) to plain English rows
+// ─── MetadataPanel ─────────────────────────────────────────────────────────────
+
 function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
   const rows: Array<{ label: string; value: string; ok?: boolean }> = [];
 
+  // "What happened" row — route translated to human label
   if (metadata.route) {
-    rows.push({ label: 'Action performed', value: routeLabel(String(metadata.route)) });
+    rows.push({ label: 'What happened', value: routeLabel(String(metadata.route)) });
   }
-  if (metadata.method) {
-    rows.push({ label: 'Request type', value: httpMethodLabel(String(metadata.method)) });
-  }
+  // "Outcome" row — success or error
   if (metadata.status) {
     const { text, ok } = httpStatusLabel(Number(metadata.status));
-    rows.push({ label: 'Result', value: text, ok });
+    rows.push({ label: 'Outcome', value: text, ok });
   }
+  // "Record" row — which specific record was touched
   if (metadata.route_parameters && typeof metadata.route_parameters === 'object') {
     const formatted = formatRouteParams(metadata.route_parameters);
-    if (formatted) rows.push({ label: 'Record accessed', value: formatted });
+    if (formatted) rows.push({ label: 'Record', value: formatted });
   }
 
-  // Any remaining keys not in the known set are displayed as generic labeled rows
+  // Any remaining non-standard keys (exclude method — it's already reflected in summary)
   const knownKeys = new Set(['route', 'method', 'status', 'route_parameters']);
   for (const [k, v] of Object.entries(metadata)) {
     if (!knownKeys.has(k)) {
@@ -445,10 +1268,7 @@ function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
   if (rows.length === 0) return null;
 
   return (
-    <div
-      className="rounded-lg overflow-hidden border"
-      style={{ borderColor: 'rgba(107,114,128,0.25)' }}
-    >
+    <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(107,114,128,0.25)' }}>
       <div
         className="px-3 py-1 text-xs font-semibold"
         style={{ background: 'rgba(107,114,128,0.06)', color: '#374151' }}
@@ -461,7 +1281,6 @@ function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
             <span className="text-xs font-medium flex-shrink-0 w-36" style={{ color: 'var(--muted-foreground)' }}>
               {label}
             </span>
-            {/* Green for success, red for error, default color for neutral values */}
             <span
               className="text-xs"
               style={{ color: ok === false ? '#dc2626' : ok === true ? '#166534' : 'var(--foreground)' }}
@@ -478,27 +1297,19 @@ function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function AuditLogPage() {
-  const [response, setResponse]     = useState<PaginatedResponse<AuditLogEntry> | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(false);
-  const [exporting, setExporting]   = useState(false);
-  // Controls the expandable advanced-filter panel
+  const [response, setResponse]       = useState<PaginatedResponse<AuditLogEntry> | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(false);
+  const [exporting, setExporting]     = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  // Consolidated filter object — any change resets page to 1
-  const [filters, setFilters]       = useState<Filters>(DEFAULT_FILTERS);
-
-  // searchInput is the controlled input value — updates instantly for UX.
-  // filters.search is the debounced value that triggers an API call.
+  const [filters, setFilters]         = useState<Filters>(DEFAULT_FILTERS);
   const [searchInput, setSearchInput] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Generic filter updater — resets to page 1 for any filter except page itself.
-  // For 'search' specifically, callers should use handleSearchChange() to get debouncing.
   function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     setFilters((f) => ({ ...f, [key]: value, page: key !== 'page' ? 1 : (value as number) }));
   }
 
-  // Debounced search handler — avoids firing an API call on every keystroke.
   function handleSearchChange(value: string) {
     setSearchInput(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -507,23 +1318,34 @@ export function AuditLogPage() {
     }, 300);
   }
 
-  // True when any optional filter beyond search is active — used to tint the Filters button
-  const hasActiveFilters = filters.event_type || filters.user_id || filters.from || filters.to;
+  const hasActiveFilters = filters.event_type || filters.entity_type || filters.user_id || filters.from || filters.to;
 
-  // Stable fetch function keyed to the filters object
+  // Whether the user is currently viewing today's events only
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const isTodayActive = filters.from === todayStr && filters.to === todayStr;
+
+  function handleShowToday() {
+    if (isTodayActive) {
+      // Toggle off: remove date filters
+      setFilters((f) => ({ ...f, from: '', to: '', page: 1 }));
+    } else {
+      setFilters((f) => ({ ...f, from: todayStr, to: todayStr, page: 1 }));
+    }
+  }
+
   const fetchLog = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const params = {
-        page:       filters.page,
-        per_page:   25,
-        // Only pass params to the API when they have a value
-        search:     filters.search   || undefined,
-        event_type: filters.event_type || undefined,
-        user_id:    filters.user_id ? Number(filters.user_id) : undefined,
-        from:       filters.from    || undefined,
-        to:         filters.to      || undefined,
+        page:        filters.page,
+        per_page:    25,
+        search:      filters.search      || undefined,
+        event_type:  filters.event_type  || undefined,
+        entity_type: filters.entity_type || undefined,
+        user_id:     filters.user_id ? Number(filters.user_id) : undefined,
+        from:        filters.from        || undefined,
+        to:          filters.to          || undefined,
       };
       const data = await getAuditLog(params);
       setResponse(data);
@@ -536,20 +1358,20 @@ export function AuditLogPage() {
 
   useEffect(() => { void fetchLog(); }, [fetchLog]);
 
-  // Export uses the same active filters so the download matches what the admin sees
-  async function handleExport(format: 'csv' | 'json') {
+  async function handleExport(fmt: 'csv' | 'json') {
     setExporting(true);
     try {
       await exportAuditLog({
-        format,
-        search:     filters.search     || undefined,
-        event_type: filters.event_type || undefined,
-        user_id:    filters.user_id ? Number(filters.user_id) : undefined,
-        from:       filters.from       || undefined,
-        to:         filters.to         || undefined,
+        format:      fmt,
+        search:      filters.search      || undefined,
+        event_type:  filters.event_type  || undefined,
+        entity_type: filters.entity_type || undefined,
+        user_id:     filters.user_id ? Number(filters.user_id) : undefined,
+        from:        filters.from        || undefined,
+        to:          filters.to          || undefined,
       });
     } catch {
-      // exportAuditLog handles its own blob download; silently fail here
+      // exportAuditLog handles its own blob download; silently ignore here
     } finally {
       setExporting(false);
     }
@@ -566,11 +1388,11 @@ export function AuditLogPage() {
 
   return (
     <div className="p-6 max-w-6xl">
-      {/* Page header with export + filter toolbar */}
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
+      {/* Page header */}
+      <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
           <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
-            Activity Log
+            Audit Intelligence Center
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
             {meta?.total != null
@@ -579,9 +1401,8 @@ export function AuditLogPage() {
           </p>
         </div>
 
-        {/* Export and filter action buttons */}
+        {/* Export and filter toolbar */}
         <div className="flex items-center gap-2">
-          {/* CSV export button — applies current filters to the download */}
           <button
             type="button"
             onClick={() => void handleExport('csv')}
@@ -592,7 +1413,6 @@ export function AuditLogPage() {
             <Download className="h-3.5 w-3.5" />
             CSV
           </button>
-          {/* JSON export button */}
           <button
             type="button"
             onClick={() => void handleExport('json')}
@@ -603,7 +1423,6 @@ export function AuditLogPage() {
             <Download className="h-3.5 w-3.5" />
             JSON
           </button>
-          {/* Filters button tints green when any optional filter is active */}
           <button
             type="button"
             onClick={() => setShowFilters((v) => !v)}
@@ -616,15 +1435,10 @@ export function AuditLogPage() {
           >
             <Filter className="h-3.5 w-3.5" />
             Filters
-            {/* Green dot indicates active filters at a glance */}
             {hasActiveFilters && (
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ background: '#16a34a' }}
-              />
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#16a34a' }} />
             )}
           </button>
-          {/* Refresh button — useful when watching live activity */}
           <button
             type="button"
             onClick={() => void fetchLog()}
@@ -638,7 +1452,18 @@ export function AuditLogPage() {
         </div>
       </div>
 
-      {/* Always-visible search bar */}
+      {/* Intelligence Summary Strip — always visible once data loads */}
+      {!loading && !error && (
+        <IntelligenceSummaryStrip
+          entries={entries}
+          totalEvents={meta?.total}
+          isFiltered={!!(filters.search || hasActiveFilters)}
+          onShowToday={handleShowToday}
+          isTodayActive={isTodayActive}
+        />
+      )}
+
+      {/* Search bar */}
       <div
         className="flex items-center gap-2 rounded-lg px-3 py-2 border mb-3"
         style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -651,7 +1476,6 @@ export function AuditLogPage() {
           className="flex-1 bg-transparent text-sm outline-none"
           style={{ color: 'var(--foreground)' }}
         />
-        {/* Clear-X button appears only when the search field has text */}
         {searchInput && (
           <button
             onClick={() => {
@@ -666,12 +1490,10 @@ export function AuditLogPage() {
         )}
       </div>
 
-      {/* Expandable advanced-filter panel */}
+      {/* Advanced filter panel */}
       {showFilters && (
-        <div
-          className="glass-panel grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 p-4 rounded-xl"
-        >
-          {/* Category / event type filter */}
+        <div className="glass-panel grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3 p-4 rounded-xl">
+          {/* Category / event type */}
           <div>
             <label htmlFor="alp-event-type" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               Category
@@ -689,7 +1511,25 @@ export function AuditLogPage() {
             </select>
           </div>
 
-          {/* User ID filter — shows actions by a specific user */}
+          {/* Resource / entity type — NEW */}
+          <div>
+            <label htmlFor="alp-entity-type" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              Resource type
+            </label>
+            <select
+              id="alp-entity-type"
+              value={filters.entity_type}
+              onChange={(e) => updateFilter('entity_type', e.target.value)}
+              className="w-full text-sm rounded-lg px-2 py-1.5 border outline-none"
+              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            >
+              {ENTITY_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* User ID */}
           <div>
             <label htmlFor="alp-user-id" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               User ID
@@ -705,7 +1545,7 @@ export function AuditLogPage() {
             />
           </div>
 
-          {/* Date range: from */}
+          {/* From date */}
           <div>
             <label htmlFor="alp-from-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               From date
@@ -720,7 +1560,7 @@ export function AuditLogPage() {
             />
           </div>
 
-          {/* Date range: to */}
+          {/* To date */}
           <div>
             <label htmlFor="alp-to-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               To date
@@ -735,9 +1575,9 @@ export function AuditLogPage() {
             />
           </div>
 
-          {/* Clear all filters link — only shown when filters are active */}
+          {/* Clear filters */}
           {hasActiveFilters && (
-            <div className="col-span-2 sm:col-span-4 flex justify-end">
+            <div className="col-span-2 sm:col-span-3 flex justify-end">
               <button
                 type="button"
                 onClick={clearFilters}
@@ -788,7 +1628,7 @@ export function AuditLogPage() {
         </div>
       )}
 
-      {/* Pagination controls */}
+      {/* Pagination */}
       {meta && meta.last_page > 1 && (
         <div className="flex items-center justify-between mt-5 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>

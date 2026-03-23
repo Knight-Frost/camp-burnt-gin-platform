@@ -61,7 +61,7 @@ axiosInstance.interceptors.request.use(
     // Inject Bearer token — prefer Redux store (set after login / init validation),
     // fall back to localStorage for the init validation request itself which fires
     // before the store is populated on page refresh.
-    const token = store.getState().auth.token ?? localStorage.getItem('auth_token');
+    const token = store.getState().auth.token ?? sessionStorage.getItem('auth_token');
     if (token) {
       // The "Bearer" prefix is standard HTTP authentication format
       config.headers.Authorization = `Bearer ${token}`;
@@ -127,7 +127,9 @@ function errorInterceptor(error: AxiosError<{
         // Token expired or invalid on a protected endpoint — fire a global event
         // that useAuthInit listens to, which will clear the Redux auth state
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-        return Promise.reject({ message: 'Session expired. Please log in again.' });
+        // isAuthError lets useAuthInit distinguish a definitive 401 (don't retry,
+        // clear the token) from a transient 5xx/network error (safe to retry).
+        return Promise.reject({ message: 'Session expired. Please log in again.', isAuthError: true });
       }
 
       // Pass the real backend message and any lockout data through

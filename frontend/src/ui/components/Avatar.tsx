@@ -114,8 +114,8 @@ export function Avatar({ src, name, size = 'md', className = '', fallbackColor }
 
   // Initials fallback
   const initials = getInitials(name);
-  const fallbackBg = fallbackColor ?? 'var(--overlay-primary)';
-  const fallbackText = fallbackColor ? '#fff' : 'var(--ember-orange)';
+  const fallbackBg = fallbackColor ?? 'var(--ember-orange)';
+  const fallbackText = '#fff';
 
   return (
     <>

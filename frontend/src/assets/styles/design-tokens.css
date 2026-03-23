@@ -325,13 +325,13 @@
 /* ── Adaptive CSS custom properties (default: neutral background) ── */
 :root {
   --glass-card-bg:      rgba(255, 255, 255, 0.10);
-  --glass-card-border:  rgba(255, 255, 255, 0.18);
+  --glass-card-border:  rgba(0, 0, 0, 0.09);   /* subtle dark border — visible on light dashboard bg */
   --glass-card-blur:    12px;
 
   /* glass-panel raised from 0.82 → 0.88 for WCAG AA compliance at neutral tone */
   --glass-panel-bg:     rgba(255, 255, 255, 0.88);
   --glass-panel-blur:   10px;
-  --glass-panel-border: rgba(0, 0, 0, 0.07);
+  --glass-panel-border: rgba(0, 0, 0, 0.09);
 
   --glass-hero-bg:      rgba(255, 255, 255, 0.14);
   --glass-hero-border:  rgba(255, 255, 255, 0.22);
@@ -349,13 +349,13 @@
   ── */
   --surface-primary-bg:     rgba(255, 255, 255, 0.88);
   --surface-primary-blur:   8px;
-  --surface-primary-border: rgba(0, 0, 0, 0.07);
+  --surface-primary-border: rgba(0, 0, 0, 0.09);
 
   --surface-glass-bg:       rgba(255, 255, 255, 0.14);
   --surface-glass-blur:     12px;
   --surface-glass-border:   rgba(255, 255, 255, 0.22);
 
-  --surface-solid-border:   rgba(0, 0, 0, 0.07);
+  --surface-solid-border:   rgba(0, 0, 0, 0.09);
 }
 
 /* Dark background tone — increase opacity for readability */
@@ -413,9 +413,18 @@
   backdrop-filter: blur(var(--glass-card-blur)) saturate(180%) brightness(108%);
   -webkit-backdrop-filter: blur(var(--glass-card-blur)) saturate(180%) brightness(108%);
   border: 1px solid var(--glass-card-border);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transition: background 0.9s ease, border-color 0.9s ease;
+  /* layered shadow: tight contact shadow for edge definition + diffuse elevation */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.09),
+              0 4px 16px rgba(0, 0, 0, 0.07),
+              inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  /* translate + box-shadow at 0.2s for snappy hover; bg/border at 0.9s for adaptive tone transitions */
+  transition: background 0.9s ease, border-color 0.9s ease, translate 0.2s ease, box-shadow 0.2s ease;
+}
+.glass-card:hover {
+  translate: 0 -2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.09),
+              0 8px 24px rgba(0, 0, 0, 0.09),
+              inset 0 1px 0 rgba(255, 255, 255, 0.40);
 }
 
 /* ── Adaptive glass panel — section containers, tables, lists ── */
@@ -424,9 +433,15 @@
   backdrop-filter: blur(var(--glass-panel-blur)) saturate(160%) brightness(102%);
   -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(160%) brightness(102%);
   border: 1px solid var(--glass-panel-border);
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06),
-              inset 0 1px 0 rgba(255, 255, 255, 0.50);
-  transition: background 0.9s ease, border-color 0.9s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08),
+              0 4px 16px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: background 0.9s ease, border-color 0.9s ease, box-shadow 0.2s ease;
+}
+.glass-panel:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08),
+              0 8px 24px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.60);
 }
 
 /* ── Stronger glass — hero banners, welcome cards ── */
@@ -481,9 +496,15 @@
   backdrop-filter: blur(var(--surface-primary-blur)) saturate(150%) brightness(102%);
   -webkit-backdrop-filter: blur(var(--surface-primary-blur)) saturate(150%) brightness(102%);
   border: 1px solid var(--surface-primary-border);
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06),
-              inset 0 1px 0 rgba(255, 255, 255, 0.60);
-  transition: background 0.9s ease, border-color 0.9s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08),
+              0 4px 16px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  transition: background 0.9s ease, border-color 0.9s ease, box-shadow 0.2s ease;
+}
+.surface-primary:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08),
+              0 8px 24px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.70);
 }
 
 /* ── TIER 2: GLASS — decorative only (minimal text) ── */
@@ -496,7 +517,12 @@
   border: 1px solid var(--surface-glass-border);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08),
               inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  transition: background 0.9s ease, border-color 0.9s ease;
+  transition: background 0.9s ease, border-color 0.9s ease, translate 0.2s ease, box-shadow 0.2s ease;
+}
+.surface-glass:hover {
+  translate: 0 -2px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 /* ── TIER 3: SOLID — critical clarity, no background bleed ── */
@@ -505,6 +531,11 @@
   background: #ffffff;
   border: 1px solid var(--surface-solid-border);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.80);
+  transition: box-shadow 0.2s ease;
+}
+.surface-solid:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08),
               inset 0 1px 0 rgba(255, 255, 255, 0.80);
 }
 

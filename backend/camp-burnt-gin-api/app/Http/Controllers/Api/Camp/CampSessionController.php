@@ -110,8 +110,12 @@ class CampSessionController extends Controller
         // CampSessionPolicy::create restricts this to admin and super_admin roles
         $this->authorize('create', CampSession::class);
 
-        // Mass-assign only the validated, safe fields from StoreCampSessionRequest
+        // Mass-assign only the validated, safe fields from StoreCampSessionRequest.
+        // refresh() re-loads the row from DB so that columns with DB-level defaults
+        // (e.g. is_active = true) are present in the returned JSON. Without this,
+        // is_active comes back null because create() only hydrates the fields passed in.
         $session = CampSession::create($request->validated());
+        $session->refresh();
 
         // 201 Created indicates a new resource was successfully persisted
         return response()->json([

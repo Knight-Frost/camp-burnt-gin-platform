@@ -54,6 +54,7 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ROUTES } from '@/shared/constants/routes';
 import { useAppSelector } from '@/store/hooks';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
+import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -258,18 +259,9 @@ export function MedicalDashboardPage() {
       {/* ── SECTION 1: Liquid glass hero ──────────────────────────────────── */}
       <div
         className="relative flex flex-col justify-end rounded-2xl overflow-hidden"
-        style={{
-          minHeight: '340px',
-          backgroundImage: 'url(/backgrounds/bg-italy.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        style={{ minHeight: '340px' }}
       >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          aria-hidden="true"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 45%, transparent 80%)' }}
-        />
+        <HeroSlideshow initialIndex={2} />
         {!statsLoading && stats && (overdueCount > 0 || dueTodayCount > 0) && (
           <div
             className="absolute top-4 right-0 z-10 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"

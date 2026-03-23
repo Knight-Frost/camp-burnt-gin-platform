@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ArrowLeft, Archive, Paperclip, Send, X, Download, Bot, Eye, FileText } from 'lucide-react';
@@ -282,8 +283,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                       border: '1px solid rgba(22,163,74,0.18)',
                       color: 'var(--foreground)',
                     }}
-                    // msg.body comes from our own server — sanitized at API layer
-                    dangerouslySetInnerHTML={{ __html: msg.body }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.body) }}
                   />
                 ) : (
                   <>
@@ -302,8 +302,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                           borderBottomRightRadius: isMine ? 4 : undefined,
                           borderBottomLeftRadius:  isMine ? undefined : 4,
                         }}
-                        // msg.body comes from our own server — sanitized at API layer
-                        dangerouslySetInnerHTML={{ __html: msg.body }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.body) }}
                       />
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className={`flex flex-col gap-1.5 mt-1.5 ${isMine ? 'items-end' : 'items-start'}`}>

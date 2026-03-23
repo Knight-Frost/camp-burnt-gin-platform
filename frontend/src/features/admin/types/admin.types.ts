@@ -29,6 +29,8 @@ export interface CampSession {
   enrolled_count?: number;
   remaining_capacity?: number;
   is_active?: boolean;
+  /** Date-derived status computed by the backend: active | upcoming | completed */
+  status?: 'active' | 'upcoming' | 'completed';
   registration_opens_at?: string;
   registration_closes_at?: string;
   min_age?: number;

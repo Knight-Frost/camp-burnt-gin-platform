@@ -15,19 +15,36 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeder — medical records, diagnoses, allergies, medications, and treatment logs.
+ * MedicalSeeder — medical records for the 8 core demo campers.
  *
- * Covers a range of clinical complexity levels:
- *   - Simple (no allergies, 1 diagnosis): Tyler Wilson
- *   - Mild (1 allergy, 1 diagnosis, 1 medication): Lily Johnson
- *   - Moderate (multiple diagnoses, allergies, medications): Ethan Johnson, Noah Thompson
- *   - Complex (multi-system, treatment logs): Sofia Martinez, Ava Williams, Lucas Williams, Mia Davis
+ * ─── MEDICAL STATE COVERAGE ─────────────────────────────────────────────────
  *
- * Tyler Wilson intentionally has no treatment logs and minimal data — for
- * testing the "clean medical record" UI state.
+ *   Complete record (physician + insurance + diagnoses + allergies + medications):
+ *     Ethan Johnson   — ASD + Epilepsy, Penicillin allergy, 2 medications, 3 treatment logs
+ *     Lily Johnson    — Asthma, pollen allergy, 2 medications, 1 treatment log
+ *     Sofia Martinez  — CP + Spina Bifida, 2 medications, no treatment logs (clean record)
+ *     Noah Thompson   — Down Syndrome + Hypothyroidism, latex allergy, 1 medication, 2 logs
+ *     Ava Williams    — Type 1 Diabetes, amoxicillin allergy, insulin pump, 4 treatment logs
+ *     Lucas Williams  — DMD, 2 medications, BiPAP, 3 treatment logs
+ *     Mia Davis       — Sickle Cell Disease + AVN, NSAIDs allergy, 2 medications, 2 logs
+ *
+ *   Minimal record (physician + insurance, no diagnoses, no allergies, no meds):
+ *     Tyler Wilson    — tests "clean medical record" UI state (no clinical complexity)
+ *
+ *   No record (intentional):
+ *     Families 8–30  — no medical records seeded; tests "camper without record" admin view
+ *     Henry Carter   — record seeded in ApplicationSeeder (mild intellectual disability)
+ *
+ * ─── CLINICAL COMPLEXITY TIERS ──────────────────────────────────────────────
+ *
+ *   Tier 1 (Mild)       : Tyler — no diagnoses/allergies/meds
+ *   Tier 2 (Mild+)      : Lily — 1 allergy, 1 diagnosis, standard medications
+ *   Tier 3 (Moderate)   : Ethan, Noah — multiple diagnoses + allergies, seizure risk
+ *   Tier 4 (Severe)     : Sofia, Mia — complex multi-system conditions
+ *   Tier 5 (Critical)   : Ava, Lucas — life-threatening conditions, devices required
  *
  * All PHI fields are encrypted at rest via the model's encrypted cast.
- * This seeder writes plaintext values; Laravel's cast handles encryption automatically.
+ * Plaintext values written here are encrypted automatically by Laravel.
  */
 class MedicalSeeder extends Seeder
 {

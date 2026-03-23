@@ -139,7 +139,7 @@ export async function register(
 export async function logout(): Promise<void> {
   await axiosInstance.post('/logout');
   // Remove the persisted token from the browser so the next page load is clean
-  localStorage.removeItem('auth_token');
+  sessionStorage.removeItem('auth_token');
 }
 
 /** POST /api/auth/forgot-password — Send a password reset email */

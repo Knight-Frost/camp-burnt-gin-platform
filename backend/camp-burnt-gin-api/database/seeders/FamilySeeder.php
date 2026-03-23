@@ -10,24 +10,42 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Seeder — 30 applicant families with 34 campers and emergency contacts.
+ * FamilySeeder — 30 applicant families, 34 campers, emergency contacts.
  *
- * All families are from South Carolina with real city names, area codes (803/864/843),
- * and diverse cultural backgrounds reflecting the actual SC demographics.
+ * ─── SCENARIO-DRIVEN FAMILIES ───────────────────────────────────────────────
  *
- * Family breakdown:
- *   Multi-child families (4): Johnson, Williams, Anderson, Hall
- *   Single-child families (26): one camper each
+ *   Core families (scenario-documented in ApplicationSeeder):
+ *     1. Johnson     — returning family, 2 children, split outcomes (Ethan approved + Lily pending)
+ *     2. Martinez    — single child, complex physical disability, under review
+ *     3. Thompson    — single child, rejected S1 → reapplied S2
+ *     4. Williams    — 2 children, different medical complexity, split sessions
+ *     5. Davis       — returning family, past approved + 2026 draft
+ *     6. Wilson      — Tyler waitlisted for Session 1 (capacity constraint)
+ *     7. Carter      — paper application family (admin manual-entry workflow)
  *
- * Each camper gets a primary emergency contact. Some families have rich
- * address data; others have minimal data to test empty-field edge cases.
+ *   Supporting families (provide admin dashboard density and realistic filtering):
+ *     8–30. South Carolina families across Columbia, Charleston, and Greenville
+ *           with varied supervision levels, multi-child households, and diverse
+ *           emergency contact structures.
  *
- * Supervision levels:
- *   standard    — most campers
- *   enhanced    — campers with complex medical needs
- *   one_to_one  — campers with severe behavioral/medical requirements
+ * ─── SUPERVISION LEVEL DISTRIBUTION ────────────────────────────────────────
  *
- * All accounts use password "password" for local testing.
+ *   standard    — most campers (daily activities without special staffing)
+ *   enhanced    — campers with complex medical needs (1:3 staff ratio)
+ *   one_to_one  — campers with severe behavioral/medical requirements (dedicated staff)
+ *
+ * ─── EMERGENCY CONTACT COVERAGE ─────────────────────────────────────────────
+ *
+ *   Every camper has a primary contact (is_primary=true, is_authorized_pickup=true).
+ *   Selected campers have secondary contacts via ec2_* fields:
+ *     - Secondary pickup contacts (ec2_pickup=true) — grandparents, other guardians
+ *     - Secondary NON-pickup contacts (ec2_pickup=false) — physicians, school nurses
+ *     - Contacts with phone_secondary populated (tests multi-phone UI)
+ *     - Contacts with null email (tests nullable email state)
+ *
+ * All accounts use password "password" for local development.
+ *
+ * ExtendedEmergencyContactSeeder adds additional secondary contacts after this seeder runs.
  */
 class FamilySeeder extends Seeder
 {
@@ -267,7 +285,7 @@ class FamilySeeder extends Seeder
                 ],
             ],
 
-            // ── 6. Wilson Family — no applications (tests empty state) ─────────
+            // ── 6. Wilson Family — Tyler waitlisted for Session 1 ────────────
             [
                 'name'    => 'Grace Wilson',
                 'email'   => 'grace.wilson@example.com',

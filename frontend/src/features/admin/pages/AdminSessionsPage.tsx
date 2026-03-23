@@ -23,6 +23,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users, Archive, ExternalLink, FolderOpen } from 'lucide-react';
+import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
 import { format } from 'date-fns';
 
 import {
@@ -275,8 +276,35 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
 // Main page
 // ---------------------------------------------------------------------------
 
+// ─── Date-based session status ────────────────────────────────────────────────
+// Mirrors the backend's getStatusAttribute() logic so the UI badge matches
+// what the API returns without an extra round-trip.
+
+type SessionStatus = 'active' | 'upcoming' | 'completed';
+
+function getDateStatus(session: CampSession): SessionStatus {
+  // Prefer server-supplied status; fall back to client-computed value.
+  if (session.status) return session.status;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(session.start_date);
+  const end   = new Date(session.end_date);
+  if (today < start) return 'upcoming';
+  if (today > end)   return 'completed';
+  return 'active';
+}
+
+const STATUS_BADGE: Record<SessionStatus, { label: string; bg: string; color: string }> = {
+  active:    { label: 'Active',    bg: 'rgba(22,163,74,0.12)',   color: '#166534' },
+  upcoming:  { label: 'Upcoming',  bg: 'rgba(37,99,235,0.12)',   color: '#1d4ed8' },
+  completed: { label: 'Completed', bg: 'rgba(107,114,128,0.12)', color: '#6b7280' },
+};
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export function AdminSessionsPage() {
   const { t } = useTranslation();
+  const workspace = useSessionWorkspace();
 
   const [camps, setCamps]             = useState<Camp[]>([]);
   const [sessions, setSessions]       = useState<CampSession[]>([]);
@@ -330,12 +358,16 @@ export function AdminSessionsPage() {
   }
 
   // Delete a session — catches 422 when applications exist and prompts to archive instead.
+  // After a successful delete: remove from local state AND refresh the workspace context
+  // so any reference to the deleted session is cleared globally (including the banner).
   async function handleDeleteSession(id: number) {
     if (!window.confirm(t('admin.sessions.confirm_delete_session'))) return;
     try {
       await deleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
       toast.success(t('admin.sessions.session_deleted'));
+      // Sync workspace context — clears currentSession if it was the deleted one.
+      await workspace?.refreshSessions();
     } catch (err) {
       const apiError = err as { message?: string };
       if (apiError?.message?.includes('applications')) {
@@ -348,6 +380,7 @@ export function AdminSessionsPage() {
   }
 
   // Archive a session — sets is_active=false, preserving all application records.
+  // Also refreshes the workspace context so the archived session is removed from the selector.
   async function handleArchiveSession(id: number) {
     if (!window.confirm('Archive this session? It will be hidden from the parent portal but all data is preserved.')) return;
     setArchivingId(id);
@@ -358,6 +391,8 @@ export function AdminSessionsPage() {
         prev.map((s) => (s.id === id ? { ...s, is_active: false } : s))
       );
       toast.success('Session archived successfully.');
+      // Sync workspace context — archived sessions no longer appear in the selector.
+      await workspace?.refreshSessions();
     } catch {
       toast.error('Failed to archive session. Please try again.');
     } finally {
@@ -541,16 +576,25 @@ export function AdminSessionsPage() {
                                 {session.name}
                               </p>
                               <div className="flex items-center gap-1 flex-shrink-0">
-                                <span
-                                  className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                  style={
-                                    session.is_active
-                                      ? { background: 'rgba(22,163,74,0.12)', color: '#166534' }
-                                      : { background: 'rgba(107,114,128,0.12)', color: '#6b7280' }
-                                  }
-                                >
-                                  {session.is_active ? 'Active' : 'Archived'}
-                                </span>
+                                {session.is_active ? (() => {
+                                  const ds = getDateStatus(session);
+                                  const badge = STATUS_BADGE[ds];
+                                  return (
+                                    <span
+                                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                      style={{ background: badge.bg, color: badge.color }}
+                                    >
+                                      {badge.label}
+                                    </span>
+                                  );
+                                })() : (
+                                  <span
+                                    className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                    style={{ background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}
+                                  >
+                                    Archived
+                                  </span>
+                                )}
                                 {isFull && (
                                   <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                                     style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}>

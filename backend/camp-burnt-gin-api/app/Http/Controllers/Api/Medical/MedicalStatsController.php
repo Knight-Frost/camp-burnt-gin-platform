@@ -86,25 +86,22 @@ class MedicalStatsController extends Controller
 
         // --- Recent activity feed (last 7 days, capped at 5 items each) ---
 
-        // The 5 most recent treatment log entries so the dashboard shows recent care activity.
+        // The 5 most recent treatment log entries.
         $recentTreatments = TreatmentLog::with(['camper', 'recorder'])
-            ->whereDate('treatment_date', '>=', $weekAgo)
             ->orderByDesc('treatment_date')
             ->orderByDesc('treatment_time')
             ->limit(5)
             ->get();
 
-        // The 5 most recent incident reports filed in the last week.
+        // The 5 most recent incident reports.
         $recentIncidents = MedicalIncident::with(['camper', 'recorder'])
-            ->whereDate('incident_date', '>=', $weekAgo)
             ->orderByDesc('incident_date')
             ->orderByDesc('incident_time')
             ->limit(5)
             ->get();
 
-        // The 5 most recent health center visits in the last week.
+        // The 5 most recent health center visits.
         $recentVisits = MedicalVisit::with(['camper', 'recorder'])
-            ->whereDate('visit_date', '>=', $weekAgo)
             ->orderByDesc('visit_date')
             ->orderByDesc('visit_time')
             ->limit(5)

@@ -102,7 +102,7 @@ export function LoginPage() {
       // Normal login (no MFA) — write token and user to storage + Redux.
       const { user, token } = response.data!;
       // localStorage persists across page refreshes and tabs.
-      localStorage.setItem('auth_token', token);
+      sessionStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
       // hydrateAuth syncs the Redux slice with the token in localStorage.
@@ -194,7 +194,7 @@ export function LoginPage() {
       const { user, token } = response.data!;
       // Wipe credentials from memory immediately after a successful verification.
       mfaCredentials.current = null;
-      localStorage.setItem('auth_token', token);
+      sessionStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
       dispatch(hydrateAuth());

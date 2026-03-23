@@ -17,15 +17,15 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin,
-  Bell, MessageSquare, CheckCircle, Clock, AlertCircle,
+  Bell, MessageSquare, CheckCircle, Clock, AlertCircle, Upload, XCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
-import { getCampers, getApplications, getRequiredDocuments, type RequiredDocument } from '@/features/parent/api/applicant.api';
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/features/admin/api/notifications.api';
+import { getCampers, getApplications, getRequiredDocuments, getDocumentRequests, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
+import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
-import type { Camper, Application, Notification } from '@/shared/types';
+import type { Camper, Application } from '@/shared/types';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { StatCard } from '@/ui/components/StatCard';
@@ -35,40 +35,51 @@ import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
+import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
 
 export function ApplicantDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
 
-  const [campers, setCampers]             = useState<Camper[]>([]);
-  const [applications, setApplications]   = useState<Application[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [requiredDocs, setRequiredDocs]   = useState<RequiredDocument[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState(false);
-  const [retryKey, setRetryKey]           = useState(0);
+  const [campers, setCampers]                   = useState<Camper[]>([]);
+  const [applications, setApplications]         = useState<Application[]>([]);
+  const [conversations, setConversations]       = useState<Conversation[]>([]);
+  const [announcements, setAnnouncements]       = useState<Announcement[]>([]);
+  const [requiredDocs, setRequiredDocs]         = useState<RequiredDocument[]>([]);
+  const [documentRequests, setDocumentRequests] = useState<DocumentRequestRecord[]>([]);
+  const [loading, setLoading]                   = useState(true);
+  const [error, setError]                       = useState(false);
+  const [retryKey, setRetryKey]                 = useState(0);
 
   useEffect(() => {
     setLoading(true);
     setError(false);
-    Promise.allSettled([getCampers(), getApplications(), getNotifications(), getAnnouncements(5), getRequiredDocuments()])
-      .then(([cResult, aResult, nResult, annResult, reqResult]) => {
+    Promise.allSettled([
+      getCampers(),
+      getApplications(),
+      getConversations({ page: 1 }),
+      getAnnouncements(5),
+      getRequiredDocuments(),
+      getDocumentRequests(),
+    ]).then(([cResult, aResult, convResult, annResult, reqResult, docReqResult]) => {
         if (cResult.status === 'rejected' && aResult.status === 'rejected') {
           setError(true);
           return;
         }
         setCampers(cResult.status === 'fulfilled' ? cResult.value : []);
         setApplications(aResult.status === 'fulfilled' ? aResult.value : []);
-        if (nResult.status === 'fulfilled') {
-          setNotifications((nResult.value.data ?? []).slice(0, 5));
+        if (convResult.status === 'fulfilled') {
+          setConversations(convResult.value.data ?? []);
         }
         if (annResult.status === 'fulfilled') {
           setAnnouncements(annResult.value.data ?? []);
         }
         if (reqResult.status === 'fulfilled') {
           setRequiredDocs(reqResult.value);
+        }
+        if (docReqResult.status === 'fulfilled') {
+          setDocumentRequests(docReqResult.value);
         }
       })
       .catch(() => setError(true))
@@ -78,15 +89,7 @@ export function ApplicantDashboardPage() {
   const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
-  const handleMarkRead = (id: string) => {
-    markNotificationRead(id).catch(() => {/* non-critical */});
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)));
-  };
-
-  const handleMarkAllRead = () => {
-    markAllNotificationsRead().catch(() => {/* non-critical */});
-    setNotifications((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })));
-  };
+  const activityFeed = buildActivityFeed(conversations, applications, campers, documentRequests, user?.id);
 
   if (error) return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
 
@@ -96,19 +99,9 @@ export function ApplicantDashboardPage() {
       {/* ── Liquid glass hero ────────────────────────────────── */}
       <div
         className="relative flex flex-col justify-end rounded-2xl overflow-hidden"
-        style={{
-          minHeight: '340px',
-          backgroundImage: 'url(/backgrounds/bg-mountain-river.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        style={{ minHeight: '340px' }}
       >
-        {/* Gradient scrim darkens the bottom for text readability, fades to transparent above */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          aria-hidden="true"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 45%, transparent 80%)' }}
-        />
+        <HeroSlideshow initialIndex={1} />
         <div className="relative z-10 p-6 lg:p-8">
           <PersonalGreeting
             user={user}
@@ -287,22 +280,25 @@ export function ApplicantDashboardPage() {
         )}
       </div>
 
-      {/* ── Recent Updates — compact scannable list ───────────── */}
+      {/* ── Recent Activity — interactive, navigable feed ─────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
             {t('applicant.dashboard.recent_updates')}
           </h3>
-          {notifications.some((n) => !n.read_at) && (
-            <button onClick={handleMarkAllRead} className="text-xs hover:underline" style={{ color: 'var(--ember-orange)' }}>
-              {t('applicant.dashboard.mark_all_read')}
-            </button>
-          )}
+          <Link
+            to="/applicant/inbox"
+            className="text-xs hover:underline flex items-center gap-1"
+            style={{ color: 'var(--ember-orange)' }}
+          >
+            {t('applicant.dashboard.open_inbox')}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
         </div>
 
         {loading ? (
           <SkeletonTable rows={3} />
-        ) : notifications.length === 0 ? (
+        ) : activityFeed.length === 0 ? (
           <div className="glass-panel rounded-xl p-5 text-center">
             <Bell className="h-5 w-5 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
@@ -310,60 +306,47 @@ export function ApplicantDashboardPage() {
             </p>
           </div>
         ) : (
-          <div
-            className="glass-panel rounded-2xl overflow-hidden divide-y"
-          >
+          <div className="glass-panel rounded-2xl overflow-hidden divide-y">
             <ul>
-              {notifications.map((n) => {
-                const isUnread = !n.read_at;
-                const Icon = getNotifIcon(n.type);
+              {activityFeed.map((item) => {
+                const Icon = getActivityIcon(item);
                 return (
-                  <li
-                    key={n.id}
-                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                    style={{
-                      background: isUnread ? 'rgba(22,163,74,0.04)' : 'transparent',
-                      borderColor: 'var(--border)',
-                    }}
-                  >
-                  <button
-                    type="button"
-                    className="flex items-center gap-3 w-full text-left cursor-pointer"
-                    onClick={() => isUnread && handleMarkRead(n.id)}
-                  >
-                    {/* Icon */}
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: isUnread ? 'rgba(22,163,74,0.12)' : 'rgba(0,0,0,0.05)',
-                        color: isUnread ? 'var(--ember-orange)' : 'var(--muted-foreground)',
-                      }}
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(item.route)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer transition-all duration-150 hover:bg-[var(--dash-nav-hover-bg)] hover:-translate-y-px"
+                      style={{ background: item.accent ? 'rgba(22,163,74,0.04)' : 'transparent' }}
                     >
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
+                      {/* Icon badge */}
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: item.accent ? 'rgba(22,163,74,0.12)' : 'rgba(0,0,0,0.05)',
+                          color: item.accent ? 'var(--ember-orange)' : 'var(--muted-foreground)',
+                        }}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm truncate ${isUnread ? 'font-semibold' : 'font-medium'}`} style={{ color: 'var(--foreground)' }}>
-                        {n.title || t('applicant.dashboard.notification_fallback')}
-                      </p>
-                      {n.message && (
-                        <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
-                          {n.message}
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm truncate ${item.accent ? 'font-semibold' : 'font-medium'}`} style={{ color: 'var(--foreground)' }}>
+                          {item.title}
                         </p>
-                      )}
-                    </div>
+                        <p className="text-xs truncate mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                          {item.subtitle}
+                        </p>
+                      </div>
 
-                    {/* Time + unread dot */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {format(new Date(n.created_at), 'MMM d')}
-                      </span>
-                      {isUnread && (
-                        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--ember-orange)' }} />
-                      )}
-                    </div>
-                  </button>
+                      {/* Timestamp + arrow */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                          {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
+                      </div>
+                    </button>
                   </li>
                 );
               })}
@@ -376,22 +359,156 @@ export function ApplicantDashboardPage() {
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Activity feed ────────────────────────────────────────────────────────────
 
-function getNotifIcon(type: string): ComponentType<{ className?: string }> {
-  switch (type) {
-    case 'application_submitted':
-    case 'application_status_changed':
-      return FileText;
-    case 'new_message':
-    case 'new_conversation':
-      return MessageSquare;
-    case 'application_approved':
-      return CheckCircle;
-    case 'application_status_changed_pending':
-    case 'deadline':
-      return Clock;
-    default:
-      return Bell;
+interface ActivityItem {
+  id: string;
+  type: 'message' | 'application' | 'document';
+  iconKey: 'message' | 'file' | 'check' | 'x-circle' | 'clock' | 'upload' | 'alert';
+  title: string;
+  subtitle: string;
+  timestamp: string;
+  route: string;
+  accent: boolean;
+}
+
+function buildActivityFeed(
+  conversations: Conversation[],
+  applications: Application[],
+  campers: Camper[],
+  documentRequests: DocumentRequestRecord[],
+  currentUserId: number | undefined,
+): ActivityItem[] {
+  const items: ActivityItem[] = [];
+
+  // Messages: group unread non-system conversations by sender
+  const unreadConvs = conversations.filter((c) => !c.is_system_generated && c.unread_count > 0);
+  const grouped = new Map<string, Conversation[]>();
+  for (const conv of unreadConvs) {
+    const senderName = getConvSenderName(conv, currentUserId);
+    if (!grouped.has(senderName)) grouped.set(senderName, []);
+    grouped.get(senderName)!.push(conv);
+  }
+  for (const [senderName, convs] of grouped) {
+    const latest = [...convs].sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    )[0];
+    const count = convs.length;
+    items.push({
+      id: `msg-${latest.id}`,
+      type: 'message',
+      iconKey: 'message',
+      title: count > 1
+        ? `${count} new messages from ${senderName}`
+        : `New message from ${senderName}`,
+      subtitle: latest.last_message?.body
+        ? truncateText(latest.last_message.body, 60)
+        : latest.subject ?? 'Open conversation',
+      timestamp: latest.updated_at,
+      route: '/applicant/inbox',
+      accent: true,
+    });
+  }
+
+  // Applications: most recently updated
+  for (const app of applications) {
+    const camper = campers.find((c) => c.id === app.camper_id);
+    const camperName = camper ? `${camper.first_name} ${camper.last_name}` : 'Camper';
+    const sessionName = app.session?.name ?? null;
+    const iconKey: ActivityItem['iconKey'] =
+      app.status === 'approved'     ? 'check' :
+      app.status === 'rejected'     ? 'x-circle' :
+      app.status === 'under_review' ? 'clock' : 'file';
+    items.push({
+      id: `app-${app.id}`,
+      type: 'application',
+      iconKey,
+      title: getApplicationTitle(app.status, camperName),
+      subtitle: sessionName
+        ? `${sessionName} · ${getStatusLabel(app.status)}`
+        : getStatusLabel(app.status),
+      timestamp: app.updated_at ?? app.created_at,
+      route: ROUTES.PARENT_APPLICATION_DETAIL(app.id),
+      accent: app.status === 'approved' || app.status === 'rejected',
+    });
+  }
+
+  // Document requests
+  for (const doc of documentRequests) {
+    items.push({
+      id: `doc-${doc.id}`,
+      type: 'document',
+      iconKey: doc.status === 'rejected' ? 'alert' : 'upload',
+      title: getDocumentTitle(doc),
+      subtitle: doc.instructions ?? `Requested by ${doc.requested_by_name}`,
+      timestamp: doc.uploaded_at ?? doc.created_at,
+      route: ROUTES.PARENT_DOCUMENTS,
+      accent: doc.status === 'awaiting_upload' || doc.status === 'rejected',
+    });
+  }
+
+  return items
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5);
+}
+
+function getConvSenderName(conv: Conversation, currentUserId: number | undefined): string {
+  if (conv.last_message?.sender && conv.last_message.sender.id !== currentUserId) {
+    return conv.last_message.sender.name;
+  }
+  const other = conv.participants.find((p) => p.id !== currentUserId);
+  return other?.name ?? 'Staff';
+}
+
+function getApplicationTitle(status: string, camperName: string): string {
+  switch (status) {
+    case 'approved':     return `Application approved — ${camperName}`;
+    case 'rejected':     return `Application not approved — ${camperName}`;
+    case 'under_review': return `Application under review — ${camperName}`;
+    case 'waitlisted':   return `Application waitlisted — ${camperName}`;
+    case 'pending':      return `Application submitted — ${camperName}`;
+    default:             return `Application updated — ${camperName}`;
+  }
+}
+
+function getDocumentTitle(doc: DocumentRequestRecord): string {
+  const type = doc.document_type;
+  switch (doc.status) {
+    case 'awaiting_upload': return `Document required: ${type}`;
+    case 'uploaded':        return `Document received: ${type}`;
+    case 'under_review':    return `Document under review: ${type}`;
+    case 'approved':        return `Document approved: ${type}`;
+    case 'rejected':        return `Document rejected: ${type}`;
+    case 'overdue':         return `Document overdue: ${type}`;
+    default:                return `Document request: ${type}`;
+  }
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'pending':      return 'Pending review';
+    case 'under_review': return 'Under review';
+    case 'approved':     return 'Approved';
+    case 'rejected':     return 'Not approved';
+    case 'waitlisted':   return 'Waitlisted';
+    case 'cancelled':    return 'Cancelled';
+    case 'draft':        return 'Draft';
+    default:             return status;
+  }
+}
+
+function truncateText(str: string, max: number): string {
+  return str.length > max ? `${str.slice(0, max).trimEnd()}…` : str;
+}
+
+function getActivityIcon(item: ActivityItem): ComponentType<{ className?: string }> {
+  switch (item.iconKey) {
+    case 'message':  return MessageSquare;
+    case 'check':    return CheckCircle;
+    case 'x-circle': return XCircle;
+    case 'clock':    return Clock;
+    case 'upload':   return Upload;
+    case 'alert':    return AlertCircle;
+    default:         return FileText;
   }
 }

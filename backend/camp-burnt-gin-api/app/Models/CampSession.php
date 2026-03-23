@@ -26,6 +26,14 @@ class CampSession extends Model
     use HasFactory;
 
     /**
+     * Append computed attributes to every serialized response.
+     * `status` is date-derived (active/upcoming/completed) and has no DB column.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['status'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -126,5 +134,29 @@ class CampSession extends Model
     public function isAtCapacity(): bool
     {
         return $this->enrolled_count >= $this->capacity;
+    }
+
+    /**
+     * Date-derived session status.
+     *
+     * - upcoming  : today is before start_date
+     * - active    : today is between start_date and end_date (inclusive)
+     * - completed : today is after end_date
+     *
+     * This is independent of `is_active` (which controls portal visibility).
+     */
+    public function getStatusAttribute(): string
+    {
+        $today = today();
+
+        if ($today->lt($this->start_date)) {
+            return 'upcoming';
+        }
+
+        if ($today->gt($this->end_date)) {
+            return 'completed';
+        }
+
+        return 'active';
     }
 }

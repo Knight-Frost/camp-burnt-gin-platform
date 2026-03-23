@@ -594,7 +594,11 @@
       "no_sessions_desc": "Add a session to this camp.",
       "confirm_delete_camp": "Delete this camp? All sessions will also be removed.",
       "confirm_delete_session": "Delete this session?",
+      "camp_created": "Camp created successfully.",
+      "camp_updated": "Camp updated successfully.",
       "camp_deleted": "Camp deleted.",
+      "session_created": "Session created successfully.",
+      "session_updated": "Session updated successfully.",
       "session_deleted": "Session deleted.",
       "edit_camp": "Edit Camp",
       "edit_session": "Edit Session"
@@ -740,7 +744,7 @@
       "activity": {
         "title": "Recent Activity",
         "empty_title": "No recent activity",
-        "empty_desc": "No activity recorded in the last 7 days",
+        "empty_desc": "No treatments, incidents, or visits on record yet",
         "type_treatment": "Treatment",
         "type_incident": "Incident",
         "type_visit": "Visit"

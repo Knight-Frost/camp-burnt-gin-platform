@@ -34,6 +34,12 @@ export interface SessionWorkspaceValue {
   setCurrentSession: (session: CampSession | null) => void;
   openSelector: () => void;
   closeSelector: () => void;
+  /**
+   * Re-fetch the sessions list from the API and validate the current workspace.
+   * Call this after any mutation (delete, archive, restore) to keep the context in sync.
+   * If the current session no longer exists in the refreshed list, workspace resets to global mode.
+   */
+  refreshSessions: () => Promise<void>;
 }
 
 const SessionWorkspaceContext = createContext<SessionWorkspaceValue | null>(null);
@@ -85,6 +91,35 @@ export function SessionWorkspaceProvider({ children }: { children: React.ReactNo
   const openSelector  = useCallback(() => setSelectorOpen(true),  []);
   const closeSelector = useCallback(() => setSelectorOpen(false), []);
 
+  /**
+   * Re-fetch sessions from the API and validate the active workspace.
+   * If the current session was deleted (no longer in the list), resets to global mode
+   * and clears the localStorage entry so the ghost session is never restored.
+   */
+  const refreshSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const data = await getSessions({ per_page: 100 });
+      setSessions(data);
+      // Validate that the current workspace session still exists.
+      setCurrentSessionState((prev) => {
+        if (prev === null) return null;
+        const still = data.find((s) => s.id === prev.id);
+        if (!still) {
+          // Session was deleted — clear workspace and localStorage.
+          try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+          return null;
+        }
+        // Return updated session object so stale data (dates, capacity) is refreshed.
+        return still;
+      });
+    } catch {
+      // Non-fatal: keep current state unchanged.
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, []);
+
   return (
     <SessionWorkspaceContext.Provider
       value={{
@@ -96,6 +131,7 @@ export function SessionWorkspaceProvider({ children }: { children: React.ReactNo
         setCurrentSession,
         openSelector,
         closeSelector,
+        refreshSessions,
       }}
     >
       {children}

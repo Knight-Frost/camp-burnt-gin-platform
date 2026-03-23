@@ -19,6 +19,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useAppDispatch } from '@/store/hooks';
+import { store } from '@/store';
 import { setUser, setToken, clearAuth, hydrateAuth } from '@/features/auth/store/authSlice';
 import { getAuthenticatedUser } from '@/features/auth/api/auth.api';
 import { DEMO_MODE, DEMO_USER } from '@/lib/demo/demoMode';
@@ -45,10 +46,16 @@ export function useAuthInit(): void {
       // Short-circuit: if there's no token, auth is already gone — no API call needed.
       // Without this guard, handleUnauthorized would call getAuthenticatedUser() with no
       // token → server returns 401 → auth:unauthorized fires again → infinite loop.
-      if (!localStorage.getItem('auth_token')) {
+      if (!sessionStorage.getItem('auth_token')) {
         dispatch(clearAuth());
         return;
       }
+
+      // Capture the active token NOW (before the async call) using the same precedence
+      // as the axios request interceptor: Redux first, localStorage as fallback.
+      // Re-reading localStorage AFTER the async call is unsafe — another tab may have
+      // overwritten it with a different user's token, causing role confusion.
+      const activeToken = store.getState().auth.token ?? sessionStorage.getItem('auth_token');
 
       isRevalidating.current = true;
 
@@ -56,12 +63,13 @@ export function useAuthInit(): void {
         .then((user) => {
           // Token is valid — the 401 came from a specific endpoint, not the session.
           // Keep the user logged in and update the user object in case it drifted.
-          dispatch(setToken({ token: localStorage.getItem('auth_token') as string }));
+          // Use the token we captured at call-time, not a re-read from localStorage.
+          if (activeToken) dispatch(setToken({ token: activeToken }));
           dispatch(setUser(user));
         })
         .catch(() => {
           // Confirmed: the token itself is invalid. Clear everything and redirect to login.
-          localStorage.removeItem('auth_token');
+          sessionStorage.removeItem('auth_token');
           dispatch(clearAuth());
         })
         .finally(() => {
@@ -85,7 +93,7 @@ export function useAuthInit(): void {
       return;
     }
 
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token');
 
     // No stored token — nothing to restore, mark hydration complete immediately
     if (!token) {
@@ -124,11 +132,20 @@ export function useAuthInit(): void {
           dispatch(setUser(user));
           dispatch(hydrateAuth());
         })
-        .catch((err: { retryAfter?: number } | undefined) => {
+        .catch((err: { retryAfter?: number; isAuthError?: boolean } | undefined) => {
           if (cancelled) return;
           // If the token was removed, the axios interceptor already fired
           // auth:unauthorized (a real 401) — clear auth and redirect to login.
-          if (!localStorage.getItem('auth_token')) {
+          if (!sessionStorage.getItem('auth_token')) {
+            dispatch(clearAuth());
+            return;
+          }
+          // 401 Unauthorized — the token is definitively invalid (expired or revoked).
+          // The handleUnauthorized listener was blocked (isRevalidating=true), so it
+          // couldn't clear the token. Do it here to prevent infinite retry loops and
+          // avoid a stale token being picked up by subsequent re-validation attempts.
+          if (err?.isAuthError) {
+            sessionStorage.removeItem('auth_token');
             dispatch(clearAuth());
             return;
           }

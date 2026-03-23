@@ -86,7 +86,7 @@ export function useIdleTimeout(): void {
       if (idleMs >= IDLE_TIMEOUT_MS) {
         // Remove the persisted token so the next page load doesn't restore
         // the session for the person who now has physical access to the device.
-        localStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_token');
         dispatch(clearAuth());
         toast.info('Your session has expired due to inactivity. Please sign in again.', {
           duration: 8_000,

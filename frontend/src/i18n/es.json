@@ -595,7 +595,11 @@
       "no_sessions_desc": "Agrega una sesión a este campamento.",
       "confirm_delete_camp": "¿Eliminar este campamento? También se eliminarán todas las sesiones.",
       "confirm_delete_session": "¿Eliminar esta sesión?",
+      "camp_created": "Campamento creado correctamente.",
+      "camp_updated": "Campamento actualizado correctamente.",
       "camp_deleted": "Campamento eliminado.",
+      "session_created": "Sesión creada correctamente.",
+      "session_updated": "Sesión actualizada correctamente.",
       "session_deleted": "Sesión eliminada.",
       "edit_camp": "Editar Campamento",
       "edit_session": "Editar Sesión"
@@ -741,7 +745,7 @@
       "activity": {
         "title": "Actividad Reciente",
         "empty_title": "Sin actividad reciente",
-        "empty_desc": "No se registró actividad en los últimos 7 días",
+        "empty_desc": "Aún no hay tratamientos, incidentes ni visitas registrados",
         "type_treatment": "Tratamiento",
         "type_incident": "Incidente",
         "type_visit": "Visita"
