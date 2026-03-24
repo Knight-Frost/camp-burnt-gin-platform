@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Full Codebase Audit and Cleansing Report
 
 **Date**: 2026-03-12
-**Auditor**: Claude Sonnet 4.6 (automated)
+**Auditor**: Engineering Team
 **Scope**: Full-stack codebase — Laravel 12 backend + React 18/TypeScript frontend
 **Status at report close**: All critical and high-priority issues resolved
 

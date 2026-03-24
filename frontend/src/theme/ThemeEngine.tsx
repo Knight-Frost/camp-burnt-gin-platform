@@ -4,7 +4,7 @@
  * Purpose: Provides the ThemeContext value to the entire React component tree.
  *
  * Design decision — permanent light mode:
- *   This application is always light-mode only (per CLAUDE.md). The ThemeProvider
+ *   This application is always light-mode only (permanent design decision). The ThemeProvider
  *   hard-codes `resolvedTheme: 'light'` instead of reading system preferences or
  *   localStorage. This keeps the provider tiny and avoids any flash-of-unstyled-
  *   content that dark-mode detection can introduce.
