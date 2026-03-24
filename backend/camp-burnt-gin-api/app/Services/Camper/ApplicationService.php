@@ -79,6 +79,24 @@ class ApplicationService
         // Capture the current status before we change it (used in the notification later)
         $previousStatus = $application->status->value;
 
+        // ── Step 0: Capacity gate ─────────────────────────────────────────────────
+        // Block approval when the session is already at or over capacity.
+        // This is checked before the document compliance gate so admins see the most
+        // actionable error first (capacity is a session-level constraint; document
+        // compliance is per-camper and can be resolved without admin intervention).
+        if ($newStatus === ApplicationStatus::Approved) {
+            $application->loadMissing('campSession');
+            if ($application->campSession && $application->campSession->isAtCapacity()) {
+                return [
+                    'success'           => false,
+                    'capacity_exceeded' => true,
+                    'session_name'      => $application->campSession->name,
+                    'capacity'          => $application->campSession->capacity,
+                    'enrolled'          => $application->campSession->enrolled_count,
+                ];
+            }
+        }
+
         // ── Step 1: Document compliance gate ────────────────────────────────────
         // CRITICAL SAFETY CHECK: All reviewers (including admins) are blocked if documents
         // are missing, expired, or unverified. This enforces medical compliance before approval.

@@ -219,8 +219,9 @@ class SystemNotificationService
      */
     public function applicationRejected(User $recipient, int $applicationId, string $camperName, ?string $notes = null): Conversation
     {
-        // Only include a notes paragraph if reviewer notes were actually provided
-        $noteHtml = $notes ? "<p><em>Reviewer notes: {$notes}</em></p>" : '';
+        // Only include a notes paragraph if reviewer notes were actually provided.
+        // e() escapes HTML entities so an admin cannot inject markup into the applicant's inbox.
+        $noteHtml = $notes ? '<p><em>Reviewer notes: ' . e($notes) . '</em></p>' : '';
         return $this->notify(
             recipient:   $recipient,
             eventType:   self::APPLICATION_REJECTED,

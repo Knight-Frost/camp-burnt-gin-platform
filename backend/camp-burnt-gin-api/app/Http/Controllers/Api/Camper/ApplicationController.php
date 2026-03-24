@@ -88,14 +88,18 @@ class ApplicationController extends Controller
             }
 
             // Full-text search across camper name and parent name/email.
+            // Wrapped in a grouped where() so the OR between camper-name and parent-name
+            // does NOT escape the surrounding AND conditions (status, session, is_draft).
             if ($request->filled('search')) {
                 $search = $request->search;
-                $query->whereHas('camper', function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
-                })->orWhereHas('camper.user', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('camper', function ($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    })->orWhereHas('camper.user', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
                 });
             }
 
@@ -286,10 +290,16 @@ class ApplicationController extends Controller
         $application->update($data);
 
         // If is_draft just flipped from true → false, the parent needs a confirmation notification.
+        // Both the email AND the in-app inbox notification must fire — mirrors what store() does.
         if (isset($data['is_draft']) && $data['is_draft'] === false && $application->wasChanged('is_draft')) {
+            $application->loadMissing('camper.user');
             $this->queueNotification(
                 $application->camper->user,
                 new ApplicationSubmittedNotification($application)
+            );
+            $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+            $this->systemNotifications->applicationSubmitted(
+                $application->camper->user, $application->id, $camperName
             );
         }
 
@@ -349,6 +359,16 @@ class ApplicationController extends Controller
             notes: $request->validated('notes'),
             reviewedBy: $request->user()
         );
+
+        // Handle capacity failure — the session is full; suggest waitlisting instead.
+        if (! $result['success'] && ($result['capacity_exceeded'] ?? false)) {
+            return response()->json([
+                'message' => "Cannot approve: \"{$result['session_name']}\" is at full capacity ({$result['enrolled']}/{$result['capacity']} enrolled). Waitlist the applicant or archive another application to free a spot.",
+                'errors' => [
+                    'capacity' => 'Session is at capacity.',
+                ],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         // Handle compliance failure — return the details so the admin knows what's missing.
         if (! $result['success']) {

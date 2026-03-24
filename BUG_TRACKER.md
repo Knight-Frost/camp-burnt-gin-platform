@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** 2026-03-19 — System Audit (BUG-073 resolved; BUG-102–BUG-105 added and resolved)
+**Last Updated:** 2026-03-24 — Workflow Audit (BUG-106–BUG-110 added and resolved)
 **Format:** Sequential ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -47,6 +47,7 @@ The table below maps each development phase to the bugs it resolved.
 | Post Phase 13 | Application submission corrections | BUG-054, BUG-055, BUG-056 |
 | Phase 14 | Form Builder security | BUG-057, BUG-058, BUG-059, BUG-060, BUG-061 |
 | System Audit 2026-03-19 | Full system audit + hardening | BUG-073, BUG-102, BUG-103, BUG-104, BUG-105 |
+| Workflow Audit 2026-03-24 | Deep workflow audit — capacity gate, scope leak, orphan files, notifications, XSS | BUG-106, BUG-107, BUG-108, BUG-109, BUG-110 |
 
 ---
 
@@ -139,6 +140,11 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-099 | Admin Campers page "Failed to load data" — `ApplicationStatus` PHP enum missing `Waitlisted` case causes `ValueError` on any endpoint loading applications with `waitlisted` status | Admin Portal — Applications | Critical | Resolved |
 | BUG-100 | `SessionDetailPage` 404 — `SessionDashboardController` routes (`GET /sessions/{id}/dashboard`, `GET /sessions/{id}/applications`, `POST /sessions/{id}/archive`) never registered in `api.php` | Admin Portal — Sessions | Critical | Resolved |
 | BUG-101 | `CampSessionController::destroy()` permits deletion of sessions with applications; `archive()` action missing entirely | Admin Portal — Sessions | High | Resolved |
+| BUG-106 | `ApplicationService::reviewApplication()` missing capacity gate — admin can approve beyond session capacity | Admin Portal — Application Review | Critical | Resolved |
+| BUG-107 | `ApplicationController::index()` search uses top-level `orWhereHas` — OR bypasses status/session/is_draft filters, leaking cross-session data | Admin Portal — Applications | High | Resolved |
+| BUG-108 | `DocumentRequestController::reject()` clears DB path fields but never deletes the uploaded file from disk — orphaned files accumulate | Document Requests | Medium | Resolved |
+| BUG-109 | `ApplicationController::update()` missing inbox system notification when draft is promoted to submitted — email fires but inbox message does not | Applicant Portal — Application Form | Medium | Resolved |
+| BUG-110 | `SystemNotificationService::applicationRejected()` embeds reviewer notes in HTML without `e()` escaping — stored XSS vector for admin-injected markup in applicant inbox | Security — Notifications | Low | Resolved |
 
 ---
 
@@ -1966,3 +1972,8 @@ Restructured `routes/api.php` into three tiers:
 | Auth — Layout Guards | BUG-080 |
 | Auth — RBAC | BUG-082 |
 | Admin Portal — Stability (Enum / Routes) | BUG-099, BUG-100, BUG-101 |
+| Admin Portal — Application Review | BUG-106 |
+| Admin Portal — Applications (Data Leak) | BUG-107 |
+| Document Requests — Storage | BUG-108 |
+| Applicant Portal — Draft Submission | BUG-109 |
+| Security — Notifications | BUG-110 |

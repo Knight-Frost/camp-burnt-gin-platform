@@ -298,6 +298,13 @@ class DocumentRequestController extends Controller
         $admin  = auth()->user();
         $reason = $validated['reason'] ?? 'No reason provided.';
 
+        // Delete the uploaded file from disk before clearing the DB reference.
+        // Without this, rejected files accumulate as orphaned storage (no DB pointer to clean them up later).
+        if ($documentRequest->uploaded_document_path &&
+            Storage::disk('local')->exists($documentRequest->uploaded_document_path)) {
+            Storage::disk('local')->delete($documentRequest->uploaded_document_path);
+        }
+
         $documentRequest->update([
             'status'               => DocumentRequestStatus::Rejected,
             'reviewed_by_admin_id' => $admin->id,
