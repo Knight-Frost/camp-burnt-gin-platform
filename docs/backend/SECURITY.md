@@ -164,14 +164,15 @@ This prevents unauthorized MFA disabling even with stolen passwords.
 
 | Role | Code | Description | Population |
 |------|------|-------------|------------|
-| Administrator | `admin` | Full system access, application review, reporting | Staff |
-| Parent | `parent` | Manage own campers and applications | Families |
-| Medical Provider | `medical` | View/update medical information | Healthcare providers |
+| Super Administrator | `super_admin` | Governance authority, role management, full system access | System owners |
+| Administrator | `admin` | Full operational access, application review, reporting | Staff |
+| Applicant | `applicant` | Manage own campers and applications (displayed as "Parent" in UI) | Families |
+| Medical Provider | `medical` | View/update medical information for on-site clinical workflows | On-site medical staff |
 
 ### Permission Matrix
 
-| Resource | Admin | Parent | Medical |
-|----------|-------|--------|---------|
+| Resource | Admin | Applicant | Medical |
+|----------|-------|-----------|---------|
 | View all users | Yes | No | No |
 | View all campers | Yes | No | No |
 | View own campers | Yes | Yes | No |
@@ -226,7 +227,7 @@ public function view(User $user, Camper $camper): bool
 
 ### Ownership Verification
 
-Parent users can only access resources belonging to their campers:
+Applicant users can only access resources belonging to their own campers:
 
 ```php
 public function ownsCamper(Camper $camper): bool

@@ -40,7 +40,11 @@ Pending → Waitlisted (admin review)
 **Not Allowed:**
 - Approved → Rejected
 - Rejected → Approved
-- Waitlisted → Approved (must create new application)
+
+**Waitlisted → Approved:**
+- Allowed via admin review action (no new application required)
+- The application is promotable using `isPromotable()` on the model
+- The approval still passes through the capacity gate — session must have available space
 
 ### Application Editing Rules
 
@@ -135,9 +139,11 @@ public function requiresImmediateAttention(): bool
 **Rule:** Sessions have maximum capacity
 
 **Validation:**
-- Checked at application approval
+- Enforced at Step 0 of `ApplicationService::reviewApplication()` before any other check
+- If `CampSession::isAtCapacity()` returns true on approval attempt, HTTP 422 is returned with enrolled/capacity counts
+- Administrators are prompted to waitlist the applicant or archive another application to free a spot
 - Waitlist used when capacity reached
-- Capacity includes only approved applications
+- Capacity includes only approved applications (`enrolled_count` = count of approved applications for the session)
 
 **Example:**
 - Capacity: 50

@@ -190,6 +190,12 @@ Makes Decision: POST /api/applications/{id}/review
     ↓
 System Validates (422 if invalid)
     ↓
+Step 0 — Capacity Gate (approval only)
+    If session at capacity → HTTP 422 (suggest waitlisting)
+    ↓
+Step 1 — Medical Compliance Gate (approval only)
+    If documents missing/expired/unverified → HTTP 422 with compliance_details
+    ↓
 Update: status, reviewed_at, reviewed_by, notes
     ↓
 Log Review Event
@@ -327,7 +333,7 @@ camper_age_on_start = session_start_date - camper_date_of_birth
 | Provider link expires during submit | HTTP 410 Gone | Parent generates new link, provider restarts |
 | Cancel after approval | HTTP 422 error | Parent must contact administrator |
 | Duplicate provider submission | Link marked used on first attempt, subsequent=410 | Disable submit button after click |
-| Session deletion with apps | FK constraint prevents, HTTP 500 | Cancel apps or soft-delete session |
+| Session deletion with apps | HTTP 422 with descriptive message, deletion blocked | Archive the session or cancel/transfer applications first |
 | Parent viewing others' apps | Policy filters, only own apps visible | Query scope: `where('campers.user_id', auth()->id())` |
 
 ---

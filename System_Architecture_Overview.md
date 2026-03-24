@@ -249,14 +249,14 @@ classes directly to HTML elements. All color values, spacing, and typography
 are driven by CSS custom properties (design tokens), ensuring visual consistency
 across the application.
 
-#### Redux Toolkit + redux-persist
+#### Redux Toolkit
 
 Redux Toolkit is the official, opinionated toolset for managing global
 application state in React. It provides a centralized store that holds data
 shared across many components — such as the currently authenticated user and
-their permissions. `redux-persist` serializes the Redux store to `sessionStorage`,
-allowing state to survive page refreshes within the same browser tab while
-remaining isolated between tabs (enabling multi-role testing).
+their permissions. The auth token is manually persisted to `localStorage` under
+key `auth_token`, allowing state to survive page refreshes. The 30-minute
+Sanctum token expiration on the backend enforces session timeout.
 
 #### React Router
 
@@ -393,7 +393,7 @@ server and is never sent to the browser.
 
 Sanctum provides token-based API authentication. When a user logs in, the
 backend creates a personal access token and returns it to the frontend. The
-frontend stores this token in `sessionStorage` and attaches it to the
+frontend stores this token in `localStorage` (key: `auth_token`) and attaches it to the
 `Authorization` header of every subsequent request. Sanctum verifies the
 token on each request.
 
@@ -502,7 +502,7 @@ Every request that requires authentication includes an `Authorization` header:
 Authorization: Bearer <token>
 ```
 
-The token is read from `sessionStorage` and injected into every request by the
+The token is read from `localStorage` (key: `auth_token`) and injected into every request by the
 centralized Axios configuration (`frontend/src/api/axios.config.ts`).
 
 ### 6.2 Data Flow Diagram
@@ -610,8 +610,8 @@ returns a JSON response containing the token and the user's role.
 
 **Step 6 — State Update (Frontend)**
 The frontend receives the token and user object. The Redux auth slice stores
-the user's information in the global state. `redux-persist` serializes this
-to `sessionStorage`. Axios is configured to attach the token to all future
+the user's information in the global state. The token is written to `localStorage`
+under key `auth_token`. Axios is configured to attach the token to all future
 requests. React Router redirects the user to their role-appropriate dashboard.
 
 ```
@@ -630,7 +630,7 @@ Sanctum issues token --> stored in personal_access_tokens table
 Response: { token, user, role }
         |
         v
-Redux stores user + token in sessionStorage
+Redux stores user in state; token written to localStorage (auth_token)
         |
         v
 User is redirected to dashboard
@@ -692,7 +692,7 @@ Sanctum to validate the token on every protected request.
 
 **Q: How is authentication handled?**
 On login, the backend issues a personal access token via Laravel Sanctum.
-The frontend stores this token in `sessionStorage` and attaches it to every
+The frontend stores this token in `localStorage` (key: `auth_token`) and attaches it to every
 API request. The backend validates the token on every protected endpoint.
 
 **Q: How is role-based access control enforced?**

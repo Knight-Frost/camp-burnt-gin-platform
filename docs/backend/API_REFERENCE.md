@@ -58,8 +58,8 @@ The API uses **Laravel Sanctum** for token-based authentication. Most endpoints 
     "user": {
         "id": 1,
         "name": "Jane Doe",
-        "email": "parent@example.com",
-        "role": "parent"
+        "email": "applicant@example.com",
+        "role": "applicant"
     },
     "token": "1|AbCdEfGhIjKlMnOpQrStUvWxYz1234567890..."
 }
@@ -98,7 +98,7 @@ The following endpoints do not require authentication:
 
 The API implements role-based access control (RBAC) with a four-tier hierarchical role system:
 
-**Hierarchy:** super_admin > admin > parent > medical
+**Hierarchy:** super_admin > admin > applicant > medical
 
 | Role | Access Scope | Key Permissions |
 |------|--------------|-----------------|
@@ -1124,7 +1124,7 @@ Each endpoint lists:
 
 ### POST /auth/register
 
-Register a new user account (creates parent role by default).
+Register a new user account (creates applicant role by default).
 
 **Auth:** No | **Rate Limit:** `auth`
 
@@ -1166,7 +1166,7 @@ Authenticate user and issue API token.
   "success": true,
   "message": "Login successful.",
   "data": {
-    "user": { "id": 1, "name": "John Smith", "role": { "id": 2, "name": "parent" } },
+    "user": { "id": 1, "name": "John Smith", "role": { "id": 2, "name": "applicant" } },
     "token": "2|xYzAbCdEfGhIjKlMnOpQrStUvW"
   }
 }

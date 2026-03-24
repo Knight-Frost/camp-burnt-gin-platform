@@ -45,7 +45,7 @@ Camp Burnt Gin provides four role-based portals for applicants (parents), admini
 |-------|-----------|
 | Backend | Laravel 12, PHP 8.2+, MySQL 8.0, Laravel Sanctum 4.2 |
 | Frontend | React 18, TypeScript 5 (strict mode), Tailwind CSS 3, Vite 5 |
-| State Management | Redux Toolkit 2 (in-memory; auth token persisted to sessionStorage manually) |
+| State Management | Redux Toolkit 2 (in-memory; auth token persisted to localStorage manually) |
 | Animation | Framer Motion 12 |
 | Internationalization | i18next 25 (English and Spanish) |
 | Testing | PHPUnit (backend), Vitest (frontend) |
@@ -165,13 +165,13 @@ Full development reference: [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE
 
 ### Token Lifecycle
 
-Authentication uses Laravel Sanctum. Tokens are stored in `sessionStorage` (not `localStorage`) for per-tab isolation.
+Authentication uses Laravel Sanctum. Tokens are stored in `localStorage` under key `auth_token` for persistence across page reloads.
 
 ```
-Login:    POST /auth/login → token returned → saved to sessionStorage + Redux
-Request:  Axios reads Redux state.auth.token (sessionStorage fallback) → injects Authorization: Bearer header
-Refresh:  page reload → useAuthInit reads sessionStorage → GET /user → restores Redux state
-Logout:   POST /logout → sessionStorage cleared → Redux clearAuth() → redirect to /login
+Login:    POST /auth/login → token returned → saved to localStorage + Redux
+Request:  Axios reads Redux state.auth.token (localStorage fallback) → injects Authorization: Bearer header
+Refresh:  page reload → useAuthInit reads localStorage → GET /user → restores Redux state
+Logout:   POST /logout → localStorage cleared → Redux clearAuth() → redirect to /login
 401:      Axios interceptor fires auth:unauthorized event → same as logout path
 ```
 
@@ -201,7 +201,7 @@ If a user has TOTP-based MFA enabled:
 | Notification or email not sending | Notification class `via()` method (gated by `notification_preferences`), queue worker status |
 | Status badge shows wrong color | `frontend/src/ui/components/StatusBadge.tsx` — `variantConfig` entry for that status slug |
 | Page flickers or shows stale content | Remove `setItems([])` before fetch; only clear when new data arrives |
-| Auth state lost on page refresh | `useAuthInit.ts` must read from `sessionStorage`, not `localStorage` |
+| Auth state lost on page refresh | `useAuthInit.ts` must read from `localStorage` — verify key is `auth_token` |
 | i18n key shows as literal string | Key is missing from `frontend/src/i18n/en.json` — add to both `en.json` and `es.json` |
 | Database column not found | Run `php artisan migrate` — a recent migration may not have been applied |
 | N+1 query in a list endpoint | Controller must use `with()` eager loading; check the relationship chain |
@@ -260,7 +260,7 @@ Full contributing guidelines are in [docs/backend/CONTRIBUTING.md](docs/backend/
 4. **All colors via CSS custom properties** — never use hardcoded hex values; use `var(--token-name)`.
 5. **New database tables require a seeder** — add a corresponding seeder class and register it in `DatabaseSeeder`.
 6. **No business logic in controllers** — delegate to service classes.
-7. **Run `php artisan test` before committing** — all 308 tests must pass.
+7. **Run `php artisan test` before committing** — all 334 tests must pass.
 
 ---
 
@@ -268,7 +268,7 @@ Full contributing guidelines are in [docs/backend/CONTRIBUTING.md](docs/backend/
 
 | Component | Status | Detail |
 |-----------|--------|--------|
-| Backend API | Complete | 308 passing tests, 0 known security vulnerabilities |
+| Backend API | Complete | 334 passing tests, 0 known security vulnerabilities |
 | Frontend application | Complete | All four portals fully implemented and wired to API |
 | Authentication and MFA | Complete | Login, registration, TOTP MFA, password reset |
 | Applicant portal | Complete | Dashboard, application form, camper view, inbox, profile, settings |

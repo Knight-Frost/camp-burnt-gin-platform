@@ -308,11 +308,11 @@ tests/
 **Roles:**
 - `super_admin` — Absolute system authority, delegation governance, role management
 - `admin` — Full operational access, application review, reporting
-- `parent` — Own campers and applications only
+- `applicant` — Own campers and applications only (displayed as "Parent" in the UI)
 - `medical` — Medical information access via provider links (token-based, no user account)
 
 **Hierarchical Authority:**
-- super_admin > admin > parent > medical
+- super_admin > admin > applicant > medical
 - super_admin inherits admin privileges via isAdmin() override
 - Only super_admin can assign roles and manage delegation
 

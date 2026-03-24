@@ -380,7 +380,7 @@ All critical and high-priority issues were resolved. The codebase passes backend
 
 #### Medium Priority
 
-3. **Token storage review**: The `MEMORY.md` project documentation incorrectly states token is stored in `localStorage`. Actual storage is `sessionStorage`. The documentation should be corrected to prevent future developer confusion.
+3. ~~**Token storage review**: The `MEMORY.md` project documentation incorrectly states token is stored in `localStorage`. Actual storage is `sessionStorage`. The documentation should be corrected to prevent future developer confusion.~~ **RESOLVED (BUG-075, 2026-03-12):** The implementation was changed to `localStorage` (not sessionStorage). All `sessionStorage` calls in `LoginPage.tsx`, `useAuthInit.ts`, `axios.config.ts`, and `auth.api.ts` were migrated to `localStorage` under key `auth_token`. Documentation has been updated accordingly.
 
 4. **Form Builder field key change protection**: The `FormFieldKeyChangeException` correctly prevents field_key renames when applications exist. However, there is no UI-level pre-check warning before the admin initiates the rename — the error only surfaces on save. A pre-flight check on the edit field modal would improve UX.
 

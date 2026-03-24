@@ -8,7 +8,7 @@ Full API reference: `frontend/src/features/*/api/*.ts` (source of truth)
 
 HIPAA-compliant camp management app — registrations, medical records, parent-staff comms, admin ops.
 
-**Backend**: Laravel 12, PHP 8.2+, Sanctum 4.2, MySQL 8.0. 308 tests passing. Production-ready.
+**Backend**: Laravel 12, PHP 8.2+, Sanctum 4.2, MySQL 8.0. 334 tests passing. Production-ready.
 **Frontend**: React 18, TypeScript 5 (strict), Tailwind 3, Framer Motion 12, Vite 5.
 
 ### Users & Roles
@@ -57,7 +57,7 @@ Camp_Burnt_Gin_Project/
 - **Permanent light mode**: no dark mode toggle. `:root` has light values only.
 - **Design tokens**: `frontend/src/assets/styles/design-tokens.css`
 - **Routing**: `frontend/src/core/routing/index.tsx` — 4 portal layouts
-- **State**: Redux Toolkit (in-memory). Auth token manually persisted to `sessionStorage` — no redux-persist library.
+- **State**: Redux Toolkit (in-memory). Auth token manually persisted to `localStorage` under key `auth_token` — no redux-persist library.
 - **Styling**: Tailwind CSS + CSS custom properties. All colors via `var(--token)`.
 
 ### Key File Paths

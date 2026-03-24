@@ -78,7 +78,7 @@ Client Request                    Server Processing
 2. Check email uniqueness
 3. Hash password using bcrypt (cost factor 14)
 4. Create user record
-5. Assign default role (parent)
+5. Assign default role (applicant)
 6. Generate API token
 7. Return user and token
 
@@ -410,36 +410,36 @@ class CamperPolicy
 {
     public function viewAny(User $user): bool
     {
-        // Admins and parents can list campers
-        // Parents see only their own campers (filtered in controller)
+        // Admins and applicants can list campers
+        // Applicants see only their own campers (filtered in controller)
         // Medical providers cannot list campers
-        return $user->isAdmin() || $user->isParent();
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     public function view(User $user, Camper $camper): bool
     {
         // Admins can view any camper
-        // Parents can view only their own campers
+        // Applicants can view only their own campers
         return $user->isAdmin() || $user->ownsCamper($camper);
     }
 
     public function create(User $user): bool
     {
-        // Admins and parents can create campers
-        return $user->isAdmin() || $user->isParent();
+        // Admins and applicants can create campers
+        return $user->isAdmin() || $user->isApplicant();
     }
 
     public function update(User $user, Camper $camper): bool
     {
         // Admins can update any camper
-        // Parents can update only their own campers
+        // Applicants can update only their own campers
         return $user->isAdmin() || $user->ownsCamper($camper);
     }
 
     public function delete(User $user, Camper $camper): bool
     {
         // Admins can delete any camper
-        // Parents can delete only their own campers
+        // Applicants can delete only their own campers
         return $user->isAdmin() || $user->ownsCamper($camper);
     }
 }
@@ -473,8 +473,8 @@ class ConversationPolicy
             return true;
         }
 
-        // Parents can only create conversations with admins (no parent-to-parent)
-        if ($user->isParent()) {
+        // Applicants can only create conversations with admins (no applicant-to-applicant)
+        if ($user->isApplicant()) {
             return !$hasNonAdminParticipants;
         }
 
@@ -574,6 +574,8 @@ class MessagePolicy
 | Archive conversation | Yes (if participant) | Yes (if participant) | No |
 | Add participant | Yes (any) | Yes (own conversations) | No |
 | Leave conversation | Yes | Yes | No |
+
+> **Note:** In the table above, "Parent" refers to the `applicant` role. The system uses the role slug `applicant` internally; "parent" is the user-facing label only.
 
 **Key Design Principles:**
 

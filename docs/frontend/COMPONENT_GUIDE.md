@@ -147,7 +147,7 @@ import { Select } from '@/ui/components';
 
 const roleOptions = [
   { value: 'admin', label: 'Administrator' },
-  { value: 'parent', label: 'Applicant' },
+  { value: 'applicant', label: 'Applicant' },
   { value: 'medical', label: 'Medical Staff' },
 ];
 

@@ -23,7 +23,7 @@ The system implements a four-tier role hierarchy:
 - Assign and modify user roles (delegation governance)
 - Create and delete roles
 - Promote users to admin or super_admin
-- Demote users from admin to parent
+- Demote users from admin to applicant
 - Delete users (with safeguards to prevent deletion of last super_admin)
 - Manage system-wide authorization policies
 
@@ -112,7 +112,7 @@ The system implements a four-tier role hierarchy:
 
 ### Camper Management
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all campers | Yes | Own only | Yes (read-only, clinical workflow) |
 | View any camper | Yes | Own only | Yes (read-only, for clinical context) |
@@ -124,7 +124,7 @@ The system implements a four-tier role hierarchy:
 
 ### Application Management
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all applications | Yes | Own only | No |
 | View any application | Yes | Own only | No |
@@ -136,7 +136,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medical Records
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all medical records | Yes | No | Yes |
 | View any medical record | Yes | Own campers only | Yes |
@@ -146,7 +146,7 @@ The system implements a four-tier role hierarchy:
 
 ### Allergies
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all allergies | Yes | No | Yes |
 | View any allergy | Yes | Own campers only | Yes |
@@ -158,7 +158,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medications
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all medications | Yes | No | Yes |
 | View any medication | Yes | Own campers only | Yes |
@@ -170,7 +170,7 @@ The system implements a four-tier role hierarchy:
 
 ### Emergency Contacts
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all contacts | Yes | No | Yes |
 | View any contact | Yes | Own campers only | Yes |
@@ -180,7 +180,7 @@ The system implements a four-tier role hierarchy:
 
 ### Documents
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all documents | Yes | Own only | Camper + Medical Record docs |
 | View any document | Yes | Own only | Camper + Medical Record docs |
@@ -190,7 +190,7 @@ The system implements a four-tier role hierarchy:
 
 ### Treatment Logs
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List treatment logs | Yes | No | Yes (all campers) |
 | View any treatment log | Yes | No | Yes |
@@ -200,7 +200,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medical Incidents
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all incidents | Yes | No | Yes |
 | View any incident | Yes | No | Yes |
@@ -212,7 +212,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medical Follow-Ups
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all follow-ups | Yes | No | Yes |
 | View any follow-up | Yes | No | Yes |
@@ -224,7 +224,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medical Visits
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all visits | Yes | No | Yes |
 | View any visit | Yes | No | Yes |
@@ -236,7 +236,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medical Restrictions
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all restrictions | Yes | No | Yes (read-only) |
 | View any restriction | Yes | No | Yes |
@@ -248,7 +248,7 @@ The system implements a four-tier role hierarchy:
 
 ### Medical Provider Links
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List all links | Yes | Own only | No |
 | View any link | Yes | Own only | No |
@@ -302,7 +302,7 @@ The system implements a four-tier role hierarchy:
 
 ### Reports
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | Applications report | Yes | No | No |
 | Accepted applicants | Yes | No | No |
@@ -312,7 +312,7 @@ The system implements a four-tier role hierarchy:
 
 ### Camp Management
 
-| Operation | Admin | Parent | Medical |
+| Operation | Admin | Applicant | Medical |
 |-----------|-------|--------|---------|
 | List camps | Yes | Yes (read) | No |
 | View camp | Yes | Yes (read) | No |
@@ -342,7 +342,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 });
 
 // Multi-role routes
-Route::middleware(['auth:sanctum', 'role:admin,parent'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin,applicant'])->group(function () {
     Route::get('/campers', [Camper\CamperController::class, 'index']);
 });
 ```
@@ -369,7 +369,7 @@ Controllers scope queries based on role:
 ```php
 if ($user->isAdmin()) {
     $campers = Camper::all();
-} elseif ($user->isParent()) {
+} elseif ($user->isApplicant()) {
     $campers = $user->campers; // Only owned campers
 }
 ```
@@ -410,7 +410,7 @@ php artisan migrate:fresh --seed
 ```
 
 This command:
-1. Creates all four roles (super_admin, admin, parent, medical) via RoleSeeder
+1. Creates all four roles (super_admin, admin, applicant, medical) via RoleSeeder
 2. Creates a default super_admin user (email: admin@campburntgin.org)
 3. Ensures idempotent seeding (safe to run multiple times)
 

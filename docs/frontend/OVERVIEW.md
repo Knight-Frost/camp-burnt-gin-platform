@@ -24,7 +24,7 @@ Production-grade, HIPAA-conscious frontend for the Camp Burnt Gin camp registrat
 | Backend API | Laravel 12 REST API |
 | Compliance | HIPAA-conscious, WCAG 2.1 AA |
 | Architecture | Feature-Driven Architecture (FDA) |
-| Auth Strategy | Bearer token (Redux-persist, sessionStorage) |
+| Auth Strategy | Bearer token (Redux-persist, localStorage key: `auth_token`) |
 | i18n | English and Spanish |
 
 ---
@@ -100,7 +100,7 @@ The application serves four role-based portals, each with its own layout, naviga
 
 | Portal | URL Prefix | Role | Key Features |
 |--------|-----------|------|--------------|
-| Applicant | `/parent` | `parent` | Application form, camper view, inbox, profile |
+| Applicant | `/applicant` | `applicant` | Application form, camper view, inbox, profile |
 | Admin | `/admin` | `admin`, `super_admin` | Applications, campers, sessions, reports, calendar, announcements, inbox |
 | Medical | `/medical` | `medical` | Medical records browser |
 | Super Admin | `/super-admin` | `super_admin` | User management, audit log, form templates, all admin features |
@@ -126,7 +126,7 @@ The application serves four role-based portals, each with its own layout, naviga
 
 | Control | Implementation |
 |---------|---------------|
-| Token storage | sessionStorage via redux-persist (per-tab isolation) |
+| Token storage | localStorage via redux-persist (key: `auth_token`, persists across reloads) |
 | Token expiration | 30 minutes (enforced by backend Sanctum configuration) |
 | Mid-session 401 | Axios interceptor fires `auth:unauthorized` event → `clearAuth()` + redirect to `/login` |
 | PHI in logs | `phiSanitizer.ts` strips 24 PHI fields before any console output; Redux DevTools middleware strips PHI |

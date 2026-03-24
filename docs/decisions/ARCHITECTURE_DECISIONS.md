@@ -418,34 +418,34 @@ The application serves four distinct user roles across multiple feature domains 
 
 ---
 
-## ADR-012: Redux Toolkit with Session Storage Persistence (Frontend)
+## ADR-012: Redux Toolkit with Local Storage Token Persistence (Frontend)
 
-**Status:** Accepted
+**Status:** Accepted (revised 2026-03-12 via BUG-075)
 **Date:** 2026-01
 **Decision Makers:** Frontend Team
 
 ### Decision
 
-Use Redux Toolkit for global state management with `redux-persist` configured to use `sessionStorage` (not `localStorage`).
+Use Redux Toolkit for global state management. Auth token manually persisted to `localStorage` under key `auth_token` — no redux-persist library is used for auth.
 
 ### Context
 
-The auth slice (user object and token) must persist across page refreshes within a session, but must not persist across browser restarts or be shared between tabs. `localStorage` shares state across tabs and survives browser restarts, which creates security concerns for a PHI-handling application.
+The original design stored the token in `sessionStorage` for per-tab isolation. This was reversed in BUG-075 (2026-03-12) after it caused auth state loss on page refresh across all browsers. The token is now stored in `localStorage` so that users can refresh the page or open a new tab without being logged out. The 30-minute Sanctum token expiration provides the primary session timeout enforcement.
 
 ### Consequences
 
 **Positive:**
-- Token survives page refresh within the same browser session
-- Per-tab isolation: each tab maintains an independent session
-- State is cleared when the browser is closed
-- No cross-tab session bleeding
+- Token survives page refresh and new tabs (no unexpected logouts)
+- `useAuthInit` on app load reads `localStorage` → validates via `GET /user` → restores Redux auth state
+- Single source of truth: `axios.config.ts` reads from `localStorage` key `auth_token`
 
 **Negative:**
-- Users must re-authenticate in each new tab
-- Shared-computer users cannot share sessions between tabs (this is the intended behavior)
+- Token persists across browser restarts (mitigated by 30-minute server-side token expiration)
+- Token is shared between tabs (tabs share the same session, which is acceptable)
 
 **Mitigations:**
-- `useAuthInit` rehydrates auth state on load and validates the persisted token
+- Sanctum token expiration (30 minutes) enforces session timeout regardless of client storage
+- Token is cleared on explicit logout (`POST /auth/logout` + `localStorage.removeItem('auth_token')`)
 
 ---
 

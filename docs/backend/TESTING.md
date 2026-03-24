@@ -1,6 +1,6 @@
 # Camp Burnt Gin API - Testing Guide
 
-**Test Suite Status:** 254 passing (100%) | **Runtime:** < 3 seconds | **Assertions:** 475+
+**Test Suite Status:** 334 passing (100%) | **Runtime:** < 3 seconds | **Assertions:** 600+
 
 ---
 
@@ -31,7 +31,7 @@ php artisan test
 
 **Expected output:**
 ```
-Tests:    254 passed (475 assertions)
+Tests:    334 passed (600+ assertions)
 Duration: < 3 seconds
 ```
 
@@ -105,7 +105,7 @@ The test environment is configured for fast, deterministic testing:
 | Validation | 26 | `tests/Feature/Api/ValidationTest.php` | Input validation rules |
 | Integration | 30+ | `tests/Feature/Api/` | Complete API workflows |
 
-**Total:** 254 tests, 475+ assertions
+**Total:** 334 tests, 600+ assertions
 
 ---
 
@@ -145,11 +145,11 @@ php artisan test --stop-on-failure
    PASS  Tests\Feature\Security\AccountLockoutTest
    PASS  Tests\Feature\Regression\QueuedNotificationsTest
 
-Tests:    254 passed (475 assertions)
+Tests:    334 passed (600+ assertions)
 Duration: 2.91s
 ```
 
-All 254 tests should pass consistently. If any tests fail:
+All 334 tests should pass consistently. If any tests fail:
 1. Check database connectivity
 2. Verify `.env.testing` configuration
 3. Run `php artisan optimize:clear`
@@ -466,10 +466,10 @@ Duration: 1.2s
 The system enforces four user roles with hierarchical authority:
 - **Super Admin**: Absolute system authority and delegation governance
 - **Admin**: Full operational access (inherits from super_admin authority model)
-- **Parent**: Access to own children only
-- **Medical**: Access to medical data only (view-only)
+- **Applicant**: Access to own children and applications only (displayed as "Parent" in UI)
+- **Medical**: Access to medical data for clinical workflows
 
-**Hierarchy:** super_admin > admin > parent > medical
+**Hierarchy:** super_admin > admin > applicant > medical
 
 ### Authorization Test Coverage
 
@@ -482,9 +482,9 @@ php artisan test tests/Feature/Api/CamperAuthorizationTest.php
 php artisan test tests/Feature/Api/ApplicationAuthorizationTest.php
 ```
 
-### Parent Role Restrictions
+### Applicant Role Restrictions
 
-**What Parents CAN Do:**
+**What Applicants CAN Do:**
 - View and edit their own profile
 - Create and manage their own campers (children)
 - Create and submit applications for their campers
@@ -492,8 +492,8 @@ php artisan test tests/Feature/Api/ApplicationAuthorizationTest.php
 - Upload documents for their campers
 - Create medical provider links for their campers
 
-**What Parents CANNOT Do:**
-- View other parents' campers or applications (HTTP 403)
+**What Applicants CANNOT Do:**
+- View other applicants' campers or applications (HTTP 403)
 - Approve or reject applications (HTTP 403)
 - Access administrative reports (HTTP 403)
 - Create or modify camps/sessions (HTTP 403)
@@ -629,8 +629,8 @@ docker-compose exec app bash -c "
 
 ### Current Performance
 
-- **Runtime:** 2.91 seconds for 254 tests
-- **Pass rate:** 100% (254/254)
+- **Runtime:** < 3 seconds for 334 tests
+- **Pass rate:** 100% (334/334)
 - **Test reliability:** 100% deterministic
 - **No external dependencies:** No workers, SMTP, or services required
 
@@ -812,7 +812,7 @@ use App\Http\Controllers\Api\Medical\MedicalRecordController;
 | Inbox Messaging | 32 | Complete |
 | Validation | 26 | Complete |
 | Integration | 30+ | Complete |
-| **Total** | **254** | **100% Pass** |
+| **Total** | **334** | **100% Pass** |
 
 ### Key Testing Features
 
@@ -841,7 +841,7 @@ use App\Http\Controllers\Api\Medical\MedicalRecordController;
 
 4. **Authorization tests** (6 test files, 90+ tests)
    - Policy enforcement for all resources
-   - Role-based access control (Admin, Parent, Medical)
+   - Role-based access control (Admin, Applicant, Medical)
    - Ownership validation
    - Cross-user access prevention
 
@@ -890,7 +890,7 @@ php artisan test --filter AuthorizationTest
 ---
 
 **Status:** Production-Ready
-**Test Coverage:** 100% pass rate (254/254 tests)
+**Test Coverage:** 100% pass rate (334/334 tests)
 **Maintenance:** All tests deterministic and maintainable
 **Last Updated:** February 2026
 
