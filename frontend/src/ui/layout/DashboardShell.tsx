@@ -26,14 +26,16 @@
  *   </div>
  */
 
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { DashboardSidebar, type NavItem } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
+import { BackgroundSlideshow } from '@/ui/components/BackgroundSlideshow';
 import {
   BackgroundBrightnessProvider,
   useBackgroundTone,
+  type BgTone,
 } from '@/ui/context/BackgroundBrightnessContext';
 
 interface DashboardShellProps {
@@ -64,7 +66,10 @@ function ShellInner({
   children,
 }: DashboardShellProps) {
   const location = useLocation();
-  const { tone } = useBackgroundTone();
+  const { tone, setTone } = useBackgroundTone();
+
+  // Wire BackgroundSlideshow tone changes into the context so CSS adapts.
+  const handleToneChange = useCallback((next: BgTone) => setTone(next), [setTone]);
 
   const currentTitle = useMemo(
     () => deriveTitleFromPath(location.pathname) || pageTitle,
@@ -84,6 +89,9 @@ function ShellInner({
      * root stacking context (no ancestor stacking context blocking them).
      */
     <div className="flex h-screen overflow-hidden" data-bg-tone={tone}>
+      {/* Full-viewport background slideshow — fixed, z-index:-1, behind all content */}
+      <BackgroundSlideshow onToneChange={handleToneChange} />
+
       {/* Left sidebar — fixed width, never scrolls with the page content */}
       <DashboardSidebar navItems={navItems} pinnedBottomItems={pinnedBottomItems} />
 

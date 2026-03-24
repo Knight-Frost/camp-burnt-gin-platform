@@ -23,7 +23,14 @@ export function AuthLayout() {
   //  • visiting /login while already holding a valid session.
   // The `from` state is passed through so ProtectedRoute can send the user to
   // the page they originally tried to reach.
-  if (!isLoading && isAuthenticated && user) {
+  //
+  // Only redirect to the dashboard if the user is fully authenticated AND
+  // their email is verified. Unverified users need to stay on auth pages
+  // (verify-email, login) — redirecting them away creates an infinite loop
+  // with ProtectedRoute, which sends unverified users back to /verify-email.
+  const emailVerified = Boolean(user?.email_verified_at);
+
+  if (!isLoading && isAuthenticated && user && emailVerified) {
     const role = getPrimaryRole(user.roles ?? []);
     // Guard: if role is unresolved, don't redirect — avoids infinite loop when
     // getDashboardRoute(null) returns '/login' while isAuthenticated is true.
