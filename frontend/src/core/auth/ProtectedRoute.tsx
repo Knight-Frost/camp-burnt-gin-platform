@@ -21,7 +21,7 @@ import { FullPageLoader } from '@/ui/components/FullPageLoader';
 
 export function ProtectedRoute() {
   // Read auth state from Redux — this is the single source of truth for login status
-  const { isAuthenticated, isLoading, mfaRequired, mfaVerified } =
+  const { isAuthenticated, isLoading, mfaRequired, mfaVerified, user } =
     useAppSelector((state) => state.auth);
   // useLocation tells us which URL the user is currently trying to visit
   const location = useLocation();
@@ -46,6 +46,12 @@ export function ProtectedRoute() {
   // Check 3: Account requires MFA but user hasn't completed it yet
   if (mfaRequired && !mfaVerified) {
     return <Navigate to={ROUTES.MFA_VERIFY} replace />;
+  }
+
+  // Check 4: Email not yet verified — all protected API routes require a verified email.
+  // Redirect to the pending-verification screen rather than letting dashboard calls fail.
+  if (user && !user.email_verified_at) {
+    return <Navigate to="/verify-email?pending=true" replace />;
   }
 
   // All checks passed — render the nested child route

@@ -127,6 +127,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Logout — unverified users must be able to revoke their token
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
+    // GET /user — returns the authenticated user's profile with role.
+    // Must be accessible to unverified users so the frontend can restore the session
+    // on page refresh and check email_verified_at before routing the user.
+    Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
+
     // MFA routes — MFA verification is part of authentication; must not require verified email
     Route::prefix('mfa')->middleware('throttle:mfa')->group(function () {
         // Step 1: Generate secret + QR code for the user to scan
@@ -153,14 +158,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 |
 */
 Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function () {
-    /*
-    |--------------------------------------------------------------------------
-    | Current User Routes
-    |--------------------------------------------------------------------------
-    */
-    // GET /user — returns the authenticated user's profile with role
-    Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
-
     /*
     |--------------------------------------------------------------------------
     | User Profile Routes

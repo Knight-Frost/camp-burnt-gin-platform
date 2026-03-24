@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -49,7 +50,15 @@ class AuthController extends Controller
         $user = $this->authService->register($request->validated());
 
         // Trigger email verification notification.
-        $user->sendEmailVerificationNotification();
+        // Wrapped in try-catch so an SMTP failure does not roll back a successful registration.
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send email verification notification', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+        }
 
         // Create a personal API token — the plain-text value is only available here; store it securely on the client.
         $token = $user->createToken('auth-token')->plainTextToken;

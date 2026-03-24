@@ -26,7 +26,8 @@ import { AuthCard } from '@/features/auth/components/AuthCard';
 import { Button } from '@/ui/components/Button';
 
 // Represents every possible state the verification flow can be in.
-type VerifyState = 'verifying' | 'success' | 'error' | 'resent';
+// 'pending' = just registered, waiting for the user to check their inbox.
+type VerifyState = 'verifying' | 'success' | 'error' | 'resent' | 'pending';
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
@@ -39,6 +40,13 @@ export function VerifyEmailPage() {
     // Skip if this effect has already run once.
     if (hasRun.current) return;
     hasRun.current = true;
+
+    // ?pending=true means the user just registered — skip the verify request and
+    // show the "check your inbox" screen with a resend button.
+    if (searchParams.get('pending') === 'true') {
+      setState('pending');
+      return;
+    }
 
     // Pull all four required params from the URL.
     const id        = searchParams.get('id')        ?? '';
@@ -121,6 +129,28 @@ export function VerifyEmailPage() {
             <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
               A new verification link has been sent to your email address.
             </p>
+          </div>
+        );
+
+      // ── Pending: just registered, waiting for user to check inbox ──
+      case 'pending':
+        return (
+          <div className="flex flex-col items-center gap-5 py-4">
+            <div
+              className="flex items-center justify-center w-16 h-16 rounded-2xl"
+              style={{ background: 'var(--glass-icon-bg)' }}
+            >
+              <Mail className="h-8 w-8 text-ember-orange" />
+            </div>
+            <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
+              We sent a verification link to your email address. Click the link to activate your account, then sign in.
+            </p>
+            <Button onClick={handleResend} loading={resending} variant="secondary">
+              Resend verification email
+            </Button>
+            <Link to={ROUTES.LOGIN} className="text-sm text-ember-orange hover:underline">
+              Back to sign in
+            </Link>
           </div>
         );
 

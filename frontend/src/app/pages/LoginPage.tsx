@@ -107,6 +107,11 @@ export function LoginPage() {
       dispatch(setUser(user));
       // hydrateAuth syncs the Redux slice with the token in localStorage.
       dispatch(hydrateAuth());
+      // Unverified accounts cannot access protected API routes — send them to verify first.
+      if (!(user as User).email_verified_at) {
+        navigate('/verify-email?pending=true', { replace: true });
+        return;
+      }
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
       // Send the user to the dashboard that matches their primary role.
       const role = getPrimaryRole((user as User).roles ?? []);
@@ -198,6 +203,10 @@ export function LoginPage() {
       dispatch(setToken({ token }));
       dispatch(setUser(user));
       dispatch(hydrateAuth());
+      if (!(user as User).email_verified_at) {
+        navigate('/verify-email?pending=true', { replace: true });
+        return;
+      }
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
       const mfaRole = getPrimaryRole((user as User).roles ?? []);
       if (mfaRole) navigate(getDashboardRoute(mfaRole));
