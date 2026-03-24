@@ -4,6 +4,7 @@ namespace App\Notifications\Camper;
 
 use App\Models\Application;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -20,7 +21,7 @@ use Illuminate\Notifications\Notification;
  * Channel: mail only — formal decisions are communicated by email.
  * Queue: uses Queueable so the email sends asynchronously without slowing the admin UI.
  */
-class RejectionLetterNotification extends Notification
+class RejectionLetterNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

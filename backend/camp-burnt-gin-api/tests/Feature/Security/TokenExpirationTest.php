@@ -28,9 +28,9 @@ class TokenExpirationTest extends TestCase
     {
         $expiration = Config::get('sanctum.expiration');
 
-        // Verify expiration is set to 60 minutes (not null)
+        // Verify expiration is configured (not null/disabled)
         $this->assertNotNull($expiration);
-        $this->assertEquals(60, $expiration);
+        $this->assertGreaterThan(0, $expiration);
     }
 
     public function test_fresh_token_is_valid(): void

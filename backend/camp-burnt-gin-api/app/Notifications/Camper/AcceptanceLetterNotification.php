@@ -4,6 +4,7 @@ namespace App\Notifications\Camper;
 
 use App\Models\Application;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -20,7 +21,7 @@ use Illuminate\Notifications\Notification;
  * Channel: mail only — the formal letter is delivered by email, not as an in-app notification.
  * Queue: uses Queueable so the email sends asynchronously without slowing the admin UI.
  */
-class AcceptanceLetterNotification extends Notification
+class AcceptanceLetterNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
