@@ -14,7 +14,7 @@ HIPAA-compliant camp management app — registrations, medical records, parent-s
 ### Users & Roles
 | Role | Prefix | Access |
 |---|---|---|
-| `parent` | `/parent` | Own campers, applications, inbox |
+| `applicant` | `/applicant` | Own campers, applications, inbox |
 | `admin` | `/admin` | All applications, campers, sessions, reports |
 | `medical` | `/medical` | Medical records (read) |
 | `super_admin` | `/super-admin` | All admin + users + audit log |
@@ -28,7 +28,7 @@ All portals are complete and wired to the API.
 | Area | Status |
 |---|---|
 | Auth pages (login/register/MFA/forgot/reset) | Complete — wired to API |
-| Parent portal (dashboard, applications, campers, inbox, profile) | Complete |
+| Applicant portal (dashboard, applications, campers, inbox, profile) | Complete |
 | Admin portal (dashboard, applications, campers, sessions, reports, calendar, announcements) | Complete |
 | Medical portal (dashboard, medical records browser) | Complete |
 | Super-admin portal (dashboard, user management, audit log, form templates) | Complete |
@@ -57,7 +57,7 @@ Camp_Burnt_Gin_Project/
 - **Permanent light mode**: no dark mode toggle. `:root` has light values only.
 - **Design tokens**: `frontend/src/assets/styles/design-tokens.css`
 - **Routing**: `frontend/src/core/routing/index.tsx` — 4 portal layouts
-- **State**: Redux Toolkit + redux-persist (auth slice only)
+- **State**: Redux Toolkit (in-memory). Auth token manually persisted to `sessionStorage` — no redux-persist library.
 - **Styling**: Tailwind CSS + CSS custom properties. All colors via `var(--token)`.
 
 ### Key File Paths

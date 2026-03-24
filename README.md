@@ -45,7 +45,7 @@ Camp Burnt Gin provides four role-based portals for applicants (parents), admini
 |-------|-----------|
 | Backend | Laravel 12, PHP 8.2+, MySQL 8.0, Laravel Sanctum 4.2 |
 | Frontend | React 18, TypeScript 5 (strict mode), Tailwind CSS 3, Vite 5 |
-| State Management | Redux Toolkit 2 + redux-persist (sessionStorage) |
+| State Management | Redux Toolkit 2 (in-memory; auth token persisted to sessionStorage manually) |
 | Animation | Framer Motion 12 |
 | Internationalization | i18next 25 (English and Spanish) |
 | Testing | PHPUnit (backend), Vitest (frontend) |
@@ -102,7 +102,7 @@ Camp_Burnt_Gin_Project/
 
 | Portal | URL Prefix | Role | Key Features |
 |--------|-----------|------|--------------|
-| Applicant | `/parent` | `parent` | Dashboard, application form, camper view, inbox, profile, documents, settings |
+| Applicant | `/applicant` | `applicant` | Dashboard, application form, camper view, inbox, profile, documents, settings |
 | Admin | `/admin` | `admin`, `super_admin` | Applications, campers, sessions, reports, calendar, announcements, inbox |
 | Medical | `/medical` | `medical` | Dashboard, medical records browser, incidents, follow-ups, visits |
 | Super Admin | `/super-admin` | `super_admin` | User management, audit log, form builder, all admin features |
@@ -121,8 +121,11 @@ cp .env.example .env
 composer install
 php artisan key:generate
 php artisan migrate --seed
+php artisan storage:link
 php artisan serve
 ```
+
+> **Email verification:** All protected routes require a verified email address. New registrations must verify their email before they can access the app. In local development, set `MAIL_MAILER=log` in `.env` and retrieve the verification link from `storage/logs/laravel.log`. For Docker setups, use Mailhog at http://localhost:8025.
 
 Full setup instructions: [docs/backend/SETUP.md](docs/backend/SETUP.md)
 
@@ -131,7 +134,7 @@ Full setup instructions: [docs/backend/SETUP.md](docs/backend/SETUP.md)
 ```bash
 cd frontend
 cp .env.example .env.local
-# Set VITE_API_BASE_URL=http://localhost:8000
+# .env.example already sets VITE_API_BASE_URL=http://localhost:8000 — no edits needed for default local setup
 pnpm install
 pnpm run dev
 # Application available at http://localhost:5173

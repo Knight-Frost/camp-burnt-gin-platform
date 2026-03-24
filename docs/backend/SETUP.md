@@ -59,9 +59,11 @@ docker-compose up -d
 
 # 3. Seed the database (roles, default admin user, form definitions)
 docker-compose exec app php artisan db:seed
-docker-compose exec app php artisan db:seed --class=FormDefinitionSeeder
 
-# 4. Run tests to verify
+# 4. Link storage for file uploads
+docker-compose exec app php artisan storage:link
+
+# 5. Run tests to verify
 docker-compose exec app php artisan test
 ```
 
@@ -278,6 +280,14 @@ REDIS_HOST=127.0.0.1
 MAIL_HOST=127.0.0.1
 ```
 
+If you do not have a local mail server (Mailhog, Mailtrap, etc.), use the log driver instead:
+
+```env
+MAIL_MAILER=log
+```
+
+Emails will be written to `storage/logs/laravel.log`. This is sufficient for development — retrieve verification links with `grep "verify-email" storage/logs/laravel.log`.
+
 ---
 
 ## Running the Application
@@ -357,6 +367,16 @@ php artisan test
 
 ## Database Management
 
+### Storage Link
+
+Required for file uploads (document requests, medical documents) to be publicly accessible:
+
+```bash
+php artisan storage:link
+```
+
+This creates a `public/storage` symlink pointing to `storage/app/public`. Run once after initial setup.
+
 ### Migrations
 
 ```bash
@@ -392,6 +412,8 @@ php artisan db:seed --class=RoleSeeder
 
 **Idempotency:** Seeders are safe to run multiple times. Existing roles and users will not be duplicated.
 
+> **Note:** `FormDefinitionSeeder` is included in the default `DatabaseSeeder` and runs automatically with `php artisan db:seed`. You do not need to run it separately.
+
 ---
 
 ## Frontend Setup
@@ -407,16 +429,38 @@ The frontend is a separate Vite + React app and is **not included in the Docker 
 ```bash
 cd frontend
 
+# Copy environment file — default values work for local development
+cp .env.example .env.local
+
 # Install dependencies
 pnpm install
 
-# Start dev server (proxies API to http://localhost:8000)
+# Start dev server
 pnpm dev
 ```
 
 The frontend runs at **http://localhost:5173** by default.
 
 > **CORS:** The backend is pre-configured to allow `http://localhost:5173` and `http://localhost:5174`. No changes needed for local development.
+
+### Email Verification — Critical for New User Flow
+
+All protected routes require email verification. When a new user registers:
+
+1. They are redirected to `/verify-email?pending=true` and cannot access the app until verified.
+2. A verification email is dispatched via your configured mailer.
+
+**For local development without a real mail server:**
+
+Set `MAIL_MAILER=log` in the backend `.env`. Verification emails are written to `storage/logs/laravel.log`. Retrieve the link with:
+
+```bash
+grep "verify-email" storage/logs/laravel.log | tail -1
+```
+
+**For Docker:** Mailhog captures all outgoing email — open http://localhost:8025 to find the verification link.
+
+Without a working mailer or the log workaround, new registrations will be stuck on the verify-email screen indefinitely.
 
 ---
 
