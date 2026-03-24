@@ -392,7 +392,7 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TD
-    A[Admin: POST /applications/{id}/review] --> B[ApplicationController::review]
+    A[Admin: POST /applications/:id/review] --> B[ApplicationController::review]
     B --> C{authorize review}
     C -->|denied| D[403 Forbidden]
     C -->|allowed| E[ApplicationService::reviewApplication]
@@ -427,7 +427,7 @@ flowchart LR
     C --> D[docRequest.conversation_id = conversation.id]
     D --> E[Applicant sees request in inbox]
 
-    E --> F[Applicant uploads file\nPOST /applicant/document-requests/{id}/upload]
+    E --> F[Applicant uploads file\nPOST /applicant/document-requests/:id/upload]
     F --> G[Old file deleted if exists]
     G --> H[New file stored to local disk]
     H --> I[Status: uploaded\nDB path, name, mime, uploaded_at updated]
