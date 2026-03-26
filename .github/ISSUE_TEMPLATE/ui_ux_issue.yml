@@ -1,8 +1,5 @@
 name: UI / UX Issue
-description: >
-  Something looks wrong, feels confusing, or doesn't behave the way a user
-  would expect — but it isn't necessarily a crash or a data error.
-  Use this form to report visual, layout, usability, or interaction problems.
+description: Report visual, layout, responsiveness, or usability problems — things that look wrong or feel confusing but aren't crashes or data errors.
 title: "[UI/UX] "
 labels: ["ui-ux", "needs-triage"]
 body:
