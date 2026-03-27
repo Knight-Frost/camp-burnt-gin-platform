@@ -7,11 +7,13 @@ use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\Camp\CampController;
+use App\Http\Controllers\Api\Deadline\DeadlineController;
 use App\Http\Controllers\Api\Family\FamilyController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
 use App\Http\Controllers\Api\Camper\CamperController;
+use App\Http\Controllers\Api\Camper\PersonalCarePlanController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
 use App\Http\Controllers\Api\Document\ApplicantDocumentController;
 use App\Http\Controllers\Api\Document\DocumentController;
@@ -20,7 +22,9 @@ use App\Http\Controllers\Api\Form\FormDefinitionController;
 use App\Http\Controllers\Api\Form\FormFieldController;
 use App\Http\Controllers\Api\Form\FormFieldOptionController;
 use App\Http\Controllers\Api\Form\FormSectionController;
+use App\Http\Controllers\Api\Form\FormTemplateController;
 use App\Http\Controllers\Api\Form\PublicFormController;
+use App\Http\Controllers\Api\Form\FormsDownloadController;
 use App\Http\Controllers\Api\Inbox\ConversationController;
 use App\Http\Controllers\Api\Inbox\InboxUserController;
 use App\Http\Controllers\Api\Inbox\MessageController;
@@ -81,6 +85,24 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('/health', [HealthController::class, 'liveness'])->name('health.liveness');
 Route::get('/ready', [HealthController::class, 'readiness'])->name('health.readiness');
+
+/*
+|--------------------------------------------------------------------------
+| Public Form Downloads
+|--------------------------------------------------------------------------
+|
+| Blank application and medical examination forms that families can download
+| before or during the application process. No authentication required so
+| families can access the forms at any point in the workflow.
+|
+*/
+Route::prefix('forms')->group(function () {
+    Route::get('/', [FormsDownloadController::class, 'index'])->name('forms.index');
+    Route::get('/application', [FormsDownloadController::class, 'application'])->name('forms.application');
+    Route::get('/application-spanish', [FormsDownloadController::class, 'applicationSpanish'])->name('forms.application-spanish');
+    Route::get('/medical-exam', [FormsDownloadController::class, 'medicalExam'])->name('forms.medical-exam');
+    Route::get('/cyshcn', [FormsDownloadController::class, 'cyshcn'])->name('forms.cyshcn');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -290,6 +312,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     Route::middleware(['role:applicant'])->group(function () {
         Route::get('/applicant/documents', [ApplicantDocumentController::class, 'applicantList']);
         Route::get('/applicant/applicant-documents/{applicantDocument}/download', [ApplicantDocumentController::class, 'applicantDownload']);
+        Route::get('/applicant/applicant-documents/{applicantDocument}/download-submitted', [ApplicantDocumentController::class, 'applicantDownloadSubmitted']);
         Route::post('/applicant/documents/upload', [ApplicantDocumentController::class, 'applicantSubmit'])
             ->middleware('throttle:uploads');
     });
@@ -399,6 +422,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
         // Runs MedicalAlertService and returns sorted alert list
         Route::get('/{camper}/medical-alerts', [CamperController::class, 'medicalAlerts'])->name('campers.medical-alerts');
+        // Fetch or upsert the camper's ADL personal care plan (Section 6 of the application form).
+        Route::get('/{camper}/personal-care-plan', [PersonalCarePlanController::class, 'show'])->name('campers.personal-care-plan.show');
+        Route::post('/{camper}/personal-care-plan', [PersonalCarePlanController::class, 'store'])->name('campers.personal-care-plan.store');
+        // Upsert extended health profile fields onto the camper's MedicalRecord (Section 2 ext.).
+        Route::post('/{camper}/health-profile', [MedicalRecordController::class, 'storeHealthProfile'])->name('campers.health-profile.store');
     });
 
     /*
@@ -418,10 +446,21 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::put('/{application}', [ApplicationController::class, 'update'])->name('applications.update');
         // Sign an application (parent e-signature step)
         Route::post('/{application}/sign', [ApplicationController::class, 'sign'])->name('applications.sign');
+        // Withdraw an application — parent-initiated only (no admin middleware).
+        // Admins cancel via /review with status=cancelled.
+        Route::post('/{application}/withdraw', [ApplicationController::class, 'withdraw'])->name('applications.withdraw');
+        // Store guardian consent records (5 consents per application, matching CYSHCN paper form).
+        Route::post('/{application}/consents', [ApplicationController::class, 'storeConsents'])->name('applications.consents.store');
+        // Clone an application into a new reapplication draft (same camper, new session).
+        Route::post('/{application}/clone', [ApplicationController::class, 'clone'])->name('applications.clone');
         // Hard delete — admin only
         Route::delete('/{application}', [ApplicationController::class, 'destroy'])
             ->middleware('admin')
             ->name('applications.destroy');
+        // Pre-approval completeness check — read-only; returns structured missing-data report.
+        Route::get('/{application}/completeness', [ApplicationController::class, 'completeness'])
+            ->middleware('admin')
+            ->name('applications.completeness');
         // Approve/reject an application — calls ApplicationService::reviewApplication()
         Route::post('/{application}/review', [ApplicationController::class, 'review'])
             ->middleware('admin')
@@ -725,13 +764,43 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     // Role assignment and account activation/deactivation
     Route::middleware('role:super_admin')->prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('users.index');
+        // Super-admin direct account creation for staff (admin/medical/super_admin roles only)
+        Route::post('/', [UserController::class, 'store'])->name('users.store');
         Route::put('/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
         Route::post('/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
         Route::post('/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
     });
 
+    // ── Deadline Management ────────────────────────────────────────────────────
+    // Single source of truth for all time-based enforcement across sessions.
+    // Write access: admin and super_admin only. Read: any authenticated user (content filtered by role).
+    // Deadline writes automatically sync to calendar_events via DeadlineObserver.
+    Route::prefix('deadlines')->group(function () {
+        // Applicant: own visible deadlines (must be before {deadline} wildcard)
+        Route::get('/my', [DeadlineController::class, 'myDeadlines'])->name('deadlines.my');
+        // Admin: session-wide bulk deadline creation
+        Route::post('/bulk-session', [DeadlineController::class, 'bulkSession'])
+            ->middleware('admin')
+            ->name('deadlines.bulk-session');
+        // CRUD (list/create admin-gated inside controller via policy)
+        Route::get('/', [DeadlineController::class, 'index'])->name('deadlines.index');
+        Route::post('/', [DeadlineController::class, 'store'])->middleware('admin')->name('deadlines.store');
+        Route::get('/{deadline}', [DeadlineController::class, 'show'])->name('deadlines.show');
+        Route::put('/{deadline}', [DeadlineController::class, 'update'])->middleware('admin')->name('deadlines.update');
+        Route::delete('/{deadline}', [DeadlineController::class, 'destroy'])->middleware('admin')->name('deadlines.destroy');
+        // Admin actions: extend due date or manually complete (override enforcement)
+        Route::post('/{deadline}/extend', [DeadlineController::class, 'extend'])
+            ->middleware('admin')
+            ->name('deadlines.extend');
+        Route::post('/{deadline}/complete', [DeadlineController::class, 'complete'])
+            ->middleware('admin')
+            ->name('deadlines.complete');
+    });
+
     // ── Calendar Events ────────────────────────────────────────────────────────
-    // Camp calendar visible to all authenticated users; only admins can modify
+    // Camp calendar visible to all authenticated users; only admins can modify.
+    // NOTE: event_type='deadline' is managed exclusively by the deadline system above.
+    // CalendarEventController blocks manual creation/editing of deadline-type events.
     Route::prefix('calendar')->group(function () {
         Route::get('/', [CalendarEventController::class, 'index'])->name('calendar.index');
         Route::get('/{calendarEvent}', [CalendarEventController::class, 'show'])->name('calendar.show');
@@ -754,9 +823,9 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             Route::get('/', [ConversationController::class, 'index'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.index');
-            // Create a new conversation — throttled to 5 per hour to prevent spam
+            // Create a new conversation — throttled to 30 per hour to prevent spam
             Route::post('/', [ConversationController::class, 'store'])
-                ->middleware('throttle:5,60')
+                ->middleware('throttle:30,60')
                 ->name('inbox.conversations.store');
             // View a specific conversation and its messages
             Route::get('/{conversation}', [ConversationController::class, 'show'])
@@ -798,6 +867,14 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             Route::post('/{conversation}/restore-trash', [ConversationController::class, 'restoreFromTrash'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.restore-trash');
+            // Mark all messages in conversation as read (per-user)
+            Route::post('/{conversation}/read', [ConversationController::class, 'markRead'])
+                ->middleware('throttle:30,1')
+                ->name('inbox.conversations.mark-read');
+            // Mark conversation as unread by removing latest read receipt (per-user)
+            Route::post('/{conversation}/unread', [ConversationController::class, 'markUnread'])
+                ->middleware('throttle:30,1')
+                ->name('inbox.conversations.mark-unread');
             // Hard delete (soft-delete) — admin only
             Route::delete('/{conversation}', [ConversationController::class, 'destroy'])
                 ->middleware('admin')
@@ -812,6 +889,16 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             Route::post('/{conversation}/messages', [MessageController::class, 'store'])
                 ->middleware('throttle:20,1')
                 ->name('inbox.conversations.messages.store');
+
+            // Reply to a specific message — sends only to the original message's sender
+            Route::post('/{conversation}/reply', [MessageController::class, 'reply'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.reply');
+
+            // Reply All — sends to original sender + all visible TO/CC recipients (BCC excluded by server)
+            Route::post('/{conversation}/reply-all', [MessageController::class, 'replyAll'])
+                ->middleware('throttle:20,1')
+                ->name('inbox.conversations.reply-all');
         });
 
         // ── Message-level Routes ────────────────────────────────────────────────
@@ -870,6 +957,15 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     |   POST   /form/fields/{field}/options/reorder       — batch reorder options
     |
     */
+    // ── Official Form Templates (authenticated download + metadata) ───────────
+    // Authenticated version of the public /api/forms routes — includes audit logging.
+    // The metadata endpoint (index) is available to all authenticated users.
+    // The download endpoint streams blank PDFs with a download audit trail.
+    Route::prefix('form-templates')->group(function () {
+        Route::get('/', [FormTemplateController::class, 'index'])->name('form-templates.index');
+        Route::get('/{type}/download', [FormTemplateController::class, 'download'])->name('form-templates.download');
+    });
+
     Route::prefix('form')->group(function () {
         // ── Public schema endpoints (any authenticated user) ──────────────────
         Route::get('/active', [PublicFormController::class, 'active'])->name('form.active');

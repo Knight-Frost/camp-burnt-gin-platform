@@ -48,8 +48,8 @@ class MedicalRecordAuthorizationTest extends TestCase
     {
         $admin = $this->createAdmin();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
-        MedicalRecord::factory()->forCamper($camper)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
+        MedicalRecord::factory()->forCamper($camper)->create(['is_active' => true]);
 
         $response = $this->actingAs($admin)->getJson('/api/medical-records');
 
@@ -120,8 +120,8 @@ class MedicalRecordAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
-        MedicalRecord::factory()->forCamper($camper)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
+        MedicalRecord::factory()->forCamper($camper)->create(['is_active' => true]);
 
         $response = $this->actingAs($medical)->getJson('/api/medical-records');
 
@@ -133,7 +133,7 @@ class MedicalRecordAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $record = MedicalRecord::factory()->forCamper($camper)->create();
 
         // Create provider link for this camper
@@ -165,7 +165,7 @@ class MedicalRecordAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $record = MedicalRecord::factory()->forCamper($camper)->create();
 
         // Create provider link for this camper

@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api\System;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\StoreUserRequest;
+use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * UserController — Super-admin user management panel.
@@ -33,6 +36,61 @@ use Illuminate\Http\Request;
  */
 class UserController extends Controller
 {
+    /**
+     * Create a new staff user account.
+     *
+     * POST /api/users
+     *
+     * Allows super admins to create admin, medical, or super_admin accounts directly
+     * without requiring those users to self-register and have their role elevated.
+     *
+     * Applicants must always self-register via /api/auth/register.
+     * This endpoint explicitly disallows creating applicant-role accounts.
+     *
+     * The created account is immediately active and verified — no email confirmation
+     * step is enforced because the super admin is vouching for the account.
+     * The new user will be prompted to change their password on first login
+     * (via the standard profile password-change flow).
+     *
+     * An audit log entry is created so there is a record of which super admin
+     * created which staff account.
+     */
+    public function store(StoreUserRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        $role = Role::where('name', $data['role'])->firstOrFail();
+
+        $user = User::create([
+            'name'              => $data['name'],
+            'email'             => $data['email'],
+            'password'          => Hash::make($data['password']),
+            'role_id'           => $role->id,
+            // Mark as active and email-verified immediately — super admin vouches for this account.
+            'is_active'         => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $user->load('role');
+
+        AuditLog::logAdminAction(
+            action: 'user_created',
+            user: $request->user(),
+            description: "Created new {$role->name} account for {$user->email}",
+            metadata: ['new_user_id' => $user->id, 'role' => $role->name]
+        );
+
+        // Notify the new user via inbox so they know their account is ready.
+        app(SystemNotificationService::class)->roleChanged(
+            $user, 'none', $role->name, $request->user()
+        );
+
+        return response()->json([
+            'message' => 'User account created successfully.',
+            'data'    => $this->formatUser($user),
+        ], 201);
+    }
+
     /**
      * Return a paginated, filterable list of all users.
      *

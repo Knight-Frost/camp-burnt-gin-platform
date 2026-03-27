@@ -119,14 +119,19 @@ class ConversationResource extends JsonResource
         }
 
         return [
-            'id'             => $msg->id,
-            'conversation_id' => $msg->conversation_id,
-            'sender_id'      => $msg->sender_id,
-            'sender'         => $sender,
-            'body'           => $msg->body,
-            'read_at'        => null,
-            'created_at'     => $msg->created_at?->toISOString(),
-            'attachments'    => [],
+            'id'                => $msg->id,
+            'conversation_id'   => $msg->conversation_id,
+            'sender_id'         => $msg->sender_id,
+            'sender'            => $sender,
+            'body'              => $msg->body,
+            'read_at'           => null,
+            'created_at'        => $msg->created_at?->toISOString(),
+            'attachments'       => [],
+            // Required by the frontend Message type — populated per-message in the thread view
+            // but kept as empty/null here since last_message is display-only (no recipient UI)
+            'recipients'        => [],
+            'parent_message_id' => $msg->parent_message_id ?? null,
+            'reply_type'        => $msg->reply_type ?? null,
         ];
     }
 }

@@ -38,17 +38,37 @@ class MedicalRecord extends Model
      */
     protected $fillable = [
         'camper_id',
+        // Physician
         'physician_name',
         'physician_phone',
+        'physician_address',        // Mailing address of the attending physician.
+        // Insurance
         'insurance_provider',
         'insurance_policy_number',
+        'insurance_group',          // Insurance group or employer number.
+        'medicaid_number',          // Medicaid recipient ID (encrypted — PHI).
+        // General medical notes
         'special_needs',
         'dietary_restrictions',
         'notes',
-        'has_seizures',          // Boolean flag — triggers mandatory seizure action plan check.
-        'last_seizure_date',     // Date of most recent known seizure event.
-        'seizure_description',   // Description of typical seizure presentation.
-        'has_neurostimulator',   // Boolean — some medical equipment interferes with defibrillators.
+        'mobility_notes',           // General mobility and transfer observations (from S4).
+        // Immunizations
+        'immunizations_current',    // True if immunizations are up to date per the physician.
+        'tetanus_date',             // Date of most recent tetanus vaccination.
+        // Seizure history
+        'has_seizures',             // Boolean flag — triggers mandatory seizure action plan check.
+        'last_seizure_date',        // Date of most recent known seizure event.
+        'seizure_description',      // Description of typical seizure presentation.
+        // Other health flags
+        'has_neurostimulator',      // Boolean — some equipment interferes with defibrillators.
+        'has_contagious_illness',   // Currently has or recently had a contagious illness.
+        'contagious_illness_description',
+        'tubes_in_ears',            // Tympanostomy tubes in place.
+        'has_recent_illness',       // Significant illness within the past 6 months.
+        'recent_illness_description',
+        // Operational
+        'date_of_medical_exam',     // Date on physician-completed Form 4523; drives the 12-month validity window.
+        'is_active',                // True when the camper's application is currently approved.
     ];
 
     /**
@@ -63,19 +83,33 @@ class MedicalRecord extends Model
     {
         return [
             // Encrypted PHI columns — unreadable in the raw database.
-            'physician_name'          => 'encrypted',
-            'physician_phone'         => 'encrypted',
-            'insurance_provider'      => 'encrypted',
-            'insurance_policy_number' => 'encrypted',
-            'special_needs'           => 'encrypted',
-            'dietary_restrictions'    => 'encrypted',
-            'notes'                   => 'encrypted',
-            'seizure_description'     => 'encrypted',
+            'physician_name'                   => 'encrypted',
+            'physician_phone'                  => 'encrypted',
+            'physician_address'                => 'encrypted',
+            'insurance_provider'               => 'encrypted',
+            'insurance_policy_number'          => 'encrypted',
+            'insurance_group'                  => 'encrypted',
+            'medicaid_number'                  => 'encrypted',
+            'special_needs'                    => 'encrypted',
+            'dietary_restrictions'             => 'encrypted',
+            'notes'                            => 'encrypted',
+            'mobility_notes'                   => 'encrypted',
+            'seizure_description'              => 'encrypted',
+            'contagious_illness_description'   => 'encrypted',
+            'recent_illness_description'       => 'encrypted',
             // Boolean flags stored as 0/1 in MySQL.
-            'has_seizures'            => 'boolean',
-            'has_neurostimulator'     => 'boolean',
-            // Carbon date object for age/duration calculations.
-            'last_seizure_date'       => 'date',
+            'has_seizures'                     => 'boolean',
+            'has_neurostimulator'              => 'boolean',
+            'immunizations_current'            => 'boolean',
+            'has_contagious_illness'           => 'boolean',
+            'tubes_in_ears'                    => 'boolean',
+            'has_recent_illness'               => 'boolean',
+            // Carbon date objects for age/duration calculations.
+            'last_seizure_date'                => 'date',
+            'date_of_medical_exam'             => 'date',
+            'tetanus_date'                     => 'date',
+            // Operational activation flag — true when associated camper has an approved application.
+            'is_active'                        => 'boolean',
         ];
     }
 
@@ -177,5 +211,20 @@ class MedicalRecord extends Model
     public function requiresSeizurePlan(): bool
     {
         return $this->has_seizures === true;
+    }
+
+    /**
+     * Query scope — filter only operationally active medical records.
+     *
+     * An active medical record belongs to a camper with at least one approved
+     * application. Medical staff operational views (dashboards, rosters, queues)
+     * should apply this scope to exclude records for campers whose applications
+     * have been reversed or cancelled.
+     *
+     * Usage: MedicalRecord::active()->with('camper')->paginate(15)
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

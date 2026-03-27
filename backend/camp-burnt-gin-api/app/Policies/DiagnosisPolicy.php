@@ -50,9 +50,8 @@ class DiagnosisPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper diagnosis records
-            // so they can provide appropriate care throughout the session.
-            return true;
+            // Camp medical staff may access diagnosis records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($diagnosis->camper);
         }
 
         // A parent may view diagnosis records only for their own child.
@@ -90,9 +89,8 @@ class DiagnosisPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update diagnosis records during active care,
-            // for example to refine a diagnosis or add clinical notes.
-            return true;
+            // Camp medical staff may update diagnosis records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($diagnosis->camper);
         }
 
         // Parent can update only their own child's diagnosis record.

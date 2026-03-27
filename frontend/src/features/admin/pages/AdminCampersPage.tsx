@@ -154,14 +154,15 @@ export function AdminCampersPage() {
           <div
             className="glass-data rounded-xl overflow-hidden"
           >
-            {/* Column headers — Name | DOB | Parent/Guardian | Risk | Action */}
+            {/* Column headers — Name | DOB | Parent/Guardian | Status | Risk | Action */}
             <div
               className="grid grid-cols-12 px-4 py-3 text-xs font-medium uppercase tracking-wide border-b"
               style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
             >
-              <div className="col-span-4">{t('admin.campers.col_name')}</div>
+              <div className="col-span-3">{t('admin.campers.col_name')}</div>
               <div className="col-span-2">{t('admin.campers.col_dob')}</div>
               <div className="col-span-4">Parent / Guardian</div>
+              <div className="col-span-1">Status</div>
               <div className="col-span-1">{t('admin.campers.col_risk')}</div>
               <div className="col-span-1" />
             </div>
@@ -174,7 +175,7 @@ export function AdminCampersPage() {
                 style={{ borderColor: 'var(--border)' }}
               >
                 {/* Camper name */}
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                     {camper.full_name}
                   </p>
@@ -208,6 +209,20 @@ export function AdminCampersPage() {
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                       {t('common.not_provided')}
                     </p>
+                  )}
+                </div>
+
+                {/* Active status — reflects whether camper has an approved application */}
+                <div className="col-span-1">
+                  {camper.is_active != null && (
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={camper.is_active
+                        ? { background: 'rgba(22,163,74,0.12)', color: '#16a34a' }
+                        : { background: 'var(--muted)', color: 'var(--muted-foreground)' }}
+                    >
+                      {camper.is_active ? 'Active' : 'Inactive'}
+                    </span>
                   )}
                 </div>
 

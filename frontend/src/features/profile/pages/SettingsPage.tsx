@@ -37,7 +37,13 @@ import { useAppDispatch } from '@/store/hooks';
 
 const passwordSchema = z.object({
   current_password: z.string().min(1, 'Current password is required'),
-  password: z.string().min(8, 'Must be at least 8 characters'),
+  // Mirror the backend policy: 12+ chars, mixed case, number, symbol.
+  password: z.string()
+    .min(12, 'Must be at least 12 characters')
+    .regex(/[A-Z]/, 'Must include at least one uppercase letter')
+    .regex(/[a-z]/, 'Must include at least one lowercase letter')
+    .regex(/[0-9]/, 'Must include at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Must include at least one symbol'),
   password_confirmation: z.string(),
 }).refine((d) => d.password === d.password_confirmation, {
   message: 'Passwords do not match',

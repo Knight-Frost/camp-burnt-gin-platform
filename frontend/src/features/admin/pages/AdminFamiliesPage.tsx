@@ -18,15 +18,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
-  Search, Users, ChevronLeft, ChevronRight, ArrowRight,
+  Search, Users, ChevronLeft, ChevronRight, ArrowRight, Info,
 } from 'lucide-react';
 
 import { getFamilies } from '@/features/admin/api/admin.api';
 import { Avatar } from '@/ui/components/Avatar';
 import { EmptyState } from '@/ui/components/EmptyState';
-import type { FamilyCard } from '@/features/admin/types/admin.types';
-import type { PaginatedResponse } from '@/shared/types/api.types';
+import type { FamilyCard, FamiliesResponse } from '@/features/admin/types/admin.types';
 import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
 import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBanner';
 
@@ -34,25 +34,25 @@ import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBan
 
 type AppStatus = FamilyCard['application_statuses'][number];
 
-const STATUS_CONFIG: Record<AppStatus, { bg: string; color: string; label: string }> = {
-  pending:      { bg: 'rgba(107,114,128,0.12)', color: '#6b7280', label: 'Pending' },
-  under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb', label: 'Under Review' },
-  approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a', label: 'Approved' },
-  rejected:     { bg: 'rgba(220,38,38,0.12)',   color: '#dc2626', label: 'Rejected' },
-  waitlisted:   { bg: 'rgba(234,88,12,0.12)',   color: '#ea580c', label: 'Waitlisted' },
-  cancelled:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af', label: 'Cancelled' },
-  withdrawn:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af', label: 'Withdrawn' },
-  draft:        { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af', label: 'Draft' },
+const STATUS_STYLE: Record<AppStatus, { bg: string; color: string }> = {
+  pending:      { bg: 'rgba(107,114,128,0.12)', color: '#6b7280' },
+  under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
+  approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
+  rejected:     { bg: 'rgba(220,38,38,0.12)',   color: '#dc2626' },
+  waitlisted:   { bg: 'rgba(234,88,12,0.12)',   color: '#ea580c' },
+  cancelled:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af' },
+  withdrawn:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af' },
 };
 
 function StatusChip({ status }: { status: AppStatus }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  const { t } = useTranslation();
+  const cfg = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
   return (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
       style={{ background: cfg.bg, color: cfg.color }}
     >
-      {cfg.label}
+      {t(`status_labels.${status}`)}
     </span>
   );
 }
@@ -68,15 +68,31 @@ function ageFromDob(dob: string): number {
   return age;
 }
 
+// ─── Metric tooltip ───────────────────────────────────────────────────────────
+
+function MetricTooltip({ text }: { text: string }) {
+  return (
+    <span className="relative group/tip inline-flex items-center ml-1">
+      <Info className="h-3 w-3 cursor-help" style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+      <span
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-44 rounded-lg px-2.5 py-2 text-xs leading-snug opacity-0 group-hover/tip:opacity-100 transition-opacity z-50"
+        style={{ background: 'var(--foreground)', color: 'var(--background)', whiteSpace: 'normal' }}
+      >
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent" style={{ borderTopColor: 'var(--foreground)' }} />
+      </span>
+    </span>
+  );
+}
+
 // ─── Summary stat card ───────────────────────────────────────────────────────
 
-function StatCard({ label, value }: { label: string; value: number | string }) {
+function StatCard({ label, value, tooltip }: { label: string; value: number | string; tooltip?: string }) {
   return (
-    <div
-      className="glass-card rounded-xl px-5 py-4"
-    >
-      <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
+    <div className="glass-card rounded-xl px-5 py-4">
+      <p className="text-xs font-medium uppercase tracking-wide mb-1 flex items-center" style={{ color: 'var(--muted-foreground)' }}>
         {label}
+        {tooltip && <MetricTooltip text={tooltip} />}
       </p>
       <p className="text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
         {value}
@@ -88,6 +104,7 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
 // ─── Family card ─────────────────────────────────────────────────────────────
 
 function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase: string }) {
+  const { t } = useTranslation();
   const activeStatuses: AppStatus[] = ['pending', 'under_review', 'waitlisted', 'approved'];
   const activeStatusSet = new Set(
     family.application_statuses.filter((s) => activeStatuses.includes(s))
@@ -191,7 +208,7 @@ function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase
           className="flex items-center justify-between w-full text-sm font-medium transition-colors group"
           style={{ color: '#166534' }}
         >
-          <span>Open Family</span>
+          <span>{t('admin_extra.open_family')}</span>
           <ArrowRight
             className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
           />
@@ -204,6 +221,7 @@ function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export function AdminFamiliesPage() {
+  const { t } = useTranslation();
   const location = useLocation();
   const isSuperAdmin = location.pathname.startsWith('/super-admin');
   const detailBase   = isSuperAdmin ? '/super-admin/families' : '/admin/families';
@@ -213,7 +231,7 @@ export function AdminFamiliesPage() {
   const workspaceSessionId = sessionCtx?.currentSession?.id;
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [response, setResponse]   = useState<PaginatedResponse<FamilyCard> | null>(null);
+  const [response, setResponse]   = useState<FamiliesResponse | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
   const [filters, setFilters]     = useState({
@@ -260,13 +278,8 @@ export function AdminFamiliesPage() {
     return () => { cancelled = true; };
   }, [filters, workspaceSessionId, retryKey]);
 
-  // ── Derived summary stats ──────────────────────────────────────────────────
-  // These are computed from the current page's data as a quick overview.
-  // They reflect the filtered result set, not the entire database.
-  const totalFamilies     = response?.meta.total ?? 0;
-  const totalCampers      = response?.data.reduce((acc, f) => acc + f.campers_count, 0) ?? 0;
-  const totalActive       = response?.data.reduce((acc, f) => acc + f.active_applications_count, 0) ?? 0;
-  const multiCamperCount  = response?.data.filter((f) => f.campers_count >= 2).length ?? 0;
+  // ── Summary stats from the backend (full filtered dataset, not the current page) ──
+  const summary = response?.summary;
 
   return (
     <div className="p-6 max-w-7xl">
@@ -285,20 +298,36 @@ export function AdminFamiliesPage() {
       {/* Page header */}
       <div className="mb-6">
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
-          Families
+          {t('admin_extra.families_title')}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           Guardian accounts and their registered campers
         </p>
       </div>
 
-      {/* Summary stat cards — shown once data loads */}
-      {response && (
+      {/* Summary stat cards — sourced from backend aggregates, stable across all pages */}
+      {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <StatCard label="Families" value={totalFamilies} />
-          <StatCard label="Campers" value={totalCampers} />
-          <StatCard label="Active Applications" value={totalActive} />
-          <StatCard label="Multi-Camper" value={multiCamperCount} />
+          <StatCard
+            label="Registered Families"
+            value={summary.total_families}
+            tooltip="Total number of family accounts created for this session."
+          />
+          <StatCard
+            label="Registered Campers"
+            value={summary.total_campers}
+            tooltip="Total number of campers with submitted applications."
+          />
+          <StatCard
+            label="Active Applications"
+            value={summary.active_applications}
+            tooltip="Applications currently being reviewed or processed."
+          />
+          <StatCard
+            label="Multi-Camper Families"
+            value={summary.multi_camper_families}
+            tooltip="Families with more than one registered camper."
+          />
         </div>
       )}
 
@@ -330,12 +359,12 @@ export function AdminFamiliesPage() {
             className="bg-transparent text-sm outline-none"
             style={{ color: 'var(--foreground)' }}
           >
-            <option value="" style={{ background: 'var(--card)' }}>All Statuses</option>
-            <option value="pending"      style={{ background: 'var(--card)' }}>Pending</option>
-            <option value="under_review" style={{ background: 'var(--card)' }}>Under Review</option>
-            <option value="approved"     style={{ background: 'var(--card)' }}>Approved</option>
-            <option value="waitlisted"   style={{ background: 'var(--card)' }}>Waitlisted</option>
-            <option value="rejected"     style={{ background: 'var(--card)' }}>Rejected</option>
+            <option value="" style={{ background: 'var(--card)' }}>{t('admin_extra.all_statuses')}</option>
+            <option value="pending"      style={{ background: 'var(--card)' }}>{t('status_labels.pending')}</option>
+            <option value="under_review" style={{ background: 'var(--card)' }}>{t('status_labels.under_review')}</option>
+            <option value="approved"     style={{ background: 'var(--card)' }}>{t('status_labels.approved')}</option>
+            <option value="waitlisted"   style={{ background: 'var(--card)' }}>{t('status_labels.waitlisted')}</option>
+            <option value="rejected"     style={{ background: 'var(--card)' }}>{t('status_labels.rejected')}</option>
           </select>
         </div>
 

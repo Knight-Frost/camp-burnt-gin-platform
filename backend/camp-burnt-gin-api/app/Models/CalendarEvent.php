@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * CalendarEvent model — camp deadlines, sessions, orientations, and internal events.
@@ -13,9 +14,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * and an audience that controls which user roles can see them. Admins see everything;
  * non-admin users only see "all"-audience events.
  *
+ * IMPORTANT — deadline events are managed exclusively by DeadlineCalendarSyncService.
+ * Calendar events with a deadline_id set:
+ *   - Are created/updated/deleted automatically via DeadlineObserver
+ *   - Cannot be created manually (CalendarEventController::store() rejects event_type='deadline')
+ *   - Cannot be edited or deleted directly through the calendar API
+ *
  * Relationships:
  *   - belongs to User (creator via created_by)
  *   - optionally belongs to CampSession (target_session_id)
+ *   - optionally belongs to Deadline (deadline_id — set only for deadline-type events)
  *
  * Scopes: upcoming(), inRange(), forAudience()
  */
@@ -32,6 +40,7 @@ class CalendarEvent extends Model
         'all_day',
         'audience',
         'target_session_id',
+        'deadline_id',
     ];
 
     /**
@@ -79,6 +88,17 @@ class CalendarEvent extends Model
     public function targetSession(): BelongsTo
     {
         return $this->belongsTo(CampSession::class, 'target_session_id');
+    }
+
+    /**
+     * The deadline that owns this calendar event.
+     *
+     * Only present when event_type = 'deadline'. Null for manually-created events
+     * of other types (session, orientation, staff, internal).
+     */
+    public function deadline(): BelongsTo
+    {
+        return $this->belongsTo(Deadline::class, 'deadline_id');
     }
 
     // ──────────────────────────────────────────────────────────────────────────

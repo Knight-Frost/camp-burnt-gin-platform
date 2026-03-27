@@ -15,7 +15,7 @@ use App\Models\User;
  * Messaging rules:
  *  - Admins        → can message anyone, view all conversations
  *  - Applicants    → can only message admins (not other parents or medical staff)
- *  - Medical staff → cannot initiate conversations at all
+ *  - Medical staff → can initiate conversations with admins only
  *  - All participants → can view and reply to conversations they are in
  *
  * System-generated conversations (notifications) have special protections —
@@ -54,9 +54,7 @@ class ConversationPolicy
     /**
      * Can the user start a new conversation?
      *
-     * Medical providers are blocked entirely — they may only be added to
-     * conversations by admins. Parents can start conversations, but only
-     * if all recipients are admins (no parent-to-parent messaging).
+     * Medical providers and parents can start conversations with admins only.
      * Admins can start conversations with anyone.
      *
      * Note: The $hasNonAdminParticipants flag must be resolved in the
@@ -67,19 +65,13 @@ class ConversationPolicy
      */
     public function create(User $user, bool $hasNonAdminParticipants = false): bool
     {
-        // Medical providers cannot initiate conversations — admins add them.
-        if ($user->isMedicalProvider()) {
-            return false;
-        }
-
         // Admins can create conversations with anyone.
         if ($user->isAdmin()) {
             return true;
         }
 
-        // Parents can only create conversations with admins.
-        if ($user->isApplicant()) {
-            // If the recipient list includes any non-admin, the parent is blocked.
+        // Medical providers and parents can only message admins.
+        if ($user->isMedicalProvider() || $user->isApplicant()) {
             return !$hasNonAdminParticipants;
         }
 

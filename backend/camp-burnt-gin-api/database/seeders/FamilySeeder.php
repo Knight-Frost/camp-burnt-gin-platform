@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * FamilySeeder — 30 applicant families, 34 campers, emergency contacts.
+ * FamilySeeder — 31 applicant families, 35 campers, emergency contacts.
  *
  * ─── SCENARIO-DRIVEN FAMILIES ───────────────────────────────────────────────
  *
@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Hash;
  *     7. Carter      — paper application family (admin manual-entry workflow)
  *
  *   Supporting families (provide admin dashboard density and realistic filtering):
- *     8–30. South Carolina families across Columbia, Charleston, and Greenville
+ *     8–31. South Carolina families across Columbia, Charleston, and Greenville
  *           with varied supervision levels, multi-child households, and diverse
  *           emergency contact structures.
  *
@@ -113,7 +113,7 @@ class FamilySeeder extends Seeder
             }
         }
 
-        $this->command->line('  Families seeded: 30 families, 34 campers, emergency contacts.');
+        $this->command->line('  Families seeded: 31 families, 35 campers, emergency contacts.');
     }
 
     // -------------------------------------------------------------------------
@@ -926,6 +926,30 @@ class FamilySeeder extends Seeder
                         'ec2_rel'     => 'Physician',
                         'ec2_phone'   => '843-555-2500',
                         'ec2_pickup'  => false,
+                    ],
+                ],
+            ],
+
+            // ── 31. Robinson Family (Michelle) ────────────────────────────────
+            [
+                'name'    => 'Michelle Robinson',
+                'email'   => 'michelle.robinson@example.com',
+                'phone'   => '843-555-0421',
+                'address' => '301 Ashley Hall Road',
+                'city'    => 'Charleston',
+                'zip'     => '29407',
+                'campers' => [
+                    [
+                        'first_name'  => 'Olivia',
+                        'last_name'   => 'Robinson',
+                        'dob'         => '2015-04-10',
+                        'gender'      => 'female',
+                        'tshirt_size' => 'YM',
+                        'supervision' => 'enhanced',
+                        'ec_name'     => 'David Robinson',
+                        'ec_rel'      => 'Father',
+                        'ec_phone'    => '843-555-0422',
+                        'ec_email'    => 'david.robinson@example.com',
                     ],
                 ],
             ],

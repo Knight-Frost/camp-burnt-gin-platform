@@ -30,16 +30,23 @@ This document defines the business logic, validation rules, and workflow constra
 
 ### Status Transitions
 
-**Allowed Transitions:**
-```
-Pending → Approved (admin review)
-Pending → Rejected (admin review)
-Pending → Waitlisted (admin review)
-```
+The authoritative transition table is defined in `ApplicationStatus::canTransitionTo()`. The full matrix is:
 
-**Not Allowed:**
-- Approved → Rejected
-- Rejected → Approved
+| From \ To | Pending | Under Review | Approved | Rejected | Waitlisted | Cancelled |
+|-----------|---------|--------------|----------|----------|------------|-----------|
+| Pending | — | Yes | Yes | Yes | Yes | Yes |
+| Under Review | Yes | — | Yes | Yes | Yes | Yes |
+| Approved | No | No | — | Yes (reversal) | No | Yes |
+| Rejected | Yes | Yes | Yes (re-approval) | — | No | No |
+| Waitlisted | No | No | Yes | Yes | — | Yes |
+| Cancelled | No | No | No | No | No | — |
+
+**Key rules:**
+- `Approved → Rejected` is a valid reversal. `ApplicationService` handles camper and medical record deactivation.
+- `Rejected → Approved` is a valid re-approval. `ApplicationService` reactivates the camper and medical record.
+- `Cancelled` is an absolute terminal state. No further transitions are permitted.
+- Self-transitions (same → same) are always invalid.
+- Invalid transitions return HTTP 422 before any database write occurs.
 
 **Waitlisted → Approved:**
 - Allowed via admin review action (no new application required)
@@ -95,6 +102,18 @@ $age = $camper->date_of_birth->diffInYears($session->start_date);
 ---
 
 ## Medical Information Rules
+
+### Medical Record Lifecycle
+
+**Creation:** A medical record is created by `ApplicationService` at the moment an application is approved for the first time. It is never created at application submission. `MedicalRecord::firstOrCreate(['camper_id' => $camperId])` ensures idempotency.
+
+**Activation:** When a medical record is created or reactivated by approval, `is_active` is set to `true`. The record appears in medical staff operational views.
+
+**Deactivation:** When an approved application is reversed (moved to `rejected` or `cancelled`) and the camper has no other currently approved application, `is_active` is set to `false`. The record is excluded from medical staff operational views but is **never deleted**.
+
+**Reactivation:** When a previously reversed application is re-approved, or when a new application for the same camper is approved, `is_active` is set back to `true`. All previously entered clinical data is preserved.
+
+**Deletion:** Medical records may only be deleted by administrators via an explicit API call with admin authorization. The reversal workflow never deletes medical records.
 
 ### Medical Record Uniqueness
 

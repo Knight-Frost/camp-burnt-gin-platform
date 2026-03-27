@@ -35,14 +35,23 @@ class StoreEmergencyContactRequest extends FormRequest
             : ['required', 'integer', Rule::exists('campers', 'id')->where('user_id', $user->id)];
 
         return [
-            'camper_id' => $camperRule,
-            'name' => ['required', 'string', 'max:255'],
-            'relationship' => ['required', 'string', 'max:100'],
-            'phone_primary' => ['required', 'string', 'max:20'],
-            'phone_secondary' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'is_primary' => ['boolean'],
-            'is_authorized_pickup' => ['boolean'],
+            'camper_id'           => $camperRule,
+            'name'                => ['required', 'string', 'max:255'],
+            'relationship'        => ['required', 'string', 'max:100'],
+            'phone_primary'       => ['required', 'string', 'max:20'],
+            'phone_secondary'     => ['nullable', 'string', 'max:20'],
+            'email'               => ['nullable', 'email', 'max:255'],
+            'is_primary'          => ['boolean'],
+            'is_authorized_pickup'=> ['boolean'],
+            'is_guardian'         => ['nullable', 'boolean'],
+            'address'             => ['nullable', 'string', 'max:500'],
+            'city'                => ['nullable', 'string', 'max:100'],
+            'state'               => ['nullable', 'string', 'max:50'],
+            'zip'                 => ['nullable', 'string', 'max:20'],
+            // Form parity fields (2026_03_26_000003)
+            'phone_work'          => ['nullable', 'string', 'max:20'],
+            'primary_language'    => ['nullable', 'string', 'max:100'],
+            'interpreter_needed'  => ['nullable', 'boolean'],
         ];
     }
 

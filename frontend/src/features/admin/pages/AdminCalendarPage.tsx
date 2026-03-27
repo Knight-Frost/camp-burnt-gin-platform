@@ -18,7 +18,11 @@
  */
 
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Plus, ChevronLeft, ChevronRight, X, Calendar, Clock, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { Plus, ChevronLeft, ChevronRight, X, Calendar, Clock, Trash2, Lock } from 'lucide-react';
+import { differenceInDays, parseISO } from 'date-fns';
+import { ROUTES } from '@/shared/constants/routes';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
          isToday, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
@@ -29,18 +33,6 @@ import {
 } from '@/features/admin/api/calendar.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
-
-// Maps each event type to colors for background, text, dot indicator, and legend label.
-const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; label: string }> = {
-  deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)',  label: 'Deadline'    },
-  session:     { bg: 'rgba(22,163,74,0.10)',    text: '#16a34a',  dot: '#16a34a',  label: 'Session'     },
-  orientation: { bg: 'rgba(37,99,235,0.10)',    text: '#2563eb',  dot: '#2563eb',  label: 'Orientation' },
-  staff:       { bg: 'rgba(124,58,237,0.10)',   text: '#7c3aed',  dot: '#7c3aed',  label: 'Staff'       },
-  internal:    { bg: 'rgba(107,114,128,0.10)',  text: '#6b7280',  dot: '#6b7280',  label: 'Internal'    },
-};
-
-// Derives a flat array of {value, label} pairs from EVENT_COLORS for the legend and dropdown.
-const EVENT_TYPES = Object.entries(EVENT_COLORS).map(([value, meta]) => ({ value: value as EventType, label: meta.label }));
 
 interface EventFormState {
   title: string;
@@ -55,7 +47,7 @@ interface EventFormState {
 const DEFAULT_FORM: EventFormState = {
   title: '',
   description: '',
-  event_type: 'deadline',
+  event_type: 'session', // 'deadline' is managed by the deadline system — not manually creatable
   starts_at: '',
   ends_at: '',
   all_day: false,
@@ -77,6 +69,48 @@ function inputStyle(hasErr = false) {
 }
 
 export function AdminCalendarPage() {
+  const { t } = useTranslation();
+
+  // Maps each event type to colors + translated labels — inside component so t() is in scope.
+  const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; label: string }> = {
+    deadline:    { bg: 'rgba(220,38,38,0.10)',   text: 'var(--destructive)',  dot: 'var(--destructive)',  label: 'Deadline'    },
+    session:     { bg: 'rgba(22,163,74,0.10)',    text: '#16a34a',  dot: '#16a34a',  label: 'Session'     },
+    orientation: { bg: 'rgba(37,99,235,0.10)',    text: '#2563eb',  dot: '#2563eb',  label: 'Orientation' },
+    staff:       { bg: 'rgba(124,58,237,0.10)',   text: '#7c3aed',  dot: '#7c3aed',  label: 'Staff'       },
+    internal:    { bg: 'rgba(107,114,128,0.10)',  text: '#6b7280',  dot: '#6b7280',  label: 'Internal'    },
+  };
+
+  // Derives a flat array of {value, label} pairs from EVENT_COLORS for the legend and dropdown.
+  // 'deadline' is excluded from the create dropdown — managed exclusively by the deadline system.
+  const EVENT_TYPES = Object.entries(EVENT_COLORS)
+    .filter(([v]) => v !== 'deadline')
+    .map(([value, meta]) => ({ value: value as EventType, label: meta.label }));
+
+  const navigate = useNavigate();
+
+  /**
+   * Returns the urgency-based color for a deadline calendar event.
+   * Color is computed dynamically from starts_at vs now, not stored in the DB.
+   *   > 7 days  → green  (safe)
+   *   ≤ 7 days  → yellow (approaching)
+   *   past      → red    (overdue)
+   *   completed → gray
+   */
+  function deadlineEventColor(event: CalendarEvent): { bg: string; text: string; dot: string } {
+    if (event.deadline?.status === 'completed') {
+      return { bg: 'rgba(107,114,128,0.10)', text: '#6b7280', dot: '#6b7280' };
+    }
+    const days = differenceInDays(parseISO(event.starts_at), new Date());
+    if (days < 0)  return { bg: 'rgba(220,38,38,0.10)',  text: '#dc2626', dot: '#dc2626' };
+    if (days <= 7) return { bg: 'rgba(217,119,6,0.10)',  text: '#d97706', dot: '#d97706' };
+    return           { bg: 'rgba(22,163,74,0.10)',   text: '#16a34a', dot: '#16a34a' };
+  }
+
+  /** Returns the correct color style for any event, with deadline urgency computed dynamically. */
+  function eventColor(ev: CalendarEvent) {
+    return ev.deadline_id ? deadlineEventColor(ev) : (EVENT_COLORS[ev.event_type] ?? EVENT_COLORS.internal);
+  }
+
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
   // Which month's grid to display.
@@ -285,7 +319,7 @@ export function AdminCalendarPage() {
                       </span>
                       {/* Show at most 2 event chips; events are small pills with type-based color. */}
                       {dayEvents.slice(0, 2).map((ev) => {
-                        const s = EVENT_COLORS[ev.event_type] ?? EVENT_COLORS.internal;
+                        const s = eventColor(ev);
                         return (
                           <div
                             key={ev.id}
@@ -342,40 +376,55 @@ export function AdminCalendarPage() {
           ) : upcoming.length === 0 ? (
             <div className="rounded-xl border px-4 py-6 text-center" style={{ borderColor: 'var(--border)' }}>
               <Calendar className="h-8 w-8 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No upcoming events.</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.cal_no_events')}</p>
             </div>
           ) : (
             <ul className="flex flex-col gap-2">
               {upcoming.map((ev) => {
-                const s = EVENT_COLORS[ev.event_type] ?? EVENT_COLORS.internal;
+                const s = eventColor(ev);
+                const isDeadlineLocked = ev.deadline_id !== null;
                 return (
                   <li
                     key={ev.id}
                     className="glass-panel rounded-xl p-3"
                   >
                     <div className="flex items-start gap-2">
-                      {/* Colored dot indicates the event type. */}
+                      {/* Colored dot — dynamic urgency color for deadline events */}
                       <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: s.dot }} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{ev.title}</p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                           {format(new Date(ev.starts_at), 'MMM d, yyyy')}
+                          {isDeadlineLocked && ' · Managed by Deadlines'}
                         </p>
                       </div>
-                      {/* Delete button with inline spinner when this event is being deleted. */}
-                      <button
-                        onClick={() => handleDelete(ev.id)}
-                        disabled={deletingId === ev.id}
-                        className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)] transition-colors flex-shrink-0"
-                        style={{ color: 'var(--muted-foreground)' }}
-                        aria-label="Delete event"
-                      >
-                        {deletingId === ev.id ? (
-                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </button>
+                      {isDeadlineLocked ? (
+                        // Deadline-owned events navigate to the Deadlines page instead of deleting
+                        <button
+                          onClick={() => navigate(ROUTES.ADMIN_DEADLINES)}
+                          className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)] transition-colors flex-shrink-0"
+                          style={{ color: 'var(--muted-foreground)' }}
+                          title="Edit via Deadline Management"
+                          aria-label="Go to deadline management"
+                        >
+                          <Lock className="h-3 w-3" />
+                        </button>
+                      ) : (
+                        // Non-deadline events can be deleted directly
+                        <button
+                          onClick={() => handleDelete(ev.id)}
+                          disabled={deletingId === ev.id}
+                          className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)] transition-colors flex-shrink-0"
+                          style={{ color: 'var(--muted-foreground)' }}
+                          aria-label="Delete event"
+                        >
+                          {deletingId === ev.id ? (
+                            <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </li>
                 );
@@ -419,23 +468,23 @@ export function AdminCalendarPage() {
 
             <div className="flex flex-col gap-4">
               <div>
-                <label htmlFor="cal-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
+                <label htmlFor="cal-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.cal_title_label')} *</label>
                 <input
                   id="cal-title"
                   // Red border if title is empty (required field).
                   style={inputStyle(!form.title)}
-                  placeholder="Event title"
+                  placeholder={t('admin_extra.cal_title_label')}
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 />
               </div>
 
               <div>
-                <label htmlFor="cal-description" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Description</label>
+                <label htmlFor="cal-description" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.cal_desc_label')}</label>
                 <textarea
                   id="cal-description"
                   style={{ ...inputStyle(), height: 72, resize: 'none' }}
-                  placeholder="Optional description"
+                  placeholder={t('admin_extra.cal_desc_label')}
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 />
@@ -443,7 +492,7 @@ export function AdminCalendarPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="cal-type" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Type</label>
+                  <label htmlFor="cal-type" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.cal_type_label')}</label>
                   <select
                     id="cal-type"
                     style={inputStyle()}
@@ -456,7 +505,7 @@ export function AdminCalendarPage() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="cal-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
+                  <label htmlFor="cal-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.cal_audience_label')}</label>
                   <select
                     id="cal-audience"
                     style={inputStyle()}
@@ -464,9 +513,9 @@ export function AdminCalendarPage() {
                     onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as EventFormState['audience'] }))}
                   >
                     <option value="all">All</option>
-                    <option value="accepted">Accepted</option>
-                    <option value="staff">Staff</option>
-                    <option value="session">Session</option>
+                    <option value="accepted">{t('admin_extra.cal_audience_accepted')}</option>
+                    <option value="staff">{t('admin_extra.cal_audience_staff')}</option>
+                    <option value="session">{t('admin_extra.cal_audience_session')}</option>
                   </select>
                 </div>
               </div>
@@ -474,7 +523,7 @@ export function AdminCalendarPage() {
               {/* Start and end date-time pickers side by side. */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="cal-starts-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Start *</label>
+                  <label htmlFor="cal-starts-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.cal_start_label')} *</label>
                   <input
                     id="cal-starts-at"
                     type="datetime-local"
@@ -502,7 +551,7 @@ export function AdminCalendarPage() {
                   checked={form.all_day}
                   onChange={(e) => setForm((f) => ({ ...f, all_day: e.target.checked }))}
                 />
-                <span className="text-sm" style={{ color: 'var(--foreground)' }}>All day event</span>
+                <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('admin_extra.cal_all_day')}</span>
               </label>
             </div>
 

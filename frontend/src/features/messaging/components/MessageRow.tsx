@@ -159,7 +159,7 @@ export function MessageRow({
           className="flex items-center justify-center rounded-full flex-shrink-0"
           style={{ width: 36, height: 36, background: 'rgba(22,163,74,0.12)' }}
         >
-          <Bot className="h-4.5 w-4.5" style={{ color: BRAND }} />
+          <Bot className="h-4 w-4" style={{ color: BRAND }} />
         </div>
       ) : (
         <Avatar name={senderName} size="md" fallbackColor={avatarBg(senderName)} />

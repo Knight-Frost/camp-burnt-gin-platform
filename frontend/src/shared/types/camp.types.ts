@@ -51,6 +51,7 @@ export interface Camper {
   age: number;
   gender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | 'other';
   tshirt_size: 'YS' | 'YM' | 'YL' | 'AS' | 'AM' | 'AL' | 'AXL' | 'A2XL';
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -75,7 +76,6 @@ export interface ComplianceStatus {
 // ---------------------------------------------------------------------------
 
 export type ApplicationStatus =
-  | 'draft'
   | 'pending'
   | 'under_review'
   | 'approved'
@@ -83,6 +83,34 @@ export type ApplicationStatus =
   | 'cancelled'
   | 'waitlisted'
   | 'withdrawn';
+
+// ---------------------------------------------------------------------------
+// Official Form Templates
+// ---------------------------------------------------------------------------
+
+/** The four official form types served from storage/app/forms. */
+export type OfficialFormTypeKey =
+  | 'english_application'
+  | 'spanish_application'
+  | 'medical_form'
+  | 'cyshcn_form';
+
+/**
+ * Metadata for a downloadable official form template.
+ * Returned by GET /api/form-templates (authenticated) and GET /api/forms (public).
+ */
+export interface OfficialFormTemplate {
+  id: OfficialFormTypeKey;
+  label: string;
+  description: string;
+  download_filename: string;
+  /** document_type value stored in documents table when this form is uploaded */
+  document_type: string;
+  requires_medical_signature: boolean;
+  available: boolean;
+  /** Reserved for future CDN/signed-URL delivery. Not returned by current API. */
+  url?: string;
+}
 
 export interface Application {
   id: number;
@@ -92,6 +120,7 @@ export interface Application {
   session?: Session;
   status: ApplicationStatus;
   is_draft?: boolean;
+  reapplied_from_id?: number | null;
   notes?: string;
   review_notes?: string;
   reviewed_by?: number;
@@ -110,6 +139,7 @@ export interface Application {
 export interface MedicalRecord {
   id: number;
   camper_id: number;
+  is_active?: boolean;
   primary_diagnosis?: string;
   secondary_diagnoses?: string[];
   physician_name?: string;

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Medical;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MedicalRecord\StoreMedicalRecordRequest;
+use App\Http\Requests\MedicalRecord\StoreHealthProfileRequest;
 use App\Http\Requests\MedicalRecord\UpdateMedicalRecordRequest;
+use App\Models\Camper;
 use App\Models\MedicalRecord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,8 +38,11 @@ class MedicalRecordController extends Controller
         // Verify the logged-in user is allowed to view any medical record at all.
         $this->authorize('viewAny', MedicalRecord::class);
 
-        // Eager-load the related camper so we avoid N+1 database queries per record.
-        $medicalRecords = MedicalRecord::with('camper')->paginate(15);
+        // Restrict to active records only — medical records whose associated camper has
+        // an approved application. Inactive records (camper's application was reversed
+        // or cancelled) are excluded from operational medical views while remaining
+        // stored in the database for HIPAA audit and record-retention compliance.
+        $medicalRecords = MedicalRecord::active()->with('camper')->paginate(15);
 
         // Return the page of records along with pagination metadata for the frontend.
         return response()->json([
@@ -112,6 +117,31 @@ class MedicalRecordController extends Controller
             'message' => 'Medical record updated successfully.',
             'data'    => $medicalRecord,
         ]);
+    }
+
+    /**
+     * Create or update the extended health profile fields for a camper.
+     *
+     * This is the application-form endpoint (Section 2 extended fields).
+     * It targets the camper's existing MedicalRecord via updateOrCreate so
+     * parents can re-submit without creating duplicates.
+     *
+     * Authorization: the requesting user must own the camper (CamperPolicy::update).
+     *
+     * @param  StoreHealthProfileRequest  $request
+     * @param  Camper                     $camper
+     * @return JsonResponse
+     */
+    public function storeHealthProfile(StoreHealthProfileRequest $request, Camper $camper): JsonResponse
+    {
+        $this->authorize('update', $camper);
+
+        $record = MedicalRecord::updateOrCreate(
+            ['camper_id' => $camper->id],
+            $request->validated()
+        );
+
+        return response()->json(['data' => $record], $record->wasRecentlyCreated ? 201 : 200);
     }
 
     /**

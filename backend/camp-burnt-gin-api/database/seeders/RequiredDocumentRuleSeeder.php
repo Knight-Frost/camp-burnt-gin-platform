@@ -169,6 +169,16 @@ class RequiredDocumentRuleSeeder extends Seeder
                 'description' => 'Vagal nerve stimulator or other implanted device management plan including settings, magnet use instructions, and emergency contacts',
                 'is_mandatory' => true,
             ],
+
+            // CPAP / BiPAP requirements
+            [
+                'medical_complexity_tier' => null,
+                'supervision_level' => null,
+                'condition_flag' => 'cpap',
+                'document_type' => 'cpap_waiver',
+                'description' => 'CPAP/BiPAP waiver signed by physician authorizing use of the device at overnight camp, including device settings and staff troubleshooting instructions',
+                'is_mandatory' => true,
+            ],
         ];
 
         foreach ($rules as $rule) {

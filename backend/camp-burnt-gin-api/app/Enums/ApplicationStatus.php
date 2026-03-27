@@ -23,11 +23,15 @@ enum ApplicationStatus: string
     // The application was not accepted after review.
     case Rejected = 'rejected';
 
-    // The application was withdrawn or called off before a decision.
+    // The application was cancelled by an administrator.
     case Cancelled = 'cancelled';
 
     // The session is full; the camper is queued and may be promoted if space opens.
     case Waitlisted = 'waitlisted';
+
+    // The application was voluntarily withdrawn by the parent before or after approval.
+    // This is a parent-initiated action only — use Cancelled for admin-initiated termination.
+    case Withdrawn = 'withdrawn';
 
     /**
      * Returns a friendly, readable version of the status for display in the UI.
@@ -35,12 +39,13 @@ enum ApplicationStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pending',
+            self::Pending    => 'Pending',
             self::UnderReview => 'Under Review',
-            self::Approved => 'Approved',
-            self::Rejected => 'Rejected',
-            self::Cancelled => 'Cancelled',
+            self::Approved   => 'Approved',
+            self::Rejected   => 'Rejected',
+            self::Cancelled  => 'Cancelled',
             self::Waitlisted => 'Waitlisted',
+            self::Withdrawn  => 'Withdrawn',
         };
     }
 
@@ -54,6 +59,7 @@ enum ApplicationStatus: string
             self::Approved,
             self::Rejected,
             self::Cancelled,
+            self::Withdrawn,
         ]);
     }
 
@@ -76,5 +82,67 @@ enum ApplicationStatus: string
             self::Pending,
             self::UnderReview,
         ]);
+    }
+
+    /**
+     * Returns true if the given status is a valid next state from this status.
+     *
+     * This method encodes the authoritative ADMIN-level state transition rules.
+     * It is evaluated by ApplicationService before any review action is persisted.
+     * Parent-initiated withdrawal uses the separate withdrawApplication() service
+     * method and is NOT routed through canTransitionTo().
+     *
+     * Transition table (admin review endpoint only):
+     *   Pending      → UnderReview, Approved, Rejected, Waitlisted, Cancelled
+     *   UnderReview  → Approved, Rejected, Waitlisted, Cancelled, Pending
+     *   Approved     → Rejected (reversal), Cancelled (admin cancellation)
+     *   Rejected     → Approved (re-approval only — cannot re-open to Pending/UnderReview)
+     *   Waitlisted   → Approved, Rejected, Cancelled
+     *   Cancelled    → no valid transitions (irreversible)
+     *   Withdrawn    → no valid transitions (irreversible, parent-initiated)
+     *
+     * Self-transitions (same → same) are always invalid.
+     */
+    public function canTransitionTo(ApplicationStatus $new): bool
+    {
+        // Self-transitions are meaningless — no state should transition to itself.
+        if ($this === $new) {
+            return false;
+        }
+
+        return match ($this) {
+            self::Pending => in_array($new, [
+                self::UnderReview,
+                self::Approved,
+                self::Rejected,
+                self::Waitlisted,
+                self::Cancelled,
+            ]),
+            self::UnderReview => in_array($new, [
+                self::Approved,
+                self::Rejected,
+                self::Waitlisted,
+                self::Cancelled,
+                self::Pending,
+            ]),
+            // Reversal: an approved application may only move to rejected (reversal)
+            // or cancelled (admin-initiated cancellation of enrollment).
+            self::Approved => in_array($new, [
+                self::Rejected,
+                self::Cancelled,
+            ]),
+            // Re-approval only: a rejected application may only be directly re-approved.
+            // It cannot be reset to Pending or UnderReview — those transitions would allow
+            // silently bypassing the rejection record without a new formal decision.
+            self::Rejected => $new === self::Approved,
+            // Waitlisted applications may be promoted, declined, or cancelled.
+            self::Waitlisted => in_array($new, [
+                self::Approved,
+                self::Rejected,
+                self::Cancelled,
+            ]),
+            // Terminal states — no further admin transitions permitted.
+            self::Cancelled, self::Withdrawn => false,
+        };
     }
 }

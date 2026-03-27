@@ -122,7 +122,7 @@ class EmergencyContactAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $contact = EmergencyContact::factory()->forCamper($camper)->create();
 
         \App\Models\MedicalProviderLink::factory()->create([

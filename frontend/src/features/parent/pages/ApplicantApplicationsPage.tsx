@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
+import { useTranslation } from 'react-i18next';
 import { getApplications } from '@/features/parent/api/applicant.api';
 import type { Application, ApplicationStatus } from '@/shared/types';
 import type { CamperInfoValues } from '@/features/parent/schemas/application.schema';
@@ -44,22 +45,13 @@ const LOCAL_DRAFT_KEY = 'cbg_app_draft';
 type ViewMode = 'all' | 'active' | 'past';
 type SortOrder = 'newest' | 'oldest';
 
-// Statuses that mean the application is still in flight and needs monitoring
-const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review'];
+// Statuses that mean the application is still in flight and needs monitoring.
+// waitlisted is included here — it can still be promoted to approved, so it is "active".
+const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review', 'waitlisted'];
 // Statuses that mean the process is finished (one way or another)
 const PAST_STATUSES: ApplicationStatus[]   = ['approved', 'rejected', 'withdrawn', 'cancelled'];
 
-// Human-readable labels for each machine status value used in the filter dropdown
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
-  draft:        'Draft',
-  pending:      'Pending',
-  under_review: 'Under Review',
-  approved:     'Approved',
-  rejected:     'Rejected',
-  withdrawn:    'Withdrawn',
-  cancelled:    'Cancelled',
-  waitlisted:   'Waitlisted',
-};
+// STATUS_LABELS is built inside the component to pick up language changes from i18next.
 
 // Sort a copy of the list so we never mutate the original state array
 function sortApps(apps: Application[], order: SortOrder): Application[] {
@@ -110,8 +102,8 @@ function AppCard({ app }: { app: Application }) {
         </Link>
         <div className="flex items-center gap-3 flex-shrink-0">
           <StatusBadge status={app.status} />
-          {/* Re-apply button shown only when the application reached a terminal state */}
-          {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled') && app.camper && (
+          {/* Re-apply button shown when the application has reached a terminal or withdrawn state */}
+          {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled' || app.status === 'withdrawn') && app.camper && (
             <button
               onClick={() =>
                 // Navigate to the new application form and pre-fill camper details
@@ -216,14 +208,27 @@ function LocalDraftCard({ camperName }: { camperName: string | null }) {
 }
 
 export function ApplicantApplicationsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // Built inside the component so labels re-compute when language changes.
+  const STATUS_LABELS: Record<ApplicationStatus, string> = {
+    pending:      t('status_labels.pending'),
+    under_review: t('status_labels.under_review'),
+    approved:     t('status_labels.approved'),
+    rejected:     t('status_labels.rejected'),
+    withdrawn:    t('status_labels.withdrawn'),
+    cancelled:    t('status_labels.cancelled'),
+    waitlisted:   t('status_labels.waitlisted'),
+  };
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(false);
   // View mode: 'all' shows all groups, 'active' only in-flight, 'past' only resolved
   const [view, setView]                 = useState<ViewMode>('all');
-  // Specific status filter (overrides view mode when set)
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | ''>('');
+  // Specific status filter (overrides view mode when set).
+  // 'draft' is not an ApplicationStatus — it maps to the is_draft boolean on the server.
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'draft' | ''>('');
   const [sortOrder, setSortOrder]       = useState<SortOrder>('newest');
   // Holds camper name parsed from localStorage draft if one exists
   const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
@@ -294,7 +299,7 @@ export function ApplicantApplicationsPage() {
             Track the status of your camper applications.
           </p>
         </div>
-        <Button as={Link} to={ROUTES.PARENT_APPLICATION_NEW} size="sm">
+        <Button as={Link} to={ROUTES.PARENT_APPLICATION_START} size="sm">
           <Plus className="h-4 w-4" />
           New application
         </Button>
@@ -328,11 +333,11 @@ export function ApplicantApplicationsPage() {
         <div className="relative">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | '')}
+            onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'draft' | '')}
             className="appearance-none text-xs pl-3 pr-7 py-1.5 rounded-xl border outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
             style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
           >
-            <option value="">All statuses</option>
+            <option value="">{t('admin_extra.all_statuses')}</option>
             {Object.entries(STATUS_LABELS).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
             ))}
@@ -389,7 +394,7 @@ export function ApplicantApplicationsPage() {
             icon={FileText}
             action={
               applications.length === 0
-                ? { label: 'Start your first application', onClick: () => navigate(ROUTES.PARENT_APPLICATION_NEW) }
+                ? { label: 'Start your first application', onClick: () => navigate(ROUTES.PARENT_APPLICATION_START) }
                 : undefined
             }
           />

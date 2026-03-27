@@ -67,6 +67,9 @@ class BehavioralProfileSeeder extends Seeder
             'functioning_age_level'  => '9–10 years',
             'communication_methods'  => ['verbal', 'visual_schedule', 'pecs'],
             'notes'                  => 'Ethan needs 5-minute transition warnings. He may vocally protest changes but self-regulates within 10–15 minutes when given space. Preferred de-escalation: quiet corner with stress ball and visual timer. Do not rush him.',
+            // Parity flags deliberately left null — FormParitySeeder owns these for the
+            // 6 core family campers (Ethan, Noah, Sofia, Lucas, Tyler, Mia) and will
+            // backfill them with full clinical descriptions.
         ]);
     }
 
@@ -84,6 +87,15 @@ class BehavioralProfileSeeder extends Seeder
             'functioning_age_level'  => '18 months',
             'communication_methods'  => ['pecs', 'eye_gaze', 'vocalization', 'facial_expression'],
             'notes'                  => 'Emma requires 1:1 supervision at all times. Hand stereotypies (hand-wringing) are constant — this is a Rett syndrome feature, not distress. Music activates positive engagement. Respond to crying/distress by checking positioning, feeding schedule, and pain signs.',
+            'sexual_behaviors'                   => false,
+            'interpersonal_behavior'             => false,
+            'social_emotional'                   => false,
+            'follows_instructions'               => false,
+            'follows_instructions_description'   => 'Emma is non-verbal and functioning at approximately an 18-month developmental level. She does not follow multi-step verbal instructions. Respond to her communicative signals (eye gaze, vocalization, facial expression) rather than issuing verbal directives.',
+            'group_participation'                => false,
+            'group_participation_description'    => 'Emma can be present in group settings with 1:1 staff support but does not actively participate in group activities. Music-based group activities produce positive engagement — she will track sounds and display positive affect.',
+            'attends_school'                     => true,
+            'classroom_type'                     => 'Self-contained',
         ]);
     }
 
@@ -101,6 +113,15 @@ class BehavioralProfileSeeder extends Seeder
             'functioning_age_level'  => '6 months',
             'communication_methods'  => ['vocalization', 'facial_expression', 'eye_gaze'],
             'notes'                  => 'Chloe is non-ambulatory and non-verbal. She communicates via eye gaze (up = yes, down/away = no). She responds to music, bright colors, and wind (enjoys fan airflow on face). Repositioning required every 2 hours to prevent pressure injury.',
+            'sexual_behaviors'                 => false,
+            'interpersonal_behavior'           => false,
+            'social_emotional'                 => false,
+            'follows_instructions'             => false,
+            'follows_instructions_description' => 'Chloe is non-verbal and functioning at approximately a 6-month developmental level. She does not follow verbal instructions. Staff should interpret her communicative signals: eye gaze up = yes, down/away = no.',
+            'group_participation'              => true,
+            'group_participation_description'  => 'Chloe can participate in sensory-based group activities (music, art, water play) from her wheelchair with 1:1 support. She responds positively to music and environmental stimulation in group settings.',
+            'attends_school'                   => true,
+            'classroom_type'                   => 'Self-contained',
         ]);
     }
 
@@ -113,11 +134,21 @@ class BehavioralProfileSeeder extends Seeder
             'aggression'             => false,
             'self_abuse'             => false,
             'wandering_risk'         => true,
+            'wandering_description'  => 'Nathan wanders toward novel stimuli — particularly water, animals, and open paths — without awareness of boundaries. Elopement is curiosity-driven, not distress-driven. Line-of-sight supervision is mandatory during all outdoor transitions.',
             'one_to_one_supervision' => false,
             'developmental_delay'    => true,
             'functioning_age_level'  => '6 years',
             'communication_methods'  => ['verbal_simple', 'pecs'],
             'notes'                  => 'Nathan wanders — particularly when tired or over-stimulated. He must have line-of-sight supervision at all outdoor activities. He responds to his name and "stop" commands reliably when calm. Fever is primary seizure trigger — check temperature if he seems off.',
+            'sexual_behaviors'                 => false,
+            'interpersonal_behavior'           => false,
+            'social_emotional'                 => false,
+            'follows_instructions'             => true,
+            'follows_instructions_description' => 'Follows simple one-step verbal instructions reliably when calm. Responds well to his name and the command "stop." Two-step or complex instructions require pairing with a gesture or PECS card.',
+            'group_participation'              => true,
+            'group_participation_description'  => 'Enthusiastic group participant who enjoys high-energy group activities. Monitor for overstimulation (increased vocal volume is early sign) — redirect to quiet buddy walk before full dysregulation.',
+            'attends_school'                   => true,
+            'classroom_type'                   => 'Self-contained',
         ]);
     }
 
@@ -129,12 +160,25 @@ class BehavioralProfileSeeder extends Seeder
             'camper_id'              => $c->id,
             'aggression'             => false,
             'self_abuse'             => true,
+            'self_abuse_description' => 'Penelope bites her wrists when overwhelmed. De-escalation: remove immediately from trigger environment, offer ear defenders, provide "Plum" (purple stuffed rabbit). Do NOT redirect verbally during meltdown — wait. Self-regulates in 5–15 minutes.',
             'wandering_risk'         => true,
+            'wandering_description'  => 'Penelope may elope when highly distressed. Primary risk is during or immediately after meltdown when she seeks to escape stimulation. 1:1 supervision prevents this.',
             'one_to_one_supervision' => true,
+            'one_to_one_description' => '1:1 required throughout all camp activities and overnight. Food security protocols require knowing Penelope\'s location at all mealtimes.',
             'developmental_delay'    => true,
             'functioning_age_level'  => '3–4 years',
             'communication_methods'  => ['pecs', 'aac_device', 'gestures'],
             'notes'                  => 'Penelope bites her wrists when overwhelmed. De-escalation: immediate removal from trigger environment, offer ear defenders, provide preferred object (purple stuffed rabbit named "Plum"). Do NOT attempt to redirect verbally during meltdown — wait. She will self-regulate in 5–15 minutes. Any food exposure outside scheduled meals is a behavioral trigger — food security is absolute.',
+            'sexual_behaviors'                   => false,
+            'interpersonal_behavior'             => false,
+            'social_emotional'                   => true,
+            'social_emotional_description'       => 'Becomes severely overwhelmed in high-stimulation environments, leading to meltdowns and self-abusive behavior. Food exposure outside scheduled meals is an absolute trigger. Ear defenders and preferred object ("Plum") are the primary calming supports. Do not attempt verbal redirection during active meltdown.',
+            'follows_instructions'               => true,
+            'follows_instructions_description'   => 'Follows simple instructions via AAC device or PECS when regulated. During meltdown state, no instruction-following is possible — wait for self-regulation before engaging.',
+            'group_participation'                => false,
+            'group_participation_description'    => 'Cannot participate in unstructured or food-adjacent group activities due to trigger risk. Small structured groups of 2–3 campers (no food present) are manageable with 1:1 support.',
+            'attends_school'                     => true,
+            'classroom_type'                     => 'Self-contained',
         ]);
     }
 
@@ -152,6 +196,16 @@ class BehavioralProfileSeeder extends Seeder
             'functioning_age_level'  => '7–8 years',
             'communication_methods'  => ['verbal_scripted', 'pecs', 'gestures'],
             'notes'                  => 'Jayden communicates in scripted phrases. He may repeat movie/TV dialogue — this is language, not gibberish. Join his script to establish rapport. Loud sudden sounds cause significant distress. Notify 10 minutes before any activity transition.',
+            'sexual_behaviors'                   => false,
+            'interpersonal_behavior'             => false,
+            'social_emotional'                   => true,
+            'social_emotional_description'       => 'Loud sudden sounds cause significant distress and behavioral dysregulation. Transitions must be announced 10 minutes in advance. Scripted TV/movie dialogue is his primary communication — join the script to build rapport rather than correcting or redirecting it.',
+            'follows_instructions'               => true,
+            'follows_instructions_description'   => 'Follows instructions best when delivered calmly and with advance notice. Does not respond well to urgency. Scripted routines with familiar language support compliance significantly.',
+            'group_participation'                => true,
+            'group_participation_description'    => 'Can participate in small structured groups (4–6 campers). Large groups or settings with unpredictable sound (assemblies, pool events with PA) cause sensory overload and behavioral regression.',
+            'attends_school'                     => true,
+            'classroom_type'                     => 'Self-contained',
         ]);
     }
 
@@ -169,6 +223,15 @@ class BehavioralProfileSeeder extends Seeder
             'functioning_age_level'  => '7–9 years',
             'communication_methods'  => ['verbal', 'visual_schedule'],
             'notes'                  => 'Mason benefits greatly from visual daily schedule. He resets well with schedule review. Mealtimes must be on schedule — delayed meals cause escalating distress. He responds well to logical explanations delivered calmly.',
+            'sexual_behaviors'                   => false,
+            'interpersonal_behavior'             => false,
+            'social_emotional'                   => false,
+            'follows_instructions'               => true,
+            'follows_instructions_description'   => 'Follows instructions reliably when paired with a visual daily schedule. Verbal-only instructions for novel tasks are less reliable. Mealtime schedule adherence is critical — delays cause escalating anxiety and refusal.',
+            'group_participation'                => true,
+            'group_participation_description'    => 'Participates well in structured group activities when the schedule is predictable. Responds positively to logical explanations from calm staff. Thrives with a consistent daily routine shared by the whole group.',
+            'attends_school'                     => true,
+            'classroom_type'                     => 'Resource room',
         ]);
     }
 
@@ -182,10 +245,20 @@ class BehavioralProfileSeeder extends Seeder
             'self_abuse'             => false,
             'wandering_risk'         => false,
             'one_to_one_supervision' => true,
+            'one_to_one_description' => '1:1 required for all activities. Liam is non-ambulatory and requires full staff support for positioning, transfers, and participation in all activities.',
             'developmental_delay'    => true,
             'functioning_age_level'  => '12–18 months',
             'communication_methods'  => ['vocalization', 'facial_expression', 'gestures'],
             'notes'                  => 'Liam expresses happiness frequently — his signature happy laugh is infectious. He signals discomfort with a low whimper. Position him near music sources for maximum engagement. He fascination with water — sensory water play is a preferred activity.',
+            'sexual_behaviors'                 => false,
+            'interpersonal_behavior'           => false,
+            'social_emotional'                 => false,
+            'follows_instructions'             => false,
+            'follows_instructions_description' => 'Liam is functioning at a 12–18 month developmental level. He does not follow verbal instructions. Respond to his communicative cues: happy vocalizations and laughter indicate engagement; low whimper indicates discomfort.',
+            'group_participation'              => true,
+            'group_participation_description'  => 'Can be included in music and sensory group activities with 1:1 support. Responds joyfully to music and water play in group settings. Position near other campers for incidental social engagement.',
+            'attends_school'                   => true,
+            'classroom_type'                   => 'Self-contained',
         ]);
     }
 
@@ -203,6 +276,14 @@ class BehavioralProfileSeeder extends Seeder
             'functioning_age_level'  => null,
             'communication_methods'  => ['verbal'],
             'notes'                  => 'Caleb is cognitively normal. PANDAS behavioral symptoms (OCD rituals, emotional lability) are currently in remission. If he becomes unexpectedly distressed or begins ritualistic behaviors, check for fever first — this may signal a strep exposure. Contact nurse and parent immediately if PANDAS symptoms emerge.',
+            'sexual_behaviors'                   => false,
+            'interpersonal_behavior'             => false,
+            'social_emotional'                   => true,
+            'social_emotional_description'       => 'PANDAS symptoms currently in remission. If unexpected distress or OCD rituals (counting, ordering, repetitive checking) emerge, check temperature immediately — fever may signal a strep exposure and active PANDAS flare. Contact nurse and parent immediately; do not manage as a behavioral issue alone.',
+            'follows_instructions'               => true,
+            'group_participation'                => true,
+            'attends_school'                     => true,
+            'classroom_type'                     => 'General education',
         ]);
     }
 

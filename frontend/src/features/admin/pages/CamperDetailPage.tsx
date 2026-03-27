@@ -18,6 +18,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { format } from 'date-fns';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, User, Heart, Phone, FileText, Activity, Shield, AlertTriangle, TrendingUp,
 } from 'lucide-react';
@@ -112,6 +113,7 @@ export function CamperDetailPage() {
   // Pull the camper's numeric ID from the URL (e.g. /admin/campers/42 → id="42")
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [camper, setCamper]         = useState<Camper | null>(null);
   // All medical sub-resources live in one state object to avoid many useState calls
@@ -139,7 +141,7 @@ export function CamperDetailPage() {
         // Fetch risk summary in parallel with camper — silently ignore failures
         getCamperRiskSummary(camperId).then(data => { if (!cancelled) setRiskData(data as any); }).catch(() => {});
       } catch {
-        if (!cancelled) { setError(true); toast.error('Failed to load camper record.'); }
+        if (!cancelled) { setError(true); toast.error(t('common.error_loading')); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -212,9 +214,9 @@ export function CamperDetailPage() {
     return (
       <div className="p-6 max-w-5xl">
         <EmptyState
-          title="Camper not found"
-          description="This camper record may have been removed or you do not have access."
-          action={{ label: 'Back to campers', onClick: () => navigate(backPath) }}
+          title={t('admin.campers.empty_title')}
+          description={t('admin.review.not_found_desc')}
+          action={{ label: t('admin.campers.title'), onClick: () => navigate(backPath) }}
         />
       </div>
     );
@@ -239,7 +241,7 @@ export function CamperDetailPage() {
           style={{ color: 'var(--muted-foreground)' }}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to campers
+          {t('admin.campers.title')}
         </Link>
         <div className="flex items-start gap-4">
           {/* Initials avatar — a quick visual anchor for the camper's identity */}
@@ -250,12 +252,25 @@ export function CamperDetailPage() {
             {camper.first_name[0]}{camper.last_name[0]}
           </div>
           <div>
-            <h1 className="font-headline text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
-              {camper.full_name}
-            </h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-headline text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
+                {camper.full_name}
+              </h1>
+              {/* Active status reflects whether the camper has an approved application */}
+              {camper.is_active != null && (
+                <span
+                  className="text-xs font-medium px-2.5 py-0.5 rounded-full"
+                  style={camper.is_active
+                    ? { background: 'rgba(22,163,74,0.12)', color: 'var(--ember-orange)' }
+                    : { background: 'var(--muted)', color: 'var(--muted-foreground)' }}
+                >
+                  {camper.is_active ? t('status_labels.active') : t('status_labels.inactive')}
+                </span>
+              )}
+            </div>
             {/* Mid-dots separate age and gender — conditional to avoid orphaned separators */}
             <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              {age !== null ? `${age} years old` : ''}
+              {age !== null ? t('admin_extra.age_years', { age }) : ''}
               {age !== null && camper.gender ? ' · ' : ''}
               {camper.gender ?? ''}
             </p>
@@ -266,19 +281,19 @@ export function CamperDetailPage() {
       <div className="space-y-4">
 
         {/* Personal Information card */}
-        <SectionCard title="Personal Information" icon={<User className="h-4 w-4" />}>
+        <SectionCard title={t('profile.personal_title')} icon={<User className="h-4 w-4" />}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Field label="Date of Birth" value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
-            <Field label="Age"           value={age !== null ? `${age} years` : undefined} />
-            <Field label="Gender"        value={camper.gender} />
-            <Field label="T-Shirt Size"  value={camper.tshirt_size} />
+            <Field label={t('admin.review.field_dob')} value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
+            <Field label={t('admin_extra.age_label')} value={age !== null ? t('admin_extra.age_years_short', { age }) : undefined} />
+            <Field label={t('admin.review.field_gender')}  value={camper.gender} />
+            <Field label={t('admin.review.field_shirt')}   value={camper.tshirt_size} />
           </div>
         </SectionCard>
 
         {/* Applications — lists every session the camper has applied for */}
-        <SectionCard title="Applications" icon={<FileText className="h-4 w-4" />}>
+        <SectionCard title={t('admin.applications.title')} icon={<FileText className="h-4 w-4" />}>
           {applications.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No applications on file.</p>
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_applications')}</p>
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
               {applications.map((app) => (
@@ -289,7 +304,7 @@ export function CamperDetailPage() {
                       {app.session?.name ?? `Session #${app.camp_session_id}`}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      Submitted {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}
+                      {t('admin.review.submitted')} {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : '—'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
@@ -300,7 +315,7 @@ export function CamperDetailPage() {
                       className="text-xs px-2.5 py-1 rounded border transition-colors hover:opacity-80"
                       style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
                     >
-                      Review
+                      {t('admin_extra.review_btn')}
                     </Link>
                   </div>
                 </div>
@@ -311,19 +326,19 @@ export function CamperDetailPage() {
 
         {/* Risk Assessment card — only shown once risk data has loaded */}
         {riskData && (
-          <SectionCard title="Risk Assessment" icon={<TrendingUp className="h-4 w-4" />}>
+          <SectionCard title={t('admin_extra.risk_assessment')} icon={<TrendingUp className="h-4 w-4" />}>
             <div className="space-y-4">
               {/* Risk score row with color-coded badge */}
               <div className="flex items-center gap-4 flex-wrap">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                    Risk Score
+                    {t('admin_extra.risk_score')}
                   </p>
                   {(() => {
                     const score = riskData.risk_score ?? 0;
                     const pct   = Math.min(100, Math.round(score));
                     const color = pct >= 67 ? '#dc2626' : pct >= 34 ? '#d97706' : '#166534';
-                    const label = pct >= 67 ? 'High' : pct >= 34 ? 'Moderate' : 'Low';
+                    const label = pct >= 67 ? t('admin_extra.risk_high') : pct >= 34 ? t('admin_extra.risk_moderate') : t('admin_extra.risk_low');
                     return (
                       <span
                         className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1 rounded-full"
@@ -338,7 +353,7 @@ export function CamperDetailPage() {
                 {/* Supervision level */}
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                    Supervision Level
+                    {t('admin_extra.supervision_level')}
                   </p>
                   <p className="text-sm" style={{ color: 'var(--foreground)' }}>
                     {riskData.supervision_label ?? '—'}
@@ -353,7 +368,7 @@ export function CamperDetailPage() {
                 {/* Medical complexity */}
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>
-                    Medical Complexity
+                    {t('admin_extra.medical_complexity')}
                   </p>
                   <p className="text-sm" style={{ color: 'var(--foreground)' }}>
                     {riskData.complexity_label ?? '—'}
@@ -365,7 +380,7 @@ export function CamperDetailPage() {
               {Array.isArray(riskData.flags) && riskData.flags.length > 0 && (
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>
-                    Risk Flags
+                    {t('admin_extra.risk_flags')}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {riskData.flags.map((flag: string) => (
@@ -386,20 +401,20 @@ export function CamperDetailPage() {
         )}
 
         {/* Medical Record card — has its own medLoading state */}
-        <SectionCard title="Medical Record" icon={<Heart className="h-4 w-4" />}>
+        <SectionCard title={t('admin_extra.medical_record')} icon={<Heart className="h-4 w-4" />}>
             {medLoading ? (
               // Still fetching medical data — show skeleton rows inside the card
               <div className="space-y-2">
                 {[1, 2].map((i) => <Skeletons.Row key={i} />)}
               </div>
             ) : !med?.record ? (
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No medical record on file.</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_medical_record')}</p>
             ) : (
               <div className="space-y-5">
                 {/* Primary diagnosis is a single free-text field from the record itself */}
                 {med.record.primary_diagnosis && (
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Primary Diagnosis</p>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.primary_diagnosis')}</p>
                     <p className="text-sm" style={{ color: 'var(--foreground)' }}>{med.record.primary_diagnosis}</p>
                   </div>
                 )}
@@ -407,7 +422,7 @@ export function CamperDetailPage() {
                 {/* Structured diagnoses from the diagnoses sub-resource, with ICD codes */}
                 {med.diagnoses.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Diagnoses</p>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.diagnoses')}</p>
                     <div className="space-y-1.5">
                       {med.diagnoses.map((d) => (
                         <div key={d.id} className="flex items-center gap-2 text-sm">
@@ -427,7 +442,7 @@ export function CamperDetailPage() {
                 {/* Allergy chips — color-coded by severity for rapid triage */}
                 {med.allergies.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Allergies</p>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.allergies')}</p>
                     <div className="flex flex-wrap gap-2">
                       {med.allergies.map((a) => (
                         <span
@@ -442,7 +457,7 @@ export function CamperDetailPage() {
                           }}
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          {a.name} — {a.severity}
+                          {a.allergen} — {a.severity}
                         </span>
                       ))}
                     </div>
@@ -452,7 +467,7 @@ export function CamperDetailPage() {
                 {/* Medication list — dosage and frequency shown inline */}
                 {med.medications.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Medications</p>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.medications')}</p>
                     <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
                       {med.medications.map((m) => (
                         <div key={m.id} className="py-2 first:pt-0 last:pb-0">
@@ -470,11 +485,11 @@ export function CamperDetailPage() {
                 {/* Behavioral profile — triggers and strategies for staff awareness */}
                 {med.behavioralProfile && (
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Behavioral Profile</p>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.behavioral_profile')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {med.behavioralProfile.triggers && <Field label="Triggers" value={med.behavioralProfile.triggers} />}
-                      {med.behavioralProfile.de_escalation_strategies && <Field label="De-escalation" value={med.behavioralProfile.de_escalation_strategies} />}
-                      {med.behavioralProfile.communication_style && <Field label="Communication Style" value={med.behavioralProfile.communication_style} />}
+                      {med.behavioralProfile.triggers && <Field label={t('medical.record.triggers')} value={med.behavioralProfile.triggers} />}
+                      {med.behavioralProfile.de_escalation_strategies && <Field label={t('medical.record.de_escalation')} value={med.behavioralProfile.de_escalation_strategies} />}
+                      {med.behavioralProfile.communication_style && <Field label={t('medical.record.communication')} value={med.behavioralProfile.communication_style} />}
                     </div>
                   </div>
                 )}
@@ -482,28 +497,28 @@ export function CamperDetailPage() {
                 {/* Feeding plan — shows method and any dietary restrictions */}
                 {med.feedingPlan && (
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Feeding Plan</p>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.feeding_plan')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Field label="Method" value={med.feedingPlan.method} />
-                      {med.feedingPlan.restrictions && <Field label="Restrictions" value={med.feedingPlan.restrictions} />}
+                      <Field label={t('medical.record.method')} value={med.feedingPlan.method} />
+                      {med.feedingPlan.restrictions && <Field label={t('medical.record.restrictions')} value={med.feedingPlan.restrictions} />}
                     </div>
                   </div>
                 )}
 
                 {/* Fallback message: record exists in the DB but has no sub-resource data yet */}
                 {!med.record.primary_diagnosis && med.diagnoses.length === 0 && med.allergies.length === 0 && med.medications.length === 0 && !med.behavioralProfile && !med.feedingPlan && (
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Medical record exists but contains no entries.</p>
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.medical_record_empty')}</p>
                 )}
               </div>
             )}
         </SectionCard>
 
         {/* Emergency Contacts — keyed by camper ID, not medical record ID */}
-        <SectionCard title="Emergency Contacts" icon={<Phone className="h-4 w-4" />}>
+        <SectionCard title={t('medical.record.emergency_contacts')} icon={<Phone className="h-4 w-4" />}>
             {medLoading ? (
               <Skeletons.Row />
             ) : (med?.emergencyContacts ?? []).length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No emergency contacts on file.</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_emergency_contacts')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {med!.emergencyContacts.map((ec) => (
@@ -515,25 +530,25 @@ export function CamperDetailPage() {
                     <p className="text-sm font-semibold mb-1.5" style={{ color: 'var(--foreground)' }}>{ec.name}</p>
                     <div className="space-y-0.5">
                       <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        <span className="font-medium" style={{ color: 'var(--foreground)' }}>Relation:</span> {ec.relationship}
+                        <span className="font-medium" style={{ color: 'var(--foreground)' }}>{t('admin_extra.relation_label')}</span> {ec.relationship}
                       </p>
                       <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        <span className="font-medium" style={{ color: 'var(--foreground)' }}>Phone:</span> {ec.phone_primary}
+                        <span className="font-medium" style={{ color: 'var(--foreground)' }}>{t('admin_extra.phone_label')}</span> {ec.phone_primary}
                       </p>
                       {/* Secondary phone is optional — only render if it exists */}
                       {ec.phone_secondary && (
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>Phone 2:</span> {ec.phone_secondary}
+                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>{t('admin_extra.phone2_label')}</span> {ec.phone_secondary}
                         </p>
                       )}
                       {ec.email && (
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>Email:</span> {ec.email}
+                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>{t('admin_extra.email_label')}</span> {ec.email}
                         </p>
                       )}
                       {/* Authorized pickup status is a legal flag — shown in green for clarity */}
                       {ec.is_authorized_pickup && (
-                        <p className="text-xs mt-1" style={{ color: 'var(--forest-green)' }}>Authorized for pickup</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--forest-green)' }}>{t('admin_extra.authorized_pickup')}</p>
                       )}
                     </div>
                   </div>
@@ -544,7 +559,7 @@ export function CamperDetailPage() {
 
         {/* Activity Permissions — only rendered when there are entries to show */}
         {!medLoading && (med?.activityPermissions ?? []).length > 0 && (
-          <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
+          <SectionCard title={t('medical.record.activity_permissions')} icon={<Activity className="h-4 w-4" />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {med!.activityPermissions.map((ap) => (
                   <div key={ap.id} className="flex items-start gap-2.5">
@@ -587,7 +602,7 @@ export function CamperDetailPage() {
                             : '#dc2626',
                         }}
                       >
-                        {ap.permission_level === 'yes' ? 'Permitted' : ap.permission_level === 'no' ? 'Not Permitted' : 'Restricted'}
+                        {ap.permission_level === 'yes' ? t('common.permitted') : ap.permission_level === 'no' ? t('common.not_permitted') : t('admin_extra.restricted')}
                       </span>
                       {/* Restriction notes appear below the badge when present */}
                       {ap.restriction_notes && (
@@ -602,7 +617,7 @@ export function CamperDetailPage() {
 
         {/* Assistive Devices — only shown when the camper has at least one device on file */}
         {!medLoading && (med?.assistiveDevices ?? []).length > 0 && (
-          <SectionCard title="Assistive Devices" icon={<Shield className="h-4 w-4" />}>
+          <SectionCard title={t('medical.record.devices')} icon={<Shield className="h-4 w-4" />}>
               {/* Each device is rendered as a compact pill with optional notes inline */}
               <div className="flex flex-wrap gap-2">
                 {med!.assistiveDevices.map((d) => (
@@ -611,7 +626,7 @@ export function CamperDetailPage() {
                     className="text-xs px-2.5 py-1 rounded-full border"
                     style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--glass-strong)' }}
                   >
-                    {d.device_type}{d.notes ? ` — ${d.notes}` : ''}{d.requires_transfer_assistance ? ' (transfer assist)' : ''}
+                    {d.device_type}{d.notes ? ` — ${d.notes}` : ''}{d.requires_transfer_assistance ? ` ${t('admin_extra.transfer_assist')}` : ''}
                   </span>
                 ))}
               </div>

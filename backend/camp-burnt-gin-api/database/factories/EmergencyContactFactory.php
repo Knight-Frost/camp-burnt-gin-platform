@@ -7,65 +7,70 @@ use App\Models\EmergencyContact;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * Factory for creating EmergencyContact model instances in tests.
- *
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\EmergencyContact>
  */
 class EmergencyContactFactory extends Factory
 {
-    /**
-     * The name of the factory's corresponding model.
-     *
-     * @var class-string<\Illuminate\Database\Eloquent\Model>
-     */
     protected $model = EmergencyContact::class;
 
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'camper_id' => Camper::factory(),
-            'name' => fake()->name(),
-            'relationship' => fake()->randomElement(['Mother', 'Father', 'Grandparent', 'Aunt', 'Uncle', 'Guardian']),
-            'phone_primary' => fake()->phoneNumber(),
-            'phone_secondary' => fake()->optional()->phoneNumber(),
-            'email' => fake()->optional()->safeEmail(),
-            'is_primary' => false,
-            'is_authorized_pickup' => fake()->boolean(),
+            'camper_id'            => Camper::factory(),
+            'name'                 => fake()->name(),
+            'relationship'         => fake()->randomElement(['Mother', 'Father', 'Grandparent', 'Aunt', 'Uncle', 'Guardian', 'Stepparent']),
+            'phone_primary'        => fake()->numerify('803#######'),
+            'phone_secondary'      => fake()->optional(0.5)->numerify('803#######'),
+            'phone_work'           => fake()->optional(0.4)->numerify('803#######'),
+            'email'                => fake()->optional(0.7)->safeEmail(),
+            'is_primary'           => false, // use .primary() state explicitly
+            'is_authorized_pickup' => fake()->boolean(60),
+            'is_guardian'          => false,
+            // Address for pickup logistics
+            'address'              => fake()->optional(0.5)->streetAddress(),
+            'city'                 => fake()->optional(0.5)->city(),
+            'state'                => fake()->optional(0.5)->stateAbbr(),
+            'zip'                  => fake()->optional(0.5)->numerify('#####'),
+            // Language
+            'primary_language'     => 'English',
+            'interpreter_needed'   => false,
         ];
     }
 
-    /**
-     * Create a primary emergency contact.
-     */
+    /** The primary emergency contact for this camper. */
     public function primary(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'is_primary' => true,
-        ]);
+        return $this->state(fn () => ['is_primary' => true]);
     }
 
-    /**
-     * Create a contact authorized for pickup.
-     */
+    /** Contact authorized to pick up the camper. */
     public function authorizedPickup(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn () => ['is_authorized_pickup' => true]);
+    }
+
+    /** Contact is a legal guardian — also primary and authorized pickup by default. */
+    public function guardian(): static
+    {
+        return $this->state(fn () => [
+            'is_guardian'          => true,
+            'is_primary'           => true,
             'is_authorized_pickup' => true,
         ]);
     }
 
-    /**
-     * Create a contact for a specific camper.
-     */
+    /** Spanish-speaking contact requiring interpreter services. */
+    public function spanishWithInterpreter(): static
+    {
+        return $this->state(fn () => [
+            'primary_language'   => 'Spanish',
+            'interpreter_needed' => true,
+        ]);
+    }
+
+    /** Attach to a specific camper. */
     public function forCamper(Camper $camper): static
     {
-        return $this->state(fn (array $attributes) => [
-            'camper_id' => $camper->id,
-        ]);
+        return $this->state(fn () => ['camper_id' => $camper->id]);
     }
 }

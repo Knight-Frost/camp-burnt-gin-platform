@@ -45,7 +45,7 @@ export function AuthLayout() {
 
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className="h-screen overflow-y-auto flex flex-col"
       style={{
         background: 'linear-gradient(160deg, #f0f5fb 0%, #e4eef8 60%, #d8e8f5 100%)',
       }}

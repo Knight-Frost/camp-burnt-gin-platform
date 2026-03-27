@@ -34,11 +34,13 @@ export const ROUTES = {
   // Note: the role is called "applicant" in code, but users are parents/guardians
   PARENT_DASHBOARD: '/applicant/dashboard',
   PARENT_APPLICATIONS: '/applicant/applications',
+  PARENT_APPLICATION_START: '/applicant/applications/start',
   PARENT_APPLICATION_NEW: '/applicant/applications/new',
   // Function that takes an application ID and returns the detail URL
   PARENT_APPLICATION_DETAIL: (id: number | string) =>
     `/applicant/applications/${id}`,
   PARENT_DOCUMENTS: '/applicant/documents',
+  PARENT_FORMS: '/applicant/forms',
   PARENT_CALENDAR: '/applicant/calendar',
   PARENT_ANNOUNCEMENTS: '/applicant/announcements',
 
@@ -53,6 +55,8 @@ export const ROUTES = {
   ADMIN_APPLICATIONS: '/admin/applications',
   ADMIN_APPLICATION_DETAIL: (id: number | string) =>
     `/admin/applications/${id}`,
+  ADMIN_APPLICATION_EDIT: (id: number | string) =>
+    `/admin/applications/${id}/edit`,
   ADMIN_SESSIONS: '/admin/sessions',
   ADMIN_ARCHIVED_SESSIONS: '/admin/sessions/archived',
   ADMIN_SESSION_DETAIL: (id: number | string) => `/admin/sessions/${id}`,
@@ -61,6 +65,7 @@ export const ROUTES = {
   ADMIN_ANNOUNCEMENTS: '/admin/announcements',
   ADMIN_CALENDAR: '/admin/calendar',
   ADMIN_DOCUMENTS: '/admin/documents',
+  ADMIN_DEADLINES: '/admin/deadlines',
 
   // ─── Medical portal ─────────────────────────────────────────────────────────
   MEDICAL_DASHBOARD: '/medical/dashboard',
@@ -85,6 +90,8 @@ export const ROUTES = {
   MEDICAL_DIRECTORY: '/medical/directory',
 
   // ─── Super Admin portal ─────────────────────────────────────────────────────
+  SUPER_ADMIN_APPLICATION_EDIT: (id: number | string) =>
+    `/super-admin/applications/${id}/edit`,
   SUPER_ADMIN_DASHBOARD: '/super-admin/dashboard',
   SUPER_ADMIN_USERS: '/super-admin/users',
   // Audit log shows every action taken in the system (HIPAA requirement)

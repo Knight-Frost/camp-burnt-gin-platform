@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Hash;
  *     StaffSeeder             → 7 staff accounts + 2 edge-case accounts (inactive, locked)
  *     CampSeeder              → Camp Burnt Gin + 3 sessions (1 past, 2 upcoming)
  *     FamilySeeder            → 8 applicant families with campers and emergency contacts
+ *     ScaleSeeder             → 32 additional families (~42 campers) for volume/scenario coverage
  *
  *   Tier 3 — Application workflow scenarios (all 6 statuses + draft + paper)
  *     ApplicationSeeder       → 14 applications covering every status and edge case
@@ -32,7 +33,9 @@ use Illuminate\Support\Facades\Hash;
  *     MedicalPhase11Seeder    → Incidents, visits, follow-ups, restrictions (Phase 11)
  *     TreatmentLogSeeder      → Visit-linked treatment log entries
  *     CamperProfileSeeder     → Behavioral profiles, assistive devices, feeding plans
+ *     PersonalCarePlanSeeder  → ADL care plans for 8 core + 8 supporting campers
  *     ExtendedMedicalRecordSeeder → Seizure data, activity permission overrides
+ *     FormParitySeeder        → Backfills all form-parity fields on core campers (migration 000001–000005)
  *     MedicalCrossLinkSeeder  → Incident/follow-up cross-links; restrictions for Ava+Mia
  *
  *   Tier 5 — Communication and operations
@@ -44,6 +47,8 @@ use Illuminate\Support\Facades\Hash;
  *     AnnouncementSeeder      → Announcements + calendar events
  *     AuditLogSeeder          → Audit trail entries (35 entries, all categories)
  *     NotificationSeeder      → Database notifications
+ *     DeadlineSeeder          → 15 deadlines + auto-synced calendar events (all urgency levels)
+ *     EdgeCaseSeeder          → 14 intentional boundary/failure scenarios for QA
  *
  *   Tier 6 — System configuration (always runs, safe to repeat)
  *     RequiredDocumentRuleSeeder → Required document rule definitions
@@ -52,7 +57,7 @@ use Illuminate\Support\Facades\Hash;
  *
  * ─── SCENARIO COVERAGE ──────────────────────────────────────────────────────
  *
- *   Application statuses   : pending, under_review, approved, rejected, cancelled, waitlisted
+ *   Application statuses   : pending, under_review, approved, rejected, cancelled, waitlisted, withdrawn
  *   Draft applications     : 2 (Mia returning draft, Olivia new family draft)
  *   Paper application      : 1 (Henry Carter — admin-entered from physical form)
  *   Medical complexity     : no record, partial, complete (mild/moderate/severe)
@@ -60,6 +65,10 @@ use Illuminate\Support\Facades\Hash;
  *   Session distribution   : past, upcoming × 2, capacity variation
  *   Admin interactions     : reviewed, pending, rejected, waitlisted with notes
  *   Edge-case accounts     : inactive user, locked-out user, MFA-enabled admin
+ *   Scale                  : ~76 total campers across ~62 families (8 core + 32 scale + 14 edge)
+ *   Edge cases (EC-001–014): no EC, all flags true, all devices, seizure/no plan, inactive parent,
+ *                            max-length strings, empty medical, polypharmacy, duplicate sessions,
+ *                            all-Spanish family, all health flags, same session both choices
  *
  * ─── RESET (local dev only) ─────────────────────────────────────────────────
  *
@@ -96,8 +105,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             StaffSeeder::class,                  // 7 staff + 2 edge-case accounts (inactive, locked)
             CampSeeder::class,                   // Camp Burnt Gin + 3 sessions (1 past, 2 upcoming)
-            FamilySeeder::class,                 // 30 applicant families with campers
+            FamilySeeder::class,                 // 8 core applicant families with campers
             ExtendedEmergencyContactSeeder::class, // secondary/edge-case emergency contacts
+            ScaleSeeder::class,                  // 32 additional families (~42 campers) — volume coverage
         ]);
 
         // ── Tier 3: Application workflow scenarios ────────────────────────────
@@ -111,9 +121,19 @@ class DatabaseSeeder extends Seeder
             MedicalPhase11Seeder::class,       // incidents, visits, follow-ups, restrictions
             TreatmentLogSeeder::class,         // visit-linked treatment logs (all 5 types)
             CamperProfileSeeder::class,        // behavioral profiles, assistive devices, feeding plans
+            PersonalCarePlanSeeder::class,     // ADL care plans for 8 core + 8 supporting campers
             ExtendedMedicalRecordSeeder::class, // seizure data, activity permission overrides
+            FormParitySeeder::class,           // backfills form-parity fields on core campers (000001–000005)
             MedicalCrossLinkSeeder::class,     // incident/follow-up cross-links
         ]);
+
+        // Backfill medical_records.is_active after all medical seeders have run.
+        // ApplicationSeeder activates campers; now that MedicalSeeder has created
+        // the records, we sync the flag so medical staff can see active campers.
+        \App\Models\MedicalRecord::whereIn(
+            'camper_id',
+            \App\Models\Camper::where('is_active', true)->pluck('id')
+        )->update(['is_active' => true]);
 
         // ── Tier 5: Communication and operations ──────────────────────────────
         $this->command->info('Seeding communication and documents...');
@@ -133,6 +153,12 @@ class DatabaseSeeder extends Seeder
             AnnouncementSeeder::class,          // announcements + calendar events
             AuditLogSeeder::class,              // 55+ audit entries across all 6 categories
             NotificationSeeder::class,          // database notifications
+
+            // Deadlines — after doc requests so entity IDs can be resolved; observer auto-syncs calendar events
+            DeadlineSeeder::class,              // 15 deadlines (session-wide, doc-request, application, internal)
+
+            // Edge cases — must run last (depends on sessions, roles, all prior data)
+            EdgeCaseSeeder::class,              // 14 boundary/failure scenarios (EC-001–EC-014)
         ]);
 
         $this->printDemoSummary();
@@ -201,13 +227,32 @@ class DatabaseSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->line('<comment>Application status coverage</comment>:');
-        $this->command->line('  pending      : Lily (S2), Lucas (S1), Noah (S2), Henry (S2)');
-        $this->command->line('  under_review : Sofia (S1)');
-        $this->command->line('  approved     : Ethan (S1), Ava (S2), Mia (2025), Henry (S1)');
-        $this->command->line('  rejected     : Noah (S1 — capacity)');
-        $this->command->line('  cancelled    : Lucas (S2 — draft abandoned)');
-        $this->command->line('  waitlisted   : Tyler (S1 — on waitlist, promotable)');
-        $this->command->line('  draft        : Mia (S1 2026 in-progress), Olivia (S2 brand new)');
+        $this->command->line('  pending      : Lily (S2), Lucas (S1), Noah (S2), Henry (S2) + scale families');
+        $this->command->line('  under_review : Sofia (S1) + scale families');
+        $this->command->line('  approved     : Ethan (S1), Ava (S2), Mia (2025), Henry (S1) + scale families');
+        $this->command->line('  rejected     : Noah (S1 — capacity) + scale families');
+        $this->command->line('  cancelled    : Lucas (S2 — draft abandoned) + EC-003, EC-011, EC-014');
+        $this->command->line('  waitlisted   : Tyler (S1 — promotable) + scale families');
+        $this->command->line('  withdrawn    : EC-004 (parent-initiated)');
+        $this->command->line('  draft        : Mia (S1 2026 in-progress), Olivia (S2 brand new) + scale families');
+        $this->command->newLine();
+
+        $this->command->line('<comment>Edge cases (EdgeCaseSeeder)</comment>:');
+        $this->command->line('  EC-001 ec001.no.contact@edgecase.test        No emergency contact');
+        $this->command->line('  EC-002 ec002.all.flags@edgecase.test         All behavioral flags true');
+        $this->command->line('  EC-003 ec003.cancelled@edgecase.test         Admin-cancelled (terminal)');
+        $this->command->line('  EC-004 ec004.withdrawn@edgecase.test         Parent-withdrawn (terminal)');
+        $this->command->line('  EC-005 ec005.all.devices@edgecase.test       All assistive devices + G-tube');
+        $this->command->line('  EC-006 ec006.seizure.noplan@edgecase.test    Seizure disorder — no plan');
+        $this->command->line('  EC-007 ec007.inactive.parent@edgecase.test   Inactive parent (login denied)');
+        $this->command->line('  EC-008 ec008.maxlength@edgecase.test         Max-length strings in all fields');
+        $this->command->line('  EC-009 ec009.empty.medical@edgecase.test     Empty medical profile');
+        $this->command->line('  EC-010 ec010.max.meds@edgecase.test          5 medications + conflicting diet');
+        $this->command->line('  EC-011 ec011.duplicate.session@edgecase.test Duplicate session (cancelled)');
+        $this->command->line('  EC-012 ec012.espanol.only@edgecase.test      All-Spanish, all interpreters');
+        $this->command->line('  EC-013 ec013.all.health.flags@edgecase.test  All health parity flags true');
+        $this->command->line('  EC-014 ec014.same.session@edgecase.test      Second session = first session');
+        $this->command->line('  All edge-case passwords: password');
         $this->command->newLine();
     }
 }

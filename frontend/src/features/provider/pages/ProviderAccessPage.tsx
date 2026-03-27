@@ -173,7 +173,7 @@ export function ProviderAccessPage() {
   // ---------------------------------------------------------------------------
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#f4f6f9' }}>
+      <div className="h-screen overflow-y-auto flex items-center justify-center" style={{ background: '#f4f6f9' }}>
         <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
           style={{ borderColor: 'var(--ember-orange)', borderTopColor: 'transparent' }} />
       </div>
@@ -185,7 +185,7 @@ export function ProviderAccessPage() {
   // ---------------------------------------------------------------------------
   if (invalid || !context) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#f4f6f9' }}>
+      <div className="h-screen overflow-y-auto flex items-center justify-center p-6" style={{ background: '#f4f6f9' }}>
         <div className="max-w-sm w-full text-center">
           <div className="flex items-center justify-center w-14 h-14 rounded-2xl mx-auto mb-4"
             style={{ background: 'rgba(220,38,38,0.12)' }}>
@@ -207,7 +207,7 @@ export function ProviderAccessPage() {
   // ---------------------------------------------------------------------------
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#f4f6f9' }}>
+      <div className="h-screen overflow-y-auto flex items-center justify-center p-6" style={{ background: '#f4f6f9' }}>
         <div className="max-w-sm w-full text-center">
           <div className="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-5"
             style={{ background: 'rgba(5,150,105,0.12)' }}>
@@ -228,7 +228,7 @@ export function ProviderAccessPage() {
   // Form
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen py-10 px-4" style={{ background: '#f4f6f9' }}>
+    <div className="h-screen overflow-y-auto py-10 px-4" style={{ background: '#f4f6f9' }}>
       <div className="max-w-xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

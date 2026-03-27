@@ -346,6 +346,27 @@ class ApplicationSeeder extends Seeder
 
         $this->command->line('  Applications seeded: 10 submitted + 2 drafts + 1 cancelled draft = 13 total.');
         $this->command->line('  Status coverage: pending(3), under_review(1), approved(4), rejected(1), cancelled(1), waitlisted(1), draft(2).');
+
+        // Backfill is_active on campers and medical records to reflect approved applications.
+        // ApplicationService sets these flags in production via reviewApplication(); the
+        // seeder bypasses that service, so we sync the flags here after all apps are created.
+        $this->backfillIsActive();
+    }
+
+    /**
+     * Activate campers that have at least one approved application.
+     * Medical records are backfilled separately in DatabaseSeeder after MedicalSeeder runs,
+     * because medical records don't exist yet when ApplicationSeeder runs.
+     */
+    private function backfillIsActive(): void
+    {
+        $activeCamperIds = Application::where('status', ApplicationStatus::Approved)
+            ->pluck('camper_id')
+            ->unique();
+
+        Camper::whereIn('id', $activeCamperIds)->update(['is_active' => true]);
+
+        $this->command->line("  is_active backfill: {$activeCamperIds->count()} camper(s) activated.");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -23,11 +23,13 @@ import {
   FileText,
   FolderOpen,
   CalendarDays,
+  Clock,
   BarChart3,
   MessageSquare,
   Settings,
   Megaphone,
   Layout,
+  User,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
@@ -57,23 +59,29 @@ export function AdminLayout() {
 
   // Nav items are defined here (inside the component) so they are translated
   // on every render, picking up any language change from i18next immediately.
+  const gPrimary = t('portal_nav.group_primary');
+  const gComm    = t('portal_nav.group_communication');
+  const gOps     = t('portal_nav.group_operations');
+  const gSystem  = t('portal_nav.group_system');
   const navItems: NavItem[] = [
     // PRIMARY — core operational pages
-    { group: 'Primary',       label: 'Dashboard',        to: ROUTES.ADMIN_DASHBOARD,     icon: LayoutDashboard },
-    { group: 'Primary',       label: 'Applications',     to: ROUTES.ADMIN_APPLICATIONS,  icon: FileText },
-    { group: 'Primary',       label: 'Families',         to: ROUTES.ADMIN_FAMILIES,      icon: Home },
-    { group: 'Primary',       label: 'Camper Directory', to: ROUTES.ADMIN_CAMPERS,       icon: Users },
-    { group: 'Primary',       label: 'Sessions & Camps', to: ROUTES.ADMIN_SESSIONS,      icon: CalendarDays },
+    { group: gPrimary, label: t('portal_nav.dashboard'),        to: ROUTES.ADMIN_DASHBOARD,     icon: LayoutDashboard },
+    { group: gPrimary, label: t('portal_nav.applications'),     to: ROUTES.ADMIN_APPLICATIONS,  icon: FileText },
+    { group: gPrimary, label: t('portal_nav.families'),         to: ROUTES.ADMIN_FAMILIES,      icon: Home },
+    { group: gPrimary, label: t('portal_nav.camper_directory'), to: ROUTES.ADMIN_CAMPERS,       icon: Users },
+    { group: gPrimary, label: t('portal_nav.sessions_camps'),   to: ROUTES.ADMIN_SESSIONS,      icon: CalendarDays },
     // COMMUNICATION
-    { group: 'Communication', label: 'Inbox',            to: '/admin/inbox',             icon: MessageSquare },
-    { group: 'Communication', label: 'Announcements',    to: ROUTES.ADMIN_ANNOUNCEMENTS, icon: Megaphone },
-    { group: 'Communication', label: 'Documents',        to: ROUTES.ADMIN_DOCUMENTS,     icon: FolderOpen },
+    { group: gComm,   label: t('portal_nav.inbox'),            to: '/admin/inbox',             icon: MessageSquare },
+    { group: gComm,   label: t('portal_nav.announcements'),    to: ROUTES.ADMIN_ANNOUNCEMENTS, icon: Megaphone },
+    { group: gComm,   label: t('portal_nav.documents'),        to: ROUTES.ADMIN_DOCUMENTS,     icon: FolderOpen },
     // OPERATIONS
-    { group: 'Operations',    label: 'Calendar',         to: ROUTES.ADMIN_CALENDAR,      icon: CalendarDays },
-    { group: 'Operations',    label: 'Reports',          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
+    { group: gOps,    label: t('portal_nav.calendar'),         to: ROUTES.ADMIN_CALENDAR,      icon: CalendarDays },
+    { group: gOps,    label: t('portal_nav.deadlines'),        to: ROUTES.ADMIN_DEADLINES,     icon: Clock },
+    { group: gOps,    label: t('portal_nav.reports'),          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
     // SYSTEM — governance & configuration
-    { group: 'System',        label: 'Form Builder',               to: '/admin/form-builder',  icon: Layout },
-    { group: 'System',        label: 'Settings',                   to: '/admin/settings',      icon: Settings },
+    { group: gSystem, label: t('portal_nav.form_builder'),     to: '/admin/form-builder',      icon: Layout },
+    { group: gSystem, label: t('portal_nav.my_profile'),       to: '/admin/profile',           icon: User },
+    { group: gSystem, label: t('portal_nav.settings'),         to: '/admin/settings',          icon: Settings },
   ];
 
   return (

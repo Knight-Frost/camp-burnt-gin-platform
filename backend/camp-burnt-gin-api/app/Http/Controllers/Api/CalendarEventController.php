@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Application;
 use App\Models\CalendarEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,14 +13,18 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * CalendarEventController — manages camp calendar events.
  *
- * Calendar events represent important dates on the camp calendar — deadlines for applications,
- * session start/end dates, staff meetings, orientations, and other internal milestones.
- * They are displayed on the admin dashboard and applicant portal calendar views.
+ * Calendar events represent important dates on the camp calendar. The calendar is a
+ * VISUAL LAYER — it reflects the deadlines system but does not control it.
+ *
+ * IMPORTANT — deadline-type events are managed exclusively by DeadlineCalendarSyncService
+ * via DeadlineObserver. This controller enforces that by:
+ *  - Rejecting store() calls with event_type='deadline' (use POST /api/deadlines instead)
+ *  - Rejecting update() and destroy() calls on events that have a deadline_id set
  *
  * Authorization model:
- *   - Listing (index): any authenticated user; non-admins see only "all"-audience events
+ *   - Listing (index): any authenticated user; applicants get deadline events scoped to their sessions
  *   - Viewing (show): same audience restriction for non-admins
- *   - Creating, updating, deleting: admin and super_admin only
+ *   - Creating, updating, deleting: admin and super_admin only (with deadline guard above)
  *
  * Date range support:
  *   - Provide ?start=&end= to load events for a specific month or week view
@@ -59,12 +64,36 @@ class CalendarEventController extends Controller
             $query->upcoming()->where('starts_at', '<=', now()->addDays(60));
         }
 
-        // Non-admins only see events intended for all audiences — staff/internal events are hidden
         if (! $user->isAdmin()) {
-            $query->forAudience('all');
+            // Non-admin applicants: see non-deadline "all"-audience events PLUS their own deadline events.
+            // Deadline event visibility is controlled by the deadline's is_visible_to_applicants flag
+            // and the applicant's session membership — NOT by the calendar event's audience column.
+            // Applications link to users through campers (User → Camper → Application)
+            $applicantSessionIds = Application::whereHas('camper', fn ($q) => $q->where('user_id', $user->id))
+                ->whereNotNull('camp_session_id')
+                ->pluck('camp_session_id')
+                ->unique();
+
+            $query->where(function ($q) use ($applicantSessionIds) {
+                // All-audience non-deadline events (sessions, orientations visible to everyone)
+                $q->where(function ($inner) {
+                    $inner->where('audience', 'all')
+                          ->whereNull('deadline_id');
+                })
+                // Visible deadline events in the applicant's sessions
+                ->orWhere(function ($inner) use ($applicantSessionIds) {
+                    $inner->whereNotNull('deadline_id')
+                          ->whereIn('target_session_id', $applicantSessionIds)
+                          ->whereHas('deadline', fn ($d) => $d->where('is_visible_to_applicants', true));
+                });
+            });
         }
 
-        // Return all matching events as an array — calendar views typically need all events at once
+        // Eager-load deadline relationship so the frontend knows which events are deadline-linked
+        // urgency_level is a computed PHP method, not a DB column — omit it here;
+        // the frontend derives urgency dynamically from due_date at render time.
+        $query->with(['creator:id,name', 'deadline:id,entity_type,entity_id,status,due_date']);
+
         return response()->json(['data' => $query->get()]);
     }
 
@@ -82,8 +111,9 @@ class CalendarEventController extends Controller
         $data = $request->validate([
             'title'             => ['required', 'string', 'max:200'],
             'description'       => ['nullable', 'string', 'max:2000'],
-            // Must be one of the defined event type constants on CalendarEvent::TYPES
-            'event_type'        => ['required', Rule::in(CalendarEvent::TYPES)],
+            // 'deadline' type is blocked: use POST /api/deadlines instead.
+            // DeadlineCalendarSyncService creates deadline-type events automatically.
+            'event_type'        => ['required', Rule::in(array_diff(CalendarEvent::TYPES, ['deadline']))],
             // Optional hex or named color for calendar display (e.g., "#FF5733" or "red")
             'color'             => ['nullable', 'string', 'max:30'],
             'starts_at'         => ['required', 'date'],
@@ -142,6 +172,14 @@ class CalendarEventController extends Controller
     {
         abort_unless($request->user()->isAdmin(), Response::HTTP_FORBIDDEN, 'Admins only.');
 
+        // Deadline-linked events are read-only through the calendar API.
+        // To update the date or title, edit the deadline via PUT /api/deadlines/{id}.
+        abort_if(
+            $calendarEvent->deadline_id !== null,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            'This calendar event is managed by the deadline system. Edit the deadline instead.'
+        );
+
         $data = $request->validate([
             // "sometimes" means each field is only validated if present in the request
             'title'             => ['sometimes', 'string', 'max:200'],
@@ -173,6 +211,13 @@ class CalendarEventController extends Controller
     public function destroy(Request $request, CalendarEvent $calendarEvent): JsonResponse
     {
         abort_unless($request->user()->isAdmin(), Response::HTTP_FORBIDDEN, 'Admins only.');
+
+        // Deadline-linked events must be deleted by deleting the deadline itself.
+        abort_if(
+            $calendarEvent->deadline_id !== null,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            'This calendar event is managed by the deadline system. Delete the deadline instead.'
+        );
 
         $calendarEvent->delete();
 

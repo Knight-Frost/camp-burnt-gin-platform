@@ -324,7 +324,7 @@ export function MedicalEmergencyViewPage() {
                 {criticalAllergiesForBanners.map((allergy) => (
                   <CriticalAlertBanner key={allergy.id}>
                     <p className="text-sm font-bold">
-                      {t('medical.emergency.allergy_alert') || 'ALLERGY ALERT'}: {allergy.name}
+                      {t('medical.emergency.allergy_alert') || 'ALLERGY ALERT'}: {allergy.allergen}
                     </p>
                     <p className="text-xs mt-0.5">
                       {t('medical.emergency.severity') || 'Severity'}: <strong>{allergy.severity}</strong>
@@ -380,7 +380,7 @@ export function MedicalEmergencyViewPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
                           <span className="text-sm font-semibold" style={{ color: isLifeThreaten ? 'var(--destructive)' : 'var(--foreground)' }}>
-                            {allergy.name}
+                            {allergy.allergen}
                           </span>
                           <SeverityBadge severity={allergy.severity} />
                         </div>

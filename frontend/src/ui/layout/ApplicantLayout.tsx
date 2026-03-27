@@ -23,6 +23,7 @@ import {
   Settings,
   CalendarDays,
   Megaphone,
+  ClipboardList,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
@@ -52,6 +53,7 @@ export function ApplicantLayout() {
     { group: t('portal_nav.group_my_portal'),     label: t('portal_nav.dashboard'),     to: ROUTES.PARENT_DASHBOARD,     icon: LayoutDashboard },
     { group: t('portal_nav.group_my_portal'),     label: t('portal_nav.applications'),  to: ROUTES.PARENT_APPLICATIONS,  icon: FileText },
     { group: t('portal_nav.group_my_portal'),     label: t('portal_nav.documents'),     to: ROUTES.PARENT_DOCUMENTS,     icon: FolderOpen },
+    { group: t('portal_nav.group_my_portal'),     label: t('portal_nav.official_forms'), to: ROUTES.PARENT_FORMS,         icon: ClipboardList },
     { group: t('portal_nav.group_communication'), label: t('portal_nav.inbox'),         to: '/applicant/inbox',          icon: MessageSquare },
     { group: t('portal_nav.group_communication'), label: t('portal_nav.announcements'), to: ROUTES.PARENT_ANNOUNCEMENTS, icon: Megaphone },
     { group: t('portal_nav.group_operations'),    label: t('portal_nav.calendar'),      to: ROUTES.PARENT_CALENDAR,      icon: CalendarDays },

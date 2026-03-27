@@ -24,6 +24,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bell, User, LogOut, Settings } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import { logout } from '@/features/auth/api/auth.api';
 import { clearAuth } from '@/features/auth/store/authSlice';
@@ -51,6 +52,7 @@ function getSettingsRoute(pathname: string): string {
 }
 
 export function DashboardHeader({ title }: DashboardHeaderProps) {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,7 +90,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
     }
     dispatch(clearAuth());
     navigate(ROUTES.LOGIN, { replace: true });
-    toast.success('Signed out successfully.');
+    toast.success(t('sidebar.signed_out'));
   };
 
   return (
@@ -230,7 +232,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
                       style={{ color: 'var(--destructive)' }}
                     >
                       <LogOut className="h-4 w-4 flex-shrink-0" />
-                      {isLoggingOut ? 'Signing out...' : 'Sign out'}
+                      {isLoggingOut ? t('sidebar.signing_out') : t('sidebar.sign_out')}
                     </button>
                   </DropdownMenu.Item>
                 </div>

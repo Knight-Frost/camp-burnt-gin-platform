@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Medical;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BehavioralProfile\StoreBehavioralProfileRequest;
 use App\Http\Requests\BehavioralProfile\UpdateBehavioralProfileRequest;
+use App\Models\AuditLog;
 use App\Models\BehavioralProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,17 +65,25 @@ class BehavioralProfileController extends Controller
         // Confirm the caller is authorized to create behavioral profiles.
         $this->authorize('create', BehavioralProfile::class);
 
-        // Persist only the validated, sensitive PHI fields.
-        $profile = BehavioralProfile::create($request->validated());
+        $data = $request->validated();
+
+        // updateOrCreate makes this endpoint idempotent: if the form submission
+        // failed mid-way and is retried, we update the existing profile rather
+        // than returning a 422 "already exists" error that would permanently
+        // block the user from completing their application.
+        $profile = BehavioralProfile::updateOrCreate(
+            ['camper_id' => $data['camper_id']],
+            $data
+        );
 
         // Load the camper so the response is self-contained.
         $profile->load('camper');
 
-        // HTTP 201 Created signals the new resource was successfully saved.
+        $status = $profile->wasRecentlyCreated ? Response::HTTP_CREATED : Response::HTTP_OK;
         return response()->json([
-            'message' => 'Behavioral profile created successfully.',
+            'message' => 'Behavioral profile saved successfully.',
             'data'    => $profile,
-        ], Response::HTTP_CREATED);
+        ], $status);
     }
 
     /**
@@ -107,7 +116,21 @@ class BehavioralProfileController extends Controller
         // Confirm the caller is permitted to edit this profile.
         $this->authorize('update', $behavioralProfile);
 
-        $behavioralProfile->update($request->validated());
+        $data        = $request->validated();
+        $oldSnapshot = array_intersect_key($behavioralProfile->only(array_keys($data)), $data);
+
+        $behavioralProfile->update($data);
+
+        $newSnapshot = array_intersect_key($behavioralProfile->fresh()->only(array_keys($data)), $data);
+
+        if ($oldSnapshot !== $newSnapshot) {
+            AuditLog::logContentChange(
+                auditable: $behavioralProfile,
+                editor:    $request->user(),
+                oldValues: $oldSnapshot,
+                newValues: $newSnapshot,
+            );
+        }
 
         return response()->json([
             'message' => 'Behavioral profile updated successfully.',

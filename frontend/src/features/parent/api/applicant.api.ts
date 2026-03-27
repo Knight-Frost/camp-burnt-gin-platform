@@ -32,6 +32,15 @@ export interface CreateCamperPayload {
   date_of_birth: string;
   gender: string;
   tshirt_size?: string;
+  preferred_name?: string;
+  county?: string;
+  needs_interpreter?: boolean;
+  preferred_language?: string;
+  // Form parity — applicant mailing address (may differ from guardian)
+  applicant_address?: string;
+  applicant_city?: string;
+  applicant_state?: string;
+  applicant_zip?: string;
 }
 
 export async function createCamper(
@@ -65,6 +74,18 @@ export async function getApplication(id: number): Promise<Application> {
 export interface CreateApplicationPayload {
   camper_id: number;
   session_id: number;
+  narrative_rustic_environment?: string;
+  narrative_staff_suggestions?: string;
+  narrative_participation_concerns?: string;
+  narrative_camp_benefit?: string;
+  narrative_heat_tolerance?: string;
+  narrative_transportation?: string;
+  narrative_additional_info?: string;
+  narrative_emergency_protocols?: string;
+  // Form parity meta fields
+  first_application?: boolean;
+  attended_before?: boolean;
+  session_id_second?: number;
 }
 
 export async function createApplication(
@@ -89,6 +110,55 @@ export async function signApplication(
   return data.data;
 }
 
+/**
+ * Withdraw an application. Parent-initiated only.
+ * Valid from: pending, under_review, approved, waitlisted.
+ * If the application was approved, the backend deactivates the camper
+ * and medical record if no other approved enrollment exists.
+ */
+export async function withdrawApplication(id: number): Promise<Application> {
+  const { data } = await axiosInstance.post<ApiResponse<Application>>(
+    `/applications/${id}/withdraw`
+  );
+  return data.data;
+}
+
+export type ConsentType = 'general' | 'photos' | 'liability' | 'activity' | 'authorization' | 'medication' | 'hipaa';
+
+export interface ConsentPayload {
+  consent_type: ConsentType;
+  guardian_name: string;
+  guardian_relationship: string;
+  guardian_signature: string;
+  applicant_signature?: string;
+  signed_at: string;
+}
+
+/**
+ * Store the 5 signed consent records for an application.
+ * Called after signApplication() during the final submission step.
+ * Each consent_type must be unique per application (backend upserts).
+ */
+export async function storeConsents(
+  applicationId: number,
+  consents: ConsentPayload[]
+): Promise<void> {
+  await axiosInstance.post(`/applications/${applicationId}/consents`, { consents });
+}
+
+/**
+ * Clone an application into a new draft for reapplication.
+ * The clone shares the same camper_id but has no session, status=pending,
+ * is_draft=true, and reapplied_from_id pointing to the source application.
+ * The parent must then select a new session before submitting.
+ */
+export async function cloneApplication(id: number): Promise<Application> {
+  const { data } = await axiosInstance.post<ApiResponse<Application>>(
+    `/applications/${id}/clone`
+  );
+  return data.data;
+}
+
 // ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
@@ -107,8 +177,17 @@ export interface CreateEmergencyContactPayload {
   name: string;
   relationship: string;
   phone_primary: string;
+  phone_secondary?: string;
+  phone_work?: string;
   is_primary: boolean;
   is_authorized_pickup: boolean;
+  is_guardian?: boolean;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  primary_language?: string;
+  interpreter_needed?: boolean;
 }
 
 export async function createEmergencyContact(
@@ -152,8 +231,32 @@ export interface CreateBehavioralProfilePayload {
   wandering_risk: boolean;
   one_to_one_supervision: boolean;
   developmental_delay: boolean;
+  functional_reading?: boolean;
+  functional_writing?: boolean;
+  independent_mobility?: boolean;
+  verbal_communication?: boolean;
+  social_skills?: boolean;
+  behavior_plan?: boolean;
+  functioning_age_level?: string;
   communication_methods?: string[];
   notes?: string;
+  // Form parity fields (2026_03_26_000001)
+  sexual_behaviors?: boolean;
+  interpersonal_behavior?: boolean;
+  social_emotional?: boolean;
+  follows_instructions?: boolean;
+  group_participation?: boolean;
+  attends_school?: boolean;
+  classroom_type?: string;
+  aggression_description?: string;
+  self_abuse_description?: string;
+  one_to_one_description?: string;
+  wandering_description?: string;
+  sexual_behaviors_description?: string;
+  interpersonal_behavior_description?: string;
+  social_emotional_description?: string;
+  follows_instructions_description?: string;
+  group_participation_description?: string;
 }
 
 export async function createBehavioralProfile(
@@ -179,11 +282,69 @@ export interface CreateFeedingPlanPayload {
   camper_id: number;
   special_diet: boolean;
   diet_description?: string;
+  texture_modified?: boolean;
+  texture_level?: string;
+  fluid_restriction?: boolean;
+  fluid_details?: string;
   g_tube: boolean;
   formula?: string;
   amount_per_feeding?: string;
   feedings_per_day?: number;
   feeding_times?: string[];
+  bolus_only?: boolean;
+  notes?: string;
+}
+
+export interface StoreHealthProfilePayload {
+  insurance_group?: string;
+  medicaid_number?: string;
+  physician_address?: string;
+  immunizations_current?: boolean;
+  tetanus_date?: string;
+  mobility_notes?: string;
+  has_contagious_illness?: boolean;
+  contagious_illness_description?: string;
+  tubes_in_ears?: boolean;
+  has_recent_illness?: boolean;
+  recent_illness_description?: string;
+}
+
+export async function storeHealthProfile(
+  camperId: number,
+  payload: StoreHealthProfilePayload
+): Promise<void> {
+  await axiosInstance.post(`/campers/${camperId}/health-profile`, payload);
+}
+
+export interface CreatePersonalCarePlanPayload {
+  bathing_level?: string;
+  bathing_notes?: string;
+  toileting_level?: string;
+  toileting_notes?: string;
+  nighttime_toileting?: boolean;
+  nighttime_notes?: string;
+  dressing_level?: string;
+  dressing_notes?: string;
+  oral_hygiene_level?: string;
+  oral_hygiene_notes?: string;
+  positioning_notes?: string;
+  sleep_notes?: string;
+  falling_asleep_issues?: boolean;
+  sleep_walking?: boolean;
+  night_wandering?: boolean;
+  bowel_control_notes?: string;
+  urinary_catheter?: boolean;
+  // Form parity (2026_03_26_000005)
+  irregular_bowel?: boolean;
+  irregular_bowel_notes?: string;
+  menstruation_support?: boolean;
+}
+
+export async function createPersonalCarePlan(
+  camperId: number,
+  payload: CreatePersonalCarePlanPayload
+): Promise<void> {
+  await axiosInstance.post(`/campers/${camperId}/personal-care-plan`, payload);
 }
 
 export async function createFeedingPlan(
@@ -259,6 +420,8 @@ export interface RequiredDocument {
   status: 'pending' | 'submitted' | 'reviewed';
   created_at: string;
   download_url: string;
+  submitted_file_name: string | null;
+  download_submitted_url: string | null;
 }
 
 export async function getRequiredDocuments(): Promise<RequiredDocument[]> {
@@ -334,4 +497,34 @@ import type { FormSchema } from '@/features/forms/types/form.types';
 export async function getActiveFormSchema(): Promise<FormSchema> {
   const { data } = await axiosInstance.get<{ data: FormSchema }>('/form/active');
   return data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Official Form Templates
+// ---------------------------------------------------------------------------
+
+import type { OfficialFormTemplate } from '@/shared/types';
+
+/**
+ * Fetch metadata for all four official form templates.
+ * Returns label, description, document_type, and availability for each form.
+ * Authenticated — logs the fetch in the audit trail.
+ */
+export async function getFormTemplates(): Promise<OfficialFormTemplate[]> {
+  const { data } = await axiosInstance.get<{ data: OfficialFormTemplate[] }>('/form-templates');
+  return data.data;
+}
+
+/**
+ * Download a blank official form template PDF.
+ * Returns a Blob for browser download via URL.createObjectURL.
+ *
+ * @param type - one of: english_application | spanish_application | medical_form | cyshcn_form
+ * @returns Blob with application/pdf content
+ */
+export async function downloadFormTemplate(type: string): Promise<Blob> {
+  const response = await axiosInstance.get(`/form-templates/${type}/download`, {
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }

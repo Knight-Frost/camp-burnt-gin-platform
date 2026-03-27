@@ -27,12 +27,14 @@ import {
   ScrollText,
   FileText,
   CalendarDays,
+  Clock,
   BarChart3,
   MessageSquare,
   FolderOpen,
   Settings,
   Megaphone,
   Layout,
+  User,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
@@ -59,28 +61,32 @@ export function SuperAdminLayout() {
     return <Navigate to="/forbidden" replace />;
   }
 
-  // All nav items in one flat array — grouped by section label.
-  // String literals are used for group names and labels to guarantee they always
-  // render regardless of i18n key availability.
+  // All nav items in one flat array — grouped by translated section label.
+  const gPrimary = t('portal_nav.group_primary');
+  const gComm    = t('portal_nav.group_communication');
+  const gOps     = t('portal_nav.group_operations');
+  const gSystem  = t('portal_nav.group_system');
   const navItems: NavItem[] = [
     // PRIMARY — core operational pages
-    { group: 'Primary',       label: 'Dashboard',                    to: ROUTES.SUPER_ADMIN_DASHBOARD, icon: LayoutDashboard },
-    { group: 'Primary',       label: 'Applications',                 to: '/super-admin/applications',  icon: FileText },
-    { group: 'Primary',       label: 'Families',                     to: '/super-admin/families',      icon: Home },
-    { group: 'Primary',       label: 'Camper Directory',             to: '/super-admin/campers',       icon: Shield },
-    { group: 'Primary',       label: 'Sessions & Camps',             to: '/super-admin/sessions',      icon: CalendarDays },
+    { group: gPrimary, label: t('portal_nav.dashboard'),          to: ROUTES.SUPER_ADMIN_DASHBOARD,    icon: LayoutDashboard },
+    { group: gPrimary, label: t('portal_nav.applications'),       to: '/super-admin/applications',     icon: FileText },
+    { group: gPrimary, label: t('portal_nav.families'),           to: '/super-admin/families',         icon: Home },
+    { group: gPrimary, label: t('portal_nav.camper_directory'),   to: '/super-admin/campers',          icon: Shield },
+    { group: gPrimary, label: t('portal_nav.sessions_camps'),     to: '/super-admin/sessions',         icon: CalendarDays },
     // COMMUNICATION
-    { group: 'Communication', label: 'Inbox',                        to: '/super-admin/inbox',         icon: MessageSquare },
-    { group: 'Communication', label: 'Announcements',                to: '/super-admin/announcements', icon: Megaphone },
-    { group: 'Communication', label: 'Documents',                    to: '/super-admin/documents',     icon: FolderOpen },
+    { group: gComm,   label: t('portal_nav.inbox'),              to: '/super-admin/inbox',            icon: MessageSquare },
+    { group: gComm,   label: t('portal_nav.announcements'),      to: '/super-admin/announcements',    icon: Megaphone },
+    { group: gComm,   label: t('portal_nav.documents'),          to: '/super-admin/documents',        icon: FolderOpen },
     // OPERATIONS
-    { group: 'Operations',    label: 'Calendar',                     to: '/super-admin/calendar',      icon: CalendarDays },
-    { group: 'Operations',    label: 'Reports',                      to: '/super-admin/reports',       icon: BarChart3 },
+    { group: gOps,    label: t('portal_nav.calendar'),           to: '/super-admin/calendar',         icon: CalendarDays },
+    { group: gOps,    label: t('portal_nav.deadlines'),          to: '/admin/deadlines',              icon: Clock },
+    { group: gOps,    label: t('portal_nav.reports'),            to: '/super-admin/reports',          icon: BarChart3 },
     // SYSTEM — governance & configuration (super_admin exclusive)
-    { group: 'System',        label: 'Manage Users & Permissions',   to: ROUTES.SUPER_ADMIN_USERS,         icon: Users },
-    { group: 'System',        label: 'Audit Log',                    to: ROUTES.SUPER_ADMIN_AUDIT,         icon: ScrollText },
-    { group: 'System',        label: 'Form Builder',                 to: ROUTES.SUPER_ADMIN_FORM_BUILDER,  icon: Layout },
-    { group: 'System',        label: 'Settings',                     to: '/super-admin/settings',          icon: Settings },
+    { group: gSystem, label: t('portal_nav.users_permissions'),  to: ROUTES.SUPER_ADMIN_USERS,        icon: Users },
+    { group: gSystem, label: t('portal_nav.audit_log'),          to: ROUTES.SUPER_ADMIN_AUDIT,        icon: ScrollText },
+    { group: gSystem, label: t('portal_nav.form_builder'),       to: ROUTES.SUPER_ADMIN_FORM_BUILDER, icon: Layout },
+    { group: gSystem, label: t('portal_nav.my_profile'),         to: '/super-admin/profile',          icon: User },
+    { group: gSystem, label: t('portal_nav.settings'),           to: '/super-admin/settings',         icon: Settings },
   ];
 
   // No pinned bottom items — system items moved into the main nav under the 'System' group.

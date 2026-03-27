@@ -636,7 +636,7 @@ export function MedicalTreatmentLogPage() {
   // ── Camper allergy alerts ────────────────────────────────────────────────────
 
   const allergies = camper?.medical_record?.allergies ?? [];
-  const severeAllergies = allergies.filter((a) => a.severity === 'severe' || a.severity === 'life-threatening');
+  const severeAllergies = allergies.filter((a) => a.severity === 'severe' || a.severity.toLowerCase().includes('life'));
 
   return (
     <div className="p-6 max-w-4xl">
@@ -700,7 +700,7 @@ export function MedicalTreatmentLogPage() {
           <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <div>
             <span className="font-semibold">Severe Allergy Alert: </span>
-            {severeAllergies.map((a) => a.name).join(', ')}
+            {severeAllergies.map((a) => a.allergen).join(', ')}
           </div>
         </div>
       )}

@@ -32,21 +32,25 @@ class StoreFeedingPlanRequest extends FormRequest
         $user = $this->user();
 
         $camperRule = $user->isAdmin() || $user->isMedicalProvider()
-            ? ['required', 'integer', 'exists:campers,id', 'unique:feeding_plans,camper_id']
-            : ['required', 'integer', Rule::exists('campers', 'id')->where('user_id', $user->id), 'unique:feeding_plans,camper_id'];
+            ? ['required', 'integer', 'exists:campers,id']
+            : ['required', 'integer', Rule::exists('campers', 'id')->where('user_id', $user->id)];
 
         return [
-            'camper_id' => $camperRule,
-            'special_diet' => ['boolean'],
-            'diet_description' => ['nullable', 'string', 'max:5000'],
-            'g_tube' => ['boolean'],
-            'formula' => ['nullable', 'string', 'max:255'],
-            'amount_per_feeding' => ['nullable', 'string', 'max:255'],
-            'feedings_per_day' => ['nullable', 'integer', 'min:1', 'max:24'],
-            'feeding_times' => ['nullable', 'array'],
-            'feeding_times.*' => ['string', 'max:50'],
-            'bolus_only' => ['boolean'],
-            'notes' => ['nullable', 'string', 'max:5000'],
+            'camper_id'         => $camperRule,
+            'special_diet'      => ['boolean'],
+            'diet_description'  => ['nullable', 'string', 'max:5000'],
+            'texture_modified'  => ['nullable', 'boolean'],
+            'texture_level'     => ['nullable', 'string', 'max:100'],
+            'fluid_restriction' => ['nullable', 'boolean'],
+            'fluid_details'     => ['nullable', 'string', 'max:2000'],
+            'g_tube'            => ['boolean'],
+            'formula'           => ['nullable', 'string', 'max:255'],
+            'amount_per_feeding'=> ['nullable', 'string', 'max:255'],
+            'feedings_per_day'  => ['nullable', 'integer', 'min:1', 'max:24'],
+            'feeding_times'     => ['nullable', 'array'],
+            'feeding_times.*'   => ['string', 'max:50'],
+            'bolus_only'        => ['boolean'],
+            'notes'             => ['nullable', 'string', 'max:5000'],
         ];
     }
 
@@ -59,7 +63,6 @@ class StoreFeedingPlanRequest extends FormRequest
     {
         return [
             'camper_id.exists' => 'The selected camper is invalid or does not belong to you.',
-            'camper_id.unique' => 'A feeding plan already exists for this camper.',
             'feedings_per_day.min' => 'Feedings per day must be at least 1.',
             'feedings_per_day.max' => 'Feedings per day cannot exceed 24.',
         ];

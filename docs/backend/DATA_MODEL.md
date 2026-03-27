@@ -176,14 +176,21 @@ The system implements 39 database tables:
 | `last_name` | varchar(255) | not null | Last name |
 | `date_of_birth` | date | not null | Birth date |
 | `gender` | varchar(50) | nullable | Gender |
+| `tshirt_size` | varchar(20) | nullable | T-shirt size |
+| `supervision_level` | varchar(50) | nullable | Supervision level enum |
+| `is_active` | boolean | not null, default false | Operational activation flag — true when at least one approved application exists |
+| `record_retention_until` | date | nullable | Date after which permanent deletion is permitted |
 | `created_at` | timestamp | not null | Creation timestamp |
 | `updated_at` | timestamp | not null | Last update timestamp |
-| `deleted_at` | timestamp | nullable | Soft delete timestamp |
+| `deleted_at` | timestamp | nullable | Soft delete timestamp (record retention) |
+
+**`is_active` lifecycle:** Set to `true` by `ApplicationService` when an application is approved. Set to `false` when an approved application is reversed and no other approved application exists for this camper. Never set by direct API calls.
 
 **Indexes:**
 - PRIMARY KEY (`id`)
 - KEY (`user_id`)
 - KEY (`date_of_birth`)
+- KEY (`is_active`)
 - KEY (`deleted_at`)
 
 **Relationships:**
@@ -231,18 +238,27 @@ The system implements 39 database tables:
 |--------|------|-------------|-------------|
 | `id` | bigint | PK, auto-increment | Record identifier |
 | `camper_id` | bigint | FK to campers, not null, unique | Camper |
-| `physician_name` | varchar(255) | nullable | Physician name |
-| `physician_phone` | varchar(20) | nullable | Physician phone |
-| `insurance_provider` | varchar(255) | nullable | Insurance provider |
-| `insurance_policy_number` | varchar(100) | nullable | Policy number |
-| `special_needs` | text | nullable | Special needs notes |
-| `dietary_restrictions` | text | nullable | Dietary restrictions |
+| `is_active` | boolean | not null, default false | Operational activation flag — true when associated camper has an approved application |
+| `physician_name` | varchar(255) | nullable, encrypted | Physician name (PHI) |
+| `physician_phone` | varchar(20) | nullable, encrypted | Physician phone (PHI) |
+| `insurance_provider` | varchar(255) | nullable, encrypted | Insurance provider (PHI) |
+| `insurance_policy_number` | varchar(100) | nullable, encrypted | Policy number (PHI) |
+| `special_needs` | text | nullable, encrypted | Special needs notes (PHI) |
+| `dietary_restrictions` | text | nullable, encrypted | Dietary restrictions (PHI) |
+| `notes` | text | nullable, encrypted | General medical notes (PHI) |
+| `has_seizures` | boolean | default false | Seizure history flag |
+| `last_seizure_date` | date | nullable | Date of most recent known seizure |
+| `seizure_description` | text | nullable, encrypted | Seizure presentation description (PHI) |
+| `has_neurostimulator` | boolean | default false | Neurostimulator presence flag |
 | `created_at` | timestamp | not null | Creation timestamp |
 | `updated_at` | timestamp | not null | Last update timestamp |
+
+**`is_active` lifecycle:** Set to `true` by `ApplicationService` when a medical record is created or reactivated upon approval. Set to `false` when an approved application is reversed and no other approved application exists for the associated camper. Never set by direct API calls. Medical staff operational views are filtered to `is_active = true` only.
 
 **Indexes:**
 - PRIMARY KEY (`id`)
 - UNIQUE KEY (`camper_id`)
+- KEY (`is_active`)
 
 **Relationships:**
 - belongs to: `campers`

@@ -329,6 +329,14 @@ class SpecialNeedsRiskAssessmentService
             if ($assistiveDevices->contains('requires_transfer_assistance', true)) {
                 $flags[] = 'transfer_assistance';
             }
+
+            // CPAP / BiPAP — requires physician waiver for overnight camp use
+            $hasCpap = $assistiveDevices->contains(function ($device) {
+                return stripos((string) $device->device_type, 'cpap') !== false;
+            });
+            if ($hasCpap) {
+                $flags[] = 'cpap';
+            }
         }
 
         // ── Diagnosis severity flag ──────────────────────────────────────────

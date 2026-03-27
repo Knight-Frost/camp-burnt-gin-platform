@@ -14,6 +14,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import {
@@ -146,6 +147,7 @@ function DistributionRow({ label, count, maxCount }: { label: string; count: num
 // Main page component
 // ---------------------------------------------------------------------------
 export function SessionDetailPage() {
+  const { t }        = useTranslation();
   const { id }       = useParams<{ id: string }>();
   const navigate     = useNavigate();
   const location     = useLocation();
@@ -318,29 +320,29 @@ export function SessionDetailPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<UserCheck className="h-4 w-4" style={{ color: '#166534' }} />}
-          label="Enrolled"
+          label={t('admin_extra.session_enrolled')}
           value={capacity_stats.enrolled}
           sub={`${capacity_stats.remaining} spot${capacity_stats.remaining !== 1 ? 's' : ''} remaining`}
           valueColor="#166534"
         />
         <StatCard
           icon={<Clock className="h-4 w-4" style={{ color: '#d97706' }} />}
-          label="Pending Review"
+          label={t('admin_extra.session_pending_review')}
           value={application_stats.pending}
           sub="awaiting decision"
         />
         <StatCard
           icon={<Users className="h-4 w-4" style={{ color: '#7c3aed' }} />}
-          label="Waitlisted"
+          label={t('admin_extra.session_waitlisted')}
           value={application_stats.waitlisted}
           sub="can be promoted"
           valueColor="#7c3aed"
         />
         <StatCard
           icon={<TrendingUp className="h-4 w-4" style={{ color: '#1e40af' }} />}
-          label="Acceptance Rate"
+          label={t('admin_extra.acceptance_rate_label')}
           value={`${application_stats.acceptance_rate}%`}
-          sub={`${application_stats.total_submitted} total submitted`}
+          sub={`${application_stats.total_submitted} ${t('admin_extra.session_total_submitted')}`}
           valueColor="#1e40af"
         />
       </div>
@@ -359,9 +361,9 @@ export function SessionDetailPage() {
           <CapacityBar enrolled={capacity_stats.enrolled} capacity={capacity_stats.capacity} />
           <div className="mt-5 grid grid-cols-3 gap-3 text-center">
             {[
-              { label: 'Total Capacity', value: capacity_stats.capacity, color: undefined },
-              { label: 'Enrolled',       value: capacity_stats.enrolled,  color: '#166534' },
-              { label: 'Available',      value: capacity_stats.remaining, color: capacity_stats.remaining === 0 ? '#dc2626' : '#1e40af' },
+              { label: t('admin_extra.session_total_capacity'), value: capacity_stats.capacity, color: undefined },
+              { label: t('admin_extra.session_enrolled'),        value: capacity_stats.enrolled,  color: '#166534' },
+              { label: t('admin_extra.session_available'),       value: capacity_stats.remaining, color: capacity_stats.remaining === 0 ? '#dc2626' : '#1e40af' },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg p-3" style={{ background: 'var(--glass-medium)' }}>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
@@ -381,11 +383,11 @@ export function SessionDetailPage() {
           </h2>
           <div className="space-y-3">
             {[
-              { label: 'Approved / Enrolled',    count: application_stats.approved,   bgColor: 'rgba(22,163,74,0.12)',   textColor: '#166534' },
-              { label: 'Pending / Under Review', count: application_stats.pending,    bgColor: 'rgba(234,179,8,0.12)',   textColor: '#d97706' },
-              { label: 'Waitlisted',             count: application_stats.waitlisted, bgColor: 'rgba(124,58,237,0.12)', textColor: '#7c3aed' },
-              { label: 'Rejected',               count: application_stats.rejected,   bgColor: 'rgba(220,38,38,0.12)',  textColor: '#dc2626' },
-              { label: 'Cancelled',              count: application_stats.cancelled,  bgColor: 'rgba(107,114,128,0.12)', textColor: '#6b7280' },
+              { label: t('admin_extra.session_approved_enrolled'), count: application_stats.approved,   bgColor: 'rgba(22,163,74,0.12)',    textColor: '#166534' },
+              { label: t('admin_extra.session_pending_review'),   count: application_stats.pending,    bgColor: 'rgba(234,179,8,0.12)',    textColor: '#d97706' },
+              { label: t('admin_extra.session_waitlisted'),       count: application_stats.waitlisted, bgColor: 'rgba(124,58,237,0.12)',   textColor: '#7c3aed' },
+              { label: t('admin_extra.session_rejected'),         count: application_stats.rejected,   bgColor: 'rgba(220,38,38,0.12)',    textColor: '#dc2626' },
+              { label: t('admin_extra.session_cancelled'),        count: application_stats.cancelled,  bgColor: 'rgba(107,114,128,0.12)', textColor: '#6b7280' },
             ].map(({ label, count, bgColor, textColor }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
@@ -402,7 +404,7 @@ export function SessionDetailPage() {
             className="mt-4 pt-4 flex items-center justify-between"
             style={{ borderTop: '1px solid var(--border)' }}
           >
-            <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>Total submitted</span>
+            <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.session_total_submitted')}</span>
             <span className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
               {application_stats.total_submitted}
             </span>

@@ -43,8 +43,8 @@ class EmergencyContactPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct read access to emergency contacts for emergency response.
-            return true;
+            // Camp medical staff may access emergency contacts only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($emergencyContact->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($emergencyContact->camper)) {

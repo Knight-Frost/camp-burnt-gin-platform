@@ -94,7 +94,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       return (
         <div
-          className="flex min-h-screen items-center justify-center px-4"
+          className="flex h-screen overflow-y-auto items-center justify-center px-4"
           style={{ background: 'var(--background)' }}
         >
           <div

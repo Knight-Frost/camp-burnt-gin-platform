@@ -247,6 +247,25 @@ class ApplicantDocumentController extends Controller
     }
 
     /**
+     * Applicant: download the submitted (completed) version of their own document.
+     *
+     * Only the assigned applicant may access this. Returns 404 if no file has
+     * been submitted yet.
+     */
+    public function applicantDownloadSubmitted(ApplicantDocument $applicantDocument): StreamedResponse
+    {
+        abort_unless(auth()->id() === $applicantDocument->applicant_id, 403);
+        abort_if(is_null($applicantDocument->submitted_document_path), 404, 'No submitted file yet.');
+
+        $path     = $applicantDocument->submitted_document_path;
+        $fileName = $applicantDocument->submitted_file_name;
+
+        abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
+
+        return Storage::disk('local')->download($path, $fileName);
+    }
+
+    /**
      * Applicant: upload a completed version of an assigned document.
      *
      * Validates ownership and pending status, stores the file, and updates the record.
@@ -319,7 +338,11 @@ class ApplicantDocumentController extends Controller
                 ? url("/api/admin/applicant-documents/{$doc->id}/download-submitted")
                 : null;
         } else {
-            $base['download_url'] = url("/api/applicant/applicant-documents/{$doc->id}/download");
+            $base['download_url']           = url("/api/applicant/applicant-documents/{$doc->id}/download");
+            $base['submitted_file_name']     = $doc->submitted_file_name;
+            $base['download_submitted_url']  = $doc->submitted_document_path
+                ? url("/api/applicant/applicant-documents/{$doc->id}/download-submitted")
+                : null;
         }
 
         return $base;

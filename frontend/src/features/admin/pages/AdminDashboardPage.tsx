@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom';
 import {
   FileText, Users, CheckCircle, XCircle, Clock,
   ArrowRight, MessageSquare, AlertTriangle,
-  TrendingUp, Activity, ChevronRight,
+  Activity, ChevronRight, Info, UserCheck,
 } from 'lucide-react';
 import { differenceInDays, formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
@@ -22,8 +22,10 @@ import {
   getAdminApplications,
   getCamps,
   getReportsSummary,
+  getSessionDashboard,
   type ReportsSummary,
 } from '@/features/admin/api/admin.api';
+import type { SessionDashboardStats } from '@/features/admin/types/admin.types';
 import { getUnreadCount } from '@/features/messaging/api/messaging.api';
 import type { Application, Camp } from '@/features/admin/types/admin.types';
 import { useAppSelector } from '@/store/hooks';
@@ -97,20 +99,40 @@ function getActivityMessage(status: string, camperName: string): string {
   }
 }
 
+// ─── Inline tooltip ───────────────────────────────────────────────────────────
+
+function MetricTooltip({ text }: { text: string }) {
+  return (
+    <span className="relative group/tip inline-flex items-center ml-1">
+      <Info className="h-3 w-3 cursor-help" style={{ color: 'var(--muted-foreground)', opacity: 0.55 }} />
+      <span
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-44 rounded-lg px-2.5 py-2 text-xs leading-snug opacity-0 group-hover/tip:opacity-100 transition-opacity z-50"
+        style={{ background: 'var(--foreground)', color: 'var(--background)', whiteSpace: 'normal' }}
+      >
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent" style={{ borderTopColor: 'var(--foreground)' }} />
+      </span>
+    </span>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AdminDashboardPage() {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
 
-  const [summary,      setSummary]      = useState<ReportsSummary | null>(null);
-  const [pendingApps,  setPendingApps]  = useState<Application[]>([]);
-  const [camps,        setCamps]        = useState<Camp[]>([]);
-  const [unread,       setUnread]       = useState(0);
-  const [activity,     setActivity]     = useState<Application[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState(false);
-  const [retryKey,     setRetryKey]     = useState(0);
+  const [summary,         setSummary]         = useState<ReportsSummary | null>(null);
+  const [pendingApps,     setPendingApps]     = useState<Application[]>([]);
+  const [camps,           setCamps]           = useState<Camp[]>([]);
+  const [unread,          setUnread]          = useState(0);
+  const [activity,        setActivity]        = useState<Application[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState(false);
+  const [retryKey,        setRetryKey]        = useState(0);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [sessionDash,     setSessionDash]     = useState<SessionDashboardStats | null>(null);
+  const [sessionLoading,  setSessionLoading]  = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -135,6 +157,11 @@ export function AdminDashboardPage() {
         setPendingApps(actionable);
         setCamps(campsData);
         setUnread(unreadCount);
+        // Auto-select the first active session for session-scoped metrics
+        const firstActive = campsData.flatMap((c) => c.sessions ?? []).find((s) => s.is_active);
+        if (firstActive) {
+          setSelectedSessionId(firstActive.id);
+        }
         // Recent Activity: all active applications, most recently updated first
         const recentActivity = apps
           .filter((a) => !['draft', 'cancelled'].includes(a.status))
@@ -149,6 +176,18 @@ export function AdminDashboardPage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [retryKey]);
+
+  // ── Session-scoped metrics ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (selectedSessionId === null) return;
+    const controller = new AbortController();
+    setSessionLoading(true);
+    getSessionDashboard(selectedSessionId, controller.signal)
+      .then(setSessionDash)
+      .catch(() => { /* session metrics unavailable; keep previous or null */ })
+      .finally(() => setSessionLoading(false));
+    return () => controller.abort();
+  }, [selectedSessionId]);
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const stats = {
@@ -231,98 +270,108 @@ export function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ── 1. System Overview ───────────────────────────────── */}
+      {/* ── 1. Session Overview ──────────────────────────────── */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
-            System Overview
+            Session Overview
           </h2>
-          <Link
-            to={ROUTES.ADMIN_REPORTS}
-            className="text-xs font-medium flex items-center gap-1 hover:underline"
-            style={{ color: 'var(--ember-orange)' }}
-          >
-            Full report <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center gap-3">
+            {/* Session selector */}
+            {!loading && sessionCards.length > 0 && (
+              <select
+                value={selectedSessionId ?? ''}
+                onChange={(e) => setSelectedSessionId(Number(e.target.value))}
+                className="text-xs rounded-lg px-2.5 py-1.5 border font-medium focus:outline-none"
+                style={{
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                {sessionCards.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.campName} — {s.sessionName}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link
+              to={ROUTES.ADMIN_REPORTS}
+              className="text-xs font-medium flex items-center gap-1 hover:underline"
+              style={{ color: 'var(--ember-orange)' }}
+            >
+              Full report <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {[1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} lines={1} />)}
+        {loading || sessionLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} lines={1} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Total */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Registered Families */}
             <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,0,0,0.05)' }}>
                 <Users className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {stats.total}
+                  {sessionDash?.family_stats.registered_families ?? '—'}
                 </p>
-                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                  Total applications
+                <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
+                  Registered Families
+                  <MetricTooltip text="Total number of family accounts created for this session." />
                 </p>
               </div>
             </div>
 
-            {/* Pending */}
+            {/* Registered Campers */}
+            <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(22,163,74,0.10)' }}>
+                <UserCheck className="h-4 w-4" style={{ color: 'var(--forest-green)' }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
+                  {sessionDash?.family_stats.registered_campers ?? '—'}
+                </p>
+                <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
+                  Registered Campers
+                  <MetricTooltip text="Total number of campers with submitted applications." />
+                </p>
+              </div>
+            </div>
+
+            {/* Active Applications */}
             <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.10)' }}>
                 <Clock className="h-4 w-4" style={{ color: '#d97706' }} />
               </div>
               <div className="min-w-0">
-                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: stats.pending > 0 ? '#b45309' : 'var(--foreground)' }}>
-                  {stats.pending}
+                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: (sessionDash?.family_stats.active_applications ?? 0) > 0 ? '#b45309' : 'var(--foreground)' }}>
+                  {sessionDash?.family_stats.active_applications ?? '—'}
                 </p>
-                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                  Awaiting review
-                </p>
-              </div>
-            </div>
-
-            {/* Accepted */}
-            <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(22,163,74,0.10)' }}>
-                <CheckCircle className="h-4 w-4" style={{ color: 'var(--forest-green)' }} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {stats.accepted}
-                </p>
-                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                  Accepted
+                <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
+                  Active Applications
+                  <MetricTooltip text="Applications currently being reviewed or processed." />
                 </p>
               </div>
             </div>
 
-            {/* Rejected */}
+            {/* Multi-Camper Families */}
             <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
-                <XCircle className="h-4 w-4" style={{ color: 'var(--destructive)' }} />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(37,99,235,0.10)' }}>
+                <CheckCircle className="h-4 w-4" style={{ color: '#2563eb' }} />
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {stats.rejected}
+                  {sessionDash?.family_stats.multi_camper_families ?? '—'}
                 </p>
-                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                  Rejected
-                </p>
-              </div>
-            </div>
-
-            {/* Waitlisted */}
-            <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(234,88,12,0.10)' }}>
-                <TrendingUp className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {stats.waitlisted}
-                </p>
-                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                  Waitlisted
+                <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
+                  Multi-Camper Families
+                  <MetricTooltip text="Families with more than one registered camper." />
                 </p>
               </div>
             </div>
@@ -381,7 +430,8 @@ export function AdminDashboardPage() {
                     ? differenceInDays(new Date(), new Date(app.submitted_at))
                     : null;
 
-                  const name = app.camper?.full_name ?? `Camper #${app.camper_id}`;
+                  const name    = app.camper?.full_name ?? `Camper #${app.camper_id}`;
+                  const session = app.session?.name ?? null;
 
                   const timeRef = days === null
                     ? ''
@@ -417,7 +467,7 @@ export function AdminDashboardPage() {
                             {name}
                           </p>
                           <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                            {eventSentence}
+                            {session ? `${session} · ` : ''}{eventSentence}
                           </p>
                         </div>
 

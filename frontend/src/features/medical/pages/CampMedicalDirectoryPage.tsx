@@ -71,7 +71,7 @@ function CamperCard({ camper }: { camper: Camper }) {
 
   const allergyCount       = record?.allergies?.length ?? 0;
   const medCount           = record?.medications?.length ?? 0;
-  const hasLifeThreatening = record?.allergies?.some((a) => a.severity === 'life-threatening') ?? false;
+  const hasLifeThreatening = record?.allergies?.some((a) => a.severity.toLowerCase().includes('life')) ?? false;
   const primaryDx          = record?.primary_diagnosis;
   const age                = getAge(camper.date_of_birth);
   // Session from most recent application

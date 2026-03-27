@@ -22,6 +22,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft, Mail, Phone, MapPin, Calendar,
   FileText, ExternalLink, AlertCircle, ClipboardList,
@@ -38,25 +39,25 @@ import type { FamilyWorkspace, FamilyWorkspaceCamper, FamilyWorkspaceApplication
 
 type AppStatus = FamilyWorkspaceApplication['status'];
 
-const STATUS_CONFIG: Record<AppStatus, { bg: string; color: string; label: string }> = {
-  pending:      { bg: 'rgba(107,114,128,0.12)', color: '#6b7280', label: 'Pending' },
-  under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb', label: 'Under Review' },
-  approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a', label: 'Approved' },
-  rejected:     { bg: 'rgba(220,38,38,0.12)',   color: '#dc2626', label: 'Rejected' },
-  waitlisted:   { bg: 'rgba(234,88,12,0.12)',   color: '#ea580c', label: 'Waitlisted' },
-  cancelled:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af', label: 'Cancelled' },
-  withdrawn:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af', label: 'Withdrawn' },
-  draft:        { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af', label: 'Draft' },
+const STATUS_STYLE: Record<AppStatus, { bg: string; color: string }> = {
+  pending:      { bg: 'rgba(107,114,128,0.12)', color: '#6b7280' },
+  under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
+  approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
+  rejected:     { bg: 'rgba(220,38,38,0.12)',   color: '#dc2626' },
+  waitlisted:   { bg: 'rgba(234,88,12,0.12)',   color: '#ea580c' },
+  cancelled:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af' },
+  withdrawn:    { bg: 'rgba(107,114,128,0.10)', color: '#9ca3af' },
 };
 
 function StatusBadge({ status }: { status: AppStatus }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  const { t } = useTranslation();
+  const cfg = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
   return (
     <span
       className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
       style={{ background: cfg.bg, color: cfg.color }}
     >
-      {cfg.label}
+      {t(`status_labels.${status}`)}
     </span>
   );
 }
@@ -76,7 +77,8 @@ function ApplicationRow({
   application: FamilyWorkspaceApplication;
   applicationBase: string;
 }) {
-  const isDraft     = application.status === 'draft';
+  const { t } = useTranslation();
+  const isDraft     = application.is_draft === true;
   const isTerminal  = ['cancelled', 'withdrawn'].includes(application.status);
 
   return (
@@ -111,7 +113,7 @@ function ApplicationRow({
             className="flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80"
             style={{ color: 'var(--night-sky-blue)' }}
           >
-            <span>Review</span>
+            <span>{t('admin_extra.review_btn')}</span>
             <ExternalLink className="h-3 w-3" />
           </Link>
         )}
@@ -139,7 +141,7 @@ function CamperCard({
   // Sort: active/review first, then approved, then terminal (cancelled/withdrawn/draft).
   const SORT_ORDER: Record<AppStatus, number> = {
     under_review: 0, pending: 1, waitlisted: 2, approved: 3,
-    rejected: 4, draft: 5, cancelled: 6, withdrawn: 7,
+    rejected: 4, cancelled: 5, withdrawn: 6,
   };
   const sortedApps = [...camper.applications].sort(
     (a, b) => (SORT_ORDER[a.status] ?? 9) - (SORT_ORDER[b.status] ?? 9)

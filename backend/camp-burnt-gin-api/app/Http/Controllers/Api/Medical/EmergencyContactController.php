@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Medical;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EmergencyContact\StoreEmergencyContactRequest;
 use App\Http\Requests\EmergencyContact\UpdateEmergencyContactRequest;
+use App\Models\AuditLog;
 use App\Models\EmergencyContact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -73,6 +74,15 @@ class EmergencyContactController extends Controller
         // Load the camper so the response includes context about whose contact this is.
         $contact->load('camper');
 
+        if ($request->user()->isAdmin()) {
+            AuditLog::logAdminAction(
+                action:      'emergency_contact.created',
+                user:        $request->user(),
+                description: 'Admin created emergency contact for camper ' . $contact->camper_id,
+                metadata:    ['camper_id' => $contact->camper_id, 'contact_id' => $contact->id],
+            );
+        }
+
         return response()->json([
             'message' => 'Emergency contact created successfully.',
             'data'    => $contact,
@@ -107,7 +117,21 @@ class EmergencyContactController extends Controller
         // Verify the caller can modify this specific contact record.
         $this->authorize('update', $emergencyContact);
 
-        $emergencyContact->update($request->validated());
+        $data        = $request->validated();
+        $oldSnapshot = array_intersect_key($emergencyContact->only(array_keys($data)), $data);
+
+        $emergencyContact->update($data);
+
+        $newSnapshot = array_intersect_key($emergencyContact->fresh()->only(array_keys($data)), $data);
+
+        if ($oldSnapshot !== $newSnapshot) {
+            AuditLog::logContentChange(
+                auditable: $emergencyContact,
+                editor:    $request->user(),
+                oldValues: $oldSnapshot,
+                newValues: $newSnapshot,
+            );
+        }
 
         return response()->json([
             'message' => 'Emergency contact updated successfully.',

@@ -61,17 +61,24 @@ class FeedingPlanController extends Controller
         // Confirm the caller is authorized to create feeding plan records.
         $this->authorize('create', FeedingPlan::class);
 
-        // Persist only the validated PHI fields.
-        $feedingPlan = FeedingPlan::create($request->validated());
+        $data = $request->validated();
+
+        // updateOrCreate makes this endpoint idempotent: if the application form
+        // submission fails mid-way and is retried, we update the existing plan
+        // rather than returning a 422 error that permanently blocks the user.
+        $feedingPlan = FeedingPlan::updateOrCreate(
+            ['camper_id' => $data['camper_id']],
+            $data
+        );
 
         // Load the related camper so the response is self-contained.
         $feedingPlan->load('camper');
 
-        // HTTP 201 Created signals the new resource was successfully saved.
+        $status = $feedingPlan->wasRecentlyCreated ? Response::HTTP_CREATED : Response::HTTP_OK;
         return response()->json([
-            'message' => 'Feeding plan created successfully.',
+            'message' => 'Feeding plan saved successfully.',
             'data'    => $feedingPlan,
-        ], Response::HTTP_CREATED);
+        ], $status);
     }
 
     /**

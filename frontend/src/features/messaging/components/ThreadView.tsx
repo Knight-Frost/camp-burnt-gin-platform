@@ -9,12 +9,14 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DOMPurify from 'dompurify';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { ArrowLeft, Archive, Paperclip, Send, X, Download, Bot, Eye, FileText } from 'lucide-react';
+import { ArrowLeft, Archive, Paperclip, Send, X, Download, Bot, Eye, FileText, Reply, ReplyAll } from 'lucide-react';
 import {
-  getMessages, sendMessage, archiveConversation, unarchiveConversation,
+  getMessages, sendMessage, replyToMessage, replyAllToMessage,
+  archiveConversation, unarchiveConversation,
   downloadAttachment, getAttachmentBlobUrl,
   type Conversation, type Message, type MessageAttachment,
 } from '@/features/messaging/api/messaging.api';
@@ -47,6 +49,52 @@ function getFileTypeStyle(mimeType: string): { color: string; isImage: boolean; 
   return                                      { color: '#6b7280', isImage: false, isPdf: false };
 }
 
+// ─── RecipientSummary ─────────────────────────────────────────────────────────
+
+import type { MessageRecipient } from '@/features/messaging/api/messaging.api';
+
+/**
+ * Renders a compact TO/CC summary line under a message bubble.
+ * BCC recipients are never shown here — the server already filtered them out
+ * for non-senders, so this component only renders what it receives.
+ */
+function RecipientSummary({ recipients, isMine }: { recipients: MessageRecipient[]; isMine: boolean }) {
+  const { t } = useTranslation();
+  const toList  = recipients.filter((r) => r.recipient_type === 'to');
+  const ccList  = recipients.filter((r) => r.recipient_type === 'cc');
+  const bccList = recipients.filter((r) => r.recipient_type === 'bcc'); // only visible to sender
+
+  if (toList.length === 0 && ccList.length === 0 && bccList.length === 0) return null;
+
+  function nameList(list: MessageRecipient[]) {
+    return list.map((r) => r.user?.name ?? `User ${r.user_id}`).join(', ');
+  }
+
+  const textColor = isMine ? 'rgba(255,255,255,0.60)' : 'var(--muted-foreground)';
+
+  return (
+    <div className="text-xs mt-0.5 leading-relaxed" style={{ color: textColor }}>
+      {toList.length > 0 && (
+        <span>
+          <span className="font-medium">To:</span> {nameList(toList)}
+          {(ccList.length > 0 || bccList.length > 0) && ' · '}
+        </span>
+      )}
+      {ccList.length > 0 && (
+        <span>
+          <span className="font-medium">Cc:</span> {nameList(ccList)}
+          {bccList.length > 0 && ' · '}
+        </span>
+      )}
+      {bccList.length > 0 && (
+        <span>
+          <span className="font-medium">{t('messaging_extra.bcc_label')}</span> {nameList(bccList)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ThreadViewProps {
@@ -61,11 +109,15 @@ interface ThreadViewProps {
 export function ThreadView({ conversation, currentUserId, onBack, onArchive }: ThreadViewProps) {
   const isSystem = conversation.is_system_generated === true;
 
-  const [messages, setMessages]       = useState<Message[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [replyHtml, setReplyHtml]     = useState('');
-  const [sending, setSending]         = useState(false);
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [messages, setMessages]             = useState<Message[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [replyHtml, setReplyHtml]           = useState('');
+  const [editorKey, setEditorKey]           = useState(0);
+  const [sending, setSending]               = useState(false);
+  const [attachments, setAttachments]       = useState<File[]>([]);
+  // Reply context: which message we're replying to, and how
+  const [replyingTo, setReplyingTo]         = useState<Message | null>(null);
+  const [replyMode, setReplyMode]           = useState<'reply' | 'reply_all'>('reply');
   const [archiving, setArchiving]     = useState(false);
   const [previewUrls, setPreviewUrls]           = useState<Record<number, string>>({});
   const [previewLoadingIds, setPreviewLoadingIds] = useState<Set<number>>(new Set());
@@ -136,20 +188,46 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
     if (!plainText && attachments.length === 0) return;
     setSending(true);
     try {
-      const msg = await sendMessage(
-        conversation.id,
-        replyHtml,
-        attachments.length > 0 ? attachments : undefined,
-      );
+      let msg: Message;
+      const files = attachments.length > 0 ? attachments : undefined;
+
+      if (replyingTo) {
+        // Threaded reply: use server-side recipient resolution for BCC safety
+        if (replyMode === 'reply_all') {
+          msg = await replyAllToMessage(conversation.id, replyingTo.id, replyHtml, files);
+        } else {
+          msg = await replyToMessage(conversation.id, replyingTo.id, replyHtml, files);
+        }
+      } else {
+        // Plain send in the thread (no specific message being replied to)
+        msg = await sendMessage(conversation.id, replyHtml, files);
+      }
+
       setMessages((p) => [...p, msg]);
       setReplyHtml('');
+      setEditorKey((k) => k + 1);
       setAttachments([]);
+      setReplyingTo(null); // Clear reply context after successful send
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message;
       toast.error(msg && msg !== 'Validation failed.' ? msg : 'Failed to send reply.');
     } finally {
       setSending(false);
     }
+  }
+
+  function startReply(msg: Message) {
+    setReplyingTo(msg);
+    setReplyMode('reply');
+  }
+
+  function startReplyAll(msg: Message) {
+    setReplyingTo(msg);
+    setReplyMode('reply_all');
+  }
+
+  function cancelReply() {
+    setReplyingTo(null);
   }
 
   async function handleArchive() {
@@ -272,7 +350,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
             return (
               <div
                 key={msg.id}
-                className={isSystemMsg ? 'flex justify-center' : `flex gap-2.5 ${isMine ? 'flex-row-reverse' : ''}`}
+                className={isSystemMsg ? 'flex justify-center' : `group flex gap-2.5 ${isMine ? 'flex-row-reverse' : ''}`}
               >
                 {/* System message: centered notification style */}
                 {isSystemMsg ? (
@@ -417,9 +495,53 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                           })}
                         </div>
                       )}
-                      <time className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {format(new Date(msg.created_at), 'h:mm a · MMM d')}
-                      </time>
+                      {/* Recipient metadata — shows TO/CC summary for messages with explicit recipients */}
+                      {msg.recipients && msg.recipients.length > 0 && (
+                        <RecipientSummary recipients={msg.recipients} isMine={isMine} />
+                      )}
+
+                      {/* Reply type badge for reply/reply-all messages */}
+                      {msg.reply_type && (
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded-full"
+                          style={{
+                            background: msg.reply_type === 'reply_all'
+                              ? 'rgba(37,99,235,0.10)' : 'rgba(22,163,74,0.10)',
+                            color: msg.reply_type === 'reply_all' ? '#1d4ed8' : '#16a34a',
+                          }}
+                        >
+                          {msg.reply_type === 'reply_all' ? 'Reply All' : 'Reply'}
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <time className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                          {format(new Date(msg.created_at), 'h:mm a · MMM d')}
+                        </time>
+                        {/* Reply / Reply-All action buttons (non-system messages only) */}
+                        {!isSystem && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => startReply(msg)}
+                              title="Reply to this message"
+                              aria-label="Reply"
+                              className="p-1 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                            >
+                              <Reply className="h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => startReplyAll(msg)}
+                              title="Reply All to this message"
+                              aria-label="Reply All"
+                              className="p-1 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                            >
+                              <ReplyAll className="h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -462,10 +584,46 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
           className="border-t flex-shrink-0 overflow-hidden"
           style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
         >
+          {/* Reply context bar — shown when replying to a specific message */}
+          {replyingTo && (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 border-b"
+              style={{
+                borderColor: 'var(--border)',
+                background: replyMode === 'reply_all'
+                  ? 'rgba(37,99,235,0.06)' : 'rgba(22,163,74,0.06)',
+              }}
+            >
+              {replyMode === 'reply_all'
+                ? <ReplyAll className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#1d4ed8' }} />
+                : <Reply    className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#16a34a' }} />
+              }
+              <span className="text-xs flex-1 truncate" style={{ color: 'var(--muted-foreground)' }}>
+                {replyMode === 'reply_all' ? 'Reply All to ' : 'Replying to '}
+                <span style={{ color: 'var(--foreground)' }}>
+                  {replyingTo.sender?.name ?? 'message'}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={cancelReply}
+                aria-label="Cancel reply"
+                className="p-0.5 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+              >
+                <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+            </div>
+          )}
+
           <RichTextEditor
+            key={editorKey}
             onUpdate={setReplyHtml}
-            placeholder="Write a reply…"
+            placeholder={replyingTo
+              ? (replyMode === 'reply_all' ? 'Write a reply all…' : 'Write a reply…')
+              : 'Write a message…'
+            }
             minHeight={80}
+            maxHeight={160}
           />
 
           {/* Attachment preview */}
@@ -530,10 +688,21 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
               onClick={() => void handleSend()}
               disabled={sending}
               className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 transition-colors"
-              style={{ background: BRAND }}
+              style={{
+                background: replyingTo && replyMode === 'reply_all'
+                  ? '#1d4ed8' : BRAND,
+              }}
             >
-              <Send className="h-3.5 w-3.5" />
-              {sending ? 'Sending…' : 'Send'}
+              {replyingTo
+                ? (replyMode === 'reply_all'
+                    ? <ReplyAll className="h-3.5 w-3.5" />
+                    : <Reply    className="h-3.5 w-3.5" />)
+                : <Send className="h-3.5 w-3.5" />
+              }
+              {sending ? 'Sending…' : (replyingTo
+                ? (replyMode === 'reply_all' ? 'Reply All' : 'Reply')
+                : 'Send'
+              )}
             </button>
           </div>
         </div>

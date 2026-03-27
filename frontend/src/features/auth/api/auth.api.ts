@@ -57,9 +57,15 @@ function normalizeUser(user: User & { role?: Role | string }): User {
     roleName = 'applicant';
   }
 
-  // Build a normalized roles array so RBAC hooks always have a consistent shape
+  // Build a normalized roles array so RBAC hooks always have a consistent shape.
+  // Prefer the ID from the role object (Case 1 / login response), fall back to
+  // the roles array (Case 3 / getAuthenticatedUser response), then 0 as sentinel.
+  const roleObjectId =
+    typeof user.role === 'object' && user.role !== null
+      ? (user.role as Role).id
+      : undefined;
   const roles: Role[] = roleName
-    ? [{ id: user.roles?.[0]?.id ?? 0, name: roleName, display_name: roleName }]
+    ? [{ id: roleObjectId ?? user.roles?.[0]?.id ?? 0, name: roleName, display_name: roleName }]
     : [];
 
   return {

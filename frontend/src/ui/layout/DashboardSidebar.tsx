@@ -28,11 +28,12 @@ import { memo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, Menu, X, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import { logout } from '@/features/auth/api/auth.api';
 import { clearAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { ROLE_LABELS, getPrimaryRole } from '@/shared/constants/roles';
+import { getPrimaryRole } from '@/shared/constants/roles';
 import { ROUTES } from '@/shared/constants/routes';
 import { cn } from '@/shared/utils/cn';
 import { DemoRoleSwitcher } from '@/ui/components/DemoRoleSwitcher';
@@ -67,6 +68,7 @@ interface DashboardSidebarProps {
 
 // memo() prevents re-renders when the parent re-renders but navItems hasn't changed.
 export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinnedBottomItems }: DashboardSidebarProps) {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   // Read the logged-in user from Redux to display their name, email, and role pill.
@@ -76,8 +78,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const primaryRole = getPrimaryRole(user?.roles ?? []);
-  // Human-readable role label (e.g. "Administrator") for the badge under the brand name.
-  const roleLabel = primaryRole ? ROLE_LABELS[primaryRole] : '';
+  // Human-readable role label — translated via i18n roles namespace.
+  const roleLabel = primaryRole ? t(`roles.${primaryRole}`) : '';
 
   /**
    * Calls the logout API, then always clears local auth state regardless of whether
@@ -93,7 +95,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
     } finally {
       dispatch(clearAuth());
       navigate(ROUTES.LOGIN, { replace: true });
-      toast.success('Signed out successfully.');
+      toast.success(t('sidebar.signed_out'));
     }
   };
 
@@ -114,7 +116,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
             className="text-sm font-headline font-semibold leading-tight"
             style={{ color: 'var(--foreground)' }}
           >
-            Camp Burnt Gin
+            {t('sidebar.brand_name')}
           </p>
           {/* Role pill — only renders if the user has an identifiable role */}
           {roleLabel && (
@@ -245,7 +247,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
           className="text-[10px] font-semibold uppercase tracking-widest"
           style={{ color: 'var(--muted-foreground)', opacity: 0.45 }}
         >
-          System
+          {t('sidebar.section_system')}
         </span>
       </div>
       <ul className="flex flex-col gap-1">
@@ -339,7 +341,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
         style={{ color: 'var(--muted-foreground)' }}
       >
         <LogOut className="h-4 w-4 flex-shrink-0" />
-        <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
+        <span>{isLoggingOut ? t('sidebar.signing_out') : t('sidebar.sign_out')}</span>
       </button>
     </div>
   );

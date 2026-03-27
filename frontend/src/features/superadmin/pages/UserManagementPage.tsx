@@ -20,10 +20,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle, UserPlus, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getUsers, updateUserRole, deactivateUser, reactivateUser } from '@/features/admin/api/admin.api';
+import { getUsers, updateUserRole, deactivateUser, reactivateUser, createUser } from '@/features/admin/api/admin.api';
+import type { CreateUserPayload } from '@/features/admin/api/admin.api';
 import { useAppSelector } from '@/store/hooks';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
@@ -62,6 +63,14 @@ export function UserManagementPage() {
   const [updating, setUpdating]         = useState<number | null>(null);
   // The user awaiting confirm in the activate/deactivate dialog; null = dialog closed
   const [confirmUser, setConfirmUser]   = useState<User | null>(null);
+
+  // ── Create account modal state ────────────────────────────────────────────
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateUserPayload>({
+    name: '', email: '', password: '', password_confirmation: '', role: 'admin',
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
 
   // searchInput is the controlled input value — updates immediately for UX.
   // filters.search is the debounced API value — only changes after 300ms of inactivity.
@@ -141,9 +150,41 @@ export function UserManagementPage() {
     }
   }
 
+  async function handleCreateUser(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateErrors({});
+    if (createForm.password !== createForm.password_confirmation) {
+      setCreateErrors({ password_confirmation: t('create_user.error') });
+      return;
+    }
+    setCreateLoading(true);
+    try {
+      await createUser(createForm);
+      toast.success(t('create_user.success', { email: createForm.email }));
+      setShowCreateModal(false);
+      setCreateForm({ name: '', email: '', password: '', password_confirmation: '', role: 'admin' });
+      // Re-fetch user list to include the new account
+      await fetchUsers();
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { errors?: Record<string, string[]> } } };
+      if (apiError?.response?.data?.errors) {
+        const flat: Record<string, string> = {};
+        for (const [field, msgs] of Object.entries(apiError.response.data.errors)) {
+          flat[field] = msgs[0];
+        }
+        setCreateErrors(flat);
+      } else {
+        toast.error(t('create_user.error'));
+      }
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
   return (
     <div className="p-6 max-w-7xl">
-      <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('superadmin.users.title')}
         </h1>
@@ -151,6 +192,17 @@ export function UserManagementPage() {
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
           {response && t('superadmin.users.subtitle', { total: response.meta.total })}
         </p>
+        </div>
+        {/* Create Staff Account button — super admin only, opens modal */}
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
+        >
+          <UserPlus className="h-4 w-4" />
+          {t('create_user.title')}
+        </button>
       </div>
 
       {/* Filter bar: text search + role dropdown */}
@@ -315,6 +367,147 @@ export function UserManagementPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── Create Staff Account modal ─────────────────────────────────────── */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.40)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
+        >
+          <div
+            className="glass-panel w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-user-title"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 id="create-user-title" className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
+                  {t('create_user.title')}
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                  {t('create_user.subtitle')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="p-1.5 rounded-lg transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+              >
+                <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  {t('create_user.name_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                  style={{ background: 'var(--input)', borderColor: createErrors.name ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                />
+                {createErrors.name && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.name}</p>}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  {t('create_user.email_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                  style={{ background: 'var(--input)', borderColor: createErrors.email ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                />
+                {createErrors.email && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.email}</p>}
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  {t('create_user.role_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
+                </label>
+                <select
+                  value={createForm.role}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value as CreateUserPayload['role'] }))}
+                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                  style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                >
+                  <option value="admin">{t('create_user.role_admin')}</option>
+                  <option value="medical">{t('create_user.role_medical')}</option>
+                  <option value="super_admin">{t('create_user.role_super_admin')}</option>
+                </select>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  {t('create_user.password_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                  style={{ background: 'var(--input)', borderColor: createErrors.password ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                />
+                {createErrors.password && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.password}</p>}
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+                  {t('create_user.confirm_password_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={createForm.password_confirmation}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, password_confirmation: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
+                  style={{ background: 'var(--input)', borderColor: createErrors.password_confirmation ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                />
+                {createErrors.password_confirmation && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.password_confirmation}</p>}
+              </div>
+
+              {/* Submit / Cancel */}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}
+                  className="px-4 py-2 text-sm rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                  style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  disabled={createLoading}
+                >
+                  {t('create_user.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium transition-colors disabled:opacity-60"
+                  style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
+                >
+                  {createLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {t('create_user.submit')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Activate/Deactivate confirmation dialog */}

@@ -17,6 +17,7 @@ use Tests\Traits\WithRoles;
  * shape, and business rules all work end-to-end.
  *
  * Endpoints covered:
+ *   POST   /api/users
  *   GET    /api/users
  *   PUT    /api/users/{user}/role
  *   POST   /api/users/{user}/deactivate
@@ -30,6 +31,104 @@ class UserManagementTest extends TestCase
     {
         parent::setUp();
         $this->setUpRoles();
+    }
+
+    // ─── POST /api/users ─────────────────────────────────────────────────────
+
+    public function test_super_admin_can_create_admin_user(): void
+    {
+        $superAdmin = $this->createSuperAdmin();
+        Sanctum::actingAs($superAdmin);
+
+        $response = $this->postJson('/api/users', [
+            'name'                  => 'New Admin',
+            'email'                 => 'newadmin@example.com',
+            'password'              => 'Password123',
+            'password_confirmation' => 'Password123',
+            'role'                  => 'admin',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.email', 'newadmin@example.com')
+            ->assertJsonPath('data.role', 'admin');
+
+        $this->assertDatabaseHas('users', ['email' => 'newadmin@example.com']);
+    }
+
+    public function test_super_admin_can_create_medical_user(): void
+    {
+        $superAdmin = $this->createSuperAdmin();
+        Sanctum::actingAs($superAdmin);
+
+        $response = $this->postJson('/api/users', [
+            'name'                  => 'Nurse Janet',
+            'email'                 => 'nurse@example.com',
+            'password'              => 'Password123',
+            'password_confirmation' => 'Password123',
+            'role'                  => 'medical',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.role', 'medical');
+    }
+
+    public function test_admin_cannot_create_staff_users(): void
+    {
+        $admin = $this->createAdmin();
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/users', [
+            'name'                  => 'Someone',
+            'email'                 => 'someone@example.com',
+            'password'              => 'Password123',
+            'password_confirmation' => 'Password123',
+            'role'                  => 'admin',
+        ])->assertForbidden();
+    }
+
+    public function test_create_user_rejects_applicant_role(): void
+    {
+        $superAdmin = $this->createSuperAdmin();
+        Sanctum::actingAs($superAdmin);
+
+        $this->postJson('/api/users', [
+            'name'                  => 'Parent Person',
+            'email'                 => 'parent@example.com',
+            'password'              => 'Password123',
+            'password_confirmation' => 'Password123',
+            'role'                  => 'applicant',
+        ])->assertUnprocessable();
+    }
+
+    public function test_create_user_rejects_duplicate_email(): void
+    {
+        $superAdmin = $this->createSuperAdmin();
+        $existing   = $this->createAdmin(['email' => 'taken@example.com']);
+        Sanctum::actingAs($superAdmin);
+
+        $this->postJson('/api/users', [
+            'name'                  => 'Another Admin',
+            'email'                 => 'taken@example.com',
+            'password'              => 'Password123',
+            'password_confirmation' => 'Password123',
+            'role'                  => 'admin',
+        ])->assertUnprocessable();
+
+        unset($existing); // suppress unused variable warning
+    }
+
+    public function test_create_user_rejects_mismatched_passwords(): void
+    {
+        $superAdmin = $this->createSuperAdmin();
+        Sanctum::actingAs($superAdmin);
+
+        $this->postJson('/api/users', [
+            'name'                  => 'Test User',
+            'email'                 => 'test@example.com',
+            'password'              => 'Password123',
+            'password_confirmation' => 'DifferentPass123',
+            'role'                  => 'admin',
+        ])->assertUnprocessable();
     }
 
     // ─── GET /api/users ──────────────────────────────────────────────────────

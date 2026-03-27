@@ -27,7 +27,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   User,
@@ -49,6 +49,7 @@ import {
   Save,
   Calendar,
   RefreshCw,
+  MessageSquare,
 } from 'lucide-react';
 
 import {
@@ -61,10 +62,13 @@ import {
   createBehavioralProfile,
   createAssistiveDevice,
   createFeedingPlan,
+  storeHealthProfile,
+  createPersonalCarePlan,
   createMedication,
   createActivityPermission,
   uploadDocument,
   signApplication,
+  storeConsents,
 } from '@/features/parent/api/applicant.api';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Session } from '@/shared/types';
@@ -101,11 +105,14 @@ const DEVICE_TYPES = [
   'Walker',
   'Crutches',
   'Cane',
+  'Leg brace(s)',
   'CPAP / BiPAP',
   'Hearing aid',
+  'Cochlear implant',
   'Glasses / contacts',
   'Prosthetic limb',
   'Orthotics / AFOs',
+  'Computerized communication device',
   'Gait trainer',
   'Other',
 ];
@@ -130,7 +137,7 @@ const TEXTURE_LEVELS = [
 interface Allergy {
   allergen: string;
   reaction: string;
-  severity: 'mild' | 'moderate' | 'severe' | 'life_threatening' | '';
+  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening' | '';
   epi_pen: boolean;
 }
 
@@ -166,6 +173,10 @@ interface MedicationEntry {
 export interface FormState {
   /** Section 1 — General Information */
   s1: {
+    // Application meta
+    first_application: boolean;
+    attended_before: boolean;
+    // Camper info
     camper_first_name: string;
     camper_last_name: string;
     camper_dob: string;
@@ -173,28 +184,58 @@ export interface FormState {
     tshirt_size: string;
     camper_preferred_name: string;
     county: string;
+    // Camper mailing address (may differ from guardian)
+    camper_address: string;
+    camper_city: string;
+    camper_state: string;
+    camper_zip: string;
+    // Guardian 1
     g1_name: string;
     g1_relationship: string;
     g1_phone_home: string;
+    g1_phone_work: string;
     g1_phone_cell: string;
     g1_email: string;
     g1_address: string;
     g1_city: string;
     g1_state: string;
     g1_zip: string;
+    // Guardian 2 (full fields matching official form)
     g2_name: string;
     g2_relationship: string;
+    g2_phone_home: string;
+    g2_phone_work: string;
     g2_phone_cell: string;
     g2_email: string;
+    g2_address: string;
+    g2_city: string;
+    g2_state: string;
+    g2_zip: string;
+    g2_primary_language: string;
+    g2_interpreter: boolean;
+    // Emergency contact (full fields matching official form)
     ec_name: string;
     ec_relationship: string;
-    ec_phone: string;
+    ec_phone: string;       // primary/cell (existing field — preserved for compat)
+    ec_phone_home: string;
+    ec_phone_work: string;
+    ec_address: string;
+    ec_city: string;
+    ec_state: string;
+    ec_zip: string;
+    ec_primary_language: string;
+    ec_interpreter: boolean;
+    // Session selection
     session_id: number | '';
+    session_id_2nd: number | '';
+    // Language & interpreter (applicant)
     needs_interpreter: boolean;
     preferred_language: string;
   };
   /** Section 2 — Health & Medical */
   s2: {
+    // Insurance type (radio: none | medicaid | other)
+    insurance_type: 'none' | 'medicaid' | 'other' | '';
     insurance_provider: string;
     insurance_policy: string;
     insurance_group: string;
@@ -210,20 +251,46 @@ export interface FormState {
     has_neurostimulator: boolean | '';
     immunizations_current: boolean | '';
     tetanus_date: string;
+    date_of_medical_exam: string;
+    // Form parity — PDF Section 4 "Other Health Information"
+    has_contagious_illness: boolean | '';
+    contagious_illness_description: string;
+    has_recent_illness: boolean | '';
+    recent_illness_description: string;
+    tubes_in_ears: boolean | '';
   };
   /** Section 3 — Development & Behavior */
   s3: {
+    // Existing flags
     aggression: boolean;
+    aggression_description: string;
     self_abuse: boolean;
+    self_abuse_description: string;
     wandering: boolean;
+    wandering_description: string;
     one_to_one: boolean;
+    one_to_one_description: string;
     developmental_delay: boolean;
+    functional_age_level: string;
     functional_reading: boolean;
     functional_writing: boolean;
     independent_mobility: boolean;
     verbal_communication: boolean;
     social_skills: boolean;
     behavior_plan: boolean;
+    // Form parity — PDF Section 5 missing flags
+    sexual_behaviors: boolean;
+    sexual_behaviors_description: string;
+    interpersonal_behavior: boolean;
+    interpersonal_behavior_description: string;
+    social_emotional: boolean;
+    social_emotional_description: string;
+    follows_instructions: boolean;
+    follows_instructions_description: string;
+    group_participation: boolean;
+    group_participation_description: string;
+    attends_school: boolean | '';
+    classroom_type: string;
     communication_methods: string[];
     behavior_notes: string;
   };
@@ -264,16 +331,24 @@ export interface FormState {
     oral_hygiene_notes: string;
     positioning_notes: string;
     sleep_notes: string;
+    falling_asleep_issues: boolean;
+    sleep_walking: boolean;
+    night_wandering: boolean;
+    bowel_control_notes: string;
+    irregular_bowel: boolean;
+    irregular_bowel_notes: string;
+    urinary_catheter: boolean;
+    menstruation_support: boolean;
   };
-  /** Section 7 — Activities & Permissions */
+  /** Section 7 — Activities & Permissions (matches CYSHCN form 0717-ENG-DPH §9) */
   s7: {
-    swimming:       { level: string; notes: string };
-    hiking:         { level: string; notes: string };
-    horseback:      { level: string; notes: string };
-    rock_climbing:  { level: string; notes: string };
-    sports:         { level: string; notes: string };
-    arts_crafts:    { level: string; notes: string };
-    field_trips:    { level: string; notes: string };
+    sports_games: { level: string; notes: string };
+    arts_crafts:  { level: string; notes: string };
+    nature:       { level: string; notes: string };
+    fine_arts:    { level: string; notes: string };
+    swimming:     { level: string; notes: string };
+    boating:      { level: string; notes: string };
+    camp_out:     { level: string; notes: string };
   };
   /** Section 8 — Medications */
   s8: {
@@ -289,11 +364,26 @@ export interface FormState {
     seizure_plan:  DocSlot;
     gtube_plan:    DocSlot;
   };
+  /** Section 9 (display) — Narratives (PDF §10) */
+  sn: {
+    narrative_rustic_environment:  string;
+    narrative_staff_suggestions:   string;
+    narrative_participation_concerns: string;
+    narrative_camp_benefit:        string;
+    narrative_heat_tolerance:      string;
+    narrative_transportation:      string;
+    narrative_additional_info:     string;
+    narrative_emergency_protocols: string;
+  };
   /** Section 10 — Consents & Signatures */
   s10: {
+    // PDF consent #1 — General consent
+    consent_general:    boolean;
     consent_medical:    boolean;
     consent_photo:      boolean;
     consent_liability:  boolean;
+    // PDF consent #4 — Permission to participate in activities
+    consent_permission_activities: boolean;
     consent_medication: boolean;
     consent_hipaa:      boolean;
     signed_name:        string;
@@ -314,6 +404,8 @@ export interface FormState {
 
 const INITIAL_STATE: FormState = {
   s1: {
+    first_application: false,
+    attended_before: false,
     camper_first_name: '',
     camper_last_name: '',
     camper_dob: '',
@@ -321,9 +413,14 @@ const INITIAL_STATE: FormState = {
     tshirt_size: '',
     camper_preferred_name: '',
     county: '',
+    camper_address: '',
+    camper_city: '',
+    camper_state: 'SC',
+    camper_zip: '',
     g1_name: '',
     g1_relationship: '',
     g1_phone_home: '',
+    g1_phone_work: '',
     g1_phone_cell: '',
     g1_email: '',
     g1_address: '',
@@ -332,16 +429,34 @@ const INITIAL_STATE: FormState = {
     g1_zip: '',
     g2_name: '',
     g2_relationship: '',
+    g2_phone_home: '',
+    g2_phone_work: '',
     g2_phone_cell: '',
     g2_email: '',
+    g2_address: '',
+    g2_city: '',
+    g2_state: 'SC',
+    g2_zip: '',
+    g2_primary_language: '',
+    g2_interpreter: false,
     ec_name: '',
     ec_relationship: '',
     ec_phone: '',
+    ec_phone_home: '',
+    ec_phone_work: '',
+    ec_address: '',
+    ec_city: '',
+    ec_state: '',
+    ec_zip: '',
+    ec_primary_language: '',
+    ec_interpreter: false,
     session_id: '',
+    session_id_2nd: '',
     needs_interpreter: false,
     preferred_language: '',
   },
   s2: {
+    insurance_type: '',
     insurance_provider: '',
     insurance_policy: '',
     insurance_group: '',
@@ -357,19 +472,42 @@ const INITIAL_STATE: FormState = {
     has_neurostimulator: '',
     immunizations_current: '',
     tetanus_date: '',
+    date_of_medical_exam: '',
+    has_contagious_illness: '',
+    contagious_illness_description: '',
+    has_recent_illness: '',
+    recent_illness_description: '',
+    tubes_in_ears: '',
   },
   s3: {
     aggression: false,
+    aggression_description: '',
     self_abuse: false,
+    self_abuse_description: '',
     wandering: false,
+    wandering_description: '',
     one_to_one: false,
+    one_to_one_description: '',
     developmental_delay: false,
+    functional_age_level: '',
     functional_reading: false,
     functional_writing: false,
     independent_mobility: false,
     verbal_communication: false,
     social_skills: false,
     behavior_plan: false,
+    sexual_behaviors: false,
+    sexual_behaviors_description: '',
+    interpersonal_behavior: false,
+    interpersonal_behavior_description: '',
+    social_emotional: false,
+    social_emotional_description: '',
+    follows_instructions: false,
+    follows_instructions_description: '',
+    group_participation: false,
+    group_participation_description: '',
+    attends_school: '',
+    classroom_type: '',
     communication_methods: [],
     behavior_notes: '',
   },
@@ -407,17 +545,35 @@ const INITIAL_STATE: FormState = {
     oral_hygiene_notes: '',
     positioning_notes: '',
     sleep_notes: '',
+    falling_asleep_issues: false,
+    sleep_walking: false,
+    night_wandering: false,
+    bowel_control_notes: '',
+    irregular_bowel: false,
+    irregular_bowel_notes: '',
+    urinary_catheter: false,
+    menstruation_support: false,
   },
   s7: {
-    swimming:      { level: '', notes: '' },
-    hiking:        { level: '', notes: '' },
-    horseback:     { level: '', notes: '' },
-    rock_climbing: { level: '', notes: '' },
-    sports:        { level: '', notes: '' },
-    arts_crafts:   { level: '', notes: '' },
-    field_trips:   { level: '', notes: '' },
+    sports_games: { level: '', notes: '' },
+    arts_crafts:  { level: '', notes: '' },
+    nature:       { level: '', notes: '' },
+    fine_arts:    { level: '', notes: '' },
+    swimming:     { level: '', notes: '' },
+    boating:      { level: '', notes: '' },
+    camp_out:     { level: '', notes: '' },
   },
   s8: { no_medications: false, medications: [] },
+  sn: {
+    narrative_rustic_environment:     '',
+    narrative_staff_suggestions:      '',
+    narrative_participation_concerns: '',
+    narrative_camp_benefit:           '',
+    narrative_heat_tolerance:         '',
+    narrative_transportation:         '',
+    narrative_additional_info:        '',
+    narrative_emergency_protocols:    '',
+  },
   s9: {
     immunization:  null,
     medical_exam:  null,
@@ -427,11 +583,13 @@ const INITIAL_STATE: FormState = {
     gtube_plan:    null,
   },
   s10: {
-    consent_medical:    false,
-    consent_photo:      false,
-    consent_liability:  false,
-    consent_medication: false,
-    consent_hipaa:      false,
+    consent_general:               false,
+    consent_medical:               false,
+    consent_photo:                 false,
+    consent_liability:             false,
+    consent_permission_activities: false,
+    consent_medication:            false,
+    consent_hipaa:                 false,
     signed_name:        '',
     signed_date:        '',
     signature_type:     'typed',
@@ -454,16 +612,17 @@ interface SectionDef {
 
 function getSections(t: TFunction): SectionDef[] {
   return [
-    { id: 0, key: 's1',  label: t('applicant.form.s0_label'), shortLabel: t('applicant.form.s0_short'), icon: User          },
-    { id: 1, key: 's2',  label: t('applicant.form.s1_label'), shortLabel: t('applicant.form.s1_short'), icon: Heart         },
-    { id: 2, key: 's3',  label: t('applicant.form.s2_label'), shortLabel: t('applicant.form.s2_short'), icon: Brain         },
-    { id: 3, key: 's4',  label: t('applicant.form.s3_label'), shortLabel: t('applicant.form.s3_short'), icon: Accessibility },
-    { id: 4, key: 's5',  label: t('applicant.form.s4_label'), shortLabel: t('applicant.form.s4_short'), icon: Utensils      },
-    { id: 5, key: 's6',  label: t('applicant.form.s5_label'), shortLabel: t('applicant.form.s5_short'), icon: ShieldCheck   },
-    { id: 6, key: 's7',  label: t('applicant.form.s6_label'), shortLabel: t('applicant.form.s6_short'), icon: Activity      },
-    { id: 7, key: 's8',  label: t('applicant.form.s7_label'), shortLabel: t('applicant.form.s7_short'), icon: Pill          },
-    { id: 8, key: 's9',  label: t('applicant.form.s8_label'), shortLabel: t('applicant.form.s8_short'), icon: Upload        },
-    { id: 9, key: 's10', label: t('applicant.form.s9_label'), shortLabel: t('applicant.form.s9_short'), icon: PenLine       },
+    { id: 0,  key: 's1',  label: t('applicant.form.s0_label'),  shortLabel: t('applicant.form.s0_short'),  icon: User          },
+    { id: 1,  key: 's2',  label: t('applicant.form.s1_label'),  shortLabel: t('applicant.form.s1_short'),  icon: Heart         },
+    { id: 2,  key: 's3',  label: t('applicant.form.s2_label'),  shortLabel: t('applicant.form.s2_short'),  icon: Brain         },
+    { id: 3,  key: 's4',  label: t('applicant.form.s3_label'),  shortLabel: t('applicant.form.s3_short'),  icon: Accessibility },
+    { id: 4,  key: 's5',  label: t('applicant.form.s4_label'),  shortLabel: t('applicant.form.s4_short'),  icon: Utensils      },
+    { id: 5,  key: 's6',  label: t('applicant.form.s5_label'),  shortLabel: t('applicant.form.s5_short'),  icon: ShieldCheck   },
+    { id: 6,  key: 's7',  label: t('applicant.form.s6_label'),  shortLabel: t('applicant.form.s6_short'),  icon: Activity      },
+    { id: 7,  key: 's8',  label: t('applicant.form.s7_label'),  shortLabel: t('applicant.form.s7_short'),  icon: Pill          },
+    { id: 8,  key: 'sn',  label: t('applicant.form.sn_label'),  shortLabel: t('applicant.form.sn_short'),  icon: MessageSquare },
+    { id: 9,  key: 's9',  label: t('applicant.form.s8_label'),  shortLabel: t('applicant.form.s8_short'),  icon: Upload        },
+    { id: 10, key: 's10', label: t('applicant.form.s9_label'),  shortLabel: t('applicant.form.s9_short'),  icon: PenLine       },
   ];
 }
 
@@ -533,6 +692,10 @@ function getSectionStatus(sectionId: number, form: FormState): SectionStatus {
       return allFilled ? 'complete' : 'partial';
     }
     case 8: {
+      // Narratives — all fields optional; always counts as complete
+      return 'complete';
+    }
+    case 9: {
       const { s9 } = form;
       const hasCpap  = form.s4.devices.some((d) => d.device_type.includes('CPAP'));
       const hasSeizures = form.s2.has_seizures === true;
@@ -546,12 +709,14 @@ function getSectionStatus(sectionId: number, form: FormState): SectionStatus {
       if (uploaded === required.length) return 'complete';
       return 'partial';
     }
-    case 9: {
+    case 10: {
       const { s10 } = form;
-      const allConsents = s10.consent_medical && s10.consent_photo && s10.consent_liability
+      const allConsents = s10.consent_general && s10.consent_medical && s10.consent_photo
+        && s10.consent_liability && s10.consent_permission_activities
         && s10.consent_medication && s10.consent_hipaa;
       const hasSigned = s10.signed_name.trim() !== '' && s10.signed_date !== '';
-      if (!s10.consent_medical && !s10.consent_photo && !s10.consent_liability
+      if (!s10.consent_general && !s10.consent_medical && !s10.consent_photo
+          && !s10.consent_liability && !s10.consent_permission_activities
           && !s10.consent_medication && !s10.consent_hipaa && s10.signed_name === '') {
         return 'empty';
       }
@@ -565,7 +730,7 @@ function getSectionStatus(sectionId: number, form: FormState): SectionStatus {
 
 function countMissing(form: FormState): number {
   let missing = 0;
-  for (let i = 0; i <= 9; i++) {
+  for (let i = 0; i <= 10; i++) {
     const st = getSectionStatus(i, form);
     if (st !== 'complete') missing++;
   }
@@ -769,6 +934,29 @@ function Section1({
   return (
     <div className="flex flex-col gap-6 p-8">
 
+      {/* Application meta */}
+      <SectionCard>
+        <SubHeading>Application type</SubHeading>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={data.first_application}
+              onChange={(e) => onChange({ first_application: e.target.checked, attended_before: e.target.checked ? false : data.attended_before })}
+            />
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>First application — this applicant has never applied to Camp Burnt Gin before</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={data.attended_before}
+              onChange={(e) => onChange({ attended_before: e.target.checked, first_application: e.target.checked ? false : data.first_application })}
+            />
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>Attended Camp Burnt Gin before</span>
+          </label>
+        </div>
+      </SectionCard>
+
       {/* Camper Info */}
       <SectionCard>
         <SubHeading>{t('applicant.form.section_camper_info')}</SubHeading>
@@ -807,6 +995,26 @@ function Section1({
           <div>
             <FieldLabel>{t('applicant.form.county')}</FieldLabel>
             <TextInput value={data.county} onChange={set('county')} placeholder={t('applicant.form.county')} />
+          </div>
+        </FormRow>
+        <div>
+          <FieldLabel>Applicant mailing address</FieldLabel>
+          <TextInput value={data.camper_address} onChange={set('camper_address')} placeholder="Street address" />
+        </div>
+        <FormRow cols={3}>
+          <div>
+            <FieldLabel>City</FieldLabel>
+            <TextInput value={data.camper_city} onChange={set('camper_city')} placeholder="City" />
+          </div>
+          <div>
+            <FieldLabel>State</FieldLabel>
+            <SelectInput value={data.camper_state} onChange={set('camper_state')}>
+              {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
+            </SelectInput>
+          </div>
+          <div>
+            <FieldLabel>ZIP code</FieldLabel>
+            <TextInput value={data.camper_zip} onChange={set('camper_zip')} placeholder="00000" />
           </div>
         </FormRow>
         <FormRow>
@@ -850,14 +1058,18 @@ function Section1({
             <TextInput type="tel" value={data.g1_phone_home} onChange={set('g1_phone_home')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
+            <FieldLabel>Work phone</FieldLabel>
+            <TextInput type="tel" value={data.g1_phone_work} onChange={set('g1_phone_work')} placeholder="(xxx) xxx-xxxx" />
+          </div>
+          <div>
             <FieldLabel required>Cell phone</FieldLabel>
             <TextInput type="tel" value={data.g1_phone_cell} onChange={set('g1_phone_cell')} placeholder="(xxx) xxx-xxxx" />
           </div>
-          <div>
-            <FieldLabel>Email</FieldLabel>
-            <TextInput type="email" value={data.g1_email} onChange={set('g1_email')} placeholder="email@example.com" />
-          </div>
         </FormRow>
+        <div>
+          <FieldLabel>Email</FieldLabel>
+          <TextInput type="email" value={data.g1_email} onChange={set('g1_email')} placeholder="email@example.com" />
+        </div>
         <div>
           <FieldLabel>Street address</FieldLabel>
           <TextInput value={data.g1_address} onChange={set('g1_address')} placeholder="123 Main St" />
@@ -890,17 +1102,70 @@ function Section1({
           </div>
           <div>
             <FieldLabel>Relationship to camper</FieldLabel>
-            <TextInput value={data.g2_relationship} onChange={set('g2_relationship')} placeholder="Relationship" />
+            <SelectInput value={data.g2_relationship} onChange={set('g2_relationship')}>
+              <option value="">Select relationship</option>
+              <option value="Parent">Parent</option>
+              <option value="Foster parent">Foster parent</option>
+              <option value="Other">Other</option>
+            </SelectInput>
           </div>
         </FormRow>
-        <FormRow>
+        <FormRow cols={3}>
+          <div>
+            <FieldLabel>Home phone</FieldLabel>
+            <TextInput type="tel" value={data.g2_phone_home} onChange={set('g2_phone_home')} placeholder="(xxx) xxx-xxxx" />
+          </div>
+          <div>
+            <FieldLabel>Work phone</FieldLabel>
+            <TextInput type="tel" value={data.g2_phone_work} onChange={set('g2_phone_work')} placeholder="(xxx) xxx-xxxx" />
+          </div>
           <div>
             <FieldLabel>Cell phone</FieldLabel>
             <TextInput type="tel" value={data.g2_phone_cell} onChange={set('g2_phone_cell')} placeholder="(xxx) xxx-xxxx" />
           </div>
+        </FormRow>
+        <div>
+          <FieldLabel>Email</FieldLabel>
+          <TextInput type="email" value={data.g2_email} onChange={set('g2_email')} placeholder="email@example.com" />
+        </div>
+        <div>
+          <FieldLabel>Street address</FieldLabel>
+          <TextInput value={data.g2_address} onChange={set('g2_address')} placeholder="Street address (if different from applicant)" />
+        </div>
+        <FormRow cols={3}>
           <div>
-            <FieldLabel>Email</FieldLabel>
-            <TextInput type="email" value={data.g2_email} onChange={set('g2_email')} placeholder="email@example.com" />
+            <FieldLabel>City</FieldLabel>
+            <TextInput value={data.g2_city} onChange={set('g2_city')} placeholder="City" />
+          </div>
+          <div>
+            <FieldLabel>State</FieldLabel>
+            <SelectInput value={data.g2_state} onChange={set('g2_state')}>
+              {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
+            </SelectInput>
+          </div>
+          <div>
+            <FieldLabel>ZIP code</FieldLabel>
+            <TextInput value={data.g2_zip} onChange={set('g2_zip')} placeholder="00000" />
+          </div>
+        </FormRow>
+        <FormRow>
+          <div>
+            <FieldLabel>Primary language (if not English)</FieldLabel>
+            <SelectInput value={data.g2_primary_language} onChange={set('g2_primary_language')}>
+              <option value="">English</option>
+              <option value="Spanish">Spanish</option>
+              <option value="Other">Other</option>
+            </SelectInput>
+          </div>
+          <div className="flex items-center self-end pb-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={data.g2_interpreter}
+                onChange={(e) => onChange({ g2_interpreter: e.target.checked })}
+              />
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>Interpreter needed</span>
+            </label>
           </div>
         </FormRow>
       </SectionCard>
@@ -918,10 +1183,60 @@ function Section1({
             <TextInput value={data.ec_relationship} onChange={set('ec_relationship')} placeholder="Relationship" />
           </div>
         </FormRow>
-        <div className="max-w-xs">
-          <FieldLabel required>Phone number</FieldLabel>
-          <TextInput type="tel" value={data.ec_phone} onChange={set('ec_phone')} placeholder="(xxx) xxx-xxxx" />
+        <FormRow cols={3}>
+          <div>
+            <FieldLabel required>Cell / primary phone</FieldLabel>
+            <TextInput type="tel" value={data.ec_phone} onChange={set('ec_phone')} placeholder="(xxx) xxx-xxxx" />
+          </div>
+          <div>
+            <FieldLabel>Home phone</FieldLabel>
+            <TextInput type="tel" value={data.ec_phone_home} onChange={set('ec_phone_home')} placeholder="(xxx) xxx-xxxx" />
+          </div>
+          <div>
+            <FieldLabel>Work phone</FieldLabel>
+            <TextInput type="tel" value={data.ec_phone_work} onChange={set('ec_phone_work')} placeholder="(xxx) xxx-xxxx" />
+          </div>
+        </FormRow>
+        <div>
+          <FieldLabel>Street address</FieldLabel>
+          <TextInput value={data.ec_address} onChange={set('ec_address')} placeholder="Street address" />
         </div>
+        <FormRow cols={3}>
+          <div>
+            <FieldLabel>City</FieldLabel>
+            <TextInput value={data.ec_city} onChange={set('ec_city')} placeholder="City" />
+          </div>
+          <div>
+            <FieldLabel>State</FieldLabel>
+            <SelectInput value={data.ec_state} onChange={set('ec_state')}>
+              {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
+            </SelectInput>
+          </div>
+          <div>
+            <FieldLabel>ZIP code</FieldLabel>
+            <TextInput value={data.ec_zip} onChange={set('ec_zip')} placeholder="00000" />
+          </div>
+        </FormRow>
+        <FormRow>
+          <div>
+            <FieldLabel>Primary language (if not English)</FieldLabel>
+            <SelectInput value={data.ec_primary_language} onChange={set('ec_primary_language')}>
+              <option value="">English</option>
+              <option value="Spanish">Spanish</option>
+              <option value="Other">Other</option>
+            </SelectInput>
+          </div>
+          <div className="flex items-center self-end pb-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={data.ec_interpreter}
+                onChange={(e) => onChange({ ec_interpreter: e.target.checked })}
+              />
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>Interpreter needed</span>
+            </label>
+          </div>
+        </FormRow>
       </SectionCard>
 
       {/* Session & Language */}
@@ -968,6 +1283,59 @@ function Section1({
             })}
           </div>
         )}
+
+        <div className="border-t pt-4 flex flex-col gap-3" style={{ borderColor: 'var(--border)' }}>
+          <SubHeading>Second choice session (optional)</SubHeading>
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            If your first choice is full, we will try to place your camper in this session.
+          </p>
+          <div className="flex flex-col gap-2">
+            <label
+              className="flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all"
+              style={{
+                background: data.session_id_2nd === '' ? 'rgba(22,163,74,0.06)' : 'var(--card)',
+                borderColor: data.session_id_2nd === '' ? 'var(--ember-orange)' : 'var(--border)',
+              }}
+            >
+              <input
+                type="radio"
+                checked={data.session_id_2nd === ''}
+                onChange={() => onChange({ session_id_2nd: '' })}
+                className="mt-0.5"
+              />
+              <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>No second choice</p>
+            </label>
+            {sessions.filter((s) => s.id !== data.session_id).map((session) => {
+              const selected = data.session_id_2nd === session.id;
+              return (
+                <label
+                  key={session.id}
+                  className="flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all"
+                  style={{
+                    background: selected ? 'rgba(22,163,74,0.06)' : 'var(--card)',
+                    borderColor: selected ? 'var(--ember-orange)' : 'var(--border)',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    checked={selected}
+                    onChange={() => onChange({ session_id_2nd: session.id })}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{session.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      <Calendar className="h-3 w-3" />
+                      {new Date(session.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {' – '}
+                      {new Date(session.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="border-t pt-4 flex flex-col gap-3" style={{ borderColor: 'var(--border)' }}>
           <SubHeading>Language & interpreter</SubHeading>
@@ -1041,6 +1409,27 @@ function Section2({
       {/* Insurance */}
       <SectionCard>
         <SubHeading>Insurance information</SubHeading>
+        <div className="flex flex-col gap-1 mb-4">
+          <FieldLabel>Insurance type</FieldLabel>
+          <div className="flex flex-col gap-1.5">
+            {([
+              { value: 'none',     label: 'No insurance' },
+              { value: 'medicaid', label: 'Medicaid / CHIP' },
+              { value: 'other',    label: 'Private / other insurance' },
+            ] as const).map(({ value, label }) => (
+              <label key={value} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: 'var(--foreground)' }}>
+                <input
+                  type="radio"
+                  name="insurance_type"
+                  value={value}
+                  checked={data.insurance_type === value}
+                  onChange={() => onChange({ insurance_type: value })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
         <FormRow>
           <div>
             <FieldLabel required>Insurance provider</FieldLabel>
@@ -1176,7 +1565,7 @@ function Section2({
                       <option value="mild">Mild</option>
                       <option value="moderate">Moderate</option>
                       <option value="severe">Severe</option>
-                      <option value="life_threatening">Life-threatening</option>
+                      <option value="life-threatening">Life-threatening</option>
                     </SelectInput>
                   </div>
                   <div className="flex items-center gap-2 self-end pb-1">
@@ -1262,12 +1651,64 @@ function Section2({
           <FieldLabel>Date of last tetanus / Tdap booster</FieldLabel>
           <TextInput type="date" value={data.tetanus_date} onChange={(v) => onChange({ tetanus_date: v })} />
         </div>
+        <div className="max-w-xs">
+          <FieldLabel>Date of Medical Examination (Form 4523)</FieldLabel>
+          <p className="text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            The physical exam must have been completed within 12 months of the first day of camp.
+          </p>
+          <TextInput type="date" value={data.date_of_medical_exam} onChange={(v) => onChange({ date_of_medical_exam: v })} />
+        </div>
         <div
           className="flex items-start gap-2 rounded-lg p-3 text-xs"
           style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--ember-orange)', border: '1px solid rgba(22,163,74,0.20)' }}
         >
           <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
           An SC Immunization Certificate is required in Section 9 (Required Documents).
+        </div>
+      </SectionCard>
+
+      {/* Other Health Information */}
+      <SectionCard>
+        <SubHeading>Other health information</SubHeading>
+        <div className="flex flex-col">
+          <YesNoField
+            id="tubes_in_ears"
+            label="Does your camper have tubes in the ears?"
+            value={data.tubes_in_ears}
+            onChange={(v) => onChange({ tubes_in_ears: v })}
+          />
+          <YesNoField
+            id="has_contagious_illness"
+            label="Has your camper had a contagious illness in the past 30 days?"
+            value={data.has_contagious_illness}
+            onChange={(v) => onChange({ has_contagious_illness: v })}
+          />
+          {data.has_contagious_illness === true && (
+            <div className="ml-8 mt-1 mb-3">
+              <FieldLabel>Please describe the illness</FieldLabel>
+              <TextInput
+                value={data.contagious_illness_description}
+                onChange={(v) => onChange({ contagious_illness_description: v })}
+                placeholder="Describe illness and recovery status"
+              />
+            </div>
+          )}
+          <YesNoField
+            id="has_recent_illness"
+            label="Has your camper had a significant illness, injury, or hospitalization in the past year?"
+            value={data.has_recent_illness}
+            onChange={(v) => onChange({ has_recent_illness: v })}
+          />
+          {data.has_recent_illness === true && (
+            <div className="ml-8 mt-1 mb-3">
+              <FieldLabel>Please describe</FieldLabel>
+              <TextInput
+                value={data.recent_illness_description}
+                onChange={(v) => onChange({ recent_illness_description: v })}
+                placeholder="Describe illness, injury, or hospitalization"
+              />
+            </div>
+          )}
         </div>
       </SectionCard>
     </div>
@@ -1278,19 +1719,6 @@ function Section2({
 // Section 3 — Development & Behavior
 // ---------------------------------------------------------------------------
 
-const BEHAVIOR_ITEMS: { key: keyof FormState['s3']; label: string }[] = [
-  { key: 'aggression',            label: 'Exhibits aggression toward others (hitting, biting, kicking)' },
-  { key: 'self_abuse',            label: 'Exhibits self-injurious behavior' },
-  { key: 'wandering',             label: 'Has a wandering / elopement risk' },
-  { key: 'one_to_one',            label: 'Requires one-to-one supervision at all times' },
-  { key: 'developmental_delay',   label: 'Has a documented developmental delay' },
-  { key: 'functional_reading',    label: 'Reads at a functional level' },
-  { key: 'functional_writing',    label: 'Writes at a functional level' },
-  { key: 'independent_mobility',  label: 'Moves independently (walks without assistance)' },
-  { key: 'verbal_communication',  label: 'Communicates verbally' },
-  { key: 'social_skills',         label: 'Demonstrates age-appropriate social skills with peers' },
-  { key: 'behavior_plan',         label: 'Has a current behavioral support or intervention plan' },
-];
 
 function Section3({
   data,
@@ -1313,18 +1741,113 @@ function Section3({
       <SectionCard>
         <SubHeading>Behavioral indicators</SubHeading>
         <p className="text-xs mb-2" style={{ color: 'var(--muted-foreground)' }}>
-          Answer Yes or No for each item. These help us plan appropriate support and supervision.
+          Answer Yes or No for each item. If Yes, please describe in the field that appears.
         </p>
         <div className="flex flex-col">
-          {BEHAVIOR_ITEMS.map((item) => (
-            <YesNoField
-              key={item.key}
-              id={item.key}
-              label={item.label}
-              value={data[item.key] as boolean}
-              onChange={(v) => onChange({ [item.key]: v } as Partial<FormState['s3']>)}
-            />
-          ))}
+          <YesNoField id="aggression" label="Exhibits aggression toward others (hitting, biting, kicking)" value={data.aggression} onChange={(v) => onChange({ aggression: v })} />
+          {data.aggression && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe the aggressive behaviors</FieldLabel>
+              <TextInput value={data.aggression_description} onChange={(v) => onChange({ aggression_description: v })} placeholder="Types, frequency, triggers, de-escalation strategies" />
+            </div>
+          )}
+          <YesNoField id="self_abuse" label="Exhibits self-injurious behavior" value={data.self_abuse} onChange={(v) => onChange({ self_abuse: v })} />
+          {data.self_abuse && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe the self-injurious behaviors</FieldLabel>
+              <TextInput value={data.self_abuse_description} onChange={(v) => onChange({ self_abuse_description: v })} placeholder="Types, frequency, triggers" />
+            </div>
+          )}
+          <YesNoField id="wandering" label="Has a wandering / elopement risk" value={data.wandering} onChange={(v) => onChange({ wandering: v })} />
+          {data.wandering && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe wandering behaviors and precautions</FieldLabel>
+              <TextInput value={data.wandering_description} onChange={(v) => onChange({ wandering_description: v })} placeholder="Situations, triggers, current safeguards" />
+            </div>
+          )}
+          <YesNoField id="one_to_one" label="Requires one-to-one supervision at all times" value={data.one_to_one} onChange={(v) => onChange({ one_to_one: v })} />
+          {data.one_to_one && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe the supervision needs</FieldLabel>
+              <TextInput value={data.one_to_one_description} onChange={(v) => onChange({ one_to_one_description: v })} placeholder="What situations require 1:1 and why" />
+            </div>
+          )}
+          <YesNoField id="developmental_delay" label="Has a documented developmental delay" value={data.developmental_delay} onChange={(v) => onChange({ developmental_delay: v })} />
+          <YesNoField id="sexual_behaviors" label="Exhibits sexual or inappropriate social behaviors toward others" value={data.sexual_behaviors} onChange={(v) => onChange({ sexual_behaviors: v })} />
+          {data.sexual_behaviors && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe the behaviors</FieldLabel>
+              <TextInput value={data.sexual_behaviors_description} onChange={(v) => onChange({ sexual_behaviors_description: v })} placeholder="Nature of behaviors and management strategies" />
+            </div>
+          )}
+          <YesNoField id="interpersonal_behavior" label="Has significant interpersonal behavior challenges (disruption, non-compliance)" value={data.interpersonal_behavior} onChange={(v) => onChange({ interpersonal_behavior: v })} />
+          {data.interpersonal_behavior && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe the challenges</FieldLabel>
+              <TextInput value={data.interpersonal_behavior_description} onChange={(v) => onChange({ interpersonal_behavior_description: v })} placeholder="Situations and management strategies" />
+            </div>
+          )}
+          <YesNoField id="social_emotional" label="Has social-emotional difficulties (anxiety, mood regulation)" value={data.social_emotional} onChange={(v) => onChange({ social_emotional: v })} />
+          {data.social_emotional && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe the difficulties</FieldLabel>
+              <TextInput value={data.social_emotional_description} onChange={(v) => onChange({ social_emotional_description: v })} placeholder="Types of difficulties and coping strategies used" />
+            </div>
+          )}
+          <YesNoField id="follows_instructions" label="Is able to follow simple instructions independently" value={data.follows_instructions} onChange={(v) => onChange({ follows_instructions: v })} />
+          {data.follows_instructions && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe level of prompting needed</FieldLabel>
+              <TextInput value={data.follows_instructions_description} onChange={(v) => onChange({ follows_instructions_description: v })} placeholder="One-step vs. multi-step, verbal vs. physical prompts" />
+            </div>
+          )}
+          <YesNoField id="group_participation" label="Participates in group activities with peers" value={data.group_participation} onChange={(v) => onChange({ group_participation: v })} />
+          {data.group_participation && (
+            <div className="ml-8 mb-3">
+              <FieldLabel>Describe participation level and any supports needed</FieldLabel>
+              <TextInput value={data.group_participation_description} onChange={(v) => onChange({ group_participation_description: v })} placeholder="Level of engagement, preferred activity types" />
+            </div>
+          )}
+          <YesNoField id="functional_reading" label="Reads at a functional level" value={data.functional_reading} onChange={(v) => onChange({ functional_reading: v })} />
+          <YesNoField id="functional_writing" label="Writes at a functional level" value={data.functional_writing} onChange={(v) => onChange({ functional_writing: v })} />
+          <YesNoField id="independent_mobility" label="Moves independently (walks without assistance)" value={data.independent_mobility} onChange={(v) => onChange({ independent_mobility: v })} />
+          <YesNoField id="verbal_communication" label="Communicates verbally" value={data.verbal_communication} onChange={(v) => onChange({ verbal_communication: v })} />
+          <YesNoField id="social_skills" label="Demonstrates age-appropriate social skills with peers" value={data.social_skills} onChange={(v) => onChange({ social_skills: v })} />
+          <YesNoField id="behavior_plan" label="Has a current behavioral support or intervention plan" value={data.behavior_plan} onChange={(v) => onChange({ behavior_plan: v })} />
+        </div>
+      </SectionCard>
+
+      <SectionCard>
+        <SubHeading>School attendance</SubHeading>
+        <div className="flex flex-col">
+          <YesNoField
+            id="attends_school"
+            label="Does your camper currently attend school?"
+            value={data.attends_school}
+            onChange={(v) => onChange({ attends_school: v })}
+          />
+          {data.attends_school === true && (
+            <div className="ml-8 mt-1 mb-3">
+              <FieldLabel>Classroom / program type</FieldLabel>
+              <SelectInput value={data.classroom_type} onChange={(v) => onChange({ classroom_type: v })}>
+                <option value="">Select type</option>
+                <option value="General education">General education (fully included)</option>
+                <option value="Resource room">Resource room (partial inclusion)</option>
+                <option value="Self-contained">Self-contained special education</option>
+                <option value="Life skills">Life skills / functional skills program</option>
+                <option value="Home school">Home school</option>
+                <option value="Other">Other</option>
+              </SelectInput>
+            </div>
+          )}
+        </div>
+        <div className="mt-2">
+          <FieldLabel>Functional age level (if known)</FieldLabel>
+          <TextInput
+            value={data.functional_age_level}
+            onChange={(v) => onChange({ functional_age_level: v })}
+            placeholder="e.g. 3–4 years, kindergarten level"
+          />
         </div>
       </SectionCard>
 
@@ -1785,7 +2308,133 @@ function Section6({
           placeholder="e.g. Must sleep on left side, uses CPAP, needs white noise, usual bedtime, waking patterns…"
           rows={3}
         />
+        <div className="mt-4 flex flex-col gap-2.5">
+          {([
+            ['falling_asleep_issues', 'Has difficulty falling asleep'],
+            ['sleep_walking',         'History of sleep-walking'],
+            ['night_wandering',       'History of night wandering'],
+            ['urinary_catheter',      'Uses urinary catheter'],
+            ['menstruation_support',  'Requires staff support during menstruation'],
+          ] as [keyof FormState['s6'], string][]).map(([field, label]) => (
+            <label key={field} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={data[field] as boolean}
+                onChange={(e) => onChange({ [field]: e.target.checked } as Partial<FormState['s6']>)}
+              />
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
+            </label>
+          ))}
+        </div>
       </SectionCard>
+
+      <SectionCard>
+        <SubHeading>Bowel & continence notes</SubHeading>
+        <TextArea
+          value={data.bowel_control_notes}
+          onChange={(v) => onChange({ bowel_control_notes: v })}
+          placeholder="Describe any bowel management routines, schedules, or special requirements…"
+          rows={3}
+        />
+        <div className="flex flex-col mt-3">
+          <label className="flex items-center gap-2 cursor-pointer py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+            <input
+              type="checkbox"
+              checked={data.irregular_bowel}
+              onChange={(e) => onChange({ irregular_bowel: e.target.checked })}
+            />
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>Has irregular bowel patterns requiring monitoring or intervention</span>
+          </label>
+          {data.irregular_bowel && (
+            <div className="mt-2">
+              <FieldLabel>Describe irregular bowel patterns</FieldLabel>
+              <TextInput
+                value={data.irregular_bowel_notes}
+                onChange={(v) => onChange({ irregular_bowel_notes: v })}
+                placeholder="Frequency, schedule, management approach"
+              />
+            </div>
+          )}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section 9 (display) — Narratives
+// ---------------------------------------------------------------------------
+
+const NARRATIVE_QUESTIONS: { key: keyof FormState['sn']; label: string; placeholder: string }[] = [
+  {
+    key: 'narrative_rustic_environment',
+    label: 'Rustic environment suitability',
+    placeholder: 'Is a rustic outdoor environment (heat, bugs, uneven terrain, limited AC) suitable for your camper? Please explain any concerns.',
+  },
+  {
+    key: 'narrative_staff_suggestions',
+    label: 'Suggestions for staff',
+    placeholder: 'What suggestions do you have for camp staff to best support your camper\'s unique needs during activities and daily routines?',
+  },
+  {
+    key: 'narrative_participation_concerns',
+    label: 'Participation concerns',
+    placeholder: 'Are there any specific activities or situations that concern you regarding your camper\'s participation?',
+  },
+  {
+    key: 'narrative_camp_benefit',
+    label: 'How will camp benefit your camper?',
+    placeholder: 'How do you believe attending camp will benefit your camper? What goals or outcomes are you hoping for?',
+  },
+  {
+    key: 'narrative_heat_tolerance',
+    label: 'Heat and sun tolerance',
+    placeholder: 'Please describe your camper\'s tolerance for heat and sun exposure, and any precautions staff should take.',
+  },
+  {
+    key: 'narrative_transportation',
+    label: 'Transportation',
+    placeholder: 'Are there any concerns or special accommodations needed regarding transportation to and from camp?',
+  },
+  {
+    key: 'narrative_additional_info',
+    label: 'Additional information',
+    placeholder: 'Is there any additional information about your camper that camp staff should know that has not been covered elsewhere?',
+  },
+  {
+    key: 'narrative_emergency_protocols',
+    label: 'Special emergency protocols',
+    placeholder: 'Are there any special emergency procedures or protocols specific to your camper\'s condition that staff must follow?',
+  },
+];
+
+function SectionNarratives({
+  data,
+  onChange,
+}: {
+  data: FormState['sn'];
+  onChange: (patch: Partial<FormState['sn']>) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-6 p-8">
+      <div
+        className="flex items-start gap-2 rounded-lg p-3 text-xs"
+        style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--ember-orange)', border: '1px solid rgba(22,163,74,0.20)' }}
+      >
+        <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+        These questions are optional but help our staff prepare for your camper's arrival. Your answers are kept confidential and shared only with relevant staff.
+      </div>
+      {NARRATIVE_QUESTIONS.map(({ key, label, placeholder }) => (
+        <SectionCard key={key}>
+          <SubHeading>{label}</SubHeading>
+          <TextArea
+            value={data[key]}
+            onChange={(v) => onChange({ [key]: v })}
+            placeholder={placeholder}
+            rows={4}
+          />
+        </SectionCard>
+      ))}
     </div>
   );
 }
@@ -1802,41 +2451,42 @@ interface ActivityDef {
   description: string;
 }
 
+// Activities match the official CYSHCN application form (0717-ENG-DPH §9)
 const ACTIVITIES: ActivityDef[] = [
   {
-    key: 'swimming',
-    label: 'Swimming & water activities',
-    description: 'Includes pool swimming, water play, and water-based recreational activities.',
-  },
-  {
-    key: 'hiking',
-    label: 'Hiking & nature trails',
-    description: 'Includes outdoor walking trails, nature hikes, and uneven terrain.',
-  },
-  {
-    key: 'horseback',
-    label: 'Horseback riding',
-    description: 'Therapeutic and recreational horseback riding with certified instructors.',
-  },
-  {
-    key: 'rock_climbing',
-    label: 'Rock climbing & rappelling',
-    description: 'Includes climbing wall and low ropes elements with safety equipment.',
-  },
-  {
-    key: 'sports',
-    label: 'Team sports & group games',
+    key: 'sports_games',
+    label: 'Sports & Games',
     description: 'Includes adapted sports, ball games, and cooperative group activities.',
   },
   {
     key: 'arts_crafts',
-    label: 'Arts & crafts',
+    label: 'Arts & Crafts',
     description: 'Includes painting, sculpture, sensory art, and creative workshops.',
   },
   {
-    key: 'field_trips',
-    label: 'Field trips & off-campus activities',
-    description: 'Supervised excursions to community locations or off-site events.',
+    key: 'nature',
+    label: 'Nature Activities',
+    description: 'Includes outdoor exploration, nature walks, and environmental education.',
+  },
+  {
+    key: 'fine_arts',
+    label: 'Fine Arts',
+    description: 'Includes music, drama, dance, and performing arts programs.',
+  },
+  {
+    key: 'swimming',
+    label: 'Swimming',
+    description: 'Includes pool swimming and water-based recreational activities.',
+  },
+  {
+    key: 'boating',
+    label: 'Boating',
+    description: 'Includes canoe, kayak, and supervised watercraft activities.',
+  },
+  {
+    key: 'camp_out',
+    label: 'Camp Out',
+    description: 'Overnight outdoor camping with tents or shelters away from main facilities.',
   },
 ];
 
@@ -2333,7 +2983,12 @@ function Section9({
 // Section 10 — Consents & Signatures
 // ---------------------------------------------------------------------------
 
-const CONSENT_DEFS: { key: keyof Pick<FormState['s10'], 'consent_medical'|'consent_photo'|'consent_liability'|'consent_medication'|'consent_hipaa'>; title: string; body: string }[] = [
+const CONSENT_DEFS: { key: keyof Pick<FormState['s10'], 'consent_general'|'consent_medical'|'consent_photo'|'consent_liability'|'consent_permission_activities'|'consent_medication'|'consent_hipaa'>; title: string; body: string }[] = [
+  {
+    key: 'consent_general',
+    title: 'General Consent',
+    body: 'I hereby give consent for my child to participate in the Camp Burnt Gin program. I certify that all information provided in this application is accurate and complete to the best of my knowledge. I understand that incomplete or inaccurate information may affect my child\'s ability to attend camp.',
+  },
   {
     key: 'consent_medical',
     title: 'Medical Treatment Authorization',
@@ -2348,6 +3003,11 @@ const CONSENT_DEFS: { key: keyof Pick<FormState['s10'], 'consent_medical'|'conse
     key: 'consent_liability',
     title: 'Liability Waiver & Release',
     body: 'I acknowledge that participation in camp activities involves inherent risks. I voluntarily assume these risks and release Camp Burnt Gin, its directors, staff, and volunteers from liability for any injury, illness, or loss arising from my child\'s participation, except in cases of gross negligence.',
+  },
+  {
+    key: 'consent_permission_activities',
+    title: 'Permission to Participate in Camp Activities',
+    body: 'I give permission for my child to participate in all standard camp activities, including but not limited to swimming, boating, sports, nature exploration, and overnight camping (if applicable), subject to the activity permissions specified in Section 7 of this application.',
   },
   {
     key: 'consent_medication',
@@ -2477,7 +3137,8 @@ function Section10({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const allConsents = data.consent_medical && data.consent_photo && data.consent_liability
+  const allConsents = data.consent_general && data.consent_medical && data.consent_photo
+    && data.consent_liability && data.consent_permission_activities
     && data.consent_medication && data.consent_hipaa;
 
   return (
@@ -2664,13 +3325,35 @@ function StepIndicator({
 export function ApplicationFormPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Recompute section labels when language changes
   const sections = useMemo(() => getSections(t), [t]);
 
   // ── State ─────────────────────────────────────────────────────────────────
 
+  // Read language preference from navigation state (set by ApplicationStartPage)
+  const stateLanguage = (location.state as { language?: string; prefill?: Partial<Record<string, string>> } | null)?.language;
+
   const [form, setForm] = useState<FormState>(() => {
+    // Re-apply flow: when navigated here with prefill state, start a fresh form
+    // with the camper's basic info pre-populated. Any existing localStorage draft
+    // is intentionally ignored — the user is starting a brand-new application.
+    const prefill = (location.state as { prefill?: Partial<Record<string, string>> } | null)?.prefill;
+    if (prefill) {
+      return {
+        ...INITIAL_STATE,
+        s1: {
+          ...INITIAL_STATE.s1,
+          camper_first_name: prefill.first_name    ?? '',
+          camper_last_name:  prefill.last_name     ?? '',
+          camper_dob:        prefill.date_of_birth ?? '',
+          camper_gender:     prefill.gender        ?? '',
+          tshirt_size:       prefill.tshirt_size   ?? '',
+        },
+      };
+    }
+
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
@@ -2682,6 +3365,16 @@ export function ApplicationFormPage() {
     }
     return INITIAL_STATE;
   });
+
+  // Apply language selected on the start page (only on initial mount)
+  useEffect(() => {
+    if (stateLanguage === 'spanish' && i18n.language !== 'es') {
+      i18n.changeLanguage('es');
+    } else if (stateLanguage === 'english' && i18n.language !== 'en') {
+      i18n.changeLanguage('en');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [sessions, setSessions]         = useState<Session[]>([]);
   const [currentStep, setCurrentStep]   = useState<number>(form.meta.activeSection);
@@ -2756,11 +3449,21 @@ export function ApplicationFormPage() {
 
   async function handleSubmit() {
     if (countMissing(form) > 0) {
-      toast.error('Please complete all sections before submitting.');
+      // Navigate to the first incomplete section so the user can see what needs attention.
+      const firstIncomplete = sections.findIndex((_, i) => getSectionStatus(i, form) !== 'complete');
+      if (firstIncomplete !== -1) {
+        goToStep(firstIncomplete);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        toast.error(
+          `Section ${firstIncomplete + 1} — ${sections[firstIncomplete].shortLabel} is incomplete. Please finish it before submitting.`,
+        );
+      }
       return;
     }
     if (!form.s1.session_id) {
-      toast.error('Please select a camp session in Section 1.');
+      goToStep(0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      toast.error('Please select a camp session in Section 1 before submitting.');
       return;
     }
 
@@ -2774,25 +3477,82 @@ export function ApplicationFormPage() {
         camperId = pendingCamperIdRef.current;
       } else {
         const camper = await createCamper({
-          first_name:    form.s1.camper_first_name,
-          last_name:     form.s1.camper_last_name,
-          date_of_birth: form.s1.camper_dob,
-          gender:        form.s1.camper_gender,
-          tshirt_size:   form.s1.tshirt_size || undefined,
+          first_name:         form.s1.camper_first_name,
+          last_name:          form.s1.camper_last_name,
+          date_of_birth:      form.s1.camper_dob,
+          gender:             form.s1.camper_gender,
+          tshirt_size:        form.s1.tshirt_size || undefined,
+          preferred_name:     form.s1.camper_preferred_name || undefined,
+          county:             form.s1.county || undefined,
+          needs_interpreter:  form.s1.needs_interpreter || undefined,
+          preferred_language: form.s1.preferred_language || undefined,
+          applicant_address:  form.s1.camper_address || undefined,
+          applicant_city:     form.s1.camper_city || undefined,
+          applicant_state:    form.s1.camper_state || undefined,
+          applicant_zip:      form.s1.camper_zip || undefined,
         });
         camperId = camper.id;
         pendingCamperIdRef.current = camperId;
       }
 
-      // ── Step 2: Emergency contact ─────────────────────────────────────────
+      // ── Step 2a: Guardian 1 (stored as emergency contact with is_guardian=true, is_primary=true) ──
+      if (form.s1.g1_name.trim()) {
+        await createEmergencyContact({
+          camper_id:            camperId,
+          name:                 form.s1.g1_name,
+          relationship:         form.s1.g1_relationship,
+          phone_primary:        form.s1.g1_phone_cell || form.s1.g1_phone_home,
+          phone_secondary:      form.s1.g1_phone_home && form.s1.g1_phone_cell ? form.s1.g1_phone_home : undefined,
+          phone_work:           form.s1.g1_phone_work || undefined,
+          is_primary:           true,
+          is_authorized_pickup: true,
+          is_guardian:          true,
+          address:              form.s1.g1_address || undefined,
+          city:                 form.s1.g1_city || undefined,
+          state:                form.s1.g1_state || undefined,
+          zip:                  form.s1.g1_zip || undefined,
+        });
+      }
+
+      // ── Step 2b: Guardian 2 (is_guardian=true, is_primary=false) ─────────
+      if (form.s1.g2_name.trim()) {
+        await createEmergencyContact({
+          camper_id:            camperId,
+          name:                 form.s1.g2_name,
+          relationship:         form.s1.g2_relationship,
+          phone_primary:        form.s1.g2_phone_cell || form.s1.g2_phone_home,
+          phone_secondary:      form.s1.g2_phone_home && form.s1.g2_phone_cell ? form.s1.g2_phone_home : undefined,
+          phone_work:           form.s1.g2_phone_work || undefined,
+          is_primary:           false,
+          is_authorized_pickup: true,
+          is_guardian:          true,
+          address:              form.s1.g2_address || undefined,
+          city:                 form.s1.g2_city || undefined,
+          state:                form.s1.g2_state || undefined,
+          zip:                  form.s1.g2_zip || undefined,
+          primary_language:     form.s1.g2_primary_language || undefined,
+          interpreter_needed:   form.s1.g2_interpreter || undefined,
+        });
+      }
+
+      // ── Step 2c: Additional emergency contact (non-guardian) ─────────────
       if (form.s1.ec_name.trim()) {
         await createEmergencyContact({
           camper_id:            camperId,
           name:                 form.s1.ec_name,
           relationship:         form.s1.ec_relationship,
           phone_primary:        form.s1.ec_phone,
-          is_primary:           true,
+          phone_secondary:      form.s1.ec_phone_home || undefined,
+          phone_work:           form.s1.ec_phone_work || undefined,
+          is_primary:           false,
           is_authorized_pickup: false,
+          is_guardian:          false,
+          address:              form.s1.ec_address || undefined,
+          city:                 form.s1.ec_city || undefined,
+          state:                form.s1.ec_state || undefined,
+          zip:                  form.s1.ec_zip || undefined,
+          primary_language:     form.s1.ec_primary_language || undefined,
+          interpreter_needed:   form.s1.ec_interpreter || undefined,
         });
       }
 
@@ -2821,14 +3581,37 @@ export function ApplicationFormPage() {
 
       // ── Step 5: Behavioral profile ────────────────────────────────────────
       await createBehavioralProfile({
-        camper_id:              camperId,
-        aggression:             form.s3.aggression === true,
-        self_abuse:             form.s3.self_abuse  === true,
-        wandering_risk:         form.s3.wandering   === true,
-        one_to_one_supervision: form.s3.one_to_one  === true,
-        developmental_delay:    form.s3.developmental_delay === true,
-        communication_methods:  form.s3.communication_methods.length
-                                  ? form.s3.communication_methods : undefined,
+        camper_id:                          camperId,
+        aggression:                         form.s3.aggression === true,
+        aggression_description:             form.s3.aggression_description || undefined,
+        self_abuse:                         form.s3.self_abuse  === true,
+        self_abuse_description:             form.s3.self_abuse_description || undefined,
+        wandering_risk:                     form.s3.wandering   === true,
+        wandering_description:              form.s3.wandering_description || undefined,
+        one_to_one_supervision:             form.s3.one_to_one  === true,
+        one_to_one_description:             form.s3.one_to_one_description || undefined,
+        developmental_delay:                form.s3.developmental_delay === true,
+        functional_reading:                 form.s3.functional_reading,
+        functional_writing:                 form.s3.functional_writing,
+        independent_mobility:               form.s3.independent_mobility,
+        verbal_communication:               form.s3.verbal_communication,
+        social_skills:                      form.s3.social_skills,
+        behavior_plan:                      form.s3.behavior_plan,
+        functioning_age_level:              form.s3.functional_age_level || undefined,
+        sexual_behaviors:                   form.s3.sexual_behaviors,
+        sexual_behaviors_description:       form.s3.sexual_behaviors_description || undefined,
+        interpersonal_behavior:             form.s3.interpersonal_behavior,
+        interpersonal_behavior_description: form.s3.interpersonal_behavior_description || undefined,
+        social_emotional:                   form.s3.social_emotional,
+        social_emotional_description:       form.s3.social_emotional_description || undefined,
+        follows_instructions:               form.s3.follows_instructions,
+        follows_instructions_description:   form.s3.follows_instructions_description || undefined,
+        group_participation:                form.s3.group_participation,
+        group_participation_description:    form.s3.group_participation_description || undefined,
+        attends_school:                     form.s3.attends_school !== '' ? form.s3.attends_school as boolean : undefined,
+        classroom_type:                     form.s3.classroom_type || undefined,
+        communication_methods:              form.s3.communication_methods.length
+                                              ? form.s3.communication_methods : undefined,
         notes: form.s3.behavior_notes || undefined,
       });
 
@@ -2844,11 +3627,15 @@ export function ApplicationFormPage() {
       }
 
       // ── Step 7: Feeding plan ──────────────────────────────────────────────
-      if (form.s5.special_diet || form.s5.g_tube) {
+      if (form.s5.special_diet || form.s5.g_tube || form.s5.texture_modified || form.s5.fluid_restriction) {
         await createFeedingPlan({
           camper_id:          camperId,
           special_diet:       form.s5.special_diet,
           diet_description:   form.s5.diet_description || undefined,
+          texture_modified:   form.s5.texture_modified || undefined,
+          texture_level:      form.s5.texture_level || undefined,
+          fluid_restriction:  form.s5.fluid_restriction || undefined,
+          fluid_details:      form.s5.fluid_details || undefined,
           g_tube:             form.s5.g_tube,
           formula:            form.s5.formula || undefined,
           amount_per_feeding: form.s5.amount_per_feeding || undefined,
@@ -2857,8 +3644,49 @@ export function ApplicationFormPage() {
           feeding_times:      form.s5.feeding_times
                                 ? form.s5.feeding_times.split(',').map((t) => t.trim()).filter(Boolean)
                                 : undefined,
+          bolus_only:         form.s5.bolus_only || undefined,
+          notes:              form.s5.feeding_notes || undefined,
         });
       }
+
+      // ── Step 7b: Health profile (extended medical fields — Section 2) ─────
+      await storeHealthProfile(camperId, {
+        insurance_group:                    form.s2.insurance_group || undefined,
+        medicaid_number:                    form.s2.medicaid_number || undefined,
+        physician_address:                  form.s2.physician_address || undefined,
+        immunizations_current:              form.s2.immunizations_current !== '' ? form.s2.immunizations_current as boolean : undefined,
+        tetanus_date:                       form.s2.tetanus_date || undefined,
+        mobility_notes:                     form.s4.mobility_notes || undefined,
+        tubes_in_ears:                      form.s2.tubes_in_ears !== '' ? form.s2.tubes_in_ears as boolean : undefined,
+        has_contagious_illness:             form.s2.has_contagious_illness !== '' ? form.s2.has_contagious_illness as boolean : undefined,
+        contagious_illness_description:     form.s2.contagious_illness_description || undefined,
+        has_recent_illness:                 form.s2.has_recent_illness !== '' ? form.s2.has_recent_illness as boolean : undefined,
+        recent_illness_description:         form.s2.recent_illness_description || undefined,
+      });
+
+      // ── Step 7c: Personal care plan (Section 6 — ADL fields) ─────────────
+      await createPersonalCarePlan(camperId, {
+        bathing_level:        form.s6.bathing_level || undefined,
+        bathing_notes:        form.s6.bathing_notes || undefined,
+        toileting_level:      form.s6.toileting_level || undefined,
+        toileting_notes:      form.s6.toileting_notes || undefined,
+        nighttime_toileting:  form.s6.nighttime_toileting || undefined,
+        nighttime_notes:      form.s6.nighttime_notes || undefined,
+        dressing_level:       form.s6.dressing_level || undefined,
+        dressing_notes:       form.s6.dressing_notes || undefined,
+        oral_hygiene_level:   form.s6.oral_hygiene_level || undefined,
+        oral_hygiene_notes:   form.s6.oral_hygiene_notes || undefined,
+        positioning_notes:    form.s6.positioning_notes || undefined,
+        sleep_notes:          form.s6.sleep_notes || undefined,
+        falling_asleep_issues:form.s6.falling_asleep_issues || undefined,
+        sleep_walking:        form.s6.sleep_walking || undefined,
+        night_wandering:      form.s6.night_wandering || undefined,
+        bowel_control_notes:  form.s6.bowel_control_notes || undefined,
+        irregular_bowel:      form.s6.irregular_bowel || undefined,
+        irregular_bowel_notes:form.s6.irregular_bowel_notes || undefined,
+        urinary_catheter:     form.s6.urinary_catheter || undefined,
+        menstruation_support: form.s6.menstruation_support || undefined,
+      });
 
       // ── Step 8: Medications ───────────────────────────────────────────────
       if (!form.s8.no_medications) {
@@ -2883,13 +3711,13 @@ export function ApplicationFormPage() {
 
       // ── Step 9: Activity permissions ──────────────────────────────────────
       const activityMap: Record<keyof typeof form.s7, string> = {
-        swimming:      'Swimming',
-        hiking:        'Hiking',
-        horseback:     'Horseback Riding',
-        rock_climbing: 'Rock Climbing',
-        sports:        'Team Sports',
-        arts_crafts:   'Arts & Crafts',
-        field_trips:   'Field Trips',
+        sports_games: 'Sports & Games',
+        arts_crafts:  'Arts & Crafts',
+        nature:       'Nature Activities',
+        fine_arts:    'Fine Arts',
+        swimming:     'Swimming',
+        boating:      'Boating',
+        camp_out:     'Camp Out',
       };
       const levelMap: Record<string, string> = {
         'Permitted':     'yes',
@@ -2910,19 +3738,33 @@ export function ApplicationFormPage() {
 
       // ── Step 10: Create application ───────────────────────────────────────
       const application = await createApplication({
-        camper_id:  camperId,
-        session_id: Number(form.s1.session_id),
+        camper_id:                        camperId,
+        session_id:                       Number(form.s1.session_id),
+        first_application:                form.s1.first_application || undefined,
+        attended_before:                  form.s1.attended_before || undefined,
+        session_id_second:                form.s1.session_id_2nd !== '' ? Number(form.s1.session_id_2nd) : undefined,
+        narrative_rustic_environment:     form.sn.narrative_rustic_environment || undefined,
+        narrative_staff_suggestions:      form.sn.narrative_staff_suggestions || undefined,
+        narrative_participation_concerns: form.sn.narrative_participation_concerns || undefined,
+        narrative_camp_benefit:           form.sn.narrative_camp_benefit || undefined,
+        narrative_heat_tolerance:         form.sn.narrative_heat_tolerance || undefined,
+        narrative_transportation:         form.sn.narrative_transportation || undefined,
+        narrative_additional_info:        form.sn.narrative_additional_info || undefined,
+        narrative_emergency_protocols:    form.sn.narrative_emergency_protocols || undefined,
       });
       const applicationId = application.id;
 
       // ── Step 11: Upload documents ─────────────────────────────────────────
-      const docTypeLabels: Record<string, string> = {
-        immunization:   'Immunization Record',
-        medical_exam:   'Medical Examination',
-        insurance_card: 'Insurance Card',
-        cpap_waiver:    'CPAP Waiver',
-        seizure_plan:   'Seizure Action Plan',
-        gtube_plan:     'G-Tube Care Plan',
+      // document_type slugs must match RequiredDocumentRuleSeeder values so
+      // DocumentEnforcementService can match uploaded docs against required rules.
+      // documentable_type is Camper (not Application) so enforcement service finds them.
+      const docTypeSlugs: Record<string, string> = {
+        immunization:   'immunization_record',
+        medical_exam:   'physical_examination',
+        insurance_card: 'insurance_card',
+        cpap_waiver:    'cpap_waiver',
+        seizure_plan:   'seizure_action_plan',
+        gtube_plan:     'feeding_action_plan',
       };
       for (const [key, slot] of Object.entries(form.s9)) {
         if (!slot) continue;
@@ -2930,9 +3772,13 @@ export function ApplicationFormPage() {
         if (!file) continue;
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('documentable_type', 'App\\Models\\Application');
-        fd.append('documentable_id', String(applicationId));
-        fd.append('document_type', docTypeLabels[key] ?? key);
+        fd.append('documentable_type', 'App\\Models\\Camper');
+        fd.append('documentable_id', String(camperId));
+        fd.append('document_type', docTypeSlugs[key] ?? key);
+        // P0c: pass exam date for physical_examination so backend can set expiration_date
+        if (key === 'medical_exam' && form.s2.date_of_medical_exam) {
+          fd.append('exam_date', form.s2.date_of_medical_exam);
+        }
         await uploadDocument(fd);
       }
 
@@ -2943,6 +3789,27 @@ export function ApplicationFormPage() {
         ? form.s10.signature_data
         : form.s10.signed_name;
       await signApplication(applicationId, form.s10.signed_name, signatureData);
+
+      // ── Step 13: Store consent records ────────────────────────────────────
+      // All 7 CYSHCN consent types are persisted as separate signed records with
+      // the guardian's name, relationship, and signature. storeConsents uses
+      // updateOrCreate on the backend so this step is safe to retry.
+      const guardianSignature = signatureData;
+      const guardianName = form.s10.signed_name;
+      const guardianRelationship = form.s1.g1_relationship || 'Guardian';
+      const signedAt = form.s10.signed_date
+        ? new Date(form.s10.signed_date).toISOString()
+        : new Date().toISOString();
+
+      await storeConsents(applicationId, [
+        { consent_type: 'general',       guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+        { consent_type: 'photos',        guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+        { consent_type: 'liability',     guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+        { consent_type: 'activity',      guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+        { consent_type: 'authorization', guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+        { consent_type: 'medication',    guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+        { consent_type: 'hipaa',         guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
+      ]);
 
       // ── Success ───────────────────────────────────────────────────────────
       pendingCamperIdRef.current = null;
@@ -2982,9 +3849,23 @@ export function ApplicationFormPage() {
         {/* ── Page header ───────────────────────────────── */}
         <div className="flex justify-between items-start mb-10">
           <div>
-            <h1 className="font-headline text-3xl font-semibold" style={{ color: 'var(--foreground)' }}>
-              {t('applicant.form.title')}
-            </h1>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="font-headline text-3xl font-semibold" style={{ color: 'var(--foreground)' }}>
+                {t('applicant.form.title')}
+              </h1>
+              {/* Language badge — shown when a specific language was chosen */}
+              {stateLanguage && (
+                <span
+                  className="text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0"
+                  style={{
+                    background: stateLanguage === 'spanish' ? 'rgba(96,165,250,0.12)' : 'rgba(22,163,74,0.10)',
+                    color: stateLanguage === 'spanish' ? 'var(--night-sky-blue)' : 'var(--ember-orange)',
+                  }}
+                >
+                  {stateLanguage === 'spanish' ? 'Español' : 'English'}
+                </span>
+              )}
+            </div>
             <p className="text-sm mt-2" style={{ color: 'var(--muted-foreground)' }}>
               {t('applicant.form.subtitle')}
             </p>
@@ -3119,6 +4000,12 @@ export function ApplicationFormPage() {
                 />
               )}
               {currentStep === 8 && (
+                <SectionNarratives
+                  data={form.sn}
+                  onChange={(patch) => updateSection('sn', patch)}
+                />
+              )}
+              {currentStep === 9 && (
                 <Section9
                   data={form.s9}
                   hasCpap={form.s4.devices.some((d) => d.device_type.includes('CPAP'))}
@@ -3128,7 +4015,7 @@ export function ApplicationFormPage() {
                   onFileSelect={(key, file) => { docFilesRef.current[key] = file; }}
                 />
               )}
-              {currentStep === 9 && (
+              {currentStep === 10 && (
                 <Section10
                   data={form.s10}
                   onChange={(patch) => updateSection('s10', patch)}
@@ -3136,7 +4023,7 @@ export function ApplicationFormPage() {
               )}
 
               {/* Document warnings — shown on Documents step */}
-              {currentStep === 8 && (hasCpap || form.s2.has_seizures === true || form.s5.g_tube) && (
+              {currentStep === 9 && (hasCpap || form.s2.has_seizures === true || form.s5.g_tube) && (
                 <div
                   className="mt-6 rounded-2xl border p-4 flex flex-col gap-2"
                   style={{ background: 'rgba(251,191,36,0.06)', borderColor: 'rgba(251,191,36,0.25)' }}

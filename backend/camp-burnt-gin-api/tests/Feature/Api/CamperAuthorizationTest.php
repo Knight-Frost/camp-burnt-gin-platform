@@ -262,10 +262,10 @@ class CamperAuthorizationTest extends TestCase
 
     public function test_medical_provider_can_view_camper(): void
     {
-        // Phase 11: medical providers can view individual camper profiles.
+        // Medical providers can only view active (approved) campers.
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
 
         $response = $this->actingAs($medical)->getJson("/api/campers/{$camper->id}");
 

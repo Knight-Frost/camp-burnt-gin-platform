@@ -1,11 +1,13 @@
 /**
  * FloatingCompose.tsx
  *
- * Gmail-style floating compose panel.
+ * Gmail-style floating compose panel with TO / CC / BCC support.
  *
  * Layout (top → bottom):
  *   ┌─ Header ────────────────────────── [−] [⤢] [✕] ─┐
- *   ├─ To: recipients ─────────────────────────────────┤
+ *   ├─ To: [chips…] [input]    [Cc] [Bcc] ────────────┤
+ *   ├─ Cc: [chips…] [input]  (visible after toggle) ───┤
+ *   ├─ Bcc: [chips…] [input] (visible after toggle) ───┤
  *   ├─ Subject: ────────────────────── [Category ▾] ───┤
  *   │  Editor body (flex-1, scrollable)                 │
  *   │                                                   │
@@ -13,22 +15,22 @@
  *   └─ [↑] [B][I][U]|[•][1.]|[🔗][😊]    [Send →] ───┘
  *
  * Key behaviors:
- *   - Neutral light header (var(--card) bg) — NOT green, NOT dark
- *   - Toolbar lives in the footer bar (Gmail-style, bottom)
- *   - Upload icon (not paperclip) triggers file picker from footer left
- *   - Minimize: collapses to header bar only
- *   - Maximize: fixed inset-4 fullscreen with backdrop
- *   - Draft autosave: 1.5s debounce; header shows "Saving…" / "Draft saved"
- *   - Close guard: ConfirmDialog (NOT window.confirm) when unsaved content
+ *   - Cc/Bcc fields appear on click (like Gmail)
+ *   - Each field has independent chip list + autocomplete
+ *   - BCC recipients are passed with type='bcc' — server enforces privacy
+ *   - Send flow: createConversation (all IDs) → sendMessage (with typed recipients)
+ *   - Draft autosave: 1.5s debounce to localStorage
+ *   - Close guard: ConfirmDialog when unsaved content
  */
 
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { X, Minus, Maximize2, Minimize2, Upload, Send } from 'lucide-react';
 import {
-  createConversation, sendMessage, searchInboxUsers, deleteConversation,
+  createConversation, sendMessage, searchInboxUsers, deleteConversation, leaveConversation,
   type Conversation, type ConversationParticipant,
-  type MessageCategory, type NewConversationPayload,
+  type MessageCategory, type NewConversationPayload, type RecipientEntry,
 } from '@/features/messaging/api/messaging.api';
 import { useRichEditor, EditorBody, EditorToolbar } from './editor/RichTextEditor';
 import { ConfirmDialog } from '@/ui/overlay/ConfirmDialog';
@@ -38,6 +40,11 @@ import { Avatar } from '@/ui/components/Avatar';
 
 const BRAND   = '#16a34a';
 const BRAND_T = 'rgba(22,163,74,0.10)';
+
+const CC_COLOR  = 'rgba(37,99,235,0.10)';
+const CC_TEXT   = '#1d4ed8';
+const BCC_COLOR = 'rgba(124,58,237,0.10)';
+const BCC_TEXT  = '#7c3aed';
 
 // ─── Draft persistence ────────────────────────────────────────────────────────
 
@@ -55,36 +62,140 @@ function avatarBg(name: string): string {
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
-// ─── SaveStatus ───────────────────────────────────────────────────────────────
 
-type SaveStatus = 'idle' | 'saving' | 'saved';
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+type SaveStatus  = 'idle' | 'saving' | 'saved';
+type ActiveField = 'to' | 'cc' | 'bcc';
 
 interface FloatingComposeProps {
   onClose:   () => void;
   onCreated: (c: Conversation) => void;
+  /** When true, uses deleteConversation for cleanup on send failure; otherwise uses leaveConversation. */
+  isAdmin?: boolean;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── RecipientRow ─────────────────────────────────────────────────────────────
 
-export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
+interface RecipientRowProps {
+  label:         string;
+  recipients:    ConversationParticipant[];
+  onRemove:      (id: number) => void;
+  query:         string;
+  onQueryChange: (val: string) => void;
+  onFocus:       () => void;
+  chipBg:        string;
+  chipText:      string;
+  searchResults: ConversationParticipant[];
+  searching:     boolean;
+  showDropdown:  boolean;
+  onSelect:      (u: ConversationParticipant) => void;
+  rightSlot?:    React.ReactNode;
+  placeholder?:  string;
+}
+
+function RecipientRow({
+  label, recipients, onRemove, query, onQueryChange, onFocus,
+  chipBg, chipText, searchResults, searching, showDropdown, onSelect,
+  rightSlot, placeholder,
+}: RecipientRowProps) {
+  return (
+    <div
+      className="relative border-b px-4 py-2 flex flex-wrap gap-1 items-center flex-shrink-0"
+      style={{ borderColor: 'var(--border)', minHeight: 38 }}
+    >
+      <span className="text-xs font-medium w-9 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
+        {label}
+      </span>
+      {recipients.map((r) => (
+        <span
+          key={r.id}
+          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{ background: chipBg, color: chipText }}
+        >
+          {r.name}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onRemove(r.id)}
+            aria-label={`Remove ${r.name}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onFocus={onFocus}
+        placeholder={recipients.length === 0 ? (placeholder ?? 'Search people…') : ''}
+        className="flex-1 min-w-16 text-sm bg-transparent outline-none py-0.5"
+        style={{ color: 'var(--foreground)' }}
+      />
+      {rightSlot && <div className="flex items-center gap-1 flex-shrink-0 ml-auto">{rightSlot}</div>}
+
+      {/* Autocomplete dropdown */}
+      {showDropdown && (searchResults.length > 0 || searching) && (
+        <div
+          className="absolute left-0 top-full mt-1 w-full rounded-xl border shadow-lg overflow-hidden"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)', zIndex: 200 }}
+        >
+          {searching && (
+            <div className="px-3 py-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              Searching…
+            </div>
+          )}
+          {searchResults.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              onMouseDown={() => onSelect(u)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+            >
+              <Avatar name={u.name} size="sm" fallbackColor={avatarBg(u.name)} />
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{u.name}</span>
+              <span className="text-xs ml-auto" style={{ color: 'var(--muted-foreground)' }}>{u.role}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FloatingCompose ──────────────────────────────────────────────────────────
+
+export function FloatingCompose({ onClose, onCreated, isAdmin = false }: FloatingComposeProps) {
+  const { t } = useTranslation();
+
   // ── Panel state
   const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
 
   // ── Form state
-  const [sending, setSending]               = useState(false);
-  const [recipients, setRecipients]         = useState<ConversationParticipant[]>([]);
-  const [recipientQuery, setRecipientQuery] = useState('');
-  const [searchResults, setSearchResults]   = useState<ConversationParticipant[]>([]);
-  const [searching, setSearching]           = useState(false);
-  const [showDropdown, setShowDropdown]     = useState(false);
-  const [subject, setSubject]               = useState(() => loadDraft()?.subject ?? '');
-  const [bodyHtml, setBodyHtml]             = useState('');
-  const [category, setCategory]             = useState<MessageCategory>('general');
-  const [attachments, setAttachments]       = useState<File[]>([]);
-  const [saveStatus, setSaveStatus]         = useState<SaveStatus>('idle');
+  const [sending, setSending] = useState(false);
+
+  // Three separate recipient lists — TO (required), CC and BCC (optional)
+  const [toRecipients,  setToRecipients]  = useState<ConversationParticipant[]>([]);
+  const [ccRecipients,  setCcRecipients]  = useState<ConversationParticipant[]>([]);
+  const [bccRecipients, setBccRecipients] = useState<ConversationParticipant[]>([]);
+
+  // Show/hide CC and BCC rows (like Gmail's Cc/Bcc toggle buttons)
+  const [showCc,  setShowCc]  = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+
+  // Single shared search state — activeField tracks which row is typing
+  const [activeField,    setActiveField]    = useState<ActiveField>('to');
+  const [searchQuery,    setSearchQuery]    = useState('');
+  const [searchResults,  setSearchResults]  = useState<ConversationParticipant[]>([]);
+  const [searching,      setSearching]      = useState(false);
+  const [showDropdown,   setShowDropdown]   = useState(false);
+
+  const [subject,     setSubject]     = useState(() => loadDraft()?.subject ?? '');
+  const [bodyHtml,    setBodyHtml]    = useState(() => loadDraft()?.body ?? '');
+  const [category,    setCategory]    = useState<MessageCategory>('general');
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [saveStatus,  setSaveStatus]  = useState<SaveStatus>('idle');
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
   // ── Refs
@@ -92,11 +203,10 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
   const searchTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Editor — created once at component level so it persists across minimize/maximize
+  // ── Editor (initialHtml restores a previous draft body on remount)
   const editor = useRichEditor({
     onUpdate: (html) => {
       setBodyHtml(html);
-      // Trigger autosave
       setSaveStatus('saving');
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
@@ -105,9 +215,9 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
       }, 1500);
     },
     placeholder: 'Write your message…',
+    initialHtml: loadDraft()?.body ?? '',
   });
 
-  // Subject autosave — keep in sync with bodyHtml autosave
   function handleSubjectChange(val: string) {
     setSubject(val);
     if (!val && !bodyHtml) return;
@@ -119,9 +229,10 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
     }, 1500);
   }
 
-  // ── Recipient search
-  function handleRecipientInput(val: string) {
-    setRecipientQuery(val);
+  // ── Recipient search (shared across all three fields)
+  function handleRecipientInput(field: ActiveField, val: string) {
+    setActiveField(field);
+    setSearchQuery(val);
     setShowDropdown(true);
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (!val.trim()) { setSearchResults([]); return; }
@@ -134,33 +245,77 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
     }, 300);
   }
 
-  function addRecipient(u: ConversationParticipant) {
-    if (!recipients.find((r) => r.id === u.id)) setRecipients((p) => [...p, u]);
-    setRecipientQuery('');
+  function addRecipient(field: ActiveField, u: ConversationParticipant) {
+    // Prevent adding the same person twice across any field
+    const allIds = [...toRecipients, ...ccRecipients, ...bccRecipients].map((r) => r.id);
+    if (allIds.includes(u.id)) {
+      toast.error(`${u.name} is already in the recipient list.`);
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    if (field === 'to')       setToRecipients((p) => [...p, u]);
+    else if (field === 'cc')  setCcRecipients((p) => [...p, u]);
+    else                      setBccRecipients((p) => [...p, u]);
+
+    setSearchQuery('');
     setSearchResults([]);
     setShowDropdown(false);
+  }
+
+  function removeRecipient(field: ActiveField, id: number) {
+    if (field === 'to')       setToRecipients((p) => p.filter((r) => r.id !== id));
+    else if (field === 'cc')  setCcRecipients((p) => p.filter((r) => r.id !== id));
+    else                      setBccRecipients((p) => p.filter((r) => r.id !== id));
   }
 
   // ── Send
   async function handleSend() {
     const plainText = bodyHtml.replace(/<[^>]*>/g, '').trim();
     if (!plainText) { toast.error('Message body is empty.'); return; }
-    if (recipients.length === 0) { toast.error('Please add at least one recipient.'); return; }
+    if (toRecipients.length === 0) { toast.error('Please add at least one recipient in the To field.'); return; }
+
     setSending(true);
     try {
-      const payload: NewConversationPayload = {
-        participant_ids: recipients.map((r) => r.id),
-        category,
-      };
+      // Gather all participant IDs (TO + CC + BCC) for conversation creation
+      const allParticipantIds = [
+        ...toRecipients.map((r) => r.id),
+        ...ccRecipients.map((r) => r.id),
+        ...bccRecipients.map((r) => r.id),
+      ];
+
+      const payload: NewConversationPayload = { participant_ids: allParticipantIds, category };
       if (subject.trim()) payload.subject = subject.trim();
+
       const conv = await createConversation(payload);
+
+      // Build the typed recipients array for the first message
+      const recipients: RecipientEntry[] = [
+        ...toRecipients.map((r)  => ({ user_id: r.id, type: 'to'  as const })),
+        ...ccRecipients.map((r)  => ({ user_id: r.id, type: 'cc'  as const })),
+        ...bccRecipients.map((r) => ({ user_id: r.id, type: 'bcc' as const })),
+      ];
+
       try {
-        await sendMessage(conv.id, bodyHtml, attachments.length > 0 ? attachments : undefined);
+        await sendMessage(
+          conv.id,
+          bodyHtml,
+          attachments.length > 0 ? attachments : undefined,
+          recipients,
+        );
       } catch (sendErr: unknown) {
-        // Conversation was created but message send failed — clean up the ghost conversation
-        deleteConversation(conv.id).catch(() => {/* best-effort */});
+        // Conversation was created but message send failed — clean up to avoid ghost conversations.
+        // Admins can hard-delete; non-admins use leaveConversation (soft-remove themselves).
+        if (isAdmin) {
+          deleteConversation(conv.id).catch(() => {/* best-effort */});
+        } else {
+          leaveConversation(conv.id).catch(() => {/* best-effort */});
+        }
         throw sendErr;
       }
+
       clearDraft();
       onCreated(conv);
       toast.success('Message sent.');
@@ -172,10 +327,12 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
     }
   }
 
-  // ── Close guard
-  const hasUnsavedContent = recipients.length > 0
-    || subject.trim().length > 0
-    || bodyHtml.replace(/<[^>]*>/g, '').trim().length > 0;
+  // ── Close guard (attachments included — they can't be saved to draft)
+  const hasUnsavedContent =
+    toRecipients.length > 0 || ccRecipients.length > 0 || bccRecipients.length > 0 ||
+    subject.trim().length > 0 ||
+    bodyHtml.replace(/<[^>]*>/g, '').trim().length > 0 ||
+    attachments.length > 0;
 
   function handleClose() {
     if (hasUnsavedContent && saveStatus !== 'saved') {
@@ -192,14 +349,16 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
     onClose();
   }
 
-  const headerStatusText = saveStatus === 'saving'
-    ? 'Saving…'
-    : saveStatus === 'saved'
-    ? 'Draft saved'
-    : null;
-
-  // Panel dimensions
+  const headerStatusText = saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Draft saved' : null;
   const panelHeight = minimized ? undefined : (maximized ? undefined : 480);
+
+  // ── Shared dropdown props for the active field
+  const dropdownProps = {
+    searchResults,
+    searching,
+    showDropdown,
+    onSelect: (u: ConversationParticipant) => addRecipient(activeField, u),
+  };
 
   return (
     <>
@@ -291,75 +450,89 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
         {!minimized && (
           <div className="flex flex-col flex-1 min-h-0">
 
-            {/* Recipients */}
-            <div
-              className="relative border-b px-4 py-2 flex flex-wrap gap-1 items-center flex-shrink-0"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <span className="text-xs font-medium w-12 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>To</span>
-              {recipients.map((r) => (
-                <span
-                  key={r.id}
-                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-                  style={{ background: BRAND_T, color: BRAND }}
-                >
-                  {r.name}
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setRecipients((p) => p.filter((x) => x.id !== r.id))}
-                    aria-label={`Remove ${r.name}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              <input
-                value={recipientQuery}
-                onChange={(e) => handleRecipientInput(e.target.value)}
-                onFocus={() => { if (recipientQuery.trim()) setShowDropdown(true); }}
-                onBlur={() => { setTimeout(() => setShowDropdown(false), 150); }}
-                placeholder={recipients.length === 0 ? 'Search people…' : ''}
-                className="flex-1 min-w-20 text-sm bg-transparent outline-none py-0.5"
-                style={{ color: 'var(--foreground)' }}
-              />
-
-              {/* Autocomplete dropdown */}
-              {showDropdown && (searchResults.length > 0 || searching) && (
-                <div
-                  className="absolute left-0 top-full mt-1 w-full rounded-xl border shadow-lg overflow-hidden"
-                  style={{ background: 'var(--card)', borderColor: 'var(--border)', zIndex: 100 }}
-                >
-                  {searching && (
-                    <div className="px-3 py-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      Searching…
-                    </div>
-                  )}
-                  {searchResults.map((u) => (
+            {/* ── TO field (always visible) */}
+            <RecipientRow
+              label="To"
+              recipients={toRecipients}
+              onRemove={(id) => removeRecipient('to', id)}
+              query={activeField === 'to' ? searchQuery : ''}
+              onQueryChange={(val) => handleRecipientInput('to', val)}
+              onFocus={() => { setActiveField('to'); if (searchQuery.trim()) setShowDropdown(true); }}
+              chipBg={BRAND_T}
+              chipText={BRAND}
+              {...dropdownProps}
+              showDropdown={showDropdown && activeField === 'to'}
+              placeholder="Search people…"
+              rightSlot={
+                <>
+                  {!showCc && (
                     <button
-                      key={u.id}
                       type="button"
-                      onMouseDown={() => addRecipient(u)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                      onClick={() => setShowCc(true)}
+                      className="text-xs px-1.5 py-0.5 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                      style={{ color: 'var(--muted-foreground)' }}
                     >
-                      <Avatar name={u.name} size="sm" fallbackColor={avatarBg(u.name)} />
-                      <span className="text-sm" style={{ color: 'var(--foreground)' }}>{u.name}</span>
-                      <span className="text-xs ml-auto" style={{ color: 'var(--muted-foreground)' }}>{u.role}</span>
+                      Cc
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                  )}
+                  {!showBcc && (
+                    <button
+                      type="button"
+                      onClick={() => setShowBcc(true)}
+                      className="text-xs px-1.5 py-0.5 rounded transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                      style={{ color: 'var(--muted-foreground)' }}
+                    >
+                      Bcc
+                    </button>
+                  )}
+                </>
+              }
+            />
+
+            {/* ── CC field (shown after toggle) */}
+            {showCc && (
+              <RecipientRow
+                label="Cc"
+                recipients={ccRecipients}
+                onRemove={(id) => removeRecipient('cc', id)}
+                query={activeField === 'cc' ? searchQuery : ''}
+                onQueryChange={(val) => handleRecipientInput('cc', val)}
+                onFocus={() => { setActiveField('cc'); if (searchQuery.trim()) setShowDropdown(true); }}
+                chipBg={CC_COLOR}
+                chipText={CC_TEXT}
+                {...dropdownProps}
+                showDropdown={showDropdown && activeField === 'cc'}
+                placeholder="Add CC recipients…"
+              />
+            )}
+
+            {/* ── BCC field (shown after toggle) */}
+            {showBcc && (
+              <RecipientRow
+                label="Bcc"
+                recipients={bccRecipients}
+                onRemove={(id) => removeRecipient('bcc', id)}
+                query={activeField === 'bcc' ? searchQuery : ''}
+                onQueryChange={(val) => handleRecipientInput('bcc', val)}
+                onFocus={() => { setActiveField('bcc'); if (searchQuery.trim()) setShowDropdown(true); }}
+                chipBg={BCC_COLOR}
+                chipText={BCC_TEXT}
+                {...dropdownProps}
+                showDropdown={showDropdown && activeField === 'bcc'}
+                placeholder="Add BCC recipients (hidden from others)…"
+              />
+            )}
 
             {/* Subject + Category */}
             <div
               className="border-b px-4 py-2 flex items-center gap-3 flex-shrink-0"
               style={{ borderColor: 'var(--border)' }}
             >
-              <span className="text-xs font-medium w-12 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>Subject</span>
+              <span className="text-xs font-medium w-9 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>{t('messaging_extra.subject_label')}</span>
               <input
                 value={subject}
                 onChange={(e) => handleSubjectChange(e.target.value)}
+                onFocus={() => setShowDropdown(false)}
                 placeholder="Subject (optional)"
                 className="flex-1 text-sm bg-transparent outline-none py-0.5"
                 style={{ color: 'var(--foreground)' }}
@@ -370,15 +543,15 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
                 className="text-xs border rounded-md px-2 py-1 outline-none flex-shrink-0"
                 style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
               >
-                <option value="general">General</option>
-                <option value="application">Application</option>
-                <option value="medical">Medical</option>
-                <option value="other">Other</option>
+                <option value="general">{t('messaging_extra.type_general')}</option>
+                <option value="application">{t('messaging_extra.type_application')}</option>
+                <option value="medical">{t('messaging_extra.type_medical')}</option>
+                <option value="other">{t('messaging_extra.type_other')}</option>
               </select>
             </div>
 
-            {/* ── Editor body (flex-1, fills remaining space) ──────────── */}
-            <div className="flex-1 overflow-y-auto min-h-0">
+            {/* ── Editor body ──────────────────────────────────────────────── */}
+            <div className="flex-1 overflow-y-auto min-h-0" onClick={() => setShowDropdown(false)}>
               <EditorBody
                 editor={editor}
                 minHeight={maximized ? 320 : 160}
@@ -386,7 +559,7 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
               />
             </div>
 
-            {/* ── Attachment chips (above footer, only when files attached) */}
+            {/* ── Attachment chips ─────────────────────────────────────────── */}
             {attachments.length > 0 && (
               <div
                 className="flex flex-wrap gap-1.5 px-4 py-2 border-t flex-shrink-0"
@@ -414,14 +587,12 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
               </div>
             )}
 
-            {/* ── Footer toolbar row (Gmail-style bottom bar) ──────────── */}
+            {/* ── Footer toolbar row ────────────────────────────────────────── */}
             <div
               className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0"
               style={{ borderColor: 'var(--border)', minHeight: 52 }}
             >
-              {/* Left cluster: Upload + separator + formatting toolbar */}
               <div className="flex items-center gap-1">
-                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -440,7 +611,6 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
                     e.target.value = '';
                   }}
                 />
-                {/* Upload button */}
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
@@ -451,15 +621,10 @@ export function FloatingCompose({ onClose, onCreated }: FloatingComposeProps) {
                 >
                   <Upload className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
                 </button>
-
-                {/* Vertical separator */}
                 <div className="w-px h-5 mx-1 flex-shrink-0" style={{ background: 'var(--border)' }} />
-
-                {/* Formatting toolbar */}
                 <EditorToolbar editor={editor} />
               </div>
 
-              {/* Right: Send button */}
               <button
                 type="button"
                 onClick={() => void handleSend()}

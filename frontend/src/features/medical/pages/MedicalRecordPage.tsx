@@ -11,8 +11,8 @@
  * Editing opens a modal overlay; saving patches the API and updates local
  * state without a full page reload.
  *
- * All 11 data sources are fetched in parallel on mount using Promise.all so
- * the page loads as one fast batch rather than 11 slow waterfalls.
+ * All 12 data sources are fetched in parallel on mount using Promise.allSettled so
+ * the page loads as one fast batch and partial failures don't block the rest.
  *
  * Route: /medical/records/:camperId
  */
@@ -53,6 +53,7 @@ import {
   createAssistiveDevice,
   updateAssistiveDevice,
   getCamperMedicalAlerts,
+  getPersonalCarePlan,
   type MedicalAlert,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
@@ -62,7 +63,7 @@ import { ROUTES } from '@/shared/constants/routes';
 import type {
   Camper, MedicalRecord, Allergy, Medication, Diagnosis,
   EmergencyContact, ActivityPermission, BehavioralProfile,
-  FeedingPlan, AssistiveDevice,
+  FeedingPlan, AssistiveDevice, PersonalCarePlan,
 } from '@/features/admin/types/admin.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -239,6 +240,8 @@ interface MedSectionProps {
   empty?: boolean;
   emptyText?: string;
   onAdd?: () => void;
+  /** Short summary shown in the header row when the section is collapsed. */
+  preview?: string | null;
 }
 
 /**
@@ -249,27 +252,32 @@ interface MedSectionProps {
  * When `empty` is true, the body shows `emptyText` instead of `children` so
  * blank sections communicate clearly rather than showing nothing.
  */
-function MedSection({ title, icon, color, bg, defaultOpen = true, children, empty, emptyText, onAdd }: MedSectionProps) {
+function MedSection({ title, icon, color, bg, defaultOpen = true, children, empty, emptyText, onAdd, preview }: MedSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+    <div className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center" style={{ background: 'var(--glass-medium)' }}>
         {/* The entire header row (except the + button) toggles open/closed */}
         <button
           onClick={() => setOpen((o) => !o)}
           className="flex-1 flex items-center justify-between px-5 py-4 transition-colors text-left"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: bg }}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0" style={{ background: bg }}>
               <span style={{ color }}>{icon}</span>
             </div>
-            <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{title}</span>
+            <div className="min-w-0">
+              <span className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{title}</span>
+              {!open && preview && (
+                <p className="text-xs truncate mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{preview}</p>
+              )}
+            </div>
           </div>
           {open ? (
-            <ChevronUp className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+            <ChevronUp className="h-4 w-4 flex-shrink-0 ml-3" style={{ color: 'var(--muted-foreground)' }} />
           ) : (
-            <ChevronDown className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+            <ChevronDown className="h-4 w-4 flex-shrink-0 ml-3" style={{ color: 'var(--muted-foreground)' }} />
           )}
         </button>
         {/* Add button is separate from the toggle so clicking + doesn't collapse the section */}
@@ -315,6 +323,7 @@ interface RecordState {
   behavioral: BehavioralProfile | null;
   feeding: FeedingPlan | null;
   devices: AssistiveDevice[];
+  personalCarePlan: PersonalCarePlan | null;
 }
 
 /**
@@ -344,7 +353,7 @@ export function MedicalRecordPage() {
   const [state, setState] = useState<RecordState>({
     camper: null, record: null, allergies: [], medications: [],
     diagnoses: [], contacts: [], permissions: [],
-    behavioral: null, feeding: null, devices: [],
+    behavioral: null, feeding: null, devices: [], personalCarePlan: null,
   });
   const [loading, setLoading] = useState(true);
   // `saving` is true while any modal form's API call is in flight
@@ -371,29 +380,53 @@ export function MedicalRecordPage() {
   // ─── Load ───────────────────────────────────────────────────────────────────
 
   /**
-   * load — fetches all 11 data sources for this camper simultaneously.
-   * Each optional source uses `.catch(() => fallback)` so a 404 on one
-   * (e.g., no behavioral profile yet) doesn't prevent the others from loading.
+   * load — fetches all 12 data sources simultaneously with Promise.allSettled.
+   * A failure on any one source (e.g. 404 for a missing profile) falls back to
+   * a safe default so the rest of the page still renders correctly.
    */
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices, fetchedAlerts] = await Promise.all([
+      const ok = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
+        r.status === 'fulfilled' ? r.value : fallback;
+
+      const [
+        rCamper, rRecord, rAllergies, rMedications, rDiagnoses,
+        rContacts, rPermissions, rBehavioral, rFeeding, rDevices,
+        rAlerts, rPlan,
+      ] = await Promise.allSettled([
         getCamper(id),
-        getMedicalRecordByCamper(id).catch(() => null),
-        getAllergiesByCamper(id).catch(() => []),
-        getMedicationsByCamper(id).catch(() => []),
-        getDiagnosesByCamper(id).catch(() => []),
-        getEmergencyContacts(id).catch(() => []),
-        getActivityPermissions(id).catch(() => []),
-        getBehavioralProfile(id).catch(() => null),
-        getFeedingPlan(id).catch(() => null),
-        getAssistiveDevices(id).catch(() => []),
-        getCamperMedicalAlerts(id).catch(() => []),
+        getMedicalRecordByCamper(id),
+        getAllergiesByCamper(id),
+        getMedicationsByCamper(id),
+        getDiagnosesByCamper(id),
+        getEmergencyContacts(id),
+        getActivityPermissions(id),
+        getBehavioralProfile(id),
+        getFeedingPlan(id),
+        getAssistiveDevices(id),
+        getCamperMedicalAlerts(id),
+        getPersonalCarePlan(id),
       ]);
-      setState({ camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices });
-      setAlerts(fetchedAlerts);
+
+      // rCamper failure is non-recoverable — let the finally block handle loading state
+      if (rCamper.status === 'rejected') throw rCamper.reason;
+
+      setState({
+        camper:          ok(rCamper,      null),
+        record:          ok(rRecord,      null),
+        allergies:       ok(rAllergies,   []),
+        medications:     ok(rMedications, []),
+        diagnoses:       ok(rDiagnoses,   []),
+        contacts:        ok(rContacts,    []),
+        permissions:     ok(rPermissions, []),
+        behavioral:      ok(rBehavioral,  null),
+        feeding:         ok(rFeeding,     null),
+        devices:         ok(rDevices,     []),
+        personalCarePlan: ok(rPlan,       null),
+      });
+      setAlerts(ok(rAlerts, []));
     } finally {
       setLoading(false);
     }
@@ -407,7 +440,7 @@ export function MedicalRecordPage() {
 
   const openEditAllergy = (a: Allergy) => {
     setEditTarget(a.id);
-    setForm({ name: a.name, severity: a.severity, reaction: a.reaction ?? '' });
+    setForm({ name: a.allergen, severity: a.severity, reaction: a.reaction ?? '' });
     setModal('edit-allergy');
   };
 
@@ -605,17 +638,54 @@ export function MedicalRecordPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
-        <Skeletons.Block height={32} width={200} />
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => <Skeletons.Card key={i} />)}
+      <div className="p-6 max-w-4xl">
+        {/* Nav row */}
+        <div className="flex items-center justify-between mb-6">
+          <Skeletons.Block height={14} width={80} />
+          <div className="flex gap-2">
+            {Array.from({ length: 4 }).map((_, i) => <Skeletons.Block key={i} height={28} width={88} />)}
+          </div>
+        </div>
+        {/* Camper name */}
+        <div className="mb-6 space-y-2">
+          <Skeletons.Block height={24} width={200} />
+          <Skeletons.Block height={13} width={140} />
+        </div>
+        {/* Key Safety Flags panel skeleton */}
+        <div className="mb-6 rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'rgba(220,38,38,0.20)' }}>
+          <div className="px-4 py-2.5" style={{ background: 'rgba(220,38,38,0.05)' }}>
+            <Skeletons.Block height={11} width={110} />
+          </div>
+          <div className="grid grid-cols-2" style={{ background: 'var(--card)' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-4 py-3 border-b border-r last:border-r-0 [&:nth-child(n+3)]:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                <div className="h-2 w-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: 'rgba(0,0,0,0.10)' }} />
+                <Skeletons.Block height={11} />
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Section header skeletons — mimics the collapsed MedSection rows */}
+        <div className="space-y-4">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3 px-5 py-4" style={{ background: 'var(--glass-medium)' }}>
+                <Skeletons.Block height={28} width={28} />
+                <div className="flex-1 space-y-1.5">
+                  <Skeletons.Block height={13} width={100 + (i % 3) * 40} />
+                  {i % 2 === 0 && <Skeletons.Block height={11} width={180} />}
+                </div>
+                <Skeletons.Block height={14} width={14} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
   // Destructure from state for cleaner JSX references below
-  const { camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices } = state;
+  const { camper, record, allergies, medications, diagnoses, contacts, permissions, behavioral, feeding, devices, personalCarePlan } = state;
 
   // Severity options used by both add-allergy and edit-allergy modals
   const SEVERITY_OPTIONS = [
@@ -689,59 +759,138 @@ export function MedicalRecordPage() {
           )}
         </div>
 
-        {/* Medical alert banners — each alert has a level (critical/warning/info) that
-            determines its background and icon color */}
-        {alerts.length > 0 && (
-          <div className="mb-6 space-y-2">
-            {alerts.map((alert, i) => {
-              const styles: Record<string, { bg: string; border: string; icon: string }> = {
-                critical: { bg: 'rgba(220,38,38,0.10)', border: 'rgba(220,38,38,0.35)', icon: 'var(--destructive)' },
-                warning:  { bg: 'rgba(234,179,8,0.10)',  border: 'rgba(234,179,8,0.35)',  icon: '#ca8a04' },
-                info:     { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', icon: '#2563eb' },
-              };
-              const s = styles[alert.level] ?? styles.info;
-              return (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 rounded-xl border px-4 py-3"
-                  style={{ background: s.bg, borderColor: s.border }}
-                >
-                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: s.icon }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold leading-snug" style={{ color: s.icon }}>
-                      {alert.title}
+        {/* ── Key Safety Flags ──────────────────────────────────────────────────
+            Always-visible panel derived directly from loaded data. Shows the 4
+            highest-stakes conditions at a glance so staff never have to dig
+            into collapsible sections for critical safety information.        */}
+        {(() => {
+          const severeAllergies = allergies.filter(
+            (a) => a.severity.toLowerCase().includes('life') || a.severity === 'severe'
+          );
+          const hasSeizures  = record?.has_seizures ?? false;
+          const needs1to1    = behavioral?.one_to_one_supervision ?? false;
+          const mobilityNote = record?.mobility_notes || personalCarePlan?.positioning_notes || null;
+
+          /** Smooth-scroll to a section by its DOM id, opening it if collapsed. */
+          const scrollTo = (sectionId: string) => {
+            const el = document.getElementById(sectionId);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          };
+
+          const flags = [
+            {
+              active:    severeAllergies.length > 0,
+              label:     severeAllergies.length > 0
+                ? `Allergies: ${severeAllergies.map((a) => a.allergen).join(', ')}`
+                : 'Allergies: None severe',
+              level:     'critical' as const,
+              sectionId: 'section-allergies',
+            },
+            {
+              active:    hasSeizures,
+              label:     hasSeizures ? 'Seizures: History on record' : 'Seizures: None reported',
+              level:     'critical' as const,
+              sectionId: 'section-diagnoses',
+            },
+            {
+              active:    needs1to1,
+              label:     needs1to1 ? 'Supervision: 1:1 required' : 'Supervision: Not required',
+              level:     'warning' as const,
+              sectionId: 'section-behavioral',
+            },
+            {
+              active:    !!mobilityNote,
+              label:     mobilityNote ? `Mobility: ${mobilityNote}` : 'Mobility: No limitations noted',
+              level:     'warning' as const,
+              sectionId: 'section-extended-health',
+            },
+          ];
+
+          const activeFlags = flags.filter((f) => f.active);
+
+          return (
+            <div className="mb-6 rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'rgba(220,38,38,0.30)' }}>
+              {/* Panel header */}
+              <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'rgba(220,38,38,0.08)' }}>
+                <AlertOctagon className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--destructive)' }} />
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--destructive)' }}>
+                  Key Safety Flags
+                </p>
+                <span className="ml-auto text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Click a flag to jump to its section
+                </span>
+              </div>
+              {/* Flag grid — each cell is a button that scrolls to the relevant section */}
+              <div className="grid grid-cols-1 sm:grid-cols-2" style={{ background: 'var(--card)' }}>
+                {flags.map((flag, i) => (
+                  <button
+                    key={i}
+                    onClick={() => scrollTo(flag.sectionId)}
+                    className="flex items-start gap-2.5 px-4 py-3 border-b text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)] sm:[&:nth-child(odd)]:border-r"
+                    style={{ borderColor: 'var(--border)' }}
+                    title={`Jump to ${flag.sectionId.replace('section-', '').replace(/-/g, ' ')}`}
+                  >
+                    <span
+                      className="mt-1 h-1.5 w-1.5 rounded-full flex-shrink-0"
+                      style={{ background: flag.active ? (flag.level === 'critical' ? 'var(--destructive)' : '#ca8a04') : 'rgba(5,150,105,0.7)' }}
+                    />
+                    <p className="text-xs leading-snug" style={{ color: flag.active ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                      {flag.label}
                     </p>
-                    {alert.detail && (
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                        {alert.detail}
-                      </p>
-                    )}
-                  </div>
+                  </button>
+                ))}
+              </div>
+              {/* Secondary alerts from backend endpoint (only if any exist beyond the 4 above) */}
+              {activeFlags.length === 0 && alerts.length === 0 && (
+                <div className="px-4 py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>No active safety flags.</p>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+              {alerts.length > 0 && (
+                <div className="border-t space-y-0" style={{ borderColor: 'var(--border)' }}>
+                  {alerts.map((alert, i) => {
+                    const s = alert.level === 'critical'
+                      ? { icon: 'var(--destructive)', text: 'var(--destructive)' }
+                      : alert.level === 'warning'
+                      ? { icon: '#ca8a04', text: '#ca8a04' }
+                      : { icon: '#2563eb', text: '#2563eb' };
+                    return (
+                      <div key={i} className="flex items-start gap-2.5 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" style={{ color: s.icon }} />
+                        <div>
+                          <p className="text-xs font-medium" style={{ color: s.text }}>{alert.title}</p>
+                          {alert.detail && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{alert.detail}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Collapsible data sections */}
-        <div className="space-y-3">
+        <div className="space-y-4">
 
           {/* Allergies — icon turns red if any allergy is life-threatening */}
-          <div>
+          <div id="section-allergies">
             <MedSection
               title={t('medical.record.allergies')}
               icon={<AlertTriangle className="h-3.5 w-3.5" />}
-              color={allergies.some(a => a.severity === 'life-threatening') ? 'var(--destructive)' : 'var(--warm-amber)'}
-              bg={allergies.some(a => a.severity === 'life-threatening') ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.10)'}
+              color={allergies.some(a => a.severity.toLowerCase().includes('life')) ? 'var(--destructive)' : 'var(--warm-amber)'}
+              bg={allergies.some(a => a.severity.toLowerCase().includes('life')) ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.10)'}
               empty={allergies.length === 0}
               emptyText={t('medical.record.no_allergies')}
+              preview={allergies.length > 0 ? `Allergies: ${allergies.map((a) => a.allergen).join(', ')}` : null}
               onAdd={() => { setForm({ name: '', severity: '', reaction: '' }); setModal('add-allergy'); }}
             >
               <div className="space-y-3">
                 {allergies.map((a) => (
                   <div key={a.id} className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{a.name}</p>
+                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{a.allergen}</p>
                       {a.reaction && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{a.reaction}</p>}
                     </div>
                     <div className="flex items-center gap-2">
@@ -765,6 +914,7 @@ export function MedicalRecordPage() {
               bg="rgba(96,165,250,0.1)"
               empty={medications.length === 0}
               emptyText={t('medical.record.no_medications')}
+              preview={medications.length > 0 ? `Meds: ${medications.map((m) => m.name).join(', ')}` : null}
               onAdd={() => { setForm({ name: '', dosage: '', frequency: '', notes: '' }); setModal('add-medication'); }}
             >
               <div className="space-y-3">
@@ -787,7 +937,7 @@ export function MedicalRecordPage() {
           </div>
 
           {/* Diagnoses — ICD code shown as a monospace badge when present */}
-          <div>
+          <div id="section-diagnoses">
             <MedSection
               title={t('medical.record.diagnoses')}
               icon={<Clipboard className="h-3.5 w-3.5" />}
@@ -795,6 +945,7 @@ export function MedicalRecordPage() {
               bg="rgba(22,163,74,0.1)"
               empty={diagnoses.length === 0}
               emptyText={t('medical.record.no_diagnoses')}
+              preview={diagnoses.length > 0 ? `Diagnoses: ${diagnoses.map((d) => d.name).join(', ')}` : null}
               onAdd={() => { setForm({ name: '', icd_code: '', notes: '' }); setModal('add-diagnosis'); }}
             >
               <div className="space-y-2">
@@ -818,6 +969,272 @@ export function MedicalRecordPage() {
             </MedSection>
           </div>
 
+          {/* Extended Health Information — Phase 2 medical record fields (always rendered) */}
+          <div id="section-extended-health">
+            <MedSection
+              title="Extended Health Information"
+              icon={<Stethoscope className="h-3.5 w-3.5" />}
+              color="var(--night-sky-blue)"
+              bg="rgba(96,165,250,0.10)"
+              defaultOpen={false}
+              empty={
+                !record ||
+                (!record.insurance_group && !record.medicaid_number &&
+                !record.physician_address && record.immunizations_current == null &&
+                !record.tetanus_date && !record.mobility_notes &&
+                record.has_contagious_illness == null && record.tubes_in_ears == null &&
+                record.has_recent_illness == null)
+              }
+              emptyText="No extended health information available."
+              preview={record ? `Flags: ${[
+                record.insurance_group && 'Insured',
+                record.has_contagious_illness && 'Contagious illness',
+                record.has_recent_illness && 'Recent illness',
+                record.tubes_in_ears && 'Tubes in ears',
+                record.mobility_notes && 'Mobility notes',
+              ].filter(Boolean).join(' · ') || 'None'}` : null}
+            >
+                {record && <div className="space-y-4">
+                  {/* Insurance / Coverage */}
+                  {(record.insurance_group || record.medicaid_number) && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Coverage</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <FieldRow label="Insurance Group" value={record.insurance_group} />
+                        <FieldRow label="Medicaid Number" value={record.medicaid_number} />
+                      </div>
+                    </div>
+                  )}
+                  {/* Physician */}
+                  {record.physician_address && (
+                    <FieldRow label="Physician Address" value={record.physician_address} />
+                  )}
+                  {/* Immunizations */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {record.immunizations_current != null && (
+                      <div>
+                        <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Immunizations Current</p>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={{
+                            background: record.immunizations_current ? 'rgba(5,150,105,0.12)' : 'rgba(220,38,38,0.12)',
+                            color: record.immunizations_current ? 'var(--forest-green)' : 'var(--destructive)',
+                          }}>
+                          {record.immunizations_current ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    )}
+                    {record.tetanus_date && (
+                      <FieldRow label="Tetanus Date" value={record.tetanus_date} />
+                    )}
+                  </div>
+                  {/* Clinical flags */}
+                  {(record.has_contagious_illness != null || record.tubes_in_ears != null || record.has_recent_illness != null) && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Clinical Flags</p>
+                      <div className="space-y-2">
+                        {record.has_contagious_illness != null && (
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                style={{
+                                  background: record.has_contagious_illness ? 'rgba(220,38,38,0.12)' : 'rgba(5,150,105,0.12)',
+                                  color: record.has_contagious_illness ? 'var(--destructive)' : 'var(--forest-green)',
+                                }}>
+                                {record.has_contagious_illness ? 'Yes' : 'No'}
+                              </span>
+                              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Contagious Illness</p>
+                            </div>
+                            {record.has_contagious_illness && record.contagious_illness_description && (
+                              <p className="text-xs mt-1 ml-0 italic" style={{ color: 'var(--muted-foreground)' }}>{record.contagious_illness_description}</p>
+                            )}
+                          </div>
+                        )}
+                        {record.tubes_in_ears != null && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                              style={{
+                                background: record.tubes_in_ears ? 'rgba(96,165,250,0.12)' : 'rgba(5,150,105,0.12)',
+                                color: record.tubes_in_ears ? 'var(--night-sky-blue)' : 'var(--forest-green)',
+                              }}>
+                              {record.tubes_in_ears ? 'Yes' : 'No'}
+                            </span>
+                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Tubes in Ears</p>
+                          </div>
+                        )}
+                        {record.has_recent_illness != null && (
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                style={{
+                                  background: record.has_recent_illness ? 'rgba(234,179,8,0.12)' : 'rgba(5,150,105,0.12)',
+                                  color: record.has_recent_illness ? '#ca8a04' : 'var(--forest-green)',
+                                }}>
+                                {record.has_recent_illness ? 'Yes' : 'No'}
+                              </span>
+                              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Recent Illness</p>
+                            </div>
+                            {record.has_recent_illness && record.recent_illness_description && (
+                              <p className="text-xs mt-1 italic" style={{ color: 'var(--muted-foreground)' }}>{record.recent_illness_description}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {record.mobility_notes && (
+                    <FieldRow label="Mobility Notes" value={record.mobility_notes} />
+                  )}
+                </div>}
+            </MedSection>
+          </div>
+
+          {/* Personal Care Plan (ADL) — always rendered; empty state shown when no plan exists */}
+          <div id="section-adl">
+            <MedSection
+              title="Personal Care Plan (ADL)"
+              icon={<ClipboardList className="h-3.5 w-3.5" />}
+              color="var(--forest-green)"
+              bg="rgba(5,150,105,0.10)"
+              defaultOpen={false}
+              empty={!personalCarePlan}
+              emptyText="No personal care plan recorded."
+              preview={personalCarePlan ? (() => {
+                const adl = (level?: string | null) => {
+                  switch (level) {
+                    case 'independent':     return 'Independent';
+                    case 'verbal_cue':
+                    case 'physical_assist': return 'Needs assistance';
+                    case 'full_assist':     return 'Fully dependent';
+                    default:               return null;
+                  }
+                };
+                const parts = [
+                  personalCarePlan.bathing_level   && `Bathing: ${adl(personalCarePlan.bathing_level)}`,
+                  personalCarePlan.toileting_level && `Toileting: ${adl(personalCarePlan.toileting_level)}`,
+                  personalCarePlan.dressing_level  && `Dressing: ${adl(personalCarePlan.dressing_level)}`,
+                ].filter(Boolean);
+                return `ADL: ${parts.length > 0 ? parts.join(' · ') : 'Plan on file'}`;
+              })() : null}
+            >
+                {personalCarePlan && <div className="space-y-4">
+                  {/* ADL color key: green=Independent, amber=Needs Assistance, red=Fully Dependent */}
+                  {(() => {
+                    const adlColor = (level?: string | null) => {
+                      switch (level) {
+                        case 'independent':     return { bg: 'rgba(5,150,105,0.12)',  text: 'var(--forest-green)' };
+                        case 'verbal_cue':      return { bg: 'rgba(234,179,8,0.12)',  text: '#ca8a04' };
+                        case 'physical_assist': return { bg: 'rgba(234,179,8,0.12)',  text: '#ca8a04' };
+                        case 'full_assist':     return { bg: 'rgba(220,38,38,0.12)',  text: 'var(--destructive)' };
+                        default:                return null;
+                      }
+                    };
+                    const adlLabel = (level?: string | null): string | null => {
+                      switch (level) {
+                        case 'independent':     return 'Independent';
+                        case 'verbal_cue':      return 'Needs Assistance';
+                        case 'physical_assist': return 'Needs Assistance';
+                        case 'full_assist':     return 'Fully Dependent';
+                        default:                return null;
+                      }
+                    };
+
+                    const ADLRow = ({ label, level, notes }: { label: string; level?: string | null; notes?: string | null }) => {
+                      if (!level && !notes) return null;
+                      const colors = adlColor(level);
+                      return (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                            {notes && <p className="text-xs italic" style={{ color: 'var(--muted-foreground)' }}>{notes}</p>}
+                          </div>
+                          {level && colors && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                              style={{ background: colors.bg, color: colors.text }}>
+                              {adlLabel(level)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {/* Daily care activities */}
+                        {(personalCarePlan.bathing_level || personalCarePlan.bathing_notes ||
+                          personalCarePlan.toileting_level || personalCarePlan.toileting_notes ||
+                          personalCarePlan.dressing_level || personalCarePlan.dressing_notes ||
+                          personalCarePlan.oral_hygiene_level || personalCarePlan.oral_hygiene_notes) && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Daily Activities</p>
+                            <div className="space-y-2">
+                              <ADLRow label="Bathing" level={personalCarePlan.bathing_level} notes={personalCarePlan.bathing_notes} />
+                              <ADLRow label="Toileting" level={personalCarePlan.toileting_level} notes={personalCarePlan.toileting_notes} />
+                              <ADLRow label="Dressing" level={personalCarePlan.dressing_level} notes={personalCarePlan.dressing_notes} />
+                              <ADLRow label="Oral Hygiene" level={personalCarePlan.oral_hygiene_level} notes={personalCarePlan.oral_hygiene_notes} />
+                            </div>
+                          </div>
+                        )}
+                        {/* Sleep */}
+                        {(personalCarePlan.sleep_notes || personalCarePlan.falling_asleep_issues ||
+                          personalCarePlan.sleep_walking || personalCarePlan.night_wandering ||
+                          personalCarePlan.nighttime_toileting || personalCarePlan.nighttime_notes) && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Sleep & Nighttime</p>
+                            <div className="space-y-1.5">
+                              {[
+                                { flag: personalCarePlan.falling_asleep_issues, label: 'Falling Asleep Issues' },
+                                { flag: personalCarePlan.sleep_walking,         label: 'Sleep Walking' },
+                                { flag: personalCarePlan.night_wandering,       label: 'Night Wandering' },
+                                { flag: personalCarePlan.nighttime_toileting,   label: 'Nighttime Toileting Required' },
+                              ].filter(f => f.flag).map(({ label }) => (
+                                <div key={label} className="flex items-center gap-1.5">
+                                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--warm-amber)' }} />
+                                  <p className="text-xs" style={{ color: 'var(--foreground)' }}>{label}</p>
+                                </div>
+                              ))}
+                              {personalCarePlan.sleep_notes && (
+                                <p className="text-xs italic mt-1" style={{ color: 'var(--muted-foreground)' }}>{personalCarePlan.sleep_notes}</p>
+                              )}
+                              {personalCarePlan.nighttime_notes && (
+                                <p className="text-xs italic" style={{ color: 'var(--muted-foreground)' }}>{personalCarePlan.nighttime_notes}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {/* Continence & positioning */}
+                        {(personalCarePlan.bowel_control_notes || personalCarePlan.urinary_catheter ||
+                          personalCarePlan.menstruation_support || personalCarePlan.positioning_notes) && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Continence & Positioning</p>
+                            <div className="space-y-1.5">
+                              {personalCarePlan.urinary_catheter && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--destructive)' }} />
+                                  <p className="text-xs" style={{ color: 'var(--foreground)' }}>Urinary Catheter</p>
+                                </div>
+                              )}
+                              {personalCarePlan.menstruation_support && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--muted-foreground)' }} />
+                                  <p className="text-xs" style={{ color: 'var(--foreground)' }}>Menstruation Support Required</p>
+                                </div>
+                              )}
+                              {personalCarePlan.bowel_control_notes && (
+                                <p className="text-xs italic" style={{ color: 'var(--muted-foreground)' }}>{personalCarePlan.bowel_control_notes}</p>
+                              )}
+                              {personalCarePlan.positioning_notes && (
+                                <FieldRow label="Positioning Notes" value={personalCarePlan.positioning_notes} />
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>}
+            </MedSection>
+          </div>
+
           {/* General Notes — special needs, dietary restrictions, free-form notes */}
           <div>
             <MedSection
@@ -838,7 +1255,7 @@ export function MedicalRecordPage() {
           </div>
 
           {/* Behavioral Profile */}
-          <div>
+          <div id="section-behavioral">
             <MedSection
               title={t('medical.record.behavioral')}
               icon={<Brain className="h-3.5 w-3.5" />}
@@ -846,6 +1263,13 @@ export function MedicalRecordPage() {
               bg="rgba(5,150,105,0.1)"
               empty={!behavioral}
               emptyText={t('medical.record.no_behavioral')}
+              preview={behavioral ? `Behavior: ${[
+                behavioral.one_to_one_supervision && '1:1 supervision',
+                behavioral.wandering_risk && 'Wandering risk',
+                behavioral.aggression && 'Aggression noted',
+                !behavioral.one_to_one_supervision && !behavioral.wandering_risk && !behavioral.aggression
+                  && (behavioral.triggers ? `Triggers noted` : null),
+              ].filter(Boolean).join(' · ') || 'Profile on file'}` : null}
               onAdd={openEditBehavioral}
             >
               {behavioral && (
@@ -949,7 +1373,7 @@ export function MedicalRecordPage() {
             </MedSection>
           </div>
 
-          {/* Emergency Contacts — read-only (managed via the parent portal) */}
+          {/* Emergency Contacts — split into Guardians and Additional Contacts */}
           <div>
             <MedSection
               title={t('medical.record.emergency_contacts')}
@@ -959,18 +1383,53 @@ export function MedicalRecordPage() {
               defaultOpen={false}
               empty={contacts.length === 0}
               emptyText={t('medical.record.no_contacts')}
+              preview={contacts.length > 0 ? `Contacts: ${contacts.map((c) => c.name).join(', ')}` : null}
             >
-              <div className="space-y-4">
-                {contacts.map((c) => (
+              {(() => {
+                const guardians  = contacts.filter((c) => c.is_guardian);
+                const additional = contacts.filter((c) => !c.is_guardian);
+                const renderContact = (c: EmergencyContact) => (
                   <div key={c.id}>
-                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{c.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{c.name}</p>
+                      {c.is_primary && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                          style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--forest-green)' }}>
+                          Primary
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                       {c.relationship} &middot; {c.phone_primary}
+                      {c.phone_secondary && ` · ${c.phone_secondary}`}
                       {c.email && ` · ${c.email}`}
                     </p>
+                    {c.address && (
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                        {[c.address, c.city, c.state, c.zip].filter(Boolean).join(', ')}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+                return (
+                  <div className="space-y-4">
+                    {guardians.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Guardians</p>
+                        <div className="space-y-3">{guardians.map(renderContact)}</div>
+                      </div>
+                    )}
+                    {additional.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>Additional Contacts</p>
+                        <div className="space-y-3">{additional.map(renderContact)}</div>
+                      </div>
+                    )}
+                    {/* Fallback: render all contacts flat if none have is_guardian set */}
+                    {guardians.length === 0 && additional.length === 0 && contacts.map(renderContact)}
+                  </div>
+                );
+              })()}
             </MedSection>
           </div>
 

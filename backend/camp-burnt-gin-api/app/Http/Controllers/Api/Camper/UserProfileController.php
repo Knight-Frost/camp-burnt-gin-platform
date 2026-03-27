@@ -356,7 +356,17 @@ class UserProfileController extends Controller
     {
         $request->validate([
             'current_password'      => ['required', 'string'],
-            'password'              => ['required', 'confirmed', Password::min(8)],
+            // Use the same strong policy as the password reset flow: 12+ chars,
+            // mixed case, numbers, symbols, and not found in known data breaches.
+            'password'              => [
+                'required',
+                'confirmed',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
             'password_confirmation' => ['required', 'string'],
         ]);
 

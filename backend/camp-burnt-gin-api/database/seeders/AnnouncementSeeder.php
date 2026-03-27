@@ -95,23 +95,23 @@ class AnnouncementSeeder extends Seeder
         $events = [
             ['title' => 'Session 1 Application Deadline',           'type' => 'deadline',    'color' => '#dc2626', 'start' => '2026-05-15 23:59:00', 'end' => '2026-05-15 23:59:00', 'all_day' => true,  'audience' => 'all'],
             ['title' => 'Session 2 Application Deadline',           'type' => 'deadline',    'color' => '#dc2626', 'start' => '2026-05-29 23:59:00', 'end' => '2026-05-29 23:59:00', 'all_day' => true,  'audience' => 'all'],
-            ['title' => 'Medication Forms Due (Session 1)',          'type' => 'deadline',    'color' => '#f59e0b', 'start' => '2026-04-01 23:59:00', 'end' => '2026-04-01 23:59:00', 'all_day' => true,  'audience' => 'parent'],
+            ['title' => 'Medication Forms Due (Session 1)',          'type' => 'deadline',    'color' => '#f59e0b', 'start' => '2026-04-01 23:59:00', 'end' => '2026-04-01 23:59:00', 'all_day' => true,  'audience' => 'all'],
             ['title' => 'Session 1 — Summer 2026',                  'type' => 'session',     'color' => '#16a34a', 'start' => '2026-06-08 08:00:00', 'end' => '2026-06-12 17:00:00', 'all_day' => false, 'audience' => 'all'],
             ['title' => 'Session 2 — Summer 2026',                  'type' => 'session',     'color' => '#16a34a', 'start' => '2026-06-22 08:00:00', 'end' => '2026-06-26 17:00:00', 'all_day' => false, 'audience' => 'all'],
-            ['title' => 'Staff Orientation Day 1',                  'type' => 'orientation', 'color' => '#7c3aed', 'start' => '2026-03-14 08:30:00', 'end' => '2026-03-14 17:00:00', 'all_day' => false, 'audience' => 'admin'],
-            ['title' => 'Staff Orientation Day 2',                  'type' => 'orientation', 'color' => '#7c3aed', 'start' => '2026-03-15 08:30:00', 'end' => '2026-03-15 17:00:00', 'all_day' => false, 'audience' => 'admin'],
-            ['title' => 'Family Pre-Camp Info Night (Virtual)',      'type' => 'orientation', 'color' => '#0891b2', 'start' => '2026-05-20 18:00:00', 'end' => '2026-05-20 19:30:00', 'all_day' => false, 'audience' => 'parent'],
-            ['title' => 'Medical Records Review — Session 1 Cohort','type' => 'internal',    'color' => '#475569', 'start' => '2026-05-22 09:00:00', 'end' => '2026-05-22 12:00:00', 'all_day' => false, 'audience' => 'admin'],
-            ['title' => 'Medical Records Review — Session 2 Cohort','type' => 'internal',    'color' => '#475569', 'start' => '2026-06-05 09:00:00', 'end' => '2026-06-05 12:00:00', 'all_day' => false, 'audience' => 'admin'],
-            ['title' => 'Post-Camp Debrief & Documentation',        'type' => 'internal',    'color' => '#475569', 'start' => '2026-06-29 10:00:00', 'end' => '2026-06-29 13:00:00', 'all_day' => false, 'audience' => 'admin'],
+            ['title' => 'Staff Orientation Day 1',                  'type' => 'orientation', 'color' => '#7c3aed', 'start' => '2026-03-14 08:30:00', 'end' => '2026-03-14 17:00:00', 'all_day' => false, 'audience' => 'staff'],
+            ['title' => 'Staff Orientation Day 2',                  'type' => 'orientation', 'color' => '#7c3aed', 'start' => '2026-03-15 08:30:00', 'end' => '2026-03-15 17:00:00', 'all_day' => false, 'audience' => 'staff'],
+            ['title' => 'Family Pre-Camp Info Night (Virtual)',      'type' => 'orientation', 'color' => '#0891b2', 'start' => '2026-05-20 18:00:00', 'end' => '2026-05-20 19:30:00', 'all_day' => false, 'audience' => 'all'],
+            ['title' => 'Medical Records Review — Session 1 Cohort','type' => 'internal',    'color' => '#475569', 'start' => '2026-05-22 09:00:00', 'end' => '2026-05-22 12:00:00', 'all_day' => false, 'audience' => 'staff'],
+            ['title' => 'Medical Records Review — Session 2 Cohort','type' => 'internal',    'color' => '#475569', 'start' => '2026-06-05 09:00:00', 'end' => '2026-06-05 12:00:00', 'all_day' => false, 'audience' => 'staff'],
+            ['title' => 'Post-Camp Debrief & Documentation',        'type' => 'internal',    'color' => '#475569', 'start' => '2026-06-29 10:00:00', 'end' => '2026-06-29 13:00:00', 'all_day' => false, 'audience' => 'staff'],
 
-            // ── Medical staff-targeted events (audience = 'medical') ─────────
+            // ── Medical/staff-targeted events (audience = 'staff') ───────────
             // Session 1 starts June 8 2026. The staff briefing is 07:00 the same morning,
             // before the 08:00 session open. The dispensing schedule and record review
             // cover the full in-session operational calendar for medical staff.
-            ['title' => 'Medical Staff Briefing — Session 1 2026',         'type' => 'staff',    'color' => '#0284c7', 'start' => '2026-06-08 07:00:00', 'end' => '2026-06-08 08:00:00', 'all_day' => false, 'audience' => 'medical'],
-            ['title' => 'Medication Dispensing Schedule — Session 1 2026', 'type' => 'internal', 'color' => '#0284c7', 'start' => '2026-06-08 08:00:00', 'end' => '2026-06-08 09:00:00', 'all_day' => false, 'audience' => 'medical'],
-            ['title' => 'End-of-Session Medical Record Review',            'type' => 'deadline', 'color' => '#dc2626', 'start' => '2026-06-12 23:59:00', 'end' => '2026-06-12 23:59:00', 'all_day' => true,  'audience' => 'medical'],
+            ['title' => 'Medical Staff Briefing — Session 1 2026',         'type' => 'staff',    'color' => '#0284c7', 'start' => '2026-06-08 07:00:00', 'end' => '2026-06-08 08:00:00', 'all_day' => false, 'audience' => 'staff'],
+            ['title' => 'Medication Dispensing Schedule — Session 1 2026', 'type' => 'internal', 'color' => '#0284c7', 'start' => '2026-06-08 08:00:00', 'end' => '2026-06-08 09:00:00', 'all_day' => false, 'audience' => 'staff'],
+            ['title' => 'End-of-Session Medical Record Review',            'type' => 'deadline', 'color' => '#dc2626', 'start' => '2026-06-12 23:59:00', 'end' => '2026-06-12 23:59:00', 'all_day' => true,  'audience' => 'staff'],
         ];
 
         foreach ($events as $e) {

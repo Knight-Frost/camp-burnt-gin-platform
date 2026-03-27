@@ -7,6 +7,7 @@ use App\Models\FormDefinition;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -38,7 +39,8 @@ class Application extends Model
         'camp_session_id',      // Which specific session they want to attend.
         'form_definition_id',   // FK to the form version active at submission time (nullable; null = pre-Phase 14).
         'status',               // Current workflow state (ApplicationStatus enum).
-        'is_draft',             // True while the parent is still filling it out.
+        'is_draft',                    // True while the parent is still filling it out.
+        'is_incomplete_at_approval',  // True when admin overrode missing-data warning on approval.
         'submitted_at',         // Timestamp when the parent officially submitted.
         'reviewed_at',          // Timestamp when an admin completed their review.
         'reviewed_by',          // FK to the User who performed the review.
@@ -47,6 +49,20 @@ class Application extends Model
         'signature_name',       // Typed name accompanying the signature.
         'signed_at',            // When the signature was captured.
         'signed_ip_address',    // IP address for legal proof of consent.
+        'reapplied_from_id',    // FK to the application this was cloned from (null for new applications).
+        // Narrative responses from Section "About Your Camper" (Phase 2)
+        'narrative_rustic_environment',
+        'narrative_staff_suggestions',
+        'narrative_participation_concerns',
+        'narrative_camp_benefit',
+        'narrative_heat_tolerance',
+        'narrative_transportation',
+        'narrative_additional_info',
+        'narrative_emergency_protocols',
+        // Form parity fields (2026_03_26_000002)
+        'first_application',
+        'attended_before',
+        'camp_session_id_second',
     ];
 
     /**
@@ -59,7 +75,10 @@ class Application extends Model
         return [
             // Automatically resolves the stored string to an ApplicationStatus enum value.
             'status'       => ApplicationStatus::class,
-            'is_draft'     => 'boolean',
+            'is_draft'                   => 'boolean',
+            'is_incomplete_at_approval'  => 'boolean',
+            'first_application' => 'boolean',
+            'attended_before'   => 'boolean',
             // Carbon datetime objects for easy comparison and formatting.
             'submitted_at' => 'datetime',
             'reviewed_at'  => 'datetime',
@@ -82,13 +101,15 @@ class Application extends Model
     /**
      * Virtual attributes appended to JSON/array output.
      *
-     * Adding 'session' here makes Laravel automatically call getSessionAttribute()
-     * and include the result in every API response as application.session,
-     * so the frontend does not need to reference the underlying campSession key.
+     * 'session'            — alias for campSession so the frontend uses application.session everywhere.
+     * 'application_number' — human-readable public identifier (CBG-YYYY-NNN); never exposes the DB id.
+     *
+     * 'queue_position' is intentionally NOT listed here — it executes two COUNT queries per call
+     * and would create an N+1 problem on the list endpoint. Append it explicitly only in show().
      *
      * @var list<string>
      */
-    protected $appends = ['session'];
+    protected $appends = ['session', 'application_number'];
 
     /**
      * Get documents attached to this application (polymorphic).
@@ -100,6 +121,27 @@ class Application extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /**
+     * Get the guardian consent records for this application.
+     *
+     * Each submitted application has 7 consent records, one per type:
+     * general, photos, liability, activity, authorization, medication, hipaa.
+     */
+    public function consents(): HasMany
+    {
+        return $this->hasMany(ApplicationConsent::class);
+    }
+
+    /**
+     * Get the application this was cloned from, if any.
+     *
+     * Returns null for applications that were not created via the reapplication flow.
+     */
+    public function originalApplication(): BelongsTo
+    {
+        return $this->belongsTo(Application::class, 'reapplied_from_id');
     }
 
     /**
@@ -127,6 +169,74 @@ class Application extends Model
     public function getSessionAttribute(): mixed
     {
         return $this->getRelationValue('campSession');
+    }
+
+    /**
+     * Human-readable public application identifier.
+     *
+     * Format: CBG-{YEAR}-{NNN}
+     *   CBG  — Camp Burnt Gin prefix; distinguishes this system from others.
+     *   YEAR — 4-digit year from submitted_at, or created_at for drafts.
+     *   NNN  — Zero-padded database id (minimum 3 digits; auto-extends for larger ids).
+     *
+     * This is the identifier shown in all user-facing UI. The DB primary key (id)
+     * is never surfaced directly — it is only used internally for routing and foreign keys.
+     *
+     * Safe to include in $appends: zero DB queries, pure in-memory computation.
+     */
+    public function getApplicationNumberAttribute(): string
+    {
+        $year = ($this->submitted_at ?? $this->created_at)->format('Y');
+
+        return sprintf('CBG-%s-%03d', $year, $this->id);
+    }
+
+    /**
+     * Dynamic queue position within the current camp session.
+     *
+     * Returns the application's ordinal position among all active (non-final) submitted
+     * applications in the same session, ordered by submission timestamp with id as tiebreaker.
+     * Also returns the total active queue size so the UI can display "3 of 47 pending".
+     *
+     * Returns null for drafts and un-submitted applications (they are not in the queue).
+     *
+     * ⚠ NOT in $appends — executes 2 COUNT queries. Call via ->append('queue_position')
+     *   only on single-record detail fetches (show()), never on list endpoints.
+     *
+     * Active statuses: pending, under_review, waitlisted (approved/rejected/cancelled/withdrawn
+     * are terminal — those applications have left the queue).
+     */
+    public function getQueuePositionAttribute(): ?array
+    {
+        if ($this->is_draft || ! $this->submitted_at) {
+            return null;
+        }
+
+        $activeStatuses = ['pending', 'under_review', 'waitlisted'];
+
+        // Count how many active applications in this session were submitted before this one.
+        // Tie-break by id ASC so the result is deterministic when two apps share a timestamp.
+        $ahead = Application::where('camp_session_id', $this->camp_session_id)
+            ->whereIn('status', $activeStatuses)
+            ->where('is_draft', false)
+            ->where(function ($q) {
+                $q->where('submitted_at', '<', $this->submitted_at)
+                  ->orWhere(function ($inner) {
+                      $inner->where('submitted_at', $this->submitted_at)
+                            ->where('id', '<', $this->id);
+                  });
+            })
+            ->count();
+
+        $total = Application::where('camp_session_id', $this->camp_session_id)
+            ->whereIn('status', $activeStatuses)
+            ->where('is_draft', false)
+            ->count();
+
+        return [
+            'position' => $ahead + 1,
+            'total'    => $total,
+        ];
     }
 
     /**
@@ -172,8 +282,15 @@ class Application extends Model
     /**
      * Determine if the application can still be edited by the parent.
      *
-     * A draft can always be edited. A non-draft can be edited if its status
-     * is still in an editable state (e.g. "returned for corrections").
+     * Returns true when the application is in any of these states:
+     *   - Draft (is_draft = true): parent is still filling out the form
+     *   - Pending: submitted but awaiting admin review
+     *   - UnderReview: actively being reviewed by camp staff
+     *
+     * Allowing edits during Pending and UnderReview is intentional — parents
+     * may need to correct or add information while awaiting a decision.
+     * Once a final status is set (Approved, Rejected, Waitlisted, Cancelled,
+     * Withdrawn) the application is locked and returns false.
      */
     public function isEditable(): bool
     {

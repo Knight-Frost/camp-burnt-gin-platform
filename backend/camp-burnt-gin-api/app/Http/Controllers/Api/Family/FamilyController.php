@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Family;
 
 use App\Http\Controllers\Controller;
+use App\Models\Application;
+use App\Models\Camper;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,14 +50,52 @@ class FamilyController extends Controller
         // 'view-families' Gate ability requires admin or super_admin role.
         $this->authorize('view-families');
 
-        // Start with all applicant accounts — these are the "families".
-        $query = User::whereHas('role', fn ($q) => $q->where('name', 'applicant'))
-            // Count of campers is computed at the DB level — avoids loading all campers just to count them.
+        // Closure that applies all active filters to any User query builder.
+        // Used for both the paginated list query and the aggregate summary queries,
+        // so the summary stats always reflect the full filtered dataset — not just the current page.
+        $applyFilters = function ($q) use ($request) {
+            $q->whereHas('role', fn ($r) => $r->where('name', 'applicant'));
+
+            // Full-text search across guardian identity and child names.
+            if ($request->filled('search')) {
+                $search = $request->input('search');
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhereHas('campers', fn ($q2) => $q2->where(function ($q3) use ($search) {
+                              $q3->where('first_name', 'like', "%{$search}%")
+                                 ->orWhere('last_name', 'like', "%{$search}%");
+                          }));
+                });
+            }
+
+            // Session filter — narrow to families with at least one camper in this session.
+            if ($request->filled('session_id')) {
+                $q->whereHas('campers.applications', fn ($inner) =>
+                    $inner->where('camp_session_id', (int) $request->input('session_id'))
+                );
+            }
+
+            // Status filter — narrow to families with at least one application of this status.
+            if ($request->filled('status')) {
+                $q->whereHas('campers.applications', fn ($inner) =>
+                    $inner->where('status', $request->input('status'))
+                );
+            }
+
+            // Multi-camper filter — only show families with 2+ registered campers.
+            if ($request->boolean('multi_camper')) {
+                $q->has('campers', '>=', 2);
+            }
+
+            return $q;
+        };
+
+        // Paginated list query — with eager loads for the card display.
+        $families = $applyFilters(User::query())
             ->withCount('campers')
             ->with([
-                // Load each camper with their application count and most recent applications.
-                // Applications are ordered newest-first so $camper->applications->first() is the latest.
-                // We include campSession:id,name so we can display the session name on the summary card.
+                // Load campers with their applications ordered newest-first.
                 // Intentionally NOT loading medicalRecord — PHI must not appear in list views.
                 'campers' => fn ($q) => $q
                     ->withCount('applications')
@@ -65,44 +105,23 @@ class FamilyController extends Controller
                             ->with('campSession:id,name')
                             ->latest(),
                     ]),
-            ]);
+            ])
+            ->orderBy('name')
+            ->paginate(20);
 
-        // Full-text search across guardian identity and child names.
-        // Wrapped in a single where() group so it does not corrupt any additional scopes below.
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhereHas('campers', fn ($q2) => $q2
-                      ->where(function ($q3) use ($search) {
-                          $q3->where('first_name', 'like', "%{$search}%")
-                             ->orWhere('last_name', 'like', "%{$search}%");
-                      }));
-            });
-        }
+        // ── Global aggregate stats (full filtered dataset, not the current page) ─
+        // These run as separate lean queries against the same filtered user set.
+        $activeStatuses  = ['pending', 'under_review', 'waitlisted', 'approved'];
+        $matchingUserIds = $applyFilters(User::query())->select('id');
 
-        // Session filter — narrow to families who have at least one camper in the given session.
-        if ($request->filled('session_id')) {
-            $query->whereHas('campers.applications', fn ($q) =>
-                $q->where('camp_session_id', (int) $request->input('session_id'))
-            );
-        }
+        $summaryTotalCampers = Camper::whereIn('user_id', $matchingUserIds)->count();
 
-        // Status filter — narrow to families who have at least one application with this status.
-        if ($request->filled('status')) {
-            $query->whereHas('campers.applications', fn ($q) =>
-                $q->where('status', $request->input('status'))
-            );
-        }
+        $summaryActiveApps = Application::whereIn(
+            'camper_id',
+            Camper::whereIn('user_id', $matchingUserIds)->select('id')
+        )->whereIn('status', $activeStatuses)->where('is_draft', false)->count();
 
-        // Multi-camper filter — only show families with two or more registered campers.
-        if ($request->boolean('multi_camper')) {
-            $query->has('campers', '>=', 2);
-        }
-
-        // Paginate by family (not by camper) — 20 families per page.
-        $families = $query->orderBy('name')->paginate(20);
+        $summaryMultiCamper = $applyFilters(User::query())->has('campers', '>=', 2)->count();
 
         // Shape each User into a family summary card.
         $data = $families->map(function (User $user): array {
@@ -167,6 +186,12 @@ class FamilyController extends Controller
                 'last_page'    => $families->lastPage(),
                 'per_page'     => $families->perPage(),
                 'total'        => $families->total(),
+            ],
+            'summary' => [
+                'total_families'        => $families->total(),
+                'total_campers'         => $summaryTotalCampers,
+                'active_applications'   => $summaryActiveApps,
+                'multi_camper_families' => $summaryMultiCamper,
             ],
         ]);
     }

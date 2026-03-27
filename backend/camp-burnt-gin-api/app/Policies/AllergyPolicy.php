@@ -50,9 +50,8 @@ class AllergyPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper allergy records
-            // so they can respond appropriately to allergic reactions.
-            return true;
+            // Camp medical staff may access allergy records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($allergy->camper);
         }
 
         // A parent may view allergy records only for their own child.
@@ -90,9 +89,8 @@ class AllergyPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update allergy records during active care,
-            // for example to add a new reaction note or change the treatment protocol.
-            return true;
+            // Camp medical staff may update allergy records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($allergy->camper);
         }
 
         // Parent can update only their own child's allergy record.

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
@@ -74,8 +75,15 @@ class ApplicationPolicy
      *
      * Admins may update any application at any time.
      * Parents can only edit their own child's application, and only while
-     * the application is still in an editable state (e.g., not yet submitted
-     * or approved). The isEditable() check enforces that workflow rule.
+     * the application is in an editable state. Editable states are:
+     *   - Draft (is_draft = true): not yet submitted
+     *   - Pending: submitted but not yet reviewed
+     *   - UnderReview: being actively reviewed by staff
+     *
+     * This is intentional — parents are allowed to correct or supplement
+     * their application data while it is still awaiting a decision.
+     * Once a final decision is made (Approved, Rejected, Waitlisted,
+     * Cancelled, Withdrawn) the application is locked to parents.
      */
     public function update(User $user, Application $application): bool
     {
@@ -87,7 +95,7 @@ class ApplicationPolicy
         // Parent can edit only their own child's application,
         // and only if the current status permits changes.
         if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
-            // isEditable() returns false for submitted/approved applications.
+            // isEditable() returns true for drafts, Pending, and UnderReview.
             return $application->isEditable();
         }
 
@@ -115,5 +123,38 @@ class ApplicationPolicy
     public function review(User $user, Application $application): bool
     {
         return $user->isAdmin();
+    }
+
+    /**
+     * Can the user withdraw an application?
+     *
+     * Withdrawal is a parent-initiated action that sets the application to
+     * the Withdrawn terminal state. Admins use the review endpoint to cancel;
+     * parents use the dedicated withdraw endpoint.
+     *
+     * A parent may withdraw if:
+     *   - They own the camper the application belongs to, AND
+     *   - The application is not already in a terminal state (cancelled, withdrawn,
+     *     or rejected — once an admin has rejected, the parent cannot unilaterally
+     *     withdraw, as the review record should be preserved).
+     *
+     * Parents may withdraw from: Pending, UnderReview, Approved, Waitlisted.
+     */
+    public function withdraw(User $user, Application $application): bool
+    {
+        if (! $user->isApplicant()) {
+            return false;
+        }
+
+        if (! $user->ownsCamper($application->camper)) {
+            return false;
+        }
+
+        return in_array($application->status, [
+            ApplicationStatus::Pending,
+            ApplicationStatus::UnderReview,
+            ApplicationStatus::Approved,
+            ApplicationStatus::Waitlisted,
+        ]);
     }
 }

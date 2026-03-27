@@ -59,6 +59,8 @@ class StoreDocumentRequest extends FormRequest
             'documentable_type' => ['nullable', 'string', 'in:App\\Models\\Camper,App\\Models\\MedicalRecord,App\\Models\\Application'],
             'documentable_id' => ['nullable', 'integer', 'required_with:documentable_type'],
             'document_type' => ['nullable', 'string', 'max:100'],
+            // Physical examination date — used to calculate the 12-month expiration window
+            'exam_date' => ['nullable', 'date', 'before_or_equal:today'],
         ];
     }
 

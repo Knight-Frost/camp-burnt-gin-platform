@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Camper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Camper\StoreCamperRequest;
 use App\Http\Requests\Camper\UpdateCamperRequest;
+use App\Models\AuditLog;
 use App\Models\Camper;
 use App\Services\Document\DocumentEnforcementService;
 use App\Services\Medical\MedicalAlertService;
@@ -76,9 +77,10 @@ class CamperController extends Controller
             }
             $campers = $query->paginate(15);
         } elseif ($user->isMedicalProvider()) {
-            // Medical providers can browse all camper profiles to support clinical workflows.
-            // Include diagnoses in addition to allergies and medications for clinical context.
-            $query = Camper::with(['medicalRecord.allergies', 'medicalRecord.medications', 'medicalRecord.diagnoses']);
+            // Medical providers see only operationally active campers — those with at least
+            // one approved application. Campers whose applications have been reversed or
+            // cancelled are excluded from clinical workflows until re-approved.
+            $query = Camper::active()->with(['medicalRecord.allergies', 'medicalRecord.medications', 'medicalRecord.diagnoses']);
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
@@ -163,8 +165,23 @@ class CamperController extends Controller
     {
         $this->authorize('view', $camper);
 
-        // Load the parent user account and the camper's application history with session details.
-        $camper->load(['user', 'applications.campSession']);
+        // Load the parent user account, application history, and all clinical sub-records.
+        // PHI fields are decrypted at read-time by Eloquent casts; this is intentional for
+        // the individual show endpoint (not a list) — only privileged roles reach this via CamperPolicy.
+        $camper->load([
+            'user',
+            'applications.campSession',
+            'behavioralProfile',
+            'emergencyContacts',
+            'medicalRecord',
+            'diagnoses',
+            'allergies',
+            'medications',
+            'feedingPlan',
+            'personalCarePlan',
+            'assistiveDevices',
+            'activityPermissions',
+        ]);
 
         return response()->json([
             'data' => $camper,
@@ -183,7 +200,21 @@ class CamperController extends Controller
     {
         $this->authorize('update', $camper);
 
-        $camper->update($request->validated());
+        $data        = $request->validated();
+        $oldSnapshot = array_intersect_key($camper->only(array_keys($data)), $data);
+
+        $camper->update($data);
+
+        $newSnapshot = array_intersect_key($camper->fresh()->only(array_keys($data)), $data);
+
+        if ($oldSnapshot !== $newSnapshot) {
+            AuditLog::logContentChange(
+                auditable: $camper,
+                editor:    $request->user(),
+                oldValues: $oldSnapshot,
+                newValues: $newSnapshot,
+            );
+        }
 
         return response()->json([
             'message' => 'Camper updated successfully.',

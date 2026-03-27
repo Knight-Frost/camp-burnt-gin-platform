@@ -95,8 +95,13 @@ function ShellInner({
       {/* Left sidebar — fixed width, never scrolls with the page content */}
       <DashboardSidebar navItems={navItems} pinnedBottomItems={pinnedBottomItems} />
 
-      {/* Right column: header + scrollable content area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Right column: header + scrollable content area.
+          Background lives here (not on <main>) so it always covers the full
+          h-screen height regardless of content length. */}
+      <div
+        className="flex-1 flex flex-col min-w-0 overflow-hidden"
+        style={{ background: 'var(--dash-main-bg)' }}
+      >
         {/* Sticky top bar — shows page title, notifications, user menu */}
         <DashboardHeader title={currentTitle} />
 
@@ -121,7 +126,7 @@ function ShellInner({
             className="flex-1 overflow-y-auto px-6 pb-6 lg:px-8 lg:pb-8"
             id="main-content"
             tabIndex={-1}
-            style={{ background: 'var(--dash-main-bg)' }}
+            style={{ background: 'var(--dash-main-bg)', overscrollBehavior: 'none' }}
           >
             <div key={location.pathname} style={{ animation: 'pageIn 160ms ease-out backwards' }}>
               {children}

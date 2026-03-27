@@ -9,7 +9,10 @@ use App\Http\Requests\Application\SignApplicationRequest;
 use App\Http\Requests\Application\StoreApplicationRequest;
 use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
+use App\Models\ApplicationConsent;
+use App\Models\AuditLog;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
+use App\Services\Camper\ApplicationCompletenessService;
 use App\Services\Camper\ApplicationService;
 use App\Services\SystemNotificationService;
 use App\Traits\QueuesNotifications;
@@ -45,6 +48,7 @@ class ApplicationController extends Controller
 
     public function __construct(
         protected ApplicationService $applicationService,
+        protected ApplicationCompletenessService $completenessService,
         protected SystemNotificationService $systemNotifications,
     ) {}
 
@@ -66,6 +70,9 @@ class ApplicationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        // Initialised here so the final return always has a defined value regardless of
+        // which branch (admin / applicant / other) executes below.
+        $queueTotal = null;
 
         if ($user->isAdmin()) {
             // CamperPolicy viewAny gate — confirms this admin role can list all applications.
@@ -122,14 +129,30 @@ class ApplicationController extends Controller
             }
 
             // Dynamic sorting — only allow whitelisted columns to prevent SQL injection.
-            $sortField = $request->get('sort', 'created_at');
-            $sortDir = $request->get('direction', 'desc');
+            // Default: submitted_at ASC (FIFO — oldest submission first) so the admin review
+            // queue naturally surfaces the families who applied earliest at the top.
+            $sortField = $request->get('sort', 'submitted_at');
+            $sortDir   = $request->get('direction', 'asc');
             $allowedSorts = ['created_at', 'submitted_at', 'status', 'reviewed_at'];
             if (in_array($sortField, $allowedSorts)) {
                 $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
             }
+            // Stable secondary tiebreaker — ensures deterministic page order when two rows
+            // share the same primary sort value (e.g., applications bulk-imported together).
+            $query->orderBy('id', 'asc');
 
             $applications = $query->paginate($request->get('per_page', 15));
+
+            // Queue stats — total active (non-final) submitted applications in the scoped session.
+            // Provides the "X of Y pending" denominator for queue-position display on the frontend.
+            // Only computed when a session is scoped; null in the global all-sessions view.
+            $queueTotal = null;
+            if ($request->filled('camp_session_id')) {
+                $queueTotal = Application::where('camp_session_id', $request->camp_session_id)
+                    ->whereIn('status', ['pending', 'under_review', 'waitlisted'])
+                    ->where('is_draft', false)
+                    ->count();
+            }
         } elseif ($user->isApplicant()) {
             // Collect the IDs of all campers owned by this parent, then scope the query.
             $camperIds = $user->campers()->pluck('id');
@@ -154,13 +177,35 @@ class ApplicationController extends Controller
             ]);
         }
 
+        // Inject queue_rank into each application array.
+        //
+        // Strategy: page-offset rank — the Nth item on page P gets rank (P-1)*perPage + N.
+        // This equals the global FIFO position when the list is sorted by submitted_at ASC,
+        // which is the default. Under a status filter it becomes the rank within that subset,
+        // which is exactly what an admin needs ("which pending application came first?").
+        //
+        // Zero extra DB queries: we compute rank from the already-known page offset.
+        // Only submitted non-draft applications receive a rank; drafts get null.
+        $pageOffset = ($applications->currentPage() - 1) * $applications->perPage();
+        $rankedItems = [];
+        foreach ($applications->items() as $index => $app) {
+            $arr = $app->toArray();  // triggers $appends (application_number, session) + casts
+            $arr['queue_rank'] = (!$app->is_draft && $app->submitted_at !== null)
+                ? $pageOffset + $index + 1
+                : null;
+            $rankedItems[] = $arr;
+        }
+
         return response()->json([
-            'data' => $applications->items(),
+            'data' => $rankedItems,
             'meta' => [
                 'current_page' => $applications->currentPage(),
-                'last_page' => $applications->lastPage(),
-                'per_page' => $applications->perPage(),
-                'total' => $applications->total(),
+                'last_page'    => $applications->lastPage(),
+                'per_page'     => $applications->perPage(),
+                'total'        => $applications->total(),
+                // Total active (non-final) applications in the current session scope.
+                // Null when viewing all sessions (no session filter applied).
+                'queue_total'  => $queueTotal ?? null,
             ],
         ]);
     }
@@ -254,7 +299,12 @@ class ApplicationController extends Controller
             'campSession.camp',
             'reviewer',
             'documents',
+            'consents',
         ]);
+
+        // Append queue_position only here (single-record fetch) to avoid the N+1 problem
+        // that would occur if it were in $appends and fired on every list row.
+        $application->append('queue_position');
 
         return response()->json([
             'data' => $application,
@@ -281,6 +331,22 @@ class ApplicationController extends Controller
 
         $data = $request->validated();
 
+        // Snapshot editable content fields before mutation so the audit log can record
+        // an accurate before/after diff. Only the fields that UpdateApplicationRequest
+        // allows through are included — other fillable columns are not tracked here.
+        $contentFields = [
+            'notes',
+            'narrative_rustic_environment',
+            'narrative_staff_suggestions',
+            'narrative_participation_concerns',
+            'narrative_camp_benefit',
+            'narrative_heat_tolerance',
+            'narrative_transportation',
+            'narrative_additional_info',
+            'narrative_emergency_protocols',
+        ];
+        $oldSnapshot = $application->only($contentFields);
+
         // Check if this is a "submit now" action on a previously saved draft.
         if ($application->isDraft() && $request->has('submit') && $request->boolean('submit')) {
             $data['is_draft'] = false;
@@ -288,6 +354,22 @@ class ApplicationController extends Controller
         }
 
         $application->update($data);
+
+        // Write audit log if any content field changed.
+        // Only log the fields that were actually present in the validated request
+        // to keep the diff clean — unchanged fields are not recorded.
+        $newSnapshot = array_intersect_key($application->only($contentFields), $data);
+        $oldForDiff  = array_intersect_key($oldSnapshot, $newSnapshot);
+        $hasChanges  = $oldForDiff !== $newSnapshot;
+
+        if ($hasChanges) {
+            AuditLog::logContentChange(
+                auditable: $application,
+                editor:    $request->user(),
+                oldValues: $oldForDiff,
+                newValues: $newSnapshot,
+            );
+        }
 
         // If is_draft just flipped from true → false, the parent needs a confirmation notification.
         // Both the email AND the in-app inbox notification must fire — mirrors what store() does.
@@ -329,6 +411,27 @@ class ApplicationController extends Controller
     }
 
     /**
+     * Return a completeness report for an application before the admin approves.
+     *
+     * GET /api/applications/{application}/completeness
+     *
+     * Called by the frontend immediately when an admin clicks "Approve".
+     * If is_complete is false, the frontend shows the warning modal with the
+     * structured missing-data list. The admin can then choose to fix the gaps
+     * or override and approve anyway.
+     *
+     * This endpoint is read-only and makes no state changes.
+     */
+    public function completeness(Application $application): JsonResponse
+    {
+        $this->authorize('review', $application);
+
+        $report = $this->completenessService->check($application);
+
+        return response()->json(['data' => $report]);
+    }
+
+    /**
      * Review and update the status of an application.
      *
      * POST /api/applications/{application}/review
@@ -351,14 +454,27 @@ class ApplicationController extends Controller
         // Cast the raw string status to the typed ApplicationStatus enum.
         $newStatus = ApplicationStatus::from($request->validated('status'));
 
-        // Delegate business logic to ApplicationService
-        // The service handles compliance checks, status transitions, and notification dispatch.
+        // Delegate business logic to ApplicationService.
+        // override_incomplete is set by the frontend when the admin explicitly chose
+        // "Approve Anyway" after seeing the missing-data warning modal.
         $result = $this->applicationService->reviewApplication(
-            application: $application,
-            newStatus: $newStatus,
-            notes: $request->validated('notes'),
-            reviewedBy: $request->user()
+            application:       $application,
+            newStatus:         $newStatus,
+            notes:             $request->validated('notes'),
+            reviewedBy:        $request->user(),
+            overrideIncomplete: (bool) $request->validated('override_incomplete', false),
+            missingSummary:    $request->validated('missing_summary', []),
         );
+
+        // Handle invalid state transition — the current status cannot move to the requested one.
+        if (! $result['success'] && ($result['invalid_transition'] ?? false)) {
+            return response()->json([
+                'message' => "Invalid status transition. The application cannot be moved to \"{$newStatus->value}\" from its current state.",
+                'errors' => [
+                    'status' => 'This status transition is not permitted for the application in its current state.',
+                ],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         // Handle capacity failure — the session is full; suggest waitlisting instead.
         if (! $result['success'] && ($result['capacity_exceeded'] ?? false)) {
@@ -387,6 +503,123 @@ class ApplicationController extends Controller
             // fresh() re-fetches from DB to capture any changes made by the service.
             'data' => $application->fresh(),
         ]);
+    }
+
+    /**
+     * Withdraw an application (parent-initiated).
+     *
+     * POST /api/applications/{application}/withdraw
+     *
+     * Parents may withdraw their own child's application from the following states:
+     * Pending, UnderReview, Approved, Waitlisted. Withdrawal sets the status to
+     * Withdrawn, which is a terminal state — it cannot be reversed.
+     *
+     * If the application was Approved at the time of withdrawal, the service
+     * will deactivate the camper and medical record (same logic as admin reversal).
+     *
+     * Admins cannot use this endpoint — they use the /review endpoint with
+     * status=cancelled for admin-initiated termination.
+     *
+     * Implements: Parent withdrawal workflow.
+     */
+    public function withdraw(Request $request, Application $application): JsonResponse
+    {
+        $this->authorize('withdraw', $application);
+
+        $this->applicationService->withdrawApplication(
+            application: $application,
+            withdrawnBy: $request->user()
+        );
+
+        return response()->json([
+            'message' => 'Application withdrawn successfully.',
+            'data'    => $application->fresh(),
+        ]);
+    }
+
+    /**
+     * Store guardian consent records for an application.
+     *
+     * POST /api/applications/{application}/consents
+     *
+     * Accepts an array of 5 consent records (one per consent type) and bulk-upserts
+     * them into the application_consents table. Idempotent — re-submitting replaces
+     * existing records so the parent can correct a signed name after the fact.
+     *
+     * Each consent requires: consent_type, guardian_name, guardian_relationship,
+     * guardian_signature, signed_at. applicant_signature is optional (only when
+     * the camper is 18 or older).
+     *
+     * Implements the CYSHCN paper form Consents 1–5 requirement in a database record.
+     */
+    public function storeConsents(Request $request, Application $application): JsonResponse
+    {
+        // Only the application owner or an admin may submit consents.
+        $this->authorize('update', $application);
+
+        $validated = $request->validate([
+            'consents'                        => ['required', 'array', 'min:1'],
+            'consents.*.consent_type'         => ['required', 'string', 'in:general,photos,liability,activity,authorization,medication,hipaa'],
+            'consents.*.guardian_name'        => ['required', 'string', 'max:255'],
+            'consents.*.guardian_relationship'=> ['required', 'string', 'max:100'],
+            'consents.*.guardian_signature'   => ['required', 'string'],
+            'consents.*.applicant_signature'  => ['nullable', 'string'],
+            'consents.*.signed_at'            => ['required', 'date'],
+        ]);
+
+        DB::transaction(function () use ($application, $validated) {
+            foreach ($validated['consents'] as $consentData) {
+                ApplicationConsent::updateOrCreate(
+                    [
+                        'application_id' => $application->id,
+                        'consent_type'   => $consentData['consent_type'],
+                    ],
+                    [
+                        'guardian_name'         => $consentData['guardian_name'],
+                        'guardian_relationship' => $consentData['guardian_relationship'],
+                        'guardian_signature'    => $consentData['guardian_signature'],
+                        'applicant_signature'   => $consentData['applicant_signature'] ?? null,
+                        'signed_at'             => $consentData['signed_at'],
+                    ]
+                );
+            }
+        });
+
+        return response()->json([
+            'message' => 'Consents recorded successfully.',
+            'data'    => $application->consents()->get(),
+        ]);
+    }
+
+    /**
+     * Clone an existing application into a new reapplication draft.
+     *
+     * POST /api/applications/{application}/clone
+     *
+     * Creates a new draft Application for the same camper, linking it back to the
+     * source application via reapplied_from_id. The parent then selects a new
+     * session and submits the reapplication. All existing camper medical, behavioral,
+     * and equipment data is already on file and does not need to be re-entered.
+     *
+     * Only the application owner (parent) can clone their own applications.
+     * Only final applications (approved/rejected/withdrawn) should be cloned —
+     * cloning an active pending/under_review application makes no sense operationally,
+     * but this is enforced by the frontend, not the backend.
+     */
+    public function clone(Request $request, Application $application): JsonResponse
+    {
+        // Applicant must own this application (same policy as view).
+        $this->authorize('view', $application);
+
+        $newApplication = $this->applicationService->cloneApplication(
+            source:      $application,
+            requestedBy: $request->user()
+        );
+
+        return response()->json([
+            'message' => 'Reapplication draft created successfully.',
+            'data'    => $newApplication->load('camper', 'campSession'),
+        ], Response::HTTP_CREATED);
     }
 
     /**

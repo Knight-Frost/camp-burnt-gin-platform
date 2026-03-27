@@ -20,6 +20,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import {
   forgotPasswordSchema,
@@ -32,10 +33,11 @@ import { FormField } from '@/ui/components/FormField';
 import { Button } from '@/ui/components/Button';
 
 export function ForgotPasswordPage() {
+  const { t } = useTranslation();
   // When true the form is replaced by the success confirmation screen.
   const [submitted, setSubmitted] = useState(false);
-  // Stores the email the user entered so we can display it in the success message.
-  const [submittedEmail, setSubmittedEmail] = useState('');
+  // Stores the email the user entered (reserved for future use in success message).
+  const [_submittedEmail, setSubmittedEmail] = useState('');
 
   const {
     register,
@@ -63,10 +65,10 @@ export function ForgotPasswordPage() {
   return (
     <AuthCard
       // The card title and subtitle change dynamically between the two states.
-      title={submitted ? 'Check your email' : 'Reset your password'}
+      title={submitted ? t('auth_extra.check_email_title') : t('auth_extra.forgot_password_title')}
       subtitle={
         submitted
-          ? `We sent a password reset link to ${submittedEmail}.`
+          ? t('auth_extra.check_email_body')
           : 'Enter the email address on your account and we will send a reset link.'
       }
       footer={
@@ -75,7 +77,7 @@ export function ForgotPasswordPage() {
           className="inline-flex items-center gap-1.5 text-ember-orange hover:underline font-medium"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to sign in
+          {t('auth_extra.back_to_login')}
         </Link>
       }
     >
@@ -109,7 +111,7 @@ export function ForgotPasswordPage() {
           className="flex flex-col gap-5"
         >
           <FormField
-            label="Email address"
+            label={t('auth_extra.forgot_password_email')}
             type="email"
             autoComplete="email"
             error={errors.email?.message}
@@ -117,7 +119,7 @@ export function ForgotPasswordPage() {
           />
           {/* fullWidth makes the button span the entire card width */}
           <Button type="submit" fullWidth loading={isSubmitting}>
-            Send reset link
+            {t('auth_extra.forgot_password_submit')}
           </Button>
         </form>
       )}

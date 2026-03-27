@@ -38,8 +38,8 @@ class FeedingPlanPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper feeding plans.
-            return true;
+            // Camp medical staff may access feeding plans only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($feedingPlan->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($feedingPlan->camper)) {
@@ -69,8 +69,8 @@ class FeedingPlanPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update feeding plans during active care.
-            return true;
+            // Camp medical staff may update feeding plans only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($feedingPlan->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($feedingPlan->camper)) {

@@ -18,6 +18,7 @@ import type {
   ActivityPermission,
   EmergencyContact,
   Document,
+  PersonalCarePlan,
 } from '@/features/admin/types/admin.types';
 
 // ─── Camper list ──────────────────────────────────────────────────────────────
@@ -669,5 +670,12 @@ export interface MedicalAlert {
 
 export async function getCamperMedicalAlerts(camperId: number): Promise<MedicalAlert[]> {
   const { data } = await axiosInstance.get<ApiResponse<MedicalAlert[]>>(`/campers/${camperId}/medical-alerts`);
+  return data.data;
+}
+
+// ─── Personal Care Plan ───────────────────────────────────────────────────────
+
+export async function getPersonalCarePlan(camperId: number): Promise<PersonalCarePlan | null> {
+  const { data } = await axiosInstance.get<ApiResponse<PersonalCarePlan | null>>(`/campers/${camperId}/personal-care-plan`);
   return data.data;
 }

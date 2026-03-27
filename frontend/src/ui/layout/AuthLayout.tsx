@@ -36,8 +36,10 @@ export function AuthLayout({ children, title }: AuthLayoutProps) {
         <title>{title ? `${title} | Camp Burnt Gin` : 'Camp Burnt Gin'}</title>
       </Helmet>
 
-      {/* Full-viewport centering wrapper with a neutral dark background */}
-      <div className="flex min-h-screen items-center justify-center bg-neutral-900 px-4 py-12">
+      {/* Full-viewport centering wrapper with a neutral dark background.
+          overflow-y-auto owns the scroll here since html/body are overflow:hidden
+          to prevent the dashboard's fixed background from bleeding on overscroll. */}
+      <div className="flex h-screen overflow-y-auto items-center justify-center bg-neutral-900 px-4 py-12">
         {/* Card width constraint — keeps auth forms from stretching too wide on large screens */}
         <div className="w-full max-w-md">
           {children}

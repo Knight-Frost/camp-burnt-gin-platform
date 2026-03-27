@@ -321,7 +321,7 @@ export function SuperAdminDashboardPage() {
                 <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
                   {stats.accepted}
                 </p>
-                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>Accepted</p>
+                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>Approved</p>
               </div>
             </div>
 
@@ -438,7 +438,7 @@ export function SuperAdminDashboardPage() {
                             {item.label}
                           </p>
                           <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                            {eventSentence}
+                            {!isDoc && item.sublabel ? `${item.sublabel} · ` : ''}{eventSentence}
                           </p>
                         </div>
 

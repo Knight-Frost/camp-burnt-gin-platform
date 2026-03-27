@@ -148,7 +148,7 @@ class IdorPreventionTest extends TestCase
         $provider = $this->createMedicalProvider();
         $parent = $this->createParent();
 
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $camper = Camper::factory()->create(['user_id' => $parent->id, 'is_active' => true]);
         $medicalRecord = MedicalRecord::factory()->create(['camper_id' => $camper->id]);
 
         $response = $this->actingAs($provider)->getJson("/api/medical-records/{$medicalRecord->id}");

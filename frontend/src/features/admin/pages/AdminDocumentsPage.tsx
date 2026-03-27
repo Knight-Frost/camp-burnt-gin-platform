@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FC, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -73,29 +74,38 @@ import { SkeletonTable } from '@/ui/components/Skeletons';
 
 // ── Status badge helpers ───────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  DocumentRequestStatus,
-  { label: string; bg: string; color: string; icon: FC<{ className?: string }> }
-> = {
-  awaiting_upload: { label: 'Awaiting Upload', bg: 'rgba(245,158,11,0.12)', color: '#b45309',              icon: Clock       },
-  uploaded:        { label: 'Pending Review',  bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8',              icon: FileCheck   },
-  scanning:        { label: 'Processing',      bg: 'rgba(99,102,241,0.12)', color: '#4338ca',              icon: RefreshCw   },
-  under_review:    { label: 'Under Review',    bg: 'rgba(234,179,8,0.12)',  color: '#a16207',              icon: Eye         },
-  approved:        { label: 'Approved',        bg: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)',   icon: CheckCircle },
-  rejected:        { label: 'Rejected',        bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: XCircle     },
-  overdue:         { label: 'Overdue',         bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: AlertCircle },
+type StatusConfigEntry = { bg: string; color: string; icon: FC<{ className?: string }> };
+
+const STATUS_CONFIG: Record<DocumentRequestStatus, StatusConfigEntry> = {
+  awaiting_upload: { bg: 'rgba(245,158,11,0.12)', color: '#b45309',              icon: Clock       },
+  uploaded:        { bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8',              icon: FileCheck   },
+  scanning:        { bg: 'rgba(99,102,241,0.12)', color: '#4338ca',              icon: RefreshCw   },
+  under_review:    { bg: 'rgba(234,179,8,0.12)',  color: '#a16207',              icon: Eye         },
+  approved:        { bg: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)',   icon: CheckCircle },
+  rejected:        { bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: XCircle     },
+  overdue:         { bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: AlertCircle },
 };
 
 function StatusBadge({ status }: { status: DocumentRequestStatus }) {
+  const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.awaiting_upload;
   const Icon = cfg.icon;
+  const STATUS_LABELS: Record<DocumentRequestStatus, string> = {
+    awaiting_upload: t('admin_extra.status_awaiting_upload', 'Awaiting Upload'),
+    uploaded:        t('admin_extra.status_pending_review',  'Pending Review'),
+    scanning:        t('admin_extra.status_processing',      'Processing'),
+    under_review:    t('admin_extra.status_under_review',    'Under Review'),
+    approved:        t('admin_extra.status_approved',        'Approved'),
+    rejected:        t('admin_extra.status_rejected',        'Rejected'),
+    overdue:         t('admin_extra.status_overdue',         'Overdue'),
+  };
   return (
     <span
       className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
       style={{ background: cfg.bg, color: cfg.color }}
     >
       <Icon className="h-3 w-3" />
-      {cfg.label}
+      {STATUS_LABELS[status] ?? STATUS_LABELS.awaiting_upload}
     </span>
   );
 }
@@ -132,6 +142,220 @@ function MetricCard({
   );
 }
 
+// ── ParentCombobox — searchable typeahead for parent/guardian selection ────────
+//
+// Replaces a <select> that doesn't scale past ~20 items. Handles:
+//   - In-memory filter on name + email (no round-trip, instant feel)
+//   - Keyboard navigation: ↑↓ to move, Enter to select, Escape to close
+//   - mousedown + e.preventDefault() on items so blur doesn't collapse the
+//     list before the click registers — the critical combobox timing trick
+//   - Clear (×) button when a value is selected
+
+interface ParentOption {
+  id: number;
+  name: string;
+  email: string;
+}
+
+function ParentCombobox({
+  options,
+  value,
+  onChange,
+  disabled = false,
+  placeholder = 'Search by name or email…',
+}: {
+  options: ParentOption[];
+  value: string;
+  onChange: (id: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [query,       setQuery]       = useState('');
+  const [open,        setOpen]        = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef  = useRef<HTMLUListElement>(null);
+
+  // Derive selection from value — no extra local state needed
+  const selected = options.find((o) => String(o.id) === value) ?? null;
+
+  // Filter on every keystroke — pure in-memory, no debounce needed for <500 items
+  const filtered = query.trim()
+    ? options.filter((o) => {
+        const q = query.toLowerCase();
+        return o.name.toLowerCase().includes(q) || o.email.toLowerCase().includes(q);
+      })
+    : options;
+
+  // Reset highlight when results change (e.g. new query)
+  useEffect(() => { setHighlighted(0); }, [query]);
+
+  // Keep highlighted item visible while arrowing through the list
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    (listRef.current.children[highlighted] as HTMLElement | undefined)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [highlighted, open]);
+
+  function openAndFocus() {
+    setOpen(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function handleContainerClick() {
+    // Clicking the container when something is selected clears and reopens search
+    if (selected) { onChange(''); setQuery(''); }
+    openAndFocus();
+  }
+
+  function selectOption(opt: ParentOption) {
+    onChange(String(opt.id));
+    setQuery('');
+    setOpen(false);
+  }
+
+  function clearSelection(e: React.MouseEvent) {
+    e.stopPropagation();
+    onChange('');
+    setQuery('');
+    setOpen(false);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (!open) { setOpen(true); return; }
+        setHighlighted((h) => Math.min(h + 1, filtered.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlighted((h) => Math.max(h - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (open && filtered[highlighted]) selectOption(filtered[highlighted]);
+        else setOpen(true);
+        break;
+      case 'Escape':
+        setOpen(false);
+        setQuery('');
+        break;
+      case 'Tab':
+        setOpen(false);
+        break;
+    }
+  }
+
+  return (
+    <div className="relative">
+      {/* ── Input trigger ── */}
+      <div
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className="flex items-center rounded-lg border text-sm px-3 min-h-[42px] cursor-text gap-2"
+        style={{
+          background: 'var(--input)',
+          borderColor: open ? 'var(--ember-orange)' : 'var(--border)',
+          boxShadow: open ? '0 0 0 1px var(--ember-orange)' : 'none',
+          color: 'var(--foreground)',
+          opacity: disabled ? 0.5 : 1,
+        }}
+        onClick={handleContainerClick}
+      >
+        {selected && !open ? (
+          /* SELECTED state — name text + clear × */
+          <>
+            <span className="flex-1 truncate text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+              {selected.name}
+            </span>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="flex-shrink-0 rounded p-0.5 hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                title="Clear selection"
+              >
+                <X className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+            )}
+          </>
+        ) : (
+          /* SEARCH state — text input */
+          <>
+            <input
+              ref={inputRef}
+              type="text"
+              role="searchbox"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              disabled={disabled}
+              value={query}
+              placeholder={placeholder}
+              className="flex-1 bg-transparent outline-none text-sm min-w-0 py-2.5"
+              style={{ color: 'var(--foreground)' }}
+              onChange={(e) => { setQuery(e.target.value); if (!open) setOpen(true); }}
+              onFocus={() => setOpen(true)}
+              // 160ms delay: lets mousedown on a list item fire before blur collapses the list
+              onBlur={() => setTimeout(() => setOpen(false), 160)}
+              onKeyDown={handleKeyDown}
+            />
+            <Search className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+          </>
+        )}
+      </div>
+
+      {/* ── Dropdown list ── */}
+      {open && (
+        <ul
+          ref={listRef}
+          role="listbox"
+          className="absolute z-20 left-0 right-0 mt-1.5 rounded-xl border overflow-y-auto"
+          style={{
+            background: 'var(--card)',
+            borderColor: 'var(--border)',
+            maxHeight: '220px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+          }}
+        >
+          {filtered.length === 0 ? (
+            <li
+              className="px-4 py-4 text-sm text-center"
+              style={{ color: 'var(--muted-foreground)' }}
+            >
+              No results{query ? ` for "${query}"` : ''}
+            </li>
+          ) : (
+            filtered.map((opt, idx) => (
+              <li
+                key={opt.id}
+                role="option"
+                aria-selected={String(opt.id) === value}
+                // mousedown + preventDefault keeps focus on the input through selection
+                onMouseDown={(e) => { e.preventDefault(); selectOption(opt); }}
+                onMouseEnter={() => setHighlighted(idx)}
+                className="flex flex-col px-4 py-2.5 cursor-pointer"
+                style={{
+                  background: idx === highlighted ? 'var(--dash-nav-hover-bg)' : 'transparent',
+                  color: 'var(--foreground)',
+                }}
+              >
+                <span className="text-sm font-medium leading-snug">{opt.name}</span>
+                <span className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                  {opt.email}
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Request Document modal ─────────────────────────────────────────────────────
 
 interface RequestDocumentModalProps {
@@ -140,7 +364,8 @@ interface RequestDocumentModalProps {
 }
 
 function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps) {
-  const [parents, setParents]           = useState<{ id: number; name: string }[]>([]);
+  const { t } = useTranslation();
+  const [parents, setParents]           = useState<ParentOption[]>([]);
   const [children, setChildren]         = useState<{ id: number; name: string }[]>([]);
   const [loadingParents, setLoadingParents]   = useState(true);
   const [loadingChildren, setLoadingChildren] = useState(false);
@@ -160,7 +385,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
     getUsers({ role: 'applicant', page: 1 })
       .then((res) => {
         if (cancelled) return;
-        setParents((res.data ?? []).map((u) => ({ id: u.id, name: u.name })));
+        setParents((res.data ?? []).map((u) => ({ id: u.id, name: u.name, email: u.email })));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -262,10 +487,10 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
         >
           <div>
             <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-              Request Document
+              {t('admin_extra.request_document_title', 'Request Document')}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              The parent/guardian will be notified via their inbox.
+              {t('admin_extra.request_document_subtitle', 'The parent/guardian will be notified via their inbox.')}
             </p>
           </div>
           <button
@@ -281,33 +506,26 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
         <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
           {/* Parent / Guardian */}
           <div>
-            <label htmlFor="doc-req-parent" className={labelCls} style={labelStyle}>Parent / Guardian *</label>
+            <label htmlFor="doc-req-parent" className={labelCls} style={labelStyle}>{t('admin_extra.doc_form_parent', 'Parent / Guardian')} *</label>
             {loadingParents ? (
               <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
             ) : (
-              <select
-                id="doc-req-parent"
-                required
+              <ParentCombobox
+                options={parents}
                 value={form.applicant_id}
-                onChange={(e) => set('applicant_id', e.target.value)}
-                className={inputCls}
-                style={inputStyle}
-              >
-                <option value="">Select parent/guardian…</option>
-                {parents.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                onChange={(id) => set('applicant_id', id)}
+                placeholder={t('admin_extra.select_parent_placeholder', 'Search by name or email…')}
+              />
             )}
             <p className="text-xs mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-              Select the parent/guardian, then choose which child this document is for.
+              {t('admin_extra.select_parent_hint', 'Select the parent/guardian, then choose which child this document is for.')}
             </p>
           </div>
 
           {/* Child — shown as soon as a parent is selected */}
           {form.applicant_id && (
             <div>
-              <label htmlFor="doc-req-child" className={labelCls} style={labelStyle}>Child *</label>
+              <label htmlFor="doc-req-child" className={labelCls} style={labelStyle}>{t('admin_extra.doc_form_child', 'Child')} *</label>
               {loadingChildren ? (
                 <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
               ) : (
@@ -319,9 +537,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
                   className={inputCls}
                   style={inputStyle}
                 >
-                  <option value="">Select child…</option>
+                  <option value="">{t('admin_extra.select_child_placeholder', 'Select child…')}</option>
                   {children.length > 1 && (
-                    <option value="all">All children</option>
+                    <option value="all">{t('admin_extra.all_children', 'All children')}</option>
                   )}
                   {children.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -333,7 +551,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
           {/* Document Type */}
           <div>
-            <label htmlFor="doc-req-type" className={labelCls} style={labelStyle}>Document Type *</label>
+            <label htmlFor="doc-req-type" className={labelCls} style={labelStyle}>{t('admin_extra.doc_form_type', 'Document Type')} *</label>
             <input
               id="doc-req-type"
               type="text"
@@ -348,7 +566,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
           {/* Instructions */}
           <div>
-            <label htmlFor="doc-req-instructions" className={labelCls} style={labelStyle}>Instructions (optional)</label>
+            <label htmlFor="doc-req-instructions" className={labelCls} style={labelStyle}>{t('admin_extra.doc_form_instructions', 'Instructions (optional)')}</label>
             <textarea
               id="doc-req-instructions"
               rows={3}
@@ -362,7 +580,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
 
           {/* Due Date */}
           <div>
-            <label htmlFor="doc-req-due-date" className={labelCls} style={labelStyle}>Due Date (optional)</label>
+            <label htmlFor="doc-req-due-date" className={labelCls} style={labelStyle}>{t('admin_extra.doc_form_due', 'Due Date (optional)')}</label>
             <input
               id="doc-req-due-date"
               type="date"
@@ -379,7 +597,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
             style={{ borderColor: 'var(--border)' }}
           >
             <Button variant="ghost" size="sm" type="button" onClick={onClose}>
-              Cancel
+              {t('common.cancel', 'Cancel')}
             </Button>
             <Button
               size="sm"
@@ -389,7 +607,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
               className="flex items-center gap-1.5"
             >
               <InboxIcon className="h-3.5 w-3.5" />
-              Send Request
+              {t('admin_extra.send_request', 'Send Request')}
             </Button>
           </div>
         </form>
@@ -411,6 +629,7 @@ function RejectModal({
   onClose: () => void;
   onRejected: (updated: DocumentRequest) => void;
 }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -450,7 +669,7 @@ function RejectModal({
           style={{ borderColor: 'var(--border)' }}
         >
           <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-            Reject Document
+            {t('admin_extra.reject_document_title', 'Reject Document')}
           </p>
           <button
             type="button"
@@ -462,12 +681,12 @@ function RejectModal({
         </div>
         <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            You are rejecting <strong style={{ color: 'var(--foreground)' }}>{documentType}</strong>.
-            The applicant will be notified and asked to resubmit.
+            {t('admin_extra.reject_document_body', 'You are rejecting')} <strong style={{ color: 'var(--foreground)' }}>{documentType}</strong>.
+            {' '}{t('admin_extra.reject_document_notify', 'The applicant will be notified and asked to resubmit.')}
           </p>
           <div>
             <label htmlFor="reject-reason" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>
-              Reason (optional)
+              {t('admin_extra.reject_reason_label', 'Reason (optional)')}
             </label>
             <textarea
               id="reject-reason"
@@ -483,9 +702,9 @@ function RejectModal({
             className="flex items-center justify-end gap-3 pt-1 border-t"
             style={{ borderColor: 'var(--border)' }}
           >
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>Cancel</Button>
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
             <Button variant="destructive" size="sm" type="submit" loading={saving} disabled={saving}>
-              Reject
+              {t('admin_extra.reject_button', 'Reject')}
             </Button>
           </div>
         </form>
@@ -597,6 +816,7 @@ function ExtendDeadlineModal({
   onClose: () => void;
   onExtended: (updated: DocumentRequest) => void;
 }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -622,22 +842,22 @@ function ExtendDeadlineModal({
     <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
       <div role="presentation" className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Extend Deadline</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{t('admin_extra.doc_extend_deadline', 'Extend Deadline')}</p>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
             <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
           </button>
         </div>
         <form onSubmit={(e) => void handleSubmit(e)} className="p-5 flex flex-col gap-4">
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Set a new due date for <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>.
+            {t('admin_extra.extend_deadline_body', 'Set a new due date for')} <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>.
           </p>
           <div>
-            <label htmlFor="extend-due-date" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>New Due Date *</label>
+            <label htmlFor="extend-due-date" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.extend_new_due_date', 'New Due Date')} *</label>
             <input id="extend-due-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} style={inputStyle} />
           </div>
           <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>Cancel</Button>
-            <Button size="sm" type="submit" loading={saving} disabled={saving || !date}>Extend Deadline</Button>
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
+            <Button size="sm" type="submit" loading={saving} disabled={saving || !date}>{t('admin_extra.doc_extend_deadline', 'Extend Deadline')}</Button>
           </div>
         </form>
       </div>
@@ -656,6 +876,7 @@ function CancelConfirmModal({
   onClose: () => void;
   onConfirm: (req: DocumentRequest) => void;
 }) {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
 
   async function handleConfirm() {
@@ -671,18 +892,18 @@ function CancelConfirmModal({
     <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
       <div role="presentation" className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Cancel Request</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{t('admin_extra.doc_cancel_request', 'Cancel Request')}</p>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors">
             <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
           </button>
         </div>
         <div className="p-5 flex flex-col gap-4">
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Cancel the request for <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>? The applicant will be notified and this record will be removed.
+            {t('admin_extra.cancel_request_body', 'Cancel the request for')} <strong style={{ color: 'var(--foreground)' }}>{req.document_type}</strong>? {t('admin_extra.cancel_request_notify', 'The applicant will be notified and this record will be removed.')}
           </p>
           <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>Keep</Button>
-            <Button variant="destructive" size="sm" loading={saving} disabled={saving} onClick={() => void handleConfirm()}>Cancel Request</Button>
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>{t('admin_extra.keep_button', 'Keep')}</Button>
+            <Button variant="destructive" size="sm" loading={saving} disabled={saving} onClick={() => void handleConfirm()}>{t('admin_extra.doc_cancel_request', 'Cancel Request')}</Button>
           </div>
         </div>
       </div>
@@ -692,18 +913,20 @@ function CancelConfirmModal({
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
-  { label: 'All',             value: '' },
-  { label: 'Awaiting Upload', value: 'awaiting_upload' },
-  { label: 'Pending Review',  value: 'uploaded' },
-  { label: 'Processing',      value: 'scanning' },
-  { label: 'Under Review',    value: 'under_review' },
-  { label: 'Approved',        value: 'approved' },
-  { label: 'Rejected',        value: 'rejected' },
-  { label: 'Overdue',         value: 'overdue' },
-];
-
 export function AdminDocumentsPage() {
+  const { t } = useTranslation();
+
+  const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
+    { label: t('admin_extra.status_all',            'All'),             value: '' },
+    { label: t('admin_extra.status_awaiting_upload','Awaiting Upload'), value: 'awaiting_upload' },
+    { label: t('admin_extra.status_pending_review', 'Pending Review'),  value: 'uploaded' },
+    { label: t('admin_extra.status_processing',     'Processing'),      value: 'scanning' },
+    { label: t('admin_extra.status_under_review',   'Under Review'),    value: 'under_review' },
+    { label: t('admin_extra.status_approved',       'Approved'),        value: 'approved' },
+    { label: t('admin_extra.status_rejected',       'Rejected'),        value: 'rejected' },
+    { label: t('admin_extra.status_overdue',        'Overdue'),         value: 'overdue' },
+  ];
+
   // ── Tab ─────────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<'requests' | 'uploads'>('requests');
 
@@ -988,10 +1211,10 @@ export function AdminDocumentsPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-              Documents
+              {t('admin_extra.documents_heading', 'Documents')}
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Manage document requests and review applicant-uploaded files.
+              {t('admin_extra.documents_subheading', 'Manage document requests and review applicant-uploaded files.')}
             </p>
           </div>
           {tab === 'requests' && (
@@ -1001,26 +1224,26 @@ export function AdminDocumentsPage() {
               className="flex items-center gap-1.5"
             >
               <Plus className="h-4 w-4" />
-              Request Document
+              {t('admin_extra.request_document_button', 'Request Document')}
             </Button>
           )}
         </div>
 
         {/* ── Tabs ──────────────────────────────────────────────────── */}
         <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)' }}>
-          {(['requests', 'uploads'] as const).map((t) => (
+          {(['requests', 'uploads'] as const).map((tabKey) => (
             <button
-              key={t}
+              key={tabKey}
               type="button"
-              onClick={() => setTab(t)}
+              onClick={() => setTab(tabKey)}
               className="px-4 py-1.5 text-sm font-medium rounded-lg transition-colors"
               style={{
-                background: tab === t ? 'var(--card)' : 'transparent',
-                color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)',
-                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                background: tab === tabKey ? 'var(--card)' : 'transparent',
+                color: tab === tabKey ? 'var(--foreground)' : 'var(--muted-foreground)',
+                boxShadow: tab === tabKey ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
               }}
             >
-              {t === 'requests' ? 'Document Requests' : 'Uploaded Documents'}
+              {tabKey === 'requests' ? t('admin_extra.tab_requests', 'Document Requests') : t('admin_extra.tab_uploads', 'Uploaded Documents')}
             </button>
           ))}
         </div>
@@ -1042,10 +1265,10 @@ export function AdminDocumentsPage() {
               </div>
               <div className="flex items-center gap-2">
                 {[
-                  { label: 'All',      value: '' },
-                  { label: 'Pending',  value: 'pending' },
-                  { label: 'Approved', value: 'approved' },
-                  { label: 'Rejected', value: 'rejected' },
+                  { label: t('admin_extra.status_all',      'All'),      value: '' },
+                  { label: t('admin_extra.status_pending',  'Pending'),  value: 'pending' },
+                  { label: t('admin_extra.status_approved', 'Approved'), value: 'approved' },
+                  { label: t('admin_extra.status_rejected', 'Rejected'), value: 'rejected' },
                 ].map((opt) => (
                   <button
                     key={opt.value}
@@ -1075,12 +1298,12 @@ export function AdminDocumentsPage() {
                   background: 'var(--dash-bg)',
                 }}
               >
-                <span>File</span>
-                <span>Uploaded By</span>
-                <span>Document Type</span>
-                <span>Scan</span>
-                <span>Status</span>
-                <span className="text-right">Actions</span>
+                <span>{t('admin_extra.doc_col_file', 'File')}</span>
+                <span>{t('admin_extra.doc_col_uploaded_by', 'Uploaded By')}</span>
+                <span>{t('admin_extra.doc_col_type', 'Document Type')}</span>
+                <span>{t('admin_extra.doc_col_scan', 'Scan')}</span>
+                <span>{t('admin_extra.doc_col_status', 'Status')}</span>
+                <span className="text-right">{t('admin_extra.doc_col_actions', 'Actions')}</span>
               </div>
 
               {uploadsLoading ? (
@@ -1089,8 +1312,8 @@ export function AdminDocumentsPage() {
                 <ErrorState onRetry={loadUploads} />
               ) : uploads.length === 0 ? (
                 <EmptyState
-                  title="No uploaded documents"
-                  description={uploadsSearch || uploadsStatusFilter ? 'No documents match your filters.' : 'Applicants have not uploaded any documents yet.'}
+                  title={t('admin_extra.empty_no_uploads', 'No uploaded documents')}
+                  description={uploadsSearch || uploadsStatusFilter ? t('admin_extra.empty_no_filter_match', 'No documents match your filters.') : t('admin_extra.empty_uploads_hint', 'Applicants have not uploaded any documents yet.')}
                   icon={FileText}
                 />
               ) : (
@@ -1120,7 +1343,7 @@ export function AdminDocumentsPage() {
                           color: doc.scan_passed === true ? 'var(--forest-green)' : doc.scan_passed === false ? '#dc2626' : '#b45309',
                         }}>
                         {doc.scan_passed === true ? <CheckCircle className="h-3 w-3" /> : doc.scan_passed === false ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                        {doc.scan_passed === true ? 'Passed' : doc.scan_passed === false ? 'Failed' : 'Pending'}
+                        {doc.scan_passed === true ? t('admin_extra.scan_passed', 'Passed') : doc.scan_passed === false ? t('admin_extra.scan_failed', 'Failed') : t('admin_extra.scan_pending', 'Pending')}
                       </span>
                       {/* Verification status */}
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
@@ -1129,7 +1352,7 @@ export function AdminDocumentsPage() {
                           color: doc.verification_status === 'approved' ? 'var(--forest-green)' : doc.verification_status === 'rejected' ? '#dc2626' : '#b45309',
                         }}>
                         {doc.verification_status === 'approved' ? <CheckCircle className="h-3 w-3" /> : doc.verification_status === 'rejected' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                        {doc.verification_status === 'approved' ? 'Approved' : doc.verification_status === 'rejected' ? 'Rejected' : 'Pending'}
+                        {doc.verification_status === 'approved' ? t('admin_extra.status_approved', 'Approved') : doc.verification_status === 'rejected' ? t('admin_extra.status_rejected', 'Rejected') : t('admin_extra.status_pending', 'Pending')}
                       </span>
                       {/* Actions */}
                       <div className="flex items-center justify-end gap-0.5">
@@ -1198,13 +1421,13 @@ export function AdminDocumentsPage() {
         {/* ── Metrics bar ─────────────────────────────────────────── */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-            <MetricCard label="Total"          value={stats.total}           active={statusFilter === ''}               onClick={() => handleMetricClick('')} />
-            <MetricCard label="Awaiting Upload" value={stats.awaiting_upload} active={statusFilter === 'awaiting_upload'} onClick={() => handleMetricClick('awaiting_upload')} />
-            <MetricCard label="Uploaded"        value={stats.uploaded}        active={statusFilter === 'uploaded'}        onClick={() => handleMetricClick('uploaded')} />
-            <MetricCard label="Under Review"    value={stats.under_review}    active={statusFilter === 'under_review'}    onClick={() => handleMetricClick('under_review')} />
-            <MetricCard label="Approved"        value={stats.approved}        active={statusFilter === 'approved'}        onClick={() => handleMetricClick('approved')} />
-            <MetricCard label="Rejected"        value={stats.rejected}        active={statusFilter === 'rejected'}        onClick={() => handleMetricClick('rejected')} />
-            <MetricCard label="Overdue"         value={stats.overdue}         active={statusFilter === 'overdue'}         onClick={() => handleMetricClick('overdue')} />
+            <MetricCard label={t('admin_extra.metric_total',          'Total')}          value={stats.total}           active={statusFilter === ''}               onClick={() => handleMetricClick('')} />
+            <MetricCard label={t('admin_extra.status_awaiting_upload','Awaiting Upload')} value={stats.awaiting_upload} active={statusFilter === 'awaiting_upload'} onClick={() => handleMetricClick('awaiting_upload')} />
+            <MetricCard label={t('admin_extra.metric_uploaded',        'Uploaded')}        value={stats.uploaded}        active={statusFilter === 'uploaded'}        onClick={() => handleMetricClick('uploaded')} />
+            <MetricCard label={t('admin_extra.status_under_review',    'Under Review')}    value={stats.under_review}    active={statusFilter === 'under_review'}    onClick={() => handleMetricClick('under_review')} />
+            <MetricCard label={t('admin_extra.status_approved',        'Approved')}        value={stats.approved}        active={statusFilter === 'approved'}        onClick={() => handleMetricClick('approved')} />
+            <MetricCard label={t('admin_extra.status_rejected',        'Rejected')}        value={stats.rejected}        active={statusFilter === 'rejected'}        onClick={() => handleMetricClick('rejected')} />
+            <MetricCard label={t('admin_extra.status_overdue',         'Overdue')}         value={stats.overdue}         active={statusFilter === 'overdue'}         onClick={() => handleMetricClick('overdue')} />
           </div>
         )}
 
@@ -1259,12 +1482,12 @@ export function AdminDocumentsPage() {
               background: 'var(--dash-bg)',
             }}
           >
-            <span>Applicant</span>
-            <span>Camper</span>
-            <span>Document</span>
-            <span>Status</span>
-            <span>Due Date</span>
-            <span className="text-right">Actions</span>
+            <span>{t('admin_extra.doc_form_parent', 'Parent / Guardian')}</span>
+            <span>{t('admin_extra.doc_form_child', 'Child')}</span>
+            <span>{t('admin_extra.col_document', 'Document')}</span>
+            <span>{t('admin_extra.doc_col_status', 'Status')}</span>
+            <span>{t('admin_extra.col_due_date', 'Due Date')}</span>
+            <span className="text-right">{t('admin_extra.doc_col_actions', 'Actions')}</span>
           </div>
 
           {loading ? (
@@ -1275,11 +1498,11 @@ export function AdminDocumentsPage() {
             <ErrorState onRetry={load} />
           ) : requests.length === 0 ? (
             <EmptyState
-              title="No document requests"
+              title={t('admin_extra.empty_no_requests', 'No document requests')}
               description={
                 statusFilter || debouncedSearch
-                  ? 'No requests match your filters.'
-                  : 'Click "Request Document" to create the first request.'
+                  ? t('admin_extra.empty_no_filter_match', 'No requests match your filters.')
+                  : t('admin_extra.empty_requests_hint', 'Click "Request Document" to create the first request.')
               }
               icon={FileText}
             />
@@ -1410,12 +1633,12 @@ export function AdminDocumentsPage() {
                     >
                       {req.rejection_reason && (
                         <p className="font-medium" style={{ color: '#dc2626' }}>
-                          <strong>Rejection reason:</strong> {req.rejection_reason}
+                          <strong>{t('admin_extra.doc_rejection_reason', 'Rejection reason:')}</strong> {req.rejection_reason}
                         </p>
                       )}
                       {req.instructions && (
                         <p className={req.rejection_reason ? 'mt-1' : ''}>
-                          <strong style={{ color: 'var(--foreground)' }}>Instructions:</strong> {req.instructions}
+                          <strong style={{ color: 'var(--foreground)' }}>{t('admin_extra.instructions_label', 'Instructions:')}</strong> {req.instructions}
                         </p>
                       )}
                     </div>

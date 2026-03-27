@@ -15,7 +15,7 @@ use App\Models\User;
  * Access summary:
  *  - Admins        → full access to all documents
  *  - Applicants    → access to documents they uploaded, or attached to their child
- *  - Medical staff → view and upload documents on camper/medical-record models
+ *  - Medical staff → view and upload documents on ACTIVE campers/medical-records only
  *
  * Only admins may verify or reject uploaded documents (the update action).
  * Implements FR-34: Document access control.
@@ -51,15 +51,16 @@ class DocumentPolicy
             return true;
         }
 
-        // Medical providers can view documents on campers and medical records —
-        // they need access to clinical documents to provide proper care.
-        // This check must come before the Camper ownership check below so that
-        // medical providers are not incorrectly blocked by campers()->where()
-        // (which returns nothing for medical providers since they do not own campers).
+        // Medical providers can view documents only for ACTIVE (enrolled) campers and their
+        // medical records. Scoping to active campers prevents PHI enumeration for applicants
+        // who were rejected, withdrawn, or not yet approved. The documentable relationship
+        // is loaded here to check is_active — one query per authorization call is acceptable.
         if ($user->isMedicalProvider()) {
-            if ($document->documentable_type === 'App\\Models\\Camper' ||
-                $document->documentable_type === 'App\\Models\\MedicalRecord') {
-                return true;
+            if ($document->documentable_type === 'App\\Models\\Camper') {
+                return $document->documentable?->is_active === true;
+            }
+            if ($document->documentable_type === 'App\\Models\\MedicalRecord') {
+                return $document->documentable?->is_active === true;
             }
         }
 

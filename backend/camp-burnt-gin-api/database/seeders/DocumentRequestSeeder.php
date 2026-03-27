@@ -14,6 +14,7 @@ use App\Models\Message;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -327,6 +328,11 @@ class DocumentRequestSeeder extends Seeder
             'updated_at'      => $adminMsgAt,
         ]);
 
+        // Ensure placeholder file exists on disk for uploaded requests
+        if ($row['uploaded_path']) {
+            $this->ensurePlaceholderFile($row['uploaded_path'], $row['uploaded_file_name'] ?? 'uploaded_document');
+        }
+
         // ── Step 4: Create the DocumentRequest record ─────────────────────────
         $docRequest = DocumentRequest::create([
             'applicant_id'           => $row['applicant']->id,
@@ -372,5 +378,40 @@ class DocumentRequestSeeder extends Seeder
             'user_agent'     => 'DatabaseSeeder',
             'created_at'     => $createdAt,
         ]);
+    }
+
+    private function ensurePlaceholderFile(string $path, string $label): void
+    {
+        if (Storage::disk('local')->exists($path)) {
+            return;
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+            $content = base64_decode(
+                '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U' .
+                'HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgN' .
+                'DRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy' .
+                'MjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAA' .
+                'AAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/' .
+                'aAAwDAQACEQMRAD8AJQAB/9k='
+            );
+        } else {
+            $safe    = preg_replace('/[^A-Za-z0-9 \-]/', '', $label);
+            $stream  = "BT /F1 14 Tf 50 700 Td ({$safe}) Tj ET";
+            $slen    = strlen($stream);
+            $content = "%PDF-1.4\n"
+                . "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+                . "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+                . "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R"
+                . "/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
+                . "4 0 obj<</Length {$slen}>>\nstream\n{$stream}\nendstream\nendobj\n"
+                . "5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+                . "xref\n0 6\n0000000000 65535 f \n"
+                . "trailer<</Size 6/Root 1 0 R>>\nstartxref\n0\n%%EOF\n";
+        }
+
+        Storage::disk('local')->put($path, $content);
     }
 }

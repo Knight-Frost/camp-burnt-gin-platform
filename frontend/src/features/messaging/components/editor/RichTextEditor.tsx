@@ -52,6 +52,7 @@ export interface RichEditorOptions {
 
 export interface RichTextEditorProps extends RichEditorOptions {
   minHeight?: number;
+  maxHeight?: number;
 }
 
 // ─── useRichEditor ────────────────────────────────────────────────────────────
@@ -116,20 +117,30 @@ function ToolbarButton({
 export function EditorBody({
   editor,
   minHeight = 100,
+  maxHeight,
   className = '',
 }: {
   editor: Editor | null;
   minHeight?: number;
+  maxHeight?: number;
   className?: string;
 }) {
   if (!editor) return null;
   return (
     <>
-      <EditorContent
-        editor={editor}
-        className={`text-sm outline-none ${className}`}
-        style={{ color: 'var(--foreground)', minHeight }}
-      />
+      <div
+        style={{
+          minHeight,
+          maxHeight,
+          overflowY: maxHeight ? 'auto' : undefined,
+        }}
+      >
+        <EditorContent
+          editor={editor}
+          className={`text-sm outline-none ${className}`}
+          style={{ color: 'var(--foreground)' }}
+        />
+      </div>
       <style>{TIPTAP_STYLES}</style>
     </>
   );
@@ -202,6 +213,7 @@ export function RichTextEditor({
   placeholder = 'Write a message…',
   initialHtml = '',
   minHeight = 100,
+  maxHeight,
 }: RichTextEditorProps) {
   const editor = useRichEditor({ onUpdate, placeholder, initialHtml });
 
@@ -216,6 +228,7 @@ export function RichTextEditor({
       <EditorBody
         editor={editor}
         minHeight={minHeight}
+        maxHeight={maxHeight}
         className="flex-1 px-3 py-2"
       />
     </div>

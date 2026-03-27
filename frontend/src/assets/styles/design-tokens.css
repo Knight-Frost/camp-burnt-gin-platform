@@ -163,8 +163,8 @@
 
   /* Main content area surface — provides a readable frosted ground for all
      page titles and content that sit outside explicit glass cards.
-     10% transparent so the dimmed background still adds depth and warmth. */
-  --dash-main-bg: rgba(250, 251, 252, 0.90);
+     3% transparent so the background adds a subtle warm tint without bleeding through. */
+  --dash-main-bg: rgba(250, 251, 252, 0.97);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -227,10 +227,19 @@
     /* Fallback background for non-dashboard pages (login, register, etc.).
        Body is transparent so position:fixed z-index:-1 backgrounds can show through. */
     background-color: var(--background);
+    /* Lock the document from ever scrolling. All scrolling is delegated to
+       the <main> scroll container inside DashboardShell. Without this, macOS
+       elastic overscroll propagates from <main> to the document, physically
+       shifting the h-screen layout div away from the viewport and exposing the
+       fixed BackgroundSlideshow underneath. */
+    overflow: hidden;
+    height: 100%;
   }
 
   body {
     background: #ffffff;
+    overflow: hidden;
+    height: 100%;
     color: var(--foreground);
     font-family: var(--font-body);
     line-height: 1.65;

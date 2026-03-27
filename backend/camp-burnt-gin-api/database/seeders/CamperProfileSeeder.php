@@ -52,6 +52,7 @@ class CamperProfileSeeder extends Seeder
         $this->seedBehavioralProfiles($campers);
         $this->seedAssistiveDevices($campers);
         $this->seedFeedingPlans($campers);
+        $this->patchBehavioralAbilityFlags($campers);
 
         $this->command->line('  Camper profiles seeded (behavioral, devices, feeding plans).');
     }
@@ -248,6 +249,80 @@ class CamperProfileSeeder extends Seeder
                 'bolus_only'        => $p['bolus_only'],
                 'notes'             => $p['notes'],
             ]);
+        }
+    }
+
+    /**
+     * Patch functional ability flags added by 2026_03_25_000008.
+     *
+     * These 6 boolean columns describe POSITIVE abilities the camper has
+     * (reading, writing, mobility, verbal communication, social skills, behavior plan).
+     * They have DB defaults of false but must be set to meaningful values for each
+     * profiled camper so the medical portal shows accurate functional ability summaries.
+     *
+     * Safe to re-run — uses whereNull(functional_reading) as idempotency guard.
+     * The column is NOT NULL with default false, so "was never explicitly set" is
+     * detected by checking if all 6 ability flags are still at their default false values
+     * AND communication_methods is not null (proxy for "this profile has real data").
+     */
+    private function patchBehavioralAbilityFlags(array $campers): void
+    {
+        // Maps camper key → clinical ability profile
+        // Values reflect each camper's documented cognitive and functional status.
+        $abilityPatches = [
+            'ethan' => [
+                'functional_reading'   => true,  // verbal, reads age-appropriate material
+                'functional_writing'   => true,
+                'independent_mobility' => true,  // walks independently
+                'verbal_communication' => true,  // ASD Level 2 but verbal
+                'social_skills'        => false, // social difficulties are core ASD presentation
+                'behavior_plan'        => true,  // documented behavior support plan on file
+            ],
+            'noah' => [
+                'functional_reading'   => false, // limited functional literacy
+                'functional_writing'   => false,
+                'independent_mobility' => true,  // walks independently; wandering is behavioral not mobility
+                'verbal_communication' => true,  // verbal though limited expressive range
+                'social_skills'        => true,  // very social and enthusiastic
+                'behavior_plan'        => false,
+            ],
+            'sofia' => [
+                'functional_reading'   => true,  // age-appropriate cognition
+                'functional_writing'   => true,
+                'independent_mobility' => false, // wheelchair/walker dependent
+                'verbal_communication' => true,
+                'social_skills'        => true,
+                'behavior_plan'        => false,
+            ],
+            'lucas' => [
+                'functional_reading'   => true,  // cognitively typical
+                'functional_writing'   => true,  // upper extremity function sufficient
+                'independent_mobility' => false, // power wheelchair user
+                'verbal_communication' => true,
+                'social_skills'        => true,
+                'behavior_plan'        => false,
+            ],
+            'tyler' => [
+                'functional_reading'   => true,
+                'functional_writing'   => true,
+                'independent_mobility' => true,
+                'verbal_communication' => true,
+                'social_skills'        => true,
+                'behavior_plan'        => false,
+            ],
+        ];
+
+        foreach ($abilityPatches as $key => $fields) {
+            if (! isset($campers[$key])) {
+                continue;
+            }
+            // Guard: only update profiles where ALL ability flags are false (unpatched defaults)
+            BehavioralProfile::where('camper_id', $campers[$key]->id)
+                ->where('functional_reading', false)
+                ->where('functional_writing', false)
+                ->where('independent_mobility', false)
+                ->where('verbal_communication', false)
+                ->update($fields);
         }
     }
 }

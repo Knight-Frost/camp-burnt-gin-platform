@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** 2026-03-24 — Workflow Audit (BUG-106–BUG-110 added and resolved)
+**Last Updated:** 2026-03-26 — Form Full Parity Correction (BUG-127–BUG-134 added and resolved)
 **Format:** Sequential ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -48,6 +48,9 @@ The table below maps each development phase to the bugs it resolved.
 | Phase 14 | Form Builder security | BUG-057, BUG-058, BUG-059, BUG-060, BUG-061 |
 | System Audit 2026-03-19 | Full system audit + hardening | BUG-073, BUG-102, BUG-103, BUG-104, BUG-105 |
 | Workflow Audit 2026-03-24 | Deep workflow audit — capacity gate, scope leak, orphan files, notifications, XSS | BUG-106, BUG-107, BUG-108, BUG-109, BUG-110 |
+| Application Lifecycle Audit 2026-03-24 | Approval/reversal architecture — activation, deactivation, transaction safety, audit log, transition validation | BUG-111, BUG-112, BUG-113, BUG-114, BUG-115, BUG-116, BUG-117, BUG-118 |
+| Application Form Ecosystem 2026-03-26 | TypeScript type gaps, API contract mismatch, upload status tracking, official forms checklist, staff profile nav | BUG-119–BUG-126 |
+| Form Full Parity Correction 2026-03-26 | Missing Guardian 2 address/phones, EC address/phones/language, health flags, behavioral flags + descriptions, app meta, 2nd session, bowel irregularity, 2 missing consents | BUG-127–BUG-134 |
 
 ---
 
@@ -85,8 +88,8 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-028 | Medical portal has no route or UI for document upload or treatment recording | Medical Portal | Critical | Resolved |
 | BUG-029 | Camper detail page missing — /admin/campers/:id leads to 404 | Admin — Camper Management | Critical | Resolved |
 | BUG-030 | Applicant portal has no past applications history with filter/sort | Applicant Portal | Medium | Open |
-| BUG-031 | Password change uses min 8 chars; password reset requires 12+ with complexity | Security | Medium | Open |
-| BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Security | Medium | Open |
+| BUG-031 | Password change uses min 8 chars; password reset requires 12+ with complexity | Security | Medium | Resolved |
+| BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Security | Medium | Resolved |
 | BUG-033 | Super Admin user management role filter uses raw slugs, not user-friendly labels | Super Admin — User Management | Low | Open |
 | BUG-034 | Medical portal inbox missing — no /medical/inbox route | Medical Portal | Medium | Resolved |
 | BUG-035 | ApplicationReviewPage back link hardcoded to /admin/applications | Admin / Super Admin | Low | Resolved |
@@ -100,7 +103,7 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-043 | "View Risk" link routes to 404 — /admin/campers/:id/risk not defined | Admin — Camper Management | High | Resolved |
 | BUG-044 | Login page shows two password reveal icons — browser native conflicts with custom button | Auth — Login Page | Low | Resolved |
 | BUG-045 | Login redirects back to /login after success — stale token validation races fresh login | Auth — Login | Critical | Resolved |
-| BUG-046 | Applicant login broken — blocking issue | Auth — Applicant Login | Critical | Open |
+| BUG-046 | Applicant login broken — blocking issue | Auth — Applicant Login | Critical | Resolved |
 | BUG-047 | CamperDetailPage uses camper.t_shirt_size — property does not exist on Camper type | Admin — Camper Management | Medium | Resolved |
 | BUG-048 | Portal context links broken — AdminApplicationsPage and AdminCampersPage hardcode /admin/* | Admin / Super Admin | High | Resolved |
 | BUG-049 | Applicant cannot send messages to super_admin — hasNonAdminParticipants check too narrow | Inbox / Messaging — RBAC | High | Resolved |
@@ -145,6 +148,30 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-108 | `DocumentRequestController::reject()` clears DB path fields but never deletes the uploaded file from disk — orphaned files accumulate | Document Requests | Medium | Resolved |
 | BUG-109 | `ApplicationController::update()` missing inbox system notification when draft is promoted to submitted — email fires but inbox message does not | Applicant Portal — Application Form | Medium | Resolved |
 | BUG-110 | `SystemNotificationService::applicationRejected()` embeds reviewer notes in HTML without `e()` escaping — stored XSS vector for admin-injected markup in applicant inbox | Security — Notifications | Low | Resolved |
+| BUG-111 | `campers` table has no `is_active` column — reversal leaves camper visible on all operational rosters | Application Lifecycle | Critical | Resolved |
+| BUG-112 | `medical_records` table has no `is_active` column — reversal leaves medical record visible to medical staff | Application Lifecycle | Critical | Resolved |
+| BUG-113 | `ApplicationService::reviewApplication()` has no `DB::transaction()` — partial failure can leave application, camper, and medical record in inconsistent state | Application Lifecycle | Critical | Resolved |
+| BUG-114 | No deactivation logic on reversal (`Approved → Rejected`) — camper and medical record remain active after reversal | Application Lifecycle | Critical | Resolved |
+| BUG-115 | No state transition validation in `ApplicationService` — any status can transition to any other without guards | Application Lifecycle | High | Resolved |
+| BUG-116 | No audit log entry written for application review decisions — approval, rejection, and reversal actions are unlogged | Application Lifecycle | High | Resolved |
+| BUG-117 | `CamperController::index()` medical branch has no `is_active` filter — medical staff see all campers regardless of enrollment status | Medical Portal | High | Resolved |
+| BUG-118 | `MedicalRecordController::index()` has no `is_active` filter — all medical records returned to medical staff regardless of camper enrollment status | Medical Portal | High | Resolved |
+| BUG-119 | `Application` type in `admin.types.ts` missing 8 narrative fields — `EditNarrativesPanel` required unsafe cast | TypeScript / Types | Medium | Resolved |
+| BUG-120 | `ApplicantApplicationsPage` statusFilter typed as `ApplicationStatus \| ''` but uses `'draft'` as a UI-only filter value — TS2367 | TypeScript / Types | Low | Resolved |
+| BUG-121 | `StatusBadge` `BadgeVariant` extended `ApplicationStatus` which no longer includes `'draft'` — TS2353/TS2339 | TypeScript / Types | Low | Resolved |
+| BUG-122 | `ApplicantOfficialFormsPage` used `variant="outline"` — not a valid `ButtonVariant` value — TS2322 | TypeScript / Types | Low | Resolved |
+| BUG-123 | `OfficialFormType::toApiArray()` returned `type` key; frontend `OfficialFormTemplate` interface expected `id` — API/type contract mismatch | Backend / Frontend Alignment | High | Resolved |
+| BUG-124 | `ApplicantOfficialFormsPage` always initialized upload cards as `idle` — existing uploads not reflected on page load | Applicant Portal — Official Forms | High | Resolved |
+| BUG-125 | `ApplicationReviewPage` had no official forms checklist — admins could not see which required forms were uploaded vs. missing | Admin Portal — Application Review | Medium | Resolved |
+| BUG-126 | Admin and super-admin sidebars missing "My Profile" nav item — credential/profile update page not reachable from staff portals | Admin Portal / Super-Admin Portal | Medium | Resolved |
+| BUG-127 | Guardian 2 in digital form had only name + one phone — official form requires full address + 3 phones + language/interpreter | ApplicationFormPage — Section 1 | High | Resolved |
+| BUG-128 | Emergency contact in digital form had only name, relationship, one phone — official form requires full address + 3 phones + language/interpreter | ApplicationFormPage — Section 1 | High | Resolved |
+| BUG-129 | Digital form had no 2nd-choice session selection — official form explicitly provides this | ApplicationFormPage — Section 1 | Medium | Resolved |
+| BUG-130 | Digital form had no "first application / attended before" checkboxes — official form has these as required fields | ApplicationFormPage — Section 1 | Medium | Resolved |
+| BUG-131 | Camper mailing address not captured in digital form — official form (0717) has a dedicated applicant mailing address block | ApplicationFormPage — Section 1 | Medium | Resolved |
+| BUG-132 | Health flags (tubes in ears, contagious illness + description, recent illness + description) were in backend schema but missing from FormState and Section 2 UI | ApplicationFormPage — Section 2 | High | Resolved |
+| BUG-133 | Behavioral profile missing 5 new boolean flags (sexual_behaviors, interpersonal_behavior, social_emotional, follows_instructions, group_participation), attends_school, classroom_type, and all per-item description fields — present on official PDF | ApplicationFormPage — Section 3 | High | Resolved |
+| BUG-134 | Section 10 was missing "General Consent" (#1) and "Permission to Participate in Activities" (#4) from CONSENT_DEFS — these are explicit PDF consent items; only 5 of 7 required consents were shown | ApplicationFormPage — Section 10 | Critical | Resolved |
 
 ---
 
@@ -1032,16 +1059,17 @@ In `useAuthInit`, the `.catch()` handler now compares the current token against 
 **Title:** Applicant login broken — blocking issue, unresolved after multiple sessions
 **Module:** Auth — Applicant Login
 **Severity:** Critical
-**Status:** Open — Known Blocking Issue
+**Status:** Resolved — Forensic Audit 2026-03-27
 
 **Description:**
-Applicant (`applicant` role) login is broken. After submitting valid credentials, the login flow fails to complete or redirects incorrectly. This issue was investigated over multiple sessions without resolution. It does not affect `admin`, `super_admin`, or `medical` role logins. Root cause is not yet confirmed — likely involves token handling, role resolution, or redirect logic specific to the applicant portal entry path.
+Applicant (`applicant` role) login was broken across multiple prior sessions. Root causes identified and resolved via BUG-051, BUG-075, and BUG-082 (sessionStorage/localStorage mismatch, RoleGuard redirect loop). Full login flow trace confirmed correct in forensic audit: token written to sessionStorage, normalizeUser() extracts 'applicant' role correctly, getDashboardRoute('applicant') returns /applicant/dashboard, RoleGuard permits entry.
 
-**Suspected Files:**
-- `frontend/src/features/auth/hooks/useAuthInit.ts`
-- `frontend/src/core/auth/ProtectedRoute.tsx`
-- `frontend/src/core/routing/index.tsx` (applicant portal guard)
-- `backend/.../app/Http/Controllers/Api/Auth/AuthController.php`
+**Residual fix (2026-03-27):** `normalizeUser()` was extracting role ID via `user.roles?.[0]?.id` (always undefined for login responses that return `user.role` as an object, not `user.roles` as an array) — defaulting all role IDs to 0. Fixed to prefer `(user.role as Role).id` when available.
+
+**Resolution Files:**
+- `frontend/src/features/auth/hooks/useAuthInit.ts` (BUG-051, BUG-075 — sessionStorage/comment fix)
+- `frontend/src/core/auth/RoleGuard.tsx` (BUG-082 — redirect loop fix)
+- `frontend/src/features/auth/api/auth.api.ts` (2026-03-27 — role ID extraction fix)
 
 ---
 
@@ -1903,11 +1931,13 @@ Restructured `routes/api.php` into three tiers:
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
-| Critical | 26 | 23 | 3 |
-| High | 36 | 35 | 1 |
-| Medium | 17 | 14 | 3 |
-| Low | 11 | 10 | 1 |
-| **Total** | **85** | **76** | **9** |
+| Critical | 30 | 27 | 3 |
+| High | 41 | 40 | 1 |
+| Medium | 20 | 17 | 3 |
+| Low | 15 | 14 | 1 |
+| **Total** | **106** | **98** | **8** |
+
+_Note: counts above reflect tracked entries in this file. MEMORY.md carries the running total across all phases._
 
 ### By Status
 

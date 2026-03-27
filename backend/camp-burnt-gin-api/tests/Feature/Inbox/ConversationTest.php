@@ -122,13 +122,26 @@ class ConversationTest extends TestCase
     }
 
     #[Test]
-    public function medical_provider_cannot_create_conversation()
+    public function medical_provider_can_create_conversation_with_admin()
     {
         Sanctum::actingAs($this->medicalProvider);
 
         $response = $this->postJson('/api/inbox/conversations', [
             'subject' => 'Medical Update',
             'participant_ids' => [$this->admin->id],
+        ]);
+
+        $response->assertStatus(201);
+    }
+
+    #[Test]
+    public function medical_provider_cannot_create_conversation_with_non_admin()
+    {
+        Sanctum::actingAs($this->medicalProvider);
+
+        $response = $this->postJson('/api/inbox/conversations', [
+            'subject' => 'Medical Update',
+            'participant_ids' => [$this->parent->id],
         ]);
 
         $response->assertStatus(403);

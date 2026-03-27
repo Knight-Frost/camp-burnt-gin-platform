@@ -74,8 +74,11 @@ describe('InboxPage source structure', () => {
     expect(inboxSrc).toContain('useBootstrapReady');
   });
 
-  test('uses AnimatePresence mode="wait" for list/thread crossfade', () => {
-    expect(inboxSrc).toContain('mode="wait"');
+  test('uses CSS transition-based crossfade for list/thread pane', () => {
+    // InboxPage uses CSS transitions (transition-all/transition-colors) rather than
+    // Framer Motion AnimatePresence — ThreadView is rendered inline with CSS-based smooth transitions.
+    expect(inboxSrc).toContain('ThreadView');
+    expect(inboxSrc).toContain('transition');
   });
 
   test('uses keyboard shortcut for compose (c key)', () => {
@@ -92,7 +95,8 @@ describe('InboxPage source structure', () => {
 
   test('uses scroll restoration with requestAnimationFrame', () => {
     expect(inboxSrc).toContain('requestAnimationFrame');
-    expect(inboxSrc).toContain('savedScrollPos');
+    // scroll ref is named savedScroll (was savedScrollPos in older draft)
+    expect(inboxSrc).toContain('savedScroll');
   });
 
   test('bulk selection shows count and clear button', () => {

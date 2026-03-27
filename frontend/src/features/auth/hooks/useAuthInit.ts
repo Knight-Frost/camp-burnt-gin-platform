@@ -2,14 +2,14 @@
  * useAuthInit.ts — App-startup authentication hydration hook
  *
  * Called once in App.tsx when the app first mounts. It handles the common scenario
- * where a user refreshes the page — they have a valid token saved in localStorage
+ * where a user refreshes the page — they have a valid token saved in sessionStorage
  * but Redux is empty because page refresh wipes in-memory state.
  *
  * What it does:
  * 1. Registers a global listener for the 'auth:unauthorized' custom window event.
  *    The axios interceptor fires this event when any protected API request gets a
  *    401 mid-session (e.g. the token silently expired while the user was browsing).
- * 2. On mount, reads the token from localStorage and calls GET /api/user to
+ * 2. On mount, reads the token from sessionStorage and calls GET /api/user to
  *    validate it. If valid, restores the Redux auth state so the user stays logged in.
  *    If invalid or absent, clears auth state and lets ProtectedRoute redirect to /login.
  *
@@ -52,9 +52,9 @@ export function useAuthInit(): void {
       }
 
       // Capture the active token NOW (before the async call) using the same precedence
-      // as the axios request interceptor: Redux first, localStorage as fallback.
-      // Re-reading localStorage AFTER the async call is unsafe — another tab may have
-      // overwritten it with a different user's token, causing role confusion.
+      // as the axios request interceptor: Redux first, sessionStorage as fallback.
+      // Re-reading sessionStorage AFTER the async call is unsafe — another tab may have
+      // cleared it, causing a false "no token" state.
       const activeToken = store.getState().auth.token ?? sessionStorage.getItem('auth_token');
 
       isRevalidating.current = true;
@@ -63,7 +63,7 @@ export function useAuthInit(): void {
         .then((user) => {
           // Token is valid — the 401 came from a specific endpoint, not the session.
           // Keep the user logged in and update the user object in case it drifted.
-          // Use the token we captured at call-time, not a re-read from localStorage.
+          // Use the token we captured at call-time, not a re-read from sessionStorage.
           if (activeToken) dispatch(setToken({ token: activeToken }));
           dispatch(setUser(user));
         })
@@ -82,7 +82,7 @@ export function useAuthInit(): void {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, [dispatch]);
 
-  // Effect 2: On mount, restore the session if a token exists in localStorage
+  // Effect 2: On mount, restore the session if a token exists in sessionStorage
   useEffect(() => {
     // Demo mode: skip the real auth flow entirely. Inject the mock admin user
     // directly into Redux so ProtectedRoute passes without any API call.
@@ -110,10 +110,10 @@ export function useAuthInit(): void {
     //
     // A 401 response from getAuthenticatedUser() causes the axios interceptor to fire
     // auth:unauthorized, which calls handleUnauthorized (above) and removes the token from
-    // localStorage if re-validation also fails. The catch block checks for that: an empty
-    // localStorage means this is a confirmed auth failure, not a transient one.
+    // sessionStorage if re-validation also fails. The catch block checks for that: an empty
+    // sessionStorage means this is a confirmed auth failure, not a transient one.
     //
-    // Network/5xx failures leave the token in localStorage → retries proceed.
+    // Network/5xx failures leave the token in sessionStorage → retries proceed.
     // Only after exhausting all 5 attempts with the token still present do we give up
     // and redirect to /login (the server appears to be genuinely unreachable).
     let cancelled = false;
@@ -166,8 +166,8 @@ export function useAuthInit(): void {
             setTimeout(() => tryValidate(retryCount + 1), 8000);
           } else {
             // All 5 attempts exhausted. Server appears unreachable — stop the spinner
-            // and let ProtectedRoute redirect to /login. The token stays in localStorage
-            // so the next page load will try again once the server is back.
+            // and let ProtectedRoute redirect to /login. The token stays in sessionStorage
+            // so the next page load (within the same browser tab) will try again once the server is back.
             dispatch(hydrateAuth());
           }
         })

@@ -5,12 +5,12 @@
 import { axiosInstance } from '@/api/axios.config';
 import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 import type {
-  Application, ApplicationReviewPayload, AuditLogEntry,
-  Camp, Camper, CampSession, FamilyCard, FamilyWorkspace, ProviderLink, User,
+  Application, ApplicationCompleteness, ApplicationReviewPayload, AuditLogEntry,
+  BehavioralProfile, Camp, Camper, CampSession, Document, EmergencyContact,
+  FamilyWorkspace, ProviderLink, User,
 } from '@/features/admin/types/admin.types';
 
-export async function getApplications(params?: { page?: number; status?: string; search?: string; camp_session_id?: number }): Promise<PaginatedResponse<Application>> {
-
+export async function getApplications(params?: { page?: number; status?: string; search?: string; camp_session_id?: number; drafts_only?: boolean; sort?: string; direction?: 'asc' | 'desc' }): Promise<PaginatedResponse<Application>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Application>>('/applications', { params });
   return data;
 }
@@ -22,7 +22,153 @@ export async function reviewApplication(id: number, payload: ApplicationReviewPa
   const { data } = await axiosInstance.post<ApiResponse<Application>>(`/applications/${id}/review`, payload);
   return data.data;
 }
+
+/** Pre-approval completeness check. Returns structured missing-data report for the warning modal. */
+export async function checkApplicationCompleteness(id: number): Promise<ApplicationCompleteness> {
+  const { data } = await axiosInstance.get<ApiResponse<ApplicationCompleteness>>(`/applications/${id}/completeness`);
+  return data.data;
+}
+
+/** Update application content fields (narratives, notes). Admin/super_admin only after submission. */
+export interface UpdateApplicationPayload {
+  notes?: string;
+  narrative_rustic_environment?: string;
+  narrative_staff_suggestions?: string;
+  narrative_participation_concerns?: string;
+  narrative_camp_benefit?: string;
+  narrative_heat_tolerance?: string;
+  narrative_transportation?: string;
+  narrative_additional_info?: string;
+  narrative_emergency_protocols?: string;
+}
+export async function updateApplication(id: number, payload: UpdateApplicationPayload): Promise<Application> {
+  const { data } = await axiosInstance.put<ApiResponse<Application>>(`/applications/${id}`, payload);
+  return data.data;
+}
+
 export async function deleteApplication(id: number): Promise<void> { await axiosInstance.delete(`/applications/${id}`); }
+
+// ─── Admin application field editing ──────────────────────────────────────
+// These complement updateApplication (narratives) — they edit the underlying
+// camper profile, emergency contacts, and behavioral profile directly.
+
+export interface UpdateCamperPayload {
+  first_name?: string;
+  last_name?: string;
+  preferred_name?: string;
+  date_of_birth?: string;
+  gender?: string;
+  tshirt_size?: string;
+  county?: string;
+  needs_interpreter?: boolean;
+  preferred_language?: string;
+}
+export async function updateCamper(id: number, payload: UpdateCamperPayload): Promise<Camper> {
+  const { data } = await axiosInstance.put<ApiResponse<Camper>>(`/campers/${id}`, payload);
+  return data.data;
+}
+
+export interface UpdateEmergencyContactPayload {
+  name?: string;
+  relationship?: string;
+  phone_primary?: string;
+  phone_secondary?: string;
+  phone_work?: string;
+  email?: string;
+  is_authorized_pickup?: boolean;
+  is_primary?: boolean;
+  is_guardian?: boolean;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  primary_language?: string;
+  interpreter_needed?: boolean;
+}
+export async function updateEmergencyContact(id: number, payload: UpdateEmergencyContactPayload): Promise<EmergencyContact> {
+  const { data } = await axiosInstance.put<ApiResponse<EmergencyContact>>(`/emergency-contacts/${id}`, payload);
+  return data.data;
+}
+export interface CreateEmergencyContactPayload extends UpdateEmergencyContactPayload {
+  camper_id: number;
+  name: string;
+  relationship: string;
+  phone_primary: string;
+}
+export async function createEmergencyContact(payload: CreateEmergencyContactPayload): Promise<EmergencyContact> {
+  const { data } = await axiosInstance.post<ApiResponse<EmergencyContact>>('/emergency-contacts', payload);
+  return data.data;
+}
+export async function deleteEmergencyContact(id: number): Promise<void> {
+  await axiosInstance.delete(`/emergency-contacts/${id}`);
+}
+
+export interface UpdateBehavioralProfilePayload {
+  triggers?: string;
+  de_escalation_strategies?: string;
+  communication_style?: string;
+  notes?: string;
+  // Functional ability flags + optional descriptions
+  aggression?: boolean;
+  aggression_description?: string;
+  self_abuse?: boolean;
+  self_abuse_description?: string;
+  wandering_risk?: boolean;
+  wandering_description?: string;
+  one_to_one_supervision?: boolean;
+  one_to_one_description?: string;
+  developmental_delay?: boolean;
+  functioning_age_level?: string;
+  functional_reading?: boolean;
+  functional_writing?: boolean;
+  independent_mobility?: boolean;
+  verbal_communication?: boolean;
+  social_skills?: boolean;
+  behavior_plan?: boolean;
+  communication_methods?: string[];
+  // Phase 2 behavioral flags
+  sexual_behaviors?: boolean;
+  sexual_behaviors_description?: string;
+  interpersonal_behavior?: boolean;
+  interpersonal_behavior_description?: string;
+  social_emotional?: boolean;
+  social_emotional_description?: string;
+  follows_instructions?: boolean;
+  follows_instructions_description?: string;
+  group_participation?: boolean;
+  group_participation_description?: string;
+  attends_school?: boolean;
+  classroom_type?: string;
+}
+export async function updateBehavioralProfile(id: number, payload: UpdateBehavioralProfilePayload): Promise<BehavioralProfile> {
+  const { data } = await axiosInstance.put<ApiResponse<BehavioralProfile>>(`/behavioral-profiles/${id}`, payload);
+  return data.data;
+}
+
+/** Upload a file on behalf of an applicant, attached to a specific application. */
+export async function uploadDocumentOnBehalf(
+  applicationId: number,
+  file: File,
+  documentType?: string,
+): Promise<Document> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('documentable_type', 'App\\Models\\Application');
+  fd.append('documentable_id', String(applicationId));
+  if (documentType) fd.append('document_type', documentType);
+  const { data } = await axiosInstance.post('/documents', fd, {
+    headers: { 'Content-Type': undefined },
+  });
+  return data.data;
+}
+
+/** Fetch all emergency contacts for a specific camper. */
+export async function getEmergencyContacts(camperId: number): Promise<EmergencyContact[]> {
+  const { data } = await axiosInstance.get<PaginatedResponse<EmergencyContact>>('/emergency-contacts', {
+    params: { camper_id: camperId, per_page: 50 },
+  });
+  return data.data;
+}
 
 // ─── Family endpoints ──────────────────────────────────────────────────────
 
@@ -33,8 +179,8 @@ export async function getFamilies(params?: {
   session_id?: number;
   status?: string;
   multi_camper?: boolean;
-}): Promise<PaginatedResponse<FamilyCard>> {
-  const { data } = await axiosInstance.get<PaginatedResponse<FamilyCard>>('/families', { params });
+}): Promise<import('@/features/admin/types/admin.types').FamiliesResponse> {
+  const { data } = await axiosInstance.get<import('@/features/admin/types/admin.types').FamiliesResponse>('/families', { params });
   return data;
 }
 
@@ -128,6 +274,20 @@ export async function resendProviderLink(id: number): Promise<void> { await axio
 export async function getUsers(params?: { page?: number; search?: string; role?: string }): Promise<PaginatedResponse<User>> {
   const { data } = await axiosInstance.get<PaginatedResponse<User>>('/users', { params }); return data;
 }
+
+/** Create a new staff user account (admin/medical/super_admin roles). Super admin only. */
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  role: 'admin' | 'medical' | 'super_admin';
+}
+export async function createUser(payload: CreateUserPayload): Promise<User> {
+  const { data } = await axiosInstance.post<ApiResponse<User>>('/users', payload);
+  return data.data;
+}
+
 export async function updateUserRole(id: number, role: string): Promise<User> {
   const { data } = await axiosInstance.put<ApiResponse<User>>(`/users/${id}/role`, { role }); return data.data;
 }
@@ -382,4 +542,186 @@ export const archiveSession = async (id: number): Promise<void> => {
 export async function restoreSession(id: number): Promise<CampSession> {
   const res = await axiosInstance.post<{ message: string; session: CampSession }>(`/sessions/${id}/restore`);
   return res.data.session;
+}
+
+// ─── Admin Application Edit — full medical sub-record CRUD ────────────────────
+// These endpoints mirror those used by the applicant form, but used by admins
+// to edit existing records rather than create them fresh.
+
+// Behavioral profile — create (POST) for campers that don't have one yet
+export interface CreateBehavioralProfilePayload extends UpdateBehavioralProfilePayload {
+  camper_id: number;
+}
+export async function createBehavioralProfile(payload: CreateBehavioralProfilePayload): Promise<BehavioralProfile> {
+  const { data } = await axiosInstance.post<ApiResponse<BehavioralProfile>>('/behavioral-profiles', payload);
+  return data.data;
+}
+
+// Medical record — core clinical fields
+export interface UpdateMedicalRecordPayload {
+  physician_name?: string;
+  physician_phone?: string;
+  insurance_provider?: string;
+  insurance_policy_number?: string;
+  has_seizures?: boolean;
+  last_seizure_date?: string;
+  seizure_description?: string;
+  has_neurostimulator?: boolean;
+  date_of_medical_exam?: string;
+  special_needs?: string;
+  dietary_restrictions?: string;
+}
+export async function updateMedicalRecord(id: number, payload: UpdateMedicalRecordPayload): Promise<void> {
+  await axiosInstance.put(`/medical-records/${id}`, payload);
+}
+
+// Health profile — extended fields added in Phase 2 form parity
+export interface StoreHealthProfilePayload {
+  physician_address?: string;
+  insurance_group?: string;
+  medicaid_number?: string;
+  immunizations_current?: boolean;
+  tetanus_date?: string;
+  mobility_notes?: string;
+  tubes_in_ears?: boolean;
+  has_contagious_illness?: boolean;
+  contagious_illness_description?: string;
+  has_recent_illness?: boolean;
+  recent_illness_description?: string;
+}
+export async function storeHealthProfile(camperId: number, payload: StoreHealthProfilePayload): Promise<void> {
+  await axiosInstance.post(`/campers/${camperId}/health-profile`, payload);
+}
+
+// Diagnoses
+export interface DiagnosisPayload { name: string; notes?: string; }
+export async function createDiagnosis(payload: DiagnosisPayload & { camper_id: number }): Promise<void> {
+  await axiosInstance.post('/diagnoses', payload);
+}
+export async function updateDiagnosis(id: number, payload: DiagnosisPayload): Promise<void> {
+  await axiosInstance.put(`/diagnoses/${id}`, payload);
+}
+export async function deleteDiagnosis(id: number): Promise<void> {
+  await axiosInstance.delete(`/diagnoses/${id}`);
+}
+
+// Allergies
+export interface AllergyPayload {
+  allergen: string;
+  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening';
+  reaction?: string;
+  treatment?: string;
+}
+export async function createAllergy(payload: AllergyPayload & { camper_id: number }): Promise<void> {
+  await axiosInstance.post('/allergies', payload);
+}
+export async function updateAllergy(id: number, payload: AllergyPayload): Promise<void> {
+  await axiosInstance.put(`/allergies/${id}`, payload);
+}
+export async function deleteAllergy(id: number): Promise<void> {
+  await axiosInstance.delete(`/allergies/${id}`);
+}
+
+// Assistive devices
+export interface AssistiveDevicePayload {
+  device_type: string;
+  requires_transfer_assistance?: boolean;
+  notes?: string;
+}
+export async function createAssistiveDevice(payload: AssistiveDevicePayload & { camper_id: number }): Promise<void> {
+  await axiosInstance.post('/assistive-devices', payload);
+}
+export async function updateAssistiveDevice(id: number, payload: AssistiveDevicePayload): Promise<void> {
+  await axiosInstance.put(`/assistive-devices/${id}`, payload);
+}
+export async function deleteAssistiveDevice(id: number): Promise<void> {
+  await axiosInstance.delete(`/assistive-devices/${id}`);
+}
+
+// Feeding plan
+export interface FeedingPlanPayload {
+  special_diet?: boolean;
+  diet_description?: string;
+  texture_modified?: boolean;
+  texture_level?: string;
+  fluid_restriction?: boolean;
+  fluid_details?: string;
+  g_tube?: boolean;
+  formula?: string;
+  amount_per_feeding?: string;
+  feedings_per_day?: number;
+  feeding_times?: string[];
+  bolus_only?: boolean;
+  notes?: string;
+}
+export async function createFeedingPlan(payload: FeedingPlanPayload & { camper_id: number }): Promise<void> {
+  await axiosInstance.post('/feeding-plans', payload);
+}
+export async function updateFeedingPlan(id: number, payload: FeedingPlanPayload): Promise<void> {
+  await axiosInstance.put(`/feeding-plans/${id}`, payload);
+}
+
+// Personal care plan — idempotent POST (backend uses updateOrCreate)
+export interface PersonalCarePlanPayload {
+  bathing_level?: string;
+  bathing_notes?: string;
+  toileting_level?: string;
+  toileting_notes?: string;
+  nighttime_toileting?: boolean;
+  nighttime_notes?: string;
+  dressing_level?: string;
+  dressing_notes?: string;
+  oral_hygiene_level?: string;
+  oral_hygiene_notes?: string;
+  positioning_notes?: string;
+  sleep_notes?: string;
+  falling_asleep_issues?: boolean;
+  sleep_walking?: boolean;
+  night_wandering?: boolean;
+  bowel_control_notes?: string;
+  irregular_bowel?: boolean;
+  irregular_bowel_notes?: string;
+  urinary_catheter?: boolean;
+  menstruation_support?: boolean;
+}
+export async function storePersonalCarePlan(camperId: number, payload: PersonalCarePlanPayload): Promise<void> {
+  await axiosInstance.post(`/campers/${camperId}/personal-care-plan`, payload);
+}
+
+// Activity permissions
+export interface ActivityPermissionPayload {
+  activity_name: string;
+  permission_level: 'yes' | 'no' | 'restricted';
+  restriction_notes?: string;
+}
+export async function createActivityPermission(payload: ActivityPermissionPayload & { camper_id: number }): Promise<void> {
+  await axiosInstance.post('/activity-permissions', payload);
+}
+export async function updateActivityPermission(id: number, payload: ActivityPermissionPayload): Promise<void> {
+  await axiosInstance.put(`/activity-permissions/${id}`, payload);
+}
+
+// Medications
+export interface MedicationPayload {
+  name: string;
+  dosage: string;
+  frequency: string;
+  route?: string;
+  purpose?: string;
+  prescribing_physician?: string;
+  notes?: string;
+}
+export async function createMedication(payload: MedicationPayload & { camper_id: number }): Promise<void> {
+  await axiosInstance.post('/medications', payload);
+}
+export async function updateMedication(id: number, payload: MedicationPayload): Promise<void> {
+  await axiosInstance.put(`/medications/${id}`, payload);
+}
+export async function deleteMedication(id: number): Promise<void> {
+  await axiosInstance.delete(`/medications/${id}`);
+}
+
+// Document delete (admin)
+export async function deleteDocument(id: number): Promise<void> {
+  await axiosInstance.delete(`/documents/${id}`);
 }

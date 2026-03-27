@@ -57,8 +57,10 @@ class CamperPolicy
 
         // Medical providers need to see camper profiles to record treatments,
         // review records, and upload documents during a camp session.
+        // Restricted to active (approved) campers only — medical staff must not
+        // access data for applicants who have not yet been accepted to camp.
         if ($user->isMedicalProvider()) {
-            return true;
+            return $user->canAccessCamperAsMedical($camper);
         }
 
         return false;

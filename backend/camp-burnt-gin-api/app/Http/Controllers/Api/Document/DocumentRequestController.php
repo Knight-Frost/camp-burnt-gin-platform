@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\Document;
 
 use App\Enums\DocumentRequestStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Application;
 use App\Models\Camper;
 use App\Models\DocumentRequest;
 use App\Models\User;
+use App\Services\DeadlineService;
 use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,7 +37,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class DocumentRequestController extends Controller
 {
     public function __construct(
-        protected SystemNotificationService $notifications
+        protected SystemNotificationService $notifications,
+        protected DeadlineService $deadlineService,
     ) {}
 
     // ── Admin Methods ──────────────────────────────────────────────────────────
@@ -50,12 +53,18 @@ class DocumentRequestController extends Controller
         $this->authorize('create', DocumentRequest::class);
 
         $validated = $request->validate([
-            'applicant_id'   => ['required', 'integer', 'exists:users,id'],
-            'application_id' => ['nullable', 'integer', 'exists:applications,id'],
-            'camper_id'      => ['nullable', 'integer', 'exists:campers,id'],
-            'document_type'  => ['required', 'string', 'max:200'],
-            'instructions'   => ['nullable', 'string', 'max:2000'],
-            'due_date'       => ['nullable', 'date', 'after:today'],
+            'applicant_id'    => ['required', 'integer', 'exists:users,id'],
+            'application_id'  => ['nullable', 'integer', 'exists:applications,id'],
+            'camper_id'       => ['nullable', 'integer', 'exists:campers,id'],
+            'document_type'   => ['required', 'string', 'max:200'],
+            'instructions'    => ['nullable', 'string', 'max:2000'],
+            'due_date'        => ['nullable', 'date', 'after:today'],
+            // Optional: used to scope the linked Deadline to a session.
+            // If omitted, the session is resolved from application_id automatically.
+            'camp_session_id' => ['nullable', 'integer', 'exists:camp_sessions,id'],
+            // Deadline enforcement config (only applied when due_date is provided)
+            'is_enforced'     => ['boolean'],
+            'enforcement_mode' => ['in:hard,soft'],
         ]);
 
         /** @var \App\Models\User $admin */
@@ -109,6 +118,33 @@ class DocumentRequestController extends Controller
             );
 
             $docRequest->update(['conversation_id' => $conversation->id]);
+
+            // ── Deadline Integration ───────────────────────────────────────────
+            // When a due_date is provided, create a Deadline record that becomes the
+            // single source of truth for enforcement and calendar display.
+            // DeadlineObserver fires after create() and syncs the CalendarEvent automatically.
+            if (! empty($validated['due_date'])) {
+                // Resolve the session: explicit > from linked application
+                $sessionId = $validated['camp_session_id']
+                    ?? ($validated['application_id']
+                        ? Application::find($validated['application_id'])?->camp_session_id
+                        : null);
+
+                if ($sessionId) {
+                    $this->deadlineService->createForDocumentRequest(
+                        $docRequest,
+                        $sessionId,
+                        $admin,
+                        [
+                            'due_date'                 => $validated['due_date'],
+                            'is_enforced'              => $validated['is_enforced'] ?? false,
+                            'enforcement_mode'         => $validated['enforcement_mode'] ?? 'soft',
+                            'is_visible_to_applicants' => true,
+                        ],
+                    );
+                }
+            }
+
             $docRequest->load('applicant', 'requestedByAdmin', 'camper');
 
             return response()->json($this->format($docRequest, true), 201);
@@ -415,10 +451,20 @@ class DocumentRequestController extends Controller
             'due_date' => ['required', 'date', 'after:today'],
         ]);
 
+        $newDueDate = \Carbon\Carbon::parse($validated['due_date']);
+
         $documentRequest->update([
             'status'   => DocumentRequestStatus::AwaitingUpload,
-            'due_date' => $validated['due_date'],
+            'due_date' => $newDueDate->toDateString(),
         ]);
+
+        // Keep the linked Deadline in sync. This triggers DeadlineObserver::updated()
+        // which updates the calendar event automatically.
+        $this->deadlineService->syncDocumentRequestExtension(
+            $documentRequest,
+            $newDueDate,
+            $request->user(),
+        );
 
         $this->updateConversationStatus(
             $documentRequest,
@@ -499,6 +545,38 @@ class DocumentRequestController extends Controller
         abort_unless(auth()->id() === $documentRequest->applicant_id, 403);
         abort_unless($documentRequest->canUpload(), 403, 'This request cannot accept uploads in its current status.');
 
+        // ── Deadline Enforcement ───────────────────────────────────────────────
+        // Resolve the session from the linked application (if present).
+        $sessionId = $documentRequest->application?->camp_session_id;
+
+        if ($sessionId) {
+            $enforcement = $this->deadlineService->resolveEnforcement(
+                'document_request',
+                $documentRequest->id,
+                $sessionId,
+            );
+
+            if ($enforcement['blocked']) {
+                // Hard enforcement: return HTTP 422 to block the upload entirely.
+                // Admins can unblock via POST /api/deadlines/{id}/complete or extend.
+                return response()->json([
+                    'message'    => 'Upload blocked: the deadline for this document has passed.',
+                    'blocked_by' => $enforcement['deadline'],
+                    'resolution' => 'Contact your session coordinator to request a deadline extension.',
+                ], 422);
+            }
+
+            // Soft enforcement: allow the upload but flag it as late.
+            // The response includes a warning the applicant and admin can see.
+            if ($enforcement['warned']) {
+                $lateWarning = [
+                    'submitted_late' => true,
+                    'deadline'       => $enforcement['deadline'],
+                    'message'        => 'This document was submitted after the deadline.',
+                ];
+            }
+        }
+
         $request->validate([
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
         ]);
@@ -549,7 +627,15 @@ class DocumentRequestController extends Controller
         }
 
         $documentRequest->load('requestedByAdmin', 'camper');
-        return response()->json($this->format($documentRequest, false));
+
+        $responseData = $this->format($documentRequest, false);
+
+        // Attach late-submission warning if the deadline was in soft mode and is overdue
+        if (! empty($lateWarning)) {
+            $responseData['warning'] = $lateWarning;
+        }
+
+        return response()->json($responseData);
     }
 
     /**

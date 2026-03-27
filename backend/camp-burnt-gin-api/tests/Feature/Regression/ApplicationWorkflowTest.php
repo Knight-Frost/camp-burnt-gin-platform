@@ -215,15 +215,34 @@ class ApplicationWorkflowTest extends TestCase
             'status' => ApplicationStatus::Pending,
         ]);
 
-        // Edit application
+        // Parents can edit narrative fields but NOT internal admin notes
         $response = $this->actingAs($parent)->putJson("/api/applications/{$application->id}", [
-            'notes' => 'Updated notes',
+            'narrative_camp_benefit' => 'Camp helps with socialisation.',
         ]);
 
         $response->assertStatus(200);
 
         $application->refresh();
-        $this->assertEquals('Updated notes', $application->notes);
+        $this->assertEquals('Camp helps with socialisation.', $application->narrative_camp_benefit);
+    }
+
+    public function test_parent_cannot_set_admin_notes(): void
+    {
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $application = Application::factory()->create([
+            'camper_id'  => $camper->id,
+            'status'     => ApplicationStatus::Pending,
+            'notes'      => 'Original admin note',
+        ]);
+
+        // The notes field is filtered out for non-admin roles — the original value must survive.
+        $this->actingAs($parent)->putJson("/api/applications/{$application->id}", [
+            'notes' => 'Parent trying to overwrite admin notes',
+        ]);
+
+        $application->refresh();
+        $this->assertEquals('Original admin note', $application->notes);
     }
 
     public function test_parent_cannot_edit_approved_application(): void
@@ -237,7 +256,7 @@ class ApplicationWorkflowTest extends TestCase
 
         // Try to edit approved application
         $response = $this->actingAs($parent)->putJson("/api/applications/{$application->id}", [
-            'notes' => 'Should not work',
+            'narrative_camp_benefit' => 'Should not work',
         ]);
 
         $response->assertStatus(403);

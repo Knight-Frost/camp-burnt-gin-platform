@@ -17,6 +17,7 @@
  */
 
 import { useState, useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Download, FileText, Users, CheckCircle, XCircle, Tag, TrendingUp } from 'lucide-react';
 import {
@@ -41,15 +42,6 @@ const CHART_COLORS = {
   waitlisted: '#ea580c',
 };
 
-// Drives the "Export Reports" button grid — one entry per downloadable report type.
-const EXPORT_REPORTS = [
-  { type: 'applications' as ReportType,   label: 'All Applications',   icon: FileText,   color: '#3b82f6' },
-  { type: 'accepted' as ReportType,       label: 'Accepted Only',      icon: CheckCircle, color: '#16a34a' },
-  { type: 'rejected' as ReportType,       label: 'Rejected Only',      icon: XCircle,    color: '#dc2626' },
-  { type: 'mailing-labels' as ReportType, label: 'Mailing Labels',     icon: Users,      color: '#16a34a' },
-  { type: 'id-labels' as ReportType,      label: 'ID Labels',          icon: Tag,        color: '#059669' },
-];
-
 // Reusable chart wrapper — applies consistent glass panel background and title styling.
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -63,10 +55,21 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
 }
 
 export function AdminReportsPage() {
+  const { t } = useTranslation();
+
   const [summary, setSummary]         = useState<ReportsSummary | null>(null);
   const [loading, setLoading]         = useState(true);
   // Tracks which report type is currently being downloaded (shows spinner on that button).
   const [downloading, setDownloading] = useState<ReportType | null>(null);
+
+  // Drives the "Export Reports" button grid — inside component so labels rebuild on language change.
+  const EXPORT_REPORTS = [
+    { type: 'applications' as ReportType,   label: 'All Applications',   icon: FileText,    color: '#3b82f6' },
+    { type: 'accepted' as ReportType,       label: 'Accepted Only',      icon: CheckCircle, color: '#16a34a' },
+    { type: 'rejected' as ReportType,       label: 'Rejected Only',      icon: XCircle,     color: '#dc2626' },
+    { type: 'mailing-labels' as ReportType, label: 'Mailing Labels',     icon: Users,       color: '#16a34a' },
+    { type: 'id-labels' as ReportType,      label: 'ID Labels',          icon: Tag,         color: '#059669' },
+  ];
 
   // ── Fetch summary on mount ─────────────────────────────────────────────────
   useEffect(() => {
@@ -154,10 +157,10 @@ export function AdminReportsPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Campers',  value: summary?.total_campers ?? 0, color: '#3b82f6' },
-            { label: 'Accepted', value: accepted,                    color: '#16a34a' },
-            { label: 'Rejected', value: rejected,                    color: '#dc2626' },
-            { label: 'Rate',     value: `${rate}%`,                  color: '#16a34a' },
+            { label: t('admin_extra.chart_campers'),  value: summary?.total_campers ?? 0, color: '#3b82f6' },
+            { label: t('admin_extra.chart_accepted'), value: accepted,                    color: '#16a34a' },
+            { label: t('admin_extra.chart_rejected'), value: rejected,                    color: '#dc2626' },
+            { label: t('admin_extra.chart_rate'),     value: `${rate}%`,                  color: '#16a34a' },
           ].map(({ label, value, color }) => (
             <div
               key={label}
@@ -179,7 +182,7 @@ export function AdminReportsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Applications by status — vertical bar chart */}
           <div>
-            <ChartCard title="Applications by Status">
+            <ChartCard title={t('admin_extra.chart_by_status')}>
               {statusCounts.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={statusCounts} barSize={36}>
@@ -198,14 +201,14 @@ export function AdminReportsPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No data yet.</p>
+                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_data')}</p>
               )}
             </ChartCard>
           </div>
 
           {/* Acceptance rate — donut chart with a legend on the right */}
           <div>
-            <ChartCard title="Acceptance Rate">
+            <ChartCard title={t('admin_extra.chart_acceptance_rate')}>
               {acceptancePieData.length > 0 ? (
                 <div className="flex items-center gap-4">
                   {/* innerRadius + outerRadius create the donut hole effect. */}
@@ -233,7 +236,7 @@ export function AdminReportsPage() {
                   <div className="flex flex-col gap-3">
                     <div className="text-center">
                       <p className="text-3xl font-headline font-bold" style={{ color: '#16a34a' }}>{rate}%</p>
-                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>acceptance rate</p>
+                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.acceptance_rate_label')}</p>
                     </div>
                     {acceptancePieData.map((d) => (
                       <div key={d.name} className="flex items-center gap-2">
@@ -244,14 +247,14 @@ export function AdminReportsPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No data yet.</p>
+                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_data')}</p>
               )}
             </ChartCard>
           </div>
 
           {/* Applications over time — line chart showing monthly submission trend */}
           <div>
-            <ChartCard title="Applications Over Time">
+            <ChartCard title={t('admin_extra.chart_over_time')}>
               {timelineData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={timelineData}>
@@ -272,14 +275,14 @@ export function AdminReportsPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No timeline data yet.</p>
+                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_data_timeline')}</p>
               )}
             </ChartCard>
           </div>
 
           {/* Enrollment per session — horizontal bar chart (layout="vertical") */}
           <div>
-            <ChartCard title="Enrollment per Session">
+            <ChartCard title={t('admin_extra.chart_enrollment')}>
               {sessionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   {/* layout="vertical" flips the chart so bars grow left-to-right. */}
@@ -296,7 +299,7 @@ export function AdminReportsPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No session data yet.</p>
+                <p className="text-sm text-center py-12" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.no_data_sessions')}</p>
               )}
             </ChartCard>
           </div>
@@ -308,7 +311,7 @@ export function AdminReportsPage() {
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
           <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
-            Export Reports
+            {t('admin_extra.export_reports')}
           </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -332,7 +335,7 @@ export function AdminReportsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{label}</p>
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Download CSV</p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.download_csv')}</p>
               </div>
               {/* Show a spinner on the button that is actively downloading. */}
               {downloading === type ? (

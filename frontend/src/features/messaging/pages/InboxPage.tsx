@@ -23,6 +23,7 @@
 import {
   useState, useEffect, useRef, type ElementType, type MouseEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Mail, Star, AlertCircle, Send, Archive, Trash2, Bot, Megaphone,
@@ -35,6 +36,7 @@ import {
   archiveConversation, unarchiveConversation,
   leaveConversation, deleteConversation,
   starConversation, markImportant, trashConversation, restoreConversation,
+  markConversationAsRead, markConversationAsUnread,
   type Conversation, type InboxFolder,
 } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
@@ -57,19 +59,6 @@ const LEFT_FOLDER_KEY   = 'inbox_active_folder';
 
 type FolderDef = { id: InboxFolder; label: string; icon: ElementType };
 type FolderItem = FolderDef | 'divider';
-
-const FOLDER_DEFS: FolderItem[] = [
-  { id: 'inbox',         label: 'Inbox',         icon: Mail          },
-  { id: 'starred',       label: 'Starred',       icon: Star          },
-  { id: 'important',     label: 'Important',     icon: AlertCircle   },
-  'divider',
-  { id: 'sent',          label: 'Sent',          icon: Send          },
-  { id: 'archive',       label: 'Archive',       icon: Archive       },
-  { id: 'trash',         label: 'Trash',         icon: Trash2        },
-  'divider',
-  { id: 'system',        label: 'System',        icon: Bot           },
-  { id: 'announcements', label: 'Announcements', icon: Megaphone     },
-];
 
 // ─── BulkButton helper ────────────────────────────────────────────────────────
 
@@ -103,6 +92,21 @@ function FolderNav({
   onFolderChange: (f: InboxFolder) => void;
   inboxUnread: number;
 }) {
+  const { t } = useTranslation();
+
+  const FOLDER_DEFS: FolderItem[] = [
+    { id: 'inbox',         label: t('messaging_extra.folder_inbox'),         icon: Mail          },
+    { id: 'starred',       label: t('messaging_extra.folder_starred'),       icon: Star          },
+    { id: 'important',     label: t('messaging_extra.folder_important'),     icon: AlertCircle   },
+    'divider',
+    { id: 'sent',          label: t('messaging_extra.folder_sent'),          icon: Send          },
+    { id: 'archive',       label: t('messaging_extra.folder_archive'),       icon: Archive       },
+    { id: 'trash',         label: t('messaging_extra.folder_trash'),         icon: Trash2        },
+    'divider',
+    { id: 'system',        label: t('messaging_extra.folder_system'),        icon: Bot           },
+    { id: 'announcements', label: t('messaging_extra.folder_announcements'), icon: Megaphone     },
+  ];
+
   return (
     <div
       className="flex flex-col border-r flex-shrink-0 transition-all duration-200"
@@ -131,7 +135,7 @@ function FolderNav({
         </button>
         {!collapsed && (
           <span className="ml-2 font-headline font-bold text-base truncate" style={{ color: 'var(--foreground)' }}>
-            Inbox
+            {t('messaging_extra.folder_inbox')}
           </span>
         )}
       </div>
@@ -200,6 +204,7 @@ function FolderNav({
 // ─── InboxPage ────────────────────────────────────────────────────────────────
 
 export function InboxPage() {
+  const { t } = useTranslation();
   const bootstrapReady = useBootstrapReady();
   const currentUserId  = useAppSelector((s) => s.auth.user?.id);
   const userRoleName   = useAppSelector((s) => {
@@ -313,9 +318,8 @@ export function InboxPage() {
         // Atomically swap: clear stale data and set new data in one batch
         setAnnouncements([]);
         setConversations(res.data);
-        if (folder === 'inbox') {
-          setInboxUnread((res.meta as { unread_count?: number }).unread_count ?? 0);
-        }
+        // Always update the unread badge — the API returns the total across all folders
+        setInboxUnread((res.meta as { unread_count?: number }).unread_count ?? 0);
       } catch {
         if (!isMine()) return;
         setConversations([]);
@@ -548,6 +552,46 @@ export function InboxPage() {
     setSelected(new Set());
   }
 
+  async function handleBulkMarkRead() {
+    const ids = [...selected];
+    setConversations((prev) =>
+      prev.map((c) => ids.includes(c.id) ? { ...c, unread_count: 0 } : c)
+    );
+    setSelected(new Set());
+    await Promise.all(ids.map((id) => markConversationAsRead(id))).catch(() => {
+      setRefreshKey((k) => k + 1);
+      toast.error('Failed to mark conversations as read.');
+    });
+  }
+
+  // ─── Row-level mark-read / mark-unread ────────────────────────────────────
+
+  async function handleMarkRead(id: number) {
+    // Optimistic: clear badge immediately
+    setConversations((prev) =>
+      prev.map((c) => c.id === id ? { ...c, unread_count: 0 } : c)
+    );
+    try {
+      await markConversationAsRead(id);
+    } catch {
+      setRefreshKey((k) => k + 1);
+      toast.error('Failed to mark as read.');
+    }
+  }
+
+  async function handleMarkUnread(id: number) {
+    // Optimistic: show as having 1 unread message
+    setConversations((prev) =>
+      prev.map((c) => c.id === id ? { ...c, unread_count: Math.max(c.unread_count, 1) } : c)
+    );
+    try {
+      await markConversationAsUnread(id);
+    } catch {
+      setRefreshKey((k) => k + 1);
+      toast.error('Failed to mark as unread.');
+    }
+  }
+
   // ─── Conversation navigation ───────────────────────────────────────────────
 
   function openConversation(conv: Conversation) {
@@ -655,7 +699,7 @@ export function InboxPage() {
               style={{ background: BRAND }}
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Compose</span>
+              <span className="hidden sm:inline">{t('messaging_extra.compose')}</span>
             </button>
           )}
         </div>
@@ -694,7 +738,7 @@ export function InboxPage() {
                   <X className="h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
                 </button>
                 <div className="flex items-center gap-0.5">
-                  <BulkButton icon={MailOpen}      title="Mark as read"  onClick={() => setSelected(new Set())} />
+                  <BulkButton icon={MailOpen}      title="Mark as read"  onClick={() => void handleBulkMarkRead()} />
                   <BulkButton icon={Star}           title="Star all"      onClick={() => void handleBulkStar()} />
                   {folder === 'trash'
                     ? <BulkButton icon={ArchiveRestore} title="Restore all"   onClick={() => void handleBulkRestore()} />
@@ -779,6 +823,8 @@ export function InboxPage() {
                     onDelete={handleDelete}
                     onRestore={folder === 'trash' ? handleRestoreFromTrash : undefined}
                     onMarkImportant={handleImportant}
+                    onMarkRead={handleMarkRead}
+                    onMarkUnread={handleMarkUnread}
                     onClick={openConversation}
                   />
                 ))}
@@ -820,7 +866,7 @@ export function InboxPage() {
                 style={{ background: BRAND }}
               >
                 <Plus className="h-3.5 w-3.5" />
-                Compose  (c)
+                {t('messaging_extra.compose')}  (c)
               </button>
             )}
           </div>
@@ -832,6 +878,7 @@ export function InboxPage() {
         <FloatingCompose
           onClose={() => setShowCompose(false)}
           onCreated={handleConvCreated}
+          isAdmin={isAdmin}
         />
       )}
     </div>

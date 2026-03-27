@@ -51,9 +51,8 @@ class MedicationPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper medication records
-            // so they can administer or verify medications correctly.
-            return true;
+            // Camp medical staff may access medication records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($medication->camper);
         }
 
         // A parent may view medication records only for their own child.
@@ -92,9 +91,8 @@ class MedicationPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update medication records during active care,
-            // for example to note a dosage change or record an administration time.
-            return true;
+            // Camp medical staff may update medication records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($medication->camper);
         }
 
         // Parent can update only their own child's medication record.

@@ -19,6 +19,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import {
   resetPasswordSchema,
@@ -31,6 +32,7 @@ import { AuthCard } from '@/features/auth/components/AuthCard';
 import { Button } from '@/ui/components/Button';
 
 export function ResetPasswordPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   // useSearchParams gives us read access to the URL query string (?token=...&email=...).
   const [searchParams] = useSearchParams();
@@ -54,8 +56,8 @@ export function ResetPasswordPage() {
   if (!token || !email) {
     return (
       <AuthCard
-        title="Invalid reset link"
-        subtitle="This password reset link is invalid or has expired."
+        title={t('auth_extra.invalid_link')}
+        subtitle={t('auth_extra.invalid_link_body')}
         footer={
           <Link to={ROUTES.FORGOT_PASSWORD} className="text-ember-orange hover:underline">
             Request a new reset link
@@ -72,7 +74,7 @@ export function ResetPasswordPage() {
     try {
       // Include token and email from the URL — the server needs them to validate the request.
       await resetPassword({ ...values, token, email });
-      toast.success('Password reset successfully. You can now sign in.');
+      toast.success(t('auth_extra.reset_success'));
       navigate(ROUTES.LOGIN);
     } catch (error) {
       // Map field-level server errors (e.g. "token has expired") back onto the form.
@@ -90,11 +92,11 @@ export function ResetPasswordPage() {
 
   return (
     <AuthCard
-      title="Set new password"
+      title={t('auth_extra.reset_password_title')}
       subtitle="Choose a strong password for your account."
       footer={
         <Link to={ROUTES.LOGIN} className="text-ember-orange hover:underline">
-          Back to sign in
+          {t('auth_extra.back_to_login')}
         </Link>
       }
     >
@@ -103,7 +105,7 @@ export function ResetPasswordPage() {
         {/* ── New password field ── */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="password" className="text-sm font-medium" style={{ color: 'var(--on-image-text)' }}>
-            New password
+            {t('auth_extra.reset_password_label')}
           </label>
           <div className="relative">
             <input
@@ -126,7 +128,7 @@ export function ResetPasswordPage() {
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
               style={{ color: 'var(--on-image-muted)' }}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ? t('auth_extra.hide_password') : t('auth_extra.show_password')}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -141,7 +143,7 @@ export function ResetPasswordPage() {
         {/* ── Confirm new password field ── */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="password_confirmation" className="text-sm font-medium" style={{ color: 'var(--on-image-text)' }}>
-            Confirm new password
+            {t('auth_extra.reset_confirm_label')}
           </label>
           <div className="relative">
             <input
@@ -161,7 +163,7 @@ export function ResetPasswordPage() {
               onClick={() => setShowConfirm((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
               style={{ color: 'var(--on-image-muted)' }}
-              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              aria-label={showConfirm ? t('auth_extra.hide_password') : t('auth_extra.show_password')}
             >
               {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -175,7 +177,7 @@ export function ResetPasswordPage() {
 
         {/* className="mt-2" gives a little breathing room above the button */}
         <Button type="submit" fullWidth loading={isSubmitting} className="mt-2">
-          Reset password
+          {t('auth_extra.reset_submit')}
         </Button>
       </form>
     </AuthCard>

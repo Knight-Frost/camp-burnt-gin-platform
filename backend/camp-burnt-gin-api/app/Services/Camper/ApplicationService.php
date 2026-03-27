@@ -4,6 +4,7 @@ namespace App\Services\Camper;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\AuditLog;
 use App\Models\MedicalRecord;
 use App\Models\User;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
@@ -11,39 +12,62 @@ use App\Services\Document\DocumentEnforcementService;
 use App\Services\System\LetterService;
 use App\Services\SystemNotificationService;
 use App\Traits\QueuesNotifications;
+use Illuminate\Support\Facades\DB;
 
 /**
  * ApplicationService — Camp Application Review Workflow
  *
- * This service coordinates everything that happens when an admin reviews a
- * camp application and changes its status (e.g. Pending → Approved, or → Rejected).
+ * This service is the single authoritative entry point for every admin-initiated
+ * status change on a camp application. It enforces the complete approval and
+ * reversal workflow, including camper activation/deactivation, medical record
+ * lifecycle management, audit logging, and notification dispatch.
  *
- * It sits between the ApplicationController and the various subsystems (documents,
- * letters, notifications) so the controller only needs one method call to trigger
- * the entire review workflow.
+ * Workflow summary:
  *
- * Responsibilities:
- *  - Enforce document compliance before non-admin users can approve
- *  - Guarantee a medical record exists for the camper before approval is finalised
- *  - Persist the new status, reviewer, and notes to the database
- *  - Send email + database notifications to the parent
- *  - Send a matching in-app system notification to the parent's inbox
- *  - Generate and email the appropriate acceptance or rejection letter
+ *   Approval (any state → Approved):
+ *     1. Validate the state transition.
+ *     2. Check session capacity.
+ *     3. Check document compliance.
+ *     4. Inside a DB transaction:
+ *          a. Update application status, reviewer, and timestamp.
+ *          b. Set camper.is_active = true.
+ *          c. Create the medical record if absent, then set is_active = true.
+ *          d. Write an audit log entry.
+ *     5. Post-commit: dispatch email notification, inbox message, acceptance letter.
  *
- * Connected services:
- *  - DocumentEnforcementService: checks that required documents are uploaded and verified
- *  - LetterService:              generates and sends acceptance/rejection letters
- *  - SystemNotificationService:  creates system-generated inbox messages for the parent
+ *   Reversal (Approved → Rejected or Cancelled):
+ *     1. Validate the state transition.
+ *     2. Inside a DB transaction:
+ *          a. Update application status, reviewer, and timestamp.
+ *          b. If no other approved application exists for the camper:
+ *               — Set camper.is_active = false.
+ *               — Set medical_record.is_active = false.
+ *          c. Write an audit log entry.
+ *     3. Post-commit: dispatch email notification, inbox message, rejection letter.
+ *
+ *   Other transitions (e.g. Pending → UnderReview, Waitlisted → Rejected):
+ *     1. Validate the state transition.
+ *     2. Inside a DB transaction:
+ *          a. Update application status, reviewer, and timestamp.
+ *          b. Write an audit log entry.
+ *     3. Post-commit: dispatch status-change notification.
+ *
+ * Transactional guarantee:
+ *   All database writes (application update, camper activation/deactivation,
+ *   medical record activation/deactivation, audit log) are wrapped in a single
+ *   DB::transaction(). If any write fails, all changes are rolled back and the
+ *   system remains in its previous consistent state. Notification dispatch occurs
+ *   only after the transaction has successfully committed.
+ *
+ * Non-duplication guarantee:
+ *   MedicalRecord::firstOrCreate() ensures only one medical record can exist per
+ *   camper, regardless of how many times approval is granted or reversed and
+ *   re-granted. Activation and deactivation are idempotent updates.
  */
 class ApplicationService
 {
-    // This trait provides the queueNotification() helper used for email notifications
     use QueuesNotifications;
 
-    /**
-     * Inject the three services this class depends on via constructor injection.
-     * Laravel's service container resolves and provides these automatically.
-     */
     public function __construct(
         protected DocumentEnforcementService $documentEnforcement,
         protected LetterService $letterService,
@@ -51,41 +75,52 @@ class ApplicationService
     ) {}
 
     /**
-     * Review an application: validate compliance, update status, and trigger all follow-up actions.
+     * Execute the full review workflow for a single application status change.
      *
-     * This is the single entry point for the entire application-review workflow.
-     * Calling this one method handles everything a reviewer needs to do.
+     * This method is the single entry point for all admin review actions.
+     * It validates, persists, activates/deactivates operational records, writes
+     * the audit log, and dispatches post-commit notifications.
      *
-     * Step-by-step flow:
-     *  1. (Non-admin only) Run document compliance check — block approval if documents are missing
-     *  2. Ensure the camper has a medical record (create one if missing)
-     *  3. Persist the new status, notes, reviewer, and timestamp
-     *  4. Send a status-change email notification to the parent
-     *  5. Send an in-app system notification to the parent's inbox
-     *  6. Send an acceptance or rejection letter if the status warrants one
-     *
-     * @param  Application        $application  The application being reviewed
-     * @param  ApplicationStatus  $newStatus    The status to change to (Approved, Rejected, etc.)
-     * @param  string|null        $notes        Optional reviewer notes attached to the record
-     * @param  User               $reviewedBy   The admin or super-admin performing the review
-     * @return array{success: bool, compliance_details?: array}
+     * @param  Application        $application       The application being reviewed.
+     * @param  ApplicationStatus  $newStatus         The target status.
+     * @param  string|null        $notes             Optional reviewer notes.
+     * @param  User               $reviewedBy        The admin performing the review.
+     * @param  bool               $overrideIncomplete True when admin explicitly approved despite missing data.
+     * @param  array              $missingSummary     Structured list of what was missing at approval time.
+     * @return array{success: bool, invalid_transition?: bool, capacity_exceeded?: bool, compliance_details?: array}
      */
     public function reviewApplication(
         Application $application,
         ApplicationStatus $newStatus,
         ?string $notes,
-        User $reviewedBy
+        User $reviewedBy,
+        bool $overrideIncomplete = false,
+        array $missingSummary = [],
     ): array {
-        // Capture the current status before we change it (used in the notification later)
-        $previousStatus = $application->status->value;
+        // Capture the current status before any mutation occurs.
+        $previousStatus = $application->status;
 
-        // ── Step 0: Capacity gate ─────────────────────────────────────────────────
-        // Block approval when the session is already at or over capacity.
-        // This is checked before the document compliance gate so admins see the most
-        // actionable error first (capacity is a session-level constraint; document
-        // compliance is per-camper and can be resolved without admin intervention).
+        // ── State transition validation ───────────────────────────────────────
+        // Enforce the authoritative transition table defined in ApplicationStatus.
+        // An invalid transition is rejected immediately before any I/O.
+        if (! $previousStatus->canTransitionTo($newStatus)) {
+            return [
+                'success'            => false,
+                'invalid_transition' => true,
+            ];
+        }
+
+        // Load relationships needed for both pre-flight checks and post-commit
+        // side effects. Loading here (before the transaction) avoids triggering
+        // lazy loads inside the atomic block.
+        $application->loadMissing('camper.user', 'campSession');
+
+        // ── Approval pre-flight checks (outside the transaction) ─────────────
+        // These checks are read-only and do not modify state. Running them before
+        // the transaction keeps the transaction scope as narrow as possible.
         if ($newStatus === ApplicationStatus::Approved) {
-            $application->loadMissing('campSession');
+
+            // Step 0: Capacity gate — block approval when the session is full.
             if ($application->campSession && $application->campSession->isAtCapacity()) {
                 return [
                     'success'           => false,
@@ -95,63 +130,133 @@ class ApplicationService
                     'enrolled'          => $application->campSession->enrolled_count,
                 ];
             }
-        }
 
-        // ── Step 1: Document compliance gate ────────────────────────────────────
-        // CRITICAL SAFETY CHECK: All reviewers (including admins) are blocked if documents
-        // are missing, expired, or unverified. This enforces medical compliance before approval.
-        if ($newStatus === ApplicationStatus::Approved) {
-            // Load the camper relationship if it hasn't been loaded yet
-            $application->loadMissing('camper');
-            $compliance = $this->documentEnforcement->checkCompliance($application->camper);
-
-            // If required documents are missing, expired, or unverified — block the approval
-            if (! $compliance['is_compliant']) {
-                return [
-                    'success' => false,
-                    'compliance_details' => [
-                        'missing_documents' => $compliance['missing_documents'],
-                        'expired_documents' => $compliance['expired_documents'],
-                        'unverified_documents' => $compliance['unverified_documents'],
-                    ],
-                ];
+            // Step 1: Document compliance gate.
+            // When the admin has NOT overridden the completeness warning, enforce compliance
+            // as a hard block. When $overrideIncomplete is true, the admin has already seen
+            // and acknowledged the missing data via the warning modal — proceed regardless.
+            if (! $overrideIncomplete) {
+                $compliance = $this->documentEnforcement->checkCompliance($application->camper);
+                if (! $compliance['is_compliant']) {
+                    return [
+                        'success'            => false,
+                        'compliance_details' => [
+                            'missing_documents'    => $compliance['missing_documents'],
+                            'expired_documents'    => $compliance['expired_documents'],
+                            'unverified_documents' => $compliance['unverified_documents'],
+                        ],
+                    ];
+                }
             }
         }
 
-        // ── Step 2: Create the medical record at the moment of approval ─────────
-        // This is the sole point in the system where a medical record is created.
-        // Submitting an application intentionally does NOT create a medical record —
-        // the record must only exist for campers whose application has been accepted.
-        // firstOrCreate is used so retried approvals remain idempotent.
-        if ($newStatus === ApplicationStatus::Approved) {
-            $application->loadMissing('camper');
-            MedicalRecord::firstOrCreate(
-                ['camper_id' => $application->camper->id],
+        // ── Atomic database mutations ─────────────────────────────────────────
+        // All writes are wrapped in a single transaction. If any step fails, the
+        // entire block is rolled back and the system remains in its prior state.
+        DB::transaction(function () use ($application, $newStatus, $notes, $reviewedBy, $previousStatus, $overrideIncomplete, $missingSummary) {
+
+            // Step 2: Persist the review decision.
+            $updateData = [
+                'status'      => $newStatus,
+                'notes'       => $notes,
+                'reviewed_at' => now(),
+                'reviewed_by' => $reviewedBy->id,
+            ];
+
+            // Flag the application when it was approved despite known missing data.
+            // This flag persists so future admins can see the application was incomplete at approval.
+            if ($overrideIncomplete && $newStatus === ApplicationStatus::Approved) {
+                $updateData['is_incomplete_at_approval'] = true;
+            }
+
+            $application->update($updateData);
+
+            // Step 3: Approval path — activate camper and medical record.
+            if ($newStatus === ApplicationStatus::Approved) {
+                // Mark the camper as operationally active.
+                $application->camper->update(['is_active' => true]);
+
+                // Create the medical record if it does not exist (first approval),
+                // then ensure it is active. firstOrCreate is idempotent across
+                // repeated approve → reverse → approve cycles.
+                $medicalRecord = MedicalRecord::firstOrCreate(
+                    ['camper_id' => $application->camper_id]
+                );
+                $medicalRecord->update(['is_active' => true]);
+            }
+
+            // Step 4: Reversal path — conditionally deactivate camper and medical record.
+            // A reversal occurs when a previously approved application is moved to
+            // rejected or cancelled. Deactivation only applies when the camper has
+            // no other currently approved application for a different session.
+            $isReversal = $previousStatus === ApplicationStatus::Approved
+                && in_array($newStatus, [ApplicationStatus::Rejected, ApplicationStatus::Cancelled]);
+
+            if ($isReversal) {
+                $hasOtherApprovedApplication = Application::where('camper_id', $application->camper_id)
+                    ->where('id', '!=', $application->id)
+                    ->where('status', ApplicationStatus::Approved->value)
+                    ->exists();
+
+                if (! $hasOtherApprovedApplication) {
+                    // No other approved enrollment — remove the camper from operational views.
+                    $application->camper->update(['is_active' => false]);
+
+                    // Deactivate the associated medical record without deleting it.
+                    // The record is retained for HIPAA audit and record-retention compliance.
+                    MedicalRecord::where('camper_id', $application->camper_id)
+                        ->update(['is_active' => false]);
+                }
+            }
+
+            // Step 5: Write an immutable audit log entry for this review action.
+            // When the admin overrode the completeness warning, the action key and
+            // description make this explicit, and the missing_at_approval metadata
+            // records exactly what was missing so it is never silently lost.
+            $auditMetadata = [
+                'application_id'  => $application->id,
+                'camper_id'       => $application->camper_id,
+                'previous_status' => $previousStatus->value,
+                'new_status'      => $newStatus->value,
+                'notes'           => $notes,
+            ];
+
+            if ($overrideIncomplete && ! empty($missingSummary)) {
+                $auditMetadata['forced_approval_with_missing'] = true;
+                $auditMetadata['missing_at_approval']          = $missingSummary;
+            }
+
+            $auditAction = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
+                ? 'application.approved.override'
+                : "application.{$newStatus->value}";
+
+            $auditDescription = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
+                ? "Application #{$application->id} FORCE APPROVED with missing data by admin #{$reviewedBy->id}. "
+                  . "Previous status: {$previousStatus->value}."
+                : "Application #{$application->id} status changed from {$previousStatus->value} to {$newStatus->value}.";
+
+            AuditLog::logAdminAction(
+                action:      $auditAction,
+                user:        $reviewedBy,
+                description: $auditDescription,
+                metadata:    $auditMetadata,
             );
-        }
+        });
 
-        // ── Step 3: Persist the review decision to the database ──────────────────
-        $application->update([
-            'status' => $newStatus,
-            'notes' => $notes,
-            'reviewed_at' => now(),
-            'reviewed_by' => $reviewedBy->id,
-        ]);
+        // ── Post-commit side effects ──────────────────────────────────────────
+        // Notifications and letters are dispatched only after the transaction has
+        // committed successfully. If the transaction were to roll back, these
+        // would not execute.
+        $parentUser = $application->camper->user;
+        $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
 
-        // ── Step 4: Email notification to the parent ─────────────────────────────
-        // Load the parent user and camper name for use in notifications and letters
-        $application->loadMissing('camper.user');
-        $parentUser  = $application->camper->user;
-        $camperName  = $application->camper->first_name . ' ' . $application->camper->last_name;
-
-        // queueNotification() (from QueuesNotifications trait) sends the email after the response
+        // Queue the status-change email notification to the parent.
         $this->queueNotification(
             $parentUser,
-            new ApplicationStatusChangedNotification($application, $previousStatus)
+            new ApplicationStatusChangedNotification($application, $previousStatus->value)
         );
 
-        // ── Step 5: In-app inbox notification ───────────────────────────────────
-        // Use match to call the most specific notification method based on the new status
+        // Dispatch the most specific in-app inbox message for the new status.
         match ($newStatus) {
             ApplicationStatus::Approved => $this->systemNotifications->applicationApproved(
                 $parentUser, $application->id, $camperName
@@ -159,19 +264,114 @@ class ApplicationService
             ApplicationStatus::Rejected => $this->systemNotifications->applicationRejected(
                 $parentUser, $application->id, $camperName, $notes
             ),
-            // For any other status use the generic change notification
             default => $this->systemNotifications->applicationStatusChanged(
                 $parentUser, $application->id, $camperName, $newStatus->value
             ),
         };
 
-        // ── Step 6: Send the formal decision letter ──────────────────────────────
-        // Note: we read $application->status (the freshly updated enum value) here
-        if ($application->status === ApplicationStatus::Approved) {
+        // Send the formal decision letter for approval and rejection decisions.
+        if ($newStatus === ApplicationStatus::Approved) {
             $this->letterService->sendAcceptanceLetter($application);
-        } elseif ($application->status === ApplicationStatus::Rejected) {
+        } elseif ($newStatus === ApplicationStatus::Rejected) {
             $this->letterService->sendRejectionLetter($application);
         }
+
+        return ['success' => true];
+    }
+
+    /**
+     * Clone an existing application into a new draft for reapplication.
+     *
+     * Creates a new draft Application that references the same camper and
+     * records the source application's ID in reapplied_from_id. The clone
+     * starts with no session (the parent must select one), no status data,
+     * and no signature — it is a blank draft tied to the same camper.
+     *
+     * The camper's existing medical, behavioral, and equipment data is already
+     * on file; the parent reviews and submits the new application as a fresh
+     * cycle for a new camp session.
+     *
+     * @param  Application  $source      The application being reapplied from.
+     * @param  User         $requestedBy The parent initiating the reapplication.
+     * @return Application  The new draft application.
+     */
+    public function cloneApplication(Application $source, User $requestedBy): Application
+    {
+        return DB::transaction(function () use ($source) {
+            return Application::create([
+                'camper_id'          => $source->camper_id,
+                'reapplied_from_id'  => $source->id,
+                'status'             => \App\Enums\ApplicationStatus::Pending,
+                'is_draft'           => true,
+                'form_definition_id' => \App\Models\FormDefinition::where('status', 'active')->value('id'),
+            ]);
+        });
+    }
+
+    /**
+     * Execute a parent-initiated application withdrawal.
+     *
+     * This method is the entry point for all parent withdrawal actions. It sets the
+     * application status to Withdrawn, conditionally deactivates the camper and medical
+     * record if the application was previously approved, writes an audit log entry,
+     * and dispatches post-commit notifications.
+     *
+     * Deactivation follows the same multi-session safety rule as admin reversal: the
+     * camper is only deactivated when no other approved application exists for them.
+     *
+     * @param  Application  $application  The application being withdrawn.
+     * @param  User         $withdrawnBy  The parent performing the withdrawal.
+     * @return array{success: bool}
+     */
+    public function withdrawApplication(Application $application, User $withdrawnBy): array
+    {
+        $previousStatus = $application->status;
+
+        $application->loadMissing('camper.user', 'campSession');
+
+        DB::transaction(function () use ($application, $previousStatus, $withdrawnBy) {
+
+            $application->update([
+                'status' => ApplicationStatus::Withdrawn,
+            ]);
+
+            // If the application was approved, apply the same conditional deactivation
+            // logic as admin reversal — only deactivate if no other session is active.
+            if ($previousStatus === ApplicationStatus::Approved) {
+                $hasOtherApprovedApplication = Application::where('camper_id', $application->camper_id)
+                    ->where('id', '!=', $application->id)
+                    ->where('status', ApplicationStatus::Approved->value)
+                    ->exists();
+
+                if (! $hasOtherApprovedApplication) {
+                    $application->camper->update(['is_active' => false]);
+
+                    MedicalRecord::where('camper_id', $application->camper_id)
+                        ->update(['is_active' => false]);
+                }
+            }
+
+            AuditLog::logAdminAction(
+                action:      'application.withdrawn',
+                user:        $withdrawnBy,
+                description: "Application #{$application->id} withdrawn by parent "
+                             . "(user #{$withdrawnBy->id}). Previous status: {$previousStatus->value}.",
+                metadata:    [
+                    'application_id'  => $application->id,
+                    'camper_id'       => $application->camper_id,
+                    'previous_status' => $previousStatus->value,
+                    'new_status'      => ApplicationStatus::Withdrawn->value,
+                ]
+            );
+        });
+
+        $parentUser = $application->camper->user;
+        $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+
+        // Confirm the withdrawal to the parent via in-app inbox.
+        $this->systemNotifications->applicationStatusChanged(
+            $parentUser, $application->id, $camperName, ApplicationStatus::Withdrawn->value
+        );
 
         return ['success' => true];
     }

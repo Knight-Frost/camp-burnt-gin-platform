@@ -4,8 +4,32 @@
  */
 
 export interface ApplicationReviewPayload {
-  status: 'approved' | 'rejected' | 'under_review' | 'waitlisted';
+  // Valid admin review statuses. 'pending' and 'withdrawn' are excluded:
+  // — 'pending' is only an initial state, never set by admin review action.
+  // — 'withdrawn' is parent-initiated only, via the separate /withdraw endpoint.
+  status: 'approved' | 'rejected' | 'under_review' | 'waitlisted' | 'cancelled';
   notes?: string;
+  // Set when the admin explicitly chose "Approve Anyway" after seeing the missing-data modal.
+  override_incomplete?: boolean;
+  // Snapshot of what was missing, sent back to the backend so it can be audit-logged.
+  missing_summary?: {
+    missing_fields: CompletenessItem[];
+    missing_documents: CompletenessItem[];
+    missing_consents: CompletenessItem[];
+  };
+}
+
+export interface CompletenessItem {
+  key: string;
+  label: string;
+  severity: 'high' | 'medium';
+}
+
+export interface ApplicationCompleteness {
+  is_complete: boolean;
+  missing_fields: CompletenessItem[];
+  missing_documents: CompletenessItem[];
+  missing_consents: CompletenessItem[];
 }
 
 export interface Camp {
@@ -42,8 +66,33 @@ export interface Application {
   id: number;
   camper_id: number;
   camp_session_id: number;
-  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn' | 'draft';
+  // 'draft' is not a status value — it is represented by the is_draft boolean.
+  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn';
+  is_draft?: boolean;
+  // True when an admin overrode the completeness warning and approved with known gaps.
+  is_incomplete_at_approval?: boolean;
+  // Set when this application was created by cloning a prior one (reapplication flow).
+  reapplied_from_id?: number | null;
+  /** Human-readable public identifier (e.g. "CBG-2026-042"). Use this in all UI display instead of id. */
+  application_number?: string;
+  /** Queue position within the session — only populated on single-record detail fetches. */
+  queue_position?: { position: number; total: number } | null;
+  /** FIFO queue rank within the current list view — injected by the list endpoint, null for drafts. */
+  queue_rank?: number | null;
   notes?: string;
+  // Application meta fields (set at submission time)
+  first_application?: boolean;
+  attended_before?: boolean;
+  camp_session_id_second?: number | null;
+  // Narrative fields — completed by applicant, editable by admins at any time.
+  narrative_rustic_environment?: string | null;
+  narrative_staff_suggestions?: string | null;
+  narrative_participation_concerns?: string | null;
+  narrative_camp_benefit?: string | null;
+  narrative_heat_tolerance?: string | null;
+  narrative_transportation?: string | null;
+  narrative_additional_info?: string | null;
+  narrative_emergency_protocols?: string | null;
   submitted_at?: string;
   reviewed_at?: string;
   reviewer_id?: number;
@@ -54,6 +103,17 @@ export interface Application {
   camper?: Camper;
   session?: CampSession;
   documents?: Document[];
+  consents?: ApplicationConsent[];
+}
+
+export interface ApplicationConsent {
+  id: number;
+  application_id: number;
+  consent_type: 'general' | 'photos' | 'liability' | 'activity' | 'authorization' | 'medication' | 'hipaa';
+  guardian_name: string;
+  guardian_relationship: string;
+  signed_at: string;
+  consent_given: boolean;
 }
 
 export interface Camper {
@@ -65,25 +125,39 @@ export interface Camper {
   date_of_birth: string;
   gender?: string;
   tshirt_size?: string;
+  is_active?: boolean;
+  // Phase 2 camper fields
+  preferred_name?: string;
+  county?: string;
+  needs_interpreter?: boolean;
+  preferred_language?: string;
   created_at: string;
   user?: { id: number; name: string; email: string };
   medical_record?: MedicalRecord;
   emergency_contacts?: EmergencyContact[];
   behavioral_profile?: BehavioralProfile;
   feeding_plan?: FeedingPlan;
+  personal_care_plan?: PersonalCarePlan;
   assistive_devices?: AssistiveDevice[];
   activity_permissions?: ActivityPermission[];
+  medications?: Medication[];
+  diagnoses?: Diagnosis[];
+  allergies?: Allergy[];
   applications?: Application[];
 }
 
 export interface MedicalRecord {
   id: number;
   camper_id: number;
+  is_active?: boolean;
   primary_diagnosis?: string;
   physician_name?: string;
   physician_phone?: string;
+  physician_address?: string;
   insurance_provider?: string;
   insurance_policy_number?: string;
+  insurance_group?: string;
+  medicaid_number?: string;
   special_needs?: string;
   dietary_restrictions?: string;
   notes?: string;
@@ -91,14 +165,49 @@ export interface MedicalRecord {
   last_seizure_date?: string;
   seizure_description?: string;
   has_neurostimulator?: boolean;
+  date_of_medical_exam?: string;
+  // Phase 2 extended health fields
+  immunizations_current?: boolean;
+  tetanus_date?: string;
+  mobility_notes?: string;
+  has_contagious_illness?: boolean;
+  contagious_illness_description?: string;
+  tubes_in_ears?: boolean;
+  has_recent_illness?: boolean;
+  recent_illness_description?: string;
   allergies?: Allergy[];
   medications?: Medication[];
   diagnoses?: Diagnosis[];
 }
 
+export interface PersonalCarePlan {
+  id: number;
+  camper_id: number;
+  bathing_level?: string;
+  bathing_notes?: string;
+  toileting_level?: string;
+  toileting_notes?: string;
+  nighttime_toileting?: boolean;
+  nighttime_notes?: string;
+  dressing_level?: string;
+  dressing_notes?: string;
+  oral_hygiene_level?: string;
+  oral_hygiene_notes?: string;
+  positioning_notes?: string;
+  sleep_notes?: string;
+  falling_asleep_issues?: boolean;
+  sleep_walking?: boolean;
+  night_wandering?: boolean;
+  bowel_control_notes?: string;
+  irregular_bowel?: boolean;
+  irregular_bowel_notes?: string;
+  urinary_catheter?: boolean;
+  menstruation_support?: boolean;
+}
+
 export interface Allergy {
   id: number;
-  name: string;
+  allergen: string;
   severity: 'mild' | 'moderate' | 'severe' | 'life-threatening';
   reaction?: string;
   treatment?: string;
@@ -111,6 +220,7 @@ export interface Medication {
   frequency: string;
   route?: string;
   purpose?: string;
+  prescribing_physician?: string;
   notes?: string;
 }
 
@@ -123,17 +233,63 @@ export interface Diagnosis {
 
 export interface BehavioralProfile {
   id: number;
+  camper_id?: number;
   triggers?: string;
   de_escalation_strategies?: string;
   communication_style?: string;
   notes?: string;
+  // Core functional ability flags
+  aggression?: boolean;
+  aggression_description?: string;
+  self_abuse?: boolean;
+  self_abuse_description?: string;
+  wandering_risk?: boolean;
+  wandering_description?: string;
+  one_to_one_supervision?: boolean;
+  one_to_one_description?: string;
+  developmental_delay?: boolean;
+  functioning_age_level?: string;
+  functional_reading?: boolean;
+  functional_writing?: boolean;
+  independent_mobility?: boolean;
+  verbal_communication?: boolean;
+  social_skills?: boolean;
+  behavior_plan?: boolean;
+  communication_methods?: string[];
+  // Phase 2 extended behavioral flags
+  sexual_behaviors?: boolean;
+  sexual_behaviors_description?: string;
+  interpersonal_behavior?: boolean;
+  interpersonal_behavior_description?: string;
+  social_emotional?: boolean;
+  social_emotional_description?: string;
+  follows_instructions?: boolean;
+  follows_instructions_description?: string;
+  group_participation?: boolean;
+  group_participation_description?: string;
+  attends_school?: boolean;
+  classroom_type?: string;
 }
 
 export interface FeedingPlan {
   id: number;
-  method: string;
+  camper_id?: number;
+  method?: string;
   restrictions?: string;
   notes?: string;
+  // Phase 2 feeding fields
+  special_diet?: boolean;
+  diet_description?: string;
+  texture_modified?: boolean;
+  texture_level?: string;
+  fluid_restriction?: boolean;
+  fluid_details?: string;
+  g_tube?: boolean;
+  formula?: string;
+  amount_per_feeding?: string;
+  feedings_per_day?: number;
+  feeding_times?: string[];
+  bolus_only?: boolean;
 }
 
 export interface AssistiveDevice {
@@ -160,6 +316,15 @@ export interface EmergencyContact {
   email?: string;
   is_primary?: boolean;
   is_authorized_pickup?: boolean;
+  // Phase 2 guardian fields
+  is_guardian?: boolean;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  phone_work?: string;
+  primary_language?: string;
+  interpreter_needed?: boolean;
 }
 
 export interface Document {
@@ -264,9 +429,28 @@ export interface FamilyCard {
   application_statuses: Application['status'][];
 }
 
+export interface FamiliesSummary {
+  total_families: number;
+  total_campers: number;
+  active_applications: number;
+  multi_camper_families: number;
+}
+
+export interface FamiliesResponse {
+  data: FamilyCard[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+  summary: FamiliesSummary;
+}
+
 export interface FamilyWorkspaceApplication {
   id: number;
   status: Application['status'];
+  is_draft?: boolean;
   submitted_at?: string | null;
   reviewed_at?: string | null;
   created_at: string;
@@ -331,6 +515,12 @@ export interface SessionDashboardStats {
     waitlisted: number;
     cancelled: number;
     acceptance_rate: number;
+  };
+  family_stats: {
+    registered_families: number;
+    registered_campers: number;
+    active_applications: number;
+    multi_camper_families: number;
   };
   recent_applications: Array<{
     id: number;

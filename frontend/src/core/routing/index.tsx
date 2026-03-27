@@ -61,7 +61,9 @@ const ApplicantDocumentsPage       = withSuspense(lazy(() => import('@/features/
 const ApplicantDashboardPage       = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantDashboardPage').then(m => ({ default: m.ApplicantDashboardPage }))));
 const ApplicantApplicationsPage    = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantApplicationsPage').then(m => ({ default: m.ApplicantApplicationsPage }))));
 const ApplicationFormPage          = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationFormPage').then(m => ({ default: m.ApplicationFormPage }))));
+const ApplicationStartPage         = withSuspense(lazy(() => import('@/features/parent/pages/ApplicationStartPage').then(m => ({ default: m.ApplicationStartPage }))));
 const ApplicantApplicationDetailPage = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantApplicationDetailPage').then(m => ({ default: m.ApplicantApplicationDetailPage }))));
+const ApplicantOfficialFormsPage   = withSuspense(lazy(() => import('@/features/parent/pages/ApplicantOfficialFormsPage').then(m => ({ default: m.ApplicantOfficialFormsPage }))));
 const ParentCalendarPage           = withSuspense(lazy(() => import('@/features/parent/pages/ParentCalendarPage').then(m => ({ default: m.ParentCalendarPage }))));
 const ParentAnnouncementsPage      = withSuspense(lazy(() => import('@/features/parent/pages/ParentAnnouncementsPage').then(m => ({ default: m.ParentAnnouncementsPage }))));
 
@@ -76,11 +78,13 @@ const AdminCampersPage           = withSuspense(lazy(() => import('@/features/ad
 const CamperDetailPage           = withSuspense(lazy(() => import('@/features/admin/pages/CamperDetailPage').then(m => ({ default: m.CamperDetailPage }))));
 const AdminSessionsPage          = withSuspense(lazy(() => import('@/features/admin/pages/AdminSessionsPage').then(m => ({ default: m.AdminSessionsPage }))));
 const ArchivedSessionsPage       = withSuspense(lazy(() => import('@/features/admin/pages/ArchivedSessionsPage').then(m => ({ default: m.ArchivedSessionsPage }))));
+const AdminApplicationEditPage   = withSuspense(lazy(() => import('@/features/admin/pages/AdminApplicationEditPage').then(m => ({ default: m.AdminApplicationEditPage }))));
 const SessionDetailPage          = withSuspense(lazy(() => import('@/features/admin/pages/SessionDetailPage').then(m => ({ default: m.SessionDetailPage }))));
 const AdminReportsPage           = withSuspense(lazy(() => import('@/features/admin/pages/AdminReportsPage').then(m => ({ default: m.AdminReportsPage }))));
 const AdminAnnouncementsPage     = withSuspense(lazy(() => import('@/features/admin/pages/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage }))));
 const AdminCalendarPage          = withSuspense(lazy(() => import('@/features/admin/pages/AdminCalendarPage').then(m => ({ default: m.AdminCalendarPage }))));
 const AdminDocumentsPage         = withSuspense(lazy(() => import('@/features/admin/pages/AdminDocumentsPage').then(m => ({ default: m.AdminDocumentsPage }))));
+const AdminDeadlinesPage         = withSuspense(lazy(() => import('@/features/admin/pages/AdminDeadlinesPage').then(m => ({ default: m.AdminDeadlinesPage }))));
 
 // ─── Medical pages ────────────────────────────────────────────────────────────
 // Medical staff have their own portal with HIPAA-protected camper health data
@@ -177,10 +181,12 @@ export const router = createBrowserRouter([
           { path: '/applicant',                     element: <Navigate to="/applicant/dashboard" replace /> },
           { path: '/applicant/dashboard',           element: <ApplicantDashboardPage /> },
           { path: '/applicant/applications',        element: <ApplicantApplicationsPage /> },
+          { path: '/applicant/applications/start',  element: <ApplicationStartPage /> },
           { path: '/applicant/applications/new',    element: <ApplicationFormPage /> },
           // :id is a URL parameter — React Router fills it in from the actual URL
           { path: '/applicant/applications/:id',    element: <ApplicantApplicationDetailPage /> },
           { path: '/applicant/documents',           element: <ApplicantDocumentsPage /> },
+          { path: '/applicant/forms',               element: <ApplicantOfficialFormsPage /> },
           { path: '/applicant/announcements',       element: <ParentAnnouncementsPage /> },
           { path: '/applicant/calendar',            element: <ParentCalendarPage /> },
           { path: '/applicant/inbox',               element: <InboxPage /> },
@@ -203,7 +209,8 @@ export const router = createBrowserRouter([
           { path: '/admin',                     element: <Navigate to="/admin/dashboard" replace /> },
           { path: '/admin/dashboard',           element: <AdminDashboardPage /> },
           { path: '/admin/applications',        element: <AdminApplicationsPage /> },
-          { path: '/admin/applications/:id',    element: <ApplicationReviewPage /> },
+          { path: '/admin/applications/:id',      element: <ApplicationReviewPage /> },
+          { path: '/admin/applications/:id/edit', element: <AdminApplicationEditPage /> },
           // Family management — 3-level IA
           { path: '/admin/families',            element: <AdminFamiliesPage /> },
           { path: '/admin/families/:userId',    element: <AdminFamilyWorkspacePage /> },
@@ -216,14 +223,10 @@ export const router = createBrowserRouter([
           { path: '/admin/announcements',       element: <AdminAnnouncementsPage /> },
           { path: '/admin/calendar',            element: <AdminCalendarPage /> },
           { path: '/admin/documents',           element: <AdminDocumentsPage /> },
+          { path: '/admin/deadlines',           element: <AdminDeadlinesPage /> },
           { path: '/admin/inbox',               element: <InboxPage /> },
           { path: '/admin/profile',             element: <ProfilePage /> },
           { path: '/admin/settings',            element: <SettingsPage /> },
-          // Governance pages — accessible by both admin and super_admin
-          { path: '/admin/users',               element: <UserManagementPage /> },
-          { path: '/admin/audit',               element: <AuditLogPage /> },
-          { path: '/admin/form-builder',        element: <FormDashboardPage /> },
-          { path: '/admin/form-builder/:formId', element: <FormEditorPage /> },
         ],
       }],
     }],
@@ -285,7 +288,8 @@ export const router = createBrowserRouter([
           { path: '/super-admin/form-builder/:formId', element: <FormEditorPage /> },
           // Shared admin pages also mounted under super-admin prefix
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
-          { path: '/super-admin/applications/:id',     element: <ApplicationReviewPage /> },
+          { path: '/super-admin/applications/:id',          element: <ApplicationReviewPage /> },
+          { path: '/super-admin/applications/:id/edit',      element: <AdminApplicationEditPage /> },
           // Family management — 3-level IA (mirrored from admin portal)
           { path: '/super-admin/families',             element: <AdminFamiliesPage /> },
           { path: '/super-admin/families/:userId',     element: <AdminFamilyWorkspacePage /> },

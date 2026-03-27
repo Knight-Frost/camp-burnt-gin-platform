@@ -49,9 +49,9 @@ class MedicalRecordPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper medical records.
-            // They need this to provide care during the camp session.
-            return true;
+            // Camp medical staff may access medical records only for active (approved) campers.
+            // Records for unapproved or rejected applicants are off-limits.
+            return $user->canAccessCamperAsMedical($medicalRecord->camper);
         }
 
         // A parent may view the medical record only for their own child.
@@ -90,8 +90,8 @@ class MedicalRecordPolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update camper medical records during active care.
-            return true;
+            // Camp medical staff may update medical records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($medicalRecord->camper);
         }
 
         // Parent can update only their own child's medical record.

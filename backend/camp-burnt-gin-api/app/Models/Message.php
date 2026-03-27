@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 /**
  * Message model — a single message posted inside a Conversation thread.
@@ -35,10 +36,12 @@ class Message extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'conversation_id', // FK — which conversation this message belongs to.
-        'sender_id',       // FK — the User who sent it; null for system messages.
-        'body',            // The message text.
-        'idempotency_key', // Unique client-generated key to prevent duplicate sends on retry.
+        'conversation_id',  // FK — which conversation this message belongs to.
+        'sender_id',        // FK — the User who sent it; null for system messages.
+        'body',             // The message text.
+        'idempotency_key',  // Unique client-generated key to prevent duplicate sends on retry.
+        'parent_message_id', // FK — the message this is replying to (null for root messages).
+        'reply_type',       // 'reply' | 'reply_all' | null — how this message was sent.
     ];
 
     /**
@@ -68,6 +71,35 @@ class Message extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(Document::class, 'message_id');
+    }
+
+    /**
+     * Get all TO/CC/BCC recipient records for this message.
+     *
+     * WARNING: Do NOT expose this relation directly in API responses — BCC recipients
+     * are included and must be filtered through getRecipientsForUser() before serializing.
+     */
+    public function recipients(): HasMany
+    {
+        return $this->hasMany(MessageRecipient::class);
+    }
+
+    /**
+     * Get the parent message that this message is replying to.
+     *
+     * Returns null for root messages (new conversations) or when the parent was deleted.
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'parent_message_id');
+    }
+
+    /**
+     * Get all direct replies to this message.
+     */
+    public function replies(): HasMany
+    {
+        return $this->hasMany(Message::class, 'parent_message_id');
     }
 
     /**
@@ -128,6 +160,40 @@ class Message extends Model
                 'read_at' => now(),
             ]);
         }
+    }
+
+    /**
+     * Return the recipient list visible to a given viewer.
+     *
+     * BCC privacy rule (mirrors Gmail):
+     *   - Sender sees: TO + CC + BCC
+     *   - TO/CC recipient sees: TO + CC only
+     *   - BCC recipient sees: TO + CC only (their own BCC status is not revealed)
+     *
+     * Recipients are eager-loaded if possible; if not yet loaded, a query is run.
+     * The result is a Collection of MessageRecipient models with 'user' loaded.
+     *
+     * This method is the ONLY approved way to produce recipient data for API responses.
+     *
+     * @param  User  $viewer  The user whose API response is being built
+     * @return Collection<MessageRecipient>
+     */
+    public function getRecipientsForUser(User $viewer): Collection
+    {
+        // Load recipients with their user relationship if not already loaded
+        if (! $this->relationLoaded('recipients')) {
+            $this->load('recipients.user');
+        }
+
+        $allRecipients = $this->recipients;
+
+        // Sender sees everything, including BCC
+        if ($this->sender_id !== null && $this->sender_id === $viewer->id) {
+            return $allRecipients;
+        }
+
+        // Everyone else: hide all BCC entries to prevent privacy leakage
+        return $allRecipients->filter(fn ($r) => $r->recipient_type !== 'bcc')->values();
     }
 
     /**

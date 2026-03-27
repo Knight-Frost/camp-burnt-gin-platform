@@ -71,6 +71,103 @@ class MedicalSeeder extends Seeder
         $this->seedLucas($campers['lucas'], $medical);
         $this->seedMia($campers['mia'], $medical);
         $this->seedTyler($campers['tyler']);
+
+        // Backfill extension fields added by 2026-03 migrations.
+        // Uses whereNull guards so existing records are patched without overwriting
+        // deliberate nulls (e.g., records that have been manually updated).
+        $this->patchMissingMedicalFields($campers);
+    }
+
+    /**
+     * Patch the 6 medical record extension fields that were added by
+     * 2026_03_25_000003 and 2026_03_25_000007 but were not present in the
+     * original MedicalRecord::create() calls.
+     *
+     * Safe to re-run — uses whereNull() guards on date_of_medical_exam to
+     * detect unpatched records. Once patched, subsequent runs are no-ops.
+     */
+    private function patchMissingMedicalFields(array $campers): void
+    {
+        $patches = [
+            'ethan' => [
+                'date_of_medical_exam'  => '2026-01-15',
+                'insurance_group'       => 'GRP-BCB-1001',
+                'physician_address'     => '803 Medical Plaza, Columbia, SC 29201',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2024-09-10',
+                'mobility_notes'        => null,
+            ],
+            'lily' => [
+                'date_of_medical_exam'  => '2026-02-20',
+                'insurance_group'       => 'GRP-BCB-2002',
+                'physician_address'     => '1200 Pediatric Way, Columbia, SC 29201',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2023-11-05',
+                'mobility_notes'        => null,
+            ],
+            'sofia' => [
+                'date_of_medical_exam'  => '2026-01-28',
+                'insurance_group'       => null, // Medicaid — no group number
+                'physician_address'     => '2100 Rehabilitation Blvd, Columbia, SC 29203',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2024-06-12',
+                'mobility_notes'        => 'Transfers require two-person assist. Manual wheelchair for distances; posterior walker for short indoor ambulation. Lower extremity spasticity. Elevate legs during prolonged sitting. Pressure relief tilt every 30 min.',
+            ],
+            'noah' => [
+                'date_of_medical_exam'  => '2026-03-05',
+                'insurance_group'       => 'GRP-UHC-7789',
+                'physician_address'     => '450 Children\'s Medical Center, Greenville, SC 29601',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2025-02-18',
+                'mobility_notes'        => null,
+            ],
+            'ava' => [
+                'date_of_medical_exam'  => '2026-02-14',
+                'insurance_group'       => 'GRP-CIG-3312',
+                'physician_address'     => '900 Endocrinology Drive, Columbia, SC 29201',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2024-07-23',
+                'mobility_notes'        => null,
+            ],
+            'lucas' => [
+                'date_of_medical_exam'  => '2026-01-10',
+                'insurance_group'       => null, // Medicaid — no group number
+                'physician_address'     => '2500 Neuromuscular Center, Charlotte, NC 28203',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2024-03-30',
+                'mobility_notes'        => 'Full-time power wheelchair user. All transfers require two trained staff with mechanical lift. Upper extremity strength limited. Respiratory compromise — BiPAP required nightly. No prone positioning permitted.',
+            ],
+            'mia' => [
+                'date_of_medical_exam'  => '2026-02-07',
+                'insurance_group'       => 'GRP-BCB-8821',
+                'physician_address'     => '1500 Hematology Center, Columbia, SC 29201',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2024-10-15',
+                'mobility_notes'        => 'Monitor for limping or pain with ambulation — may indicate vaso-occlusive event. Ensure hydration during outdoor activities. Avoid sustained cold temperatures.',
+            ],
+            'tyler' => [
+                'date_of_medical_exam'  => '2026-03-10',
+                'insurance_group'       => 'GRP-BCB-5543',
+                'physician_address'     => '220 Family Medicine, Lexington, SC 29072',
+                'immunizations_current' => true,
+                'tetanus_date'          => '2025-01-20',
+                'mobility_notes'        => null,
+            ],
+        ];
+
+        foreach ($patches as $key => $fields) {
+            if (! isset($campers[$key])) {
+                continue;
+            }
+            // Use first() + fill/save so the Eloquent 'encrypted' cast runs on write.
+            // Query-builder ->update() bypasses all Eloquent casts, leaving PHI as plaintext.
+            $record = MedicalRecord::where('camper_id', $campers[$key]->id)
+                ->whereNull('date_of_medical_exam')
+                ->first();
+            if ($record) {
+                $record->fill($fields)->save();
+            }
+        }
     }
 
     // ── Per-camper helpers ──────────────────────────────────────────────────

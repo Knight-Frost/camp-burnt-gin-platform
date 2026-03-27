@@ -49,15 +49,20 @@ class ExtendedEmergencyContactSeeder extends Seeder
                 'email'                => 'karen.hill@example.com',
                 'is_primary'           => false,
                 'is_authorized_pickup' => false,   // NOT authorized — tests filter
+                'primary_language'     => 'English',
+                'interpreter_needed'   => false,
             ],
             'sofia' => [
                 'name'                 => 'Marta Reyes (Medical Proxy)',
                 'relationship'         => 'Clinical Coordinator',
                 'phone_primary'        => '803-555-0212',
                 'phone_secondary'      => '803-555-0213',
+                'phone_work'           => '803-555-0214',
                 'email'                => 'mreyes@pediatric-rehab.example.com',
                 'is_primary'           => false,
                 'is_authorized_pickup' => false,
+                'primary_language'     => 'Spanish',  // Medical proxy for Spanish-speaking family
+                'interpreter_needed'   => true,
             ],
             'noah' => [
                 'name'                 => 'Beverly Green',
@@ -67,15 +72,20 @@ class ExtendedEmergencyContactSeeder extends Seeder
                 'email'                => null,   // no email — tests nullable email state
                 'is_primary'           => false,
                 'is_authorized_pickup' => false,
+                'primary_language'     => 'English',
+                'interpreter_needed'   => false,
             ],
             'lucas' => [
                 'name'                 => 'Care Coordination Office — Palmetto Respite',
                 'relationship'         => 'Respite Care Agency',
                 'phone_primary'        => '803-555-0234',
                 'phone_secondary'      => '803-555-0235',
+                'phone_work'           => '803-555-0236',
                 'email'                => 'intake@palmettorespite.example.org',
                 'is_primary'           => false,
                 'is_authorized_pickup' => false,
+                'primary_language'     => 'English',
+                'interpreter_needed'   => false,
             ],
             'mia' => [
                 'name'                 => 'Dorothy Davis',
@@ -85,15 +95,20 @@ class ExtendedEmergencyContactSeeder extends Seeder
                 'email'                => null,   // elderly relative without email
                 'is_primary'           => false,
                 'is_authorized_pickup' => true,   // IS authorized pickup
+                'primary_language'     => 'English',
+                'interpreter_needed'   => false,
             ],
             'tyler' => [
                 'name'                 => 'Wilson Lumber Supply (Daniel Wilson — work)',
                 'relationship'         => 'Father\'s Employer',
                 'phone_primary'        => '803-555-0179',
+                'phone_work'           => '803-555-0180',
                 'phone_secondary'      => null,
                 'email'                => null,
                 'is_primary'           => false,
                 'is_authorized_pickup' => false,
+                'primary_language'     => 'English',
+                'interpreter_needed'   => false,
             ],
         ];
 

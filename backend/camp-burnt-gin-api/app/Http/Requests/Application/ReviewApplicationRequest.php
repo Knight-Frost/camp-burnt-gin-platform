@@ -34,7 +34,16 @@ class ReviewApplicationRequest extends FormRequest
                 'required',
                 Rule::enum(ApplicationStatus::class),
             ],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'notes'              => ['nullable', 'string', 'max:2000'],
+            // Completeness override — set by the frontend when the admin explicitly
+            // chooses "Approve Anyway" after seeing the missing-data warning modal.
+            'override_incomplete' => ['nullable', 'boolean'],
+            // Structured summary of what was missing when the admin overrode.
+            // Sent by the frontend so the backend can log it without re-running checks.
+            'missing_summary'    => ['nullable', 'array'],
+            'missing_summary.missing_fields'    => ['nullable', 'array'],
+            'missing_summary.missing_documents' => ['nullable', 'array'],
+            'missing_summary.missing_consents'  => ['nullable', 'array'],
         ];
     }
 

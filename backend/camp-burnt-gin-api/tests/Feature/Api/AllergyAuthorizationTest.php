@@ -121,7 +121,7 @@ class AllergyAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $allergy = Allergy::factory()->forCamper($camper)->create();
 
         \App\Models\MedicalProviderLink::factory()->create([
@@ -156,7 +156,7 @@ class AllergyAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $allergy = Allergy::factory()->forCamper($camper)->create();
 
         \App\Models\MedicalProviderLink::factory()->create([

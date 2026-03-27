@@ -236,6 +236,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Determine if a medical provider is permitted to access a specific camper.
+     *
+     * Medical staff may only access campers whose applications have been approved
+     * (is_active = true). This prevents medical staff from viewing medical data
+     * for applicants who have not yet been accepted to camp.
+     *
+     * Business rule: "Medical staff can ONLY access ACCEPTED (active) campers."
+     */
+    public function canAccessCamperAsMedical(Camper $camper): bool
+    {
+        return $camper->is_active;
+    }
+
+    /**
      * Check if the account is currently locked due to too many failed logins.
      *
      * If the lockout has expired, this method also clears the lockout fields

@@ -73,6 +73,13 @@ class DocumentService
         // Store the file in the private local disk (not publicly accessible)
         Storage::disk('local')->putFileAs($path, $file, $storedFilename);
 
+        // Physical examination documents expire 12 months after the exam date.
+        // This enforces the CYSHCN requirement that Form 4523 must be current.
+        $expirationDate = null;
+        if (($data['document_type'] ?? null) === 'physical_examination' && ! empty($data['exam_date'])) {
+            $expirationDate = \Carbon\Carbon::parse($data['exam_date'])->addYear()->toDateString();
+        }
+
         // Create the database record for this document
         $document = Document::create([
             'documentable_type' => $data['documentable_type'] ?? null,
@@ -85,9 +92,22 @@ class DocumentService
             'disk' => 'local',
             'path' => $path.'/'.$storedFilename,
             'document_type' => $data['document_type'] ?? null,
+            'expiration_date' => $expirationDate,
             // Mark as not yet scanned — the security scan runs in the background
             'is_scanned' => false,
         ]);
+
+        // For physical_examination documents attached to a Camper, persist the exam date
+        // back to the camper's MedicalRecord so the date is available outside the document system.
+        if (
+            ($data['document_type'] ?? null) === 'physical_examination'
+            && ! empty($data['exam_date'])
+            && ($data['documentable_type'] ?? null) === 'App\Models\Camper'
+            && ! empty($data['documentable_id'])
+        ) {
+            \App\Models\MedicalRecord::where('camper_id', $data['documentable_id'])
+                ->update(['date_of_medical_exam' => $data['exam_date']]);
+        }
 
         // Queue the security scan to run after the HTTP response is delivered
         $this->queueSecurityScan($document);
@@ -308,6 +328,12 @@ class DocumentService
      */
     public function download(Document $document): StreamedResponse
     {
+        // Guard against missing files — records can outlive their physical file if a
+        // storage operation failed. Return 404 rather than letting Storage throw a 500.
+        if (! Storage::disk($document->disk)->exists($document->path)) {
+            abort(404, 'The requested file could not be found.');
+        }
+
         // Fetch the file from the storage disk and stream it as a download
         $response = Storage::disk($document->disk)->download(
             $document->path,

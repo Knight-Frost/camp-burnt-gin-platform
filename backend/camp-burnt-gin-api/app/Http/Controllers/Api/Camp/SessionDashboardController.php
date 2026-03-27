@@ -87,6 +87,29 @@ class SessionDashboardController extends Controller
                 'reviewed_at'  => $a->reviewed_at?->toIso8601String(),
             ]);
 
+        // ── Family / camper registration metrics ────────────────────────────────
+        // registered_families: distinct parent accounts with any application (including drafts)
+        $registeredFamilies = Application::where('camp_session_id', $session->id)
+            ->join('campers', 'applications.camper_id', '=', 'campers.id')
+            ->distinct()
+            ->count('campers.user_id');
+
+        // registered_campers: distinct camper IDs with at least one non-draft application
+        $registeredCampers = Application::where('camp_session_id', $session->id)
+            ->where('is_draft', false)
+            ->distinct()
+            ->count('camper_id');
+
+        // multi_camper_families: families that have ≥2 registered campers for this session
+        $multiCamperFamilies = Application::where('camp_session_id', $session->id)
+            ->where('is_draft', false)
+            ->join('campers', 'applications.camper_id', '=', 'campers.id')
+            ->selectRaw('campers.user_id')
+            ->groupBy('campers.user_id')
+            ->havingRaw('COUNT(DISTINCT applications.camper_id) >= 2')
+            ->get()
+            ->count();
+
         // ── Age and gender distribution (enrolled only) ──────────────────────────
         // Pull only the columns we need — date_of_birth and gender — to avoid loading PHI.
         $approvedApps = Application::where('camp_session_id', $session->id)
@@ -150,6 +173,12 @@ class SessionDashboardController extends Controller
                     'waitlisted'      => $waitlisted,
                     'cancelled'       => $cancelled,
                     'acceptance_rate' => $acceptanceRate,
+                ],
+                'family_stats' => [
+                    'registered_families'   => $registeredFamilies,
+                    'registered_campers'    => $registeredCampers,
+                    'active_applications'   => $pending,
+                    'multi_camper_families' => $multiCamperFamilies,
                 ],
                 'recent_applications' => $recentApplications,
                 'age_distribution'    => $ageGroups,

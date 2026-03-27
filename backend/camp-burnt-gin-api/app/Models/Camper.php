@@ -39,12 +39,34 @@ class Camper extends Model
         'user_id',             // Foreign key — the parent/guardian account that owns this camper.
         'first_name',
         'last_name',
+        'preferred_name',      // Nickname or preferred first name used at camp.
         'date_of_birth',
         'gender',
         'tshirt_size',
+        'county',              // County of residence — used for CYSHCN program eligibility tracking.
+        'needs_interpreter',   // True if a language interpreter is required during camp.
+        'preferred_language',  // Primary language when needs_interpreter is true.
+        // Form parity fields (2026_03_26_000004) — applicant mailing address
+        'applicant_address',   // Applicant's own mailing address (may differ from guardian — encrypted PHI).
+        'applicant_city',
+        'applicant_state',
+        'applicant_zip',
         'supervision_level',   // Enum — how much extra supervision this camper needs.
         'record_retention_until', // Date after which the record may be permanently deleted.
+        'is_active',           // True when camper has at least one approved application and is operationally active.
     ];
+
+    /**
+     * Attributes hidden from array/JSON serialization.
+     *
+     * PHI fields that are encrypted at rest are excluded from list responses
+     * to prevent DecryptException when rows contain plain-text values (e.g.
+     * from seeders that bypass Eloquent) and to avoid exposing address PHI
+     * in endpoints that never need it.
+     *
+     * @var list<string>
+     */
+    protected $hidden = ['applicant_address'];
 
     /**
      * Virtual attributes appended to the model's array/JSON representation.
@@ -71,6 +93,11 @@ class Camper extends Model
             'record_retention_until'  => 'date',
             // Maps the stored string to a SupervisionLevel enum instance.
             'supervision_level'       => SupervisionLevel::class,
+            // Operational activation flag — true when camper has an approved application.
+            'is_active'               => 'boolean',
+            'needs_interpreter'       => 'boolean',
+            // Applicant mailing address is PHI — encrypted at rest.
+            'applicant_address'       => 'encrypted',
         ];
     }
 
@@ -196,6 +223,16 @@ class Camper extends Model
     }
 
     /**
+     * Get the personal care plan for this camper (ADL assistance levels).
+     *
+     * One record per camper — created during the application form submission.
+     */
+    public function personalCarePlan(): HasOne
+    {
+        return $this->hasOne(PersonalCarePlan::class);
+    }
+
+    /**
      * Get all assistive devices used by this camper (wheelchairs, hearing aids, etc.).
      */
     public function assistiveDevices(): HasMany
@@ -270,5 +307,18 @@ class Camper extends Model
     public function restrictions(): HasMany
     {
         return $this->hasMany(MedicalRestriction::class);
+    }
+
+    /**
+     * Query scope — filter only operationally active campers.
+     *
+     * An active camper has at least one approved application and should appear
+     * in admin rosters, medical queues, and all operational views.
+     *
+     * Usage: Camper::active()->get()
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

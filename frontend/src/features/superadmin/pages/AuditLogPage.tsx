@@ -28,6 +28,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
@@ -68,34 +69,18 @@ const CATEGORIES: Record<string, CategoryDef> = {
   System:         { label: 'System',         icon: Settings,       color: '#6b7280', bg: 'rgba(107,114,128,0.10)'},
 };
 
-// Event type filter options that map to server-side event_type query param values
-const EVENT_TYPES = [
-  { value: '',               label: 'All categories'    },
-  { value: 'authentication', label: 'Authentication'    },
-  { value: 'auth',           label: 'Auth'              },
-  { value: 'message',        label: 'Messaging'         },
-  { value: 'conversation',   label: 'Conversations'     },
-  { value: 'application',    label: 'Applications'      },
-  { value: 'notification',   label: 'Notifications'     },
-  { value: 'security',       label: 'Security'          },
-  { value: 'phi_access',     label: 'Medical / PHI'     },
-  { value: 'admin_action',   label: 'Administrative'    },
-  { value: 'document',       label: 'Documents'         },
-  { value: 'user',           label: 'System / User'     },
-];
-
-// Entity type filter options — map to partial class name strings the backend LIKE-searches
-const ENTITY_TYPES = [
-  { value: '',              label: 'All resources'   },
-  { value: 'Camper',        label: 'Campers'         },
-  { value: 'Application',   label: 'Applications'    },
-  { value: 'Document',      label: 'Documents'       },
-  { value: 'User',          label: 'Users'           },
-  { value: 'Message',       label: 'Messages'        },
-  { value: 'Conversation',  label: 'Conversations'   },
-  { value: 'MedicalRecord', label: 'Medical Records' },
-  { value: 'CampSession',   label: 'Sessions'        },
-];
+// Maps CATEGORIES keys to audit_extra translation keys
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  Authentication: 'audit_extra.category_auth',
+  Messaging:      'audit_extra.category_auth',
+  Applications:   'audit_extra.category_applications',
+  Notifications:  'audit_extra.category_system',
+  Security:       'audit_extra.category_auth',
+  Medical:        'audit_extra.category_medical',
+  Administrative: 'audit_extra.category_system',
+  Documents:      'audit_extra.category_documents',
+  System:         'audit_extra.category_system',
+};
 
 // ─── Base Helpers ─────────────────────────────────────────────────────────────
 
@@ -583,14 +568,15 @@ interface SeverityDef {
 }
 
 const SEVERITY_DEFS: Record<LogSeverity, SeverityDef> = {
-  info:     { color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'transparent',    icon: Info,          label: 'Info'     },
-  success:  { color: '#166534', bg: 'rgba(22,163,74,0.10)',   border: '#16a34a',        icon: CheckCircle,   label: 'Success'  },
-  warning:  { color: '#92400e', bg: 'rgba(217,119,6,0.10)',   border: '#d97706',        icon: AlertTriangle, label: 'Warning'  },
-  critical: { color: '#991b1b', bg: 'rgba(220,38,38,0.10)',   border: '#dc2626',        icon: AlertCircle,   label: 'Critical' },
+  info:     { color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'transparent',    icon: Info,          label: 'audit_extra.severity_info'      },
+  success:  { color: '#166534', bg: 'rgba(22,163,74,0.10)',   border: '#16a34a',        icon: CheckCircle,   label: 'audit_extra.severity_low'       },
+  warning:  { color: '#92400e', bg: 'rgba(217,119,6,0.10)',   border: '#d97706',        icon: AlertTriangle, label: 'audit_extra.severity_medium'    },
+  critical: { color: '#991b1b', bg: 'rgba(220,38,38,0.10)',   border: '#dc2626',        icon: AlertCircle,   label: 'audit_extra.severity_critical'  },
 };
 
 // Small severity badge shown inside the expanded panel header
 function SeverityBadge({ severity }: { severity: LogSeverity }) {
+  const { t } = useTranslation();
   const def  = SEVERITY_DEFS[severity];
   const Icon = def.icon;
   if (severity === 'info') return null; // don't clutter info entries
@@ -600,7 +586,7 @@ function SeverityBadge({ severity }: { severity: LogSeverity }) {
       style={{ background: def.bg, color: def.color }}
     >
       <Icon className="h-3 w-3" />
-      {def.label}
+      {t(def.label)}
     </span>
   );
 }
@@ -624,15 +610,18 @@ const DEFAULT_FILTERS: Filters = {
 // ─── CategoryBadge ────────────────────────────────────────────────────────────
 
 function CategoryBadge({ category }: { category?: string }) {
+  const { t } = useTranslation();
   const def  = getCategoryDef(category);
   const Icon = def.icon;
+  const labelKey = category ? CATEGORY_LABEL_KEYS[category] : undefined;
+  const label    = labelKey ? t(labelKey) : def.label;
   return (
     <span
       className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
       style={{ background: def.bg, color: def.color }}
     >
       <Icon className="h-3 w-3" />
-      {def.label}
+      {label}
     </span>
   );
 }
@@ -658,6 +647,7 @@ function IntelligenceSummaryStrip({
   onShowToday,
   isTodayActive,
 }: IntelligenceSummaryProps) {
+  const { t } = useTranslation();
   // Compute page-level severity counts for orientation
   const criticalCount = entries.filter(e => getLogSeverity(e) === 'critical').length;
   const warningCount  = entries.filter(e => getLogSeverity(e) === 'warning').length;
@@ -696,7 +686,7 @@ function IntelligenceSummaryStrip({
       ) : (
         <div className="flex items-center gap-1.5">
           <CheckCircle className="h-3.5 w-3.5" style={{ color: '#16a34a' }} />
-          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>No critical items on this page</span>
+          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('audit_extra.no_critical')}</span>
         </div>
       )}
 
@@ -1297,6 +1287,37 @@ function MetadataPanel({ metadata }: { metadata: Record<string, unknown> }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function AuditLogPage() {
+  const { t } = useTranslation();
+
+  // Event type filter options — moved inside component so labels use t()
+  const EVENT_TYPES = [
+    { value: '',               label: t('audit_extra.all_categories') },
+    { value: 'authentication', label: t('audit_extra.category_auth')  },
+    { value: 'auth',           label: t('audit_extra.category_auth')  },
+    { value: 'message',        label: t('audit_extra.category_auth')  },
+    { value: 'conversation',   label: t('audit_extra.category_auth')  },
+    { value: 'application',    label: t('audit_extra.category_applications') },
+    { value: 'notification',   label: t('audit_extra.category_system') },
+    { value: 'security',       label: t('audit_extra.category_auth')  },
+    { value: 'phi_access',     label: t('audit_extra.category_medical') },
+    { value: 'admin_action',   label: t('audit_extra.category_system') },
+    { value: 'document',       label: t('audit_extra.category_documents') },
+    { value: 'user',           label: t('audit_extra.category_users') },
+  ];
+
+  // Entity type filter options — moved inside component so labels use t()
+  const ENTITY_TYPES = [
+    { value: '',              label: t('audit_extra.all_resources')    },
+    { value: 'Camper',        label: t('audit_extra.category_campers') },
+    { value: 'Application',   label: t('audit_extra.category_applications') },
+    { value: 'Document',      label: t('audit_extra.category_documents') },
+    { value: 'User',          label: t('audit_extra.category_users')   },
+    { value: 'Message',       label: t('audit_extra.category_auth')    },
+    { value: 'Conversation',  label: t('audit_extra.category_auth')    },
+    { value: 'MedicalRecord', label: t('audit_extra.category_medical') },
+    { value: 'CampSession',   label: t('audit_extra.category_sessions') },
+  ];
+
   const [response, setResponse]       = useState<PaginatedResponse<AuditLogEntry> | null>(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);

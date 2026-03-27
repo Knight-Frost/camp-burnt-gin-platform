@@ -38,8 +38,8 @@ class BehavioralProfilePolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper behavioral profiles.
-            return true;
+            // Camp medical staff may access behavioral profiles only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($behavioralProfile->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($behavioralProfile->camper)) {
@@ -69,8 +69,8 @@ class BehavioralProfilePolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update behavioral profiles during active care.
-            return true;
+            // Camp medical staff may update behavioral profiles only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($behavioralProfile->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($behavioralProfile->camper)) {

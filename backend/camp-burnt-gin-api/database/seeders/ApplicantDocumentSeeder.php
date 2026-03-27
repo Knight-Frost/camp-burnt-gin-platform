@@ -7,6 +7,7 @@ use App\Models\ApplicantDocument;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Seeder — applicant document records covering all 3 lifecycle states.
@@ -135,6 +136,13 @@ class ApplicantDocumentSeeder extends Seeder
                 continue;
             }
 
+            // Ensure placeholder files exist on the local disk so the download
+            // and preview endpoints work in the dev/seed environment.
+            $this->ensurePlaceholderFile($doc['original_path'], $doc['original_file_name']);
+            if ($doc['submitted_path']) {
+                $this->ensurePlaceholderFile($doc['submitted_path'], $doc['submitted_file_name'] ?? 'submitted_document.pdf');
+            }
+
             ApplicantDocument::create([
                 'applicant_id'            => $doc['applicant']->id,
                 'uploaded_by_admin_id'    => $doc['uploaded_by_admin_id'],
@@ -152,5 +160,48 @@ class ApplicantDocumentSeeder extends Seeder
         }
 
         $this->command->line('  Applicant documents seeded (3 states: pending x2, submitted x2, reviewed x1).');
+    }
+
+    /**
+     * Write a minimal placeholder file to local storage so the download/preview
+     * endpoints return a real response instead of a 404.
+     *
+     * PDFs get a 1-page minimal PDF; everything else gets a tiny white JPEG.
+     */
+    private function ensurePlaceholderFile(string $path, string $label): void
+    {
+        if (Storage::disk('local')->exists($path)) {
+            return;
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+            // Minimal 1×1 white JPEG
+            $content = base64_decode(
+                '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U' .
+                'HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgN' .
+                'DRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy' .
+                'MjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAA' .
+                'AAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/' .
+                'aAAwDAQACEQMRAD8AJQAB/9k='
+            );
+        } else {
+            // Minimal valid 1-page PDF with the label as content
+            $safe    = preg_replace('/[^A-Za-z0-9 \-]/', '', $label);
+            $stream  = "BT /F1 14 Tf 50 700 Td ({$safe}) Tj ET";
+            $slen    = strlen($stream);
+            $content = "%PDF-1.4\n"
+                . "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+                . "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+                . "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R"
+                . "/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
+                . "4 0 obj<</Length {$slen}>>\nstream\n{$stream}\nendstream\nendobj\n"
+                . "5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+                . "xref\n0 6\n0000000000 65535 f \n"
+                . "trailer<</Size 6/Root 1 0 R>>\nstartxref\n0\n%%EOF\n";
+        }
+
+        Storage::disk('local')->put($path, $content);
     }
 }

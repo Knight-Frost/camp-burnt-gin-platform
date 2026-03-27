@@ -6,6 +6,7 @@ use App\Jobs\SendNotificationJob;
 use App\Models\AuditLog;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageRecipient;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Database\Eloquent\Collection;
@@ -57,15 +58,20 @@ class MessageService
      *
      * Flow:
      *  1. Generate or use provided idempotency key
-     *  2. In a transaction: check for duplicate, create message, handle attachments,
-     *     update conversation timestamp, notify other participants
+     *  2. In a transaction: check for duplicate, create message, create recipient records,
+     *     handle attachments, update conversation timestamp, notify other participants
      *  3. Write audit log entry
      *
-     * @param  Conversation    $conversation    The conversation to send into
-     * @param  User            $sender          The user sending the message
-     * @param  string          $body            The message text content
-     * @param  array           $attachments     Array of UploadedFile objects (optional)
-     * @param  string|null     $idempotencyKey  Unique key to prevent duplicate sends
+     * @param  Conversation    $conversation     The conversation to send into
+     * @param  User            $sender           The user sending the message
+     * @param  string          $body             The message text content
+     * @param  array           $attachments      Array of UploadedFile objects (optional)
+     * @param  string|null     $idempotencyKey   Unique key to prevent duplicate sends
+     * @param  array           $recipients       TO/CC/BCC recipients: [{user_id, type}]
+     *                                           If empty, no message_recipients rows are created
+     *                                           (legacy messages without explicit recipient types)
+     * @param  int|null        $parentMessageId  Message being replied to (null for new)
+     * @param  string|null     $replyType        'reply' | 'reply_all' | null
      * @throws \Exception      If attachment upload fails
      */
     public function sendMessage(
@@ -73,7 +79,10 @@ class MessageService
         User $sender,
         string $body,
         array $attachments = [],
-        ?string $idempotencyKey = null
+        ?string $idempotencyKey = null,
+        array $recipients = [],
+        ?int $parentMessageId = null,
+        ?string $replyType = null
     ): Message {
         // Generate a random UUID idempotency key if the caller didn't provide one
         if (!$idempotencyKey) {
@@ -86,23 +95,35 @@ class MessageService
             $sender,
             $body,
             $attachments,
-            $idempotencyKey
+            $idempotencyKey,
+            $recipients,
+            $parentMessageId,
+            $replyType
         ) {
             // Idempotency check: if a message with this key was already created, return it
             $existingMessage = Message::where('idempotency_key', $idempotencyKey)->first();
 
             if ($existingMessage) {
                 // Return the existing message — safe for the caller to treat as a success
-                return $existingMessage->load(['sender', 'attachments']);
+                return $existingMessage->load(['sender', 'attachments', 'recipients.user']);
             }
 
             // Create the new message record
             $message = Message::create([
-                'conversation_id' => $conversation->id,
-                'sender_id' => $sender->id,
-                'body' => $body,
-                'idempotency_key' => $idempotencyKey,
+                'conversation_id'  => $conversation->id,
+                'sender_id'        => $sender->id,
+                'body'             => $body,
+                'idempotency_key'  => $idempotencyKey,
+                'parent_message_id' => $parentMessageId,
+                'reply_type'       => $replyType,
             ]);
+
+            // Create TO/CC/BCC recipient records if explicit recipients were provided.
+            // Messages without recipients (legacy or system messages) are still valid —
+            // the API falls back to treating all conversation_participants as implicit TO.
+            if (!empty($recipients)) {
+                $this->createRecipientRecords($message, $recipients);
+            }
 
             // Process and upload each attached file through DocumentService
             if (!empty($attachments)) {
@@ -133,23 +154,225 @@ class MessageService
                 'action' => 'sent',
                 'description' => "Message sent in conversation: {$conversation->subject}",
                 'new_values' => [
-                    'conversation_id' => $conversation->id,
+                    'conversation_id'  => $conversation->id,
                     // Log body length rather than content to avoid logging PHI in the audit table
-                    'body_length' => strlen($body),
+                    'body_length'      => strlen($body),
                     'attachment_count' => count($attachments),
+                    'reply_type'       => $replyType,
+                    'recipient_count'  => count($recipients),
                 ],
                 'metadata' => [
                     'conversation_subject' => $conversation->subject,
-                    'has_attachments' => !empty($attachments),
+                    'has_attachments'      => !empty($attachments),
+                    'parent_message_id'    => $parentMessageId,
                 ],
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'created_at' => now(),
             ]);
 
-            // Return the message with sender and attachments loaded for the API response
-            return $message->load(['sender', 'attachments']);
+            // Return the message with all relationships loaded for the API response
+            return $message->load(['sender', 'attachments', 'recipients.user']);
         });
+    }
+
+    /**
+     * Reply to a specific message — sends only to the original sender.
+     *
+     * The reply is appended to the same conversation thread so the full history
+     * is preserved in one place. The original message author receives the reply;
+     * CC and BCC recipients of the original message are NOT included.
+     *
+     * @param  Conversation  $conversation   The thread to send the reply in
+     * @param  Message       $parentMessage  The message being replied to
+     * @param  User          $sender         The user sending the reply
+     * @param  string        $body           Reply message body
+     * @param  array         $attachments    Optional UploadedFile attachments
+     */
+    public function reply(
+        Conversation $conversation,
+        Message $parentMessage,
+        User $sender,
+        string $body,
+        array $attachments = []
+    ): Message {
+        // Reply only to the original message's sender (if it has one — system messages have no sender)
+        $recipients = [];
+        if ($parentMessage->sender_id && $parentMessage->sender_id !== $sender->id) {
+            $recipients[] = ['user_id' => $parentMessage->sender_id, 'type' => 'to'];
+        }
+
+        // Ensure the reply-to author is a conversation participant (they should be, but be safe)
+        if (!empty($recipients)) {
+            $replyTarget = User::find($recipients[0]['user_id']);
+            if ($replyTarget && !$conversation->hasParticipant($replyTarget)) {
+                $this->inboxService->addParticipant($conversation, $replyTarget);
+            }
+        }
+
+        return $this->sendMessage(
+            $conversation,
+            $sender,
+            $body,
+            $attachments,
+            null,
+            $recipients,
+            $parentMessage->id,
+            'reply'
+        );
+    }
+
+    /**
+     * Reply All to a message — sends to original sender + all visible TO/CC recipients.
+     *
+     * BCC recipients from the original message are NEVER included in reply-all.
+     * The current user is excluded from the recipient list (you don't send to yourself).
+     * Any duplicate user IDs (e.g. original sender also appears in TO) are deduplicated.
+     *
+     * @param  Conversation  $conversation   The thread to send the reply in
+     * @param  Message       $parentMessage  The message being replied to
+     * @param  User          $sender         The user sending the reply-all
+     * @param  string        $body           Reply message body
+     * @param  array         $attachments    Optional UploadedFile attachments
+     */
+    public function replyAll(
+        Conversation $conversation,
+        Message $parentMessage,
+        User $sender,
+        string $body,
+        array $attachments = []
+    ): Message {
+        $recipients = $this->calculateReplyAllRecipients($parentMessage, $sender);
+
+        // Ensure all reply-all targets are conversation participants
+        $recipientUserIds = array_column($recipients, 'user_id');
+        if (!empty($recipientUserIds)) {
+            $users = User::whereIn('id', $recipientUserIds)->get();
+            foreach ($users as $user) {
+                if (!$conversation->hasParticipant($user)) {
+                    $this->inboxService->addParticipant($conversation, $user);
+                }
+            }
+        }
+
+        return $this->sendMessage(
+            $conversation,
+            $sender,
+            $body,
+            $attachments,
+            null,
+            $recipients,
+            $parentMessage->id,
+            'reply_all'
+        );
+    }
+
+    /**
+     * Calculate the recipient list for a Reply All action.
+     *
+     * Rules (mirrors Gmail's Reply All behavior):
+     *  1. Include original sender as TO (if not the current user)
+     *  2. Include original visible TO recipients (excluding current user)
+     *  3. Include original CC recipients (excluding current user)
+     *  4. NEVER include BCC recipients regardless of who is performing the action
+     *  5. Deduplicate — same user_id cannot appear twice
+     *
+     * If the message has no explicit recipient records (legacy messages or messages
+     * sent before TO/CC/BCC was introduced), fall back to all conversation participants
+     * excluding the sender and current user, treating them all as TO.
+     *
+     * @param  Message  $message      The original message being replied to
+     * @param  User     $currentUser  The user performing the reply-all
+     * @return array    Array of ['user_id' => int, 'type' => 'to'|'cc']
+     */
+    public function calculateReplyAllRecipients(Message $message, User $currentUser): array
+    {
+        $recipients = [];
+        $addedUserIds = [$currentUser->id]; // Pre-exclude self
+
+        // 1. Add original sender as TO (if they are not the current user)
+        if ($message->sender_id && !in_array($message->sender_id, $addedUserIds)) {
+            $recipients[] = ['user_id' => $message->sender_id, 'type' => 'to'];
+            $addedUserIds[] = $message->sender_id;
+        }
+
+        // Load explicit recipients for this message
+        $explicitRecipients = $message->recipients()->with('user')->get();
+
+        if ($explicitRecipients->isNotEmpty()) {
+            // Use explicit TO/CC recipients — BCC is intentionally excluded
+            foreach ($explicitRecipients as $recipient) {
+                // Critical: skip BCC entries entirely
+                if ($recipient->recipient_type === 'bcc') {
+                    continue;
+                }
+                // Skip users already added (sender may overlap with TO list)
+                if (in_array($recipient->user_id, $addedUserIds)) {
+                    continue;
+                }
+                $recipients[] = [
+                    'user_id' => $recipient->user_id,
+                    'type'    => $recipient->recipient_type, // preserve 'to' or 'cc'
+                ];
+                $addedUserIds[] = $recipient->user_id;
+            }
+        } else {
+            // Legacy fallback: no recipient records exist → treat all other conversation
+            // participants (excluding sender and current user) as TO recipients
+            $conversation = $message->conversation;
+            if ($conversation) {
+                $fallbackParticipants = $this->inboxService->getParticipantsExcept(
+                    $conversation,
+                    $currentUser
+                );
+                foreach ($fallbackParticipants as $participant) {
+                    if (in_array($participant->id, $addedUserIds)) {
+                        continue;
+                    }
+                    $recipients[] = ['user_id' => $participant->id, 'type' => 'to'];
+                    $addedUserIds[] = $participant->id;
+                }
+            }
+        }
+
+        return $recipients;
+    }
+
+    /**
+     * Persist TO/CC/BCC recipient records for a message.
+     *
+     * Called after message creation, inside the sendMessage transaction.
+     * Validates that user_id and type are present for each entry.
+     * Silently skips any entry that would violate the UNIQUE constraint
+     * (same user appearing twice — should not happen but guard defensively).
+     *
+     * @param  Message  $message     The newly created message
+     * @param  array    $recipients  [['user_id' => int, 'type' => 'to'|'cc'|'bcc'], ...]
+     */
+    protected function createRecipientRecords(Message $message, array $recipients): void
+    {
+        $seen = [];
+        foreach ($recipients as $entry) {
+            $userId = $entry['user_id'] ?? null;
+            $type   = $entry['type'] ?? 'to';
+
+            if (!$userId || in_array($userId, $seen)) {
+                continue;
+            }
+
+            if (!in_array($type, ['to', 'cc', 'bcc'])) {
+                $type = 'to'; // Safe default for unrecognised types
+            }
+
+            MessageRecipient::create([
+                'message_id'     => $message->id,
+                'user_id'        => $userId,
+                'recipient_type' => $type,
+                'is_read'        => false,
+            ]);
+
+            $seen[] = $userId;
+        }
     }
 
     /**
@@ -257,7 +480,7 @@ class MessageService
         int $perPage = 25
     ): LengthAwarePaginator {
         $messages = Message::where('conversation_id', $conversation->id)
-            ->with(['sender', 'attachments'])
+            ->with(['sender', 'attachments', 'recipients.user'])
             ->oldest()   // Chronological order for natural chat reading
             ->paginate($perPage);
 
@@ -310,6 +533,58 @@ class MessageService
             'user_agent' => request()->userAgent(),
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * Mark all unread messages in a conversation as read for a given user.
+     *
+     * Powers the "Mark as read" inbox action. Iterates only over messages that
+     * the user hasn't already read (and didn't send themselves) to stay efficient.
+     *
+     * @param  Conversation  $conversation  The conversation to mark as read
+     * @param  User          $user          The user performing the action
+     */
+    public function markAllAsRead(Conversation $conversation, User $user): void
+    {
+        $unread = Message::where('conversation_id', $conversation->id)
+            ->where(function ($q) use ($user) {
+                $q->whereNull('sender_id')
+                  ->orWhere('sender_id', '!=', $user->id);
+            })
+            ->whereDoesntHave('reads', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
+            ->get();
+
+        foreach ($unread as $message) {
+            $this->markAsRead($message, $user);
+        }
+    }
+
+    /**
+     * Mark the most recent non-own message in a conversation as unread for a user.
+     *
+     * Powers the "Mark as unread" inbox action. Removes the read receipt for the
+     * latest non-own message so the conversation shows as having 1 unread message.
+     * The underlying message_reads table stores receipts; deleting a row undoes a read.
+     *
+     * @param  Conversation  $conversation  The conversation to mark as unread
+     * @param  User          $user          The user performing the action
+     */
+    public function markConversationUnread(Conversation $conversation, User $user): void
+    {
+        $latest = Message::where('conversation_id', $conversation->id)
+            ->where(function ($q) use ($user) {
+                $q->whereNull('sender_id')
+                  ->orWhere('sender_id', '!=', $user->id);
+            })
+            ->latest('created_at')
+            ->first();
+
+        if ($latest) {
+            // Remove the read receipt — this makes the message (and conversation) appear unread
+            $latest->reads()->where('user_id', $user->id)->delete();
+        }
     }
 
     /**

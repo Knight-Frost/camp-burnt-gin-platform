@@ -33,9 +33,10 @@ export function LanguageToggle() {
   // Normalise to 2-char code in case i18next returns "en-US" etc.
   const current = (i18n.language?.slice(0, 2)) || 'en';
 
-  // Derive the available languages dynamically from the registered resources.
-  // Order is stable because Object.keys preserves insertion order in V8.
-  const available = Object.keys(i18n.options.resources ?? {});
+  // Derive the available languages from the i18next resource store.
+  // i18n.store.data is reliably populated after init; i18n.options.resources
+  // may be stripped by i18next after initialization.
+  const available = Object.keys(i18n.store?.data ?? i18n.options.resources ?? {});
 
   const handleSelect = (lang: string) => {
     void i18n.changeLanguage(lang);

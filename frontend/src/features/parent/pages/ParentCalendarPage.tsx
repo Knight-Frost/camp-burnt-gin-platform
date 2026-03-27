@@ -16,12 +16,14 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
-         isSameDay, isToday, isPast, addMonths, subMonths } from 'date-fns';
+         isSameDay, isToday, isPast, addMonths, subMonths, differenceInDays, parseISO } from 'date-fns';
 
 import { getCalendarEvents, type CalendarEvent } from '@/features/admin/api/calendar.api';
 import { SkeletonCard } from '@/ui/components/Skeletons';
+import { ROUTES } from '@/shared/constants/routes';
 
 // Color palette for each event type — same mapping as the admin calendar
 const EVENT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -37,11 +39,54 @@ function getEventStyle(type: string) {
   return EVENT_COLORS[type] ?? EVENT_COLORS.internal;
 }
 
+/**
+ * For deadline-type events, compute urgency color dynamically from starts_at vs now.
+ * This ensures the color is always current without a DB sync job.
+ *   > 7 days → green  (safe)
+ *   ≤ 7 days → yellow (approaching)
+ *   past     → red    (overdue)
+ *   completed → gray
+ */
+function getDeadlineEventStyle(event: CalendarEvent): { bg: string; text: string; dot: string } {
+  if (event.deadline?.status === 'completed') {
+    return { bg: 'rgba(107,114,128,0.10)', text: '#6b7280', dot: '#6b7280' };
+  }
+  const days = differenceInDays(parseISO(event.starts_at), new Date());
+  if (days < 0)  return { bg: 'rgba(220,38,38,0.10)',  text: '#dc2626', dot: '#dc2626' };
+  if (days <= 7) return { bg: 'rgba(217,119,6,0.10)',  text: '#d97706', dot: '#d97706' };
+  return           { bg: 'rgba(22,163,74,0.10)',   text: '#16a34a', dot: '#16a34a' };
+}
+
+/** Returns the correct style for any calendar event. */
+function resolveEventStyle(ev: CalendarEvent) {
+  return ev.deadline_id ? getDeadlineEventStyle(ev) : getEventStyle(ev.event_type);
+}
+
 export function ParentCalendarPage() {
+  const navigate = useNavigate();
   const [events, setEvents]     = useState<CalendarEvent[]>([]);
   const [loading, setLoading]   = useState(true);
   // The month currently shown in the grid — starts as the current calendar month
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  /**
+   * Navigate to the relevant page when a deadline calendar event is clicked.
+   * Routing logic by entity_type:
+   *   document_request → /applicant/documents (upload page)
+   *   application      → /applicant/applications
+   *   default          → /applicant/documents
+   */
+  function handleDeadlineClick(ev: CalendarEvent) {
+    if (!ev.deadline_id) return;
+    const entityType = ev.deadline?.entity_type;
+    if (entityType === 'document_request') {
+      navigate(ROUTES.PARENT_DOCUMENTS);
+    } else if (entityType === 'application') {
+      navigate(ROUTES.PARENT_APPLICATIONS);
+    } else {
+      navigate(ROUTES.PARENT_DOCUMENTS);
+    }
+  }
 
   // Fetch all events once; errors are silently swallowed so the empty calendar still renders
   useEffect(() => {
@@ -207,7 +252,7 @@ export function ParentCalendarPage() {
                       </span>
                       {/* Show up to 2 event chips per cell to avoid overflow */}
                       {dayEvents.slice(0, 2).map((ev) => {
-                        const style = getEventStyle(ev.event_type);
+                        const style = resolveEventStyle(ev);
                         return (
                           <div
                             key={ev.id}
@@ -262,14 +307,18 @@ export function ParentCalendarPage() {
           ) : (
             <ul className="flex flex-col gap-2">
               {upcoming.map((ev) => {
-                const style = getEventStyle(ev.event_type);
+                const style = resolveEventStyle(ev);
+                const isClickableDeadline = ev.deadline_id !== null;
                 return (
                   <li
                     key={ev.id}
                     className="glass-card rounded-xl p-3"
+                    onClick={isClickableDeadline ? () => handleDeadlineClick(ev) : undefined}
+                    style={{ cursor: isClickableDeadline ? 'pointer' : 'default' }}
+                    title={isClickableDeadline ? 'Click to go to the upload page' : undefined}
                   >
                     <div className="flex items-start gap-2">
-                      {/* Colored dot matching the event type color */}
+                      {/* Colored dot — urgency-based for deadline events */}
                       <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: style.dot }} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
@@ -277,6 +326,7 @@ export function ParentCalendarPage() {
                         </p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                           {format(new Date(ev.starts_at), 'MMM d, yyyy')}
+                          {isClickableDeadline && ' · Tap to act'}
                           {/* Only show time for non-all-day events */}
                           {!ev.all_day && ` · ${format(new Date(ev.starts_at), 'h:mm a')}`}
                         </p>

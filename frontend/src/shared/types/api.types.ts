@@ -44,6 +44,8 @@ export interface PaginatedResponse<T = unknown> {
     total: number;
     from: number | null;
     to: number | null;
+    /** Total active (non-final) applications in the scoped session — for queue-position display. Null in global view. */
+    queue_total?: number | null;
   };
 }
 

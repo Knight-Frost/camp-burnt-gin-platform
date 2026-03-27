@@ -2,6 +2,8 @@
 
 This document provides a comprehensive overview of the application lifecycle, state transitions, and workflow processes within the Camp Burnt Gin API system.
 
+> **See also:** [`APPLICATION_LIFECYCLE.md`](./APPLICATION_LIFECYCLE.md) — the authoritative specification for approval, reversal, re-approval, camper activation/deactivation, and medical record lifecycle. Where these two documents conflict, `APPLICATION_LIFECYCLE.md` takes precedence.
+
 ---
 
 ## Table of Contents
@@ -48,33 +50,23 @@ The application workflow manages the complete lifecycle of camp registration app
 
 ### State Definitions
 
-| State | Value | Description | Is Final | Is Editable |
-|-------|-------|-------------|----------|-------------|
-| Pending | pending | Initial state, not submitted | No | Yes |
-| Under Review | under_review | Submitted and being reviewed | No | Yes |
-| Approved | approved | Accepted for attendance | Yes | No |
-| Rejected | rejected | Not accepted | Yes | No |
-| Waitlisted | waitlisted | On waiting list | No | No |
-| Cancelled | cancelled | Withdrawn by parent | Yes | No |
+| State | Value | Description | Parent Can Edit | Who Sets |
+|-------|-------|-------------|-----------------|----------|
+| Pending | `pending` | Initial state after submission | Yes | System |
+| Under Review | `under_review` | Admin has opened the application for review | Yes | Admin |
+| Approved | `approved` | Accepted for attendance | No | Admin |
+| Rejected | `rejected` | Not accepted after review | No | Admin |
+| Waitlisted | `waitlisted` | Session full; queued for promotion | No | Admin |
+| Cancelled | `cancelled` | Cancelled by administrator | No | Admin only |
+| Withdrawn | `withdrawn` | Voluntarily withdrawn by parent | No | Parent only |
 
-### State Transition Matrix
+**Terminal states** (no further transitions): `cancelled`, `withdrawn`.
+`rejected` is not terminal — admins may re-approve.
 
-| From State | To State(s) | Trigger | Actor | Conditions |
-|------------|-------------|---------|-------|------------|
-| Pending | Under Review | Submit | Parent | Signature required, is_draft=false |
-| Under Review | Approved | Review decision | Admin | Review notes optional |
-| Under Review | Rejected | Review decision | Admin | Review notes required |
-| Under Review | Waitlisted | Review decision | Admin | Review notes optional |
-| Waitlisted | Approved | Review decision | Admin | Space available |
-| Waitlisted | Rejected | Review decision | Admin | No space available |
-| Any non-final | Cancelled | Cancellation | Parent | Cannot cancel final states |
-
-### Prevented Transitions
-
-- Cannot transition from any final state (approved, rejected, cancelled)
-- Cannot skip pending → approved/rejected (must go through under_review)
-- Cannot return to pending once submitted
-- Cannot reverse rejected or cancelled status
+> For the authoritative state transition matrix, camper/medical record activation rules,
+> system invariants, and full workflow diagrams, see
+> **[APPLICATION_LIFECYCLE.md](./APPLICATION_LIFECYCLE.md)** — that document supersedes
+> any conflicting detail here.
 
 ---
 
@@ -179,33 +171,8 @@ Return 200 OK
 
 ## Review and Decision Workflow
 
-### Review Process
-
-```
-Admin Logs In → Views Applications (status=under_review)
-    ↓
-Reviews: Camper info, medical records, emergency contacts, notes
-    ↓
-Makes Decision: POST /api/applications/{id}/review
-    ↓
-System Validates (422 if invalid)
-    ↓
-Step 0 — Capacity Gate (approval only)
-    If session at capacity → HTTP 422 (suggest waitlisting)
-    ↓
-Step 1 — Medical Compliance Gate (approval only)
-    If documents missing/expired/unverified → HTTP 422 with compliance_details
-    ↓
-Update: status, reviewed_at, reviewed_by, notes
-    ↓
-Log Review Event
-    ↓
-Queue Parent Notification
-    ↓
-Generate Letter (if approved/rejected)
-    ↓
-Return 200 OK
-```
+> For the full transactional review process flow (gates, activation, audit, notifications),
+> see **[APPLICATION_LIFECYCLE.md §5–8 and §10](./APPLICATION_LIFECYCLE.md)**.
 
 ### Review Endpoint
 
@@ -218,10 +185,22 @@ POST /api/applications/{id}/review
 ```
 
 **Validation:**
-- `status`: Required, must be approved/rejected/waitlisted
-- `notes`: Required for rejected, optional for approved/waitlisted
+- `status`: Required — valid admin-level targets: `approved`, `rejected`, `under_review`, `waitlisted`, `cancelled`
+- `notes`: Optional (required by convention for rejected decisions)
 
 **Authorization:** Admin only
+
+### Parent Withdrawal Endpoint
+
+```http
+POST /api/applications/{id}/withdraw
+```
+
+No request body required. Sets status to `withdrawn` (terminal). If the application was `approved`, deactivates the camper and medical record using the same multi-session safety check as admin reversal.
+
+**Valid from:** `pending`, `under_review`, `approved`, `waitlisted`
+
+**Authorization:** Parent owns camper only — admins must use `/review` with `status=cancelled`
 
 ### Decision Notifications
 
@@ -331,7 +310,10 @@ camper_age_on_start = session_start_date - camper_date_of_birth
 |----------|----------|------------|
 | Concurrent updates | Last write wins (Eloquent) | Frontend optimistic locking with versioning |
 | Provider link expires during submit | HTTP 410 Gone | Parent generates new link, provider restarts |
-| Cancel after approval | HTTP 422 error | Parent must contact administrator |
+| Reversal (Approved → Rejected) | Allowed. Deactivates camper + medical record if no other approved app. | Admin uses "Reverse Decision" button in review panel. |
+| Admin cancellation (Approved → Cancelled) | Allowed. Same deactivation logic as reversal. | Admin uses "Cancel Enrollment" button. |
+| Parent withdrawal | POST /applications/{id}/withdraw → status=withdrawn. Deactivates if approved and no other app. | Parent sees "Withdraw application" button on detail page. |
+| Rejected → Pending or UnderReview | Not allowed (HTTP 422). Rejected can only re-approve. | Re-approval is the only path forward from rejected. |
 | Duplicate provider submission | Link marked used on first attempt, subsequent=410 | Disable submit button after click |
 | Session deletion with apps | HTTP 422 with descriptive message, deletion blocked | Archive the session or cancel/transfer applications first |
 | Parent viewing others' apps | Policy filters, only own apps visible | Query scope: `where('campers.user_id', auth()->id())` |
@@ -393,6 +375,6 @@ For related documentation, see:
 
 ---
 
-**Document Status:** Authoritative
-**Last Updated:** March 2026
-**Version:** 1.0.0
+**Document Status:** Current — updated to reflect corrected state transition rules, camper/medical record activation lifecycle, and transactional review workflow.
+**Last Updated:** 2026-03-24
+**Version:** 2.0.0

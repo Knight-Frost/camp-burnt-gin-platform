@@ -209,6 +209,7 @@ class FormBuilderService
             $this->seedSection6($def);
             $this->seedSection7($def);
             $this->seedSection8($def);
+            $this->seedSectionNarratives($def);
             $this->seedSection9($def);
             $this->seedSection10($def);
 
@@ -507,6 +508,66 @@ class FormBuilderService
             'is_required' => false,
             'width'       => 'half',
             'sort_order'  => 14,
+        ]);
+
+        // Date of medical examination (Form 4523) — required to be within 12 months of camp
+        $this->makeField($s, [
+            'field_key'   => 'date_of_medical_exam',
+            'label'       => 'Date of Medical Examination (Form 4523)',
+            'help_text'   => 'The physical exam must have been completed within 12 months of the first day of camp.',
+            'field_type'  => 'date',
+            'is_required' => false,
+            'width'       => 'half',
+            'sort_order'  => 15,
+        ]);
+
+        // ── H4 Other Health ────────────────────────────────────────────────────
+        // These three items appear in §H4 of the real CYSHCN application form (0717-ENG-DPH)
+        // but were missing from v1.
+
+        $this->makeField($s, [
+            'field_key'   => 'has_contagious_illness',
+            'label'       => 'Does your camper have any contagious illnesses, infections, or communicable diseases?',
+            'field_type'  => 'yesno',
+            'is_required' => false,
+            'width'       => 'full',
+            'sort_order'  => 16,
+        ]);
+        $this->makeField($s, [
+            'field_key'         => 'contagious_illness_description',
+            'label'             => 'Please describe the illness or infection',
+            'field_type'        => 'textarea',
+            'is_required'       => false,
+            'width'             => 'full',
+            'sort_order'        => 17,
+            'conditional_logic' => ['show_if' => ['field_key' => 'has_contagious_illness', 'equals' => true]],
+        ]);
+
+        $this->makeField($s, [
+            'field_key'   => 'tubes_in_ears',
+            'label'       => 'Does your camper have tubes in their ears?',
+            'field_type'  => 'yesno',
+            'is_required' => false,
+            'width'       => 'half',
+            'sort_order'  => 18,
+        ]);
+
+        $this->makeField($s, [
+            'field_key'   => 'has_recent_illness',
+            'label'       => 'Has your camper had any illness, injury, or surgery in the past 12 months?',
+            'field_type'  => 'yesno',
+            'is_required' => false,
+            'width'       => 'full',
+            'sort_order'  => 19,
+        ]);
+        $this->makeField($s, [
+            'field_key'         => 'recent_illness_description',
+            'label'             => 'Please describe the illness, injury, or surgery',
+            'field_type'        => 'textarea',
+            'is_required'       => false,
+            'width'             => 'full',
+            'sort_order'        => 20,
+            'conditional_logic' => ['show_if' => ['field_key' => 'has_recent_illness', 'equals' => true]],
         ]);
     }
 
@@ -846,6 +907,59 @@ class FormBuilderService
             'field_type'  => 'textarea',
             'is_required' => false,
             'width'       => 'full',
+            'sort_order'  => $order++,
+        ]);
+
+        // ── Additional Personal Care / Sleep items from PDF §8 ────────────────
+        // These were missing from v1 but are on the real CYSHCN paper form.
+
+        $this->makeField($s, [
+            'field_key'   => 'falling_asleep_issues',
+            'label'       => 'Difficulty falling or staying asleep',
+            'field_type'  => 'checkbox',
+            'is_required' => false,
+            'width'       => 'half',
+            'sort_order'  => $order++,
+        ]);
+        $this->makeField($s, [
+            'field_key'   => 'sleep_walking',
+            'label'       => 'Sleep walking',
+            'field_type'  => 'checkbox',
+            'is_required' => false,
+            'width'       => 'half',
+            'sort_order'  => $order++,
+        ]);
+        $this->makeField($s, [
+            'field_key'   => 'night_wandering',
+            'label'       => 'Night wandering or getting out of bed unsafely',
+            'field_type'  => 'checkbox',
+            'is_required' => false,
+            'width'       => 'half',
+            'sort_order'  => $order++,
+        ]);
+        $this->makeField($s, [
+            'field_key'   => 'bowel_control_notes',
+            'label'       => 'Bowel / bladder control notes',
+            'help_text'   => 'Include any details about accidents, schedules, or special equipment.',
+            'field_type'  => 'textarea',
+            'is_required' => false,
+            'width'       => 'full',
+            'sort_order'  => $order++,
+        ]);
+        $this->makeField($s, [
+            'field_key'   => 'urinary_catheter',
+            'label'       => 'Uses urinary catheter',
+            'field_type'  => 'checkbox',
+            'is_required' => false,
+            'width'       => 'half',
+            'sort_order'  => $order++,
+        ]);
+        $this->makeField($s, [
+            'field_key'   => 'menstruation_support',
+            'label'       => 'Requires assistance with menstrual care (female campers)',
+            'field_type'  => 'checkbox',
+            'is_required' => false,
+            'width'       => 'half',
             'sort_order'  => $order,
         ]);
     }
@@ -863,14 +977,15 @@ class FormBuilderService
             'sort_order'  => 6,
         ]);
 
+        // Activities match the real CYSHCN application form (0717-ENG-DPH §9)
         $activities = [
-            ['swimming',        'Swimming'],
-            ['hiking',          'Hiking'],
-            ['horseback',       'Horseback Riding'],
-            ['rock_climbing',   'Rock Climbing'],
-            ['sports',          'Team Sports'],
-            ['arts_crafts',     'Arts & Crafts'],
-            ['field_trips',     'Field Trips'],
+            ['sports_games', 'Sports & Games'],
+            ['arts_crafts',  'Arts & Crafts'],
+            ['nature',       'Nature Activities'],
+            ['fine_arts',    'Fine Arts'],
+            ['swimming',     'Swimming'],
+            ['boating',      'Boating'],
+            ['camp_out',     'Camp Out'],
         ];
 
         $levelOptions = [
@@ -962,7 +1077,59 @@ class FormBuilderService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Section 9 — Required Documents
+    // Section 9 — Narratives (PDF §10)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function seedSectionNarratives(FormDefinition $def): void
+    {
+        $s = $this->makeSection($def, [
+            'title'       => 'About Your Camper',
+            'short_title' => 'Narratives',
+            'icon_name'   => 'MessageSquare',
+            'sort_order'  => 8,
+        ]);
+
+        $questions = [
+            ['narrative_rustic_environment',
+             'Is a rustic outdoor environment (heat, bugs, uneven terrain, limited AC) suitable for your camper? Please explain any concerns.',
+             0],
+            ['narrative_staff_suggestions',
+             'What suggestions do you have for camp staff to best support your camper\'s unique needs during activities and daily routines?',
+             1],
+            ['narrative_participation_concerns',
+             'Are there any specific camp activities or situations that concern you regarding your camper\'s participation? Please describe.',
+             2],
+            ['narrative_camp_benefit',
+             'How do you believe attending camp will benefit your camper? What goals or outcomes are you hoping for?',
+             3],
+            ['narrative_heat_tolerance',
+             'Please describe your camper\'s tolerance for heat and sun exposure, and any precautions staff should take.',
+             4],
+            ['narrative_transportation',
+             'Are there any concerns or special accommodations needed regarding transportation to and from camp?',
+             5],
+            ['narrative_additional_info',
+             'Is there any additional information about your camper that camp staff should know that has not been covered elsewhere in this application?',
+             6],
+            ['narrative_emergency_protocols',
+             'Are there any special emergency procedures or protocols specific to your camper\'s condition that staff must follow?',
+             7],
+        ];
+
+        foreach ($questions as [$key, $label, $order]) {
+            $this->makeField($s, [
+                'field_key'   => $key,
+                'label'       => $label,
+                'field_type'  => 'textarea',
+                'is_required' => false,
+                'width'       => 'full',
+                'sort_order'  => $order,
+            ]);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Section 10 — Required Documents
     // ─────────────────────────────────────────────────────────────────────────
 
     private function seedSection9(FormDefinition $def): void
@@ -971,7 +1138,7 @@ class FormBuilderService
             'title'       => 'Required Documents',
             'short_title' => 'Documents',
             'icon_name'   => 'Upload',
-            'sort_order'  => 8,
+            'sort_order'  => 9,
         ]);
 
         $docs = [
@@ -997,7 +1164,7 @@ class FormBuilderService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Section 10 — Consents & Signatures
+    // Section 11 — Consents & Signatures
     // ─────────────────────────────────────────────────────────────────────────
 
     private function seedSection10(FormDefinition $def): void
@@ -1006,7 +1173,7 @@ class FormBuilderService
             'title'       => 'Consents & Signatures',
             'short_title' => 'Consents',
             'icon_name'   => 'PenLine',
-            'sort_order'  => 9,
+            'sort_order'  => 10,
         ]);
 
         $consents = [

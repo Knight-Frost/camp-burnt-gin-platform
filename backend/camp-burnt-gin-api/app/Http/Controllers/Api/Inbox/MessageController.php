@@ -72,9 +72,11 @@ class MessageController extends Controller
             $perPage
         );
 
+        $viewer = $request->user();
+
         return response()->json([
             'success' => true,
-            'data'    => collect($messages->items())->map(fn ($msg) => $this->shapeMessage($msg))->all(),
+            'data'    => collect($messages->items())->map(fn ($msg) => $this->shapeMessage($msg, $viewer))->all(),
             'meta'    => [
                 'current_page' => $messages->currentPage(),
                 'last_page'    => $messages->lastPage(),
@@ -93,52 +95,149 @@ class MessageController extends Controller
      * Send a new message in a conversation.
      *
      * Attachments are validated for type and size before being stored. An idempotency_key
-     * can be supplied by the frontend to safely retry failed sends without creating duplicates
-     * (e.g., if the network drops right after the backend receives the request).
+     * can be supplied by the frontend to safely retry failed sends without creating duplicates.
+     *
+     * Accepts optional recipients array with TO/CC/BCC types:
+     *   recipients: [{user_id: 1, type: "to"}, {user_id: 2, type: "cc"}, ...]
+     *
+     * When sent as multipart/form-data (with file attachments), recipients must be passed
+     * as a JSON string in the recipients_json field. When sent as JSON, use the recipients array.
      *
      * POST /api/inbox/conversations/{conversation}/messages
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
-     * @throws ValidationException
      */
     public function store(Request $request, Conversation $conversation): JsonResponse
     {
-        // MessagePolicy::create verifies the user is an active participant who can send messages
         Gate::authorize('create', [Message::class, $conversation]);
 
         $validated = $request->validate([
-            // 65535 characters = max size of MySQL TEXT column
-            'body'            => 'required|string|max:65535',
-            // Allow up to 5 files per message; each limited to 10 MB
-            'attachments'     => 'nullable|array|max:5',
-            'attachments.*'   => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
-            // Optional client-generated key to prevent duplicate sends on retry
-            'idempotency_key' => 'nullable|string|max:64',
+            'body'              => 'required|string|max:65535',
+            'attachments'       => 'nullable|array|max:5',
+            'attachments.*'     => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            'idempotency_key'   => 'nullable|string|max:64',
+            // Optional typed recipients. Each entry must have user_id + type.
+            'recipients'        => 'nullable|array|max:20',
+            'recipients.*.user_id' => 'required|integer|exists:users,id',
+            'recipients.*.type'    => 'required|string|in:to,cc,bcc',
+            // Multipart fallback: recipients serialised as JSON string
+            'recipients_json'   => 'nullable|string',
         ]);
 
+        // Resolve recipients: JSON string (multipart) takes precedence → array → empty
+        $recipients = $this->resolveRecipients($validated, $request);
+
         try {
-            // MessageService handles saving the message, processing attachments, and notifying participants
             $message = $this->messageService->sendMessage(
                 $conversation,
                 $request->user(),
                 $validated['body'],
                 $validated['attachments'] ?? [],
-                $validated['idempotency_key'] ?? null
+                $validated['idempotency_key'] ?? null,
+                $recipients
             );
 
-            // Eagerly load relationships so attachments appear in the response immediately
-            // for the sender — without this, freshly-saved attachments may not be included.
-            $message->load(['sender', 'attachments']);
+            $message->load(['sender', 'attachments', 'recipients.user']);
 
             return response()->json([
                 'success' => true,
-                'data'    => $this->shapeMessage($message),
+                'data'    => $this->shapeMessage($message, $request->user()),
                 'message' => 'Message sent successfully',
             ], 201);
         } catch (\Exception $e) {
-            // Catch service-layer exceptions (e.g., duplicate idempotency key conflict)
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Reply to a specific message — sends only to that message's original sender.
+     *
+     * Thread linkage: the reply is added to the same conversation so the full
+     * conversation history is visible to all participants.
+     *
+     * POST /api/inbox/conversations/{conversation}/reply
+     */
+    public function reply(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('create', [Message::class, $conversation]);
+
+        $validated = $request->validate([
+            'body'             => 'required|string|max:65535',
+            'parent_message_id' => 'required|integer|exists:messages,id',
+            'attachments'      => 'nullable|array|max:5',
+            'attachments.*'    => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+        ]);
+
+        // Load the parent message and verify it belongs to this conversation
+        $parentMessage = Message::where('id', $validated['parent_message_id'])
+            ->where('conversation_id', $conversation->id)
+            ->firstOrFail();
+
+        try {
+            $message = $this->messageService->reply(
+                $conversation,
+                $parentMessage,
+                $request->user(),
+                $validated['body'],
+                $validated['attachments'] ?? []
+            );
+
+            $message->load(['sender', 'attachments', 'recipients.user']);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $this->shapeMessage($message, $request->user()),
+                'message' => 'Reply sent successfully',
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Reply All to a message — sends to original sender + all visible TO/CC recipients.
+     *
+     * BCC recipients from the original message are NEVER included.
+     * The backend computes recipients server-side to prevent client manipulation.
+     *
+     * POST /api/inbox/conversations/{conversation}/reply-all
+     */
+    public function replyAll(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('create', [Message::class, $conversation]);
+
+        $validated = $request->validate([
+            'body'              => 'required|string|max:65535',
+            'parent_message_id' => 'required|integer|exists:messages,id',
+            'attachments'       => 'nullable|array|max:5',
+            'attachments.*'     => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+        ]);
+
+        $parentMessage = Message::where('id', $validated['parent_message_id'])
+            ->where('conversation_id', $conversation->id)
+            ->firstOrFail();
+
+        try {
+            $message = $this->messageService->replyAll(
+                $conversation,
+                $parentMessage,
+                $request->user(),
+                $validated['body'],
+                $validated['attachments'] ?? []
+            );
+
+            $message->load(['sender', 'attachments', 'recipients.user']);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $this->shapeMessage($message, $request->user()),
+                'message' => 'Reply All sent successfully',
+            ], 201);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'error'   => $e->getMessage(),
@@ -164,14 +263,14 @@ class MessageController extends Controller
         Gate::authorize('view', $message);
 
         // Eager-load relationships needed to render the full message view
-        $message->load(['sender', 'attachments']);
+        $message->load(['sender', 'attachments', 'recipients.user']);
 
         // Mark as read — creates a MessageRead record if one doesn't already exist
         $this->messageService->markAsRead($message, $request->user());
 
         return response()->json([
             'success' => true,
-            'data'    => $this->shapeMessage($message),
+            'data'    => $this->shapeMessage($message, $request->user()),
         ]);
     }
 
@@ -313,12 +412,14 @@ class MessageController extends Controller
     /**
      * Shape a message model into the API response array.
      *
-     * Keeps sender fields minimal (only what ThreadView uses) and runs
-     * attachments through MessageAttachmentResource so that only the four
-     * safe fields (id, original_filename, mime_type, file_size) are exposed —
-     * storage internals and PHI audit fields are never leaked to the client.
+     * BCC privacy: recipients are filtered through Message::getRecipientsForUser()
+     * so that BCC entries are only visible to the original sender. This is the
+     * single authoritative location where BCC filtering happens for message responses.
+     *
+     * @param  Message    $message  The message model (with sender, attachments, recipients.user loaded)
+     * @param  \App\Models\User|null  $viewer   The user whose response is being built; null = no recipient filter
      */
-    private function shapeMessage(Message $message): array
+    private function shapeMessage(Message $message, ?\App\Models\User $viewer = null): array
     {
         $sender = null;
         if ($message->sender) {
@@ -330,16 +431,73 @@ class MessageController extends Controller
             ];
         }
 
+        // Build the recipient list, applying BCC visibility rules per viewer
+        $recipients = [];
+        if ($viewer !== null) {
+            $visibleRecipients = $message->getRecipientsForUser($viewer);
+            foreach ($visibleRecipients as $r) {
+                $recipients[] = [
+                    'id'             => $r->id,
+                    'user_id'        => $r->user_id,
+                    'recipient_type' => $r->recipient_type,
+                    'user'           => $r->user ? [
+                        'id'    => $r->user->id,
+                        'name'  => $r->user->name,
+                        'email' => $r->user->email,
+                    ] : null,
+                ];
+            }
+        }
+
         return [
-            'id'              => $message->id,
-            'conversation_id' => $message->conversation_id,
-            'sender_id'       => $message->sender_id,
-            'sender'          => $sender,
-            'body'            => $message->body,
-            'created_at'      => $message->created_at?->toISOString(),
-            'attachments'     => MessageAttachmentResource::collection(
+            'id'                => $message->id,
+            'conversation_id'   => $message->conversation_id,
+            'sender_id'         => $message->sender_id,
+            'sender'            => $sender,
+            'body'              => $message->body,
+            'parent_message_id' => $message->parent_message_id,
+            'reply_type'        => $message->reply_type,
+            'created_at'        => $message->created_at?->toISOString(),
+            'recipients'        => $recipients,
+            'attachments'       => MessageAttachmentResource::collection(
                 $message->attachments ?? collect()
             )->resolve(),
         ];
+    }
+
+    /**
+     * Resolve the recipients array from the request.
+     *
+     * Handles two cases:
+     *  1. JSON body (standard): recipients is a validated array of objects.
+     *  2. Multipart form-data (with file uploads): recipients_json is a JSON string
+     *     because FormData cannot send nested objects natively. Decoded and validated here.
+     *
+     * Returns an array of ['user_id' => int, 'type' => 'to'|'cc'|'bcc'] entries.
+     */
+    private function resolveRecipients(array $validated, \Illuminate\Http\Request $request): array
+    {
+        // Multipart path: decode from JSON string
+        if (!empty($validated['recipients_json'])) {
+            $decoded = json_decode($validated['recipients_json'], true);
+            if (!is_array($decoded)) {
+                return [];
+            }
+            // Validate each entry for safety
+            return array_values(array_filter(array_map(function ($entry) {
+                $userId = isset($entry['user_id']) ? (int) $entry['user_id'] : null;
+                $type   = in_array($entry['type'] ?? '', ['to', 'cc', 'bcc']) ? $entry['type'] : null;
+                if (!$userId || !$type) {
+                    return null;
+                }
+                return ['user_id' => $userId, 'type' => $type];
+            }, $decoded)));
+        }
+
+        // JSON body path: already validated as array
+        return array_map(fn ($r) => [
+            'user_id' => (int) $r['user_id'],
+            'type'    => $r['type'],
+        ], $validated['recipients'] ?? []);
     }
 }

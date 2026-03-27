@@ -7,6 +7,7 @@ use App\Http\Resources\ConversationResource;
 use App\Models\Conversation;
 use App\Models\User;
 use App\Services\InboxService;
+use App\Services\MessageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -40,10 +41,12 @@ use Illuminate\Validation\ValidationException;
 class ConversationController extends Controller
 {
     /**
-     * Inject InboxService via constructor — all heavy lifting happens there.
+     * Inject InboxService and MessageService — all heavy lifting happens there.
      */
-    public function __construct(protected InboxService $inboxService)
-    {
+    public function __construct(
+        protected InboxService $inboxService,
+        protected MessageService $messageService
+    ) {
     }
 
     /**
@@ -140,10 +143,10 @@ class ConversationController extends Controller
 
         $user = $request->user();
 
-        // For applicants, verify they are not trying to message other non-admin users
-        // (e.g., other parents). Both 'admin' and 'super_admin' are administrative roles.
+        // For applicants and medical providers, verify they are not trying to message
+        // non-admin users. Both 'admin' and 'super_admin' are administrative roles.
         $hasNonAdminParticipants = false;
-        if ($user->isApplicant()) {
+        if ($user->isApplicant() || $user->isMedicalProvider()) {
             // Load the role for each proposed participant to inspect who they are
             $participantRoles = \App\Models\User::whereIn('id', $validated['participant_ids'])
                 ->with('role')
@@ -430,6 +433,46 @@ class ConversationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Conversation restored.',
+        ]);
+    }
+
+    /**
+     * Mark all messages in a conversation as read for the authenticated user.
+     *
+     * Clears the unread badge for this conversation without requiring the user
+     * to open and scroll through the thread. Safe to call repeatedly (idempotent).
+     *
+     * POST /api/inbox/conversations/{conversation}/read
+     */
+    public function markRead(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('view', $conversation);
+
+        $this->messageService->markAllAsRead($conversation, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation marked as read.',
+        ]);
+    }
+
+    /**
+     * Mark a conversation as unread for the authenticated user.
+     *
+     * Removes the read receipt for the most recent non-own message so the conversation
+     * appears unread again. Per-user action — other participants are unaffected.
+     *
+     * POST /api/inbox/conversations/{conversation}/unread
+     */
+    public function markUnread(Request $request, Conversation $conversation): JsonResponse
+    {
+        Gate::authorize('view', $conversation);
+
+        $this->messageService->markConversationUnread($conversation, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation marked as unread.',
         ]);
     }
 

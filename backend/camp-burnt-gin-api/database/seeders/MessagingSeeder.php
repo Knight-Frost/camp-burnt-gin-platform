@@ -8,6 +8,7 @@ use App\Models\CampSession;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
+use App\Models\MessageRecipient;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
 /**
  * Seeder — conversation threads and messages covering all inbox features.
  *
- * Human conversation threads (10):
+ * Human conversation threads (16):
  *   T01 — Sarah Johnson  → application confirmation for Ethan (admin replies)
  *   T02 — Michael Williams → Ava's insulin pump requirements (admin + medical reply)
  *   T03 — Jennifer Thompson → why was Noah's application rejected?
@@ -26,6 +27,12 @@ use Illuminate\Support\Str;
  *   T08 — Archived: Patricia Davis re Mia's 2025 medications (is_archived=true)
  *   T09 — Trashed: duplicate question from Sarah Johnson (trashed by Sarah)
  *   T10 — Multi-turn: Robert Anderson re Emma's g-tube positioning
+ *   T11 — James Carter → Alex Rivera: Henry's arrival logistics + packing list
+ *   T12 — Michelle Robinson → Alex Rivera: question before starting Olivia's application
+ *   T13 — Internal staff: Alex + Taylor (admin3) + Jordan (admin2) — S1 staffing review
+ *   T14 — Patricia Davis → Taylor Brooks (admin3): Mia's session 2 scheduling
+ *   T15 — Jennifer Thompson → Jamie Santos RN (medical2): Noah's seizure meds at camp
+ *   T16 — Internal: Alex Rivera → Dana Forsythe (mfa.admin): pre-camp form template review
  *
  * System notification threads (4):
  *   SYS01 — Ethan Johnson application → approved (Sarah's inbox)
@@ -35,11 +42,19 @@ use Illuminate\Support\Str;
  *
  * Read receipt + inbox feature states exercised:
  *   - Unread messages (no receipts) — several threads have messages the applicant hasn't read
- *   - Starred conversation — Sarah has T01 starred
- *   - Important flag — Michael has T02 marked important
+ *   - Starred conversation — Sarah has T01 starred; Taylor has T14 starred
+ *   - Important flag — Michael has T02 marked important; Jamie has T15 marked important
  *   - Trashed — Sarah has T09 in trash folder
  *   - Archived — T08 is_archived = true
  *   - Admin-side read receipts — admin has read all applicant messages
+ *
+ * Staff inbox coverage after this seeder:
+ *   admin@example.com (Alex Rivera)      — T01,T02,T03,T05,T07,T11,T12,T13,T16 + SYS01-04
+ *   admin2@campburntgin.org (Jordan)      — T10, T13
+ *   admin3@campburntgin.org (Taylor)      — T13, T14
+ *   medical@example.com (Dr. Chen)        — T02,T04,T06,T08
+ *   medical2@campburntgin.org (Jamie)     — T15
+ *   mfa.admin@campburntgin.org (Dana)     — T16
  */
 class MessagingSeeder extends Seeder
 {
@@ -47,7 +62,10 @@ class MessagingSeeder extends Seeder
     {
         $admin   = User::where('email', 'admin@example.com')->firstOrFail();
         $admin2  = User::where('email', 'admin2@campburntgin.org')->firstOrFail();
+        $taylor  = User::where('email', 'admin3@campburntgin.org')->firstOrFail();
         $medical = User::where('email', 'medical@example.com')->firstOrFail();
+        $jamie   = User::where('email', 'medical2@campburntgin.org')->firstOrFail();
+        $dana    = User::where('email', 'mfa.admin@campburntgin.org')->firstOrFail();
 
         // Applicant users
         $sarah    = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
@@ -59,6 +77,8 @@ class MessagingSeeder extends Seeder
         $patricia = User::where('email', 'patricia.davis@example.com')->firstOrFail();
         $robert   = User::where('email', 'robert.anderson@example.com')->firstOrFail();
         $lisa     = User::where('email', 'lisa.rodriguez@example.com')->firstOrFail();
+        $james    = User::where('email', 'james.carter@example.com')->firstOrFail();
+        $michelle = User::where('email', 'michelle.robinson@example.com')->firstOrFail();
 
         // Sessions & campers
         $session1 = CampSession::where('name', 'Session 1 — Summer 2026')->firstOrFail();
@@ -83,6 +103,8 @@ class MessagingSeeder extends Seeder
         $appSofia  = Application::where('camper_id', $sofia->id)->where('camp_session_id', $session1->id)->first();
         $appChloe  = Application::where('camper_id', $chloe->id)->where('camp_session_id', $session1->id)->first();
         $appMia25  = Application::where('camper_id', $mia->id)->where('camp_session_id', $session1Past->id)->first();
+        $henry     = Camper::where('first_name', 'Henry')->where('last_name', 'Carter')->firstOrFail();
+        $appHenry  = Application::where('camper_id', $henry->id)->where('camp_session_id', $session1->id)->first();
 
         // ── T01: Sarah → Ethan application confirmation ───────────────────────
         if (! Conversation::where('subject', 'Re: Ethan\'s Summer 2026 Application — confirmation')->exists()) {
@@ -418,7 +440,161 @@ class MessagingSeeder extends Seeder
             );
         }
 
-        $this->command->line('  Messaging seeded (10 human threads + 4 system notification threads).');
+        // ── T11: James Carter → Alex Rivera — Henry's arrival logistics ───────
+        if (! Conversation::where('subject', 'Henry\'s approved application — arrival and packing questions')->exists()) {
+            $conv = $this->makeConv([
+                'created_by_id'   => $james->id,
+                'subject'         => 'Henry\'s approved application — arrival and packing questions',
+                'category'        => 'Application',
+                'application_id'  => $appHenry?->id,
+                'camper_id'       => $henry->id,
+                'camp_session_id' => $session1->id,
+                'last_message_at' => now()->subDays(2),
+                'is_archived'     => false,
+            ]);
+            $this->addParticipant($conv, $james, now()->subDays(5));
+            $this->addParticipant($conv, $admin, now()->subDays(5));
+
+            $m1 = $this->addMessage($conv, $james, now()->subDays(5),
+                "Hello,\n\nHenry's application for Session 1 was approved — we're thrilled! I had a few logistical questions before arrival:\n\n1. What time does drop-off begin on June 8? Henry does best with a calm arrival so earlier is better.\n2. Henry takes Risperidone 0.5mg at breakfast — do we bring the original prescription bottle?\n3. Is there a woodworking or building activity this session? He loves that kind of structured hands-on work.\n\nThanks so much,\nJames Carter");
+            $m2 = $this->addMessage($conv, $admin, now()->subDays(3),
+                "Hello Mr. Carter,\n\nCongratulations — we're delighted to have Henry back for Session 1!\n\n1. **Arrival**: Drop-off opens at 1:00 PM Sunday June 8. We recommend arriving between 1:00–1:30 PM if you'd like a calmer check-in window before the main rush (1:30–3:00 PM). Let the check-in volunteer know Henry prefers a calm transition and we'll route you directly to his counselor.\n\n2. **Medications**: Yes, please bring all medications in their original labeled prescription containers. Our nursing team will inventory them at check-in. A printed list from his pharmacy is also very helpful.\n\n3. **Activities**: Yes! This session includes a woodworking and nature crafts block on Tuesday and Thursday afternoons. Henry will love it — we have a skilled woodshop instructor.\n\nSee you June 8!\nAlex Rivera, Camp Burnt Gin");
+            $m3 = $this->addMessage($conv, $james, now()->subDays(2),
+                "Perfect — thank you for all of this. We'll arrive right at 1:00 PM. Henry has already started a project at home he wants to show the woodshop instructor!");
+
+            $m1->markAsReadBy($admin);
+            $m2->markAsReadBy($james);
+            // m3 unread by admin
+        }
+
+        // ── T12: Michelle Robinson → Alex Rivera — Olivia's draft application ─
+        if (! Conversation::where('subject', 'Questions before I start Olivia\'s application')->exists()) {
+            $conv = $this->makeConv([
+                'created_by_id'   => $michelle->id,
+                'subject'         => 'Questions before I start Olivia\'s application',
+                'category'        => 'General',
+                'camp_session_id' => $session2->id,
+                'last_message_at' => now()->subHours(8),
+                'is_archived'     => false,
+            ]);
+            $this->addParticipant($conv, $michelle, now()->subDays(1));
+            $this->addParticipant($conv, $admin,    now()->subDays(1));
+
+            $m1 = $this->addMessage($conv, $michelle, now()->subDays(1),
+                "Hi,\n\nI'm interested in applying for Olivia (age 11, Down syndrome) for Session 2. Before I fill out the full application I had two quick questions:\n\n- Does the medical form need to be completed by a specialist or can her pediatrician fill it out?\n- Is there an application deadline for Session 2? I want to make sure we're not too late.\n\nThank you,\nMichelle Robinson");
+            $m2 = $this->addMessage($conv, $admin, now()->subHours(8),
+                "Hello Michelle,\n\nGreat to hear from you! We'd love to have Olivia apply for Session 2.\n\n**Medical form**: Olivia's pediatrician can absolutely complete the medical exam form — it does not need to be a specialist. The form is a standard camp health examination (Form 4523-ENG-DPH). You can download it from your applicant portal under \"Official Forms.\"\n\n**Deadline**: Session 2 applications are open until April 30, so you have plenty of time. We review on a rolling basis, so earlier is better if you want the fastest turnaround.\n\nFeel free to reach out once you've started if you have any questions about the form sections.\n\nAlex Rivera");
+
+            $m1->markAsReadBy($admin);
+            $m2->markAsReadBy($michelle);
+        }
+
+        // ── T13: Internal staff — Alex + Taylor + Jordan — S1 staffing review ─
+        if (! Conversation::where('subject', 'S1 2026 — Pre-camp staffing allocation review')->exists()) {
+            $conv = $this->makeConv([
+                'created_by_id'   => $admin->id,
+                'subject'         => 'S1 2026 — Pre-camp staffing allocation review',
+                'category'        => 'General',
+                'camp_session_id' => $session1->id,
+                'last_message_at' => now()->subHours(3),
+                'is_archived'     => false,
+            ]);
+            $this->addParticipant($conv, $admin,  now()->subDays(3));
+            $this->addParticipant($conv, $admin2, now()->subDays(3)); // Jordan Blake
+            $this->addParticipant($conv, $taylor, now()->subDays(3)); // Taylor Brooks
+
+            $m1 = $this->addMessage($conv, $admin, now()->subDays(3),
+                "Jordan, Taylor —\n\nWith S1 2026 (June 8–12) confirmed at 18 approved campers, I want us to review cabin and activity staffing before we finalize counselor assignments next week.\n\nKey constraints to note:\n- 4 campers require 1:1 supervision (Emma, Chloe, Penelope, Liam)\n- 2 campers require BiPAP overnight (Lucas, Carlos)\n- Lucas's power wheelchair pathway needs to be confirmed accessible for the new waterfront path\n\nCan each of you review your areas by EOD Thursday and flag any gaps?\n\nAlex");
+            $m2 = $this->addMessage($conv, $admin2, now()->subDays(2),
+                "Alex —\n\nI've reviewed the 1:1 assignments. We have 4 returning counselors with prior experience on those specific campers which is great. The only gap is Penelope — her previous 1:1 counselor is not returning this session. I'll post internally for someone with AAC experience.\n\nI'll walk the waterfront path tomorrow and confirm the wheelchair route. Will send photos.\n\nJordan");
+            $m3 = $this->addMessage($conv, $taylor, now()->subDays(1),
+                "Hi both,\n\nActivity side looks solid. I've pre-assigned:\n- Woodworking/crafts: Tuesday + Thursday PM (low-noise, accessible, great for sensory-sensitive campers)\n- Pool block: requires nurse coverage — I've confirmed Dr. Chen and Jamie can cover both pool sessions\n- Nature trail: I'm proposing two groups (ambulatory / wheelchair-accessible route) so no one is left out\n\nOne flag: the Friday evening talent show runs until 8:30 PM. For campers with rigid bedtime needs (Ethan, Mason) should we build in an early exit option?\n\nTaylor");
+            $m4 = $this->addMessage($conv, $admin, now()->subHours(3),
+                "Taylor — early exit option is a great call, yes. Set that up as standard for any camper whose care plan flags bedtime sensitivity. Jordan, if you can confirm the waterfront path by Friday morning we can finalize the session packet by end of week.\n\nAlex");
+
+            $m1->markAsReadBy($admin2);
+            $m1->markAsReadBy($taylor);
+            $m2->markAsReadBy($admin);
+            $m2->markAsReadBy($taylor);
+            $m3->markAsReadBy($admin);
+            $m3->markAsReadBy($admin2);
+            // m4 unread by Taylor and Jordan
+        }
+
+        // ── T14: Patricia Davis → Taylor Brooks — Mia's session 2 scheduling ──
+        if (! Conversation::where('subject', 'Mia Davis — Session 2 2026 interest and scheduling')->exists()) {
+            $conv = $this->makeConv([
+                'created_by_id'   => $patricia->id,
+                'subject'         => 'Mia Davis — Session 2 2026 interest and scheduling',
+                'category'        => 'Application',
+                'camper_id'       => $mia->id,
+                'camp_session_id' => $session2->id,
+                'last_message_at' => now()->subDays(1),
+                'is_archived'     => false,
+            ]);
+            $this->addParticipant($conv, $patricia, now()->subDays(4));
+            $this->addParticipant($conv, $taylor,   now()->subDays(4), is_starred: true);
+
+            $m1 = $this->addMessage($conv, $patricia, now()->subDays(4),
+                "Hello,\n\nMia attended Session 1 last year and had an incredible time. We've started a new application for Session 2 this year (it's still in draft). I wanted to check in with the coordinator side before I finalize and submit — a few things:\n\n1. Mia's favorite counselor from 2025 (we believe her name was Aisha?) — any chance she's returning for S2?\n2. Mia's hydroxyurea schedule has changed slightly — is it easier to update the medical form or send a note to the nursing team directly?\n3. She's a little nervous about being away again but very excited — any tips for the adjustment period?\n\nThank you!\nPatricia Davis");
+            $m2 = $this->addMessage($conv, $taylor, now()->subDays(2),
+                "Hi Patricia,\n\nSo lovely to hear from you and to know Mia wants to come back — that means the world to us!\n\n1. **Aisha**: Yes! Aisha Chen is returning for Session 2 and I will personally flag that Mia is coming back. I can't guarantee assignment but will make every effort.\n\n2. **Medication update**: The easiest path is to update the medical form in your application before submitting. If you've already submitted, you can also reply directly to our medical team (medical@campburntgin.org) with the updated schedule and they'll note it in the MAR. Dr. Chen's team is very responsive.\n\n3. **Adjustment nerves**: This is completely normal! Most returning campers settle in within the first afternoon. I recommend packing a small comfort item or photo that Mia can keep in her cabin. We also do a brief one-on-one check-in with returning campers on arrival day to ease the transition.\n\nPlease do go ahead and submit when you're ready — we'll give returning applications priority review.\n\nWarmly,\nTaylor Brooks, Program Coordinator");
+            $m3 = $this->addMessage($conv, $patricia, now()->subDays(1),
+                "Taylor, thank you so much — this is so reassuring. I'll finalize and submit the application this week. Mia will be over the moon when I tell her about Aisha!");
+
+            $m1->markAsReadBy($taylor);
+            $m2->markAsReadBy($patricia);
+            // m3 unread by Taylor
+        }
+
+        // ── T15: Jennifer Thompson → Jamie Santos RN — Noah's seizure meds ────
+        if (! Conversation::where('subject', 'Noah\'s seizure medication — administration questions for nursing team')->exists()) {
+            $conv = $this->makeConv([
+                'created_by_id'   => $jennifer->id,
+                'subject'         => 'Noah\'s seizure medication — administration questions for nursing team',
+                'category'        => 'Medical',
+                'camper_id'       => $noah->id,
+                'camp_session_id' => $session2->id,
+                'last_message_at' => now()->subHours(5),
+                'is_archived'     => false,
+            ]);
+            $this->addParticipant($conv, $jennifer, now()->subDays(6));
+            $this->addParticipant($conv, $jamie,    now()->subDays(6), is_important: true);
+
+            $m1 = $this->addMessage($conv, $jennifer, now()->subDays(6),
+                "Hello,\n\nWe're planning to apply for Noah (Down syndrome, seizure disorder) for Session 2 following the discussion about his Session 1 application. I wanted to reach the nursing team early with a few questions about his seizure protocol before we submit:\n\n1. Noah takes Levetiracetam 500mg twice daily (7am + 7pm). Does the nursing schedule align with those times?\n2. His neurologist has provided a rescue medication protocol using Diazepam rectal gel (Diastat) for seizures >5 minutes. Are your nurses trained to administer rectal diazepam?\n3. His last seizure was 14 months ago — is there a minimum seizure-free period required for camp participation?\n\nI want to be fully transparent so there are no surprises.\n\nThank you,\nJennifer Thompson");
+            $m2 = $this->addMessage($conv, $jamie, now()->subDays(4),
+                "Dear Ms. Thompson,\n\nThank you for reaching out proactively — this kind of detailed information helps us prepare a safe and complete care plan for Noah before he arrives.\n\n1. **Medication timing**: Our medication rounds are 7:00 AM and 7:00 PM, which aligns perfectly with Noah's current schedule. We'll document Levetiracetam as a standing order and administer at those times daily.\n\n2. **Diastat**: Yes — all registered nurses on our team, including myself, are trained and certified in rectal diazepam administration per emergency seizure protocol. We will document the specific trigger criteria and duration threshold (>5 minutes) from Noah's neurologist in his individualized emergency care plan. Please bring the prescribed Diastat kit in the original pharmacy packaging.\n\n3. **Seizure-free period**: We do not have a mandatory minimum seizure-free period as a blanket policy — we evaluate each camper individually based on seizure type, frequency, and available nursing support. 14 months seizure-free with managed medication is a positive factor. Dr. Chen (our Medical Director) will do the final review and may request a letter from Noah's neurologist clearing him for camp.\n\nPlease submit the application when ready and include the neurologist's contact information in the medical section. I'll flag Noah's file for priority medical review.\n\nJamie Santos, RN\nCamp Burnt Gin Nursing Team");
+            $m3 = $this->addMessage($conv, $jennifer, now()->subHours(5),
+                "Jamie, thank you so much — this is exactly what we needed to hear. I feel much more comfortable. I'll get the Diastat kit packed and request the neurologist's letter this week. We'll submit the Session 2 application by Friday.");
+
+            $m1->markAsReadBy($jamie);
+            $m2->markAsReadBy($jennifer);
+            // m3 unread by Jamie
+        }
+
+        // ── T16: Internal — Alex Rivera → Dana Forsythe — pre-camp form review ─
+        if (! Conversation::where('subject', 'Pre-camp form template review — S1 2026')->exists()) {
+            $conv = $this->makeConv([
+                'created_by_id'   => $admin->id,
+                'subject'         => 'Pre-camp form template review — S1 2026',
+                'category'        => 'General',
+                'last_message_at' => now()->subDays(1),
+                'is_archived'     => false,
+            ]);
+            $this->addParticipant($conv, $admin, now()->subDays(3));
+            $this->addParticipant($conv, $dana,  now()->subDays(3));
+
+            $m1 = $this->addMessage($conv, $admin, now()->subDays(3),
+                "Dana,\n\nBefore we open Session 2 applications I'd like your eyes on the form builder. A few things I want to verify are set correctly in the system:\n\n1. The behavioral section of the application form now has 9 new fields from the form parity update — can you confirm all are showing as active/visible in the Form Builder?\n2. The medical exam upload (Form 4523) — is the download link in the applicant portal pointing to the current DPH version?\n3. Jordan asked if we can add a \"second session choice\" dropdown on the application — I believe that's already in the system but wanted to confirm it's displaying correctly in the live form.\n\nNo rush — this week works.\n\nAlex");
+            $m2 = $this->addMessage($conv, $dana, now()->subDays(1),
+                "Alex —\n\n1. **Behavioral fields**: Checked the Form Builder — all 9 new behavioral parity fields are present and marked active. The section order looks correct: original flags first, new parity flags below.\n\n2. **Medical form download**: The link is pointing to the 2025 DPH version (Form 4523-ENG-DPH Rev. 2025-01). I'll confirm with Jordan whether there's been a 2026 revision before we swap it out.\n\n3. **Second session choice**: Yes, it's in the live form — renders as a radio button list with the primary session automatically excluded from the second-choice options. Tested it this morning and it works correctly.\n\nI'll follow up on the DPH form version by Thursday.\n\nDana Forsythe");
+
+            $m1->markAsReadBy($dana);
+            $m2->markAsReadBy($admin);
+        }
+
+        $this->command->line('  Messaging seeded (16 human threads + 4 system notification threads).');
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -478,6 +654,20 @@ class MessagingSeeder extends Seeder
             $conv->update(['last_message_at' => $createdAt]);
         }
 
+        // Create TO recipient rows for all other participants in this conversation.
+        // The message_recipients table drives the Gmail-style TO/CC/BCC display in the inbox.
+        // All seeded human messages use simple "TO = everyone else" semantics (no CC/BCC).
+        $otherParticipantIds = ConversationParticipant::where('conversation_id', $conv->id)
+            ->where('user_id', '!=', $sender->id)
+            ->pluck('user_id');
+
+        foreach ($otherParticipantIds as $recipientId) {
+            MessageRecipient::firstOrCreate(
+                ['message_id' => $msg->id, 'user_id' => $recipientId],
+                ['recipient_type' => 'to', 'is_read' => false]
+            );
+        }
+
         return $msg;
     }
 
@@ -530,6 +720,16 @@ class MessagingSeeder extends Seeder
             'created_at'      => $createdAt,
             'updated_at'      => $createdAt,
         ]);
+
+        // System messages are addressed to the applicant (TO recipient)
+        MessageRecipient::firstOrCreate(
+            ['message_id' => $msg->id, 'user_id' => $applicant->id],
+            [
+                'recipient_type' => 'to',
+                'is_read'        => $readByApplicant,
+                'read_at'        => $readByApplicant ? $createdAt : null,
+            ]
+        );
 
         if ($readByApplicant) {
             $msg->reads()->create([

@@ -37,8 +37,8 @@ class AssistiveDevicePolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff have direct access to all camper assistive device records.
-            return true;
+            // Camp medical staff may access assistive device records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($assistiveDevice->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {
@@ -68,8 +68,8 @@ class AssistiveDevicePolicy
         }
 
         if ($user->isMedicalProvider()) {
-            // Camp medical staff may update assistive device records during active care.
-            return true;
+            // Camp medical staff may update assistive device records only for active (approved) campers.
+            return $user->canAccessCamperAsMedical($assistiveDevice->camper);
         }
 
         if ($user->isApplicant() && $user->ownsCamper($assistiveDevice->camper)) {

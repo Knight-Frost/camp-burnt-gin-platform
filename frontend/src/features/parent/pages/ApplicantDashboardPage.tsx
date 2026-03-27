@@ -145,7 +145,7 @@ export function ApplicantDashboardPage() {
           {t('applicant.dashboard.quick_actions')}
         </h3>
         <div className="flex flex-wrap gap-2">
-          <Button as={Link} to={ROUTES.PARENT_APPLICATION_NEW} variant="primary" size="sm">
+          <Button as={Link} to={ROUTES.PARENT_APPLICATION_START} variant="primary" size="sm">
             <Plus className="h-4 w-4" />
             {t('applicant.dashboard.new_application')}
           </Button>
@@ -206,7 +206,7 @@ export function ApplicantDashboardPage() {
             {t('applicant.dashboard.my_campers')}
           </h3>
           <Link
-            to={ROUTES.PARENT_APPLICATION_NEW}
+            to={ROUTES.PARENT_APPLICATION_START}
             className="flex items-center gap-1.5 text-sm font-medium hover:underline"
             style={{ color: 'var(--ember-orange)' }}
           >
@@ -224,7 +224,7 @@ export function ApplicantDashboardPage() {
             <EmptyState
               title={t('applicant.dashboard.no_campers_title')}
               description={t('applicant.dashboard.no_campers_desc')}
-              action={{ label: t('applicant.dashboard.start_application'), onClick: () => navigate(ROUTES.PARENT_APPLICATION_NEW) }}
+              action={{ label: t('applicant.dashboard.start_application'), onClick: () => navigate(ROUTES.PARENT_APPLICATION_START) }}
             />
           </div>
         ) : (

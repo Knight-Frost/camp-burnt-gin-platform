@@ -122,7 +122,7 @@ class MedicationAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $medication = Medication::factory()->forCamper($camper)->create();
 
         \App\Models\MedicalProviderLink::factory()->create([
@@ -157,7 +157,7 @@ class MedicationAuthorizationTest extends TestCase
     {
         $medical = $this->createMedicalProvider();
         $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
+        $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $medication = Medication::factory()->forCamper($camper)->create();
 
         \App\Models\MedicalProviderLink::factory()->create([

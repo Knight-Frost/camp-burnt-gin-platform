@@ -24,6 +24,7 @@ use App\Models\MedicalIncident;
 use App\Models\MedicalFollowUp;
 use App\Models\MedicalVisit;
 use App\Models\ApplicantDocument;
+use App\Models\Deadline;
 use App\Models\FormDefinition;
 use App\Models\FormField;
 use App\Models\FormSection;
@@ -32,6 +33,7 @@ use App\Models\Message;
 use App\Models\Role;
 use App\Models\UserEmergencyContact;
 use App\Observers\AssistiveDeviceObserver;
+use App\Observers\DeadlineObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\CamperObserver;
 use App\Observers\DiagnosisObserver;
@@ -64,6 +66,7 @@ use App\Policies\ApplicantDocumentPolicy;
 use App\Policies\FormDefinitionPolicy;
 use App\Policies\FormFieldPolicy;
 use App\Policies\FormSectionPolicy;
+use App\Policies\DeadlinePolicy;
 use App\Policies\MedicalRestrictionPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -161,6 +164,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Document requests — admin-initiated document request workflow (Phase 13)
         DocumentRequest::class => DocumentRequestPolicy::class,
+
+        // Deadline management system — single source of truth for all time-based enforcement
+        Deadline::class => DeadlinePolicy::class,
     ];
 
     /**
@@ -238,6 +244,8 @@ class AppServiceProvider extends ServiceProvider
         BehavioralProfile::observe(BehavioralProfileObserver::class);
         FeedingPlan::observe(FeedingPlanObserver::class);
         AssistiveDevice::observe(AssistiveDeviceObserver::class);
+        // Deadline observer: maintains 1:1 parity with CalendarEvent on every write
+        Deadline::observe(DeadlineObserver::class);
     }
 
     /**

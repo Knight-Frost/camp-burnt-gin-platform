@@ -45,6 +45,21 @@ class StoreApplicationRequest extends FormRequest
     }
 
     /**
+     * Map client-side field aliases to the canonical database column names
+     * before validation runs. The frontend sends session_id; the applications
+     * table stores it as camp_session_id.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('session_id') && ! $this->has('camp_session_id')) {
+            $this->merge(['camp_session_id' => $this->input('session_id')]);
+        }
+        if ($this->has('session_id_second') && ! $this->has('camp_session_id_second')) {
+            $this->merge(['camp_session_id_second' => $this->input('session_id_second')]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -62,6 +77,21 @@ class StoreApplicationRequest extends FormRequest
                 }),
             ],
             'notes' => ['nullable', 'string', 'max:1000'],
+            // Narrative responses from Section "About Your Camper" (free-text)
+            'narrative_rustic_environment'     => ['nullable', 'string', 'max:5000'],
+            'narrative_staff_suggestions'      => ['nullable', 'string', 'max:5000'],
+            'narrative_participation_concerns' => ['nullable', 'string', 'max:5000'],
+            'narrative_camp_benefit'           => ['nullable', 'string', 'max:5000'],
+            'narrative_heat_tolerance'         => ['nullable', 'string', 'max:5000'],
+            'narrative_transportation'         => ['nullable', 'string', 'max:5000'],
+            'narrative_additional_info'        => ['nullable', 'string', 'max:5000'],
+            'narrative_emergency_protocols'    => ['nullable', 'string', 'max:5000'],
+            // Form parity (2026_03_26_000002)
+            'first_application'       => ['nullable', 'boolean'],
+            'attended_before'         => ['nullable', 'boolean'],
+            'session_id_second'       => ['nullable', 'integer', 'exists:camp_sessions,id'],
+            // camp_session_id_second is the canonical column name (mapped from session_id_second via prepareForValidation)
+            'camp_session_id_second'  => ['nullable', 'integer', 'exists:camp_sessions,id'],
         ];
     }
 

@@ -39,6 +39,11 @@ class FeedingPlan extends Model
         'feeding_times',
         'bolus_only',
         'notes',
+        // Texture and fluid fields (Phase 2 — Section 5 gaps)
+        'texture_modified',  // True if food texture must be modified.
+        'texture_level',     // Specific texture level (e.g. minced, puréed, liquidised).
+        'fluid_restriction', // True if fluids must be restricted or measured.
+        'fluid_details',     // Description of fluid restriction protocol (encrypted — PHI).
     ];
 
     /**
@@ -59,9 +64,13 @@ class FeedingPlan extends Model
             'feedings_per_day' => 'integer',
             // Stored as JSON array of scheduled times; decoded to PHP array on read
             'feeding_times'    => 'array',
-            'bolus_only'       => 'boolean',
+            'bolus_only'        => 'boolean',
             // PHI field — encrypted at rest for HIPAA compliance
-            'notes'            => 'encrypted',
+            'notes'             => 'encrypted',
+            // Phase 2 texture/fluid fields
+            'texture_modified'  => 'boolean',
+            'fluid_restriction' => 'boolean',
+            'fluid_details'     => 'encrypted',   // PHI — describes clinical fluid protocol.
         ];
     }
 

@@ -16,14 +16,15 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   ArrowLeft, User, FileText, Calendar, Download,
-  CheckCircle, Clock, AlertTriangle, XCircle, Info,
+  CheckCircle, Clock, AlertTriangle, XCircle, Info, RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplication } from '@/features/parent/api/applicant.api';
+import { getApplication, withdrawApplication, cloneApplication } from '@/features/parent/api/applicant.api';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard } from '@/ui/components/Skeletons';
@@ -67,13 +68,14 @@ function SectionCard({
 
 // Shows "Not provided" when value is null/undefined to communicate intent clearly
 function Field({ label, value }: { label: string; value?: string | null }) {
+  const { t } = useTranslation();
   return (
     <div>
       <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>
         {label}
       </p>
       <p className="text-sm" style={{ color: value ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
-        {value ?? 'Not provided'}
+        {value ?? t('applicant_detail.not_provided')}
       </p>
     </div>
   );
@@ -81,22 +83,25 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 
 // ─── Status timeline ──────────────────────────────────────────────────────────
 
-// Defines the three main forward-progress steps for a typical application
-const STATUS_STEPS: { status: string; label: string; icon: ReactNode }[] = [
-  { status: 'pending',      label: 'Submitted',    icon: <FileText className="h-3.5 w-3.5" /> },
-  { status: 'under_review', label: 'Under review', icon: <Clock className="h-3.5 w-3.5" /> },
-  { status: 'approved',     label: 'Approved',     icon: <CheckCircle className="h-3.5 w-3.5" /> },
-];
-
 // Visual progress indicator showing where an application is in the review pipeline
+// STATUS_STEPS is defined inside the component so labels rebuild when language changes
 function StatusTimeline({ status }: { status: string }) {
+  const { t } = useTranslation();
+
+  // Defines the three main forward-progress steps for a typical application
+  const STATUS_STEPS: { status: string; label: string; icon: ReactNode }[] = [
+    { status: 'pending',      label: t('applicant_detail.step_submitted'),    icon: <FileText className="h-3.5 w-3.5" /> },
+    { status: 'under_review', label: t('applicant_detail.step_under_review'), icon: <Clock className="h-3.5 w-3.5" /> },
+    { status: 'approved',     label: t('applicant_detail.step_approved'),     icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  ];
+
   // Terminal failure states get their own simple message instead of a progress bar
   if (status === 'rejected' || status === 'withdrawn') {
     return (
       <div className="flex items-center gap-2 py-2">
         <XCircle className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--destructive)' }} />
         <p className="text-sm font-medium" style={{ color: 'var(--destructive)' }}>
-          {status === 'rejected' ? 'Application was not accepted.' : 'Application was withdrawn.'}
+          {status === 'rejected' ? t('applicant_detail.rejected_notice') : t('applicant_detail.withdrawn_notice')}
         </p>
       </div>
     );
@@ -107,7 +112,7 @@ function StatusTimeline({ status }: { status: string }) {
       <div className="flex items-center gap-2 py-2">
         <Info className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
         <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          This application is still a draft and has not been submitted.
+          {t('applicant_detail.draft_notice')}
         </p>
       </div>
     );
@@ -168,10 +173,13 @@ export function ApplicantApplicationDetailPage() {
   // Pull the application ID from the URL (e.g. /applicant/applications/7)
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [reapplying, setReapplying] = useState(false);
   // Increment to re-trigger the fetch after an error
   const [retryKey, setRetryKey] = useState(0);
 
@@ -184,6 +192,42 @@ export function ApplicantApplicationDetailPage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id, retryKey]);
+
+  // Withdraw the application after an explicit confirmation prompt.
+  async function handleWithdraw() {
+    if (!application) return;
+    const confirmed = window.confirm(t('applicant_detail.withdraw_confirm'));
+    if (!confirmed) return;
+
+    setWithdrawing(true);
+    try {
+      const updated = await withdrawApplication(application.id);
+      setApplication(updated as unknown as Application);
+      toast.success(t('applicant_detail.withdraw_success'));
+    } catch {
+      toast.error(t('applicant_detail.withdraw_error'));
+    } finally {
+      setWithdrawing(false);
+    }
+  }
+
+  // Clone the application into a new draft for reapplication and navigate to it.
+  async function handleReapply() {
+    if (!application) return;
+    const confirmed = window.confirm(t('applicant_detail.reapply_confirm'));
+    if (!confirmed) return;
+
+    setReapplying(true);
+    try {
+      const newApp = await cloneApplication(application.id);
+      toast.success(t('applicant_detail.reapply_success'));
+      navigate(ROUTES.PARENT_APPLICATION_DETAIL(newApp.id));
+    } catch {
+      toast.error(t('applicant_detail.reapply_error'));
+    } finally {
+      setReapplying(false);
+    }
+  }
 
   // Download a document by fetching it as a blob and triggering a browser save
   function handleDownload(docId: number, name: string) {
@@ -201,7 +245,7 @@ export function ApplicantApplicationDetailPage() {
         // Free the object URL immediately to avoid memory leaks
         URL.revokeObjectURL(url);
       })
-      .catch(() => toast.error('Download failed. Please try again.'));
+      .catch(() => toast.error(t('applicant_detail.download_error')));
   }
 
   // Show skeleton cards while the application is loading
@@ -233,7 +277,7 @@ export function ApplicantApplicationDetailPage() {
         style={{ color: 'var(--muted-foreground)' }}
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to applications
+        {t('applicant_detail.back')}
       </Link>
 
       {/* Page header: camper name + status badge */}
@@ -243,12 +287,14 @@ export function ApplicantApplicationDetailPage() {
             className="text-xl font-headline font-semibold"
             style={{ color: 'var(--foreground)' }}
           >
-            {camper?.full_name ?? `Application #${application.id}`}
+            {/* Prefer camper full name; fall back to the human-readable app number (never raw id) */}
+            {camper?.full_name ?? application.application_number ?? t('applicant_detail.app_number', { number: application.application_number ?? `#${application.id}` })}
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            Application #{application.id}
+            {/* Show human-readable identifier (CBG-2026-042) instead of raw database id */}
+            {t('applicant_detail.app_number', { number: application.application_number ?? `#${application.id}` })}
             {application.submitted_at && (
-              <> &middot; Submitted {format(new Date(application.submitted_at), 'MMMM d, yyyy')}</>
+              <> &middot; {t('applicant_detail.submitted_on', { date: format(new Date(application.submitted_at), 'MMMM d, yyyy') })}</>
             )}
           </p>
         </div>
@@ -259,7 +305,7 @@ export function ApplicantApplicationDetailPage() {
       <div className="flex flex-col gap-5">
         {/* Status timeline card — always shown */}
         <div>
-          <SectionCard title="Application Status" icon={<AlertTriangle className="h-4 w-4" />}>
+          <SectionCard title={t('applicant_detail.status_title')} icon={<AlertTriangle className="h-4 w-4" />}>
             <StatusTimeline status={application.status} />
             {/* Admin notes box appears only when the reviewer left a message */}
             {application.notes && (
@@ -271,7 +317,7 @@ export function ApplicantApplicationDetailPage() {
                 }}
               >
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--ember-orange)' }}>
-                  Review notes from camp staff
+                  {t('applicant_detail.review_notes_label')}
                 </p>
                 {/* whitespace-pre-wrap preserves line breaks the admin typed in */}
                 <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>
@@ -285,13 +331,13 @@ export function ApplicantApplicationDetailPage() {
         {/* Camper information — only rendered when camper data was eager-loaded */}
         {camper && (
           <div>
-            <SectionCard title="Camper Information" icon={<User className="h-4 w-4" />}>
+            <SectionCard title={t('applicant_detail.camper_info')} icon={<User className="h-4 w-4" />}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <Field label="Full name"     value={camper.full_name} />
-                <Field label="Date of birth" value={camper.date_of_birth} />
-                <Field label="Gender"        value={camper.gender} />
+                <Field label={t('applicant_detail.field_full_name')} value={camper.full_name} />
+                <Field label={t('applicant_detail.field_dob')}       value={camper.date_of_birth} />
+                <Field label={t('applicant_detail.field_gender')}    value={camper.gender} />
                 {/* Handle both t_shirt_size and tshirt_size field name variants from the API */}
-                <Field label="T-shirt size"  value={(camper as { t_shirt_size?: string }).t_shirt_size ?? (camper as { tshirt_size?: string }).tshirt_size} />
+                <Field label={t('applicant_detail.field_tshirt')}    value={(camper as { t_shirt_size?: string }).t_shirt_size ?? (camper as { tshirt_size?: string }).tshirt_size} />
               </div>
             </SectionCard>
           </div>
@@ -300,20 +346,72 @@ export function ApplicantApplicationDetailPage() {
         {/* Camp session details — only rendered when session data was eager-loaded */}
         {session && (
           <div>
-            <SectionCard title="Camp Session" icon={<Calendar className="h-4 w-4" />}>
+            <SectionCard title={t('applicant_detail.camp_session_title')} icon={<Calendar className="h-4 w-4" />}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <Field label="Session"    value={session.name} />
-                <Field label="Camp"       value={session.camp?.name} />
-                <Field label="Start date" value={session.start_date ? format(new Date(session.start_date), 'MMMM d, yyyy') : undefined} />
-                <Field label="End date"   value={session.end_date   ? format(new Date(session.end_date),   'MMMM d, yyyy') : undefined} />
+                <Field label={t('applicant_detail.field_session')} value={session.name} />
+                <Field label={t('applicant_detail.field_camp')}    value={session.camp?.name} />
+                <Field label={t('applicant_detail.field_start')}   value={session.start_date ? format(new Date(session.start_date), 'MMMM d, yyyy') : undefined} />
+                <Field label={t('applicant_detail.field_end')}     value={session.end_date   ? format(new Date(session.end_date),   'MMMM d, yyyy') : undefined} />
               </div>
             </SectionCard>
           </div>
         )}
 
-        {/* Documents — list all uploaded files with download buttons */}
+        {/* Application completeness — digital form + medical form upload status */}
         <div>
-          <SectionCard title="Uploaded Documents" icon={<FileText className="h-4 w-4" />}>
+          <SectionCard title={t('applicant_detail.checklist_title')} icon={<CheckCircle className="h-4 w-4" />}>
+            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+              {/* Digital form */}
+              <div className="flex items-center justify-between gap-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+                  <div>
+                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant_detail.application_form_label')}</span>
+                    <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.digital_label')}</span>
+                  </div>
+                </div>
+                <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.submitted_label')}</span>
+              </div>
+
+              {/* Medical form upload */}
+              {(() => {
+                const medicalDoc = application.documents?.find(
+                  (d) => d.document_type === 'official_medical_form'
+                );
+                return (
+                  <div className="flex items-center justify-between gap-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      {medicalDoc ? (
+                        <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
+                      )}
+                      <div>
+                        <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant_detail.medical_form_label')}</span>
+                        <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.doctor_complete')}</span>
+                      </div>
+                    </div>
+                    {medicalDoc ? (
+                      <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.uploaded_label')}</span>
+                    ) : (
+                      <Link
+                        to={ROUTES.PARENT_FORMS}
+                        className="text-xs font-medium hover:underline"
+                        style={{ color: '#ca8a04' }}
+                      >
+                        {t('applicant_detail.upload_link')}
+                      </Link>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* Documents — list all uploaded files with view and download buttons */}
+        <div>
+          <SectionCard title={t('applicant_detail.documents_title')} icon={<FileText className="h-4 w-4" />}>
             {!application.documents || application.documents.length === 0 ? (
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 No documents uploaded for this application.
@@ -338,14 +436,28 @@ export function ApplicantApplicationDetailPage() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
-                      style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                    >
-                      <Download className="h-3 w-3" />
-                      Download
-                    </button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* View button — opens the file in a new tab if a URL is available */}
+                      {doc.url && (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
+                          style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                        >
+                          View
+                        </a>
+                      )}
+                      <button
+                        onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                      >
+                        <Download className="h-3 w-3" />
+                        Download
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -354,16 +466,130 @@ export function ApplicantApplicationDetailPage() {
         </div>
       </div>
 
-      {/* Footer — secondary back navigation */}
-      <div className="flex gap-3 pt-2">
+      {/* What's Next — status-specific guidance including medical form requirement */}
+      {application && (
+        <div>
+          <SectionCard
+            title={application.status === 'approved' ? 'You\'re In!' : 'What Happens Next'}
+            icon={<Info className="h-4 w-4" />}
+          >
+            {application.status === 'pending' && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#b45309' }} />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Application submitted — awaiting review</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Camp staff will review your application and may contact you with questions.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)' }}>
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--ember-orange)' }}>Medical Examination Form required</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      A completed medical exam form signed by a licensed physician must be on file before your application can be approved.
+                      Download the form from the <Link to={ROUTES.PARENT_DOCUMENTS} className="underline hover:opacity-80">Documents page</Link>, take it to your doctor, then upload the completed form.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {application.status === 'under_review' && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#2563eb' }} />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Under active review by camp staff</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Staff may reach out via the inbox with questions. Check your messages regularly.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)' }}>
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--ember-orange)' }}>Ensure your Medical Examination Form is uploaded</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      Applications cannot be approved without a physician-signed medical exam completed within the last 12 months.
+                      Go to the <Link to={ROUTES.PARENT_DOCUMENTS} className="underline hover:opacity-80">Documents page</Link> to download and upload the form.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {application.status === 'approved' && (
+              <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'rgba(22,163,74,0.25)', background: 'rgba(22,163,74,0.04)' }}>
+                <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#16a34a' }} />
+                <div>
+                  <p className="text-sm font-medium" style={{ color: '#16a34a' }}>Application accepted — your camper has a spot!</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Ensure all required documents are submitted. Camp staff will send further details via the inbox.</p>
+                </div>
+              </div>
+            )}
+            {application.status === 'waitlisted' && (
+              <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)' }}>
+                <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#ea580c' }} />
+                <div>
+                  <p className="text-sm font-medium" style={{ color: '#ea580c' }}>You are on the waitlist</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>If a spot opens up, you will be contacted. Make sure your medical form is ready so acceptance can proceed quickly.</p>
+                </div>
+              </div>
+            )}
+            {(application.status === 'rejected' || application.status === 'withdrawn' || application.status === 'cancelled') && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                      {application.status === 'rejected' ? 'Application was not accepted for this session.' :
+                       application.status === 'withdrawn' ? 'You withdrew this application.' :
+                       'This application was cancelled.'}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>You can re-apply for a future session. Your camper's information will be pre-filled.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      )}
+
+      {/* Footer — back navigation + conditional withdraw button */}
+      <div className="flex items-center justify-between gap-3 pt-2">
         <button
           onClick={() => navigate(ROUTES.PARENT_APPLICATIONS)}
           className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
           style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to all applications
+          {t('applicant_detail.back_to_applications')}
         </button>
+
+        <div className="flex items-center gap-3">
+          {/* Reapply button — visible for terminal states where reapplication is appropriate. */}
+          {application && ['rejected', 'withdrawn', 'cancelled'].includes(application.status) && (
+            <button
+              onClick={handleReapply}
+              disabled={reapplying}
+              className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)' }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {reapplying ? 'Creating draft…' : 'Reapply'}
+            </button>
+          )}
+
+          {/* Withdraw button — only visible when the application is still withdrawable. */}
+          {application && ['pending', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
+            <button
+              onClick={handleWithdraw}
+              disabled={withdrawing}
+              className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--destructive)', color: 'var(--destructive)' }}
+            >
+              <XCircle className="h-4 w-4" />
+              {withdrawing ? 'Withdrawing…' : 'Withdraw application'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

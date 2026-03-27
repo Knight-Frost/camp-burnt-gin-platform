@@ -178,4 +178,52 @@ class AuditLog extends Model
             'created_at'  => now(),
         ]);
     }
+
+    /**
+     * Write a content-change event to the audit log.
+     *
+     * Called whenever a user edits application narrative or notes fields.
+     * Records a field-level before/after snapshot so the full change history
+     * can be reconstructed by compliance auditors.
+     *
+     * $changedFields is the subset of fields that actually differ between
+     * oldValues and newValues — stored in metadata for quick filtering.
+     *
+     * @param  \Illuminate\Database\Eloquent\Model  $auditable   The record that was modified.
+     * @param  User                                 $editor      The user who made the change.
+     * @param  array<string, mixed>                 $oldValues   Field snapshot before the change.
+     * @param  array<string, mixed>                 $newValues   Field snapshot after the change.
+     */
+    public static function logContentChange(
+        \Illuminate\Database\Eloquent\Model $auditable,
+        User $editor,
+        array $oldValues,
+        array $newValues,
+    ): self {
+        $changedFields = array_keys(array_filter(
+            $newValues,
+            fn ($v, $k) => ($oldValues[$k] ?? null) !== $v,
+            ARRAY_FILTER_USE_BOTH,
+        ));
+
+        return static::create([
+            'request_id'     => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id'        => $editor->id,
+            'event_type'     => static::EVENT_TYPE_DATA_CHANGE,
+            'auditable_type' => get_class($auditable),
+            'auditable_id'   => $auditable->getKey(),
+            'action'         => 'content.edited',
+            'description'    => 'Application content fields edited by ' . $editor->role . ' (user #' . $editor->id . ').',
+            'old_values'     => $oldValues,
+            'new_values'     => $newValues,
+            'metadata'       => [
+                'editor_role'    => $editor->role,
+                'changed_fields' => $changedFields,
+                'field_count'    => count($changedFields),
+            ],
+            'ip_address'     => request()->ip(),
+            'user_agent'     => request()->userAgent(),
+            'created_at'     => now(),
+        ]);
+    }
 }

@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Pin, AlertTriangle, X, Trash2, Edit2, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -31,14 +32,6 @@ import {
 import { Button } from '@/ui/components/Button';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
-
-// Human-readable labels for each audience type shown in the form and in rows.
-const AUDIENCE_LABELS: Record<string, string> = {
-  all:      'All Applicants',
-  accepted: 'Accepted Only',
-  staff:    'Staff Only',
-  session:  'Specific Session',
-};
 
 // Blank form used both for the initial create state and after a successful save.
 const DEFAULT_FORM: CreateAnnouncementPayload = {
@@ -65,6 +58,16 @@ function inputStyle() {
 }
 
 export function AdminAnnouncementsPage() {
+  const { t } = useTranslation();
+
+  // Human-readable labels for each audience type — inside component so t() is in scope.
+  const AUDIENCE_LABELS: Record<string, string> = {
+    all:      'All Families',
+    accepted: 'Accepted Only',
+    staff:    'Staff Only',
+    session:  'Specific Session',
+  };
+
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState(false);
@@ -227,6 +230,7 @@ export function AdminAnnouncementsPage() {
                 <AnnouncementRow
                   key={ann.id}
                   ann={ann}
+                  audienceLabels={AUDIENCE_LABELS}
                   onEdit={openEdit}
                   onDelete={handleDelete}
                   onPin={handlePin}
@@ -249,6 +253,7 @@ export function AdminAnnouncementsPage() {
             <AnnouncementRow
               key={ann.id}
               ann={ann}
+              audienceLabels={AUDIENCE_LABELS}
               onEdit={openEdit}
               onDelete={handleDelete}
               onPin={handlePin}
@@ -288,33 +293,33 @@ export function AdminAnnouncementsPage() {
 
             <div className="flex flex-col gap-4">
               <div>
-                <label htmlFor="ann-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Title *</label>
-                <input id="ann-title" style={inputStyle()} placeholder="Announcement title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+                <label htmlFor="ann-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_title_label')} *</label>
+                <input id="ann-title" style={inputStyle()} placeholder={t('admin_extra.ann_title_label')} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
               </div>
               <div>
-                <label htmlFor="ann-body" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Body *</label>
-                <textarea id="ann-body" style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder="Announcement body…" value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
+                <label htmlFor="ann-body" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_body_label')} *</label>
+                <textarea id="ann-body" style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder={t('admin_extra.ann_body_label')} value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
               </div>
               <div>
-                <label htmlFor="ann-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Audience</label>
+                <label htmlFor="ann-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_audience_label')}</label>
                 <select id="ann-audience" style={inputStyle()} value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as CreateAnnouncementPayload['audience'] }))}>
                   {Object.entries(AUDIENCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
               <div>
-                <label htmlFor="ann-publish-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>Schedule Publish Date (optional)</label>
+                <label htmlFor="ann-publish-at" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_schedule_label')}</label>
                 <input id="ann-publish-at" type="datetime-local" style={inputStyle()} value={form.published_at ?? ''} onChange={(e) => setForm((f) => ({ ...f, published_at: e.target.value || null }))} />
                 {/* Empty value means publish now; a date means publish later. */}
-                <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Leave blank to publish immediately.</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.ann_schedule_hint')}</p>
               </div>
               <div className="flex gap-6">
                 <label htmlFor="ann-pinned" className="flex items-center gap-2 cursor-pointer">
                   <input id="ann-pinned" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_pinned} onChange={(e) => setForm((f) => ({ ...f, is_pinned: e.target.checked }))} />
-                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>Pin announcement</span>
+                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_pin_label')}</span>
                 </label>
                 <label htmlFor="ann-urgent" className="flex items-center gap-2 cursor-pointer">
                   <input id="ann-urgent" type="checkbox" className="w-4 h-4 rounded" checked={!!form.is_urgent} onChange={(e) => setForm((f) => ({ ...f, is_urgent: e.target.checked }))} />
-                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>Mark as urgent</span>
+                  <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_urgent_label')}</span>
                 </label>
               </div>
             </div>
@@ -337,9 +342,10 @@ export function AdminAnnouncementsPage() {
 // Renders a single announcement row with pin, edit, and delete actions.
 // Defined after the main component to keep it close to where it's used.
 function AnnouncementRow({
-  ann, onEdit, onDelete, onPin, deleting,
+  ann, audienceLabels, onEdit, onDelete, onPin, deleting,
 }: {
   ann: Announcement;
+  audienceLabels: Record<string, string>;
   onEdit: (a: Announcement) => void;
   onDelete: (id: number) => void;
   onPin: (a: Announcement) => void;
@@ -371,7 +377,7 @@ function AnnouncementRow({
           {/* Metadata: audience badge + publish date + author. */}
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--dash-nav-active-bg)', color: 'var(--ember-orange)' }}>
-              {AUDIENCE_LABELS[ann.audience] ?? ann.audience}
+              {audienceLabels[ann.audience] ?? ann.audience}
             </span>
             {/* Use published_at if set, otherwise fall back to created_at for the display date. */}
             <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
