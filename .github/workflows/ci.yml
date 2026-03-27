@@ -2,76 +2,63 @@ name: CI
 
 on:
   push:
-    branches: [ main, backend, develop ]
+    branches: [ main, frontend, backend, develop ]
   pull_request:
-    branches: [ main, backend, develop ]
+    branches: [ main, frontend, backend, develop ]
 
 permissions:
   contents: read
 
+# Cancel in-progress CI runs for the same branch/PR when new commits arrive.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
-  repository-governance:
-    name: Repository Governance Enforcement
+  # ─── Policy Gate ──────────────────────────────────────────────────────────
+  # Must pass before any other job may proceed.
+  policy:
+    name: Repository Policy
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Scan repository for forbidden references
-        run: |
-          echo "Running repository governance scan..."
+      - name: Forbidden reference scan
+        run: bash scripts/check-forbidden-terms.sh
 
-          FORBIDDEN_PATTERN="Claude|Anthropic|OpenAI|claude.ai|AI-assisted|Co-Authored-By"
+      - name: Environment file check
+        run: bash scripts/check-env-files.sh
 
-          if grep -RniE "$FORBIDDEN_PATTERN" . \
-            --exclude-dir=.git \
-            --exclude-dir=vendor \
-            --exclude-dir=node_modules \
-            --exclude-dir=storage \
-            --exclude-dir=.github/workflows; then
-              echo ""
-              echo "ERROR: Forbidden reference detected in repository."
-              exit 1
-          fi
+      - name: Debug artifact check
+        run: bash scripts/check-debug-artifacts.sh
 
-          echo "Governance check passed."
-
-
-  tests:
-    name: Tests (PHP ${{ matrix.php }})
+  # ─── Backend Tests ────────────────────────────────────────────────────────
+  # Runs the full PHPUnit suite against PHP 8.2, 8.3, and 8.4.
+  # Uses SQLite :memory: as configured in phpunit.xml -- no external database
+  # service is required here. MySQL migration integrity is tested separately
+  # in the database.yml workflow.
+  backend-tests:
+    name: Backend Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
-    needs: repository-governance
+    needs: policy
 
     strategy:
       fail-fast: false
       matrix:
         php: ['8.2', '8.3', '8.4']
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: camp_burnt_gin_test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, bcmath, fileinfo
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, fileinfo
           coverage: none
           tools: composer:v2
 
@@ -79,60 +66,41 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/camp-burnt-gin-api/vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          key: composer-php${{ matrix.php }}-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-composer-
+            composer-php${{ matrix.php }}-
 
-      - name: Install dependencies
+      - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Create .env file
+      - name: Prepare application environment
         working-directory: backend/camp-burnt-gin-api
         run: |
           cp .env.example .env
-          php artisan key:generate
-
-      - name: Configure database
-        working-directory: backend/camp-burnt-gin-api
-        run: php artisan config:clear
+          php artisan key:generate --ansi
         env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: camp_burnt_gin_test
-          DB_USERNAME: root
-          DB_PASSWORD: password
+          APP_ENV: testing
 
-      - name: Run migrations
+      - name: Execute test suite
         working-directory: backend/camp-burnt-gin-api
-        run: php artisan migrate --force
+        run: php artisan test
         env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: camp_burnt_gin_test
-          DB_USERNAME: root
-          DB_PASSWORD: password
-
-      - name: Execute tests
-        working-directory: backend/camp-burnt-gin-api
-        run: php artisan test --parallel
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: camp_burnt_gin_test
-          DB_USERNAME: root
-          DB_PASSWORD: password
           APP_ENV: testing
           APP_DEBUG: false
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          MAIL_MAILER: array
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
 
-
+  # ─── Code Style ───────────────────────────────────────────────────────────
+  # Runs Laravel Pint in dry-run mode. Any style violation fails the build.
   code-style:
-    name: Code Style (Laravel Pint)
+    name: Code Style (Pint)
     runs-on: ubuntu-latest
-    needs: repository-governance
+    needs: policy
 
     steps:
       - name: Checkout code
@@ -146,19 +114,28 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Install dependencies
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/camp-burnt-gin-api/vendor
+          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          restore-keys: |
+            composer-php8.2-
+
+      - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Run Laravel Pint
+      - name: Run Pint (dry-run)
         working-directory: backend/camp-burnt-gin-api
         run: ./vendor/bin/pint --test
 
-
+  # ─── Static Analysis ──────────────────────────────────────────────────────
+  # Runs PHPStan with Larastan. Configuration is loaded from phpstan.neon.
   static-analysis:
     name: Static Analysis (PHPStan)
     runs-on: ubuntu-latest
-    needs: repository-governance
+    needs: policy
 
     steps:
       - name: Checkout code
@@ -168,20 +145,76 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, bcmath, fileinfo
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, fileinfo
           coverage: none
           tools: composer:v2
 
-      - name: Install dependencies
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/camp-burnt-gin-api/vendor
+          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          restore-keys: |
+            composer-php8.2-
+
+      - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Create .env file
+      - name: Prepare application environment
         working-directory: backend/camp-burnt-gin-api
         run: |
           cp .env.example .env
-          php artisan key:generate
+          php artisan key:generate --ansi
+        env:
+          APP_ENV: testing
 
       - name: Run PHPStan
         working-directory: backend/camp-burnt-gin-api
         run: ./vendor/bin/phpstan analyse --memory-limit=2G
+
+  # ─── Frontend Validation ──────────────────────────────────────────────────
+  # Runs TypeScript type checking, ESLint (zero-warning policy), and a full
+  # production build using pnpm with a frozen lockfile.
+  frontend:
+    name: Frontend Validation
+    runs-on: ubuntu-latest
+    needs: policy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        working-directory: frontend
+        run: pnpm type-check
+
+      - name: Lint
+        working-directory: frontend
+        run: pnpm lint
+
+      - name: Production build
+        working-directory: frontend
+        run: pnpm build
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+          VITE_API_VERSION: v1
+          VITE_ENVIRONMENT: ci
+          VITE_ENABLE_DEVTOOLS: "false"
+          NODE_ENV: production

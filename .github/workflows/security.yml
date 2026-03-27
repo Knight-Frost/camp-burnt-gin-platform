@@ -2,11 +2,11 @@ name: Security
 
 on:
   push:
-    branches: [ main, backend, develop ]
+    branches: [ main, frontend, backend, develop ]
   pull_request:
-    branches: [ main, backend, develop ]
+    branches: [ main, frontend, backend, develop ]
   schedule:
-    # Run security audit daily at 2 AM UTC
+    # Daily security audit at 02:00 UTC
     - cron: '0 2 * * *'
 
 permissions:
@@ -14,8 +14,10 @@ permissions:
   security-events: write
 
 jobs:
-  dependency-audit:
-    name: Dependency Security Audit
+
+  # ─── Composer Dependency Audit ────────────────────────────────────────────
+  composer-audit:
+    name: Composer Dependency Audit
     runs-on: ubuntu-latest
 
     steps:
@@ -28,135 +30,142 @@ jobs:
           php-version: '8.2'
           tools: composer:v2
 
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/camp-burnt-gin-api/vendor
+          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          restore-keys: |
+            composer-php8.2-
+
       - name: Install dependencies
         working-directory: backend/camp-burnt-gin-api
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run Composer audit
+      - name: Run Composer security audit
         working-directory: backend/camp-burnt-gin-api
         run: composer audit --format=plain
 
-  license-compliance:
-    name: License Compliance Check
+  # ─── Node Dependency Audit ────────────────────────────────────────────────
+  node-audit:
+    name: Node Dependency Audit
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          php-version: '8.2'
-          tools: composer:v2
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: backend/camp-burnt-gin-api
-        run: composer install --no-interaction --prefer-dist
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
 
-      - name: Check licenses
-        working-directory: backend/camp-burnt-gin-api
-        run: |
-          composer licenses --format=json > licenses.json
-          cat licenses.json
-          # Check for GPL/AGPL licenses that could pose compliance issues
-          if grep -q '"GPL"' licenses.json || grep -q '"AGPL"' licenses.json; then
-            echo "WARNING: GPL/AGPL licensed dependencies detected"
-            grep -E '"GPL|AGPL"' licenses.json || true
-          fi
+      - name: Run pnpm audit (high severity and above)
+        working-directory: frontend
+        run: pnpm audit --audit-level=high
 
+  # ─── Sensitive File Check ─────────────────────────────────────────────────
   env-file-check:
-    name: Environment File Security Check
+    name: Environment File Check
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check for committed .env files
+      - name: Check for committed environment files
+        run: bash scripts/check-env-files.sh
+
+  # ─── Secret Pattern Scan ──────────────────────────────────────────────────
+  # Hard fails on any finding. Patterns are conservative to minimize noise.
+  secret-scan:
+    name: Secret Pattern Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for hardcoded credential patterns
         run: |
-          if find . -name ".env" -not -path "*/vendor/*" -not -path "*/.git/*" | grep -q .; then
-            echo "ERROR: .env file found in repository!"
-            find . -name ".env" -not -path "*/vendor/*" -not -path "*/.git/*"
+          FOUND=0
+
+          check_pattern() {
+            local label="$1"
+            local pattern="$2"
+            if grep -rniE \
+              --include="*.php" \
+              --include="*.ts" \
+              --include="*.tsx" \
+              --include="*.js" \
+              --include="*.json" \
+              --exclude-dir=.git \
+              --exclude-dir=vendor \
+              --exclude-dir=node_modules \
+              --exclude="*.example" \
+              "$pattern" . 2>/dev/null; then
+              echo "FAIL [$label]: Potential credential pattern detected above."
+              FOUND=1
+            fi
+          }
+
+          check_pattern "api-key"      'api[_-]?key\s*[=:]\s*["\047][^"\047]{16,}'
+          check_pattern "secret"       '\bsecret\s*[=:]\s*["\047][^"\047]{8,}'
+          check_pattern "bearer"       'bearer\s+[a-zA-Z0-9\-_\.]{20,}'
+          check_pattern "private-key"  '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+          check_pattern "db-url"       '(mysql|postgres)://[^:]+:[^@]{6,}@'
+          check_pattern "aws-key"      'AKIA[0-9A-Z]{16}'
+
+          if [[ "$FOUND" -eq 1 ]]; then
+            echo ""
+            echo "Move hardcoded credentials to environment variables."
+            echo "See docs/backend/SECURITY.md for approved secret management practices."
             exit 1
           fi
-          echo "✓ No .env files committed"
 
-      - name: Check for sensitive patterns in code
-        run: |
-          # Check for potential secrets in code
-          PATTERNS=(
-            'password.*=.*["\047][^"\047]{8,}'
-            'api[_-]?key.*=.*["\047][^"\047]{8,}'
-            'secret.*=.*["\047][^"\047]{8,}'
-            'token.*=.*["\047][^"\047]{32,}'
-            'mysql://[^:]+:[^@]+@'
-            'postgres://[^:]+:[^@]+@'
-          )
+          echo "PASS: No credential patterns detected."
 
-          FOUND=0
-          for pattern in "${PATTERNS[@]}"; do
-            if git grep -iE "$pattern" -- '*.php' '*.js' '*.env.example' ':!vendor' ':!node_modules'; then
-              echo "WARNING: Potential secret pattern found: $pattern"
-              FOUND=1
-            fi
-          done
-
-          if [ $FOUND -eq 1 ]; then
-            echo "Review flagged patterns above for hardcoded credentials"
-            # Don't fail the build, just warn
-          fi
-
+  # ─── Dangerous Function Scan ──────────────────────────────────────────────
   code-security:
-    name: Static Security Analysis
+    name: Dangerous Function Scan
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: dom, curl, libxml, mbstring, zip
-          tools: composer:v2
-
-      - name: Install dependencies
-        working-directory: backend/camp-burnt-gin-api
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Check for known vulnerabilities
-        working-directory: backend/camp-burnt-gin-api
+      - name: Scan PHP source for dangerous functions
         run: |
-          # Run security checker if available
-          if composer show --locked | grep -q 'enlightn/security-checker'; then
-            composer require --dev enlightn/security-checker || true
-          fi
-
-      - name: Check PHP code for security issues
-        working-directory: backend/camp-burnt-gin-api
-        run: |
-          # Check for dangerous functions
-          echo "Checking for dangerous PHP functions..."
-          DANGEROUS_FUNCS=(
-            'eval'
-            'exec'
-            'system'
-            'passthru'
-            'shell_exec'
-            'assert'
-            'create_function'
-          )
-
           FOUND=0
-          for func in "${DANGEROUS_FUNCS[@]}"; do
-            if git grep -n "$func(" -- '*.php' ':!vendor'; then
-              echo "WARNING: Dangerous function '$func' found"
+          DANGEROUS=(eval exec system passthru shell_exec create_function)
+
+          for func in "${DANGEROUS[@]}"; do
+            if grep -rniE \
+              --include="*.php" \
+              --exclude-dir=vendor \
+              "\b${func}\s*\(" \
+              backend/camp-burnt-gin-api/app \
+              backend/camp-burnt-gin-api/routes 2>/dev/null; then
+              echo "WARNING: '${func}' found in application source."
               FOUND=1
             fi
           done
 
-          if [ $FOUND -eq 0 ]; then
-            echo "✓ No dangerous functions detected"
+          if [[ "$FOUND" -eq 1 ]]; then
+            echo ""
+            echo "Each occurrence requires explicit security review sign-off."
+            exit 1
           fi
+
+          echo "PASS: No dangerous functions detected."
