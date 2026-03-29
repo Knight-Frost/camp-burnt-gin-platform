@@ -225,6 +225,8 @@ export const router = createBrowserRouter([
           { path: '/admin/calendar',            element: <AdminCalendarPage /> },
           { path: '/admin/documents',           element: <AdminDocumentsPage /> },
           { path: '/admin/deadlines',           element: <AdminDeadlinesPage /> },
+          { path: '/admin/form-builder',        element: <FormDashboardPage /> },
+          { path: '/admin/form-builder/:formId', element: <FormEditorPage /> },
           { path: '/admin/inbox',               element: <InboxPage /> },
           { path: '/admin/profile',             element: <ProfilePage /> },
           { path: '/admin/settings',            element: <SettingsPage /> },

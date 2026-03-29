@@ -57,7 +57,7 @@ Camp_Burnt_Gin_Project/
 - **Permanent light mode**: no dark mode toggle. `:root` has light values only.
 - **Design tokens**: `frontend/src/assets/styles/design-tokens.css`
 - **Routing**: `frontend/src/core/routing/index.tsx` — 4 portal layouts
-- **State**: Redux Toolkit (in-memory). Auth token manually persisted to `localStorage` under key `auth_token` — no redux-persist library.
+- **State**: Redux Toolkit (in-memory). Auth token manually persisted to `sessionStorage` under key `auth_token` — no redux-persist library. Token is tab-scoped (cleared on tab close).
 - **Styling**: Tailwind CSS + CSS custom properties. All colors via `var(--token)`.
 
 ### Key File Paths

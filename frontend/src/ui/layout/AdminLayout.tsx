@@ -79,7 +79,7 @@ export function AdminLayout() {
     { group: gOps,    label: t('portal_nav.deadlines'),        to: ROUTES.ADMIN_DEADLINES,     icon: Clock },
     { group: gOps,    label: t('portal_nav.reports'),          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
     // SYSTEM — governance & configuration
-    { group: gSystem, label: t('portal_nav.form_builder'),     to: '/admin/form-builder',      icon: Layout },
+    { group: gSystem, label: t('portal_nav.form_builder'),     to: ROUTES.ADMIN_FORM_BUILDER,  icon: Layout },
     { group: gSystem, label: t('portal_nav.my_profile'),       to: '/admin/profile',           icon: User },
     { group: gSystem, label: t('portal_nav.settings'),         to: '/admin/settings',          icon: Settings },
   ];
