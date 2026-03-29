@@ -787,8 +787,8 @@ Uploaded files are validated by MIME type whitelist and magic bytes before stora
 
 1. **PHI fields must use the `encrypted` cast.** Never store medical data in plaintext columns.
 2. **Authorize before processing.** Call `$this->authorize()` in every controller method before calling any service or reading any model.
-3. **All user-facing strings use i18next.** No hardcoded English text in React components. Add keys to both `en.json` and `es.json`.
-4. **All colors via CSS custom properties.** Use `var(--token-name)` from `design-tokens.css`; never hardcode hex values.
+3. **All user-facing strings use i18next.** No hardcoded English text in React components. Add keys to both [frontend/src/i18n/en.json](frontend/src/i18n/en.json) and [frontend/src/i18n/es.json](frontend/src/i18n/es.json).
+4. **All colors via CSS custom properties.** Use `var(--token-name)` from [frontend/src/assets/styles/design-tokens.css](frontend/src/assets/styles/design-tokens.css); never hardcode hex values.
 5. **No business logic in controllers.** Delegate all application logic to service classes.
 6. **New mutations require a policy method.** Add the authorization check to the corresponding policy class.
 7. **Run `php artisan test` before committing.** All tests must pass.
@@ -797,108 +797,108 @@ Uploaded files are validated by MIME type whitelist and magic bytes before stora
 
 | Concern | Location |
 |---------|---------|
-| Application status transitions | `app/Enums/ApplicationStatus.php` |
-| Application approval orchestration | `app/Services/Camper/ApplicationService.php` |
-| Document compliance checking | `app/Services/Document/DocumentEnforcementService.php` |
-| Medical alert computation | `app/Services/Medical/MedicalAlertService.php` |
-| Risk scoring | `app/Services/Medical/SpecialNeedsRiskAssessmentService.php` |
-| Message sending with idempotency | `app/Services/MessageService.php` |
-| BCC-safe recipient resolution | `app/Models/Message::getRecipientsForUser()` |
-| Frontend route tree | `frontend/src/core/routing/index.tsx` |
-| Auth token lifecycle | `frontend/src/features/auth/store/authSlice.ts` + `frontend/src/api/axios.config.ts` |
-| Design tokens | `frontend/src/assets/styles/design-tokens.css` |
+| Application status transitions | [backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php](backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php) |
+| Application approval orchestration | [backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php](backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php) |
+| Document compliance checking | [backend/camp-burnt-gin-api/app/Services/Document/DocumentEnforcementService.php](backend/camp-burnt-gin-api/app/Services/Document/DocumentEnforcementService.php) |
+| Medical alert computation | [backend/camp-burnt-gin-api/app/Services/Medical/MedicalAlertService.php](backend/camp-burnt-gin-api/app/Services/Medical/MedicalAlertService.php) |
+| Risk scoring | [backend/camp-burnt-gin-api/app/Services/Medical/SpecialNeedsRiskAssessmentService.php](backend/camp-burnt-gin-api/app/Services/Medical/SpecialNeedsRiskAssessmentService.php) |
+| Message sending with idempotency | [backend/camp-burnt-gin-api/app/Services/MessageService.php](backend/camp-burnt-gin-api/app/Services/MessageService.php) |
+| BCC-safe recipient resolution | [backend/camp-burnt-gin-api/app/Models/Message.php](backend/camp-burnt-gin-api/app/Models/Message.php) — `getRecipientsForUser()` |
+| Frontend route tree | [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx) |
+| Auth token lifecycle | [frontend/src/features/auth/store/authSlice.ts](frontend/src/features/auth/store/authSlice.ts) + [frontend/src/api/axios.config.ts](frontend/src/api/axios.config.ts) |
+| Design tokens | [frontend/src/assets/styles/design-tokens.css](frontend/src/assets/styles/design-tokens.css) |
 
 ### Extending the System
 
-- **Adding a new API endpoint:** Create a FormRequest validator, add a policy method, add the route in `api.php` with appropriate middleware, implement the controller method, delegate to a service, and return a Resource. Write a Feature test.
-- **Adding a new frontend page:** Create a lazy-loaded page component in the appropriate feature module, add a route constant to `routes.ts`, and add the lazy route entry in `routing/index.tsx`. Add i18n keys to both translation files.
+- **Adding a new API endpoint:** Create a FormRequest validator, add a policy method, add the route in [backend/camp-burnt-gin-api/routes/api.php](backend/camp-burnt-gin-api/routes/api.php) with appropriate middleware, implement the controller method, delegate to a service, and return a Resource. Write a Feature test.
+- **Adding a new frontend page:** Create a lazy-loaded page component in the appropriate feature module, add a route constant to [frontend/src/shared/constants/routes.ts](frontend/src/shared/constants/routes.ts), and add the lazy route entry in [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx). Add i18n keys to both translation files.
 - **Adding a new PHI field:** Use `'encrypted'` in the model's `casts()` method. Widen the database column to `TEXT` (encrypted values are longer than their plaintext). Never include the field in list resource responses.
-- **Modifying application status logic:** Only modify `ApplicationStatus::canTransitionTo()` and `ApplicationService`. Do not add transition checks elsewhere.
+- **Modifying application status logic:** Only modify `ApplicationStatus::canTransitionTo()` in [backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php](backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php) and [backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php](backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php). Do not add transition checks elsewhere.
 
 ### Common Diagnostic Reference
 
 | Symptom | Where to Look |
 |---------|---------------|
-| Page renders nothing at a route | `frontend/src/core/routing/index.tsx` — missing or misconfigured route |
-| API returns 401 | `axios.config.ts` (token injection), `useAuthInit.ts` (session restore), `routes/api.php` (middleware) |
-| API returns 403 | Policy class for the resource; route middleware group in `api.php` |
+| Page renders nothing at a route | [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx) — missing or misconfigured route |
+| API returns 401 | [frontend/src/api/axios.config.ts](frontend/src/api/axios.config.ts) (token injection), [frontend/src/features/auth/hooks/useAuthInit.ts](frontend/src/features/auth/hooks/useAuthInit.ts) (session restore), [backend/camp-burnt-gin-api/routes/api.php](backend/camp-burnt-gin-api/routes/api.php) (middleware) |
+| API returns 403 | Policy class for the resource; route middleware group in [backend/camp-burnt-gin-api/routes/api.php](backend/camp-burnt-gin-api/routes/api.php) |
 | API returns 422 | FormRequest `rules()` method for the controller action |
-| Field missing in API response | `app/Http/Resources/` — check `toArray()` output |
+| Field missing in API response | [backend/camp-burnt-gin-api/app/Http/Resources/](backend/camp-burnt-gin-api/app/Http/Resources/) — check `toArray()` output |
 | Notification not delivered | Notification class `via()` method; queue worker status; `notification_preferences` flags |
-| Status badge shows wrong color | `frontend/src/ui/components/StatusBadge.tsx` — `variantConfig` map |
-| Auth state lost on page refresh | `useAuthInit.ts` reads from `sessionStorage['auth_token']` — verify key spelling |
-| i18n key renders as literal string | Key missing from `en.json` and `es.json` |
+| Status badge shows wrong color | [frontend/src/ui/components/StatusBadge.tsx](frontend/src/ui/components/StatusBadge.tsx) — `variantConfig` map |
+| Auth state lost on page refresh | [frontend/src/features/auth/hooks/useAuthInit.ts](frontend/src/features/auth/hooks/useAuthInit.ts) reads from `sessionStorage['auth_token']` — verify key spelling |
+| i18n key renders as literal string | Key missing from [frontend/src/i18n/en.json](frontend/src/i18n/en.json) and [frontend/src/i18n/es.json](frontend/src/i18n/es.json) |
 | Database column not found | Run `php artisan migrate` — pending migration not yet applied |
 
 ---
 
 ## 16. Reference Documentation
 
-All reference documentation is in `docs/`. The index file (`docs/INDEX.md`) provides navigation links for every common task.
+All reference documentation is in `docs/`. The index file [docs/INDEX.md](docs/INDEX.md) provides navigation links for every common task.
 
 ### Architecture
 
 | Document | Path |
 |----------|------|
-| System overview | `docs/architecture/System_Overview.md` |
-| System architecture overview | `docs/architecture/System_Architecture_Overview.md` |
-| Backend architecture | `docs/architecture/Backend_Architecture.md` |
-| Architecture decisions | `docs/architecture/Architecture_Decisions.md` |
+| System overview | [docs/architecture/System_Overview.md](docs/architecture/System_Overview.md) |
+| System architecture overview | [docs/architecture/System_Architecture_Overview.md](docs/architecture/System_Architecture_Overview.md) |
+| Backend architecture | [docs/architecture/Backend_Architecture.md](docs/architecture/Backend_Architecture.md) |
+| Architecture decisions | [docs/architecture/Architecture_Decisions.md](docs/architecture/Architecture_Decisions.md) |
 
 ### API and Data
 
 | Document | Path |
 |----------|------|
-| API endpoint reference | `docs/api/API_Reference.md` |
-| Data model and schema | `docs/database/Data_Model.md` |
-| Schema overview | `docs/database/Schema_Overview.md` |
+| API endpoint reference | [docs/api/API_Reference.md](docs/api/API_Reference.md) |
+| Data model and schema | [docs/database/Data_Model.md](docs/database/Data_Model.md) |
+| Schema overview | [docs/database/Schema_Overview.md](docs/database/Schema_Overview.md) |
 
 ### Security and Auth
 
 | Document | Path |
 |----------|------|
-| Authentication flows | `docs/auth/Authentication.md` |
-| Roles and permissions | `docs/roles-and-permissions/Roles_and_Permissions.md` |
-| Security controls | `docs/security/Security.md` |
-| Audit logging | `docs/security/Audit_Logging.md` |
-| Rate limiting | `docs/security/Rate_Limiting.md` |
+| Authentication flows | [docs/auth/Authentication.md](docs/auth/Authentication.md) |
+| Roles and permissions | [docs/roles-and-permissions/Roles_and_Permissions.md](docs/roles-and-permissions/Roles_and_Permissions.md) |
+| Security controls | [docs/security/Security.md](docs/security/Security.md) |
+| Audit logging | [docs/security/Audit_Logging.md](docs/security/Audit_Logging.md) |
+| Rate limiting | [docs/security/Rate_Limiting.md](docs/security/Rate_Limiting.md) |
 
 ### Features and Workflows
 
 | Document | Path |
 |----------|------|
-| Application lifecycle (authoritative) | `docs/workflows/Application_Lifecycle.md` |
-| Application workflows | `docs/workflows/Application_Workflows.md` |
-| Business rules | `docs/workflows/Business_Rules.md` |
-| Application form | `docs/features/Application_Form.md` |
-| Medical records | `docs/features/Medical_Records.md` |
-| Messaging system | `docs/features/Messaging.md` |
-| File uploads | `docs/features/File_Uploads.md` |
-| Error handling | `docs/backend/ERROR_HANDLING.md` |
+| Application lifecycle (authoritative) | [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md) |
+| Application workflows | [docs/workflows/Application_Workflows.md](docs/workflows/Application_Workflows.md) |
+| Business rules | [docs/workflows/Business_Rules.md](docs/workflows/Business_Rules.md) |
+| Application form | [docs/features/Application_Form.md](docs/features/Application_Form.md) |
+| Medical records | [docs/features/Medical_Records.md](docs/features/Medical_Records.md) |
+| Messaging system | [docs/features/Messaging.md](docs/features/Messaging.md) |
+| File uploads | [docs/features/File_Uploads.md](docs/features/File_Uploads.md) |
+| Error handling | [docs/backend/ERROR_HANDLING.md](docs/backend/ERROR_HANDLING.md) |
 
 ### Frontend
 
 | Document | Path |
 |----------|------|
-| Frontend developer reference (canonical) | `frontend/FRONTEND_GUIDE.md` |
-| Portal overview | `docs/frontend/OVERVIEW.md` |
-| Page structure | `docs/frontend/Page_Structure.md` |
-| Routing | `docs/frontend/Routing.md` |
-| State management | `docs/frontend/State_Management.md` |
-| Design system | `docs/ui-ux/Design_System.md` |
-| Component guide | `docs/ui-ux/Component_Guide.md` |
+| Frontend developer reference (canonical) | [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md) |
+| Portal overview | [docs/frontend/OVERVIEW.md](docs/frontend/OVERVIEW.md) |
+| Page structure | [docs/frontend/Page_Structure.md](docs/frontend/Page_Structure.md) |
+| Routing | [docs/frontend/Routing.md](docs/frontend/Routing.md) |
+| State management | [docs/frontend/State_Management.md](docs/frontend/State_Management.md) |
+| Design system | [docs/ui-ux/Design_System.md](docs/ui-ux/Design_System.md) |
+| Component guide | [docs/ui-ux/Component_Guide.md](docs/ui-ux/Component_Guide.md) |
 
 ### Operations
 
 | Document | Path |
 |----------|------|
-| Environment setup | `docs/deployment/Setup.md` |
-| Configuration reference | `docs/deployment/Configuration.md` |
-| Deployment procedures | `docs/deployment/Deployment.md` |
-| CI/CD pipeline | `docs/deployment/CI_CD.md` |
-| Troubleshooting | `docs/deployment/Troubleshooting.md` |
-| Testing strategy | `docs/testing/Testing.md` |
-| Contributing guidelines | `docs/governance/Contributing.md` |
+| Environment setup | [docs/deployment/Setup.md](docs/deployment/Setup.md) |
+| Configuration reference | [docs/deployment/Configuration.md](docs/deployment/Configuration.md) |
+| Deployment procedures | [docs/deployment/Deployment.md](docs/deployment/Deployment.md) |
+| CI/CD pipeline | [docs/deployment/CI_CD.md](docs/deployment/CI_CD.md) |
+| Troubleshooting | [docs/deployment/Troubleshooting.md](docs/deployment/Troubleshooting.md) |
+| Testing strategy | [docs/testing/Testing.md](docs/testing/Testing.md) |
+| Contributing guidelines | [docs/governance/Contributing.md](docs/governance/Contributing.md) |
 
 ---
 
@@ -906,4 +906,4 @@ All reference documentation is in `docs/`. The index file (`docs/INDEX.md`) prov
 
 Camp Burnt Gin is a complete, production-grade camp management platform. All four portals — applicant, admin, medical, and super admin — are fully implemented and wired to the API. The backend enforces a HIPAA-conscious security model across 51 controllers, 42 models, and more than 380 passing tests. The frontend enforces the same model at the routing, state, and API layers.
 
-This README reflects the state of the implementation as of March 2026. For the authoritative workflow specification, consult `docs/workflows/Application_Lifecycle.md`. For the complete API surface, consult `docs/api/API_Reference.md`. For local development setup, follow Section 9 of this document.
+This README reflects the state of the implementation as of March 2026. For the authoritative workflow specification, consult [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md). For the complete API surface, consult [docs/api/API_Reference.md](docs/api/API_Reference.md). For local development setup, follow Section 9 of this document.
