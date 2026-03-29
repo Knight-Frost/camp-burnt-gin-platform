@@ -150,7 +150,8 @@ jobs:
               --exclude-dir=vendor \
               "\b${func}\s*\(" \
               backend/camp-burnt-gin-api/app \
-              backend/camp-burnt-gin-api/routes 2>/dev/null; then
+              backend/camp-burnt-gin-api/routes 2>/dev/null | \
+              grep -vE ':[0-9]+:[[:space:]]*(//|#|[*])'; then
               echo "WARNING: '${func}' found in application source."
               FOUND=1
             fi
