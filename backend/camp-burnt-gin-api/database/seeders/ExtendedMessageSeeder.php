@@ -31,11 +31,11 @@ class ExtendedMessageSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin   = User::where('email', 'admin@example.com')->firstOrFail();
+        $admin = User::where('email', 'admin@example.com')->firstOrFail();
         $medical = User::where('email', 'medical@example.com')->firstOrFail();
-        $sarah   = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
+        $sarah = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
         $jennifer = User::where('email', 'jennifer.thompson@example.com')->firstOrFail();
-        $michael  = User::where('email', 'michael.williams@example.com')->firstOrFail();
+        $michael = User::where('email', 'michael.williams@example.com')->firstOrFail();
         $patricia = User::where('email', 'patricia.davis@example.com')->firstOrFail();
 
         // Load medical2 if seeded
@@ -67,8 +67,8 @@ class ExtendedMessageSeeder extends Seeder
             applicationId: null,
             isArchived: true,  // ARCHIVED
             messages: [
-                [$sarah, "Hi! Do you have the packing list available for summer 2025? We attended last year and just want to make sure we have everything for Ethan."],
-                [$admin, "Hi Sarah! Great to hear from you. The full packing list for 2025 is attached in the Announcements section of the portal. For returning families, the main addition this year is a signed Medication Administration Authorization form — please download and return it before June 1."],
+                [$sarah, 'Hi! Do you have the packing list available for summer 2025? We attended last year and just want to make sure we have everything for Ethan.'],
+                [$admin, 'Hi Sarah! Great to hear from you. The full packing list for 2025 is attached in the Announcements section of the portal. For returning families, the main addition this year is a signed Medication Administration Authorization form — please download and return it before June 1.'],
                 [$sarah, "Perfect! Found it. We'll get the MAA signed and uploaded this week. Can't wait for Ethan to be back!"],
                 [$admin, "We're so glad to have him returning! His counselors from last year have been specifically requesting to work with him again. See you in June!"],
             ]
@@ -98,8 +98,8 @@ class ExtendedMessageSeeder extends Seeder
                 [$michael, "That's reassuring. Her endocrinologist Dr. Gonzalez is happy to do a phone consultation with your team before camp. Would that be helpful?"],
                 [$medical, "Absolutely — we'd love that. Can you have Dr. Gonzalez contact us at medical@campburntgin.org to arrange a time? Ideally at least 2 weeks before the session start."],
                 [$michael, "I'll pass that along today. One other question — Ava has had two hypoglycemia episodes in the past month. We adjusted her basal rate but wanted camp to know. Should I send the updated pump settings?"],
-                [$medical, "Yes, please send the updated pump report from the OmniPod PDM app as a PDF when you can. Also include her most recent Dexcom clarity report (last 2 weeks of CGM data). That will help us calibrate our monitoring plan."],
-                [$michael, "Will do. Also — for activities like swimming and boating, should she keep the pump on? Dr. Gonzalez says the OmniPod is waterproof, but I want your team to know."],
+                [$medical, 'Yes, please send the updated pump report from the OmniPod PDM app as a PDF when you can. Also include her most recent Dexcom clarity report (last 2 weeks of CGM data). That will help us calibrate our monitoring plan.'],
+                [$michael, 'Will do. Also — for activities like swimming and boating, should she keep the pump on? Dr. Gonzalez says the OmniPod is waterproof, but I want your team to know.'],
                 [$medical, "Yes, the OmniPod is waterproof (IPX8 rated) and should remain on during all water activities. Staff will be instructed not to attempt removal. We'll have glucose tabs and glucagon kit at the pool at all times during Ava's sessions."],
                 [$michael, "Wonderful. I feel so much better knowing this. Last thing — Ava's camp doctor from last summer mentioned a 'buddy system' for kids with diabetes. Does that exist here?"],
                 [$admin, "Hi Michael! Yes — we pair medically complex campers with a senior counselor who has additional training. Ava's counselor will be someone who has worked specifically with T1D campers before. We'll make sure she has a great, safe summer!"],
@@ -173,12 +173,12 @@ class ExtendedMessageSeeder extends Seeder
         }
 
         $conv = Conversation::create([
-            'created_by_id'   => $creator->id,
-            'subject'         => $subject,
-            'category'        => $category,
-            'application_id'  => $applicationId,
+            'created_by_id' => $creator->id,
+            'subject' => $subject,
+            'category' => $category,
+            'application_id' => $applicationId,
             'last_message_at' => now()->subHours(rand(1, 48)),
-            'is_archived'     => $isArchived,
+            'is_archived' => $isArchived,
         ]);
 
         $participantIds = array_unique(array_merge(
@@ -189,10 +189,10 @@ class ExtendedMessageSeeder extends Seeder
         foreach ($participantIds as $uid) {
             ConversationParticipant::create([
                 'conversation_id' => $conv->id,
-                'user_id'         => $uid,
-                'joined_at'       => now()->subDays(rand(1, 10)),
-                'is_starred'      => false,
-                'is_important'    => false,
+                'user_id' => $uid,
+                'joined_at' => now()->subDays(rand(1, 10)),
+                'is_starred' => false,
+                'is_important' => false,
             ]);
         }
 
@@ -200,11 +200,11 @@ class ExtendedMessageSeeder extends Seeder
         foreach ($messages as [$sender, $body]) {
             Message::create([
                 'conversation_id' => $conv->id,
-                'sender_id'       => $sender->id,
-                'body'            => $body,
+                'sender_id' => $sender->id,
+                'body' => $body,
                 'idempotency_key' => Str::uuid()->toString(),
-                'created_at'      => now()->subMinutes($offsetMinutes),
-                'updated_at'      => now()->subMinutes($offsetMinutes),
+                'created_at' => now()->subMinutes($offsetMinutes),
+                'updated_at' => now()->subMinutes($offsetMinutes),
             ]);
             $offsetMinutes -= rand(10, 40);
             if ($offsetMinutes < 1) {

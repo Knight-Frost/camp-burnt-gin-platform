@@ -61,8 +61,8 @@ class CamperController extends Controller
                 $query->where(function ($q) use ($search) {
                     // full_name is a virtual computed attribute — not a stored DB column.
                     // Search first_name and last_name separately to avoid a SQL column-not-found error.
-                    $q->where('first_name', 'like', '%' . $search . '%')
-                      ->orWhere('last_name', 'like', '%' . $search . '%');
+                    $q->where('first_name', 'like', '%'.$search.'%')
+                        ->orWhere('last_name', 'like', '%'.$search.'%');
                     if (ctype_digit($search)) {
                         $q->orWhere('id', (int) $search);
                     }
@@ -85,8 +85,8 @@ class CamperController extends Controller
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
                     // Same fix as admin branch — full_name is virtual, search real columns.
-                    $q->where('first_name', 'like', '%' . $search . '%')
-                      ->orWhere('last_name', 'like', '%' . $search . '%');
+                    $q->where('first_name', 'like', '%'.$search.'%')
+                        ->orWhere('last_name', 'like', '%'.$search.'%');
                     if (ctype_digit($search)) {
                         $q->orWhere('id', (int) $search);
                     }
@@ -102,9 +102,9 @@ class CamperController extends Controller
                 'data' => [],
                 'meta' => [
                     'current_page' => 1,
-                    'last_page'    => 1,
-                    'per_page'     => 15,
-                    'total'        => 0,
+                    'last_page' => 1,
+                    'per_page' => 15,
+                    'total' => 0,
                 ],
             ]);
         }
@@ -200,7 +200,7 @@ class CamperController extends Controller
     {
         $this->authorize('update', $camper);
 
-        $data        = $request->validated();
+        $data = $request->validated();
         $oldSnapshot = array_intersect_key($camper->only(array_keys($data)), $data);
 
         $camper->update($data);
@@ -210,7 +210,7 @@ class CamperController extends Controller
         if ($oldSnapshot !== $newSnapshot) {
             AuditLog::logContentChange(
                 auditable: $camper,
-                editor:    $request->user(),
+                editor: $request->user(),
                 oldValues: $oldSnapshot,
                 newValues: $newSnapshot,
             );

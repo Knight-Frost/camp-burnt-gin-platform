@@ -83,7 +83,7 @@ class HealthController extends Controller
             // Return all check results so monitoring can show exactly what's wrong.
             'checks' => $checks,
             'timestamp' => now()->toIso8601String(),
-        // Use 503 Service Unavailable when not all dependencies are healthy.
+            // Use 503 Service Unavailable when not all dependencies are healthy.
         ], $allHealthy ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE);
     }
 

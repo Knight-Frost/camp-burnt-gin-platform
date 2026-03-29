@@ -39,13 +39,13 @@ enum ApplicationStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending    => 'Pending',
+            self::Pending => 'Pending',
             self::UnderReview => 'Under Review',
-            self::Approved   => 'Approved',
-            self::Rejected   => 'Rejected',
-            self::Cancelled  => 'Cancelled',
+            self::Approved => 'Approved',
+            self::Rejected => 'Rejected',
+            self::Cancelled => 'Cancelled',
             self::Waitlisted => 'Waitlisted',
-            self::Withdrawn  => 'Withdrawn',
+            self::Withdrawn => 'Withdrawn',
         };
     }
 

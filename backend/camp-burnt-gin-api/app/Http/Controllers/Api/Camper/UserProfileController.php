@@ -67,17 +67,17 @@ class UserProfileController extends Controller
     public function update(Request $request): JsonResponse
     {
         $request->validate([
-            'name'           => ['sometimes', 'string', 'max:255'],
+            'name' => ['sometimes', 'string', 'max:255'],
             'preferred_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             // Exclude the current user's own ID from the unique check to allow no-op email updates.
-            'email'          => ['sometimes', 'email', 'unique:users,email,' . $request->user()->id],
-            'phone'          => ['sometimes', 'nullable', 'string', 'max:20'],
+            'email' => ['sometimes', 'email', 'unique:users,email,'.$request->user()->id],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address_line_1' => ['sometimes', 'nullable', 'string', 'max:255'],
             'address_line_2' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'city'           => ['sometimes', 'nullable', 'string', 'max:100'],
-            'state'          => ['sometimes', 'nullable', 'string', 'max:100'],
-            'postal_code'    => ['sometimes', 'nullable', 'string', 'max:20'],
-            'country'        => ['sometimes', 'nullable', 'string', 'max:100'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'country' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
 
         $user = $request->user();
@@ -96,7 +96,7 @@ class UserProfileController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'data'    => $data,
+            'data' => $data,
         ]);
     }
 
@@ -134,7 +134,7 @@ class UserProfileController extends Controller
         $user->update(['avatar_path' => $path]);
 
         return response()->json([
-            'message'    => 'Avatar uploaded successfully.',
+            'message' => 'Avatar uploaded successfully.',
             'avatar_url' => Storage::disk('public')->url($path),
         ]);
     }
@@ -194,11 +194,11 @@ class UserProfileController extends Controller
     public function storeEmergencyContact(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'relationship' => ['required', 'string', 'max:100'],
-            'phone'        => ['required', 'string', 'max:20'],
-            'email'        => ['sometimes', 'nullable', 'email', 'max:255'],
-            'is_primary'   => ['sometimes', 'boolean'],
+            'phone' => ['required', 'string', 'max:20'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'is_primary' => ['sometimes', 'boolean'],
         ]);
 
         $user = $request->user();
@@ -214,7 +214,7 @@ class UserProfileController extends Controller
 
         return response()->json([
             'message' => 'Emergency contact added.',
-            'data'    => $contact,
+            'data' => $contact,
         ], 201);
     }
 
@@ -232,11 +232,11 @@ class UserProfileController extends Controller
         $this->authorize('update', $contact);
 
         $validated = $request->validate([
-            'name'         => ['sometimes', 'string', 'max:255'],
+            'name' => ['sometimes', 'string', 'max:255'],
             'relationship' => ['sometimes', 'string', 'max:100'],
-            'phone'        => ['sometimes', 'string', 'max:20'],
-            'email'        => ['sometimes', 'nullable', 'email', 'max:255'],
-            'is_primary'   => ['sometimes', 'boolean'],
+            'phone' => ['sometimes', 'string', 'max:20'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'is_primary' => ['sometimes', 'boolean'],
         ]);
 
         // If promoting this contact to primary, demote all others
@@ -252,7 +252,7 @@ class UserProfileController extends Controller
         return response()->json([
             'message' => 'Emergency contact updated.',
             // fresh() ensures the response contains post-save values, not the pre-update state.
-            'data'    => $contact->fresh(),
+            'data' => $contact->fresh(),
         ]);
     }
 
@@ -289,9 +289,9 @@ class UserProfileController extends Controller
         // Defaults ensure new users have all notifications on until they choose otherwise.
         $defaults = [
             'application_updates' => true,
-            'announcements'       => true,
-            'messages'            => true,
-            'deadlines'           => true,
+            'announcements' => true,
+            'messages' => true,
+            'deadlines' => true,
         ];
 
         // Merge stored prefs over defaults — stored values take priority.
@@ -313,29 +313,29 @@ class UserProfileController extends Controller
         // All preference keys are optional — a partial update only touches what was sent.
         $validated = $request->validate([
             'application_updates' => ['sometimes', 'boolean'],
-            'announcements'       => ['sometimes', 'boolean'],
-            'messages'            => ['sometimes', 'boolean'],
-            'deadlines'           => ['sometimes', 'boolean'],
+            'announcements' => ['sometimes', 'boolean'],
+            'messages' => ['sometimes', 'boolean'],
+            'deadlines' => ['sometimes', 'boolean'],
         ]);
 
         $defaults = [
             'application_updates' => true,
-            'announcements'       => true,
-            'messages'            => true,
-            'deadlines'           => true,
+            'announcements' => true,
+            'messages' => true,
+            'deadlines' => true,
         ];
 
         // Fetch what the user currently has saved (may be null for brand-new accounts).
         $current = $request->user()->notification_preferences ?? [];
         // Merge the new values on top of the existing ones so no keys are lost.
-        $merged  = array_merge($current, $validated);
+        $merged = array_merge($current, $validated);
 
         $request->user()->update(['notification_preferences' => $merged]);
 
         return response()->json([
             'message' => 'Notification preferences updated.',
             // Return defaults merged with merged so the response is always complete.
-            'data'    => array_merge($defaults, $merged),
+            'data' => array_merge($defaults, $merged),
         ]);
     }
 
@@ -355,10 +355,10 @@ class UserProfileController extends Controller
     public function changePassword(Request $request): JsonResponse
     {
         $request->validate([
-            'current_password'      => ['required', 'string'],
+            'current_password' => ['required', 'string'],
             // Use the same strong policy as the password reset flow: 12+ chars,
             // mixed case, numbers, symbols, and not found in known data breaches.
-            'password'              => [
+            'password' => [
                 'required',
                 'confirmed',
                 Password::min(12)
@@ -376,7 +376,7 @@ class UserProfileController extends Controller
         if (! Hash::check($request->current_password, $user->password)) {
             return response()->json([
                 'message' => 'The current password is incorrect.',
-                'errors'  => ['current_password' => ['The current password is incorrect.']],
+                'errors' => ['current_password' => ['The current password is incorrect.']],
             ], 422);
         }
 
@@ -418,32 +418,32 @@ class UserProfileController extends Controller
 
         $prefillData = [
             'parent' => [
-                'name'  => $user->name,
+                'name' => $user->name,
                 'email' => $user->email,
             ],
             // Give a lightweight list of all campers so the form can offer a "copy from camper" picker.
             'campers' => $user->campers->map(fn ($camper) => [
-                'id'            => $camper->id,
-                'first_name'    => $camper->first_name,
-                'last_name'     => $camper->last_name,
+                'id' => $camper->id,
+                'first_name' => $camper->first_name,
+                'last_name' => $camper->last_name,
                 'date_of_birth' => $camper->date_of_birth->format('Y-m-d'),
-                'gender'        => $camper->gender,
+                'gender' => $camper->gender,
             ]),
             // Pull emergency contacts from the latest camper — safest source for recurring families.
             'emergency_contacts' => $latestCamper?->emergencyContacts->map(fn ($c) => [
-                'name'                 => $c->name,
-                'relationship'         => $c->relationship,
-                'phone_primary'        => $c->phone_primary,
-                'phone_secondary'      => $c->phone_secondary,
-                'email'                => $c->email,
-                'is_primary'           => $c->is_primary,
+                'name' => $c->name,
+                'relationship' => $c->relationship,
+                'phone_primary' => $c->phone_primary,
+                'phone_secondary' => $c->phone_secondary,
+                'email' => $c->email,
+                'is_primary' => $c->is_primary,
                 'is_authorized_pickup' => $c->is_authorized_pickup,
             ]) ?? [],
             // Physician and insurance fields are often reused from year to year.
             'medical' => $latestCamper?->medicalRecord ? [
-                'physician_name'         => $latestCamper->medicalRecord->physician_name,
-                'physician_phone'        => $latestCamper->medicalRecord->physician_phone,
-                'insurance_provider'     => $latestCamper->medicalRecord->insurance_provider,
+                'physician_name' => $latestCamper->medicalRecord->physician_name,
+                'physician_phone' => $latestCamper->medicalRecord->physician_phone,
+                'insurance_provider' => $latestCamper->medicalRecord->insurance_provider,
                 'insurance_policy_number' => $latestCamper->medicalRecord->insurance_policy_number,
             ] : null,
         ];
@@ -472,8 +472,8 @@ class UserProfileController extends Controller
         // Write a structured log entry so the ops team can track and fulfill the request.
         \Log::info('Data export requested', [
             'user_id' => $request->user()->id,
-            'email'   => $request->user()->email,
-            'ip'      => $request->ip(),
+            'email' => $request->user()->email,
+            'ip' => $request->ip(),
         ]);
 
         return response()->json([
@@ -516,7 +516,7 @@ class UserProfileController extends Controller
         if (! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'The password you entered is incorrect.',
-                'errors'  => ['password' => ['Password is incorrect.']],
+                'errors' => ['password' => ['Password is incorrect.']],
             ], 422);
         }
 
@@ -529,8 +529,8 @@ class UserProfileController extends Controller
         // Write a structured audit log entry for GDPR and operational records.
         \Log::info('Account deletion requested', [
             'user_id' => $user->id,
-            'email'   => $user->email,
-            'ip'      => $request->ip(),
+            'email' => $user->email,
+            'ip' => $request->ip(),
         ]);
 
         return response()->json([

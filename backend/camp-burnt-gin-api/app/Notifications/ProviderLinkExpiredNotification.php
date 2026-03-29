@@ -38,12 +38,12 @@ class ProviderLinkExpiredNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Medical Provider Link Expired - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
-            ->line('The medical provider link for ' . $this->link->camper->full_name . ' has expired.')
-            ->line('Provider: ' . ($this->link->provider_name ?? $this->link->provider_email))
+            ->greeting('Hello '.$notifiable->name.',')
+            ->line('The medical provider link for '.$this->link->camper->full_name.' has expired.')
+            ->line('Provider: '.($this->link->provider_name ?? $this->link->provider_email))
             ->line('The medical provider did not complete the form before the expiration date.')
             ->line('You can send a new link to your provider from your account.')
-            ->action('Send New Link', config('app.frontend_url') . '/provider-links/new?camper=' . $this->link->camper_id)
+            ->action('Send New Link', config('app.frontend_url').'/provider-links/new?camper='.$this->link->camper_id)
             ->salutation('Camp Burnt Gin');
     }
 

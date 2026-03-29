@@ -16,24 +16,24 @@ class EmergencyContactFactory extends Factory
     public function definition(): array
     {
         return [
-            'camper_id'            => Camper::factory(),
-            'name'                 => fake()->name(),
-            'relationship'         => fake()->randomElement(['Mother', 'Father', 'Grandparent', 'Aunt', 'Uncle', 'Guardian', 'Stepparent']),
-            'phone_primary'        => fake()->numerify('803#######'),
-            'phone_secondary'      => fake()->optional(0.5)->numerify('803#######'),
-            'phone_work'           => fake()->optional(0.4)->numerify('803#######'),
-            'email'                => fake()->optional(0.7)->safeEmail(),
-            'is_primary'           => false, // use .primary() state explicitly
+            'camper_id' => Camper::factory(),
+            'name' => fake()->name(),
+            'relationship' => fake()->randomElement(['Mother', 'Father', 'Grandparent', 'Aunt', 'Uncle', 'Guardian', 'Stepparent']),
+            'phone_primary' => fake()->numerify('803#######'),
+            'phone_secondary' => fake()->optional(0.5)->numerify('803#######'),
+            'phone_work' => fake()->optional(0.4)->numerify('803#######'),
+            'email' => fake()->optional(0.7)->safeEmail(),
+            'is_primary' => false, // use .primary() state explicitly
             'is_authorized_pickup' => fake()->boolean(60),
-            'is_guardian'          => false,
+            'is_guardian' => false,
             // Address for pickup logistics
-            'address'              => fake()->optional(0.5)->streetAddress(),
-            'city'                 => fake()->optional(0.5)->city(),
-            'state'                => fake()->optional(0.5)->stateAbbr(),
-            'zip'                  => fake()->optional(0.5)->numerify('#####'),
+            'address' => fake()->optional(0.5)->streetAddress(),
+            'city' => fake()->optional(0.5)->city(),
+            'state' => fake()->optional(0.5)->stateAbbr(),
+            'zip' => fake()->optional(0.5)->numerify('#####'),
             // Language
-            'primary_language'     => 'English',
-            'interpreter_needed'   => false,
+            'primary_language' => 'English',
+            'interpreter_needed' => false,
         ];
     }
 
@@ -53,8 +53,8 @@ class EmergencyContactFactory extends Factory
     public function guardian(): static
     {
         return $this->state(fn () => [
-            'is_guardian'          => true,
-            'is_primary'           => true,
+            'is_guardian' => true,
+            'is_primary' => true,
             'is_authorized_pickup' => true,
         ]);
     }
@@ -63,7 +63,7 @@ class EmergencyContactFactory extends Factory
     public function spanishWithInterpreter(): static
     {
         return $this->state(fn () => [
-            'primary_language'   => 'Spanish',
+            'primary_language' => 'Spanish',
             'interpreter_needed' => true,
         ]);
     }

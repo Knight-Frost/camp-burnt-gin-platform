@@ -51,10 +51,10 @@ class MedicalCrossLinkSeeder extends Seeder
 
         $campers = [
             'ethan' => Camper::where('first_name', 'Ethan')->where('last_name', 'Johnson')->firstOrFail(),
-            'noah'  => Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail(),
+            'noah' => Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail(),
             'lucas' => Camper::where('first_name', 'Lucas')->where('last_name', 'Williams')->firstOrFail(),
-            'ava'   => Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail(),
-            'mia'   => Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail(),
+            'ava' => Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail(),
+            'mia' => Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail(),
         ];
 
         $this->linkIncidentTreatmentLogs($campers);
@@ -151,14 +151,14 @@ class MedicalCrossLinkSeeder extends Seeder
             ->where('start_date', '2026-03-01')
             ->exists()) {
             MedicalRestriction::create([
-                'camper_id'        => $campers['ava']->id,
-                'created_by'       => $medical->id,
+                'camper_id' => $campers['ava']->id,
+                'created_by' => $medical->id,
                 'restriction_type' => 'activity',
-                'description'      => 'No high-impact running activities or sustained aerobic exercise during active insulin rate adjustment periods. When basal rates have been modified within the past 48 hours, limit exertion to low-intensity activities (walking, swimming at easy pace, arts & crafts).',
-                'start_date'       => '2026-03-01',
-                'end_date'         => null,
-                'is_active'        => true,
-                'notes'            => 'Applies following any endocrinologist-ordered pump adjustment. Consult nursing staff before Ava participates in high-cardio activities. CGM alarm thresholds should be tightened during adjustment windows to catch hypoglycemia earlier.',
+                'description' => 'No high-impact running activities or sustained aerobic exercise during active insulin rate adjustment periods. When basal rates have been modified within the past 48 hours, limit exertion to low-intensity activities (walking, swimming at easy pace, arts & crafts).',
+                'start_date' => '2026-03-01',
+                'end_date' => null,
+                'is_active' => true,
+                'notes' => 'Applies following any endocrinologist-ordered pump adjustment. Consult nursing staff before Ava participates in high-cardio activities. CGM alarm thresholds should be tightened during adjustment windows to catch hypoglycemia earlier.',
             ]);
         }
 
@@ -172,14 +172,14 @@ class MedicalCrossLinkSeeder extends Seeder
             ->where('start_date', '2026-03-01')
             ->exists()) {
             MedicalRestriction::create([
-                'camper_id'        => $campers['mia']->id,
-                'created_by'       => $medical->id,
+                'camper_id' => $campers['mia']->id,
+                'created_by' => $medical->id,
                 'restriction_type' => 'activity',
-                'description'      => 'Avoid extreme heat exposure and direct sun during peak heat hours (11 AM–3 PM). Maximum continuous outdoor activity time 20 minutes when temperature exceeds 85°F. Mandatory shade and rest break after every 20-minute outdoor period.',
-                'start_date'       => '2026-03-01',
-                'end_date'         => null,
-                'is_active'        => true,
-                'notes'            => 'Sickle cell disease — heat is a primary vaso-occlusive crisis trigger for Mia. Activity staff must proactively bring Mia indoors after 20 minutes of direct sun exposure regardless of her preference. This restriction supplements the environmental outdoor-duration restriction.',
+                'description' => 'Avoid extreme heat exposure and direct sun during peak heat hours (11 AM–3 PM). Maximum continuous outdoor activity time 20 minutes when temperature exceeds 85°F. Mandatory shade and rest break after every 20-minute outdoor period.',
+                'start_date' => '2026-03-01',
+                'end_date' => null,
+                'is_active' => true,
+                'notes' => 'Sickle cell disease — heat is a primary vaso-occlusive crisis trigger for Mia. Activity staff must proactively bring Mia indoors after 20 minutes of direct sun exposure regardless of her preference. This restriction supplements the environmental outdoor-duration restriction.',
             ]);
         }
     }
@@ -193,15 +193,15 @@ class MedicalCrossLinkSeeder extends Seeder
         // Adding Ava here to cover the clinical note about CGM access requirements.
         if (! BehavioralProfile::where('camper_id', $campers['ava']->id)->exists()) {
             BehavioralProfile::create([
-                'camper_id'              => $campers['ava']->id,
-                'aggression'             => false,
-                'self_abuse'             => false,
-                'wandering_risk'         => false,
+                'camper_id' => $campers['ava']->id,
+                'aggression' => false,
+                'self_abuse' => false,
+                'wandering_risk' => false,
                 'one_to_one_supervision' => false,
-                'developmental_delay'    => false,
-                'functioning_age_level'  => 'Age-appropriate (13 years)',
-                'communication_methods'  => ['verbal'],
-                'notes'                  => 'Ava is cognitively typical and age-appropriate with no behavioral concerns. She requires continuous access to her Dexcom G7 CGM at all times and must be permitted to step away from any activity immediately to check her glucose or treat a hypoglycemia episode. Staff should not question or delay these exits. Ava is mature and self-aware about her diabetes management and will communicate her needs clearly.',
+                'developmental_delay' => false,
+                'functioning_age_level' => 'Age-appropriate (13 years)',
+                'communication_methods' => ['verbal'],
+                'notes' => 'Ava is cognitively typical and age-appropriate with no behavioral concerns. She requires continuous access to her Dexcom G7 CGM at all times and must be permitted to step away from any activity immediately to check her glucose or treat a hypoglycemia episode. Staff should not question or delay these exits. Ava is mature and self-aware about her diabetes management and will communicate her needs clearly.',
             ]);
         }
 
@@ -209,15 +209,15 @@ class MedicalCrossLinkSeeder extends Seeder
         // Adding Mia here to cover the clinical flag about vaso-occlusive crisis monitoring.
         if (! BehavioralProfile::where('camper_id', $campers['mia']->id)->exists()) {
             BehavioralProfile::create([
-                'camper_id'              => $campers['mia']->id,
-                'aggression'             => false,
-                'self_abuse'             => false,
-                'wandering_risk'         => false,
+                'camper_id' => $campers['mia']->id,
+                'aggression' => false,
+                'self_abuse' => false,
+                'wandering_risk' => false,
                 'one_to_one_supervision' => false,
-                'developmental_delay'    => false,
-                'functioning_age_level'  => 'Age-appropriate (9 years)',
-                'communication_methods'  => ['verbal'],
-                'notes'                  => 'Mia is communicative and participates well in camp activities with no behavioral concerns. Staff must monitor for early signs of sickle cell vaso-occlusive crisis: sudden onset pain (especially extremities, abdomen, or chest), fever above 101°F, pallor, difficulty breathing, or unusual fatigue. If any of these signs appear, bring Mia to the health office immediately and notify nursing staff — do not wait for symptoms to worsen.',
+                'developmental_delay' => false,
+                'functioning_age_level' => 'Age-appropriate (9 years)',
+                'communication_methods' => ['verbal'],
+                'notes' => 'Mia is communicative and participates well in camp activities with no behavioral concerns. Staff must monitor for early signs of sickle cell vaso-occlusive crisis: sudden onset pain (especially extremities, abdomen, or chest), fever above 101°F, pallor, difficulty breathing, or unusual fatigue. If any of these signs appear, bring Mia to the health office immediately and notify nursing staff — do not wait for symptoms to worsen.',
             ]);
         }
     }

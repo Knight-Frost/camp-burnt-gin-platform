@@ -20,19 +20,19 @@ class DocumentService
     /**
      * Upload a new document.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public function upload(UploadedFile $file, array $data, User $user): array
     {
-        if (!$this->validateMimeType($file)) {
+        if (! $this->validateMimeType($file)) {
             return [
                 'success' => false,
                 'message' => 'File type not allowed.',
             ];
         }
 
-        if (!$this->validateFileSize($file)) {
+        if (! $this->validateFileSize($file)) {
             return [
                 'success' => false,
                 'message' => 'File size exceeds maximum allowed size.',
@@ -54,7 +54,7 @@ class DocumentService
             'mime_type' => $file->getMimeType(),
             'file_size' => $file->getSize(),
             'disk' => 'local',
-            'path' => $path . '/' . $storedFilename,
+            'path' => $path.'/'.$storedFilename,
             'document_type' => $data['document_type'] ?? null,
             'is_scanned' => false,
         ]);
@@ -89,24 +89,25 @@ class DocumentService
     protected function generateFilename(UploadedFile $file): string
     {
         $extension = $file->getClientOriginalExtension();
-        return Str::uuid() . '.' . $extension;
+
+        return Str::uuid().'.'.$extension;
     }
 
     /**
      * Get the storage path based on document data.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     protected function getStoragePath(array $data): string
     {
         $basePath = 'documents';
 
-        if (!empty($data['documentable_type'])) {
+        if (! empty($data['documentable_type'])) {
             $type = class_basename($data['documentable_type']);
-            $basePath .= '/' . Str::snake($type);
+            $basePath .= '/'.Str::snake($type);
         }
 
-        return $basePath . '/' . date('Y/m');
+        return $basePath.'/'.date('Y/m');
     }
 
     /**

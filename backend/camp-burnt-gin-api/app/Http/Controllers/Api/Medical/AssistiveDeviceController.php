@@ -51,9 +51,9 @@ class AssistiveDeviceController extends Controller
             'data' => $devices->items(),
             'meta' => [
                 'current_page' => $devices->currentPage(),
-                'last_page'    => $devices->lastPage(),
-                'per_page'     => $devices->perPage(),
-                'total'        => $devices->total(),
+                'last_page' => $devices->lastPage(),
+                'per_page' => $devices->perPage(),
+                'total' => $devices->total(),
             ],
         ]);
     }
@@ -78,7 +78,7 @@ class AssistiveDeviceController extends Controller
         // HTTP 201 Created signals the new resource was successfully added.
         return response()->json([
             'message' => 'Assistive device created successfully.',
-            'data'    => $device,
+            'data' => $device,
         ], Response::HTTP_CREATED);
     }
 
@@ -115,7 +115,7 @@ class AssistiveDeviceController extends Controller
 
         return response()->json([
             'message' => 'Assistive device updated successfully.',
-            'data'    => $assistiveDevice,
+            'data' => $assistiveDevice,
         ]);
     }
 

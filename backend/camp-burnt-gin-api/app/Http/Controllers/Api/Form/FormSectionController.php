@@ -108,13 +108,13 @@ class FormSectionController extends Controller
     private function sectionPayload(FormSection $section): array
     {
         return [
-            'id'          => $section->id,
-            'title'       => $section->title,
+            'id' => $section->id,
+            'title' => $section->title,
             'short_title' => $section->short_title,
             'description' => $section->description,
-            'icon_name'   => $section->icon_name,
-            'sort_order'  => $section->sort_order,
-            'is_active'   => $section->is_active,
+            'icon_name' => $section->icon_name,
+            'sort_order' => $section->sort_order,
+            'is_active' => $section->is_active,
             'field_count' => $section->fields()->count(),
         ];
     }

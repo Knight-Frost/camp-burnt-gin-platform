@@ -99,7 +99,7 @@ class CampController extends Controller
         // 201 Created indicates a new resource was successfully persisted
         return response()->json([
             'message' => 'Camp created successfully.',
-            'data'    => $camp,
+            'data' => $camp,
         ], Response::HTTP_CREATED);
     }
 
@@ -118,7 +118,7 @@ class CampController extends Controller
 
         return response()->json([
             'message' => 'Camp updated successfully.',
-            'data'    => $camp,
+            'data' => $camp,
         ]);
     }
 

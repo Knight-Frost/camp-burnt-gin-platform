@@ -72,9 +72,9 @@ class TreatmentLogController extends Controller
             'data' => $logs->items(),
             'meta' => [
                 'current_page' => $logs->currentPage(),
-                'last_page'    => $logs->perPage(),
-                'per_page'     => $logs->perPage(),
-                'total'        => $logs->total(),
+                'last_page' => $logs->perPage(),
+                'per_page' => $logs->perPage(),
+                'total' => $logs->total(),
             ],
         ]);
     }
@@ -118,7 +118,7 @@ class TreatmentLogController extends Controller
 
         $response = [
             'message' => 'Treatment log created successfully.',
-            'data'    => $log,
+            'data' => $log,
         ];
 
         // Only add the warnings key if conflicts were actually found, keeping the
@@ -166,7 +166,7 @@ class TreatmentLogController extends Controller
 
         return response()->json([
             'message' => 'Treatment log updated successfully.',
-            'data'    => $treatmentLog,
+            'data' => $treatmentLog,
         ]);
     }
 

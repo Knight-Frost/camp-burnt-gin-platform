@@ -56,7 +56,7 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Failed to send email verification notification', [
                 'user_id' => $user->id,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
 

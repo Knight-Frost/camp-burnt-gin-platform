@@ -20,11 +20,11 @@ class MessageAttachmentResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'                => $this->id,
+            'id' => $this->id,
             // Decrypted by Document model's encrypted cast (stores PHI-safe filenames)
             'original_filename' => $this->original_filename ?? '',
-            'mime_type'         => $this->mime_type ?? '',
-            'file_size'         => (int) ($this->file_size ?? 0),
+            'mime_type' => $this->mime_type ?? '',
+            'file_size' => (int) ($this->file_size ?? 0),
         ];
     }
 }

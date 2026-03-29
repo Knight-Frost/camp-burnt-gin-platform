@@ -98,7 +98,7 @@ class SpecialNeedsRiskAssessmentService
      * to prevent multiple database round-trips.
      *
      * @param  Camper  $camper  The camper to assess
-     * @return array<string, mixed>  risk_score, supervision_level, medical_complexity_tier, flags
+     * @return array<string, mixed> risk_score, supervision_level, medical_complexity_tier, flags
      */
     public function assessCamper(Camper $camper): array
     {
@@ -144,7 +144,7 @@ class SpecialNeedsRiskAssessmentService
      *  - Diagnoses: severity level (severe or moderate)
      *
      * @param  Camper  $camper  Camper with all relationships pre-loaded
-     * @return int  Risk score from 0 to 100
+     * @return int Risk score from 0 to 100
      */
     public function calculateRiskScore(Camper $camper): int
     {
@@ -266,7 +266,7 @@ class SpecialNeedsRiskAssessmentService
      * condition-specific documents are required for approval.
      *
      * @param  Camper  $camper  Camper with all relationships pre-loaded
-     * @return array<string>  List of active risk flag identifiers
+     * @return array<string> List of active risk flag identifiers
      */
     protected function extractFlags(Camper $camper): array
     {
@@ -360,8 +360,8 @@ class SpecialNeedsRiskAssessmentService
      * unnecessary writes and preventing infinite observer loops (observers watch
      * camper saves and call this service again — saveQuietly() skips observers).
      *
-     * @param  Camper           $camper  The camper being updated
-     * @param  SupervisionLevel $level   The freshly computed supervision level
+     * @param  Camper  $camper  The camper being updated
+     * @param  SupervisionLevel  $level  The freshly computed supervision level
      */
     protected function persistSupervisionLevel(Camper $camper, SupervisionLevel $level): void
     {

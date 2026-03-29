@@ -132,7 +132,7 @@ class ApplicationController extends Controller
             // Default: submitted_at ASC (FIFO — oldest submission first) so the admin review
             // queue naturally surfaces the families who applied earliest at the top.
             $sortField = $request->get('sort', 'submitted_at');
-            $sortDir   = $request->get('direction', 'asc');
+            $sortDir = $request->get('direction', 'asc');
             $allowedSorts = ['created_at', 'submitted_at', 'status', 'reviewed_at'];
             if (in_array($sortField, $allowedSorts)) {
                 $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
@@ -170,9 +170,9 @@ class ApplicationController extends Controller
                 'data' => [],
                 'meta' => [
                     'current_page' => 1,
-                    'last_page'    => 1,
-                    'per_page'     => 15,
-                    'total'        => 0,
+                    'last_page' => 1,
+                    'per_page' => 15,
+                    'total' => 0,
                 ],
             ]);
         }
@@ -190,7 +190,7 @@ class ApplicationController extends Controller
         $rankedItems = [];
         foreach ($applications->items() as $index => $app) {
             $arr = $app->toArray();  // triggers $appends (application_number, session) + casts
-            $arr['queue_rank'] = (!$app->is_draft && $app->submitted_at !== null)
+            $arr['queue_rank'] = (! $app->is_draft && $app->submitted_at !== null)
                 ? $pageOffset + $index + 1
                 : null;
             $rankedItems[] = $arr;
@@ -200,12 +200,12 @@ class ApplicationController extends Controller
             'data' => $rankedItems,
             'meta' => [
                 'current_page' => $applications->currentPage(),
-                'last_page'    => $applications->lastPage(),
-                'per_page'     => $applications->perPage(),
-                'total'        => $applications->total(),
+                'last_page' => $applications->lastPage(),
+                'per_page' => $applications->perPage(),
+                'total' => $applications->total(),
                 // Total active (non-final) applications in the current session scope.
                 // Null when viewing all sessions (no session filter applied).
-                'queue_total'  => $queueTotal ?? null,
+                'queue_total' => $queueTotal ?? null,
             ],
         ]);
     }
@@ -255,7 +255,7 @@ class ApplicationController extends Controller
                     new ApplicationSubmittedNotification($application)
                 );
                 // System inbox notification
-                $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+                $camperName = $application->camper->first_name.' '.$application->camper->last_name;
                 // Create an in-app system notification so the parent sees it in their inbox.
                 $this->systemNotifications->applicationSubmitted(
                     $application->camper->user, $application->id, $camperName
@@ -359,13 +359,13 @@ class ApplicationController extends Controller
         // Only log the fields that were actually present in the validated request
         // to keep the diff clean — unchanged fields are not recorded.
         $newSnapshot = array_intersect_key($application->only($contentFields), $data);
-        $oldForDiff  = array_intersect_key($oldSnapshot, $newSnapshot);
-        $hasChanges  = $oldForDiff !== $newSnapshot;
+        $oldForDiff = array_intersect_key($oldSnapshot, $newSnapshot);
+        $hasChanges = $oldForDiff !== $newSnapshot;
 
         if ($hasChanges) {
             AuditLog::logContentChange(
                 auditable: $application,
-                editor:    $request->user(),
+                editor: $request->user(),
                 oldValues: $oldForDiff,
                 newValues: $newSnapshot,
             );
@@ -379,7 +379,7 @@ class ApplicationController extends Controller
                 $application->camper->user,
                 new ApplicationSubmittedNotification($application)
             );
-            $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+            $camperName = $application->camper->first_name.' '.$application->camper->last_name;
             $this->systemNotifications->applicationSubmitted(
                 $application->camper->user, $application->id, $camperName
             );
@@ -458,12 +458,12 @@ class ApplicationController extends Controller
         // override_incomplete is set by the frontend when the admin explicitly chose
         // "Approve Anyway" after seeing the missing-data warning modal.
         $result = $this->applicationService->reviewApplication(
-            application:       $application,
-            newStatus:         $newStatus,
-            notes:             $request->validated('notes'),
-            reviewedBy:        $request->user(),
+            application: $application,
+            newStatus: $newStatus,
+            notes: $request->validated('notes'),
+            reviewedBy: $request->user(),
             overrideIncomplete: (bool) $request->validated('override_incomplete', false),
-            missingSummary:    $request->validated('missing_summary', []),
+            missingSummary: $request->validated('missing_summary', []),
         );
 
         // Handle invalid state transition — the current status cannot move to the requested one.
@@ -533,7 +533,7 @@ class ApplicationController extends Controller
 
         return response()->json([
             'message' => 'Application withdrawn successfully.',
-            'data'    => $application->fresh(),
+            'data' => $application->fresh(),
         ]);
     }
 
@@ -558,13 +558,13 @@ class ApplicationController extends Controller
         $this->authorize('update', $application);
 
         $validated = $request->validate([
-            'consents'                        => ['required', 'array', 'min:1'],
-            'consents.*.consent_type'         => ['required', 'string', 'in:general,photos,liability,activity,authorization,medication,hipaa'],
-            'consents.*.guardian_name'        => ['required', 'string', 'max:255'],
-            'consents.*.guardian_relationship'=> ['required', 'string', 'max:100'],
-            'consents.*.guardian_signature'   => ['required', 'string'],
-            'consents.*.applicant_signature'  => ['nullable', 'string'],
-            'consents.*.signed_at'            => ['required', 'date'],
+            'consents' => ['required', 'array', 'min:1'],
+            'consents.*.consent_type' => ['required', 'string', 'in:general,photos,liability,activity,authorization,medication,hipaa'],
+            'consents.*.guardian_name' => ['required', 'string', 'max:255'],
+            'consents.*.guardian_relationship' => ['required', 'string', 'max:100'],
+            'consents.*.guardian_signature' => ['required', 'string'],
+            'consents.*.applicant_signature' => ['nullable', 'string'],
+            'consents.*.signed_at' => ['required', 'date'],
         ]);
 
         DB::transaction(function () use ($application, $validated) {
@@ -572,14 +572,14 @@ class ApplicationController extends Controller
                 ApplicationConsent::updateOrCreate(
                     [
                         'application_id' => $application->id,
-                        'consent_type'   => $consentData['consent_type'],
+                        'consent_type' => $consentData['consent_type'],
                     ],
                     [
-                        'guardian_name'         => $consentData['guardian_name'],
+                        'guardian_name' => $consentData['guardian_name'],
                         'guardian_relationship' => $consentData['guardian_relationship'],
-                        'guardian_signature'    => $consentData['guardian_signature'],
-                        'applicant_signature'   => $consentData['applicant_signature'] ?? null,
-                        'signed_at'             => $consentData['signed_at'],
+                        'guardian_signature' => $consentData['guardian_signature'],
+                        'applicant_signature' => $consentData['applicant_signature'] ?? null,
+                        'signed_at' => $consentData['signed_at'],
                     ]
                 );
             }
@@ -587,7 +587,7 @@ class ApplicationController extends Controller
 
         return response()->json([
             'message' => 'Consents recorded successfully.',
-            'data'    => $application->consents()->get(),
+            'data' => $application->consents()->get(),
         ]);
     }
 
@@ -612,13 +612,13 @@ class ApplicationController extends Controller
         $this->authorize('view', $application);
 
         $newApplication = $this->applicationService->cloneApplication(
-            source:      $application,
+            source: $application,
             requestedBy: $request->user()
         );
 
         return response()->json([
             'message' => 'Reapplication draft created successfully.',
-            'data'    => $newApplication->load('camper', 'campSession'),
+            'data' => $newApplication->load('camper', 'campSession'),
         ], Response::HTTP_CREATED);
     }
 

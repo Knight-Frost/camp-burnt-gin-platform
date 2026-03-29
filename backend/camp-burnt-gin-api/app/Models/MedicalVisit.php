@@ -62,19 +62,19 @@ class MedicalVisit extends Model
     {
         return [
             // Maps the stored string to a VisitDisposition enum instance.
-            'disposition'              => VisitDisposition::class,
+            'disposition' => VisitDisposition::class,
             // JSON column automatically decoded to a PHP array on read.
-            'vitals'                   => 'array',
+            'vitals' => 'array',
             // Encrypted PHI text fields.
-            'chief_complaint'          => 'encrypted',
-            'symptoms'                 => 'encrypted',
-            'treatment_provided'       => 'encrypted',
+            'chief_complaint' => 'encrypted',
+            'symptoms' => 'encrypted',
+            'treatment_provided' => 'encrypted',
             'medications_administered' => 'encrypted',
-            'disposition_notes'        => 'encrypted',
-            'follow_up_notes'          => 'encrypted',
-            'follow_up_required'       => 'boolean',
+            'disposition_notes' => 'encrypted',
+            'follow_up_notes' => 'encrypted',
+            'follow_up_required' => 'boolean',
             // 'Y-m-d' ensures consistent date serialisation in API responses.
-            'visit_date'               => 'date:Y-m-d',
+            'visit_date' => 'date:Y-m-d',
         ];
     }
 

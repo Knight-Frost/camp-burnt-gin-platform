@@ -78,14 +78,14 @@ class CalendarEventController extends Controller
                 // All-audience non-deadline events (sessions, orientations visible to everyone)
                 $q->where(function ($inner) {
                     $inner->where('audience', 'all')
-                          ->whereNull('deadline_id');
+                        ->whereNull('deadline_id');
                 })
                 // Visible deadline events in the applicant's sessions
-                ->orWhere(function ($inner) use ($applicantSessionIds) {
-                    $inner->whereNotNull('deadline_id')
-                          ->whereIn('target_session_id', $applicantSessionIds)
-                          ->whereHas('deadline', fn ($d) => $d->where('is_visible_to_applicants', true));
-                });
+                    ->orWhere(function ($inner) use ($applicantSessionIds) {
+                        $inner->whereNotNull('deadline_id')
+                            ->whereIn('target_session_id', $applicantSessionIds)
+                            ->whereHas('deadline', fn ($d) => $d->where('is_visible_to_applicants', true));
+                    });
             });
         }
 
@@ -109,18 +109,18 @@ class CalendarEventController extends Controller
         abort_unless($request->user()->isAdmin(), Response::HTTP_FORBIDDEN, 'Admins only.');
 
         $data = $request->validate([
-            'title'             => ['required', 'string', 'max:200'],
-            'description'       => ['nullable', 'string', 'max:2000'],
+            'title' => ['required', 'string', 'max:200'],
+            'description' => ['nullable', 'string', 'max:2000'],
             // 'deadline' type is blocked: use POST /api/deadlines instead.
             // DeadlineCalendarSyncService creates deadline-type events automatically.
-            'event_type'        => ['required', Rule::in(array_diff(CalendarEvent::TYPES, ['deadline']))],
+            'event_type' => ['required', Rule::in(array_diff(CalendarEvent::TYPES, ['deadline']))],
             // Optional hex or named color for calendar display (e.g., "#FF5733" or "red")
-            'color'             => ['nullable', 'string', 'max:30'],
-            'starts_at'         => ['required', 'date'],
+            'color' => ['nullable', 'string', 'max:30'],
+            'starts_at' => ['required', 'date'],
             // ends_at must be on or after starts_at if provided
-            'ends_at'           => ['nullable', 'date', 'after_or_equal:starts_at'],
-            'all_day'           => ['boolean'],
-            'audience'          => ['required', Rule::in(['all', 'accepted', 'staff', 'session'])],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'all_day' => ['boolean'],
+            'audience' => ['required', Rule::in(['all', 'accepted', 'staff', 'session'])],
             'target_session_id' => ['nullable', 'integer', 'exists:camp_sessions,id'],
         ]);
 
@@ -135,7 +135,7 @@ class CalendarEventController extends Controller
 
         return response()->json([
             'message' => 'Calendar event created.',
-            'data'    => $event,
+            'data' => $event,
         ], Response::HTTP_CREATED);
     }
 
@@ -182,14 +182,14 @@ class CalendarEventController extends Controller
 
         $data = $request->validate([
             // "sometimes" means each field is only validated if present in the request
-            'title'             => ['sometimes', 'string', 'max:200'],
-            'description'       => ['nullable', 'string', 'max:2000'],
-            'event_type'        => ['sometimes', Rule::in(CalendarEvent::TYPES)],
-            'color'             => ['nullable', 'string', 'max:30'],
-            'starts_at'         => ['sometimes', 'date'],
-            'ends_at'           => ['nullable', 'date'],
-            'all_day'           => ['boolean'],
-            'audience'          => ['sometimes', Rule::in(['all', 'accepted', 'staff', 'session'])],
+            'title' => ['sometimes', 'string', 'max:200'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'event_type' => ['sometimes', Rule::in(CalendarEvent::TYPES)],
+            'color' => ['nullable', 'string', 'max:30'],
+            'starts_at' => ['sometimes', 'date'],
+            'ends_at' => ['nullable', 'date'],
+            'all_day' => ['boolean'],
+            'audience' => ['sometimes', Rule::in(['all', 'accepted', 'staff', 'session'])],
             'target_session_id' => ['nullable', 'integer', 'exists:camp_sessions,id'],
         ]);
 
@@ -198,7 +198,7 @@ class CalendarEventController extends Controller
         return response()->json([
             'message' => 'Calendar event updated.',
             // fresh() re-reads the record so the response reflects the saved state
-            'data'    => $calendarEvent->fresh(),
+            'data' => $calendarEvent->fresh(),
         ]);
     }
 

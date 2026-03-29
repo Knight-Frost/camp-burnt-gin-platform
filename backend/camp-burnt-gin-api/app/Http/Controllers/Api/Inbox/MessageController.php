@@ -11,7 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 
 /**
  * MessageController — handles HTTP requests for individual message operations within conversations.
@@ -41,9 +40,7 @@ class MessageController extends Controller
     /**
      * Inject MessageService via constructor — business logic lives there.
      */
-    public function __construct(protected MessageService $messageService)
-    {
-    }
+    public function __construct(protected MessageService $messageService) {}
 
     /**
      * List all messages in a conversation, paginated oldest-first.
@@ -52,10 +49,6 @@ class MessageController extends Controller
      * so the frontend can update the unread badge without a separate API call.
      *
      * GET /api/inbox/conversations/{conversation}/messages
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      */
     public function index(Request $request, Conversation $conversation): JsonResponse
     {
@@ -76,12 +69,12 @@ class MessageController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => collect($messages->items())->map(fn ($msg) => $this->shapeMessage($msg, $viewer))->all(),
-            'meta'    => [
+            'data' => collect($messages->items())->map(fn ($msg) => $this->shapeMessage($msg, $viewer))->all(),
+            'meta' => [
                 'current_page' => $messages->currentPage(),
-                'last_page'    => $messages->lastPage(),
-                'per_page'     => $messages->perPage(),
-                'total'        => $messages->total(),
+                'last_page' => $messages->lastPage(),
+                'per_page' => $messages->perPage(),
+                'total' => $messages->total(),
                 // How many messages this user hasn't read yet in this conversation
                 'unread_count' => $this->messageService->getConversationUnreadCount(
                     $conversation,
@@ -110,16 +103,16 @@ class MessageController extends Controller
         Gate::authorize('create', [Message::class, $conversation]);
 
         $validated = $request->validate([
-            'body'              => 'required|string|max:65535',
-            'attachments'       => 'nullable|array|max:5',
-            'attachments.*'     => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
-            'idempotency_key'   => 'nullable|string|max:64',
+            'body' => 'required|string|max:65535',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            'idempotency_key' => 'nullable|string|max:64',
             // Optional typed recipients. Each entry must have user_id + type.
-            'recipients'        => 'nullable|array|max:20',
+            'recipients' => 'nullable|array|max:20',
             'recipients.*.user_id' => 'required|integer|exists:users,id',
-            'recipients.*.type'    => 'required|string|in:to,cc,bcc',
+            'recipients.*.type' => 'required|string|in:to,cc,bcc',
             // Multipart fallback: recipients serialised as JSON string
-            'recipients_json'   => 'nullable|string',
+            'recipients_json' => 'nullable|string',
         ]);
 
         // Resolve recipients: JSON string (multipart) takes precedence → array → empty
@@ -139,13 +132,13 @@ class MessageController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $this->shapeMessage($message, $request->user()),
+                'data' => $this->shapeMessage($message, $request->user()),
                 'message' => 'Message sent successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 422);
         }
     }
@@ -163,10 +156,10 @@ class MessageController extends Controller
         Gate::authorize('create', [Message::class, $conversation]);
 
         $validated = $request->validate([
-            'body'             => 'required|string|max:65535',
+            'body' => 'required|string|max:65535',
             'parent_message_id' => 'required|integer|exists:messages,id',
-            'attachments'      => 'nullable|array|max:5',
-            'attachments.*'    => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
         ]);
 
         // Load the parent message and verify it belongs to this conversation
@@ -187,13 +180,13 @@ class MessageController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $this->shapeMessage($message, $request->user()),
+                'data' => $this->shapeMessage($message, $request->user()),
                 'message' => 'Reply sent successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 422);
         }
     }
@@ -211,10 +204,10 @@ class MessageController extends Controller
         Gate::authorize('create', [Message::class, $conversation]);
 
         $validated = $request->validate([
-            'body'              => 'required|string|max:65535',
+            'body' => 'required|string|max:65535',
             'parent_message_id' => 'required|integer|exists:messages,id',
-            'attachments'       => 'nullable|array|max:5',
-            'attachments.*'     => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
         ]);
 
         $parentMessage = Message::where('id', $validated['parent_message_id'])
@@ -234,13 +227,13 @@ class MessageController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $this->shapeMessage($message, $request->user()),
+                'data' => $this->shapeMessage($message, $request->user()),
                 'message' => 'Reply All sent successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 422);
         }
     }
@@ -252,10 +245,6 @@ class MessageController extends Controller
      * This is the primary way the "unread" state clears — viewing marks it read.
      *
      * GET /api/inbox/messages/{message}
-     *
-     * @param Request $request
-     * @param Message $message
-     * @return JsonResponse
      */
     public function show(Request $request, Message $message): JsonResponse
     {
@@ -270,7 +259,7 @@ class MessageController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $this->shapeMessage($message, $request->user()),
+            'data' => $this->shapeMessage($message, $request->user()),
         ]);
     }
 
@@ -280,9 +269,6 @@ class MessageController extends Controller
      * Used to power the inbox badge/counter in the navigation bar.
      *
      * GET /api/inbox/messages/unread-count
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function unreadCount(Request $request): JsonResponse
     {
@@ -290,7 +276,7 @@ class MessageController extends Controller
         $count = $this->messageService->getUnreadMessageCount($request->user());
 
         return response()->json([
-            'success'      => true,
+            'success' => true,
             'unread_count' => $count,
         ]);
     }
@@ -306,9 +292,6 @@ class MessageController extends Controller
      *
      * GET /api/inbox/messages/{message}/attachments/{documentId}
      *
-     * @param Request $request
-     * @param Message $message
-     * @param int $documentId
      * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
      */
     public function downloadAttachment(
@@ -339,7 +322,7 @@ class MessageController extends Controller
             // Document not found or doesn't belong to this message
             return response()->json([
                 'success' => false,
-                'error'   => 'Attachment not found',
+                'error' => 'Attachment not found',
             ], 404);
         }
     }
@@ -353,9 +336,6 @@ class MessageController extends Controller
      *
      * GET /api/inbox/messages/{message}/attachments/{documentId}/preview
      *
-     * @param Request $request
-     * @param Message $message
-     * @param int $documentId
      * @return \Symfony\Component\HttpFoundation\StreamedResponse|JsonResponse
      */
     public function previewAttachment(
@@ -379,7 +359,7 @@ class MessageController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error'   => 'Attachment not found',
+                'error' => 'Attachment not found',
             ], 404);
         }
     }
@@ -391,10 +371,6 @@ class MessageController extends Controller
      * from all users. Admins can use this to remove inappropriate or accidental messages.
      *
      * DELETE /api/inbox/messages/{message}
-     *
-     * @param Request $request
-     * @param Message $message
-     * @return JsonResponse
      */
     public function destroy(Request $request, Message $message): JsonResponse
     {
@@ -416,18 +392,18 @@ class MessageController extends Controller
      * so that BCC entries are only visible to the original sender. This is the
      * single authoritative location where BCC filtering happens for message responses.
      *
-     * @param  Message    $message  The message model (with sender, attachments, recipients.user loaded)
-     * @param  \App\Models\User|null  $viewer   The user whose response is being built; null = no recipient filter
+     * @param  Message  $message  The message model (with sender, attachments, recipients.user loaded)
+     * @param  \App\Models\User|null  $viewer  The user whose response is being built; null = no recipient filter
      */
     private function shapeMessage(Message $message, ?\App\Models\User $viewer = null): array
     {
         $sender = null;
         if ($message->sender) {
             $sender = [
-                'id'    => $message->sender->id,
-                'name'  => $message->sender->name,
+                'id' => $message->sender->id,
+                'name' => $message->sender->name,
                 'email' => $message->sender->email,
-                'role'  => 'unknown', // role relationship not loaded in message queries
+                'role' => 'unknown', // role relationship not loaded in message queries
             ];
         }
 
@@ -437,12 +413,12 @@ class MessageController extends Controller
             $visibleRecipients = $message->getRecipientsForUser($viewer);
             foreach ($visibleRecipients as $r) {
                 $recipients[] = [
-                    'id'             => $r->id,
-                    'user_id'        => $r->user_id,
+                    'id' => $r->id,
+                    'user_id' => $r->user_id,
                     'recipient_type' => $r->recipient_type,
-                    'user'           => $r->user ? [
-                        'id'    => $r->user->id,
-                        'name'  => $r->user->name,
+                    'user' => $r->user ? [
+                        'id' => $r->user->id,
+                        'name' => $r->user->name,
                         'email' => $r->user->email,
                     ] : null,
                 ];
@@ -450,16 +426,16 @@ class MessageController extends Controller
         }
 
         return [
-            'id'                => $message->id,
-            'conversation_id'   => $message->conversation_id,
-            'sender_id'         => $message->sender_id,
-            'sender'            => $sender,
-            'body'              => $message->body,
+            'id' => $message->id,
+            'conversation_id' => $message->conversation_id,
+            'sender_id' => $message->sender_id,
+            'sender' => $sender,
+            'body' => $message->body,
             'parent_message_id' => $message->parent_message_id,
-            'reply_type'        => $message->reply_type,
-            'created_at'        => $message->created_at?->toISOString(),
-            'recipients'        => $recipients,
-            'attachments'       => MessageAttachmentResource::collection(
+            'reply_type' => $message->reply_type,
+            'created_at' => $message->created_at?->toISOString(),
+            'recipients' => $recipients,
+            'attachments' => MessageAttachmentResource::collection(
                 $message->attachments ?? collect()
             )->resolve(),
         ];
@@ -478,18 +454,20 @@ class MessageController extends Controller
     private function resolveRecipients(array $validated, \Illuminate\Http\Request $request): array
     {
         // Multipart path: decode from JSON string
-        if (!empty($validated['recipients_json'])) {
+        if (! empty($validated['recipients_json'])) {
             $decoded = json_decode($validated['recipients_json'], true);
-            if (!is_array($decoded)) {
+            if (! is_array($decoded)) {
                 return [];
             }
+
             // Validate each entry for safety
             return array_values(array_filter(array_map(function ($entry) {
                 $userId = isset($entry['user_id']) ? (int) $entry['user_id'] : null;
-                $type   = in_array($entry['type'] ?? '', ['to', 'cc', 'bcc']) ? $entry['type'] : null;
-                if (!$userId || !$type) {
+                $type = in_array($entry['type'] ?? '', ['to', 'cc', 'bcc']) ? $entry['type'] : null;
+                if (! $userId || ! $type) {
                     return null;
                 }
+
                 return ['user_id' => $userId, 'type' => $type];
             }, $decoded)));
         }
@@ -497,7 +475,7 @@ class MessageController extends Controller
         // JSON body path: already validated as array
         return array_map(fn ($r) => [
             'user_id' => (int) $r['user_id'],
-            'type'    => $r['type'],
+            'type' => $r['type'],
         ], $validated['recipients'] ?? []);
     }
 }

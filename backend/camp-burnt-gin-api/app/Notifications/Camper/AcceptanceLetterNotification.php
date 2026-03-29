@@ -54,7 +54,7 @@ class AcceptanceLetterNotification extends Notification implements ShouldQueue
     {
         // Load the session and its parent camp to fill in the letter details
         $session = $this->application->campSession;
-        $camp    = $session->camp;
+        $camp = $session->camp;
 
         return (new MailMessage)
             ->subject('Congratulations! Application Accepted - '.$camp->name)

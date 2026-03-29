@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * CalendarEvent model — camp deadlines, sessions, orientations, and internal events.
@@ -53,8 +52,8 @@ class CalendarEvent extends Model
         return [
             // Carbon instances — enables comparison, formatting, and diff calculations
             'starts_at' => 'datetime',
-            'ends_at'   => 'datetime',
-            'all_day'   => 'boolean',
+            'ends_at' => 'datetime',
+            'all_day' => 'boolean',
         ];
     }
 

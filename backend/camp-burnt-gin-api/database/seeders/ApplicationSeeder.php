@@ -57,17 +57,17 @@ class ApplicationSeeder extends Seeder
         $admin = User::where('email', 'admin@example.com')->firstOrFail();
 
         $sessionPast = CampSession::where('name', 'Session 1 — Summer 2025')->firstOrFail();
-        $session1    = CampSession::where('name', 'Session 1 — Summer 2026')->firstOrFail();
-        $session2    = CampSession::where('name', 'Session 2 — Summer 2026')->firstOrFail();
+        $session1 = CampSession::where('name', 'Session 1 — Summer 2026')->firstOrFail();
+        $session2 = CampSession::where('name', 'Session 2 — Summer 2026')->firstOrFail();
 
         // Core 8 campers
         $ethan = Camper::where('first_name', 'Ethan')->where('last_name', 'Johnson')->firstOrFail();
-        $lily  = Camper::where('first_name', 'Lily')->where('last_name', 'Johnson')->firstOrFail();
+        $lily = Camper::where('first_name', 'Lily')->where('last_name', 'Johnson')->firstOrFail();
         $sofia = Camper::where('first_name', 'Sofia')->where('last_name', 'Martinez')->firstOrFail();
-        $noah  = Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail();
-        $ava   = Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail();
+        $noah = Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail();
+        $ava = Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail();
         $lucas = Camper::where('first_name', 'Lucas')->where('last_name', 'Williams')->firstOrFail();
-        $mia   = Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail();
+        $mia = Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail();
         $tyler = Camper::where('first_name', 'Tyler')->where('last_name', 'Wilson')->firstOrFail();
         $henry = Camper::where('first_name', 'Henry')->where('last_name', 'Carter')->firstOrFail();
 
@@ -83,15 +83,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $ethan->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Approved,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(20),
-                'reviewed_at'        => now()->subDays(10),
-                'reviewed_by'        => $admin->id,
-                'notes'              => 'Ethan has attended Camp Burnt Gin twice before. Medical team is fully briefed on his care plan (Epilepsy + ASD). Seizure action plan received from Dr. Hill. All clearances in order. Approved.',
-                'signature_name'     => 'Sarah Johnson',
-                'signed_at'          => now()->subDays(20),
-                'signed_ip_address'  => '192.168.1.100',
+                'status' => ApplicationStatus::Approved,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(20),
+                'reviewed_at' => now()->subDays(10),
+                'reviewed_by' => $admin->id,
+                'notes' => 'Ethan has attended Camp Burnt Gin twice before. Medical team is fully briefed on his care plan (Epilepsy + ASD). Seizure action plan received from Dr. Hill. All clearances in order. Approved.',
+                'signature_name' => 'Sarah Johnson',
+                'signed_at' => now()->subDays(20),
+                'signed_ip_address' => '192.168.1.100',
             ]
         );
 
@@ -100,15 +100,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $lily->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Pending,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(5),
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => null,
-                'signature_name'     => 'Sarah Johnson',
-                'signed_at'          => now()->subDays(5),
-                'signed_ip_address'  => '192.168.1.100',
+                'status' => ApplicationStatus::Pending,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(5),
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => null,
+                'signature_name' => 'Sarah Johnson',
+                'signed_at' => now()->subDays(5),
+                'signed_ip_address' => '192.168.1.100',
             ]
         );
 
@@ -122,15 +122,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $sofia->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::UnderReview,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(14),
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => 'Application is complete and under review. Awaiting: (1) updated immunization record from Dr. Owens, (2) physician clearance letter confirming Sofia is cleared for camp participation. Follow-up email sent to David Martinez on ' . now()->subDays(8)->format('M d') . '. Catheterization protocol on file from 2025 pre-camp consultation.',
-                'signature_name'     => 'David Martinez',
-                'signed_at'          => now()->subDays(14),
-                'signed_ip_address'  => '10.0.0.45',
+                'status' => ApplicationStatus::UnderReview,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(14),
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => 'Application is complete and under review. Awaiting: (1) updated immunization record from Dr. Owens, (2) physician clearance letter confirming Sofia is cleared for camp participation. Follow-up email sent to David Martinez on '.now()->subDays(8)->format('M d').'. Catheterization protocol on file from 2025 pre-camp consultation.',
+                'signature_name' => 'David Martinez',
+                'signed_at' => now()->subDays(14),
+                'signed_ip_address' => '10.0.0.45',
             ]
         );
 
@@ -146,15 +146,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $noah->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Rejected,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(30),
-                'reviewed_at'        => now()->subDays(22),
-                'reviewed_by'        => $admin->id,
-                'notes'              => 'Session 1 is at capacity — returning campers with complex multi-system needs were prioritized. Noah\'s application is strong and he is fully eligible. Family notified by email on ' . now()->subDays(22)->format('M d') . ' and strongly encouraged to apply for Session 2. No issues with the application itself.',
-                'signature_name'     => 'Jennifer Thompson',
-                'signed_at'          => now()->subDays(30),
-                'signed_ip_address'  => '10.0.1.22',
+                'status' => ApplicationStatus::Rejected,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(30),
+                'reviewed_at' => now()->subDays(22),
+                'reviewed_by' => $admin->id,
+                'notes' => 'Session 1 is at capacity — returning campers with complex multi-system needs were prioritized. Noah\'s application is strong and he is fully eligible. Family notified by email on '.now()->subDays(22)->format('M d').' and strongly encouraged to apply for Session 2. No issues with the application itself.',
+                'signature_name' => 'Jennifer Thompson',
+                'signed_at' => now()->subDays(30),
+                'signed_ip_address' => '10.0.1.22',
             ]
         );
 
@@ -162,15 +162,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $noah->id, 'camp_session_id' => $session2->id],
             [
-                'status'             => ApplicationStatus::Pending,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(2),
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => null,
-                'signature_name'     => 'Jennifer Thompson',
-                'signed_at'          => now()->subDays(2),
-                'signed_ip_address'  => '10.0.1.22',
+                'status' => ApplicationStatus::Pending,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(2),
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => null,
+                'signature_name' => 'Jennifer Thompson',
+                'signed_at' => now()->subDays(2),
+                'signed_ip_address' => '10.0.1.22',
             ]
         );
 
@@ -185,15 +185,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $ava->id, 'camp_session_id' => $session2->id],
             [
-                'status'             => ApplicationStatus::Approved,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(18),
-                'reviewed_at'        => now()->subDays(8),
-                'reviewed_by'        => $admin->id,
-                'notes'              => 'All documents received and verified. Dexcom CGM and OmniPod pump documentation on file. Medical team briefed on diabetes management protocol. Hypoglycemia treatment plan confirmed with Dr. Gonzalez. Approved.',
-                'signature_name'     => 'Michael Williams',
-                'signed_at'          => now()->subDays(18),
-                'signed_ip_address'  => '172.16.0.5',
+                'status' => ApplicationStatus::Approved,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(18),
+                'reviewed_at' => now()->subDays(8),
+                'reviewed_by' => $admin->id,
+                'notes' => 'All documents received and verified. Dexcom CGM and OmniPod pump documentation on file. Medical team briefed on diabetes management protocol. Hypoglycemia treatment plan confirmed with Dr. Gonzalez. Approved.',
+                'signature_name' => 'Michael Williams',
+                'signed_at' => now()->subDays(18),
+                'signed_ip_address' => '172.16.0.5',
             ]
         );
 
@@ -201,15 +201,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $lucas->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Pending,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(3),
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => null,
-                'signature_name'     => 'Michael Williams',
-                'signed_at'          => now()->subDays(3),
-                'signed_ip_address'  => '172.16.0.5',
+                'status' => ApplicationStatus::Pending,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(3),
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => null,
+                'signature_name' => 'Michael Williams',
+                'signed_at' => now()->subDays(3),
+                'signed_ip_address' => '172.16.0.5',
             ]
         );
 
@@ -220,15 +220,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $lucas->id, 'camp_session_id' => $session2->id],
             [
-                'status'             => ApplicationStatus::Cancelled,
-                'is_draft'           => true,
-                'submitted_at'       => null,
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => 'Parent cancelled via portal — decided to apply only for Session 1 due to BiPAP equipment logistics. Draft was never submitted.',
-                'signature_name'     => null,
-                'signed_at'          => null,
-                'signed_ip_address'  => null,
+                'status' => ApplicationStatus::Cancelled,
+                'is_draft' => true,
+                'submitted_at' => null,
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => 'Parent cancelled via portal — decided to apply only for Session 1 due to BiPAP equipment logistics. Draft was never submitted.',
+                'signature_name' => null,
+                'signed_at' => null,
+                'signed_ip_address' => null,
             ]
         );
 
@@ -244,15 +244,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $mia->id, 'camp_session_id' => $sessionPast->id],
             [
-                'status'             => ApplicationStatus::Approved,
-                'is_draft'           => false,
-                'submitted_at'       => '2025-04-10 10:00:00',
-                'reviewed_at'        => '2025-04-20 14:00:00',
-                'reviewed_by'        => $admin->id,
-                'notes'              => 'Mia attended 2025 successfully. Heat protocol observed — one heat-check incident documented in treatment log. Sickle cell management excellent. Eligible and encouraged to re-apply for 2026.',
-                'signature_name'     => 'Patricia Davis',
-                'signed_at'          => '2025-04-10 10:00:00',
-                'signed_ip_address'  => '10.0.2.88',
+                'status' => ApplicationStatus::Approved,
+                'is_draft' => false,
+                'submitted_at' => '2025-04-10 10:00:00',
+                'reviewed_at' => '2025-04-20 14:00:00',
+                'reviewed_by' => $admin->id,
+                'notes' => 'Mia attended 2025 successfully. Heat protocol observed — one heat-check incident documented in treatment log. Sickle cell management excellent. Eligible and encouraged to re-apply for 2026.',
+                'signature_name' => 'Patricia Davis',
+                'signed_at' => '2025-04-10 10:00:00',
+                'signed_ip_address' => '10.0.2.88',
             ]
         );
 
@@ -262,15 +262,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $mia->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Pending,  // status is set when submitted
-                'is_draft'           => true,                         // KEY: not yet submitted
-                'submitted_at'       => null,
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => null,
-                'signature_name'     => null,
-                'signed_at'          => null,
-                'signed_ip_address'  => null,
+                'status' => ApplicationStatus::Pending,  // status is set when submitted
+                'is_draft' => true,                         // KEY: not yet submitted
+                'submitted_at' => null,
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => null,
+                'signature_name' => null,
+                'signed_at' => null,
+                'signed_ip_address' => null,
             ]
         );
 
@@ -285,15 +285,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $tyler->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Waitlisted,  // ← explicitly Waitlisted
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(25),
-                'reviewed_at'        => now()->subDays(15),
-                'reviewed_by'        => $admin->id,
-                'notes'              => 'Application is complete and Tyler is fully eligible. Session 1 is currently at capacity — he has been placed on the waitlist and will be notified immediately if a spot opens. Tyler is #3 on the waitlist. Family contacted by phone on ' . now()->subDays(15)->format('M d') . '.',
-                'signature_name'     => 'Grace Wilson',
-                'signed_at'          => now()->subDays(25),
-                'signed_ip_address'  => '10.0.3.77',
+                'status' => ApplicationStatus::Waitlisted,  // ← explicitly Waitlisted
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(25),
+                'reviewed_at' => now()->subDays(15),
+                'reviewed_by' => $admin->id,
+                'notes' => 'Application is complete and Tyler is fully eligible. Session 1 is currently at capacity — he has been placed on the waitlist and will be notified immediately if a spot opens. Tyler is #3 on the waitlist. Family contacted by phone on '.now()->subDays(15)->format('M d').'.',
+                'signature_name' => 'Grace Wilson',
+                'signed_at' => now()->subDays(25),
+                'signed_ip_address' => '10.0.3.77',
             ]
         );
 
@@ -310,15 +310,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $henry->id, 'camp_session_id' => $session1->id],
             [
-                'status'             => ApplicationStatus::Approved,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(12),
-                'reviewed_at'        => now()->subDays(7),
-                'reviewed_by'        => $admin->id,
-                'notes'              => 'PAPER APPLICATION — Entered manually by admin from physical form received 2026-03-11. Original paper form scanned and filed. All documents verified (immunization record, physician clearance, medication authorization). Guardian signature on paper form, dated 2026-03-09. Family does not yet have portal account — will be contacted to complete portal registration.',
-                'signature_name'     => 'James Carter',   // guardian who signed the physical form
-                'signed_at'          => now()->subDays(14),
-                'signed_ip_address'  => null,              // null = paper signature, not digital
+                'status' => ApplicationStatus::Approved,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(12),
+                'reviewed_at' => now()->subDays(7),
+                'reviewed_by' => $admin->id,
+                'notes' => 'PAPER APPLICATION — Entered manually by admin from physical form received 2026-03-11. Original paper form scanned and filed. All documents verified (immunization record, physician clearance, medication authorization). Guardian signature on paper form, dated 2026-03-09. Family does not yet have portal account — will be contacted to complete portal registration.',
+                'signature_name' => 'James Carter',   // guardian who signed the physical form
+                'signed_at' => now()->subDays(14),
+                'signed_ip_address' => null,              // null = paper signature, not digital
             ]
         );
 
@@ -327,15 +327,15 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $henry->id, 'camp_session_id' => $session2->id],
             [
-                'status'             => ApplicationStatus::Pending,
-                'is_draft'           => false,
-                'submitted_at'       => now()->subDays(5),
-                'reviewed_at'        => null,
-                'reviewed_by'        => null,
-                'notes'              => null,
-                'signature_name'     => 'James Carter',
-                'signed_at'          => now()->subDays(5),
-                'signed_ip_address'  => '192.168.10.45',
+                'status' => ApplicationStatus::Pending,
+                'is_draft' => false,
+                'submitted_at' => now()->subDays(5),
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'notes' => null,
+                'signature_name' => 'James Carter',
+                'signed_at' => now()->subDays(5),
+                'signed_ip_address' => '192.168.10.45',
             ]
         );
 
@@ -388,20 +388,20 @@ class ApplicationSeeder extends Seeder
         }
 
         MedicalRecord::create([
-            'camper_id'               => $henry->id,
-            'physician_name'          => 'Dr. Lisa Huang',
-            'physician_phone'         => '803-555-0410',
-            'insurance_provider'      => 'United Healthcare',
+            'camper_id' => $henry->id,
+            'physician_name' => 'Dr. Lisa Huang',
+            'physician_phone' => '803-555-0410',
+            'insurance_provider' => 'United Healthcare',
             'insurance_policy_number' => 'UHC-CART-2026-001',
-            'special_needs'           => 'Mild intellectual disability. Requires simple, direct instructions (1–2 steps maximum). Responds well to visual cues and consistent routine. Enthusiastic and cooperative when instructions are clear.',
-            'dietary_restrictions'    => null,
-            'notes'                   => 'Henry is a happy, motivated child. No behavioral concerns. No seizure history. No cardiac conditions. Cleared by Dr. Huang for all camp activities. Immunization record and physician clearance letter on file from paper application.',
+            'special_needs' => 'Mild intellectual disability. Requires simple, direct instructions (1–2 steps maximum). Responds well to visual cues and consistent routine. Enthusiastic and cooperative when instructions are clear.',
+            'dietary_restrictions' => null,
+            'notes' => 'Henry is a happy, motivated child. No behavioral concerns. No seizure history. No cardiac conditions. Cleared by Dr. Huang for all camp activities. Immunization record and physician clearance letter on file from paper application.',
         ]);
 
         Diagnosis::create([
-            'camper_id'      => $henry->id,
-            'name'           => 'Mild Intellectual Disability',
-            'description'    => 'IQ range 55–70. Functional adaptive skills for daily living. Attends general education with support. Communicates verbally in full sentences.',
+            'camper_id' => $henry->id,
+            'name' => 'Mild Intellectual Disability',
+            'description' => 'IQ range 55–70. Functional adaptive skills for daily living. Attends general education with support. Communicates verbally in full sentences.',
             'severity_level' => DiagnosisSeverity::Mild,
         ]);
     }

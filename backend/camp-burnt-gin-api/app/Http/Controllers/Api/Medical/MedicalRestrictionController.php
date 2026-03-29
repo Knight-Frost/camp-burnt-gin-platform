@@ -65,9 +65,9 @@ class MedicalRestrictionController extends Controller
             'data' => $restrictions->items(),
             'meta' => [
                 'current_page' => $restrictions->currentPage(),
-                'last_page'    => $restrictions->lastPage(),
-                'per_page'     => $restrictions->perPage(),
-                'total'        => $restrictions->total(),
+                'last_page' => $restrictions->lastPage(),
+                'per_page' => $restrictions->perPage(),
+                'total' => $restrictions->total(),
             ],
         ]);
     }
@@ -85,14 +85,14 @@ class MedicalRestrictionController extends Controller
 
         // Validate all restriction fields including date range consistency.
         $validated = $request->validate([
-            'camper_id'        => 'required|integer|exists:campers,id',
+            'camper_id' => 'required|integer|exists:campers,id',
             'restriction_type' => 'required|string|in:activity,dietary,environmental,medication,other',
-            'description'      => 'required|string|max:2000',
-            'start_date'       => 'nullable|date',
+            'description' => 'required|string|max:2000',
+            'start_date' => 'nullable|date',
             // 'after_or_equal:start_date' prevents end dates that predate the start.
-            'end_date'         => 'nullable|date|after_or_equal:start_date',
-            'is_active'        => 'boolean',
-            'notes'            => 'nullable|string|max:2000',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'is_active' => 'boolean',
+            'notes' => 'nullable|string|max:2000',
         ]);
 
         // Merge the server-determined creator ID into the validated payload.
@@ -106,7 +106,7 @@ class MedicalRestrictionController extends Controller
 
         return response()->json([
             'message' => 'Medical restriction created successfully.',
-            'data'    => $restriction,
+            'data' => $restriction,
         ], Response::HTTP_CREATED);
     }
 
@@ -141,12 +141,12 @@ class MedicalRestrictionController extends Controller
         // 'sometimes' means a field is only validated when it appears in the request.
         $validated = $request->validate([
             'restriction_type' => 'sometimes|string|in:activity,dietary,environmental,medication,other',
-            'description'      => 'sometimes|string|max:2000',
-            'start_date'       => 'nullable|date',
-            'end_date'         => 'nullable|date',
+            'description' => 'sometimes|string|max:2000',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
             // Toggling is_active is the primary way to deactivate a restriction without deleting it.
-            'is_active'        => 'boolean',
-            'notes'            => 'nullable|string|max:2000',
+            'is_active' => 'boolean',
+            'notes' => 'nullable|string|max:2000',
         ]);
 
         $medicalRestriction->update($validated);
@@ -156,7 +156,7 @@ class MedicalRestrictionController extends Controller
 
         return response()->json([
             'message' => 'Medical restriction updated successfully.',
-            'data'    => $medicalRestriction,
+            'data' => $medicalRestriction,
         ]);
     }
 

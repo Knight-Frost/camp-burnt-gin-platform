@@ -75,23 +75,23 @@ class PersonalCarePlan extends Model
     {
         return [
             // Encrypted PHI — clinical care descriptions for a child with disabilities.
-            'bathing_notes'       => 'encrypted',
-            'toileting_notes'     => 'encrypted',
-            'nighttime_notes'     => 'encrypted',
-            'dressing_notes'      => 'encrypted',
-            'oral_hygiene_notes'  => 'encrypted',
-            'positioning_notes'   => 'encrypted',
-            'sleep_notes'         => 'encrypted',
-            'bowel_control_notes'   => 'encrypted',
+            'bathing_notes' => 'encrypted',
+            'toileting_notes' => 'encrypted',
+            'nighttime_notes' => 'encrypted',
+            'dressing_notes' => 'encrypted',
+            'oral_hygiene_notes' => 'encrypted',
+            'positioning_notes' => 'encrypted',
+            'sleep_notes' => 'encrypted',
+            'bowel_control_notes' => 'encrypted',
             'irregular_bowel_notes' => 'encrypted',
             // Boolean flags.
-            'nighttime_toileting'   => 'boolean',
+            'nighttime_toileting' => 'boolean',
             'falling_asleep_issues' => 'boolean',
-            'sleep_walking'         => 'boolean',
-            'night_wandering'       => 'boolean',
-            'urinary_catheter'      => 'boolean',
-            'irregular_bowel'       => 'boolean',
-            'menstruation_support'  => 'boolean',
+            'sleep_walking' => 'boolean',
+            'night_wandering' => 'boolean',
+            'urinary_catheter' => 'boolean',
+            'irregular_bowel' => 'boolean',
+            'menstruation_support' => 'boolean',
         ];
     }
 

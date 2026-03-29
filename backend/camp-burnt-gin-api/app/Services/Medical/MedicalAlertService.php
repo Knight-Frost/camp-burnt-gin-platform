@@ -62,19 +62,19 @@ class MedicalAlertService
             // Build the detail string by combining reaction and treatment if available
             $detail = null;
             if ($allergy->reaction) {
-                $detail = 'Reaction: ' . $allergy->reaction;
+                $detail = 'Reaction: '.$allergy->reaction;
             }
             if ($allergy->treatment) {
                 // Append treatment info with a separator if reaction info is already present
-                $detail .= ($detail ? ' | ' : '') . 'Treatment: ' . $allergy->treatment;
+                $detail .= ($detail ? ' | ' : '').'Treatment: '.$allergy->treatment;
             }
 
             // Life-threatening allergies are critical; all other severe ones are warnings
             $alerts[] = [
-                'level'    => $allergy->severity->value === 'life_threatening' ? 'critical' : 'warning',
+                'level' => $allergy->severity->value === 'life_threatening' ? 'critical' : 'warning',
                 'category' => 'allergy',
-                'title'    => strtoupper($allergy->severity->label()) . ' ALLERGY — ' . $allergy->allergen,
-                'detail'   => $detail,
+                'title' => strtoupper($allergy->severity->label()).' ALLERGY — '.$allergy->allergen,
+                'detail' => $detail,
             ];
         }
 
@@ -88,14 +88,14 @@ class MedicalAlertService
                 $detail = $record->seizure_description;
             }
             if ($record->last_seizure_date) {
-                $detail .= ($detail ? ' | ' : '') . 'Last seizure: ' . $record->last_seizure_date->toDateString();
+                $detail .= ($detail ? ' | ' : '').'Last seizure: '.$record->last_seizure_date->toDateString();
             }
 
             $alerts[] = [
-                'level'    => 'critical',
+                'level' => 'critical',
                 'category' => 'seizure',
-                'title'    => 'SEIZURE HISTORY — Seizure Action Plan required',
-                'detail'   => $detail,
+                'title' => 'SEIZURE HISTORY — Seizure Action Plan required',
+                'detail' => $detail,
             ];
         }
 
@@ -103,10 +103,10 @@ class MedicalAlertService
         // Neurostimulators (like VNS or DBS devices) are incompatible with MRI and some electrical equipment
         if ($record && $record->has_neurostimulator) {
             $alerts[] = [
-                'level'    => 'warning',
+                'level' => 'warning',
                 'category' => 'device',
-                'title'    => 'NEUROSTIMULATOR — Avoid MRI and electrical equipment near chest',
-                'detail'   => null,
+                'title' => 'NEUROSTIMULATOR — Avoid MRI and electrical equipment near chest',
+                'detail' => null,
             ];
         }
 
@@ -115,11 +115,11 @@ class MedicalAlertService
         // the full picture at a glance without opening the sub-section.
         foreach ($camper->diagnoses as $dx) {
             $alerts[] = [
-                'level'    => 'info',
+                'level' => 'info',
                 'category' => 'diagnosis',
-                'title'    => 'DIAGNOSIS — ' . $dx->name,
+                'title' => 'DIAGNOSIS — '.$dx->name,
                 // Include diagnosis notes as the detail if present
-                'detail'   => $dx->notes ?? null,
+                'detail' => $dx->notes ?? null,
             ];
         }
 
@@ -129,10 +129,10 @@ class MedicalAlertService
             $notesLower = mb_strtolower($med->notes ?? '');
             if (str_contains($notesLower, 'refrigerat')) {
                 $alerts[] = [
-                    'level'    => 'warning',
+                    'level' => 'warning',
                     'category' => 'medication',
-                    'title'    => 'REFRIGERATED MEDICATION — ' . $med->name,
-                    'detail'   => $med->notes,
+                    'title' => 'REFRIGERATED MEDICATION — '.$med->name,
+                    'detail' => $med->notes,
                 ];
             }
         }

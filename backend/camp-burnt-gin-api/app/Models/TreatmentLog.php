@@ -63,16 +63,16 @@ class TreatmentLog extends Model
     protected function casts(): array
     {
         return [
-            'treatment_date'     => 'date',
-            'treatment_time'     => 'string',            // Kept as a plain string ("HH:MM").
-            'type'               => TreatmentType::class, // Maps stored string to enum instance.
-            'title'              => 'encrypted',
-            'description'        => 'encrypted',
-            'outcome'            => 'encrypted',
-            'medication_given'   => 'encrypted',
-            'dosage_given'       => 'encrypted',
+            'treatment_date' => 'date',
+            'treatment_time' => 'string',            // Kept as a plain string ("HH:MM").
+            'type' => TreatmentType::class, // Maps stored string to enum instance.
+            'title' => 'encrypted',
+            'description' => 'encrypted',
+            'outcome' => 'encrypted',
+            'medication_given' => 'encrypted',
+            'dosage_given' => 'encrypted',
             'follow_up_required' => 'boolean',
-            'follow_up_notes'    => 'encrypted',
+            'follow_up_notes' => 'encrypted',
         ];
     }
 
@@ -117,7 +117,7 @@ class TreatmentLog extends Model
      * Returns an array of conflict objects so the caller can display a specific warning
      * for each matching allergy. An empty array means no conflicts were found.
      *
-     * @param  string                            $medicationName  The medication about to be given.
+     * @param  string  $medicationName  The medication about to be given.
      * @param  Collection<int, \App\Models\Allergy>  $allergies  The camper's known allergies.
      * @return array<int, array{allergen: string, severity: string, reaction: string, treatment: string}>
      */
@@ -139,9 +139,9 @@ class TreatmentLog extends Model
             )) {
                 // Build a structured conflict entry the controller can send to the frontend.
                 $conflicts[] = [
-                    'allergen'  => $allergy->allergen,
-                    'severity'  => $allergy->severity->value,
-                    'reaction'  => $allergy->reaction,
+                    'allergen' => $allergy->allergen,
+                    'severity' => $allergy->severity->value,
+                    'reaction' => $allergy->reaction,
                     'treatment' => $allergy->treatment,
                 ];
             }

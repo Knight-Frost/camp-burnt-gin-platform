@@ -34,11 +34,11 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
             // Only staff roles — applicants must self-register
-            'role'     => ['required', 'string', 'in:admin,medical,super_admin', 'exists:roles,name'],
+            'role' => ['required', 'string', 'in:admin,medical,super_admin', 'exists:roles,name'],
         ];
     }
 
@@ -48,9 +48,9 @@ class StoreUserRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.unique'        => 'An account with this email address already exists.',
-            'role.in'             => 'Role must be one of: admin, medical, super_admin.',
-            'password.confirmed'  => 'Password confirmation does not match.',
+            'email.unique' => 'An account with this email address already exists.',
+            'role.in' => 'Role must be one of: admin, medical, super_admin.',
+            'password.confirmed' => 'Password confirmation does not match.',
         ];
     }
 }

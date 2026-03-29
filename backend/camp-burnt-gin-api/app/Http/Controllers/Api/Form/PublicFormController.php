@@ -62,36 +62,36 @@ class PublicFormController extends Controller
         $form->load(['activeSections.activeFields.activeOptions']);
 
         return [
-            'id'      => $form->id,
-            'name'    => $form->name,
+            'id' => $form->id,
+            'name' => $form->name,
             'version' => $form->version,
-            'status'  => $form->status,
+            'status' => $form->status,
             'sections' => $form->activeSections->map(function ($section) {
                 return [
-                    'id'          => $section->id,
-                    'title'       => $section->title,
+                    'id' => $section->id,
+                    'title' => $section->title,
                     'short_title' => $section->short_title,
                     'description' => $section->description,
-                    'icon_name'   => $section->icon_name,
-                    'sort_order'  => $section->sort_order,
-                    'fields'      => $section->activeFields->map(function ($field) {
+                    'icon_name' => $section->icon_name,
+                    'sort_order' => $section->sort_order,
+                    'fields' => $section->activeFields->map(function ($field) {
                         return [
-                            'id'                => $field->id,
-                            'field_key'         => $field->field_key,
-                            'label'             => $field->label,
-                            'placeholder'       => $field->placeholder,
-                            'help_text'         => $field->help_text,
-                            'field_type'        => $field->field_type,
-                            'is_required'       => $field->is_required,
-                            'sort_order'        => $field->sort_order,
-                            'validation_rules'  => $field->validation_rules,
+                            'id' => $field->id,
+                            'field_key' => $field->field_key,
+                            'label' => $field->label,
+                            'placeholder' => $field->placeholder,
+                            'help_text' => $field->help_text,
+                            'field_type' => $field->field_type,
+                            'is_required' => $field->is_required,
+                            'sort_order' => $field->sort_order,
+                            'validation_rules' => $field->validation_rules,
                             'conditional_logic' => $field->conditional_logic,
-                            'default_value'     => $field->default_value,
-                            'width'             => $field->width,
-                            'options'           => $field->activeOptions->map(fn ($opt) => [
-                                'id'         => $opt->id,
-                                'label'      => $opt->label,
-                                'value'      => $opt->value,
+                            'default_value' => $field->default_value,
+                            'width' => $field->width,
+                            'options' => $field->activeOptions->map(fn ($opt) => [
+                                'id' => $opt->id,
+                                'label' => $opt->label,
+                                'value' => $opt->value,
                                 'sort_order' => $opt->sort_order,
                             ])->values(),
                         ];

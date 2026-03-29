@@ -74,17 +74,17 @@ class DeadlineCalendarSyncService
     protected function buildEventData(Deadline $deadline): array
     {
         return [
-            'created_by'        => $deadline->created_by,
-            'title'             => 'Deadline: ' . $deadline->title,
-            'description'       => $deadline->description,
-            'event_type'        => 'deadline',
-            'color'             => null,
-            'starts_at'         => $deadline->due_date,
-            'ends_at'           => null,
-            'all_day'           => true,
-            'audience'          => 'all',
+            'created_by' => $deadline->created_by,
+            'title' => 'Deadline: '.$deadline->title,
+            'description' => $deadline->description,
+            'event_type' => 'deadline',
+            'color' => null,
+            'starts_at' => $deadline->due_date,
+            'ends_at' => null,
+            'all_day' => true,
+            'audience' => 'all',
             'target_session_id' => $deadline->camp_session_id,
-            'deadline_id'       => $deadline->id,
+            'deadline_id' => $deadline->id,
         ];
     }
 }

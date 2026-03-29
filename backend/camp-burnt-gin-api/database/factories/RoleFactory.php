@@ -15,7 +15,7 @@ class RoleFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'        => fake()->unique()->word(),
+            'name' => fake()->unique()->word(),
             'description' => fake()->sentence(),
         ];
     }
@@ -24,7 +24,7 @@ class RoleFactory extends Factory
     public function applicant(): static
     {
         return $this->state(fn () => [
-            'name'        => 'applicant',
+            'name' => 'applicant',
             'description' => 'Parent or guardian of campers',
         ]);
     }
@@ -32,7 +32,7 @@ class RoleFactory extends Factory
     public function admin(): static
     {
         return $this->state(fn () => [
-            'name'        => 'admin',
+            'name' => 'admin',
             'description' => 'Camp administrator with full access',
         ]);
     }
@@ -40,7 +40,7 @@ class RoleFactory extends Factory
     public function superAdmin(): static
     {
         return $this->state(fn () => [
-            'name'        => 'super_admin',
+            'name' => 'super_admin',
             'description' => 'Super administrator — full system access including user management',
         ]);
     }
@@ -48,7 +48,7 @@ class RoleFactory extends Factory
     public function medical(): static
     {
         return $this->state(fn () => [
-            'name'        => 'medical',
+            'name' => 'medical',
             'description' => 'Medical provider with read-only access to active camper records',
         ]);
     }

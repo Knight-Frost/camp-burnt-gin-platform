@@ -66,10 +66,10 @@ class ReportController extends Controller
 
         // withCount('applications') adds an applications_count column without a subquery.
         $sessions = CampSession::withCount('applications')->get()->map(fn ($s) => [
-            'id'         => $s->id,
-            'name'       => $s->name,
-            'capacity'   => $s->capacity,
-            'enrolled'   => $s->applications_count,
+            'id' => $s->id,
+            'name' => $s->name,
+            'capacity' => $s->capacity,
+            'enrolled' => $s->applications_count,
         ]);
 
         // Build a monthly timeline of submission counts for the trend chart on the dashboard.
@@ -84,17 +84,17 @@ class ReportController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'total_campers'              => Camper::count(),
-                'total_applications'         => Application::count(),
+                'total_campers' => Camper::count(),
+                'total_applications' => Application::count(),
                 // Full breakdown map, e.g. {"pending": 12, "accepted": 45, "rejected": 3}
-                'applications_by_status'     => $apps,
+                'applications_by_status' => $apps,
                 // Individual status shortcuts for the dashboard counter cards.
-                'accepted_applications'      => $apps['approved'] ?? 0,
+                'accepted_applications' => $apps['approved'] ?? 0,
                 // Group pending and under_review together as "awaiting action".
-                'pending_applications'       => ($apps['pending'] ?? 0) + ($apps['under_review'] ?? 0),
-                'rejected_applications'      => $apps['rejected'] ?? 0,
-                'sessions'                   => $sessions,
-                'applications_over_time'     => $timeline,
+                'pending_applications' => ($apps['pending'] ?? 0) + ($apps['under_review'] ?? 0),
+                'rejected_applications' => $apps['rejected'] ?? 0,
+                'sessions' => $sessions,
+                'applications_over_time' => $timeline,
             ],
         ]);
     }
@@ -106,9 +106,9 @@ class ReportController extends Controller
      * by row instead of building the entire string in memory first. This is
      * important for large reports — it keeps memory usage flat.
      *
-     * @param  list<string>          $headers  Column header labels for the first row.
-     * @param  list<list<mixed>>     $rows     Data rows; each item is an array of cell values.
-     * @param  string                $filename Suggested download filename.
+     * @param  list<string>  $headers  Column header labels for the first row.
+     * @param  list<list<mixed>>  $rows  Data rows; each item is an array of cell values.
+     * @param  string  $filename  Suggested download filename.
      */
     private function csvResponse(array $headers, array $rows, string $filename): StreamedResponse
     {

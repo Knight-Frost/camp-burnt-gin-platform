@@ -60,8 +60,8 @@ class ConversationPolicy
      * Note: The $hasNonAdminParticipants flag must be resolved in the
      * service layer before this policy is called.
      *
-     * @param User $user The user attempting to create
-     * @param bool $hasNonAdminParticipants Whether non-admin participants are included
+     * @param  User  $user  The user attempting to create
+     * @param  bool  $hasNonAdminParticipants  Whether non-admin participants are included
      */
     public function create(User $user, bool $hasNonAdminParticipants = false): bool
     {
@@ -72,7 +72,7 @@ class ConversationPolicy
 
         // Medical providers and parents can only message admins.
         if ($user->isMedicalProvider() || $user->isApplicant()) {
-            return !$hasNonAdminParticipants;
+            return ! $hasNonAdminParticipants;
         }
 
         return false;
@@ -149,7 +149,7 @@ class ConversationPolicy
     public function addParticipant(User $user, Conversation $conversation, User $newParticipant): bool
     {
         // Non-admins cannot add participants.
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return false;
         }
 
@@ -160,7 +160,7 @@ class ConversationPolicy
 
         // Ensure role-based restrictions are maintained.
         // Medical providers can only be added to camper-related conversations.
-        if ($newParticipant->isMedicalProvider() && !$conversation->isLinkedToCamper()) {
+        if ($newParticipant->isMedicalProvider() && ! $conversation->isLinkedToCamper()) {
             return false;
         }
 
@@ -176,7 +176,7 @@ class ConversationPolicy
     public function removeParticipant(User $user, Conversation $conversation, User $participant): bool
     {
         // Non-admins cannot remove participants.
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return false;
         }
 
@@ -204,7 +204,7 @@ class ConversationPolicy
         }
 
         // A user must actually be a participant to leave.
-        if (!$conversation->hasParticipant($user)) {
+        if (! $conversation->hasParticipant($user)) {
             return false;
         }
 

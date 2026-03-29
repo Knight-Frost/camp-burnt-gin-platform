@@ -155,7 +155,7 @@ class MedicalProviderLinkService
      * that new medical data has been received.
      *
      * @param  array<string, mixed>  $data  Submitted form data (physician info, allergies, medications)
-     * @return array<string, mixed>  'success' => true/false with optional 'errors'
+     * @return array<string, mixed> 'success' => true/false with optional 'errors'
      */
     public function processSubmission(MedicalProviderLink $link, array $data): array
     {
@@ -246,7 +246,7 @@ class MedicalProviderLinkService
      *  - Filename is replaced with a UUID to prevent path traversal or name collisions
      *  - Files are stored in the private "local" disk, not publicly accessible
      *
-     * @return array<string, mixed>  'success' => true/false with optional 'document'
+     * @return array<string, mixed> 'success' => true/false with optional 'document'
      */
     public function uploadDocument(MedicalProviderLink $link, UploadedFile $file, ?string $documentType): array
     {

@@ -9,7 +9,6 @@ use App\Models\DocumentRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * DeadlineService — business logic layer for all deadline operations.
@@ -57,18 +56,18 @@ class DeadlineService
         array $data,
     ): Deadline {
         $deadline = Deadline::create([
-            'camp_session_id'          => $sessionId,
-            'entity_type'              => 'document_request',
-            'entity_id'                => $request->id,
-            'title'                    => $data['title'] ?? $request->document_type,
-            'description'              => $data['description'] ?? $request->instructions,
-            'due_date'                 => $data['due_date'],
-            'grace_period_days'        => $data['grace_period_days'] ?? 0,
-            'status'                   => 'pending',
-            'is_enforced'              => $data['is_enforced'] ?? false,
-            'enforcement_mode'         => $data['enforcement_mode'] ?? 'soft',
+            'camp_session_id' => $sessionId,
+            'entity_type' => 'document_request',
+            'entity_id' => $request->id,
+            'title' => $data['title'] ?? $request->document_type,
+            'description' => $data['description'] ?? $request->instructions,
+            'due_date' => $data['due_date'],
+            'grace_period_days' => $data['grace_period_days'] ?? 0,
+            'status' => 'pending',
+            'is_enforced' => $data['is_enforced'] ?? false,
+            'enforcement_mode' => $data['enforcement_mode'] ?? 'soft',
             'is_visible_to_applicants' => $data['is_visible_to_applicants'] ?? true,
-            'created_by'               => $admin->id,
+            'created_by' => $admin->id,
         ]);
 
         // Keep DocumentRequest.due_date in sync as a read-only mirror.
@@ -101,18 +100,18 @@ class DeadlineService
         array $data,
     ): Deadline {
         return Deadline::create([
-            'camp_session_id'          => $session->id,
-            'entity_type'              => $entityType,
-            'entity_id'                => null,
-            'title'                    => $data['title'],
-            'description'              => $data['description'] ?? null,
-            'due_date'                 => $data['due_date'],
-            'grace_period_days'        => $data['grace_period_days'] ?? 0,
-            'status'                   => 'pending',
-            'is_enforced'              => $data['is_enforced'] ?? false,
-            'enforcement_mode'         => $data['enforcement_mode'] ?? 'soft',
+            'camp_session_id' => $session->id,
+            'entity_type' => $entityType,
+            'entity_id' => null,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'due_date' => $data['due_date'],
+            'grace_period_days' => $data['grace_period_days'] ?? 0,
+            'status' => 'pending',
+            'is_enforced' => $data['is_enforced'] ?? false,
+            'enforcement_mode' => $data['enforcement_mode'] ?? 'soft',
             'is_visible_to_applicants' => $data['is_visible_to_applicants'] ?? true,
-            'created_by'               => $admin->id,
+            'created_by' => $admin->id,
         ]);
     }
 
@@ -120,12 +119,12 @@ class DeadlineService
      * Generic deadline creation for any entity type.
      * Used by DeadlineController::store() for admin-initiated deadlines.
      *
-     * @param  array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data, User $admin): Deadline
     {
         return Deadline::create(array_merge($data, [
-            'status'     => 'pending',
+            'status' => 'pending',
             'created_by' => $admin->id,
         ]));
     }
@@ -187,9 +186,9 @@ class DeadlineService
         $isHard = $deadline->enforcement_mode === 'hard';
 
         return [
-            'blocked'  => $isHard,
-            'warned'   => ! $isHard,
-            'mode'     => $deadline->enforcement_mode,
+            'blocked' => $isHard,
+            'warned' => ! $isHard,
+            'mode' => $deadline->enforcement_mode,
             'deadline' => $deadline->toApiArray(),
         ];
     }
@@ -209,10 +208,10 @@ class DeadlineService
         User $admin,
     ): Deadline {
         $deadline->update([
-            'due_date'      => $newDueDate,
-            'status'        => 'extended',
+            'due_date' => $newDueDate,
+            'status' => 'extended',
             'override_note' => $reason,
-            'updated_by'    => $admin->id,
+            'updated_by' => $admin->id,
         ]);
 
         AuditLog::logAdminAction(
@@ -234,9 +233,9 @@ class DeadlineService
     public function markComplete(Deadline $deadline, User $admin, string $reason): Deadline
     {
         $deadline->update([
-            'status'        => 'completed',
+            'status' => 'completed',
             'override_note' => $reason,
-            'updated_by'    => $admin->id,
+            'updated_by' => $admin->id,
         ]);
 
         AuditLog::logAdminAction(
@@ -298,19 +297,19 @@ class DeadlineService
                 // Session-wide deadlines for any session this applicant is in
                 $q->where(function ($inner) use ($sessionIds) {
                     $inner->whereIn('camp_session_id', $sessionIds)
-                          ->whereNull('entity_id');
+                        ->whereNull('entity_id');
                 })
                 // Per-application deadlines for this applicant's applications
-                ->orWhere(function ($inner) use ($applicationIds) {
-                    $inner->where('entity_type', 'application')
-                          ->whereIn('entity_id', $applicationIds);
-                })
+                    ->orWhere(function ($inner) use ($applicationIds) {
+                        $inner->where('entity_type', 'application')
+                            ->whereIn('entity_id', $applicationIds);
+                    })
                 // Per-document-request deadlines for this applicant's requests
-                ->orWhere(function ($inner) use ($applicant) {
-                    $drIds = DocumentRequest::where('applicant_id', $applicant->id)->pluck('id');
-                    $inner->where('entity_type', 'document_request')
-                          ->whereIn('entity_id', $drIds);
-                });
+                    ->orWhere(function ($inner) use ($applicant) {
+                        $drIds = DocumentRequest::where('applicant_id', $applicant->id)->pluck('id');
+                        $inner->where('entity_type', 'document_request')
+                            ->whereIn('entity_id', $drIds);
+                    });
             })
             ->orderBy('due_date')
             ->get();

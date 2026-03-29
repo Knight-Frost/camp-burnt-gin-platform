@@ -20,15 +20,15 @@ enum OfficialFormType: string
 {
     case EnglishApplication = 'english_application';
     case SpanishApplication = 'spanish_application';
-    case MedicalForm        = 'medical_form';
-    case CyshcnForm         = 'cyshcn_form';
+    case MedicalForm = 'medical_form';
+    case CyshcnForm = 'cyshcn_form';
 
     /**
      * The filename inside storage/app/forms/.
      */
     public function storageFilename(): string
     {
-        return $this->value . '.pdf';
+        return $this->value.'.pdf';
     }
 
     /**
@@ -39,8 +39,8 @@ enum OfficialFormType: string
         return match ($this) {
             self::EnglishApplication => 'Camp_Burnt_Gin_Application_English.pdf',
             self::SpanishApplication => 'Camp_Burnt_Gin_Application_Spanish.pdf',
-            self::MedicalForm        => 'Camp_Burnt_Gin_Medical_Form.pdf',
-            self::CyshcnForm         => 'Camp_Burnt_Gin_CYSHCN_Form.pdf',
+            self::MedicalForm => 'Camp_Burnt_Gin_Medical_Form.pdf',
+            self::CyshcnForm => 'Camp_Burnt_Gin_CYSHCN_Form.pdf',
         };
     }
 
@@ -52,8 +52,8 @@ enum OfficialFormType: string
         return match ($this) {
             self::EnglishApplication => 'Application Form (English)',
             self::SpanishApplication => 'Application Form (Spanish)',
-            self::MedicalForm        => 'Medical Form',
-            self::CyshcnForm         => 'CYSHCN Camper Application',
+            self::MedicalForm => 'Medical Form',
+            self::CyshcnForm => 'CYSHCN Camper Application',
         };
     }
 
@@ -65,8 +65,8 @@ enum OfficialFormType: string
         return match ($this) {
             self::EnglishApplication => 'Official camp registration application (English version). Download, complete, and upload the signed form.',
             self::SpanishApplication => 'Solicitud oficial de registro en el campamento (versión en español). Descargue, complete y cargue el formulario firmado.',
-            self::MedicalForm        => 'Required medical information form. Must be completed and signed by a licensed medical provider.',
-            self::CyshcnForm         => 'Children and Youth with Special Health Care Needs — Maternal & Child Health supplemental form. Required for all CYSHCN participants.',
+            self::MedicalForm => 'Required medical information form. Must be completed and signed by a licensed medical provider.',
+            self::CyshcnForm => 'Children and Youth with Special Health Care Needs — Maternal & Child Health supplemental form. Required for all CYSHCN participants.',
         };
     }
 
@@ -76,7 +76,7 @@ enum OfficialFormType: string
      */
     public function documentType(): string
     {
-        return 'official_' . $this->value;
+        return 'official_'.$this->value;
     }
 
     /**
@@ -100,13 +100,13 @@ enum OfficialFormType: string
     public function toApiItem(bool $available): array
     {
         return [
-            'id'                        => $this->value,
-            'label'                     => $this->label(),
-            'description'               => $this->description(),
-            'download_filename'         => $this->downloadFilename(),
-            'document_type'             => $this->documentType(),
+            'id' => $this->value,
+            'label' => $this->label(),
+            'description' => $this->description(),
+            'download_filename' => $this->downloadFilename(),
+            'document_type' => $this->documentType(),
             'requires_medical_signature' => $this->requiresMedicalSignature(),
-            'available'                 => $available,
+            'available' => $available,
         ];
     }
 
@@ -114,7 +114,7 @@ enum OfficialFormType: string
     {
         return array_map(
             fn (self $form) => $form->toApiItem(
-                file_exists(storage_path('app/forms/' . $form->storageFilename()))
+                file_exists(storage_path('app/forms/'.$form->storageFilename()))
             ),
             self::cases()
         );

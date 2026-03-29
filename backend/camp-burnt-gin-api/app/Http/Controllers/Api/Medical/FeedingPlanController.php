@@ -43,9 +43,9 @@ class FeedingPlanController extends Controller
             'data' => $feedingPlans->items(),
             'meta' => [
                 'current_page' => $feedingPlans->currentPage(),
-                'last_page'    => $feedingPlans->lastPage(),
-                'per_page'     => $feedingPlans->perPage(),
-                'total'        => $feedingPlans->total(),
+                'last_page' => $feedingPlans->lastPage(),
+                'per_page' => $feedingPlans->perPage(),
+                'total' => $feedingPlans->total(),
             ],
         ]);
     }
@@ -75,9 +75,10 @@ class FeedingPlanController extends Controller
         $feedingPlan->load('camper');
 
         $status = $feedingPlan->wasRecentlyCreated ? Response::HTTP_CREATED : Response::HTTP_OK;
+
         return response()->json([
             'message' => 'Feeding plan saved successfully.',
-            'data'    => $feedingPlan,
+            'data' => $feedingPlan,
         ], $status);
     }
 
@@ -115,7 +116,7 @@ class FeedingPlanController extends Controller
 
         return response()->json([
             'message' => 'Feeding plan updated successfully.',
-            'data'    => $feedingPlan,
+            'data' => $feedingPlan,
         ]);
     }
 

@@ -32,35 +32,35 @@ class ConversationResource extends JsonResource
 
         /** @var Conversation $this */
         return [
-            'id'             => $this->id,
-            'subject'        => $this->subject,
-            'category'       => $this->category ?? 'general',
-            'created_by_id'  => $this->created_by_id,
-            'creator'        => $this->when(
+            'id' => $this->id,
+            'subject' => $this->subject,
+            'category' => $this->category ?? 'general',
+            'created_by_id' => $this->created_by_id,
+            'creator' => $this->when(
                 $this->relationLoaded('creator') && $this->creator,
                 fn () => [
-                    'id'   => $this->creator->id,
+                    'id' => $this->creator->id,
                     'name' => $this->creator->name,
                 ]
             ),
-            'participants'   => $this->buildParticipants(),
-            'last_message'   => $this->buildLastMessage(),
+            'participants' => $this->buildParticipants(),
+            'last_message' => $this->buildLastMessage(),
             'last_message_at' => $this->last_message_at?->toISOString(),
-            'unread_count'   => $user ? $this->getUnreadCountForUser($user) : 0,
-            'is_archived'    => $this->is_archived,
-            'archived_at'    => $this->is_archived ? $this->updated_at?->toISOString() : null,
+            'unread_count' => $user ? $this->getUnreadCountForUser($user) : 0,
+            'is_archived' => $this->is_archived,
+            'archived_at' => $this->is_archived ? $this->updated_at?->toISOString() : null,
             // Per-user state (from conversation_participants pivot)
-            'is_starred'     => (bool) ($participantRecord?->is_starred ?? false),
-            'is_important'   => (bool) ($participantRecord?->is_important ?? false),
-            'is_trashed'     => $participantRecord?->trashed_at !== null,
+            'is_starred' => (bool) ($participantRecord?->is_starred ?? false),
+            'is_important' => (bool) ($participantRecord?->is_important ?? false),
+            'is_trashed' => $participantRecord?->trashed_at !== null,
             // System notification fields
-            'is_system_generated'   => (bool) $this->is_system_generated,
-            'system_event_type'     => $this->system_event_type,
+            'is_system_generated' => (bool) $this->is_system_generated,
+            'system_event_type' => $this->system_event_type,
             'system_event_category' => $this->system_event_category,
-            'related_entity_type'   => $this->related_entity_type,
-            'related_entity_id'     => $this->related_entity_id,
-            'created_at'     => $this->created_at?->toISOString(),
-            'updated_at'     => $this->updated_at?->toISOString(),
+            'related_entity_type' => $this->related_entity_type,
+            'related_entity_id' => $this->related_entity_id,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 
@@ -75,20 +75,20 @@ class ConversationResource extends JsonResource
         // Prefer the HasManyThrough `participants` relation (User objects with role loaded)
         if ($this->relationLoaded('participants')) {
             return $this->participants->map(fn ($user) => [
-                'id'    => $user->id,
-                'name'  => $user->name,
+                'id' => $user->id,
+                'name' => $user->name,
                 'email' => $user->email,
-                'role'  => $user->relationLoaded('role') ? ($user->role?->name ?? 'unknown') : 'unknown',
+                'role' => $user->relationLoaded('role') ? ($user->role?->name ?? 'unknown') : 'unknown',
             ])->values()->all();
         }
 
         // Fallback: activeParticipantRecords.user.role
         if ($this->relationLoaded('activeParticipantRecords')) {
             return $this->activeParticipantRecords->map(fn ($record) => [
-                'id'    => $record->user?->id,
-                'name'  => $record->user?->name,
+                'id' => $record->user?->id,
+                'name' => $record->user?->name,
                 'email' => $record->user?->email,
-                'role'  => $record->user?->role?->name ?? 'unknown',
+                'role' => $record->user?->role?->name ?? 'unknown',
             ])->filter(fn ($p) => $p['id'] !== null)->values()->all();
         }
 
@@ -100,38 +100,38 @@ class ConversationResource extends JsonResource
      */
     protected function buildLastMessage(): ?array
     {
-        if (!$this->relationLoaded('lastMessage') || !$this->lastMessage) {
+        if (! $this->relationLoaded('lastMessage') || ! $this->lastMessage) {
             return null;
         }
 
-        $msg    = $this->lastMessage;
+        $msg = $this->lastMessage;
         $sender = null;
 
         if ($msg->relationLoaded('sender') && $msg->sender) {
             $sender = [
-                'id'    => $msg->sender->id,
-                'name'  => $msg->sender->name,
+                'id' => $msg->sender->id,
+                'name' => $msg->sender->name,
                 'email' => $msg->sender->email,
-                'role'  => $msg->sender->relationLoaded('role')
+                'role' => $msg->sender->relationLoaded('role')
                     ? ($msg->sender->role?->name ?? 'unknown')
                     : 'unknown',
             ];
         }
 
         return [
-            'id'                => $msg->id,
-            'conversation_id'   => $msg->conversation_id,
-            'sender_id'         => $msg->sender_id,
-            'sender'            => $sender,
-            'body'              => $msg->body,
-            'read_at'           => null,
-            'created_at'        => $msg->created_at?->toISOString(),
-            'attachments'       => [],
+            'id' => $msg->id,
+            'conversation_id' => $msg->conversation_id,
+            'sender_id' => $msg->sender_id,
+            'sender' => $sender,
+            'body' => $msg->body,
+            'read_at' => null,
+            'created_at' => $msg->created_at?->toISOString(),
+            'attachments' => [],
             // Required by the frontend Message type — populated per-message in the thread view
             // but kept as empty/null here since last_message is display-only (no recipient UI)
-            'recipients'        => [],
+            'recipients' => [],
             'parent_message_id' => $msg->parent_message_id ?? null,
-            'reply_type'        => $msg->reply_type ?? null,
+            'reply_type' => $msg->reply_type ?? null,
         ];
     }
 }

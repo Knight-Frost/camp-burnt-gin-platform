@@ -27,20 +27,20 @@ class MessageSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin    = User::where('email', 'admin@example.com')->firstOrFail();
-        $sarah    = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
-        $david    = User::where('email', 'david.martinez@example.com')->firstOrFail();
+        $admin = User::where('email', 'admin@example.com')->firstOrFail();
+        $sarah = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
+        $david = User::where('email', 'david.martinez@example.com')->firstOrFail();
         $jennifer = User::where('email', 'jennifer.thompson@example.com')->firstOrFail();
 
         $ethan = Camper::where('first_name', 'Ethan')->where('last_name', 'Johnson')->firstOrFail();
         $sofia = Camper::where('first_name', 'Sofia')->where('last_name', 'Martinez')->firstOrFail();
-        $noah  = Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail();
+        $noah = Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail();
 
         $appEthan = Application::where('camper_id', $ethan->id)
             ->whereHas('campSession', fn ($q) => $q->where('name', 'Session 1 — Summer 2026'))
             ->firstOrFail();
         $appSofia = Application::where('camper_id', $sofia->id)->firstOrFail();
-        $appNoah  = Application::where('camper_id', $noah->id)
+        $appNoah = Application::where('camper_id', $noah->id)
             ->whereHas('campSession', fn ($q) => $q->where('name', 'Session 1 — Summer 2026'))
             ->firstOrFail();
 
@@ -53,8 +53,8 @@ class MessageSeeder extends Seeder
             messages: [
                 [$sarah, "Hi, I submitted Ethan's application for Session 1 about three weeks ago and wanted to check on the status. He is so excited about camp this year!"],
                 [$admin, "Hi Sarah! Great news — Ethan's application has been approved. Our medical team has reviewed his file and everything looks great. You should receive an official confirmation email shortly with next steps."],
-                [$sarah, "That is wonderful! Thank you so much. Should I send his updated seizure action plan now, or wait for the pre-camp packet?"],
-                [$admin, "Please go ahead and send it now so we can get it to our nursing staff early. You can attach it in a new message here or email it to us at medical@campburntgin.org. We want to be fully prepared for Ethan."],
+                [$sarah, 'That is wonderful! Thank you so much. Should I send his updated seizure action plan now, or wait for the pre-camp packet?'],
+                [$admin, 'Please go ahead and send it now so we can get it to our nursing staff early. You can attach it in a new message here or email it to us at medical@campburntgin.org. We want to be fully prepared for Ethan.'],
             ]
         );
 
@@ -104,9 +104,9 @@ class MessageSeeder extends Seeder
             applicationId: null,
             category: 'general',
             messages: [
-                [$sarah, "Hi! When will the packing list and drop-off time/location be sent out for Session 1?"],
+                [$sarah, 'Hi! When will the packing list and drop-off time/location be sent out for Session 1?'],
                 [$admin, "Hi Sarah! We'll send the full pre-camp packet (packing list, drop-off instructions, medication form, and schedule overview) 6 weeks before the session start date — so around late April. We'll also post it in the announcements here. Keep an eye out!"],
-                [$sarah, "Perfect, thank you!"],
+                [$sarah, 'Perfect, thank you!'],
             ]
         );
     }
@@ -124,12 +124,12 @@ class MessageSeeder extends Seeder
         }
 
         $conv = Conversation::create([
-            'created_by_id'   => $creator->id,
-            'subject'         => $subject,
-            'category'        => $category,
-            'application_id'  => $applicationId,
+            'created_by_id' => $creator->id,
+            'subject' => $subject,
+            'category' => $category,
+            'application_id' => $applicationId,
             'last_message_at' => now()->subHours(rand(1, 72)),
-            'is_archived'     => false,
+            'is_archived' => false,
         ]);
 
         $participantIds = array_unique(array_merge(
@@ -140,18 +140,18 @@ class MessageSeeder extends Seeder
         foreach ($participantIds as $uid) {
             ConversationParticipant::create([
                 'conversation_id' => $conv->id,
-                'user_id'         => $uid,
-                'joined_at'       => now()->subDays(rand(1, 14)),
+                'user_id' => $uid,
+                'joined_at' => now()->subDays(rand(1, 14)),
             ]);
         }
 
         foreach ($messages as [$sender, $body]) {
             Message::create([
                 'conversation_id' => $conv->id,
-                'sender_id'       => $sender->id,
-                'body'            => $body,
+                'sender_id' => $sender->id,
+                'body' => $body,
                 'idempotency_key' => Str::uuid()->toString(),
-                'created_at'      => now()->subMinutes(rand(5, 4320)),
+                'created_at' => now()->subMinutes(rand(5, 4320)),
             ]);
         }
     }

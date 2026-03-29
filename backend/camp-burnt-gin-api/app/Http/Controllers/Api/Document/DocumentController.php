@@ -59,11 +59,11 @@ class DocumentController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $user               = $request->user();
-        $documentableType   = $request->input('documentable_type');
-        $documentableId     = $request->input('documentable_id');
+        $user = $request->user();
+        $documentableType = $request->input('documentable_type');
+        $documentableId = $request->input('documentable_id');
         $verificationStatus = $request->input('verification_status');
-        $search             = $request->input('search');
+        $search = $request->input('search');
 
         if ($user->isAdmin()) {
             // Admins see everything; apply optional admin-specific filters
@@ -85,23 +85,22 @@ class DocumentController extends Controller
             }
 
             $documents = $query->paginate(20);
-
         } elseif ($user->isMedicalProvider()) {
             // Medical staff see documents attached to any camper or medical record,
             // plus any documents they personally uploaded
             $medicalRecordIds = \App\Models\MedicalRecord::pluck('id');
-            $camperIds        = \App\Models\Camper::pluck('id');
+            $camperIds = \App\Models\Camper::pluck('id');
 
             $query = Document::with('documentable', 'uploader')
                 ->where(function ($q) use ($camperIds, $medicalRecordIds, $user) {
                     $q->where(function ($inner) use ($camperIds) {
                         // Documents attached directly to campers
                         $inner->where('documentable_type', 'App\\Models\\Camper')
-                              ->whereIn('documentable_id', $camperIds);
+                            ->whereIn('documentable_id', $camperIds);
                     })->orWhere(function ($inner) use ($medicalRecordIds) {
                         // Documents attached to medical records
                         $inner->where('documentable_type', 'App\\Models\\MedicalRecord')
-                              ->whereIn('documentable_id', $medicalRecordIds);
+                            ->whereIn('documentable_id', $medicalRecordIds);
                     })->orWhere('uploaded_by', $user->id); // Their own uploads
                 });
 
@@ -114,7 +113,6 @@ class DocumentController extends Controller
             }
 
             $documents = $query->latest()->paginate(15);
-
         } elseif ($user->isApplicant()) {
             // Applicants see only documents for their own campers and their own uploads
             $camperIds = $user->campers()->pluck('id');
@@ -124,7 +122,7 @@ class DocumentController extends Controller
                     $q->where(function ($inner) use ($camperIds) {
                         // Documents attached to campers that belong to this applicant
                         $inner->where('documentable_type', 'App\\Models\\Camper')
-                              ->whereIn('documentable_id', $camperIds);
+                            ->whereIn('documentable_id', $camperIds);
                     })->orWhere('uploaded_by', $user->id); // Their own uploads
                 });
 
@@ -136,7 +134,6 @@ class DocumentController extends Controller
             }
 
             $documents = $query->latest()->paginate(15);
-
         } else {
             // Fallback: any other role sees only documents they personally uploaded
             $documents = Document::with('documentable', 'uploader')
@@ -150,9 +147,9 @@ class DocumentController extends Controller
             'data' => array_map([$this, 'transformDocument'], $documents->items()),
             'meta' => [
                 'current_page' => $documents->currentPage(),
-                'last_page'    => $documents->lastPage(),
-                'per_page'     => $documents->perPage(),
-                'total'        => $documents->total(),
+                'last_page' => $documents->lastPage(),
+                'per_page' => $documents->perPage(),
+                'total' => $documents->total(),
             ],
         ]);
     }
@@ -176,14 +173,14 @@ class DocumentController extends Controller
             // DocumentVerificationStatus is a backed enum; ::from() converts the string safely
             'verification_status' => \App\Enums\DocumentVerificationStatus::from($validated['status']),
             // Record who made the verification decision for the audit trail
-            'verified_by'         => $request->user()->id,
-            'verified_at'         => now(),
+            'verified_by' => $request->user()->id,
+            'verified_at' => now(),
         ]);
 
         return response()->json([
-            'message' => 'Document ' . $validated['status'] . '.',
+            'message' => 'Document '.$validated['status'].'.',
             // refresh() re-reads from DB so the response reflects the just-saved state
-            'data'    => $this->transformDocument($document->refresh()),
+            'data' => $this->transformDocument($document->refresh()),
         ]);
     }
 
@@ -210,7 +207,7 @@ class DocumentController extends Controller
 
         return response()->json([
             'message' => 'Document uploaded successfully.',
-            'data'    => $this->transformDocument($result['document']),
+            'data' => $this->transformDocument($result['document']),
         ], Response::HTTP_CREATED);
     }
 
@@ -293,20 +290,20 @@ class DocumentController extends Controller
             : 'pending'; // Default to "pending" for any unrecognised legacy values
 
         return [
-            'id'                  => $document->id,
-            'file_name'           => $fileName,
-            'document_type'       => $document->document_type,
-            'mime_type'           => $document->mime_type,
+            'id' => $document->id,
+            'file_name' => $fileName,
+            'document_type' => $document->document_type,
+            'mime_type' => $document->mime_type,
             // Frontend uses "size" not "file_size" — this mapping bridges the naming gap
-            'size'                => $document->file_size,
-            'scan_passed'         => $document->scan_passed,
+            'size' => $document->file_size,
+            'scan_passed' => $document->scan_passed,
             'verification_status' => $verificationStatus,
-            'uploaded_by_name'    => $document->uploader?->name,
+            'uploaded_by_name' => $document->uploader?->name,
             // Human-readable name of the entity this document is attached to (e.g., camper name)
-            'documentable_name'   => $this->resolveDocumentableName($document),
-            'created_at'          => $document->created_at,
+            'documentable_name' => $this->resolveDocumentableName($document),
+            'created_at' => $document->created_at,
             // Authenticated download URL — the frontend uses this to trigger the download
-            'url'                 => url("/api/documents/{$document->id}/download"),
+            'url' => url("/api/documents/{$document->id}/download"),
         ];
     }
 

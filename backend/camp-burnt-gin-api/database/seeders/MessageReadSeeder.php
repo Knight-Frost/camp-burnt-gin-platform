@@ -76,7 +76,7 @@ class MessageReadSeeder extends Seeder
 
                     MessageRead::firstOrCreate(
                         ['message_id' => $message->id, 'user_id' => $userId],
-                        ['read_at'    => $message->created_at->clone()->addMinutes(rand(10, 480))]
+                        ['read_at' => $message->created_at->clone()->addMinutes(rand(10, 480))]
                     );
                 }
             }
@@ -84,9 +84,9 @@ class MessageReadSeeder extends Seeder
 
         // ── Pass 2 & 3: Regular conversations ────────────────────────────────
         $regularConversations = Conversation::where(function ($q) {
-                $q->where('is_system_generated', false)
-                  ->orWhereNull('is_system_generated');
-            })
+            $q->where('is_system_generated', false)
+                ->orWhereNull('is_system_generated');
+        })
             ->whereNull('deleted_at')
             ->get();
 
@@ -141,7 +141,7 @@ class MessageReadSeeder extends Seeder
 
                     MessageRead::firstOrCreate(
                         ['message_id' => $message->id, 'user_id' => $userId],
-                        ['read_at'    => $message->created_at->clone()->addMinutes(rand(5, 360))]
+                        ['read_at' => $message->created_at->clone()->addMinutes(rand(5, 360))]
                     );
                 }
             }

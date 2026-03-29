@@ -61,25 +61,23 @@ class FamilyController extends Controller
                 $search = $request->input('search');
                 $q->where(function ($inner) use ($search) {
                     $inner->where('name', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%")
-                          ->orWhereHas('campers', fn ($q2) => $q2->where(function ($q3) use ($search) {
-                              $q3->where('first_name', 'like', "%{$search}%")
-                                 ->orWhere('last_name', 'like', "%{$search}%");
-                          }));
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('campers', fn ($q2) => $q2->where(function ($q3) use ($search) {
+                            $q3->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        }));
                 });
             }
 
             // Session filter — narrow to families with at least one camper in this session.
             if ($request->filled('session_id')) {
-                $q->whereHas('campers.applications', fn ($inner) =>
-                    $inner->where('camp_session_id', (int) $request->input('session_id'))
+                $q->whereHas('campers.applications', fn ($inner) => $inner->where('camp_session_id', (int) $request->input('session_id'))
                 );
             }
 
             // Status filter — narrow to families with at least one application of this status.
             if ($request->filled('status')) {
-                $q->whereHas('campers.applications', fn ($inner) =>
-                    $inner->where('status', $request->input('status'))
+                $q->whereHas('campers.applications', fn ($inner) => $inner->where('status', $request->input('status'))
                 );
             }
 
@@ -111,7 +109,7 @@ class FamilyController extends Controller
 
         // ── Global aggregate stats (full filtered dataset, not the current page) ─
         // These run as separate lean queries against the same filtered user set.
-        $activeStatuses  = ['pending', 'under_review', 'waitlisted', 'approved'];
+        $activeStatuses = ['pending', 'under_review', 'waitlisted', 'approved'];
         $matchingUserIds = $applyFilters(User::query())->select('id');
 
         $summaryTotalCampers = Camper::whereIn('user_id', $matchingUserIds)->count();
@@ -130,21 +128,21 @@ class FamilyController extends Controller
                 $latestApp = $camper->applications->first();
 
                 return [
-                    'id'                 => $camper->id,
-                    'first_name'         => $camper->first_name,
-                    'last_name'          => $camper->last_name,
-                    'full_name'          => $camper->full_name,
-                    'date_of_birth'      => $camper->date_of_birth,
-                    'gender'             => $camper->gender,
+                    'id' => $camper->id,
+                    'first_name' => $camper->first_name,
+                    'last_name' => $camper->last_name,
+                    'full_name' => $camper->full_name,
+                    'date_of_birth' => $camper->date_of_birth,
+                    'gender' => $camper->gender,
                     'applications_count' => $camper->applications_count,
                     'latest_application' => $latestApp ? [
-                        'id'          => $latestApp->id,
-                        'status'      => $latestApp->status instanceof \BackedEnum
+                        'id' => $latestApp->id,
+                        'status' => $latestApp->status instanceof \BackedEnum
                                             ? $latestApp->status->value
                                             : $latestApp->status,
                         'submitted_at' => $latestApp->submitted_at,
                         'session_name' => $latestApp->campSession?->name,
-                        'session_id'   => $latestApp->camp_session_id,
+                        'session_id' => $latestApp->camp_session_id,
                     ] : null,
                 ];
             })->values()->all();
@@ -155,6 +153,7 @@ class FamilyController extends Controller
             $activeStatuses = ['pending', 'under_review', 'waitlisted', 'approved'];
             $activeCount = $allApplications->filter(function ($app) use ($activeStatuses): bool {
                 $value = $app->status instanceof \BackedEnum ? $app->status->value : $app->status;
+
                 return in_array($value, $activeStatuses, true);
             })->count();
 
@@ -165,17 +164,17 @@ class FamilyController extends Controller
                 ->all();
 
             return [
-                'id'                        => $user->id,
-                'name'                      => $user->name,
-                'email'                     => $user->email,
-                'phone'                     => $user->phone,
-                'city'                      => $user->city,
-                'state'                     => $user->state,
-                'created_at'                => $user->created_at,
-                'campers_count'             => $user->campers_count,
-                'campers'                   => $campers,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'city' => $user->city,
+                'state' => $user->state,
+                'created_at' => $user->created_at,
+                'campers_count' => $user->campers_count,
+                'campers' => $campers,
                 'active_applications_count' => $activeCount,
-                'application_statuses'      => $uniqueStatuses,
+                'application_statuses' => $uniqueStatuses,
             ];
         })->values()->all();
 
@@ -183,14 +182,14 @@ class FamilyController extends Controller
             'data' => $data,
             'meta' => [
                 'current_page' => $families->currentPage(),
-                'last_page'    => $families->lastPage(),
-                'per_page'     => $families->perPage(),
-                'total'        => $families->total(),
+                'last_page' => $families->lastPage(),
+                'per_page' => $families->perPage(),
+                'total' => $families->total(),
             ],
             'summary' => [
-                'total_families'        => $families->total(),
-                'total_campers'         => $summaryTotalCampers,
-                'active_applications'   => $summaryActiveApps,
+                'total_families' => $families->total(),
+                'total_campers' => $summaryTotalCampers,
+                'active_applications' => $summaryActiveApps,
                 'multi_camper_families' => $summaryMultiCamper,
             ],
         ]);
@@ -231,51 +230,51 @@ class FamilyController extends Controller
         $campers = $user->campers->map(function ($camper): array {
             $applications = $camper->applications->map(function ($app): array {
                 return [
-                    'id'              => $app->id,
-                    'status'          => $app->status instanceof \BackedEnum
+                    'id' => $app->id,
+                    'status' => $app->status instanceof \BackedEnum
                                             ? $app->status->value
                                             : $app->status,
-                    'submitted_at'    => $app->submitted_at,
-                    'reviewed_at'     => $app->reviewed_at,
-                    'created_at'      => $app->created_at,
+                    'submitted_at' => $app->submitted_at,
+                    'reviewed_at' => $app->reviewed_at,
+                    'created_at' => $app->created_at,
                     'camp_session_id' => $app->camp_session_id,
                     // Keyed as 'session' to match the Application type in admin.types.ts.
                     'session' => $app->campSession ? [
-                        'id'         => $app->campSession->id,
-                        'name'       => $app->campSession->name,
+                        'id' => $app->campSession->id,
+                        'name' => $app->campSession->name,
                         'start_date' => $app->campSession->start_date,
-                        'end_date'   => $app->campSession->end_date,
-                        'is_active'  => $app->campSession->is_active,
+                        'end_date' => $app->campSession->end_date,
+                        'is_active' => $app->campSession->is_active,
                     ] : null,
                 ];
             })->values()->all();
 
             return [
-                'id'            => $camper->id,
-                'first_name'    => $camper->first_name,
-                'last_name'     => $camper->last_name,
-                'full_name'     => $camper->full_name,
+                'id' => $camper->id,
+                'first_name' => $camper->first_name,
+                'last_name' => $camper->last_name,
+                'full_name' => $camper->full_name,
                 'date_of_birth' => $camper->date_of_birth,
-                'gender'        => $camper->gender,
-                'tshirt_size'   => $camper->tshirt_size,
-                'created_at'    => $camper->created_at,
-                'applications'  => $applications,
+                'gender' => $camper->gender,
+                'tshirt_size' => $camper->tshirt_size,
+                'created_at' => $camper->created_at,
+                'applications' => $applications,
             ];
         })->values()->all();
 
         return response()->json([
             'data' => [
-                'id'             => $user->id,
-                'name'           => $user->name,
-                'email'          => $user->email,
-                'phone'          => $user->phone,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
                 'address_line_1' => $user->address_line_1,
                 'address_line_2' => $user->address_line_2,
-                'city'           => $user->city,
-                'state'          => $user->state,
-                'postal_code'    => $user->postal_code,
-                'created_at'     => $user->created_at,
-                'campers'        => $campers,
+                'city' => $user->city,
+                'state' => $user->state,
+                'postal_code' => $user->postal_code,
+                'created_at' => $user->created_at,
+                'campers' => $campers,
             ],
         ]);
     }

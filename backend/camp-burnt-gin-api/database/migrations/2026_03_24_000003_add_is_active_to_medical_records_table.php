@@ -48,13 +48,13 @@ return new class extends Migration
 
         // Backfill: activate medical records whose camper is already active.
         // Uses a subquery instead of a JOIN-style UPDATE for SQLite compatibility.
-        DB::statement("
+        DB::statement('
             UPDATE medical_records
             SET is_active = TRUE
             WHERE camper_id IN (
                 SELECT id FROM campers WHERE is_active = TRUE
             )
-        ");
+        ');
     }
 
     public function down(): void

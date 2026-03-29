@@ -45,12 +45,12 @@ class ExtendedMedicalRecordSeeder extends Seeder
     {
         $campers = [
             'ethan' => Camper::where('first_name', 'Ethan')->where('last_name', 'Johnson')->firstOrFail(),
-            'lily'  => Camper::where('first_name', 'Lily')->where('last_name', 'Johnson')->firstOrFail(),
+            'lily' => Camper::where('first_name', 'Lily')->where('last_name', 'Johnson')->firstOrFail(),
             'sofia' => Camper::where('first_name', 'Sofia')->where('last_name', 'Martinez')->firstOrFail(),
-            'noah'  => Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail(),
-            'ava'   => Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail(),
+            'noah' => Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail(),
+            'ava' => Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail(),
             'lucas' => Camper::where('first_name', 'Lucas')->where('last_name', 'Williams')->firstOrFail(),
-            'mia'   => Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail(),
+            'mia' => Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail(),
         ];
 
         $this->fillMedicalRecordFields($campers);
@@ -65,41 +65,41 @@ class ExtendedMedicalRecordSeeder extends Seeder
     {
         $updates = [
             'ethan' => [
-                'has_seizures'        => true,
-                'last_seizure_date'   => '2025-11-14',
+                'has_seizures' => true,
+                'last_seizure_date' => '2025-11-14',
                 'seizure_description' => 'Absence seizures. Typically 10–30 seconds of staring/blankness with no convulsive activity. Well-controlled on Levetiracetam 500mg BID. Last breakthrough seizure was November 2025 when a dose was missed. Seizure action plan on file — includes: protect from harm, time the event, do NOT restrain, do NOT put anything in mouth. Call 911 if seizure > 5 minutes or multiple in 30 min.',
                 'has_neurostimulator' => false,
-                'special_needs'       => 'ASD Level 2 — see behavioral profile for full guidance. Communication: verbal + visual supports. Transitions: requires advance notice. Do NOT alter routine without briefing staff first.',
+                'special_needs' => 'ASD Level 2 — see behavioral profile for full guidance. Communication: verbal + visual supports. Transitions: requires advance notice. Do NOT alter routine without briefing staff first.',
             ],
             'lily' => [
-                'has_seizures'        => false,
+                'has_seizures' => false,
                 'has_neurostimulator' => false,
             ],
             'sofia' => [
-                'has_seizures'        => false,
+                'has_seizures' => false,
                 'has_neurostimulator' => false,
-                'special_needs'       => 'Intermittent catheterization every 4 hours per neurogenic bladder protocol. Schedule: 8am, 12pm, 4pm, 8pm. Staff must ensure Sofia has privacy and adequate time for self-catheterization. She is trained and manages independently. Bowel program managed in AM.',
+                'special_needs' => 'Intermittent catheterization every 4 hours per neurogenic bladder protocol. Schedule: 8am, 12pm, 4pm, 8pm. Staff must ensure Sofia has privacy and adequate time for self-catheterization. She is trained and manages independently. Bowel program managed in AM.',
                 'dietary_restrictions' => 'Modified texture diet — soft and moist foods only. No hard, dry, or crumbly textures. Thin liquids tolerated. See feeding plan for detail.',
             ],
             'noah' => [
-                'has_seizures'        => false,
+                'has_seizures' => false,
                 'has_neurostimulator' => false,
-                'special_needs'       => 'Down syndrome — see behavioral profile. Latex allergy (severe/anaphylaxis risk): ALL equipment, gloves, bandages, and sports gear must be LATEX-FREE. EpiPen on file with nursing staff and at each activity station. Atlantoaxial instability cleared by neurology — full physical activity permitted.',
+                'special_needs' => 'Down syndrome — see behavioral profile. Latex allergy (severe/anaphylaxis risk): ALL equipment, gloves, bandages, and sports gear must be LATEX-FREE. EpiPen on file with nursing staff and at each activity station. Atlantoaxial instability cleared by neurology — full physical activity permitted.',
             ],
             'ava' => [
-                'has_seizures'        => false,
+                'has_seizures' => false,
                 'has_neurostimulator' => false,
-                'special_needs'       => 'Type 1 Diabetes on OmniPod insulin pump + Dexcom G7 CGM. BG target: 80–180 mg/dL. Hypoglycemia protocol: BG < 70 → 15g fast carbs (4 glucose tabs) → recheck 15min. BG > 250 → correction bolus + check ketones. Do NOT remove pump. Correction table on file with nursing. Snack/carb log required for insulin accuracy.',
+                'special_needs' => 'Type 1 Diabetes on OmniPod insulin pump + Dexcom G7 CGM. BG target: 80–180 mg/dL. Hypoglycemia protocol: BG < 70 → 15g fast carbs (4 glucose tabs) → recheck 15min. BG > 250 → correction bolus + check ketones. Do NOT remove pump. Correction table on file with nursing. Snack/carb log required for insulin accuracy.',
             ],
             'lucas' => [
-                'has_seizures'        => false,
+                'has_seizures' => false,
                 'has_neurostimulator' => false,
-                'special_needs'       => 'Duchenne Muscular Dystrophy Stage 4. Power wheelchair dependent. BiPAP required nightly (see assistive devices). Respiratory monitoring required — normal SpO2 97%, alert nursing if < 95%. Cardiac precautions: monitor BP, avoid high-sodium foods, notify nursing of any chest tightness or SOB. Transfer requires trained staff and mechanical lift.',
+                'special_needs' => 'Duchenne Muscular Dystrophy Stage 4. Power wheelchair dependent. BiPAP required nightly (see assistive devices). Respiratory monitoring required — normal SpO2 97%, alert nursing if < 95%. Cardiac precautions: monitor BP, avoid high-sodium foods, notify nursing of any chest tightness or SOB. Transfer requires trained staff and mechanical lift.',
             ],
             'mia' => [
-                'has_seizures'        => false,
+                'has_seizures' => false,
                 'has_neurostimulator' => false,
-                'special_needs'       => 'Sickle Cell Disease (HbSS). Heat restriction: max 30 minutes outdoors when temp > 85°F. Minimum 8oz fluid/hour outdoors. Pain crisis protocol on file — do NOT give ibuprofen or naproxen (see allergy). If camper reports bone/joint pain, fatigue, or fever > 101°F, notify nursing IMMEDIATELY.',
+                'special_needs' => 'Sickle Cell Disease (HbSS). Heat restriction: max 30 minutes outdoors when temp > 85°F. Minimum 8oz fluid/hour outdoors. Pain crisis protocol on file — do NOT give ibuprofen or naproxen (see allergy). If camper reports bone/joint pain, fatigue, or fever > 101°F, notify nursing IMMEDIATELY.',
                 'dietary_restrictions' => 'NO NSAIDs (ibuprofen, naproxen, aspirin) — severe allergy reaction including worsening renal function. For pain management: acetaminophen only. Read all over-the-counter medication labels before administering.',
             ],
         ];
@@ -132,21 +132,21 @@ class ExtendedMedicalRecordSeeder extends Seeder
         $overrides = [
             'ethan' => [
                 'Swimming' => [ActivityPermissionLevel::Restricted, 'Seizure risk near water. 1:1 trained lifeguard/aide required at all times during aquatic sessions. Must wear a life jacket at all times in water. No unsupervised water access under any circumstances.'],
-                'Boating'  => [ActivityPermissionLevel::Restricted, 'Same seizure precautions as swimming. 1:1 support required. Life jacket mandatory. No solo or small-craft boating.'],
+                'Boating' => [ActivityPermissionLevel::Restricted, 'Same seizure precautions as swimming. 1:1 support required. Life jacket mandatory. No solo or small-craft boating.'],
             ],
             'sofia' => [
                 'Swimming' => [ActivityPermissionLevel::Restricted, 'Adaptive aquatics only. Two trained adaptive staff required: one in water, one poolside. Two-person lift technique required for pool entry/exit. Bladder catheterization schedule must not be disrupted by pool scheduling.'],
-                'Sports'   => [ActivityPermissionLevel::Restricted, 'Wheelchair-accessible sports only. Contact sports not permitted. Walker or wheelchair use required on athletic surfaces. Spasticity precautions: avoid sudden movements or overexertion.'],
+                'Sports' => [ActivityPermissionLevel::Restricted, 'Wheelchair-accessible sports only. Contact sports not permitted. Walker or wheelchair use required on athletic surfaces. Spasticity precautions: avoid sudden movements or overexertion.'],
             ],
             'lucas' => [
-                'Sports'   => [ActivityPermissionLevel::No, 'High-impact physical activity is not medically appropriate. DMD Stage 4 — no running, jumping, or contact sports. Adaptive spectatorship and supportive role activities encouraged instead.'],
-                'Boating'  => [ActivityPermissionLevel::No, 'Not appropriate — power wheelchair cannot be safely used on watercraft. Respiratory precautions also apply near water.'],
+                'Sports' => [ActivityPermissionLevel::No, 'High-impact physical activity is not medically appropriate. DMD Stage 4 — no running, jumping, or contact sports. Adaptive spectatorship and supportive role activities encouraged instead.'],
+                'Boating' => [ActivityPermissionLevel::No, 'Not appropriate — power wheelchair cannot be safely used on watercraft. Respiratory precautions also apply near water.'],
                 'Swimming' => [ActivityPermissionLevel::Restricted, 'Aquatic activities require physician clearance on a session-by-session basis. Two-person mechanical lift required for pool entry/exit. Respiratory monitoring essential.'],
                 'Camp Out' => [ActivityPermissionLevel::Restricted, 'Overnight camp-out requires BiPAP device access and electrical power. Pre-approval required from nursing director. Ensure accessible shelter and power supply are confirmed before any overnight activity.'],
             ],
             'mia' => [
                 'Camp Out' => [ActivityPermissionLevel::Restricted, 'Overnight camping permitted only in temperature-controlled shelter. Outdoor tenting not appropriate due to sickle cell heat sensitivity. Nursing check-in required before and after all overnight activities. Hydration monitoring essential.'],
-                'Sports'   => [ActivityPermissionLevel::Restricted, 'Sports permitted with hydration monitoring. Max 30 minutes outdoor activity when temp > 85°F. Bring indoors at first sign of fatigue or pain. No NSAID pain relief — acetaminophen only.'],
+                'Sports' => [ActivityPermissionLevel::Restricted, 'Sports permitted with hydration monitoring. Max 30 minutes outdoor activity when temp > 85°F. Bring indoors at first sign of fatigue or pain. No NSAID pain relief — acetaminophen only.'],
             ],
             'noah' => [
                 'Sports' => [ActivityPermissionLevel::Restricted, 'ALL sports equipment, balls, mats, and gear must be LATEX-FREE. Verify before each activity. Noah may participate fully once latex-free equipment is confirmed.'],
@@ -168,16 +168,16 @@ class ExtendedMedicalRecordSeeder extends Seeder
                     // Only override if still at default 'yes' level
                     if ($perm->permission_level === ActivityPermissionLevel::Yes) {
                         $perm->update([
-                            'permission_level'  => $level,
+                            'permission_level' => $level,
                             'restriction_notes' => $notes,
                         ]);
                     }
                 } else {
                     // Create if not seeded by ActivityPermissionSeeder (shouldn't happen, but safe)
                     ActivityPermission::create([
-                        'camper_id'         => $camper->id,
-                        'activity_name'     => $activityName,
-                        'permission_level'  => $level,
+                        'camper_id' => $camper->id,
+                        'activity_name' => $activityName,
+                        'permission_level' => $level,
                         'restriction_notes' => $notes,
                     ]);
                 }

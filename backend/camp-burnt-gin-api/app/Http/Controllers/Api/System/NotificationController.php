@@ -58,17 +58,17 @@ class NotificationController extends Controller
 
             return [
                 // Notification ID is a UUID string — the frontend stores it for markAsRead calls.
-                'id'         => $notification->id,
+                'id' => $notification->id,
                 // Use the 'type' key from data if set, otherwise derive from the class name.
-                'type'       => $data['type'] ?? class_basename($notification->type),
+                'type' => $data['type'] ?? class_basename($notification->type),
                 // 'title' is the short headline shown in the notification list item.
-                'title'      => $data['title'] ?? '',
+                'title' => $data['title'] ?? '',
                 // 'message' is the longer body text shown beneath the title.
-                'message'    => $data['message'] ?? '',
+                'message' => $data['message'] ?? '',
                 // Pass the full data blob in case the frontend needs extra fields.
-                'data'       => $data,
+                'data' => $data,
                 // null means unread; a timestamp means it was read at that moment.
-                'read_at'    => $notification->read_at?->toIso8601String(),
+                'read_at' => $notification->read_at?->toIso8601String(),
                 'created_at' => $notification->created_at->toIso8601String(),
             ];
         })->values()->all();
@@ -77,9 +77,9 @@ class NotificationController extends Controller
             'data' => $items,
             'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page'    => $paginated->lastPage(),
-                'per_page'     => $paginated->perPage(),
-                'total'        => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
                 // Always include the total unread count for the bell badge in the nav bar.
                 'unread_count' => $user->unreadNotifications()->count(),
             ],

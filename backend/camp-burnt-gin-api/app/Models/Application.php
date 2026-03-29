@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\ApplicationStatus;
-use App\Models\FormDefinition;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -74,15 +73,15 @@ class Application extends Model
     {
         return [
             // Automatically resolves the stored string to an ApplicationStatus enum value.
-            'status'       => ApplicationStatus::class,
-            'is_draft'                   => 'boolean',
-            'is_incomplete_at_approval'  => 'boolean',
+            'status' => ApplicationStatus::class,
+            'is_draft' => 'boolean',
+            'is_incomplete_at_approval' => 'boolean',
             'first_application' => 'boolean',
-            'attended_before'   => 'boolean',
+            'attended_before' => 'boolean',
             // Carbon datetime objects for easy comparison and formatting.
             'submitted_at' => 'datetime',
-            'reviewed_at'  => 'datetime',
-            'signed_at'    => 'datetime',
+            'reviewed_at' => 'datetime',
+            'signed_at' => 'datetime',
         ];
     }
 
@@ -221,10 +220,10 @@ class Application extends Model
             ->where('is_draft', false)
             ->where(function ($q) {
                 $q->where('submitted_at', '<', $this->submitted_at)
-                  ->orWhere(function ($inner) {
-                      $inner->where('submitted_at', $this->submitted_at)
+                    ->orWhere(function ($inner) {
+                        $inner->where('submitted_at', $this->submitted_at)
                             ->where('id', '<', $this->id);
-                  });
+                    });
             })
             ->count();
 
@@ -235,7 +234,7 @@ class Application extends Model
 
         return [
             'position' => $ahead + 1,
-            'total'    => $total,
+            'total' => $total,
         ];
     }
 

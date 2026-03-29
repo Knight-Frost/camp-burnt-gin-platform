@@ -48,7 +48,7 @@ class FormBuilderService
 
             // Activate the draft.
             $draft->update([
-                'status'       => 'active',
+                'status' => 'active',
                 'published_at' => now(),
             ]);
 
@@ -66,7 +66,7 @@ class FormBuilderService
      * The new draft gets version = source.version + 1 and status = 'draft'.
      *
      * @param  FormDefinition  $source  The definition to copy (any status).
-     * @param  int|null        $userId  The admin creating the duplicate.
+     * @param  int|null  $userId  The admin creating the duplicate.
      */
     public function duplicate(FormDefinition $source, ?int $userId = null): FormDefinition
     {
@@ -78,47 +78,47 @@ class FormBuilderService
             $maxVersion = FormDefinition::max('version') ?? 0;
 
             $newDef = FormDefinition::create([
-                'name'               => $source->name . ' (copy)',
-                'slug'               => Str::slug($source->name) . '-v' . ($maxVersion + 1),
-                'version'            => $maxVersion + 1,
-                'status'             => 'draft',
-                'description'        => $source->description,
+                'name' => $source->name.' (copy)',
+                'slug' => Str::slug($source->name).'-v'.($maxVersion + 1),
+                'version' => $maxVersion + 1,
+                'status' => 'draft',
+                'description' => $source->description,
                 'created_by_user_id' => $userId,
             ]);
 
             // Deep copy sections and their fields/options using pre-loaded relations.
             foreach ($source->sections as $section) {
                 $newSection = $newDef->sections()->create([
-                    'title'       => $section->title,
+                    'title' => $section->title,
                     'short_title' => $section->short_title,
                     'description' => $section->description,
-                    'icon_name'   => $section->icon_name,
-                    'sort_order'  => $section->sort_order,
-                    'is_active'   => $section->is_active,
+                    'icon_name' => $section->icon_name,
+                    'sort_order' => $section->sort_order,
+                    'is_active' => $section->is_active,
                 ]);
 
                 foreach ($section->fields as $field) {
                     $newField = $newSection->fields()->create([
-                        'field_key'         => $field->field_key,
-                        'label'             => $field->label,
-                        'placeholder'       => $field->placeholder,
-                        'help_text'         => $field->help_text,
-                        'field_type'        => $field->field_type,
-                        'is_required'       => $field->is_required,
-                        'is_active'         => $field->is_active,
-                        'sort_order'        => $field->sort_order,
-                        'validation_rules'  => $field->validation_rules,
+                        'field_key' => $field->field_key,
+                        'label' => $field->label,
+                        'placeholder' => $field->placeholder,
+                        'help_text' => $field->help_text,
+                        'field_type' => $field->field_type,
+                        'is_required' => $field->is_required,
+                        'is_active' => $field->is_active,
+                        'sort_order' => $field->sort_order,
+                        'validation_rules' => $field->validation_rules,
                         'conditional_logic' => $field->conditional_logic,
-                        'default_value'     => $field->default_value,
-                        'width'             => $field->width,
+                        'default_value' => $field->default_value,
+                        'width' => $field->width,
                     ]);
 
                     foreach ($field->options as $option) {
                         $newField->options()->create([
-                            'label'      => $option->label,
-                            'value'      => $option->value,
+                            'label' => $option->label,
+                            'value' => $option->value,
                             'sort_order' => $option->sort_order,
-                            'is_active'  => $option->is_active,
+                            'is_active' => $option->is_active,
                         ]);
                     }
                 }
@@ -193,10 +193,10 @@ class FormBuilderService
 
         return DB::transaction(function () {
             $def = FormDefinition::create([
-                'name'        => 'Camp Burnt Gin Application',
-                'slug'        => 'cbg-application-v1',
-                'version'     => 1,
-                'status'      => 'active',
+                'name' => 'Camp Burnt Gin Application',
+                'slug' => 'cbg-application-v1',
+                'version' => 1,
+                'status' => 'active',
                 'description' => 'Standard CYSHCN camp application form — all 10 sections.',
                 'published_at' => now(),
             ]);
@@ -235,10 +235,10 @@ class FormBuilderService
     {
         foreach ($options as $i => [$label, $value]) {
             $field->options()->create([
-                'label'      => $label,
-                'value'      => $value,
+                'label' => $label,
+                'value' => $value,
                 'sort_order' => $i,
-                'is_active'  => true,
+                'is_active' => true,
             ]);
         }
     }
@@ -250,39 +250,39 @@ class FormBuilderService
     private function seedSection1(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'General Information',
+            'title' => 'General Information',
             'short_title' => 'General',
-            'icon_name'   => 'User',
-            'sort_order'  => 0,
+            'icon_name' => 'User',
+            'sort_order' => 0,
         ]);
 
         $fields = [
             ['camper_first_name',    'First Name',             'text',  true,  'half'],
             ['camper_last_name',     'Last Name',              'text',  true,  'half'],
             ['camper_dob',           'Date of Birth',          'date',  true,  'half'],
-            ['camper_preferred_name','Preferred Name',         'text',  false, 'half'],
+            ['camper_preferred_name', 'Preferred Name',         'text',  false, 'half'],
             ['county',               'County',                 'text',  false, 'half'],
         ];
 
         foreach ($fields as $i => [$key, $label, $type, $req, $width]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => $type,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => $type,
                 'is_required' => $req,
-                'width'       => $width,
-                'sort_order'  => $i,
+                'width' => $width,
+                'sort_order' => $i,
             ]);
         }
 
         // Gender — select
         $genderField = $this->makeField($s, [
-            'field_key'   => 'camper_gender',
-            'label'       => 'Gender',
-            'field_type'  => 'select',
+            'field_key' => 'camper_gender',
+            'label' => 'Gender',
+            'field_type' => 'select',
             'is_required' => true,
-            'width'       => 'half',
-            'sort_order'  => 3,
+            'width' => 'half',
+            'sort_order' => 3,
         ]);
         $this->makeOptions($genderField, [
             ['Male', 'male'], ['Female', 'female'],
@@ -302,23 +302,23 @@ class FormBuilderService
         ];
         foreach ($g1Fields as [$key, $label, $type, $req, $width, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => $type,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => $type,
                 'is_required' => $req,
-                'width'       => $width,
-                'sort_order'  => $order,
+                'width' => $width,
+                'sort_order' => $order,
             ]);
         }
 
         // Guardian 1 State — select
         $g1StateField = $this->makeField($s, [
-            'field_key'   => 'g1_state',
-            'label'       => 'State',
-            'field_type'  => 'select',
+            'field_key' => 'g1_state',
+            'label' => 'State',
+            'field_type' => 'select',
             'is_required' => false,
-            'width'       => 'third',
-            'sort_order'  => 13,
+            'width' => 'third',
+            'sort_order' => 13,
         ]);
         $this->makeOptions($g1StateField, $this->usStateOptions());
 
@@ -331,12 +331,12 @@ class FormBuilderService
         ];
         foreach ($g2Fields as [$key, $label, $type, $req, $width, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => $type,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => $type,
                 'is_required' => $req,
-                'width'       => $width,
-                'sort_order'  => $order,
+                'width' => $width,
+                'sort_order' => $order,
             ]);
         }
 
@@ -348,42 +348,42 @@ class FormBuilderService
         ];
         foreach ($ecFields as [$key, $label, $type, $req, $width, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => $type,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => $type,
                 'is_required' => $req,
-                'width'       => $width,
-                'sort_order'  => $order,
+                'width' => $width,
+                'sort_order' => $order,
             ]);
         }
 
         // Session — select (options populated dynamically from sessions API; stored here as empty)
         $this->makeField($s, [
-            'field_key'   => 'session_id',
-            'label'       => 'Camp Session',
-            'help_text'   => 'Select the session you would like to attend.',
-            'field_type'  => 'select',
+            'field_key' => 'session_id',
+            'label' => 'Camp Session',
+            'help_text' => 'Select the session you would like to attend.',
+            'field_type' => 'select',
             'is_required' => true,
-            'width'       => 'full',
-            'sort_order'  => 21,
+            'width' => 'full',
+            'sort_order' => 21,
         ]);
 
         // Interpreter
         $this->makeField($s, [
-            'field_key'   => 'needs_interpreter',
-            'label'       => 'Interpreter needed',
-            'field_type'  => 'checkbox',
+            'field_key' => 'needs_interpreter',
+            'label' => 'Interpreter needed',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 22,
+            'width' => 'half',
+            'sort_order' => 22,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'preferred_language',
-            'label'             => 'Preferred Language',
-            'field_type'        => 'text',
-            'is_required'       => false,
-            'width'             => 'half',
-            'sort_order'        => 23,
+            'field_key' => 'preferred_language',
+            'label' => 'Preferred Language',
+            'field_type' => 'text',
+            'is_required' => false,
+            'width' => 'half',
+            'sort_order' => 23,
             'conditional_logic' => ['show_if' => ['field_key' => 'needs_interpreter', 'equals' => true]],
         ]);
     }
@@ -395,10 +395,10 @@ class FormBuilderService
     private function seedSection2(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Health & Medical',
+            'title' => 'Health & Medical',
             'short_title' => 'Medical',
-            'icon_name'   => 'Heart',
-            'sort_order'  => 1,
+            'icon_name' => 'Heart',
+            'sort_order' => 1,
         ]);
 
         $fields = [
@@ -412,24 +412,24 @@ class FormBuilderService
         ];
         foreach ($fields as [$key, $label, $type, $req, $width, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => $type,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => $type,
                 'is_required' => $req,
-                'width'       => $width,
-                'sort_order'  => $order,
+                'width' => $width,
+                'sort_order' => $order,
             ]);
         }
 
         // Diagnoses — repeater
         $this->makeField($s, [
-            'field_key'        => 'diagnoses',
-            'label'            => 'Diagnoses',
-            'help_text'        => 'Add each diagnosis separately.',
-            'field_type'       => 'repeater',
-            'is_required'      => false,
-            'width'            => 'full',
-            'sort_order'       => 7,
+            'field_key' => 'diagnoses',
+            'label' => 'Diagnoses',
+            'help_text' => 'Add each diagnosis separately.',
+            'field_type' => 'repeater',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 7,
             'validation_rules' => ['subfields' => [
                 ['field_key' => 'condition', 'label' => 'Condition / Diagnosis', 'field_type' => 'text'],
                 ['field_key' => 'notes',     'label' => 'Notes',                'field_type' => 'textarea'],
@@ -438,87 +438,87 @@ class FormBuilderService
 
         // Allergies — repeater
         $this->makeField($s, [
-            'field_key'        => 'allergies',
-            'label'            => 'Allergies',
-            'help_text'        => 'Add each allergy separately.',
-            'field_type'       => 'repeater',
-            'is_required'      => false,
-            'width'            => 'full',
-            'sort_order'       => 8,
+            'field_key' => 'allergies',
+            'label' => 'Allergies',
+            'help_text' => 'Add each allergy separately.',
+            'field_type' => 'repeater',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 8,
             'validation_rules' => ['subfields' => [
                 ['field_key' => 'allergen',  'label' => 'Allergen',         'field_type' => 'text'],
                 ['field_key' => 'reaction',  'label' => 'Reaction',         'field_type' => 'text'],
                 ['field_key' => 'severity',  'label' => 'Severity',         'field_type' => 'select',
-                 'options'   => [['Mild', 'mild'], ['Moderate', 'moderate'], ['Severe', 'severe'], ['Life-threatening', 'life_threatening']]],
+                    'options' => [['Mild', 'mild'], ['Moderate', 'moderate'], ['Severe', 'severe'], ['Life-threatening', 'life_threatening']]],
                 ['field_key' => 'epi_pen',   'label' => 'Requires Epi-pen', 'field_type' => 'checkbox'],
             ]],
         ]);
 
         // Seizures
         $this->makeField($s, [
-            'field_key'   => 'has_seizures',
-            'label'       => 'Does your camper have a history of seizures?',
-            'field_type'  => 'yesno',
+            'field_key' => 'has_seizures',
+            'label' => 'Does your camper have a history of seizures?',
+            'field_type' => 'yesno',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 9,
+            'width' => 'full',
+            'sort_order' => 9,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'last_seizure_date',
-            'label'             => 'Date of Last Seizure',
-            'field_type'        => 'date',
-            'is_required'       => false,
-            'width'             => 'half',
-            'sort_order'        => 10,
+            'field_key' => 'last_seizure_date',
+            'label' => 'Date of Last Seizure',
+            'field_type' => 'date',
+            'is_required' => false,
+            'width' => 'half',
+            'sort_order' => 10,
             'conditional_logic' => ['show_if' => ['field_key' => 'has_seizures', 'equals' => true]],
         ]);
         $this->makeField($s, [
-            'field_key'         => 'seizure_description',
-            'label'             => 'Describe seizure type and pattern',
-            'field_type'        => 'textarea',
-            'is_required'       => false,
-            'width'             => 'full',
-            'sort_order'        => 11,
+            'field_key' => 'seizure_description',
+            'label' => 'Describe seizure type and pattern',
+            'field_type' => 'textarea',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 11,
             'conditional_logic' => ['show_if' => ['field_key' => 'has_seizures', 'equals' => true]],
         ]);
 
         // Neurostimulator
         $this->makeField($s, [
-            'field_key'   => 'has_neurostimulator',
-            'label'       => 'Does your camper have a neurostimulator or pacemaker?',
-            'field_type'  => 'yesno',
+            'field_key' => 'has_neurostimulator',
+            'label' => 'Does your camper have a neurostimulator or pacemaker?',
+            'field_type' => 'yesno',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 12,
+            'width' => 'full',
+            'sort_order' => 12,
         ]);
 
         // Immunizations
         $this->makeField($s, [
-            'field_key'   => 'immunizations_current',
-            'label'       => 'Is your camper current on required immunizations?',
-            'field_type'  => 'yesno',
+            'field_key' => 'immunizations_current',
+            'label' => 'Is your camper current on required immunizations?',
+            'field_type' => 'yesno',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 13,
+            'width' => 'full',
+            'sort_order' => 13,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'tetanus_date',
-            'label'       => 'Date of last tetanus / Tdap booster',
-            'field_type'  => 'date',
+            'field_key' => 'tetanus_date',
+            'label' => 'Date of last tetanus / Tdap booster',
+            'field_type' => 'date',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 14,
+            'width' => 'half',
+            'sort_order' => 14,
         ]);
 
         // Date of medical examination (Form 4523) — required to be within 12 months of camp
         $this->makeField($s, [
-            'field_key'   => 'date_of_medical_exam',
-            'label'       => 'Date of Medical Examination (Form 4523)',
-            'help_text'   => 'The physical exam must have been completed within 12 months of the first day of camp.',
-            'field_type'  => 'date',
+            'field_key' => 'date_of_medical_exam',
+            'label' => 'Date of Medical Examination (Form 4523)',
+            'help_text' => 'The physical exam must have been completed within 12 months of the first day of camp.',
+            'field_type' => 'date',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 15,
+            'width' => 'half',
+            'sort_order' => 15,
         ]);
 
         // ── H4 Other Health ────────────────────────────────────────────────────
@@ -526,47 +526,47 @@ class FormBuilderService
         // but were missing from v1.
 
         $this->makeField($s, [
-            'field_key'   => 'has_contagious_illness',
-            'label'       => 'Does your camper have any contagious illnesses, infections, or communicable diseases?',
-            'field_type'  => 'yesno',
+            'field_key' => 'has_contagious_illness',
+            'label' => 'Does your camper have any contagious illnesses, infections, or communicable diseases?',
+            'field_type' => 'yesno',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 16,
+            'width' => 'full',
+            'sort_order' => 16,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'contagious_illness_description',
-            'label'             => 'Please describe the illness or infection',
-            'field_type'        => 'textarea',
-            'is_required'       => false,
-            'width'             => 'full',
-            'sort_order'        => 17,
+            'field_key' => 'contagious_illness_description',
+            'label' => 'Please describe the illness or infection',
+            'field_type' => 'textarea',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 17,
             'conditional_logic' => ['show_if' => ['field_key' => 'has_contagious_illness', 'equals' => true]],
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'tubes_in_ears',
-            'label'       => 'Does your camper have tubes in their ears?',
-            'field_type'  => 'yesno',
+            'field_key' => 'tubes_in_ears',
+            'label' => 'Does your camper have tubes in their ears?',
+            'field_type' => 'yesno',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 18,
+            'width' => 'half',
+            'sort_order' => 18,
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'has_recent_illness',
-            'label'       => 'Has your camper had any illness, injury, or surgery in the past 12 months?',
-            'field_type'  => 'yesno',
+            'field_key' => 'has_recent_illness',
+            'label' => 'Has your camper had any illness, injury, or surgery in the past 12 months?',
+            'field_type' => 'yesno',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 19,
+            'width' => 'full',
+            'sort_order' => 19,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'recent_illness_description',
-            'label'             => 'Please describe the illness, injury, or surgery',
-            'field_type'        => 'textarea',
-            'is_required'       => false,
-            'width'             => 'full',
-            'sort_order'        => 20,
+            'field_key' => 'recent_illness_description',
+            'label' => 'Please describe the illness, injury, or surgery',
+            'field_type' => 'textarea',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 20,
             'conditional_logic' => ['show_if' => ['field_key' => 'has_recent_illness', 'equals' => true]],
         ]);
     }
@@ -578,10 +578,10 @@ class FormBuilderService
     private function seedSection3(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Development & Behavior',
+            'title' => 'Development & Behavior',
             'short_title' => 'Behavior',
-            'icon_name'   => 'Brain',
-            'sort_order'  => 2,
+            'icon_name' => 'Brain',
+            'sort_order' => 2,
         ]);
 
         $checkboxFields = [
@@ -599,41 +599,41 @@ class FormBuilderService
         ];
         foreach ($checkboxFields as [$key, $label, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => 'checkbox',
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => 'checkbox',
                 'is_required' => false,
-                'width'       => 'full',
-                'sort_order'  => $order,
+                'width' => 'full',
+                'sort_order' => $order,
             ]);
         }
 
         // Communication methods — checkbox_group
         $commField = $this->makeField($s, [
-            'field_key'   => 'communication_methods',
-            'label'       => 'Communication Methods (select all that apply)',
-            'field_type'  => 'checkbox_group',
+            'field_key' => 'communication_methods',
+            'label' => 'Communication Methods (select all that apply)',
+            'field_type' => 'checkbox_group',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 11,
+            'width' => 'full',
+            'sort_order' => 11,
         ]);
         $this->makeOptions($commField, [
             ['Verbal speech',      'verbal'],
             ['Sign language',      'sign_language'],
             ['AAC device',         'aac_device'],
             ['Picture cards',      'picture_cards'],
-            ['Communication board','communication_board'],
+            ['Communication board', 'communication_board'],
             ['Written language',   'written'],
             ['Other',              'other'],
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'behavior_notes',
-            'label'       => 'Additional behavior or communication notes',
-            'field_type'  => 'textarea',
+            'field_key' => 'behavior_notes',
+            'label' => 'Additional behavior or communication notes',
+            'field_type' => 'textarea',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 12,
+            'width' => 'full',
+            'sort_order' => 12,
         ]);
     }
 
@@ -644,66 +644,66 @@ class FormBuilderService
     private function seedSection4(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Equipment & Mobility',
+            'title' => 'Equipment & Mobility',
             'short_title' => 'Equipment',
-            'icon_name'   => 'Accessibility',
-            'sort_order'  => 3,
+            'icon_name' => 'Accessibility',
+            'sort_order' => 3,
         ]);
 
         // Devices — repeater
         $this->makeField($s, [
-            'field_key'        => 'devices',
-            'label'            => 'Assistive Devices',
-            'help_text'        => 'List all assistive devices your camper uses.',
-            'field_type'       => 'repeater',
-            'is_required'      => false,
-            'width'            => 'full',
-            'sort_order'       => 0,
+            'field_key' => 'devices',
+            'label' => 'Assistive Devices',
+            'help_text' => 'List all assistive devices your camper uses.',
+            'field_type' => 'repeater',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 0,
             'validation_rules' => ['subfields' => [
                 ['field_key' => 'device_type',         'label' => 'Device Type',         'field_type' => 'select',
-                 'options'   => [
-                     ['Wheelchair — Manual', 'wheelchair_manual'],
-                     ['Wheelchair — Power',  'wheelchair_power'],
-                     ['Walker',              'walker'],
-                     ['Crutches',            'crutches'],
-                     ['Prosthetic Limb',     'prosthetic'],
-                     ['Hearing Aid',         'hearing_aid'],
-                     ['Cochlear Implant',    'cochlear_implant'],
-                     ['Communication Device','communication_device'],
-                     ['Feeding Pump',        'feeding_pump'],
-                     ['Oxygen',              'oxygen'],
-                     ['Hospital Bed',        'hospital_bed'],
-                     ['Other',               'other'],
-                 ]],
+                    'options' => [
+                        ['Wheelchair — Manual', 'wheelchair_manual'],
+                        ['Wheelchair — Power',  'wheelchair_power'],
+                        ['Walker',              'walker'],
+                        ['Crutches',            'crutches'],
+                        ['Prosthetic Limb',     'prosthetic'],
+                        ['Hearing Aid',         'hearing_aid'],
+                        ['Cochlear Implant',    'cochlear_implant'],
+                        ['Communication Device', 'communication_device'],
+                        ['Feeding Pump',        'feeding_pump'],
+                        ['Oxygen',              'oxygen'],
+                        ['Hospital Bed',        'hospital_bed'],
+                        ['Other',               'other'],
+                    ]],
                 ['field_key' => 'requires_transfer', 'label' => 'Requires transfer assistance', 'field_type' => 'checkbox'],
                 ['field_key' => 'notes',             'label' => 'Notes',                        'field_type' => 'textarea'],
             ]],
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'uses_cpap',
-            'label'       => 'Uses CPAP / BiPAP',
-            'field_type'  => 'checkbox',
+            'field_key' => 'uses_cpap',
+            'label' => 'Uses CPAP / BiPAP',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 1,
+            'width' => 'half',
+            'sort_order' => 1,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'cpap_notes',
-            'label'             => 'CPAP / BiPAP notes',
-            'field_type'        => 'textarea',
-            'is_required'       => false,
-            'width'             => 'full',
-            'sort_order'        => 2,
+            'field_key' => 'cpap_notes',
+            'label' => 'CPAP / BiPAP notes',
+            'field_type' => 'textarea',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 2,
             'conditional_logic' => ['show_if' => ['field_key' => 'uses_cpap', 'equals' => true]],
         ]);
         $this->makeField($s, [
-            'field_key'   => 'mobility_notes',
-            'label'       => 'Additional mobility or equipment notes',
-            'field_type'  => 'textarea',
+            'field_key' => 'mobility_notes',
+            'label' => 'Additional mobility or equipment notes',
+            'field_type' => 'textarea',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 3,
+            'width' => 'full',
+            'sort_order' => 3,
         ]);
     }
 
@@ -714,46 +714,46 @@ class FormBuilderService
     private function seedSection5(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Diet & Feeding',
+            'title' => 'Diet & Feeding',
             'short_title' => 'Diet',
-            'icon_name'   => 'Utensils',
-            'sort_order'  => 4,
+            'icon_name' => 'Utensils',
+            'sort_order' => 4,
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'special_diet',
-            'label'       => 'Requires special diet',
-            'field_type'  => 'checkbox',
+            'field_key' => 'special_diet',
+            'label' => 'Requires special diet',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 0,
+            'width' => 'half',
+            'sort_order' => 0,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'diet_description',
-            'label'             => 'Diet description',
-            'field_type'        => 'textarea',
-            'is_required'       => false,
-            'width'             => 'full',
-            'sort_order'        => 1,
+            'field_key' => 'diet_description',
+            'label' => 'Diet description',
+            'field_type' => 'textarea',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 1,
             'conditional_logic' => ['show_if' => ['field_key' => 'special_diet', 'equals' => true]],
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'texture_modified',
-            'label'       => 'Requires texture-modified food',
-            'field_type'  => 'checkbox',
+            'field_key' => 'texture_modified',
+            'label' => 'Requires texture-modified food',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 2,
+            'width' => 'half',
+            'sort_order' => 2,
         ]);
 
         $textureLevelField = $this->makeField($s, [
-            'field_key'         => 'texture_level',
-            'label'             => 'Texture level',
-            'field_type'        => 'select',
-            'is_required'       => false,
-            'width'             => 'half',
-            'sort_order'        => 3,
+            'field_key' => 'texture_level',
+            'label' => 'Texture level',
+            'field_type' => 'select',
+            'is_required' => false,
+            'width' => 'half',
+            'sort_order' => 3,
             'conditional_logic' => ['show_if' => ['field_key' => 'texture_modified', 'equals' => true]],
         ]);
         $this->makeOptions($textureLevelField, [
@@ -765,64 +765,64 @@ class FormBuilderService
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'fluid_restriction',
-            'label'       => 'Fluid restriction required',
-            'field_type'  => 'checkbox',
+            'field_key' => 'fluid_restriction',
+            'label' => 'Fluid restriction required',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 4,
+            'width' => 'half',
+            'sort_order' => 4,
         ]);
         $this->makeField($s, [
-            'field_key'         => 'fluid_details',
-            'label'             => 'Fluid restriction details',
-            'field_type'        => 'textarea',
-            'is_required'       => false,
-            'width'             => 'full',
-            'sort_order'        => 5,
+            'field_key' => 'fluid_details',
+            'label' => 'Fluid restriction details',
+            'field_type' => 'textarea',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 5,
             'conditional_logic' => ['show_if' => ['field_key' => 'fluid_restriction', 'equals' => true]],
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'g_tube',
-            'label'       => 'Uses G-tube / feeding tube',
-            'field_type'  => 'checkbox',
+            'field_key' => 'g_tube',
+            'label' => 'Uses G-tube / feeding tube',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => 6,
+            'width' => 'half',
+            'sort_order' => 6,
         ]);
         $gTubeFields = [
             ['formula',           'Formula name/type',         'text',     false, 'half', 7],
-            ['amount_per_feeding','Amount per feeding (ml)',    'text',     false, 'half', 8],
+            ['amount_per_feeding', 'Amount per feeding (ml)',    'text',     false, 'half', 8],
             ['feedings_per_day',  'Feedings per day',          'number',   false, 'half', 9],
             ['feeding_times',     'Feeding times',             'text',     false, 'half', 10],
         ];
         foreach ($gTubeFields as [$key, $label, $type, $req, $width, $order]) {
             $this->makeField($s, [
-                'field_key'         => $key,
-                'label'             => $label,
-                'field_type'        => $type,
-                'is_required'       => $req,
-                'width'             => $width,
-                'sort_order'        => $order,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => $type,
+                'is_required' => $req,
+                'width' => $width,
+                'sort_order' => $order,
                 'conditional_logic' => ['show_if' => ['field_key' => 'g_tube', 'equals' => true]],
             ]);
         }
         $this->makeField($s, [
-            'field_key'         => 'bolus_only',
-            'label'             => 'Bolus feeding only (no pump)',
-            'field_type'        => 'checkbox',
-            'is_required'       => false,
-            'width'             => 'half',
-            'sort_order'        => 11,
+            'field_key' => 'bolus_only',
+            'label' => 'Bolus feeding only (no pump)',
+            'field_type' => 'checkbox',
+            'is_required' => false,
+            'width' => 'half',
+            'sort_order' => 11,
             'conditional_logic' => ['show_if' => ['field_key' => 'g_tube', 'equals' => true]],
         ]);
         $this->makeField($s, [
-            'field_key'   => 'feeding_notes',
-            'label'       => 'Additional feeding notes',
-            'field_type'  => 'textarea',
+            'field_key' => 'feeding_notes',
+            'label' => 'Additional feeding notes',
+            'field_type' => 'textarea',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 12,
+            'width' => 'full',
+            'sort_order' => 12,
         ]);
     }
 
@@ -833,10 +833,10 @@ class FormBuilderService
     private function seedSection6(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Personal Care',
+            'title' => 'Personal Care',
             'short_title' => 'Personal Care',
-            'icon_name'   => 'ShieldCheck',
-            'sort_order'  => 5,
+            'icon_name' => 'ShieldCheck',
+            'sort_order' => 5,
         ]);
 
         $careOptions = [
@@ -848,119 +848,119 @@ class FormBuilderService
             ['bathing',    'Bathing',     0],
             ['toileting',  'Toileting',   2],
             ['dressing',   'Dressing',    5],
-            ['oral_hygiene','Oral Hygiene', 7],
+            ['oral_hygiene', 'Oral Hygiene', 7],
         ];
 
         $order = 0;
         foreach ($careFields as [$prefix, $area, $_]) {
             $levelField = $this->makeField($s, [
-                'field_key'   => "{$prefix}_level",
-                'label'       => "{$area} — Assistance Level",
-                'field_type'  => 'select',
+                'field_key' => "{$prefix}_level",
+                'label' => "{$area} — Assistance Level",
+                'field_type' => 'select',
                 'is_required' => true,
-                'width'       => 'half',
-                'sort_order'  => $order++,
+                'width' => 'half',
+                'sort_order' => $order++,
             ]);
             $this->makeOptions($levelField, $careOptions);
 
             $this->makeField($s, [
-                'field_key'   => "{$prefix}_notes",
-                'label'       => "{$area} — Notes",
-                'field_type'  => 'textarea',
+                'field_key' => "{$prefix}_notes",
+                'label' => "{$area} — Notes",
+                'field_type' => 'textarea',
                 'is_required' => false,
-                'width'       => 'full',
-                'sort_order'  => $order++,
+                'width' => 'full',
+                'sort_order' => $order++,
             ]);
 
             if ($prefix === 'toileting') {
                 $this->makeField($s, [
-                    'field_key'   => 'nighttime_toileting',
-                    'label'       => 'Nighttime toileting needs',
-                    'field_type'  => 'checkbox',
+                    'field_key' => 'nighttime_toileting',
+                    'label' => 'Nighttime toileting needs',
+                    'field_type' => 'checkbox',
                     'is_required' => false,
-                    'width'       => 'half',
-                    'sort_order'  => $order++,
+                    'width' => 'half',
+                    'sort_order' => $order++,
                 ]);
                 $this->makeField($s, [
-                    'field_key'         => 'nighttime_notes',
-                    'label'             => 'Nighttime toileting notes',
-                    'field_type'        => 'textarea',
-                    'is_required'       => false,
-                    'width'             => 'full',
-                    'sort_order'        => $order++,
+                    'field_key' => 'nighttime_notes',
+                    'label' => 'Nighttime toileting notes',
+                    'field_type' => 'textarea',
+                    'is_required' => false,
+                    'width' => 'full',
+                    'sort_order' => $order++,
                     'conditional_logic' => ['show_if' => ['field_key' => 'nighttime_toileting', 'equals' => true]],
                 ]);
             }
         }
 
         $this->makeField($s, [
-            'field_key'   => 'positioning_notes',
-            'label'       => 'Positioning / pressure relief notes',
-            'field_type'  => 'textarea',
+            'field_key' => 'positioning_notes',
+            'label' => 'Positioning / pressure relief notes',
+            'field_type' => 'textarea',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => $order++,
+            'width' => 'full',
+            'sort_order' => $order++,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'sleep_notes',
-            'label'       => 'Sleep notes',
-            'field_type'  => 'textarea',
+            'field_key' => 'sleep_notes',
+            'label' => 'Sleep notes',
+            'field_type' => 'textarea',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => $order++,
+            'width' => 'full',
+            'sort_order' => $order++,
         ]);
 
         // ── Additional Personal Care / Sleep items from PDF §8 ────────────────
         // These were missing from v1 but are on the real CYSHCN paper form.
 
         $this->makeField($s, [
-            'field_key'   => 'falling_asleep_issues',
-            'label'       => 'Difficulty falling or staying asleep',
-            'field_type'  => 'checkbox',
+            'field_key' => 'falling_asleep_issues',
+            'label' => 'Difficulty falling or staying asleep',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => $order++,
+            'width' => 'half',
+            'sort_order' => $order++,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'sleep_walking',
-            'label'       => 'Sleep walking',
-            'field_type'  => 'checkbox',
+            'field_key' => 'sleep_walking',
+            'label' => 'Sleep walking',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => $order++,
+            'width' => 'half',
+            'sort_order' => $order++,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'night_wandering',
-            'label'       => 'Night wandering or getting out of bed unsafely',
-            'field_type'  => 'checkbox',
+            'field_key' => 'night_wandering',
+            'label' => 'Night wandering or getting out of bed unsafely',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => $order++,
+            'width' => 'half',
+            'sort_order' => $order++,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'bowel_control_notes',
-            'label'       => 'Bowel / bladder control notes',
-            'help_text'   => 'Include any details about accidents, schedules, or special equipment.',
-            'field_type'  => 'textarea',
+            'field_key' => 'bowel_control_notes',
+            'label' => 'Bowel / bladder control notes',
+            'help_text' => 'Include any details about accidents, schedules, or special equipment.',
+            'field_type' => 'textarea',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => $order++,
+            'width' => 'full',
+            'sort_order' => $order++,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'urinary_catheter',
-            'label'       => 'Uses urinary catheter',
-            'field_type'  => 'checkbox',
+            'field_key' => 'urinary_catheter',
+            'label' => 'Uses urinary catheter',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => $order++,
+            'width' => 'half',
+            'sort_order' => $order++,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'menstruation_support',
-            'label'       => 'Requires assistance with menstrual care (female campers)',
-            'field_type'  => 'checkbox',
+            'field_key' => 'menstruation_support',
+            'label' => 'Requires assistance with menstrual care (female campers)',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'half',
-            'sort_order'  => $order,
+            'width' => 'half',
+            'sort_order' => $order,
         ]);
     }
 
@@ -971,10 +971,10 @@ class FormBuilderService
     private function seedSection7(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Activities & Permissions',
+            'title' => 'Activities & Permissions',
             'short_title' => 'Activities',
-            'icon_name'   => 'Activity',
-            'sort_order'  => 6,
+            'icon_name' => 'Activity',
+            'sort_order' => 6,
         ]);
 
         // Activities match the real CYSHCN application form (0717-ENG-DPH §9)
@@ -997,22 +997,22 @@ class FormBuilderService
         $order = 0;
         foreach ($activities as [$key, $label]) {
             $levelField = $this->makeField($s, [
-                'field_key'   => "activity_{$key}_level",
-                'label'       => "{$label} — Permission Level",
-                'field_type'  => 'select',
+                'field_key' => "activity_{$key}_level",
+                'label' => "{$label} — Permission Level",
+                'field_type' => 'select',
                 'is_required' => true,
-                'width'       => 'half',
-                'sort_order'  => $order++,
+                'width' => 'half',
+                'sort_order' => $order++,
             ]);
             $this->makeOptions($levelField, $levelOptions);
 
             $this->makeField($s, [
-                'field_key'   => "activity_{$key}_notes",
-                'label'       => "{$label} — Notes / Limitations",
-                'field_type'  => 'textarea',
+                'field_key' => "activity_{$key}_notes",
+                'label' => "{$label} — Notes / Limitations",
+                'field_type' => 'textarea',
                 'is_required' => false,
-                'width'       => 'full',
-                'sort_order'  => $order++,
+                'width' => 'full',
+                'sort_order' => $order++,
             ]);
         }
     }
@@ -1024,49 +1024,49 @@ class FormBuilderService
     private function seedSection8(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Medications',
+            'title' => 'Medications',
             'short_title' => 'Medications',
-            'icon_name'   => 'Pill',
-            'sort_order'  => 7,
+            'icon_name' => 'Pill',
+            'sort_order' => 7,
         ]);
 
         $this->makeField($s, [
-            'field_key'   => 'no_medications',
-            'label'       => 'My camper takes no medications',
-            'field_type'  => 'checkbox',
+            'field_key' => 'no_medications',
+            'label' => 'My camper takes no medications',
+            'field_type' => 'checkbox',
             'is_required' => false,
-            'width'       => 'full',
-            'sort_order'  => 0,
+            'width' => 'full',
+            'sort_order' => 0,
         ]);
 
         // Medications — repeater
         $this->makeField($s, [
-            'field_key'        => 'medications',
-            'label'            => 'Medications',
-            'help_text'        => 'Add each medication separately.',
-            'field_type'       => 'repeater',
-            'is_required'      => false,
-            'width'            => 'full',
-            'sort_order'       => 1,
-            'conditional_logic'=> ['show_if' => ['field_key' => 'no_medications', 'equals' => false]],
+            'field_key' => 'medications',
+            'label' => 'Medications',
+            'help_text' => 'Add each medication separately.',
+            'field_type' => 'repeater',
+            'is_required' => false,
+            'width' => 'full',
+            'sort_order' => 1,
+            'conditional_logic' => ['show_if' => ['field_key' => 'no_medications', 'equals' => false]],
             'validation_rules' => ['subfields' => [
                 ['field_key' => 'name',              'label' => 'Medication Name',          'field_type' => 'text'],
                 ['field_key' => 'dosage',            'label' => 'Dosage',                   'field_type' => 'text'],
                 ['field_key' => 'frequency',         'label' => 'Frequency',                'field_type' => 'select',
-                 'options'   => [
-                     ['Once daily', 'once_daily'], ['Twice daily', 'twice_daily'],
-                     ['Three times daily', 'three_daily'], ['Four times daily', 'four_daily'],
-                     ['Every 4 hours', 'every_4h'], ['Every 6 hours', 'every_6h'],
-                     ['Every 8 hours', 'every_8h'], ['As needed (PRN)', 'prn'],
-                     ['Weekly', 'weekly'], ['Other', 'other'],
-                 ]],
+                    'options' => [
+                        ['Once daily', 'once_daily'], ['Twice daily', 'twice_daily'],
+                        ['Three times daily', 'three_daily'], ['Four times daily', 'four_daily'],
+                        ['Every 4 hours', 'every_4h'], ['Every 6 hours', 'every_6h'],
+                        ['Every 8 hours', 'every_8h'], ['As needed (PRN)', 'prn'],
+                        ['Weekly', 'weekly'], ['Other', 'other'],
+                    ]],
                 ['field_key' => 'route',             'label' => 'Route',                    'field_type' => 'select',
-                 'options'   => [
-                     ['Oral (by mouth)', 'oral'], ['Topical (skin)', 'topical'],
-                     ['Inhaled', 'inhaled'], ['Injection', 'injection'],
-                     ['IV', 'iv'], ['Rectal', 'rectal'], ['Eye drops', 'eye_drops'],
-                     ['Ear drops', 'ear_drops'], ['Nasal', 'nasal'], ['Other', 'other'],
-                 ]],
+                    'options' => [
+                        ['Oral (by mouth)', 'oral'], ['Topical (skin)', 'topical'],
+                        ['Inhaled', 'inhaled'], ['Injection', 'injection'],
+                        ['IV', 'iv'], ['Rectal', 'rectal'], ['Eye drops', 'eye_drops'],
+                        ['Ear drops', 'ear_drops'], ['Nasal', 'nasal'], ['Other', 'other'],
+                    ]],
                 ['field_key' => 'reason',            'label' => 'Reason / Condition',       'field_type' => 'text'],
                 ['field_key' => 'prescribing_physician', 'label' => 'Prescribing Physician', 'field_type' => 'text'],
                 ['field_key' => 'self_admin',        'label' => 'Can self-administer',       'field_type' => 'checkbox'],
@@ -1083,47 +1083,47 @@ class FormBuilderService
     private function seedSectionNarratives(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'About Your Camper',
+            'title' => 'About Your Camper',
             'short_title' => 'Narratives',
-            'icon_name'   => 'MessageSquare',
-            'sort_order'  => 8,
+            'icon_name' => 'MessageSquare',
+            'sort_order' => 8,
         ]);
 
         $questions = [
             ['narrative_rustic_environment',
-             'Is a rustic outdoor environment (heat, bugs, uneven terrain, limited AC) suitable for your camper? Please explain any concerns.',
-             0],
+                'Is a rustic outdoor environment (heat, bugs, uneven terrain, limited AC) suitable for your camper? Please explain any concerns.',
+                0],
             ['narrative_staff_suggestions',
-             'What suggestions do you have for camp staff to best support your camper\'s unique needs during activities and daily routines?',
-             1],
+                'What suggestions do you have for camp staff to best support your camper\'s unique needs during activities and daily routines?',
+                1],
             ['narrative_participation_concerns',
-             'Are there any specific camp activities or situations that concern you regarding your camper\'s participation? Please describe.',
-             2],
+                'Are there any specific camp activities or situations that concern you regarding your camper\'s participation? Please describe.',
+                2],
             ['narrative_camp_benefit',
-             'How do you believe attending camp will benefit your camper? What goals or outcomes are you hoping for?',
-             3],
+                'How do you believe attending camp will benefit your camper? What goals or outcomes are you hoping for?',
+                3],
             ['narrative_heat_tolerance',
-             'Please describe your camper\'s tolerance for heat and sun exposure, and any precautions staff should take.',
-             4],
+                'Please describe your camper\'s tolerance for heat and sun exposure, and any precautions staff should take.',
+                4],
             ['narrative_transportation',
-             'Are there any concerns or special accommodations needed regarding transportation to and from camp?',
-             5],
+                'Are there any concerns or special accommodations needed regarding transportation to and from camp?',
+                5],
             ['narrative_additional_info',
-             'Is there any additional information about your camper that camp staff should know that has not been covered elsewhere in this application?',
-             6],
+                'Is there any additional information about your camper that camp staff should know that has not been covered elsewhere in this application?',
+                6],
             ['narrative_emergency_protocols',
-             'Are there any special emergency procedures or protocols specific to your camper\'s condition that staff must follow?',
-             7],
+                'Are there any special emergency procedures or protocols specific to your camper\'s condition that staff must follow?',
+                7],
         ];
 
         foreach ($questions as [$key, $label, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => 'textarea',
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => 'textarea',
                 'is_required' => false,
-                'width'       => 'full',
-                'sort_order'  => $order,
+                'width' => 'full',
+                'sort_order' => $order,
             ]);
         }
     }
@@ -1135,10 +1135,10 @@ class FormBuilderService
     private function seedSection9(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Required Documents',
+            'title' => 'Required Documents',
             'short_title' => 'Documents',
-            'icon_name'   => 'Upload',
-            'sort_order'  => 9,
+            'icon_name' => 'Upload',
+            'sort_order' => 9,
         ]);
 
         $docs = [
@@ -1152,12 +1152,12 @@ class FormBuilderService
 
         foreach ($docs as [$key, $label, $req, $cond, $order]) {
             $this->makeField($s, [
-                'field_key'         => $key,
-                'label'             => $label,
-                'field_type'        => 'file',
-                'is_required'       => $req,
-                'width'             => 'full',
-                'sort_order'        => $order,
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => 'file',
+                'is_required' => $req,
+                'width' => 'full',
+                'sort_order' => $order,
                 'conditional_logic' => $cond,
             ]);
         }
@@ -1170,10 +1170,10 @@ class FormBuilderService
     private function seedSection10(FormDefinition $def): void
     {
         $s = $this->makeSection($def, [
-            'title'       => 'Consents & Signatures',
+            'title' => 'Consents & Signatures',
             'short_title' => 'Consents',
-            'icon_name'   => 'PenLine',
-            'sort_order'  => 10,
+            'icon_name' => 'PenLine',
+            'sort_order' => 10,
         ]);
 
         $consents = [
@@ -1186,41 +1186,41 @@ class FormBuilderService
 
         foreach ($consents as [$key, $label, $order]) {
             $this->makeField($s, [
-                'field_key'   => $key,
-                'label'       => $label,
-                'field_type'  => 'checkbox',
+                'field_key' => $key,
+                'label' => $label,
+                'field_type' => 'checkbox',
                 'is_required' => true,
-                'width'       => 'full',
-                'sort_order'  => $order,
+                'width' => 'full',
+                'sort_order' => $order,
             ]);
         }
 
         // Signature type
         $sigTypeField = $this->makeField($s, [
-            'field_key'   => 'signature_type',
-            'label'       => 'Signature method',
-            'field_type'  => 'radio',
+            'field_key' => 'signature_type',
+            'label' => 'Signature method',
+            'field_type' => 'radio',
             'is_required' => true,
-            'width'       => 'full',
-            'sort_order'  => 5,
+            'width' => 'full',
+            'sort_order' => 5,
         ]);
         $this->makeOptions($sigTypeField, [['Type my name', 'typed'], ['Draw my signature', 'drawn']]);
 
         $this->makeField($s, [
-            'field_key'   => 'signed_name',
-            'label'       => 'Full legal name',
-            'field_type'  => 'text',
+            'field_key' => 'signed_name',
+            'label' => 'Full legal name',
+            'field_type' => 'text',
             'is_required' => true,
-            'width'       => 'half',
-            'sort_order'  => 6,
+            'width' => 'half',
+            'sort_order' => 6,
         ]);
         $this->makeField($s, [
-            'field_key'   => 'signed_date',
-            'label'       => 'Date',
-            'field_type'  => 'date',
+            'field_key' => 'signed_date',
+            'label' => 'Date',
+            'field_type' => 'date',
             'is_required' => true,
-            'width'       => 'half',
-            'sort_order'  => 7,
+            'width' => 'half',
+            'sort_order' => 7,
         ]);
     }
 

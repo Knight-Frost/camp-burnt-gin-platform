@@ -29,11 +29,11 @@ class ConsentTest extends TestCase
     private function makeConsentPayload(string $type): array
     {
         return [
-            'consent_type'          => $type,
-            'guardian_name'         => 'Test Guardian',
+            'consent_type' => $type,
+            'guardian_name' => 'Test Guardian',
             'guardian_relationship' => 'Parent',
-            'guardian_signature'    => 'data:image/png;base64,fake',
-            'signed_at'             => now()->toISOString(),
+            'guardian_signature' => 'data:image/png;base64,fake',
+            'signed_at' => now()->toISOString(),
         ];
     }
 
@@ -43,9 +43,9 @@ class ConsentTest extends TestCase
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $session = CampSession::factory()->create();
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
+            'is_draft' => false,
         ]);
 
         return [$parent, $application];
@@ -77,7 +77,7 @@ class ConsentTest extends TestCase
 
         $this->assertDatabaseHas('application_consents', [
             'application_id' => $application->id,
-            'consent_type'   => 'medication',
+            'consent_type' => 'medication',
         ]);
     }
 
@@ -92,7 +92,7 @@ class ConsentTest extends TestCase
 
         $this->assertDatabaseHas('application_consents', [
             'application_id' => $application->id,
-            'consent_type'   => 'hipaa',
+            'consent_type' => 'hipaa',
         ]);
     }
 
@@ -104,7 +104,7 @@ class ConsentTest extends TestCase
             "/api/applications/{$application->id}/consents",
             ['consents' => [$this->makeConsentPayload('unknown_type')]]
         )->assertStatus(422)
-         ->assertJsonValidationErrors(['consents.0.consent_type']);
+            ->assertJsonValidationErrors(['consents.0.consent_type']);
     }
 
     public function test_resubmitting_consents_is_idempotent(): void
@@ -127,7 +127,7 @@ class ConsentTest extends TestCase
 
         $this->assertCount(1, ApplicationConsent::where([
             'application_id' => $application->id,
-            'consent_type'   => 'general',
+            'consent_type' => 'general',
         ])->get(), 'Resubmitting the same consent type should update, not duplicate.');
     }
 
@@ -159,12 +159,12 @@ class ConsentTest extends TestCase
         $this->actingAs($parent)->postJson(
             "/api/applications/{$application->id}/consents",
             ['consents' => [[
-                'consent_type'          => 'general',
+                'consent_type' => 'general',
                 'guardian_relationship' => 'Parent',
-                'guardian_signature'    => 'sig',
-                'signed_at'             => now()->toISOString(),
+                'guardian_signature' => 'sig',
+                'signed_at' => now()->toISOString(),
             ]]]
         )->assertStatus(422)
-         ->assertJsonValidationErrors(['consents.0.guardian_name']);
+            ->assertJsonValidationErrors(['consents.0.guardian_name']);
     }
 }

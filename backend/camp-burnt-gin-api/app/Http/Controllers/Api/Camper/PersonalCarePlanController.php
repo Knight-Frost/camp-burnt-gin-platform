@@ -30,7 +30,7 @@ class PersonalCarePlanController extends Controller
 
         $plan = PersonalCarePlan::where('camper_id', $camper->id)->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return response()->json(['data' => null], 200);
         }
 
@@ -42,10 +42,6 @@ class PersonalCarePlanController extends Controller
      *
      * Authorization: the requesting user must own the camper (CamperPolicy::update).
      * This prevents one parent from overwriting another camper's care plan.
-     *
-     * @param  StorePersonalCarePlanRequest  $request
-     * @param  Camper                        $camper
-     * @return JsonResponse
      */
     public function store(StorePersonalCarePlanRequest $request, Camper $camper): JsonResponse
     {

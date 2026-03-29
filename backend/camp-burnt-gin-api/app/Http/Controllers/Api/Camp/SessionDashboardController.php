@@ -53,18 +53,18 @@ class SessionDashboardController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        $enrolled   = (int) ($statusCounts[ApplicationStatus::Approved->value]    ?? 0);
-        $pending    = (int) (
-            ($statusCounts[ApplicationStatus::Pending->value]     ?? 0) +
+        $enrolled = (int) ($statusCounts[ApplicationStatus::Approved->value] ?? 0);
+        $pending = (int) (
+            ($statusCounts[ApplicationStatus::Pending->value] ?? 0) +
             ($statusCounts[ApplicationStatus::UnderReview->value] ?? 0)
         );
-        $rejected   = (int) ($statusCounts[ApplicationStatus::Rejected->value]   ?? 0);
+        $rejected = (int) ($statusCounts[ApplicationStatus::Rejected->value] ?? 0);
         $waitlisted = (int) ($statusCounts[ApplicationStatus::Waitlisted->value] ?? 0);
-        $cancelled  = (int) ($statusCounts[ApplicationStatus::Cancelled->value]  ?? 0);
+        $cancelled = (int) ($statusCounts[ApplicationStatus::Cancelled->value] ?? 0);
 
         $totalSubmitted = $enrolled + $pending + $rejected + $waitlisted + $cancelled;
-        $remaining      = max(0, $session->capacity - $enrolled);
-        $fillPct        = $session->capacity > 0
+        $remaining = max(0, $session->capacity - $enrolled);
+        $fillPct = $session->capacity > 0
             ? (int) round(($enrolled / $session->capacity) * 100)
             : 0;
         $acceptanceRate = $totalSubmitted > 0
@@ -80,11 +80,11 @@ class SessionDashboardController extends Controller
             ->take(10)
             ->get()
             ->map(fn ($a) => [
-                'id'           => $a->id,
-                'camper_name'  => trim(($a->camper?->first_name ?? '') . ' ' . ($a->camper?->last_name ?? '')),
-                'status'       => $a->status->value,
+                'id' => $a->id,
+                'camper_name' => trim(($a->camper?->first_name ?? '').' '.($a->camper?->last_name ?? '')),
+                'status' => $a->status->value,
                 'submitted_at' => $a->submitted_at?->toIso8601String(),
-                'reviewed_at'  => $a->reviewed_at?->toIso8601String(),
+                'reviewed_at' => $a->reviewed_at?->toIso8601String(),
             ]);
 
         // ── Family / camper registration metrics ────────────────────────────────
@@ -118,7 +118,7 @@ class SessionDashboardController extends Controller
             ->with(['camper' => fn ($q) => $q->select('id', 'date_of_birth', 'gender')])
             ->get();
 
-        $ageGroups    = ['6-8' => 0, '9-11' => 0, '12-14' => 0, '15-17' => 0, '18+' => 0];
+        $ageGroups = ['6-8' => 0, '9-11' => 0, '12-14' => 0, '15-17' => 0, '18+' => 0];
         $genderCounts = ['male' => 0, 'female' => 0, 'other' => 0, 'unknown' => 0];
 
         foreach ($approvedApps as $app) {
@@ -130,11 +130,17 @@ class SessionDashboardController extends Controller
             // Age bucketing
             if ($camper->date_of_birth) {
                 $age = now()->diffInYears($camper->date_of_birth);
-                if ($age <= 8)       { $ageGroups['6-8']++; }
-                elseif ($age <= 11)  { $ageGroups['9-11']++; }
-                elseif ($age <= 14)  { $ageGroups['12-14']++; }
-                elseif ($age <= 17)  { $ageGroups['15-17']++; }
-                else                 { $ageGroups['18+']++; }
+                if ($age <= 8) {
+                    $ageGroups['6-8']++;
+                } elseif ($age <= 11) {
+                    $ageGroups['9-11']++;
+                } elseif ($age <= 14) {
+                    $ageGroups['12-14']++;
+                } elseif ($age <= 17) {
+                    $ageGroups['15-17']++;
+                } else {
+                    $ageGroups['18+']++;
+                }
             }
 
             // Gender bucketing — normalise to lowercase, default to unknown
@@ -148,40 +154,40 @@ class SessionDashboardController extends Controller
         return response()->json([
             'data' => [
                 'session' => [
-                    'id'                      => $session->id,
-                    'name'                    => $session->name,
-                    'camp'                    => $session->camp?->name,
-                    'start_date'              => $session->start_date?->toDateString(),
-                    'end_date'                => $session->end_date?->toDateString(),
-                    'capacity'                => $session->capacity,
-                    'is_active'               => $session->is_active,
-                    'registration_opens_at'   => $session->registration_opens_at?->toIso8601String(),
-                    'registration_closes_at'  => $session->registration_closes_at?->toIso8601String(),
+                    'id' => $session->id,
+                    'name' => $session->name,
+                    'camp' => $session->camp?->name,
+                    'start_date' => $session->start_date?->toDateString(),
+                    'end_date' => $session->end_date?->toDateString(),
+                    'capacity' => $session->capacity,
+                    'is_active' => $session->is_active,
+                    'registration_opens_at' => $session->registration_opens_at?->toIso8601String(),
+                    'registration_closes_at' => $session->registration_closes_at?->toIso8601String(),
                 ],
                 'capacity_stats' => [
-                    'enrolled'        => $enrolled,
-                    'remaining'       => $remaining,
-                    'capacity'        => $session->capacity,
+                    'enrolled' => $enrolled,
+                    'remaining' => $remaining,
+                    'capacity' => $session->capacity,
                     'fill_percentage' => $fillPct,
-                    'is_at_capacity'  => $enrolled >= $session->capacity,
+                    'is_at_capacity' => $enrolled >= $session->capacity,
                 ],
                 'application_stats' => [
                     'total_submitted' => $totalSubmitted,
-                    'approved'        => $enrolled,
-                    'pending'         => $pending,
-                    'rejected'        => $rejected,
-                    'waitlisted'      => $waitlisted,
-                    'cancelled'       => $cancelled,
+                    'approved' => $enrolled,
+                    'pending' => $pending,
+                    'rejected' => $rejected,
+                    'waitlisted' => $waitlisted,
+                    'cancelled' => $cancelled,
                     'acceptance_rate' => $acceptanceRate,
                 ],
                 'family_stats' => [
-                    'registered_families'   => $registeredFamilies,
-                    'registered_campers'    => $registeredCampers,
-                    'active_applications'   => $pending,
+                    'registered_families' => $registeredFamilies,
+                    'registered_campers' => $registeredCampers,
+                    'active_applications' => $pending,
                     'multi_camper_families' => $multiCamperFamilies,
                 ],
                 'recent_applications' => $recentApplications,
-                'age_distribution'    => $ageGroups,
+                'age_distribution' => $ageGroups,
                 'gender_distribution' => $genderCounts,
             ],
         ]);
@@ -215,9 +221,9 @@ class SessionDashboardController extends Controller
             'data' => $applications->items(),
             'meta' => [
                 'current_page' => $applications->currentPage(),
-                'last_page'    => $applications->lastPage(),
-                'per_page'     => $applications->perPage(),
-                'total'        => $applications->total(),
+                'last_page' => $applications->lastPage(),
+                'per_page' => $applications->perPage(),
+                'total' => $applications->total(),
             ],
         ]);
     }

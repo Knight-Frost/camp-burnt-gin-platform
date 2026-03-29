@@ -103,11 +103,11 @@ class FormFieldOptionController extends Controller
     private function optionPayload(FormFieldOption $option): array
     {
         return [
-            'id'         => $option->id,
-            'label'      => $option->label,
-            'value'      => $option->value,
+            'id' => $option->id,
+            'label' => $option->label,
+            'value' => $option->value,
             'sort_order' => $option->sort_order,
-            'is_active'  => $option->is_active,
+            'is_active' => $option->is_active,
         ];
     }
 }

@@ -42,10 +42,10 @@ class DocumentService
      * the private disk, creates the database record, then queues a background
      * security scan that runs after the HTTP response is sent.
      *
-     * @param  UploadedFile          $file  The uploaded file from the request
+     * @param  UploadedFile  $file  The uploaded file from the request
      * @param  array<string, mixed>  $data  documentable_type, documentable_id, document_type
-     * @param  User                  $user  The user performing the upload
-     * @return array<string, mixed>  'success' => true/false with optional 'document' on success
+     * @param  User  $user  The user performing the upload
+     * @return array<string, mixed> 'success' => true/false with optional 'document' on success
      */
     public function upload(UploadedFile $file, array $data, User $user): array
     {
@@ -259,7 +259,7 @@ class DocumentService
      *  - AWS GuardDuty Malware Protection
      *  - Microsoft Defender for Cloud
      *
-     * @return bool|null  false = dangerous, null = pending manual review, true = approved (manual only)
+     * @return bool|null false = dangerous, null = pending manual review, true = approved (manual only)
      */
     protected function performSecurityScan(Document $document): ?bool
     {

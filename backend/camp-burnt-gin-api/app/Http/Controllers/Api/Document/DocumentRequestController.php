@@ -53,68 +53,68 @@ class DocumentRequestController extends Controller
         $this->authorize('create', DocumentRequest::class);
 
         $validated = $request->validate([
-            'applicant_id'    => ['required', 'integer', 'exists:users,id'],
-            'application_id'  => ['nullable', 'integer', 'exists:applications,id'],
-            'camper_id'       => ['nullable', 'integer', 'exists:campers,id'],
-            'document_type'   => ['required', 'string', 'max:200'],
-            'instructions'    => ['nullable', 'string', 'max:2000'],
-            'due_date'        => ['nullable', 'date', 'after:today'],
+            'applicant_id' => ['required', 'integer', 'exists:users,id'],
+            'application_id' => ['nullable', 'integer', 'exists:applications,id'],
+            'camper_id' => ['nullable', 'integer', 'exists:campers,id'],
+            'document_type' => ['required', 'string', 'max:200'],
+            'instructions' => ['nullable', 'string', 'max:2000'],
+            'due_date' => ['nullable', 'date', 'after:today'],
             // Optional: used to scope the linked Deadline to a session.
             // If omitted, the session is resolved from application_id automatically.
             'camp_session_id' => ['nullable', 'integer', 'exists:camp_sessions,id'],
             // Deadline enforcement config (only applied when due_date is provided)
-            'is_enforced'     => ['boolean'],
+            'is_enforced' => ['boolean'],
             'enforcement_mode' => ['in:hard,soft'],
         ]);
 
         /** @var \App\Models\User $admin */
-        $admin     = auth()->user();
+        $admin = auth()->user();
         /** @var \App\Models\User $applicant */
         $applicant = User::findOrFail($validated['applicant_id']);
 
         $camperName = null;
         if (! empty($validated['camper_id'])) {
-            $camper     = Camper::find($validated['camper_id']);
-            $camperName = $camper ? $camper->first_name . ' ' . $camper->last_name : null;
+            $camper = Camper::find($validated['camper_id']);
+            $camperName = $camper ? $camper->first_name.' '.$camper->last_name : null;
         }
 
         return DB::transaction(function () use ($admin, $applicant, $validated, $camperName) {
             $docRequest = DocumentRequest::create([
-                'applicant_id'          => $applicant->id,
-                'application_id'        => $validated['application_id'] ?? null,
-                'camper_id'             => $validated['camper_id'] ?? null,
+                'applicant_id' => $applicant->id,
+                'application_id' => $validated['application_id'] ?? null,
+                'camper_id' => $validated['camper_id'] ?? null,
                 'requested_by_admin_id' => $admin->id,
-                'document_type'         => $validated['document_type'],
-                'instructions'          => $validated['instructions'] ?? null,
-                'status'                => DocumentRequestStatus::AwaitingUpload,
-                'due_date'              => $validated['due_date'] ?? null,
+                'document_type' => $validated['document_type'],
+                'instructions' => $validated['instructions'] ?? null,
+                'status' => DocumentRequestStatus::AwaitingUpload,
+                'due_date' => $validated['due_date'] ?? null,
             ]);
 
             // Send system inbox notification to applicant
             $dueDateText = $docRequest->due_date
-                ? '<p><strong>Due Date:</strong> ' . $docRequest->due_date->format('F j, Y') . '</p>'
+                ? '<p><strong>Due Date:</strong> '.$docRequest->due_date->format('F j, Y').'</p>'
                 : '';
             $instructionsText = $validated['instructions'] ?? null
-                ? '<p><strong>Instructions:</strong> ' . e($validated['instructions']) . '</p>'
+                ? '<p><strong>Instructions:</strong> '.e($validated['instructions']).'</p>'
                 : '';
             $camperText = $camperName
-                ? '<p><strong>Camper:</strong> ' . e($camperName) . '</p>'
+                ? '<p><strong>Camper:</strong> '.e($camperName).'</p>'
                 : '';
 
-            $body = "<p>Camp administration has requested a document for your application.</p>"
-                  . "<p><strong>Requested Document:</strong> " . e($validated['document_type']) . "</p>"
-                  . $camperText
-                  . $instructionsText
-                  . $dueDateText
-                  . "<p>Please log in to your portal and upload the requested document under <strong>Documents</strong>.</p>";
+            $body = '<p>Camp administration has requested a document for your application.</p>'
+                  .'<p><strong>Requested Document:</strong> '.e($validated['document_type']).'</p>'
+                  .$camperText
+                  .$instructionsText
+                  .$dueDateText
+                  .'<p>Please log in to your portal and upload the requested document under <strong>Documents</strong>.</p>';
 
             $conversation = $this->notifications->notify(
-                recipient:   $applicant,
-                eventType:   'document.requested',
-                subject:     'Document Requested: ' . $validated['document_type'],
-                body:        $body,
+                recipient: $applicant,
+                eventType: 'document.requested',
+                subject: 'Document Requested: '.$validated['document_type'],
+                body: $body,
                 relatedType: DocumentRequest::class,
-                relatedId:   $docRequest->id,
+                relatedId: $docRequest->id,
             );
 
             $docRequest->update(['conversation_id' => $conversation->id]);
@@ -136,9 +136,9 @@ class DocumentRequestController extends Controller
                         $sessionId,
                         $admin,
                         [
-                            'due_date'                 => $validated['due_date'],
-                            'is_enforced'              => $validated['is_enforced'] ?? false,
-                            'enforcement_mode'         => $validated['enforcement_mode'] ?? 'soft',
+                            'due_date' => $validated['due_date'],
+                            'is_enforced' => $validated['is_enforced'] ?? false,
+                            'enforcement_mode' => $validated['enforcement_mode'] ?? 'soft',
                             'is_visible_to_applicants' => true,
                         ],
                     );
@@ -178,21 +178,21 @@ class DocumentRequestController extends Controller
             // Special filter: overdue (awaiting_upload past due_date)
             if ($status === 'overdue') {
                 $query->where('status', 'awaiting_upload')
-                      ->whereNotNull('due_date')
-                      ->whereDate('due_date', '<', now());
+                    ->whereNotNull('due_date')
+                    ->whereDate('due_date', '<', now());
             } else {
                 $query->where('status', $status);
             }
         }
 
         if ($request->filled('search')) {
-            $search = '%' . $request->input('search') . '%';
+            $search = '%'.$request->input('search').'%';
             $query->where(function ($q) use ($search) {
                 $q->where('document_type', 'like', $search)
-                  ->orWhereHas('applicant', fn ($u) => $u->where('name', 'like', $search))
-                  ->orWhereHas('camper', fn ($c) => $c->where(
-                      DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', $search
-                  ));
+                    ->orWhereHas('applicant', fn ($u) => $u->where('name', 'like', $search))
+                    ->orWhereHas('camper', fn ($c) => $c->where(
+                        DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', $search
+                    ));
             });
         }
 
@@ -202,9 +202,9 @@ class DocumentRequestController extends Controller
             'data' => array_map(fn ($r) => $this->format($r, true), $paginated->items()),
             'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page'    => $paginated->lastPage(),
-                'per_page'     => $paginated->perPage(),
-                'total'        => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
             ],
         ]);
     }
@@ -218,25 +218,25 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('viewAny', DocumentRequest::class);
 
-        $total          = DocumentRequest::count();
+        $total = DocumentRequest::count();
         $awaitingUpload = DocumentRequest::where('status', 'awaiting_upload')->count();
-        $underReview    = DocumentRequest::where('status', 'under_review')->count();
-        $approved       = DocumentRequest::where('status', 'approved')->count();
-        $rejected       = DocumentRequest::where('status', 'rejected')->count();
-        $overdue        = DocumentRequest::where('status', 'awaiting_upload')
+        $underReview = DocumentRequest::where('status', 'under_review')->count();
+        $approved = DocumentRequest::where('status', 'approved')->count();
+        $rejected = DocumentRequest::where('status', 'rejected')->count();
+        $overdue = DocumentRequest::where('status', 'awaiting_upload')
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<', now())
             ->count();
-        $uploaded       = DocumentRequest::whereIn('status', ['uploaded', 'scanning', 'under_review'])->count();
+        $uploaded = DocumentRequest::whereIn('status', ['uploaded', 'scanning', 'under_review'])->count();
 
         return response()->json([
-            'total'           => $total,
+            'total' => $total,
             'awaiting_upload' => $awaitingUpload,
-            'uploaded'        => $uploaded,
-            'under_review'    => $underReview,
-            'approved'        => $approved,
-            'rejected'        => $rejected,
-            'overdue'         => $overdue,
+            'uploaded' => $uploaded,
+            'under_review' => $underReview,
+            'approved' => $approved,
+            'rejected' => $rejected,
+            'overdue' => $overdue,
         ]);
     }
 
@@ -250,6 +250,7 @@ class DocumentRequestController extends Controller
         $this->authorize('view', $documentRequest);
 
         $documentRequest->load('applicant', 'requestedByAdmin', 'camper', 'reviewedByAdmin');
+
         return response()->json($this->format($documentRequest, true));
     }
 
@@ -292,20 +293,21 @@ class DocumentRequestController extends Controller
         $admin = auth()->user();
 
         $documentRequest->update([
-            'status'              => DocumentRequestStatus::Approved,
+            'status' => DocumentRequestStatus::Approved,
             'reviewed_by_admin_id' => $admin->id,
-            'reviewed_at'         => now(),
-            'rejection_reason'    => null,
+            'reviewed_at' => now(),
+            'rejection_reason' => null,
         ]);
 
         // Update inbox thread to reflect approval
         $this->updateConversationStatus(
             $documentRequest,
             'Document Approved',
-            '<p>Your document <strong>' . e($documentRequest->document_type) . '</strong> has been reviewed and <strong style="color:#16a34a">approved</strong>. No further action is required.</p>'
+            '<p>Your document <strong>'.e($documentRequest->document_type).'</strong> has been reviewed and <strong style="color:#16a34a">approved</strong>. No further action is required.</p>'
         );
 
         $documentRequest->load('applicant', 'requestedByAdmin', 'camper', 'reviewedByAdmin');
+
         return response()->json($this->format($documentRequest, true));
     }
 
@@ -331,7 +333,7 @@ class DocumentRequestController extends Controller
         ]);
 
         /** @var \App\Models\User $admin */
-        $admin  = auth()->user();
+        $admin = auth()->user();
         $reason = $validated['reason'] ?? 'No reason provided.';
 
         // Delete the uploaded file from disk before clearing the DB reference.
@@ -342,27 +344,28 @@ class DocumentRequestController extends Controller
         }
 
         $documentRequest->update([
-            'status'               => DocumentRequestStatus::Rejected,
+            'status' => DocumentRequestStatus::Rejected,
             'reviewed_by_admin_id' => $admin->id,
-            'reviewed_at'          => now(),
-            'rejection_reason'     => $reason,
+            'reviewed_at' => now(),
+            'rejection_reason' => $reason,
             // Clear the uploaded file so the applicant must upload a new one
             'uploaded_document_path' => null,
-            'uploaded_file_name'   => null,
-            'uploaded_mime_type'   => null,
-            'uploaded_at'          => null,
+            'uploaded_file_name' => null,
+            'uploaded_mime_type' => null,
+            'uploaded_at' => null,
         ]);
 
         // Notify applicant via inbox
         $this->updateConversationStatus(
             $documentRequest,
             'Document Rejected — Action Required',
-            '<p>Your document <strong>' . e($documentRequest->document_type) . '</strong> was <strong style="color:#dc2626">rejected</strong>.</p>'
-            . '<p><strong>Reason:</strong> ' . e($reason) . '</p>'
-            . '<p>Please log in and upload a replacement document.</p>'
+            '<p>Your document <strong>'.e($documentRequest->document_type).'</strong> was <strong style="color:#dc2626">rejected</strong>.</p>'
+            .'<p><strong>Reason:</strong> '.e($reason).'</p>'
+            .'<p>Please log in and upload a replacement document.</p>'
         );
 
         $documentRequest->load('applicant', 'requestedByAdmin', 'camper', 'reviewedByAdmin');
+
         return response()->json($this->format($documentRequest, true));
     }
 
@@ -391,7 +394,7 @@ class DocumentRequestController extends Controller
         $this->updateConversationStatus(
             $documentRequest,
             'Document Request Cancelled',
-            '<p>The document request for <strong>' . e($documentRequest->document_type) . '</strong> has been cancelled by camp administration. No further action is required.</p>'
+            '<p>The document request for <strong>'.e($documentRequest->document_type).'</strong> has been cancelled by camp administration. No further action is required.</p>'
         );
 
         $documentRequest->delete();
@@ -418,15 +421,15 @@ class DocumentRequestController extends Controller
         $applicant = $documentRequest->applicant;
 
         $dueDateText = $documentRequest->due_date
-            ? '<p><strong>Due Date:</strong> ' . $documentRequest->due_date->format('F j, Y') . '</p>'
+            ? '<p><strong>Due Date:</strong> '.$documentRequest->due_date->format('F j, Y').'</p>'
             : '';
 
         $this->updateConversationStatus(
             $documentRequest,
             'Reminder: Document Upload Required',
-            '<p>This is a reminder that camp administration is still awaiting the document <strong>' . e($documentRequest->document_type) . '</strong>.</p>'
-            . $dueDateText
-            . '<p>Please log in and upload the document at your earliest convenience.</p>'
+            '<p>This is a reminder that camp administration is still awaiting the document <strong>'.e($documentRequest->document_type).'</strong>.</p>'
+            .$dueDateText
+            .'<p>Please log in and upload the document at your earliest convenience.</p>'
         );
 
         return response()->json(['message' => 'Reminder sent.']);
@@ -454,7 +457,7 @@ class DocumentRequestController extends Controller
         $newDueDate = \Carbon\Carbon::parse($validated['due_date']);
 
         $documentRequest->update([
-            'status'   => DocumentRequestStatus::AwaitingUpload,
+            'status' => DocumentRequestStatus::AwaitingUpload,
             'due_date' => $newDueDate->toDateString(),
         ]);
 
@@ -469,12 +472,13 @@ class DocumentRequestController extends Controller
         $this->updateConversationStatus(
             $documentRequest,
             'Deadline Extended',
-            '<p>The deadline for <strong>' . e($documentRequest->document_type) . '</strong> has been extended to <strong>'
-            . \Carbon\Carbon::parse($validated['due_date'])->format('F j, Y')
-            . '</strong>. Please upload the document before the new deadline.</p>'
+            '<p>The deadline for <strong>'.e($documentRequest->document_type).'</strong> has been extended to <strong>'
+            .\Carbon\Carbon::parse($validated['due_date'])->format('F j, Y')
+            .'</strong>. Please upload the document before the new deadline.</p>'
         );
 
         $documentRequest->load('applicant', 'requestedByAdmin', 'camper');
+
         return response()->json($this->format($documentRequest, true));
     }
 
@@ -496,18 +500,19 @@ class DocumentRequestController extends Controller
         );
 
         $documentRequest->update([
-            'status'           => DocumentRequestStatus::AwaitingUpload,
+            'status' => DocumentRequestStatus::AwaitingUpload,
             'rejection_reason' => null,
         ]);
 
         $this->updateConversationStatus(
             $documentRequest,
             'Resubmission Requested',
-            '<p>Camp administration has asked you to resubmit the document <strong>' . e($documentRequest->document_type) . '</strong>.</p>'
-            . '<p>Please log in and upload a corrected version.</p>'
+            '<p>Camp administration has asked you to resubmit the document <strong>'.e($documentRequest->document_type).'</strong>.</p>'
+            .'<p>Please log in and upload a corrected version.</p>'
         );
 
         $documentRequest->load('applicant', 'requestedByAdmin', 'camper');
+
         return response()->json($this->format($documentRequest, true));
     }
 
@@ -560,7 +565,7 @@ class DocumentRequestController extends Controller
                 // Hard enforcement: return HTTP 422 to block the upload entirely.
                 // Admins can unblock via POST /api/deadlines/{id}/complete or extend.
                 return response()->json([
-                    'message'    => 'Upload blocked: the deadline for this document has passed.',
+                    'message' => 'Upload blocked: the deadline for this document has passed.',
                     'blocked_by' => $enforcement['deadline'],
                     'resolution' => 'Contact your session coordinator to request a deadline extension.',
                 ], 422);
@@ -571,8 +576,8 @@ class DocumentRequestController extends Controller
             if ($enforcement['warned']) {
                 $lateWarning = [
                     'submitted_late' => true,
-                    'deadline'       => $enforcement['deadline'],
-                    'message'        => 'This document was submitted after the deadline.',
+                    'deadline' => $enforcement['deadline'],
+                    'message' => 'This document was submitted after the deadline.',
                 ];
             }
         }
@@ -582,7 +587,7 @@ class DocumentRequestController extends Controller
         ]);
 
         $file = $request->file('file');
-        $ext  = $file->getClientOriginalExtension();
+        $ext = $file->getClientOriginalExtension();
         $uuid = Str::uuid()->toString();
         $path = "document-requests/uploads/{$uuid}.{$ext}";
 
@@ -595,19 +600,19 @@ class DocumentRequestController extends Controller
         Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
 
         $documentRequest->update([
-            'status'                  => DocumentRequestStatus::Uploaded,
-            'uploaded_document_path'  => $path,
-            'uploaded_file_name'      => $file->getClientOriginalName(),
-            'uploaded_mime_type'      => $file->getMimeType() ?? $file->getClientMimeType(),
-            'uploaded_at'             => now(),
-            'rejection_reason'        => null,
+            'status' => DocumentRequestStatus::Uploaded,
+            'uploaded_document_path' => $path,
+            'uploaded_file_name' => $file->getClientOriginalName(),
+            'uploaded_mime_type' => $file->getMimeType() ?? $file->getClientMimeType(),
+            'uploaded_at' => now(),
+            'rejection_reason' => null,
         ]);
 
         // Update inbox thread to reflect submission
         $this->updateConversationStatus(
             $documentRequest,
             'Document Submitted — Awaiting Review',
-            '<p>The document <strong>' . e($documentRequest->document_type) . '</strong> has been submitted and is awaiting review by camp staff. You will be notified once a decision has been made.</p>'
+            '<p>The document <strong>'.e($documentRequest->document_type).'</strong> has been submitted and is awaiting review by camp staff. You will be notified once a decision has been made.</p>'
         );
 
         // Notify the requesting admin that a document has been uploaded
@@ -615,14 +620,14 @@ class DocumentRequestController extends Controller
         if ($admin) {
             $applicantName = auth()->user()->name;
             $this->notifications->notify(
-                recipient:   $admin,
-                eventType:   'document.uploaded',
-                subject:     'Document Uploaded: ' . $documentRequest->document_type,
-                body:        "<p><strong>Applicant:</strong> " . e($applicantName) . "</p>"
-                           . "<p><strong>Document:</strong> " . e($documentRequest->document_type) . "</p>"
-                           . "<p>Status: Ready for Review. Log in to review and approve or reject the document.</p>",
+                recipient: $admin,
+                eventType: 'document.uploaded',
+                subject: 'Document Uploaded: '.$documentRequest->document_type,
+                body: '<p><strong>Applicant:</strong> '.e($applicantName).'</p>'
+                           .'<p><strong>Document:</strong> '.e($documentRequest->document_type).'</p>'
+                           .'<p>Status: Ready for Review. Log in to review and approve or reject the document.</p>',
                 relatedType: DocumentRequest::class,
-                relatedId:   $documentRequest->id,
+                relatedId: $documentRequest->id,
             );
         }
 
@@ -674,30 +679,30 @@ class DocumentRequestController extends Controller
         }
 
         $base = [
-            'id'                    => $req->id,
-            'applicant_id'          => $req->applicant_id,
-            'applicant_name'        => $req->applicant?->name ?? '',
-            'application_id'        => $req->application_id,
-            'camper_id'             => $req->camper_id,
-            'camper_name'           => $req->camper
-                ? ($req->camper->first_name . ' ' . $req->camper->last_name)
+            'id' => $req->id,
+            'applicant_id' => $req->applicant_id,
+            'applicant_name' => $req->applicant?->name ?? '',
+            'application_id' => $req->application_id,
+            'camper_id' => $req->camper_id,
+            'camper_name' => $req->camper
+                ? ($req->camper->first_name.' '.$req->camper->last_name)
                 : null,
             'requested_by_admin_id' => $req->requested_by_admin_id,
-            'requested_by_name'     => $req->requestedByAdmin?->name ?? '',
-            'document_type'         => $req->document_type,
-            'instructions'          => $req->instructions,
-            'status'                => $status,
-            'due_date'              => $req->due_date?->toDateString(),
-            'uploaded_file_name'    => $req->uploaded_file_name,
-            'uploaded_at'           => $req->uploaded_at?->toIso8601String(),
-            'rejection_reason'      => $req->rejection_reason,
-            'reviewed_at'           => $req->reviewed_at?->toIso8601String(),
-            'created_at'            => $req->created_at?->toIso8601String(),
+            'requested_by_name' => $req->requestedByAdmin?->name ?? '',
+            'document_type' => $req->document_type,
+            'instructions' => $req->instructions,
+            'status' => $status,
+            'due_date' => $req->due_date?->toDateString(),
+            'uploaded_file_name' => $req->uploaded_file_name,
+            'uploaded_at' => $req->uploaded_at?->toIso8601String(),
+            'rejection_reason' => $req->rejection_reason,
+            'reviewed_at' => $req->reviewed_at?->toIso8601String(),
+            'created_at' => $req->created_at?->toIso8601String(),
         ];
 
         if ($isAdmin) {
-            $base['reviewed_by_name']  = $req->reviewedByAdmin?->name ?? null;
-            $base['download_url']      = $req->uploaded_document_path
+            $base['reviewed_by_name'] = $req->reviewedByAdmin?->name ?? null;
+            $base['download_url'] = $req->uploaded_document_path
                 ? url("/api/document-requests/{$req->id}/download")
                 : null;
         } else {
@@ -726,8 +731,8 @@ class DocumentRequestController extends Controller
         try {
             \App\Models\Message::create([
                 'conversation_id' => $req->conversation_id,
-                'sender_id'       => null,
-                'body'            => "<strong>{$subject}</strong><br>{$body}",
+                'sender_id' => null,
+                'body' => "<strong>{$subject}</strong><br>{$body}",
                 'idempotency_key' => Str::uuid()->toString(),
             ]);
 

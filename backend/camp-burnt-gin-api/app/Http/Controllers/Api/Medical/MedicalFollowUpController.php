@@ -63,7 +63,7 @@ class MedicalFollowUpController extends Controller
         // The 'overdue' flag surfaces items that are past due and still open.
         if ($request->boolean('overdue')) {
             $query->whereNotIn('status', ['completed', 'cancelled'])
-                  ->whereDate('due_date', '<', now()->toDateString());
+                ->whereDate('due_date', '<', now()->toDateString());
         }
 
         $followUps = $query->paginate(25);
@@ -72,9 +72,9 @@ class MedicalFollowUpController extends Controller
             'data' => $followUps->items(),
             'meta' => [
                 'current_page' => $followUps->currentPage(),
-                'last_page'    => $followUps->lastPage(),
-                'per_page'     => $followUps->perPage(),
-                'total'        => $followUps->total(),
+                'last_page' => $followUps->lastPage(),
+                'per_page' => $followUps->perPage(),
+                'total' => $followUps->total(),
             ],
         ]);
     }
@@ -92,16 +92,16 @@ class MedicalFollowUpController extends Controller
         $this->authorize('create', MedicalFollowUp::class);
 
         $validated = $request->validate([
-            'camper_id'        => 'required|integer|exists:campers,id',
+            'camper_id' => 'required|integer|exists:campers,id',
             // Assignee is optional — follow-ups may be unassigned initially.
-            'assigned_to'      => 'nullable|integer|exists:users,id',
+            'assigned_to' => 'nullable|integer|exists:users,id',
             'treatment_log_id' => 'nullable|integer|exists:treatment_logs,id',
-            'title'            => 'required|string|max:500',
-            'notes'            => 'nullable|string|max:5000',
-            'status'           => 'sometimes|string|in:pending,in_progress,completed,cancelled',
-            'priority'         => 'sometimes|string|in:low,medium,high,urgent',
+            'title' => 'required|string|max:500',
+            'notes' => 'nullable|string|max:5000',
+            'status' => 'sometimes|string|in:pending,in_progress,completed,cancelled',
+            'priority' => 'sometimes|string|in:low,medium,high,urgent',
             // Due date is required so the dashboard can surface overdue items accurately.
-            'due_date'         => 'required|date',
+            'due_date' => 'required|date',
         ]);
 
         // Stamp the creator server-side so it cannot be spoofed by the client.
@@ -114,7 +114,7 @@ class MedicalFollowUpController extends Controller
 
         return response()->json([
             'message' => 'Follow-up created successfully.',
-            'data'    => $followUp,
+            'data' => $followUp,
         ], Response::HTTP_CREATED);
     }
 
@@ -148,11 +148,11 @@ class MedicalFollowUpController extends Controller
 
         $validated = $request->validate([
             'assigned_to' => 'nullable|integer|exists:users,id',
-            'title'       => 'sometimes|string|max:500',
-            'notes'       => 'nullable|string|max:5000',
-            'status'      => 'sometimes|string|in:pending,in_progress,completed,cancelled',
-            'priority'    => 'sometimes|string|in:low,medium,high,urgent',
-            'due_date'    => 'sometimes|date',
+            'title' => 'sometimes|string|max:500',
+            'notes' => 'nullable|string|max:5000',
+            'status' => 'sometimes|string|in:pending,in_progress,completed,cancelled',
+            'priority' => 'sometimes|string|in:low,medium,high,urgent',
+            'due_date' => 'sometimes|date',
         ]);
 
         // Auto-set completed_at when marking complete
@@ -169,7 +169,7 @@ class MedicalFollowUpController extends Controller
 
         return response()->json([
             'message' => 'Follow-up updated successfully.',
-            'data'    => $medicalFollowUp,
+            'data' => $medicalFollowUp,
         ]);
     }
 

@@ -40,8 +40,8 @@ class Announcement extends Model
     protected function casts(): array
     {
         return [
-            'is_pinned'    => 'boolean',
-            'is_urgent'    => 'boolean',
+            'is_pinned' => 'boolean',
+            'is_urgent' => 'boolean',
             // Carbon instance — enables date comparison in the published() scope
             'published_at' => 'datetime',
         ];

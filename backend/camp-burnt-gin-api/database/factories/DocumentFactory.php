@@ -19,27 +19,27 @@ class DocumentFactory extends Factory
         $isScanned = fake()->boolean(80);
 
         return [
-            'documentable_type'   => 'App\\Models\\Camper',
-            'documentable_id'     => Camper::factory(),
-            'document_type'       => fake()->randomElement([
+            'documentable_type' => 'App\\Models\\Camper',
+            'documentable_id' => Camper::factory(),
+            'document_type' => fake()->randomElement([
                 'official_medical_form', 'immunization_record', 'insurance_card',
                 'physician_order', 'consent_form', null,
             ]),
-            'original_filename'   => fake()->word() . '.pdf',
-            'stored_filename'     => fake()->uuid() . '.pdf',
-            'path'                => 'documents/' . fake()->uuid() . '.pdf',
-            'file_size'           => fake()->numberBetween(50000, 5000000),
-            'mime_type'           => 'application/pdf',
-            'disk'                => 'local',
-            'is_scanned'          => $isScanned,
-            'scan_passed'         => $isScanned ? fake()->boolean(92) : null,
-            'uploaded_by'         => User::factory(),
+            'original_filename' => fake()->word().'.pdf',
+            'stored_filename' => fake()->uuid().'.pdf',
+            'path' => 'documents/'.fake()->uuid().'.pdf',
+            'file_size' => fake()->numberBetween(50000, 5000000),
+            'mime_type' => 'application/pdf',
+            'disk' => 'local',
+            'is_scanned' => $isScanned,
+            'scan_passed' => $isScanned ? fake()->boolean(92) : null,
+            'uploaded_by' => User::factory(),
             // Verification
             'verification_status' => fake()->randomElement(['pending', 'pending', 'approved', 'rejected']),
-            'verified_by'         => null,
-            'verified_at'         => null,
-            'expiration_date'     => fake()->optional(0.3)->dateTimeBetween('now', '+3 years')?->format('Y-m-d'),
-            'message_id'          => null,
+            'verified_by' => null,
+            'verified_at' => null,
+            'expiration_date' => fake()->optional(0.3)->dateTimeBetween('now', '+3 years')?->format('Y-m-d'),
+            'message_id' => null,
         ];
     }
 
@@ -47,7 +47,7 @@ class DocumentFactory extends Factory
     public function scannedPassed(): static
     {
         return $this->state(fn () => [
-            'is_scanned'  => true,
+            'is_scanned' => true,
             'scan_passed' => true,
         ]);
     }
@@ -56,7 +56,7 @@ class DocumentFactory extends Factory
     public function scannedFailed(): static
     {
         return $this->state(fn () => [
-            'is_scanned'  => true,
+            'is_scanned' => true,
             'scan_passed' => false,
         ]);
     }
@@ -65,7 +65,7 @@ class DocumentFactory extends Factory
     public function notScanned(): static
     {
         return $this->state(fn () => [
-            'is_scanned'  => false,
+            'is_scanned' => false,
             'scan_passed' => null,
         ]);
     }
@@ -75,10 +75,11 @@ class DocumentFactory extends Factory
     {
         return $this->state(function () {
             $verifier = User::whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin']))->first();
+
             return [
                 'verification_status' => 'approved',
-                'verified_by'         => $verifier?->id ?? User::factory()->admin(),
-                'verified_at'         => now()->subDays(fake()->numberBetween(1, 30)),
+                'verified_by' => $verifier?->id ?? User::factory()->admin(),
+                'verified_at' => now()->subDays(fake()->numberBetween(1, 30)),
             ];
         });
     }
@@ -97,7 +98,7 @@ class DocumentFactory extends Factory
     public function officialMedicalForm(): static
     {
         return $this->state(fn () => [
-            'document_type'     => 'official_medical_form',
+            'document_type' => 'official_medical_form',
             'original_filename' => 'medical_form_4523.pdf',
         ]);
     }

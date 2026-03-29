@@ -67,8 +67,8 @@ class Conversation extends Model
     protected function casts(): array
     {
         return [
-            'last_message_at'     => 'datetime',
-            'is_archived'         => 'boolean',
+            'last_message_at' => 'datetime',
+            'is_archived' => 'boolean',
             'is_system_generated' => 'boolean',
         ];
     }
@@ -223,7 +223,7 @@ class Conversation extends Model
             // Also exclude messages the user sent — you can't have unread messages you wrote.
             ->where(function ($q) use ($user) {
                 $q->whereNull('sender_id')          // System messages count as unread.
-                  ->orWhere('sender_id', '!=', $user->id);
+                    ->orWhere('sender_id', '!=', $user->id);
             })
             ->count();
     }

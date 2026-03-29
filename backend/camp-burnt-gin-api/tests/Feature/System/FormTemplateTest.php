@@ -3,7 +3,6 @@
 namespace Tests\Feature\System;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;

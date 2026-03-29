@@ -50,11 +50,11 @@ class NewConversationNotification extends Notification
     {
         return (new MailMessage)
             ->subject('New Conversation - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello '.$notifiable->name.',')
             ->line('You have been added to a new conversation.')
-            ->line('Subject: ' . $this->conversation->subject)
+            ->line('Subject: '.$this->conversation->subject)
             ->line('Please log in to view the full conversation and respond.')
-            ->action('View Conversation', config('app.frontend_url') . '/inbox/conversations/' . $this->conversation->id)
+            ->action('View Conversation', config('app.frontend_url').'/inbox/conversations/'.$this->conversation->id)
             ->salutation('Camp Burnt Gin');
     }
 
@@ -68,17 +68,17 @@ class NewConversationNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $subject   = $this->conversation->subject;
+        $subject = $this->conversation->subject;
         $createdBy = $this->conversation->creator?->name ?? 'Camp Staff';
 
         return [
-            'type'                 => 'new_conversation',
-            'title'                => "New conversation: {$subject}",
-            'message'              => "{$createdBy} has started a conversation with you: \"{$subject}\".",
-            'conversation_id'      => $this->conversation->id,
+            'type' => 'new_conversation',
+            'title' => "New conversation: {$subject}",
+            'message' => "{$createdBy} has started a conversation with you: \"{$subject}\".",
+            'conversation_id' => $this->conversation->id,
             'conversation_subject' => $subject,
-            'created_by'           => $createdBy,
-            'created_at'           => $this->conversation->created_at->toIso8601String(),
+            'created_by' => $createdBy,
+            'created_at' => $this->conversation->created_at->toIso8601String(),
         ];
     }
 }

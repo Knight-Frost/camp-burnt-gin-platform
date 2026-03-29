@@ -23,10 +23,10 @@ class FormDefinitionSeeder extends Seeder
     public function run(): void
     {
         $service = app(FormBuilderService::class);
-        $def     = $service->seedFromHardcodedForm();
+        $def = $service->seedFromHardcodedForm();
 
         $sectionCount = $def->sections()->count();
-        $fieldCount   = $def->sections()->withCount('fields')->get()->sum('fields_count');
+        $fieldCount = $def->sections()->withCount('fields')->get()->sum('fields_count');
 
         $this->command->info("Form definition seeded: '{$def->name}' v{$def->version} ({$sectionCount} sections, {$fieldCount} fields)");
     }

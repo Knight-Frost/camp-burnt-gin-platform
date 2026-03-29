@@ -18,12 +18,12 @@ class MessageFactory extends Factory
     public function definition(): array
     {
         return [
-            'conversation_id'   => Conversation::factory(),
-            'sender_id'         => User::factory(),
-            'body'              => fake()->paragraph(),
-            'idempotency_key'   => Str::uuid()->toString(),
+            'conversation_id' => Conversation::factory(),
+            'sender_id' => User::factory(),
+            'body' => fake()->paragraph(),
+            'idempotency_key' => Str::uuid()->toString(),
             'parent_message_id' => null, // null for root messages
-            'reply_type'        => null, // null for non-replies; 'reply' or 'reply_all' for replies
+            'reply_type' => null, // null for non-replies; 'reply' or 'reply_all' for replies
         ];
     }
 
@@ -50,7 +50,7 @@ class MessageFactory extends Factory
     {
         return $this->state(fn () => [
             'parent_message_id' => $parent->id,
-            'reply_type'        => 'reply',
+            'reply_type' => 'reply',
         ]);
     }
 
@@ -59,7 +59,7 @@ class MessageFactory extends Factory
     {
         return $this->state(fn () => [
             'parent_message_id' => $parent->id,
-            'reply_type'        => 'reply_all',
+            'reply_type' => 'reply_all',
         ]);
     }
 }

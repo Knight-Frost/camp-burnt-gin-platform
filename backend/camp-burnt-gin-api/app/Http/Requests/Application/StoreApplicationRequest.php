@@ -78,20 +78,20 @@ class StoreApplicationRequest extends FormRequest
             ],
             'notes' => ['nullable', 'string', 'max:1000'],
             // Narrative responses from Section "About Your Camper" (free-text)
-            'narrative_rustic_environment'     => ['nullable', 'string', 'max:5000'],
-            'narrative_staff_suggestions'      => ['nullable', 'string', 'max:5000'],
+            'narrative_rustic_environment' => ['nullable', 'string', 'max:5000'],
+            'narrative_staff_suggestions' => ['nullable', 'string', 'max:5000'],
             'narrative_participation_concerns' => ['nullable', 'string', 'max:5000'],
-            'narrative_camp_benefit'           => ['nullable', 'string', 'max:5000'],
-            'narrative_heat_tolerance'         => ['nullable', 'string', 'max:5000'],
-            'narrative_transportation'         => ['nullable', 'string', 'max:5000'],
-            'narrative_additional_info'        => ['nullable', 'string', 'max:5000'],
-            'narrative_emergency_protocols'    => ['nullable', 'string', 'max:5000'],
+            'narrative_camp_benefit' => ['nullable', 'string', 'max:5000'],
+            'narrative_heat_tolerance' => ['nullable', 'string', 'max:5000'],
+            'narrative_transportation' => ['nullable', 'string', 'max:5000'],
+            'narrative_additional_info' => ['nullable', 'string', 'max:5000'],
+            'narrative_emergency_protocols' => ['nullable', 'string', 'max:5000'],
             // Form parity (2026_03_26_000002)
-            'first_application'       => ['nullable', 'boolean'],
-            'attended_before'         => ['nullable', 'boolean'],
-            'session_id_second'       => ['nullable', 'integer', 'exists:camp_sessions,id'],
+            'first_application' => ['nullable', 'boolean'],
+            'attended_before' => ['nullable', 'boolean'],
+            'session_id_second' => ['nullable', 'integer', 'exists:camp_sessions,id'],
             // camp_session_id_second is the canonical column name (mapped from session_id_second via prepareForValidation)
-            'camp_session_id_second'  => ['nullable', 'integer', 'exists:camp_sessions,id'],
+            'camp_session_id_second' => ['nullable', 'integer', 'exists:camp_sessions,id'],
         ];
     }
 

@@ -65,17 +65,17 @@ class ApplicationSubmittedNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $camperName  = $this->application->camper->full_name;
+        $camperName = $this->application->camper->full_name;
         $sessionName = $this->application->campSession->name;
 
         return [
-            'type'          => 'application_submitted',
-            'title'         => "Application submitted for {$camperName}",
-            'message'       => "Your application for {$camperName} ({$sessionName}) has been received and is now pending review.",
+            'type' => 'application_submitted',
+            'title' => "Application submitted for {$camperName}",
+            'message' => "Your application for {$camperName} ({$sessionName}) has been received and is now pending review.",
             'application_id' => $this->application->id,
-            'camper_name'   => $camperName,
-            'camp_session'  => $sessionName,
-            'submitted_at'  => $this->application->submitted_at->toIso8601String(),
+            'camper_name' => $camperName,
+            'camp_session' => $sessionName,
+            'submitted_at' => $this->application->submitted_at->toIso8601String(),
         ];
     }
 }

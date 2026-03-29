@@ -142,25 +142,25 @@ class FormFieldController extends Controller
     private function fieldPayload(FormField $field): array
     {
         return [
-            'id'                => $field->id,
-            'field_key'         => $field->field_key,
-            'label'             => $field->label,
-            'placeholder'       => $field->placeholder,
-            'help_text'         => $field->help_text,
-            'field_type'        => $field->field_type,
-            'is_required'       => $field->is_required,
-            'is_active'         => $field->is_active,
-            'sort_order'        => $field->sort_order,
-            'validation_rules'  => $field->validation_rules,
+            'id' => $field->id,
+            'field_key' => $field->field_key,
+            'label' => $field->label,
+            'placeholder' => $field->placeholder,
+            'help_text' => $field->help_text,
+            'field_type' => $field->field_type,
+            'is_required' => $field->is_required,
+            'is_active' => $field->is_active,
+            'sort_order' => $field->sort_order,
+            'validation_rules' => $field->validation_rules,
             'conditional_logic' => $field->conditional_logic,
-            'default_value'     => $field->default_value,
-            'width'             => $field->width,
-            'options'           => $field->options->map(fn ($opt) => [
-                'id'         => $opt->id,
-                'label'      => $opt->label,
-                'value'      => $opt->value,
+            'default_value' => $field->default_value,
+            'width' => $field->width,
+            'options' => $field->options->map(fn ($opt) => [
+                'id' => $opt->id,
+                'label' => $opt->label,
+                'value' => $opt->value,
                 'sort_order' => $opt->sort_order,
-                'is_active'  => $opt->is_active,
+                'is_active' => $opt->is_active,
             ])->values(),
         ];
     }

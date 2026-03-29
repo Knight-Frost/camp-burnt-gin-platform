@@ -19,31 +19,31 @@ class ApplicationFactory extends Factory
     public function definition(): array
     {
         return [
-            'camper_id'        => Camper::factory(),
-            'camp_session_id'  => CampSession::factory(),
-            'status'           => ApplicationStatus::Pending,
-            'is_draft'         => false,
-            'submitted_at'     => now(),
-            'reviewed_at'      => null,
-            'reviewed_by'      => null,
-            'notes'            => fake()->optional(0.3)->sentence(),
-            'first_application'      => fake()->boolean(60),
-            'attended_before'        => fake()->boolean(40),
+            'camper_id' => Camper::factory(),
+            'camp_session_id' => CampSession::factory(),
+            'status' => ApplicationStatus::Pending,
+            'is_draft' => false,
+            'submitted_at' => now(),
+            'reviewed_at' => null,
+            'reviewed_by' => null,
+            'notes' => fake()->optional(0.3)->sentence(),
+            'first_application' => fake()->boolean(60),
+            'attended_before' => fake()->boolean(40),
             'camp_session_id_second' => null,
             // Signature block
-            'signature_name'     => fake()->name(),
-            'signature_data'     => null, // base64 SVG/PNG; omit in factory to avoid large payloads
-            'signed_at'          => now()->subMinutes(5),
-            'signed_ip_address'  => fake()->ipv4(),
+            'signature_name' => fake()->name(),
+            'signature_data' => null, // base64 SVG/PNG; omit in factory to avoid large payloads
+            'signed_at' => now()->subMinutes(5),
+            'signed_ip_address' => fake()->ipv4(),
             // Narrative fields — free-form long answers on the application form
-            'narrative_rustic_environment'     => fake()->optional(0.5)->paragraph(),
-            'narrative_staff_suggestions'      => fake()->optional(0.5)->paragraph(),
+            'narrative_rustic_environment' => fake()->optional(0.5)->paragraph(),
+            'narrative_staff_suggestions' => fake()->optional(0.5)->paragraph(),
             'narrative_participation_concerns' => fake()->optional(0.4)->paragraph(),
-            'narrative_camp_benefit'           => fake()->optional(0.6)->paragraph(),
-            'narrative_heat_tolerance'         => fake()->optional(0.5)->paragraph(),
-            'narrative_transportation'         => fake()->optional(0.3)->paragraph(),
-            'narrative_additional_info'        => fake()->optional(0.3)->paragraph(),
-            'narrative_emergency_protocols'    => fake()->optional(0.4)->paragraph(),
+            'narrative_camp_benefit' => fake()->optional(0.6)->paragraph(),
+            'narrative_heat_tolerance' => fake()->optional(0.5)->paragraph(),
+            'narrative_transportation' => fake()->optional(0.3)->paragraph(),
+            'narrative_additional_info' => fake()->optional(0.3)->paragraph(),
+            'narrative_emergency_protocols' => fake()->optional(0.4)->paragraph(),
         ];
     }
 
@@ -51,10 +51,10 @@ class ApplicationFactory extends Factory
     public function draft(): static
     {
         return $this->state(fn () => [
-            'is_draft'     => true,
-            'status'       => ApplicationStatus::Pending,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Pending,
             'submitted_at' => null,
-            'signed_at'    => null,
+            'signed_at' => null,
         ]);
     }
 
@@ -72,8 +72,9 @@ class ApplicationFactory extends Factory
     {
         return $this->state(function () {
             $reviewer = User::whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin']))->first();
+
             return [
-                'status'      => ApplicationStatus::Approved,
+                'status' => ApplicationStatus::Approved,
                 'reviewed_at' => now(),
                 'reviewed_by' => $reviewer?->id ?? User::factory()->admin(),
             ];
@@ -85,11 +86,12 @@ class ApplicationFactory extends Factory
     {
         return $this->state(function () {
             $reviewer = User::whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin']))->first();
+
             return [
-                'status'      => ApplicationStatus::Rejected,
+                'status' => ApplicationStatus::Rejected,
                 'reviewed_at' => now(),
                 'reviewed_by' => $reviewer?->id ?? User::factory()->admin(),
-                'notes'       => fake()->sentence(),
+                'notes' => fake()->sentence(),
             ];
         });
     }
@@ -98,7 +100,7 @@ class ApplicationFactory extends Factory
     public function waitlisted(): static
     {
         return $this->state(fn () => [
-            'status'      => ApplicationStatus::Waitlisted,
+            'status' => ApplicationStatus::Waitlisted,
             'reviewed_at' => now(),
         ]);
     }
@@ -107,7 +109,7 @@ class ApplicationFactory extends Factory
     public function cancelled(): static
     {
         return $this->state(fn () => [
-            'status'      => ApplicationStatus::Cancelled,
+            'status' => ApplicationStatus::Cancelled,
             'reviewed_at' => now(),
         ]);
     }

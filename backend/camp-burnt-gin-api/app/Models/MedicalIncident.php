@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\IncidentType;
 use App\Enums\IncidentSeverity;
+use App\Enums\IncidentType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -56,16 +56,16 @@ class MedicalIncident extends Model
     protected function casts(): array
     {
         return [
-            'type'                => IncidentType::class,     // Maps stored string to enum.
-            'severity'            => IncidentSeverity::class, // Maps stored string to enum.
-            'location'            => 'encrypted',
-            'title'               => 'encrypted',
-            'description'         => 'encrypted',
-            'witnesses'           => 'encrypted',
+            'type' => IncidentType::class,     // Maps stored string to enum.
+            'severity' => IncidentSeverity::class, // Maps stored string to enum.
+            'location' => 'encrypted',
+            'title' => 'encrypted',
+            'description' => 'encrypted',
+            'witnesses' => 'encrypted',
             'escalation_required' => 'boolean',
-            'escalation_notes'    => 'encrypted',
+            'escalation_notes' => 'encrypted',
             // 'Y-m-d' format ensures the date is serialised consistently in API responses.
-            'incident_date'       => 'date:Y-m-d',
+            'incident_date' => 'date:Y-m-d',
         ];
     }
 

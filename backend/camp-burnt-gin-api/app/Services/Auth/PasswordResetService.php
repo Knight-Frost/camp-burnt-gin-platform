@@ -52,7 +52,7 @@ class PasswordResetService
      *     already have a pending request — replaces the old one)
      *  4. Send the plain-text token to the user's email inside a clickable link
      *
-     * @return array<string, mixed>  Always returns ['success' => true]
+     * @return array<string, mixed> Always returns ['success' => true]
      */
     public function sendResetLink(string $email): array
     {
@@ -98,7 +98,7 @@ class PasswordResetService
      *  4. Update the user's password with a fresh bcrypt hash
      *  5. Delete the reset token so it can't be used a second time
      *
-     * @return array<string, mixed>  Contains 'success' and optional 'message' on failure
+     * @return array<string, mixed> Contains 'success' and optional 'message' on failure
      */
     public function resetPassword(string $email, string $token, string $password): array
     {

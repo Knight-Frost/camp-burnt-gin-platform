@@ -50,9 +50,9 @@ class EmergencyContactController extends Controller
             'data' => $contacts->items(),
             'meta' => [
                 'current_page' => $contacts->currentPage(),
-                'last_page'    => $contacts->lastPage(),
-                'per_page'     => $contacts->perPage(),
-                'total'        => $contacts->total(),
+                'last_page' => $contacts->lastPage(),
+                'per_page' => $contacts->perPage(),
+                'total' => $contacts->total(),
             ],
         ]);
     }
@@ -76,16 +76,16 @@ class EmergencyContactController extends Controller
 
         if ($request->user()->isAdmin()) {
             AuditLog::logAdminAction(
-                action:      'emergency_contact.created',
-                user:        $request->user(),
-                description: 'Admin created emergency contact for camper ' . $contact->camper_id,
-                metadata:    ['camper_id' => $contact->camper_id, 'contact_id' => $contact->id],
+                action: 'emergency_contact.created',
+                user: $request->user(),
+                description: 'Admin created emergency contact for camper '.$contact->camper_id,
+                metadata: ['camper_id' => $contact->camper_id, 'contact_id' => $contact->id],
             );
         }
 
         return response()->json([
             'message' => 'Emergency contact created successfully.',
-            'data'    => $contact,
+            'data' => $contact,
         ], Response::HTTP_CREATED);
     }
 
@@ -117,7 +117,7 @@ class EmergencyContactController extends Controller
         // Verify the caller can modify this specific contact record.
         $this->authorize('update', $emergencyContact);
 
-        $data        = $request->validated();
+        $data = $request->validated();
         $oldSnapshot = array_intersect_key($emergencyContact->only(array_keys($data)), $data);
 
         $emergencyContact->update($data);
@@ -127,7 +127,7 @@ class EmergencyContactController extends Controller
         if ($oldSnapshot !== $newSnapshot) {
             AuditLog::logContentChange(
                 auditable: $emergencyContact,
-                editor:    $request->user(),
+                editor: $request->user(),
                 oldValues: $oldSnapshot,
                 newValues: $newSnapshot,
             );
@@ -135,7 +135,7 @@ class EmergencyContactController extends Controller
 
         return response()->json([
             'message' => 'Emergency contact updated successfully.',
-            'data'    => $emergencyContact,
+            'data' => $emergencyContact,
         ]);
     }
 

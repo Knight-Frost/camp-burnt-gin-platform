@@ -33,8 +33,8 @@ class MessageRecipient extends Model
     ];
 
     protected $casts = [
-        'is_read'  => 'boolean',
-        'read_at'  => 'datetime',
+        'is_read' => 'boolean',
+        'read_at' => 'datetime',
     ];
 
     /**

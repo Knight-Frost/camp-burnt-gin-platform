@@ -38,8 +38,8 @@ class DocumentRequest extends Model
     ];
 
     protected $casts = [
-        'status'      => DocumentRequestStatus::class,
-        'due_date'    => 'date',
+        'status' => DocumentRequestStatus::class,
+        'due_date' => 'date',
         'uploaded_at' => 'datetime',
         'reviewed_at' => 'datetime',
     ];

@@ -79,22 +79,22 @@ class AnnouncementController extends Controller
         abort_unless($user->isAdmin(), Response::HTTP_FORBIDDEN, 'Admins only.');
 
         $data = $request->validate([
-            'title'             => ['required', 'string', 'max:200'],
-            'body'              => ['required', 'string', 'max:5000'],
-            'is_pinned'         => ['boolean'],
-            'is_urgent'         => ['boolean'],
+            'title' => ['required', 'string', 'max:200'],
+            'body' => ['required', 'string', 'max:5000'],
+            'is_pinned' => ['boolean'],
+            'is_urgent' => ['boolean'],
             // audience must be one of these four values
-            'audience'          => ['required', Rule::in(['all', 'accepted', 'staff', 'session'])],
+            'audience' => ['required', Rule::in(['all', 'accepted', 'staff', 'session'])],
             // target_session_id is only relevant when audience = "session"
             'target_session_id' => ['nullable', 'integer', 'exists:camp_sessions,id'],
             // Future date = scheduled draft; null = publish now
-            'published_at'      => ['nullable', 'date'],
+            'published_at' => ['nullable', 'date'],
         ]);
 
         $announcement = Announcement::create([
             ...$data,
             // Attach this announcement to the currently logged-in admin
-            'author_id'    => $user->id,
+            'author_id' => $user->id,
             // Default to publishing immediately if no date was provided
             'published_at' => $data['published_at'] ?? now(),
         ]);
@@ -104,7 +104,7 @@ class AnnouncementController extends Controller
 
         return response()->json([
             'message' => 'Announcement published.',
-            'data'    => $announcement,
+            'data' => $announcement,
         ], Response::HTTP_CREATED);
     }
 
@@ -155,13 +155,13 @@ class AnnouncementController extends Controller
 
         $data = $request->validate([
             // "sometimes" means the field is only validated if it's present in the request
-            'title'             => ['sometimes', 'string', 'max:200'],
-            'body'              => ['sometimes', 'string', 'max:5000'],
-            'is_pinned'         => ['boolean'],
-            'is_urgent'         => ['boolean'],
-            'audience'          => ['sometimes', Rule::in(['all', 'accepted', 'staff', 'session'])],
+            'title' => ['sometimes', 'string', 'max:200'],
+            'body' => ['sometimes', 'string', 'max:5000'],
+            'is_pinned' => ['boolean'],
+            'is_urgent' => ['boolean'],
+            'audience' => ['sometimes', Rule::in(['all', 'accepted', 'staff', 'session'])],
             'target_session_id' => ['nullable', 'integer', 'exists:camp_sessions,id'],
-            'published_at'      => ['nullable', 'date'],
+            'published_at' => ['nullable', 'date'],
         ]);
 
         $announcement->update($data);
@@ -169,7 +169,7 @@ class AnnouncementController extends Controller
         return response()->json([
             'message' => 'Announcement updated.',
             // fresh() re-reads from DB and loads the author relationship cleanly
-            'data'    => $announcement->fresh(['author:id,name']),
+            'data' => $announcement->fresh(['author:id,name']),
         ]);
     }
 
@@ -208,7 +208,7 @@ class AnnouncementController extends Controller
         $announcement->update(['is_pinned' => ! $announcement->is_pinned]);
 
         return response()->json([
-            'message'   => $announcement->is_pinned ? 'Announcement pinned.' : 'Announcement unpinned.',
+            'message' => $announcement->is_pinned ? 'Announcement pinned.' : 'Announcement unpinned.',
             // Return the new value so the UI can update the pin icon without a refresh
             'is_pinned' => $announcement->is_pinned,
         ]);

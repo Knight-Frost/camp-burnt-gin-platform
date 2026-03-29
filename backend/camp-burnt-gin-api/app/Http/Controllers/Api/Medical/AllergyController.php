@@ -42,9 +42,9 @@ class AllergyController extends Controller
             'data' => $allergies->items(),
             'meta' => [
                 'current_page' => $allergies->currentPage(),
-                'last_page'    => $allergies->lastPage(),
-                'per_page'     => $allergies->perPage(),
-                'total'        => $allergies->total(),
+                'last_page' => $allergies->lastPage(),
+                'per_page' => $allergies->perPage(),
+                'total' => $allergies->total(),
             ],
         ]);
     }
@@ -69,7 +69,7 @@ class AllergyController extends Controller
         // HTTP 201 signals the resource was successfully created.
         return response()->json([
             'message' => 'Allergy created successfully.',
-            'data'    => $allergy,
+            'data' => $allergy,
         ], Response::HTTP_CREATED);
     }
 
@@ -106,7 +106,7 @@ class AllergyController extends Controller
 
         return response()->json([
             'message' => 'Allergy updated successfully.',
-            'data'    => $allergy,
+            'data' => $allergy,
         ]);
     }
 

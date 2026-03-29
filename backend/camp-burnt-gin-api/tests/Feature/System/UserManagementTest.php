@@ -41,11 +41,11 @@ class UserManagementTest extends TestCase
         Sanctum::actingAs($superAdmin);
 
         $response = $this->postJson('/api/users', [
-            'name'                  => 'New Admin',
-            'email'                 => 'newadmin@example.com',
-            'password'              => 'Password123',
+            'name' => 'New Admin',
+            'email' => 'newadmin@example.com',
+            'password' => 'Password123',
             'password_confirmation' => 'Password123',
-            'role'                  => 'admin',
+            'role' => 'admin',
         ]);
 
         $response->assertCreated()
@@ -61,11 +61,11 @@ class UserManagementTest extends TestCase
         Sanctum::actingAs($superAdmin);
 
         $response = $this->postJson('/api/users', [
-            'name'                  => 'Nurse Janet',
-            'email'                 => 'nurse@example.com',
-            'password'              => 'Password123',
+            'name' => 'Nurse Janet',
+            'email' => 'nurse@example.com',
+            'password' => 'Password123',
             'password_confirmation' => 'Password123',
-            'role'                  => 'medical',
+            'role' => 'medical',
         ]);
 
         $response->assertCreated()
@@ -78,11 +78,11 @@ class UserManagementTest extends TestCase
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/users', [
-            'name'                  => 'Someone',
-            'email'                 => 'someone@example.com',
-            'password'              => 'Password123',
+            'name' => 'Someone',
+            'email' => 'someone@example.com',
+            'password' => 'Password123',
             'password_confirmation' => 'Password123',
-            'role'                  => 'admin',
+            'role' => 'admin',
         ])->assertForbidden();
     }
 
@@ -92,26 +92,26 @@ class UserManagementTest extends TestCase
         Sanctum::actingAs($superAdmin);
 
         $this->postJson('/api/users', [
-            'name'                  => 'Parent Person',
-            'email'                 => 'parent@example.com',
-            'password'              => 'Password123',
+            'name' => 'Parent Person',
+            'email' => 'parent@example.com',
+            'password' => 'Password123',
             'password_confirmation' => 'Password123',
-            'role'                  => 'applicant',
+            'role' => 'applicant',
         ])->assertUnprocessable();
     }
 
     public function test_create_user_rejects_duplicate_email(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $existing   = $this->createAdmin(['email' => 'taken@example.com']);
+        $existing = $this->createAdmin(['email' => 'taken@example.com']);
         Sanctum::actingAs($superAdmin);
 
         $this->postJson('/api/users', [
-            'name'                  => 'Another Admin',
-            'email'                 => 'taken@example.com',
-            'password'              => 'Password123',
+            'name' => 'Another Admin',
+            'email' => 'taken@example.com',
+            'password' => 'Password123',
             'password_confirmation' => 'Password123',
-            'role'                  => 'admin',
+            'role' => 'admin',
         ])->assertUnprocessable();
 
         unset($existing); // suppress unused variable warning
@@ -123,11 +123,11 @@ class UserManagementTest extends TestCase
         Sanctum::actingAs($superAdmin);
 
         $this->postJson('/api/users', [
-            'name'                  => 'Test User',
-            'email'                 => 'test@example.com',
-            'password'              => 'Password123',
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'Password123',
             'password_confirmation' => 'DifferentPass123',
-            'role'                  => 'admin',
+            'role' => 'admin',
         ])->assertUnprocessable();
     }
 
@@ -223,7 +223,7 @@ class UserManagementTest extends TestCase
     public function test_super_admin_can_change_user_role(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $parent     = $this->createParent();
+        $parent = $this->createParent();
 
         Sanctum::actingAs($superAdmin);
 
@@ -233,7 +233,7 @@ class UserManagementTest extends TestCase
             ->assertJsonPath('data.role', 'admin');
 
         $this->assertDatabaseHas('users', [
-            'id'      => $parent->id,
+            'id' => $parent->id,
             'role_id' => $this->adminRole->id,
         ]);
     }
@@ -250,7 +250,7 @@ class UserManagementTest extends TestCase
 
     public function test_admin_cannot_change_roles(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         Sanctum::actingAs($admin);
 
@@ -260,7 +260,7 @@ class UserManagementTest extends TestCase
     public function test_role_change_rejects_invalid_role(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $parent     = $this->createParent();
+        $parent = $this->createParent();
         Sanctum::actingAs($superAdmin);
 
         $this->putJson("/api/users/{$parent->id}/role", ['role' => 'nonexistent_role'])
@@ -272,9 +272,9 @@ class UserManagementTest extends TestCase
     public function test_super_admin_can_deactivate_user(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $parent     = User::factory()->create([
-            'role_id'            => $this->parentRole->id,
-            'email_verified_at'  => now(),
+        $parent = User::factory()->create([
+            'role_id' => $this->parentRole->id,
+            'email_verified_at' => now(),
         ]);
 
         Sanctum::actingAs($superAdmin);
@@ -295,7 +295,7 @@ class UserManagementTest extends TestCase
 
     public function test_admin_cannot_deactivate_users(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         Sanctum::actingAs($admin);
 
@@ -307,9 +307,9 @@ class UserManagementTest extends TestCase
     public function test_super_admin_can_reactivate_user(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $parent     = User::factory()->create([
-            'role_id'            => $this->parentRole->id,
-            'email_verified_at'  => null,
+        $parent = User::factory()->create([
+            'role_id' => $this->parentRole->id,
+            'email_verified_at' => null,
         ]);
 
         Sanctum::actingAs($superAdmin);
@@ -330,9 +330,9 @@ class UserManagementTest extends TestCase
 
     public function test_admin_cannot_reactivate_users(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = User::factory()->create([
-            'role_id'           => $this->parentRole->id,
+            'role_id' => $this->parentRole->id,
             'email_verified_at' => null,
         ]);
         Sanctum::actingAs($admin);

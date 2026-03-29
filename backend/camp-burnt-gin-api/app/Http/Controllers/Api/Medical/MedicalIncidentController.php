@@ -72,9 +72,9 @@ class MedicalIncidentController extends Controller
             'data' => $incidents->items(),
             'meta' => [
                 'current_page' => $incidents->currentPage(),
-                'last_page'    => $incidents->lastPage(),
-                'per_page'     => $incidents->perPage(),
-                'total'        => $incidents->total(),
+                'last_page' => $incidents->lastPage(),
+                'per_page' => $incidents->perPage(),
+                'total' => $incidents->total(),
             ],
         ]);
     }
@@ -94,18 +94,18 @@ class MedicalIncidentController extends Controller
         // Validate all required and optional fields with explicit rules.
         // 'before_or_equal:today' prevents back-dating beyond today's date.
         $validated = $request->validate([
-            'camper_id'           => 'required|integer|exists:campers,id',
-            'treatment_log_id'    => 'nullable|integer|exists:treatment_logs,id',
-            'type'                => 'required|string|in:behavioral,medical,injury,environmental,emergency,other',
-            'severity'            => 'required|string|in:minor,moderate,severe,critical',
-            'location'            => 'nullable|string|max:255',
-            'title'               => 'required|string|max:500',
-            'description'         => 'required|string|max:5000',
-            'witnesses'           => 'nullable|string|max:2000',
+            'camper_id' => 'required|integer|exists:campers,id',
+            'treatment_log_id' => 'nullable|integer|exists:treatment_logs,id',
+            'type' => 'required|string|in:behavioral,medical,injury,environmental,emergency,other',
+            'severity' => 'required|string|in:minor,moderate,severe,critical',
+            'location' => 'nullable|string|max:255',
+            'title' => 'required|string|max:500',
+            'description' => 'required|string|max:5000',
+            'witnesses' => 'nullable|string|max:2000',
             'escalation_required' => 'boolean',
-            'escalation_notes'    => 'nullable|string|max:2000',
-            'incident_date'       => 'required|date|before_or_equal:today',
-            'incident_time'       => 'nullable|date_format:H:i',
+            'escalation_notes' => 'nullable|string|max:2000',
+            'incident_date' => 'required|date|before_or_equal:today',
+            'incident_time' => 'nullable|date_format:H:i',
         ]);
 
         // Merge the server-determined recorder ID into the validated payload.
@@ -119,7 +119,7 @@ class MedicalIncidentController extends Controller
 
         return response()->json([
             'message' => 'Medical incident recorded successfully.',
-            'data'    => $incident,
+            'data' => $incident,
         ], Response::HTTP_CREATED);
     }
 
@@ -153,17 +153,17 @@ class MedicalIncidentController extends Controller
 
         // 'sometimes' means the field is only validated if it was included in the request.
         $validated = $request->validate([
-            'type'                => 'sometimes|string|in:behavioral,medical,injury,environmental,emergency,other',
-            'severity'            => 'sometimes|string|in:minor,moderate,severe,critical',
-            'location'            => 'nullable|string|max:255',
-            'title'               => 'sometimes|string|max:500',
-            'description'         => 'sometimes|string|max:5000',
-            'witnesses'           => 'nullable|string|max:2000',
+            'type' => 'sometimes|string|in:behavioral,medical,injury,environmental,emergency,other',
+            'severity' => 'sometimes|string|in:minor,moderate,severe,critical',
+            'location' => 'nullable|string|max:255',
+            'title' => 'sometimes|string|max:500',
+            'description' => 'sometimes|string|max:5000',
+            'witnesses' => 'nullable|string|max:2000',
             'escalation_required' => 'boolean',
-            'escalation_notes'    => 'nullable|string|max:2000',
-            'incident_date'       => 'sometimes|date|before_or_equal:today',
-            'incident_time'       => 'nullable|date_format:H:i',
-            'treatment_log_id'    => 'nullable|integer|exists:treatment_logs,id',
+            'escalation_notes' => 'nullable|string|max:2000',
+            'incident_date' => 'sometimes|date|before_or_equal:today',
+            'incident_time' => 'nullable|date_format:H:i',
+            'treatment_log_id' => 'nullable|integer|exists:treatment_logs,id',
         ]);
 
         $medicalIncident->update($validated);
@@ -173,7 +173,7 @@ class MedicalIncidentController extends Controller
 
         return response()->json([
             'message' => 'Medical incident updated successfully.',
-            'data'    => $medicalIncident,
+            'data' => $medicalIncident,
         ]);
     }
 

@@ -57,20 +57,20 @@ class FeedingPlan extends Model
     protected function casts(): array
     {
         return [
-            'special_diet'    => 'boolean',
+            'special_diet' => 'boolean',
             // PHI field — encrypted at rest for HIPAA compliance
             'diet_description' => 'encrypted',
-            'g_tube'           => 'boolean',
+            'g_tube' => 'boolean',
             'feedings_per_day' => 'integer',
             // Stored as JSON array of scheduled times; decoded to PHP array on read
-            'feeding_times'    => 'array',
-            'bolus_only'        => 'boolean',
+            'feeding_times' => 'array',
+            'bolus_only' => 'boolean',
             // PHI field — encrypted at rest for HIPAA compliance
-            'notes'             => 'encrypted',
+            'notes' => 'encrypted',
             // Phase 2 texture/fluid fields
-            'texture_modified'  => 'boolean',
+            'texture_modified' => 'boolean',
             'fluid_restriction' => 'boolean',
-            'fluid_details'     => 'encrypted',   // PHI — describes clinical fluid protocol.
+            'fluid_details' => 'encrypted',   // PHI — describes clinical fluid protocol.
         ];
     }
 

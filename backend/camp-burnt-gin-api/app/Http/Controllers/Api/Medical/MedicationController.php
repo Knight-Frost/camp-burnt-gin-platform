@@ -42,9 +42,9 @@ class MedicationController extends Controller
             'data' => $medications->items(),
             'meta' => [
                 'current_page' => $medications->currentPage(),
-                'last_page'    => $medications->lastPage(),
-                'per_page'     => $medications->perPage(),
-                'total'        => $medications->total(),
+                'last_page' => $medications->lastPage(),
+                'per_page' => $medications->perPage(),
+                'total' => $medications->total(),
             ],
         ]);
     }
@@ -69,7 +69,7 @@ class MedicationController extends Controller
         // HTTP 201 signals the resource was successfully created.
         return response()->json([
             'message' => 'Medication created successfully.',
-            'data'    => $medication,
+            'data' => $medication,
         ], Response::HTTP_CREATED);
     }
 
@@ -106,7 +106,7 @@ class MedicationController extends Controller
 
         return response()->json([
             'message' => 'Medication updated successfully.',
-            'data'    => $medication,
+            'data' => $medication,
         ]);
     }
 

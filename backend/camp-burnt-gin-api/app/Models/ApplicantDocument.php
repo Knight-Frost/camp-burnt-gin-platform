@@ -32,7 +32,7 @@ class ApplicantDocument extends Model
     ];
 
     protected $casts = [
-        'status'      => ApplicantDocumentStatus::class,
+        'status' => ApplicantDocumentStatus::class,
         'reviewed_at' => 'datetime',
     ];
 

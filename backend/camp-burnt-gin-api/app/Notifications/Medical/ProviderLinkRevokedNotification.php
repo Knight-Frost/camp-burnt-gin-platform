@@ -80,12 +80,12 @@ class ProviderLinkRevokedNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'type'           => 'provider_link_revoked',
-            'camper_id'      => $this->link->camper_id,
-            'camper_name'    => $this->link->camper->full_name,
+            'type' => 'provider_link_revoked',
+            'camper_id' => $this->link->camper_id,
+            'camper_name' => $this->link->camper->full_name,
             'provider_email' => $this->link->provider_email,
             // ISO 8601 format so the frontend can parse and display "revoked 2 hours ago"
-            'revoked_at'     => $this->link->revoked_at->toIso8601String(),
+            'revoked_at' => $this->link->revoked_at->toIso8601String(),
         ];
     }
 }

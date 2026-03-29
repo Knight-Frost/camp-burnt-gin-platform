@@ -154,7 +154,7 @@ class Message extends Model
             return;
         }
         // Only create a receipt if one doesn't already exist for this user.
-        if (!$this->isReadBy($user)) {
+        if (! $this->isReadBy($user)) {
             $this->reads()->create([
                 'user_id' => $user->id,
                 'read_at' => now(),
@@ -225,7 +225,7 @@ class Message extends Model
         })->where(function ($q) use ($user) {
             // Include system messages (no sender) OR messages not sent by this user.
             $q->whereNull('sender_id')
-              ->orWhere('sender_id', '!=', $user->id);
+                ->orWhere('sender_id', '!=', $user->id);
         });
     }
 

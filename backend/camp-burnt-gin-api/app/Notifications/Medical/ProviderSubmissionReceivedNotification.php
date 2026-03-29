@@ -81,12 +81,12 @@ class ProviderSubmissionReceivedNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'type'           => 'provider_submission_received',
-            'camper_id'      => $this->link->camper_id,
-            'camper_name'    => $this->link->camper->full_name,
+            'type' => 'provider_submission_received',
+            'camper_id' => $this->link->camper_id,
+            'camper_name' => $this->link->camper->full_name,
             'provider_email' => $this->link->provider_email,
             // ISO 8601 format so the frontend can render "submitted 3 hours ago"
-            'submitted_at'   => $this->link->submitted_at->toIso8601String(),
+            'submitted_at' => $this->link->submitted_at->toIso8601String(),
         ];
     }
 }

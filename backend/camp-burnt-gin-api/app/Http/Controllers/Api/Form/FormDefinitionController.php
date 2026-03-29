@@ -43,14 +43,14 @@ class FormDefinitionController extends Controller
             ->orderByDesc('version')
             ->get()
             ->map(fn ($def) => [
-                'id'            => $def->id,
-                'name'          => $def->name,
-                'version'       => $def->version,
-                'status'        => $def->status,
-                'description'   => $def->description,
-                'published_at'  => $def->published_at?->toIso8601String(),
-                'created_by'    => $def->createdBy?->name,
-                'created_at'    => $def->created_at->toIso8601String(),
+                'id' => $def->id,
+                'name' => $def->name,
+                'version' => $def->version,
+                'status' => $def->status,
+                'description' => $def->description,
+                'published_at' => $def->published_at?->toIso8601String(),
+                'created_by' => $def->createdBy?->name,
+                'created_at' => $def->created_at->toIso8601String(),
                 'section_count' => $def->sections_count,
             ]);
 
@@ -68,34 +68,34 @@ class FormDefinitionController extends Controller
 
         $sections = $form->sections->map(function ($section) {
             return [
-                'id'          => $section->id,
-                'title'       => $section->title,
+                'id' => $section->id,
+                'title' => $section->title,
                 'short_title' => $section->short_title,
                 'description' => $section->description,
-                'icon_name'   => $section->icon_name,
-                'sort_order'  => $section->sort_order,
-                'is_active'   => $section->is_active,
-                'fields'      => $section->fields->map(function ($field) {
+                'icon_name' => $section->icon_name,
+                'sort_order' => $section->sort_order,
+                'is_active' => $section->is_active,
+                'fields' => $section->fields->map(function ($field) {
                     return [
-                        'id'                => $field->id,
-                        'field_key'         => $field->field_key,
-                        'label'             => $field->label,
-                        'placeholder'       => $field->placeholder,
-                        'help_text'         => $field->help_text,
-                        'field_type'        => $field->field_type,
-                        'is_required'       => $field->is_required,
-                        'is_active'         => $field->is_active,
-                        'sort_order'        => $field->sort_order,
-                        'validation_rules'  => $field->validation_rules,
+                        'id' => $field->id,
+                        'field_key' => $field->field_key,
+                        'label' => $field->label,
+                        'placeholder' => $field->placeholder,
+                        'help_text' => $field->help_text,
+                        'field_type' => $field->field_type,
+                        'is_required' => $field->is_required,
+                        'is_active' => $field->is_active,
+                        'sort_order' => $field->sort_order,
+                        'validation_rules' => $field->validation_rules,
                         'conditional_logic' => $field->conditional_logic,
-                        'default_value'     => $field->default_value,
-                        'width'             => $field->width,
-                        'options'           => $field->options->map(fn ($opt) => [
-                            'id'         => $opt->id,
-                            'label'      => $opt->label,
-                            'value'      => $opt->value,
+                        'default_value' => $field->default_value,
+                        'width' => $field->width,
+                        'options' => $field->options->map(fn ($opt) => [
+                            'id' => $opt->id,
+                            'label' => $opt->label,
+                            'value' => $opt->value,
                             'sort_order' => $opt->sort_order,
-                            'is_active'  => $opt->is_active,
+                            'is_active' => $opt->is_active,
                         ])->values(),
                     ];
                 })->values(),
@@ -103,17 +103,17 @@ class FormDefinitionController extends Controller
         })->values();
 
         return response()->json(['data' => [
-            'id'           => $form->id,
-            'name'         => $form->name,
-            'slug'         => $form->slug,
-            'version'      => $form->version,
-            'status'       => $form->status,
-            'description'  => $form->description,
+            'id' => $form->id,
+            'name' => $form->name,
+            'slug' => $form->slug,
+            'version' => $form->version,
+            'status' => $form->status,
+            'description' => $form->description,
             'published_at' => $form->published_at?->toIso8601String(),
-            'created_by'   => $form->createdBy?->name,
-            'created_at'   => $form->created_at->toIso8601String(),
-            'is_editable'  => $form->isEditable(),
-            'sections'     => $sections,
+            'created_by' => $form->createdBy?->name,
+            'created_at' => $form->created_at->toIso8601String(),
+            'is_editable' => $form->isEditable(),
+            'sections' => $sections,
         ]]);
     }
 
@@ -125,14 +125,14 @@ class FormDefinitionController extends Controller
         $this->authorize('create', FormDefinition::class);
 
         $maxVersion = FormDefinition::max('version') ?? 0;
-        $name       = $request->validated()['name'];
+        $name = $request->validated()['name'];
 
         $form = FormDefinition::create([
-            'name'               => $name,
-            'slug'               => Str::slug($name) . '-v' . ($maxVersion + 1),
-            'version'            => $maxVersion + 1,
-            'status'             => 'draft',
-            'description'        => $request->validated()['description'] ?? null,
+            'name' => $name,
+            'slug' => Str::slug($name).'-v'.($maxVersion + 1),
+            'version' => $maxVersion + 1,
+            'status' => 'draft',
+            'description' => $request->validated()['description'] ?? null,
             'created_by_user_id' => $request->user()->id,
         ]);
 

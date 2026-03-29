@@ -45,14 +45,14 @@ class UpdateApplicationRequest extends FormRequest
 
         $rules = [
             // Narrative responses — writable by both admins and applicants.
-            'narrative_rustic_environment'     => ['nullable', 'string', 'max:5000'],
-            'narrative_staff_suggestions'      => ['nullable', 'string', 'max:5000'],
+            'narrative_rustic_environment' => ['nullable', 'string', 'max:5000'],
+            'narrative_staff_suggestions' => ['nullable', 'string', 'max:5000'],
             'narrative_participation_concerns' => ['nullable', 'string', 'max:5000'],
-            'narrative_camp_benefit'           => ['nullable', 'string', 'max:5000'],
-            'narrative_heat_tolerance'         => ['nullable', 'string', 'max:5000'],
-            'narrative_transportation'         => ['nullable', 'string', 'max:5000'],
-            'narrative_additional_info'        => ['nullable', 'string', 'max:5000'],
-            'narrative_emergency_protocols'    => ['nullable', 'string', 'max:5000'],
+            'narrative_camp_benefit' => ['nullable', 'string', 'max:5000'],
+            'narrative_heat_tolerance' => ['nullable', 'string', 'max:5000'],
+            'narrative_transportation' => ['nullable', 'string', 'max:5000'],
+            'narrative_additional_info' => ['nullable', 'string', 'max:5000'],
+            'narrative_emergency_protocols' => ['nullable', 'string', 'max:5000'],
         ];
 
         if ($isAdmin) {

@@ -60,24 +60,24 @@ class MessagingSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin   = User::where('email', 'admin@example.com')->firstOrFail();
-        $admin2  = User::where('email', 'admin2@campburntgin.org')->firstOrFail();
-        $taylor  = User::where('email', 'admin3@campburntgin.org')->firstOrFail();
+        $admin = User::where('email', 'admin@example.com')->firstOrFail();
+        $admin2 = User::where('email', 'admin2@campburntgin.org')->firstOrFail();
+        $taylor = User::where('email', 'admin3@campburntgin.org')->firstOrFail();
         $medical = User::where('email', 'medical@example.com')->firstOrFail();
-        $jamie   = User::where('email', 'medical2@campburntgin.org')->firstOrFail();
-        $dana    = User::where('email', 'mfa.admin@campburntgin.org')->firstOrFail();
+        $jamie = User::where('email', 'medical2@campburntgin.org')->firstOrFail();
+        $dana = User::where('email', 'mfa.admin@campburntgin.org')->firstOrFail();
 
         // Applicant users
-        $sarah    = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
-        $michael  = User::where('email', 'michael.williams@example.com')->firstOrFail();
+        $sarah = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
+        $michael = User::where('email', 'michael.williams@example.com')->firstOrFail();
         $jennifer = User::where('email', 'jennifer.thompson@example.com')->firstOrFail();
-        $david    = User::where('email', 'david.martinez@example.com')->firstOrFail();
-        $grace    = User::where('email', 'grace.wilson@example.com')->firstOrFail();
-        $anthony  = User::where('email', 'anthony.campbell@example.com')->firstOrFail();
+        $david = User::where('email', 'david.martinez@example.com')->firstOrFail();
+        $grace = User::where('email', 'grace.wilson@example.com')->firstOrFail();
+        $anthony = User::where('email', 'anthony.campbell@example.com')->firstOrFail();
         $patricia = User::where('email', 'patricia.davis@example.com')->firstOrFail();
-        $robert   = User::where('email', 'robert.anderson@example.com')->firstOrFail();
-        $lisa     = User::where('email', 'lisa.rodriguez@example.com')->firstOrFail();
-        $james    = User::where('email', 'james.carter@example.com')->firstOrFail();
+        $robert = User::where('email', 'robert.anderson@example.com')->firstOrFail();
+        $lisa = User::where('email', 'lisa.rodriguez@example.com')->firstOrFail();
+        $james = User::where('email', 'james.carter@example.com')->firstOrFail();
         $michelle = User::where('email', 'michelle.robinson@example.com')->firstOrFail();
 
         // Sessions & campers
@@ -85,41 +85,41 @@ class MessagingSeeder extends Seeder
         $session2 = CampSession::where('name', 'Session 2 — Summer 2026')->firstOrFail();
         $session1Past = CampSession::where('name', 'Session 1 — Summer 2025')->firstOrFail();
 
-        $ethan   = Camper::where('first_name', 'Ethan')->where('last_name', 'Johnson')->firstOrFail();
-        $ava     = Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail();
-        $lucas   = Camper::where('first_name', 'Lucas')->where('last_name', 'Williams')->firstOrFail();
-        $noah    = Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail();
-        $sofia   = Camper::where('first_name', 'Sofia')->where('last_name', 'Martinez')->firstOrFail();
-        $tyler   = Camper::where('first_name', 'Tyler')->where('last_name', 'Wilson')->firstOrFail();
-        $penny   = Camper::where('first_name', 'Penelope')->where('last_name', 'Campbell')->firstOrFail();
-        $mia     = Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail();
-        $emma    = Camper::where('first_name', 'Emma')->where('last_name', 'Anderson')->firstOrFail();
-        $chloe   = Camper::where('first_name', 'Chloe')->where('last_name', 'Rodriguez')->firstOrFail();
+        $ethan = Camper::where('first_name', 'Ethan')->where('last_name', 'Johnson')->firstOrFail();
+        $ava = Camper::where('first_name', 'Ava')->where('last_name', 'Williams')->firstOrFail();
+        $lucas = Camper::where('first_name', 'Lucas')->where('last_name', 'Williams')->firstOrFail();
+        $noah = Camper::where('first_name', 'Noah')->where('last_name', 'Thompson')->firstOrFail();
+        $sofia = Camper::where('first_name', 'Sofia')->where('last_name', 'Martinez')->firstOrFail();
+        $tyler = Camper::where('first_name', 'Tyler')->where('last_name', 'Wilson')->firstOrFail();
+        $penny = Camper::where('first_name', 'Penelope')->where('last_name', 'Campbell')->firstOrFail();
+        $mia = Camper::where('first_name', 'Mia')->where('last_name', 'Davis')->firstOrFail();
+        $emma = Camper::where('first_name', 'Emma')->where('last_name', 'Anderson')->firstOrFail();
+        $chloe = Camper::where('first_name', 'Chloe')->where('last_name', 'Rodriguez')->firstOrFail();
 
-        $appEthan  = Application::where('camper_id', $ethan->id)->where('camp_session_id', $session1->id)->first();
-        $appAva    = Application::where('camper_id', $ava->id)->where('camp_session_id', $session2->id)->first();
-        $appLucas  = Application::where('camper_id', $lucas->id)->where('camp_session_id', $session1->id)->first();
-        $appNoah   = Application::where('camper_id', $noah->id)->where('camp_session_id', $session1->id)->first();
-        $appSofia  = Application::where('camper_id', $sofia->id)->where('camp_session_id', $session1->id)->first();
-        $appChloe  = Application::where('camper_id', $chloe->id)->where('camp_session_id', $session1->id)->first();
-        $appMia25  = Application::where('camper_id', $mia->id)->where('camp_session_id', $session1Past->id)->first();
-        $henry     = Camper::where('first_name', 'Henry')->where('last_name', 'Carter')->firstOrFail();
-        $appHenry  = Application::where('camper_id', $henry->id)->where('camp_session_id', $session1->id)->first();
+        $appEthan = Application::where('camper_id', $ethan->id)->where('camp_session_id', $session1->id)->first();
+        $appAva = Application::where('camper_id', $ava->id)->where('camp_session_id', $session2->id)->first();
+        $appLucas = Application::where('camper_id', $lucas->id)->where('camp_session_id', $session1->id)->first();
+        $appNoah = Application::where('camper_id', $noah->id)->where('camp_session_id', $session1->id)->first();
+        $appSofia = Application::where('camper_id', $sofia->id)->where('camp_session_id', $session1->id)->first();
+        $appChloe = Application::where('camper_id', $chloe->id)->where('camp_session_id', $session1->id)->first();
+        $appMia25 = Application::where('camper_id', $mia->id)->where('camp_session_id', $session1Past->id)->first();
+        $henry = Camper::where('first_name', 'Henry')->where('last_name', 'Carter')->firstOrFail();
+        $appHenry = Application::where('camper_id', $henry->id)->where('camp_session_id', $session1->id)->first();
 
         // ── T01: Sarah → Ethan application confirmation ───────────────────────
         if (! Conversation::where('subject', 'Re: Ethan\'s Summer 2026 Application — confirmation')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $sarah->id,
-                'subject'         => 'Re: Ethan\'s Summer 2026 Application — confirmation',
-                'category'        => 'Application',
-                'application_id'  => $appEthan?->id,
-                'camper_id'       => $ethan->id,
+                'created_by_id' => $sarah->id,
+                'subject' => 'Re: Ethan\'s Summer 2026 Application — confirmation',
+                'category' => 'Application',
+                'application_id' => $appEthan?->id,
+                'camper_id' => $ethan->id,
                 'camp_session_id' => $session1->id,
                 'last_message_at' => now()->subHours(14),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
-            $this->addParticipant($conv, $sarah,  now()->subDays(4), is_starred: true);
-            $this->addParticipant($conv, $admin,  now()->subDays(4));
+            $this->addParticipant($conv, $sarah, now()->subDays(4), is_starred: true);
+            $this->addParticipant($conv, $admin, now()->subDays(4));
 
             $m1 = $this->addMessage($conv, $sarah, now()->subDays(4),
                 "Hello,\n\nI submitted Ethan's application for Session 1 — Summer 2026 yesterday. I just wanted to confirm you received everything and ask approximately how long the review process takes?\n\nThank you so much,\nSarah Johnson");
@@ -137,16 +137,16 @@ class MessagingSeeder extends Seeder
         // ── T02: Michael Williams → Ava's insulin pump requirements ──────────
         if (! Conversation::where('subject', 'Question about Ava\'s OmniPod insulin pump at camp')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $michael->id,
-                'subject'         => 'Question about Ava\'s OmniPod insulin pump at camp',
-                'category'        => 'Medical',
-                'application_id'  => $appAva?->id,
-                'camper_id'       => $ava->id,
+                'created_by_id' => $michael->id,
+                'subject' => 'Question about Ava\'s OmniPod insulin pump at camp',
+                'category' => 'Medical',
+                'application_id' => $appAva?->id,
+                'camper_id' => $ava->id,
                 'last_message_at' => now()->subHours(2),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $michael, now()->subDays(6), is_important: true);
-            $this->addParticipant($conv, $admin,   now()->subDays(6));
+            $this->addParticipant($conv, $admin, now()->subDays(6));
             $this->addParticipant($conv, $medical, now()->subDays(5));
 
             $m1 = $this->addMessage($conv, $michael, now()->subDays(6),
@@ -171,16 +171,16 @@ class MessagingSeeder extends Seeder
         // ── T03: Jennifer Thompson → why was Noah rejected ────────────────────
         if (! Conversation::where('subject', 'Inquiry about Noah\'s application decision')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $jennifer->id,
-                'subject'         => 'Inquiry about Noah\'s application decision',
-                'category'        => 'Application',
-                'application_id'  => $appNoah?->id,
-                'camper_id'       => $noah->id,
+                'created_by_id' => $jennifer->id,
+                'subject' => 'Inquiry about Noah\'s application decision',
+                'category' => 'Application',
+                'application_id' => $appNoah?->id,
+                'camper_id' => $noah->id,
                 'last_message_at' => now()->subDays(1),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $jennifer, now()->subDays(7));
-            $this->addParticipant($conv, $admin,    now()->subDays(7));
+            $this->addParticipant($conv, $admin, now()->subDays(7));
 
             $m1 = $this->addMessage($conv, $jennifer, now()->subDays(7),
                 "Hello,\n\nWe received a notification that Noah's application for Session 1 — Summer 2026 was not accepted. I'm hoping to understand the reason so we can address it. Noah attended a session with you before and we thought everything was in order.\n\nCould someone please explain what happened?\n\nThank you,\nJennifer Thompson");
@@ -197,15 +197,15 @@ class MessagingSeeder extends Seeder
         // ── T04: David Martinez → Sofia's CIC protocol ────────────────────────
         if (! Conversation::where('subject', 'Clean Intermittent Catheterization — procedure questions')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $david->id,
-                'subject'         => 'Clean Intermittent Catheterization — procedure questions',
-                'category'        => 'Medical',
-                'camper_id'       => $sofia->id,
-                'application_id'  => $appSofia?->id,
+                'created_by_id' => $david->id,
+                'subject' => 'Clean Intermittent Catheterization — procedure questions',
+                'category' => 'Medical',
+                'camper_id' => $sofia->id,
+                'application_id' => $appSofia?->id,
                 'last_message_at' => now()->subDays(2),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
-            $this->addParticipant($conv, $david,   now()->subDays(10));
+            $this->addParticipant($conv, $david, now()->subDays(10));
             $this->addParticipant($conv, $medical, now()->subDays(10));
 
             $m1 = $this->addMessage($conv, $david, now()->subDays(10),
@@ -219,12 +219,12 @@ class MessagingSeeder extends Seeder
         // ── T05: Grace Wilson → Tyler's waitlist status ───────────────────────
         if (! Conversation::where('subject', 'Waitlist question for Tyler — Session 1 2026')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $grace->id,
-                'subject'         => 'Waitlist question for Tyler — Session 1 2026',
-                'category'        => 'Application',
-                'camper_id'       => $tyler->id,
+                'created_by_id' => $grace->id,
+                'subject' => 'Waitlist question for Tyler — Session 1 2026',
+                'category' => 'Application',
+                'camper_id' => $tyler->id,
                 'last_message_at' => now()->subDays(3),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $grace, now()->subDays(3));
             $this->addParticipant($conv, $admin, now()->subDays(3));
@@ -238,15 +238,15 @@ class MessagingSeeder extends Seeder
         // ── T06: Anthony Campbell → Penelope's AAC device ────────────────────
         if (! Conversation::where('subject', 'Penelope\'s AAC communication device at camp')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $anthony->id,
-                'subject'         => 'Penelope\'s AAC communication device at camp',
-                'category'        => 'Medical',
-                'camper_id'       => $penny->id,
+                'created_by_id' => $anthony->id,
+                'subject' => 'Penelope\'s AAC communication device at camp',
+                'category' => 'Medical',
+                'camper_id' => $penny->id,
                 'last_message_at' => now()->subDays(1),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $anthony, now()->subDays(8));
-            $this->addParticipant($conv, $admin,   now()->subDays(7));
+            $this->addParticipant($conv, $admin, now()->subDays(7));
             $this->addParticipant($conv, $medical, now()->subDays(7));
 
             $m1 = $this->addMessage($conv, $anthony, now()->subDays(8),
@@ -265,15 +265,15 @@ class MessagingSeeder extends Seeder
         // ── T07: Admin broadcast — S1-2026 pre-camp information ───────────────
         if (! Conversation::where('subject', 'Important: Session 1 — Summer 2026 Pre-Camp Information')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $admin->id,
-                'subject'         => 'Important: Session 1 — Summer 2026 Pre-Camp Information',
-                'category'        => 'General',
+                'created_by_id' => $admin->id,
+                'subject' => 'Important: Session 1 — Summer 2026 Pre-Camp Information',
+                'category' => 'General',
                 'camp_session_id' => $session1->id,
                 'last_message_at' => now()->subDays(5),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
-            $this->addParticipant($conv, $admin,   now()->subDays(5));
-            $this->addParticipant($conv, $sarah,   now()->subDays(5));
+            $this->addParticipant($conv, $admin, now()->subDays(5));
+            $this->addParticipant($conv, $sarah, now()->subDays(5));
             $this->addParticipant($conv, $michael, now()->subDays(5));
 
             $m1 = $this->addMessage($conv, $admin, now()->subDays(5),
@@ -286,16 +286,16 @@ class MessagingSeeder extends Seeder
         // ── T08: Archived — Patricia Davis 2025 medication thread ─────────────
         if (! Conversation::where('subject', 'Mia\'s Hydroxyurea — 2025 session clarification')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $patricia->id,
-                'subject'         => 'Mia\'s Hydroxyurea — 2025 session clarification',
-                'category'        => 'Medical',
-                'camper_id'       => $mia->id,
-                'application_id'  => $appMia25?->id,
+                'created_by_id' => $patricia->id,
+                'subject' => 'Mia\'s Hydroxyurea — 2025 session clarification',
+                'category' => 'Medical',
+                'camper_id' => $mia->id,
+                'application_id' => $appMia25?->id,
                 'last_message_at' => now()->subDays(275),
-                'is_archived'     => true, // fully archived old thread
+                'is_archived' => true, // fully archived old thread
             ]);
             $this->addParticipant($conv, $patricia, now()->subDays(310), is_starred: false);
-            $this->addParticipant($conv, $medical,  now()->subDays(310));
+            $this->addParticipant($conv, $medical, now()->subDays(310));
 
             $m1 = $this->addMessage($conv, $patricia, now()->subDays(310),
                 "Hi, I wanted to confirm the timing for Mia's Hydroxyurea dose during camp — her hematologist recommends it be given in the evening with food. Is that manageable for the nursing schedule?");
@@ -312,34 +312,34 @@ class MessagingSeeder extends Seeder
         // ── T09: Trashed — duplicate question from Sarah ──────────────────────
         if (! Conversation::where('subject', 'Ethan\'s application — quick question (duplicate)')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $sarah->id,
-                'subject'         => 'Ethan\'s application — quick question (duplicate)',
-                'category'        => 'Application',
-                'camper_id'       => $ethan->id,
+                'created_by_id' => $sarah->id,
+                'subject' => 'Ethan\'s application — quick question (duplicate)',
+                'category' => 'Application',
+                'camper_id' => $ethan->id,
                 'last_message_at' => now()->subDays(4),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             // Sarah trashed this conversation (sent the duplicate by mistake)
             $this->addParticipant($conv, $sarah, now()->subDays(4), trashed_at: now()->subDays(3));
             $this->addParticipant($conv, $admin, now()->subDays(4));
 
             $m1 = $this->addMessage($conv, $sarah, now()->subDays(4),
-                "Hi, I sent this by mistake — please ignore. I already have a thread open for this.");
+                'Hi, I sent this by mistake — please ignore. I already have a thread open for this.');
         }
 
         // ── T10: Multi-turn — Robert Anderson → Emma's g-tube positioning ─────
         if (! Conversation::where('subject', 'Emma\'s g-tube site — positioning and activity restrictions')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $robert->id,
-                'subject'         => 'Emma\'s g-tube site — positioning and activity restrictions',
-                'category'        => 'Medical',
-                'camper_id'       => $emma->id,
+                'created_by_id' => $robert->id,
+                'subject' => 'Emma\'s g-tube site — positioning and activity restrictions',
+                'category' => 'Medical',
+                'camper_id' => $emma->id,
                 'last_message_at' => now()->subHours(6),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
-            $this->addParticipant($conv, $robert,  now()->subDays(12));
+            $this->addParticipant($conv, $robert, now()->subDays(12));
             $this->addParticipant($conv, $medical, now()->subDays(12));
-            $this->addParticipant($conv, $admin2,  now()->subDays(11));
+            $this->addParticipant($conv, $admin2, now()->subDays(11));
 
             $m1 = $this->addMessage($conv, $robert, now()->subDays(12),
                 "Hello Dr. Chen,\n\nEmma had a g-tube site revision in February and the stoma is still healing. Her GI doctor has cleared her for camp but asked us to relay a few restrictions:\n\n- No tight harness or seatbelt pressure across the stoma site\n- No lying prone (on her stomach) for exercise activities\n- Granulation tissue — please do not apply silver nitrate without contacting us first\n\nCould you confirm these will be communicated to her cabin staff?\n\nRobert Anderson");
@@ -366,57 +366,57 @@ class MessagingSeeder extends Seeder
         // SYS01 — Ethan application approved (Sarah's inbox)
         if (! Conversation::where('system_event_type', 'application.approved')->where('related_entity_id', $appEthan?->id)->exists()) {
             $this->makeSystemConv(
-                applicant:        $sarah,
-                admin:            $admin,
-                subject:          'Your application for Ethan Johnson has been approved',
-                eventType:        'application.approved',
-                eventCategory:    'Application',
-                relatedType:      Application::class,
-                relatedId:        $appEthan?->id,
-                camperId:         $ethan->id,
-                applicationId:    $appEthan?->id,
-                sessionId:        $session1->id,
-                body:             "Great news! Ethan Johnson's application for Session 1 — Summer 2026 has been approved.\n\nEthan's medical team has reviewed all submitted information and confirmed he is cleared for camp. You will receive a separate welcome packet with packing lists and arrival information.\n\nIf you have questions, please reply to this message or contact us at admin@campburntgin.org.",
-                createdAt:        now()->subDays(6),
-                readByApplicant:  true,
+                applicant: $sarah,
+                admin: $admin,
+                subject: 'Your application for Ethan Johnson has been approved',
+                eventType: 'application.approved',
+                eventCategory: 'Application',
+                relatedType: Application::class,
+                relatedId: $appEthan?->id,
+                camperId: $ethan->id,
+                applicationId: $appEthan?->id,
+                sessionId: $session1->id,
+                body: "Great news! Ethan Johnson's application for Session 1 — Summer 2026 has been approved.\n\nEthan's medical team has reviewed all submitted information and confirmed he is cleared for camp. You will receive a separate welcome packet with packing lists and arrival information.\n\nIf you have questions, please reply to this message or contact us at admin@campburntgin.org.",
+                createdAt: now()->subDays(6),
+                readByApplicant: true,
             );
         }
 
         // SYS02 — Lucas application pending (Michael's inbox)
         if (! Conversation::where('system_event_type', 'application.received')->where('related_entity_id', $appLucas?->id)->exists()) {
             $this->makeSystemConv(
-                applicant:        $michael,
-                admin:            $admin,
-                subject:          'Application received for Lucas Williams — Session 1, Summer 2026',
-                eventType:        'application.received',
-                eventCategory:    'Application',
-                relatedType:      Application::class,
-                relatedId:        $appLucas?->id,
-                camperId:         $lucas->id,
-                applicationId:    $appLucas?->id,
-                sessionId:        $session1->id,
-                body:             "Thank you! We have received Lucas Williams's application for Session 1 — Summer 2026.\n\nYour application is currently being reviewed by our medical team. Given Lucas's complex care needs, our Medical Director will personally review the application. This typically takes 5–10 business days.\n\nWe may reach out with questions or requests for additional documentation. Please watch your inbox.\n\nCamp Burnt Gin Medical Team",
-                createdAt:        now()->subDays(8),
-                readByApplicant:  false, // Michael hasn't read this one yet
+                applicant: $michael,
+                admin: $admin,
+                subject: 'Application received for Lucas Williams — Session 1, Summer 2026',
+                eventType: 'application.received',
+                eventCategory: 'Application',
+                relatedType: Application::class,
+                relatedId: $appLucas?->id,
+                camperId: $lucas->id,
+                applicationId: $appLucas?->id,
+                sessionId: $session1->id,
+                body: "Thank you! We have received Lucas Williams's application for Session 1 — Summer 2026.\n\nYour application is currently being reviewed by our medical team. Given Lucas's complex care needs, our Medical Director will personally review the application. This typically takes 5–10 business days.\n\nWe may reach out with questions or requests for additional documentation. Please watch your inbox.\n\nCamp Burnt Gin Medical Team",
+                createdAt: now()->subDays(8),
+                readByApplicant: false, // Michael hasn't read this one yet
             );
         }
 
         // SYS03 — Noah application rejected (Jennifer's inbox)
         if (! Conversation::where('system_event_type', 'application.rejected')->where('related_entity_id', $appNoah?->id)->exists()) {
             $this->makeSystemConv(
-                applicant:        $jennifer,
-                admin:            $admin,
-                subject:          'Update regarding Noah Thompson\'s application — Session 1, Summer 2026',
-                eventType:        'application.rejected',
-                eventCategory:    'Application',
-                relatedType:      Application::class,
-                relatedId:        $appNoah?->id,
-                camperId:         $noah->id,
-                applicationId:    $appNoah?->id,
-                sessionId:        $session1->id,
-                body:             "Dear Jennifer Thompson,\n\nAfter careful review, our team is unable to accommodate Noah Thompson in Session 1 — Summer 2026.\n\nThis decision was made based on current session staffing capacity for cardiac monitoring needs. Please know this is not a reflection of Noah's suitability for camp — we encourage you to apply for Session 2, which has expanded medical coverage.\n\nPlease reply to this message or contact us at (803) 555-0100 to discuss Session 2 options.\n\nWe appreciate your trust in Camp Burnt Gin.",
-                createdAt:        now()->subDays(10),
-                readByApplicant:  true,
+                applicant: $jennifer,
+                admin: $admin,
+                subject: 'Update regarding Noah Thompson\'s application — Session 1, Summer 2026',
+                eventType: 'application.rejected',
+                eventCategory: 'Application',
+                relatedType: Application::class,
+                relatedId: $appNoah?->id,
+                camperId: $noah->id,
+                applicationId: $appNoah?->id,
+                sessionId: $session1->id,
+                body: "Dear Jennifer Thompson,\n\nAfter careful review, our team is unable to accommodate Noah Thompson in Session 1 — Summer 2026.\n\nThis decision was made based on current session staffing capacity for cardiac monitoring needs. Please know this is not a reflection of Noah's suitability for camp — we encourage you to apply for Session 2, which has expanded medical coverage.\n\nPlease reply to this message or contact us at (803) 555-0100 to discuss Session 2 options.\n\nWe appreciate your trust in Camp Burnt Gin.",
+                createdAt: now()->subDays(10),
+                readByApplicant: true,
             );
         }
 
@@ -424,33 +424,33 @@ class MessagingSeeder extends Seeder
         $appChloeS1 = Application::where('camper_id', $chloe->id)->where('camp_session_id', $session1->id)->first();
         if (! Conversation::where('system_event_type', 'application.waitlisted')->where('related_entity_id', $appChloeS1?->id)->exists()) {
             $this->makeSystemConv(
-                applicant:        $lisa,
-                admin:            $admin,
-                subject:          'Chloe Rodriguez has been placed on the waitlist — Session 1, Summer 2026',
-                eventType:        'application.waitlisted',
-                eventCategory:    'Application',
-                relatedType:      Application::class,
-                relatedId:        $appChloeS1?->id,
-                camperId:         $chloe->id,
-                applicationId:    $appChloeS1?->id,
-                sessionId:        $session1->id,
-                body:             "Dear Lisa Rodriguez,\n\nChloe Rodriguez's application for Session 1 — Summer 2026 has been reviewed and approved medically. However, Session 1 has reached its enrollment capacity for campers requiring 1:1 nursing supervision.\n\nChloe has been placed on our priority waitlist. If a space opens — either through a cancellation or expanded staffing — we will notify you immediately and her application will be upgraded to approved status automatically.\n\nWe understand how important this is for your family. We are actively working to expand Session 1 capacity and will update you within 2 weeks.\n\nThank you for your patience,\nCamp Burnt Gin",
-                createdAt:        now()->subDays(4),
-                readByApplicant:  false,
+                applicant: $lisa,
+                admin: $admin,
+                subject: 'Chloe Rodriguez has been placed on the waitlist — Session 1, Summer 2026',
+                eventType: 'application.waitlisted',
+                eventCategory: 'Application',
+                relatedType: Application::class,
+                relatedId: $appChloeS1?->id,
+                camperId: $chloe->id,
+                applicationId: $appChloeS1?->id,
+                sessionId: $session1->id,
+                body: "Dear Lisa Rodriguez,\n\nChloe Rodriguez's application for Session 1 — Summer 2026 has been reviewed and approved medically. However, Session 1 has reached its enrollment capacity for campers requiring 1:1 nursing supervision.\n\nChloe has been placed on our priority waitlist. If a space opens — either through a cancellation or expanded staffing — we will notify you immediately and her application will be upgraded to approved status automatically.\n\nWe understand how important this is for your family. We are actively working to expand Session 1 capacity and will update you within 2 weeks.\n\nThank you for your patience,\nCamp Burnt Gin",
+                createdAt: now()->subDays(4),
+                readByApplicant: false,
             );
         }
 
         // ── T11: James Carter → Alex Rivera — Henry's arrival logistics ───────
         if (! Conversation::where('subject', 'Henry\'s approved application — arrival and packing questions')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $james->id,
-                'subject'         => 'Henry\'s approved application — arrival and packing questions',
-                'category'        => 'Application',
-                'application_id'  => $appHenry?->id,
-                'camper_id'       => $henry->id,
+                'created_by_id' => $james->id,
+                'subject' => 'Henry\'s approved application — arrival and packing questions',
+                'category' => 'Application',
+                'application_id' => $appHenry?->id,
+                'camper_id' => $henry->id,
                 'camp_session_id' => $session1->id,
                 'last_message_at' => now()->subDays(2),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $james, now()->subDays(5));
             $this->addParticipant($conv, $admin, now()->subDays(5));
@@ -470,15 +470,15 @@ class MessagingSeeder extends Seeder
         // ── T12: Michelle Robinson → Alex Rivera — Olivia's draft application ─
         if (! Conversation::where('subject', 'Questions before I start Olivia\'s application')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $michelle->id,
-                'subject'         => 'Questions before I start Olivia\'s application',
-                'category'        => 'General',
+                'created_by_id' => $michelle->id,
+                'subject' => 'Questions before I start Olivia\'s application',
+                'category' => 'General',
                 'camp_session_id' => $session2->id,
                 'last_message_at' => now()->subHours(8),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $michelle, now()->subDays(1));
-            $this->addParticipant($conv, $admin,    now()->subDays(1));
+            $this->addParticipant($conv, $admin, now()->subDays(1));
 
             $m1 = $this->addMessage($conv, $michelle, now()->subDays(1),
                 "Hi,\n\nI'm interested in applying for Olivia (age 11, Down syndrome) for Session 2. Before I fill out the full application I had two quick questions:\n\n- Does the medical form need to be completed by a specialist or can her pediatrician fill it out?\n- Is there an application deadline for Session 2? I want to make sure we're not too late.\n\nThank you,\nMichelle Robinson");
@@ -492,14 +492,14 @@ class MessagingSeeder extends Seeder
         // ── T13: Internal staff — Alex + Taylor + Jordan — S1 staffing review ─
         if (! Conversation::where('subject', 'S1 2026 — Pre-camp staffing allocation review')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $admin->id,
-                'subject'         => 'S1 2026 — Pre-camp staffing allocation review',
-                'category'        => 'General',
+                'created_by_id' => $admin->id,
+                'subject' => 'S1 2026 — Pre-camp staffing allocation review',
+                'category' => 'General',
                 'camp_session_id' => $session1->id,
                 'last_message_at' => now()->subHours(3),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
-            $this->addParticipant($conv, $admin,  now()->subDays(3));
+            $this->addParticipant($conv, $admin, now()->subDays(3));
             $this->addParticipant($conv, $admin2, now()->subDays(3)); // Jordan Blake
             $this->addParticipant($conv, $taylor, now()->subDays(3)); // Taylor Brooks
 
@@ -524,16 +524,16 @@ class MessagingSeeder extends Seeder
         // ── T14: Patricia Davis → Taylor Brooks — Mia's session 2 scheduling ──
         if (! Conversation::where('subject', 'Mia Davis — Session 2 2026 interest and scheduling')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $patricia->id,
-                'subject'         => 'Mia Davis — Session 2 2026 interest and scheduling',
-                'category'        => 'Application',
-                'camper_id'       => $mia->id,
+                'created_by_id' => $patricia->id,
+                'subject' => 'Mia Davis — Session 2 2026 interest and scheduling',
+                'category' => 'Application',
+                'camper_id' => $mia->id,
                 'camp_session_id' => $session2->id,
                 'last_message_at' => now()->subDays(1),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $patricia, now()->subDays(4));
-            $this->addParticipant($conv, $taylor,   now()->subDays(4), is_starred: true);
+            $this->addParticipant($conv, $taylor, now()->subDays(4), is_starred: true);
 
             $m1 = $this->addMessage($conv, $patricia, now()->subDays(4),
                 "Hello,\n\nMia attended Session 1 last year and had an incredible time. We've started a new application for Session 2 this year (it's still in draft). I wanted to check in with the coordinator side before I finalize and submit — a few things:\n\n1. Mia's favorite counselor from 2025 (we believe her name was Aisha?) — any chance she's returning for S2?\n2. Mia's hydroxyurea schedule has changed slightly — is it easier to update the medical form or send a note to the nursing team directly?\n3. She's a little nervous about being away again but very excited — any tips for the adjustment period?\n\nThank you!\nPatricia Davis");
@@ -550,16 +550,16 @@ class MessagingSeeder extends Seeder
         // ── T15: Jennifer Thompson → Jamie Santos RN — Noah's seizure meds ────
         if (! Conversation::where('subject', 'Noah\'s seizure medication — administration questions for nursing team')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $jennifer->id,
-                'subject'         => 'Noah\'s seizure medication — administration questions for nursing team',
-                'category'        => 'Medical',
-                'camper_id'       => $noah->id,
+                'created_by_id' => $jennifer->id,
+                'subject' => 'Noah\'s seizure medication — administration questions for nursing team',
+                'category' => 'Medical',
+                'camper_id' => $noah->id,
                 'camp_session_id' => $session2->id,
                 'last_message_at' => now()->subHours(5),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $jennifer, now()->subDays(6));
-            $this->addParticipant($conv, $jamie,    now()->subDays(6), is_important: true);
+            $this->addParticipant($conv, $jamie, now()->subDays(6), is_important: true);
 
             $m1 = $this->addMessage($conv, $jennifer, now()->subDays(6),
                 "Hello,\n\nWe're planning to apply for Noah (Down syndrome, seizure disorder) for Session 2 following the discussion about his Session 1 application. I wanted to reach the nursing team early with a few questions about his seizure protocol before we submit:\n\n1. Noah takes Levetiracetam 500mg twice daily (7am + 7pm). Does the nursing schedule align with those times?\n2. His neurologist has provided a rescue medication protocol using Diazepam rectal gel (Diastat) for seizures >5 minutes. Are your nurses trained to administer rectal diazepam?\n3. His last seizure was 14 months ago — is there a minimum seizure-free period required for camp participation?\n\nI want to be fully transparent so there are no surprises.\n\nThank you,\nJennifer Thompson");
@@ -576,14 +576,14 @@ class MessagingSeeder extends Seeder
         // ── T16: Internal — Alex Rivera → Dana Forsythe — pre-camp form review ─
         if (! Conversation::where('subject', 'Pre-camp form template review — S1 2026')->exists()) {
             $conv = $this->makeConv([
-                'created_by_id'   => $admin->id,
-                'subject'         => 'Pre-camp form template review — S1 2026',
-                'category'        => 'General',
+                'created_by_id' => $admin->id,
+                'subject' => 'Pre-camp form template review — S1 2026',
+                'category' => 'General',
                 'last_message_at' => now()->subDays(1),
-                'is_archived'     => false,
+                'is_archived' => false,
             ]);
             $this->addParticipant($conv, $admin, now()->subDays(3));
-            $this->addParticipant($conv, $dana,  now()->subDays(3));
+            $this->addParticipant($conv, $dana, now()->subDays(3));
 
             $m1 = $this->addMessage($conv, $admin, now()->subDays(3),
                 "Dana,\n\nBefore we open Session 2 applications I'd like your eyes on the form builder. A few things I want to verify are set correctly in the system:\n\n1. The behavioral section of the application form now has 9 new fields from the form parity update — can you confirm all are showing as active/visible in the Form Builder?\n2. The medical exam upload (Form 4523) — is the download link in the applicant portal pointing to the current DPH version?\n3. Jordan asked if we can add a \"second session choice\" dropdown on the application — I believe that's already in the system but wanted to confirm it's displaying correctly in the live form.\n\nNo rush — this week works.\n\nAlex");
@@ -602,16 +602,16 @@ class MessagingSeeder extends Seeder
     private function makeConv(array $attrs): Conversation
     {
         return Conversation::create(array_merge([
-            'is_system_generated'    => false,
-            'system_event_type'      => null,
-            'system_event_category'  => null,
-            'related_entity_type'    => null,
-            'related_entity_id'      => null,
-            'application_id'         => null,
-            'camper_id'              => null,
-            'camp_session_id'        => null,
-            'is_archived'            => false,
-            'category'               => 'General',
+            'is_system_generated' => false,
+            'system_event_type' => null,
+            'system_event_category' => null,
+            'related_entity_type' => null,
+            'related_entity_id' => null,
+            'application_id' => null,
+            'camper_id' => null,
+            'camp_session_id' => null,
+            'is_archived' => false,
+            'category' => 'General',
         ], $attrs));
     }
 
@@ -626,10 +626,10 @@ class MessagingSeeder extends Seeder
         return ConversationParticipant::firstOrCreate(
             ['conversation_id' => $conv->id, 'user_id' => $user->id],
             [
-                'joined_at'    => $joinedAt,
-                'is_starred'   => $is_starred,
+                'joined_at' => $joinedAt,
+                'is_starred' => $is_starred,
                 'is_important' => $is_important,
-                'trashed_at'   => $trashed_at,
+                'trashed_at' => $trashed_at,
             ]
         );
     }
@@ -642,11 +642,11 @@ class MessagingSeeder extends Seeder
     ): Message {
         $msg = Message::create([
             'conversation_id' => $conv->id,
-            'sender_id'       => $sender->id,
-            'body'            => $body,
+            'sender_id' => $sender->id,
+            'body' => $body,
             'idempotency_key' => Str::uuid()->toString(),
-            'created_at'      => $createdAt,
-            'updated_at'      => $createdAt,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
         ]);
 
         // Keep last_message_at up to date
@@ -672,53 +672,53 @@ class MessagingSeeder extends Seeder
     }
 
     private function makeSystemConv(
-        User   $applicant,
-        User   $admin,
+        User $applicant,
+        User $admin,
         string $subject,
         string $eventType,
         string $eventCategory,
         string $relatedType,
-        ?int   $relatedId,
-        int    $camperId,
-        ?int   $applicationId,
-        ?int   $sessionId,
+        ?int $relatedId,
+        int $camperId,
+        ?int $applicationId,
+        ?int $sessionId,
         string $body,
-        mixed  $createdAt,
-        bool   $readByApplicant,
+        mixed $createdAt,
+        bool $readByApplicant,
     ): void {
         if ($relatedId === null) {
             return; // application not found, skip
         }
 
         $conv = Conversation::create([
-            'created_by_id'          => $admin->id,
-            'subject'                => $subject,
-            'category'               => $eventCategory,
-            'application_id'         => $applicationId,
-            'camper_id'              => $camperId,
-            'camp_session_id'        => $sessionId,
-            'last_message_at'        => $createdAt,
-            'is_archived'            => false,
-            'is_system_generated'    => true,
-            'system_event_type'      => $eventType,
-            'system_event_category'  => $eventCategory,
-            'related_entity_type'    => $relatedType,
-            'related_entity_id'      => $relatedId,
+            'created_by_id' => $admin->id,
+            'subject' => $subject,
+            'category' => $eventCategory,
+            'application_id' => $applicationId,
+            'camper_id' => $camperId,
+            'camp_session_id' => $sessionId,
+            'last_message_at' => $createdAt,
+            'is_archived' => false,
+            'is_system_generated' => true,
+            'system_event_type' => $eventType,
+            'system_event_category' => $eventCategory,
+            'related_entity_type' => $relatedType,
+            'related_entity_id' => $relatedId,
         ]);
 
         ConversationParticipant::create([
             'conversation_id' => $conv->id,
-            'user_id'         => $applicant->id,
-            'joined_at'       => $createdAt,
+            'user_id' => $applicant->id,
+            'joined_at' => $createdAt,
         ]);
 
         $msg = Message::create([
             'conversation_id' => $conv->id,
-            'sender_id'       => null, // system message, no sender
-            'body'            => $body,
+            'sender_id' => null, // system message, no sender
+            'body' => $body,
             'idempotency_key' => Str::uuid()->toString(),
-            'created_at'      => $createdAt,
-            'updated_at'      => $createdAt,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
         ]);
 
         // System messages are addressed to the applicant (TO recipient)
@@ -726,8 +726,8 @@ class MessagingSeeder extends Seeder
             ['message_id' => $msg->id, 'user_id' => $applicant->id],
             [
                 'recipient_type' => 'to',
-                'is_read'        => $readByApplicant,
-                'read_at'        => $readByApplicant ? $createdAt : null,
+                'is_read' => $readByApplicant,
+                'read_at' => $readByApplicant ? $createdAt : null,
             ]
         );
 

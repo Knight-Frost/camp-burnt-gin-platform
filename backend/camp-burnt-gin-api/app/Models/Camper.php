@@ -89,15 +89,15 @@ class Camper extends Model
     {
         return [
             // Carbon date objects make age calculations easy (e.g. diffInYears).
-            'date_of_birth'           => 'date',
-            'record_retention_until'  => 'date',
+            'date_of_birth' => 'date',
+            'record_retention_until' => 'date',
             // Maps the stored string to a SupervisionLevel enum instance.
-            'supervision_level'       => SupervisionLevel::class,
+            'supervision_level' => SupervisionLevel::class,
             // Operational activation flag — true when camper has an approved application.
-            'is_active'               => 'boolean',
-            'needs_interpreter'       => 'boolean',
+            'is_active' => 'boolean',
+            'needs_interpreter' => 'boolean',
             // Applicant mailing address is PHI — encrypted at rest.
-            'applicant_address'       => 'encrypted',
+            'applicant_address' => 'encrypted',
         ];
     }
 

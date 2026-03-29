@@ -28,19 +28,19 @@ class UpdateBehavioralProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'aggression'              => ['boolean'],
-            'self_abuse'              => ['boolean'],
-            'wandering_risk'          => ['boolean'],
-            'one_to_one_supervision'  => ['boolean'],
-            'developmental_delay'     => ['boolean'],
-            'functioning_age_level'   => ['nullable', 'string', 'max:255'],
-            'communication_methods'   => ['nullable', 'array'],
+            'aggression' => ['boolean'],
+            'self_abuse' => ['boolean'],
+            'wandering_risk' => ['boolean'],
+            'one_to_one_supervision' => ['boolean'],
+            'developmental_delay' => ['boolean'],
+            'functioning_age_level' => ['nullable', 'string', 'max:255'],
+            'communication_methods' => ['nullable', 'array'],
             'communication_methods.*' => ['string', 'max:255'],
-            'notes'                   => ['nullable', 'string', 'max:5000'],
+            'notes' => ['nullable', 'string', 'max:5000'],
             // Admin-editable narrative/clinical fields
-            'triggers'                     => ['nullable', 'string', 'max:5000'],
-            'de_escalation_strategies'     => ['nullable', 'string', 'max:5000'],
-            'communication_style'          => ['nullable', 'string', 'max:5000'],
+            'triggers' => ['nullable', 'string', 'max:5000'],
+            'de_escalation_strategies' => ['nullable', 'string', 'max:5000'],
+            'communication_style' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

@@ -51,9 +51,9 @@ class Allergy extends Model
     protected function casts(): array
     {
         return [
-            'allergen'  => 'encrypted',              // PHI — stored encrypted.
-            'severity'  => AllergySeverity::class,   // Maps stored string to enum instance.
-            'reaction'  => 'encrypted',              // PHI — stored encrypted.
+            'allergen' => 'encrypted',              // PHI — stored encrypted.
+            'severity' => AllergySeverity::class,   // Maps stored string to enum instance.
+            'reaction' => 'encrypted',              // PHI — stored encrypted.
             'treatment' => 'encrypted',              // PHI — stored encrypted.
         ];
     }

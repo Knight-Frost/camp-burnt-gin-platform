@@ -23,10 +23,10 @@ return new class extends Migration
             $table->boolean('first_application')->default(false)->after('is_draft');
             $table->boolean('attended_before')->default(false)->after('first_application');
             $table->foreignId('camp_session_id_second')
-                  ->nullable()
-                  ->after('camp_session_id')
-                  ->constrained('camp_sessions')
-                  ->nullOnDelete();
+                ->nullable()
+                ->after('camp_session_id')
+                ->constrained('camp_sessions')
+                ->nullOnDelete();
         });
     }
 

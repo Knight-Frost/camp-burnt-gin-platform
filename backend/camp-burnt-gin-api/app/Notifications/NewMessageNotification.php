@@ -52,10 +52,10 @@ class NewMessageNotification extends Notification
     {
         $mailMessage = (new MailMessage)
             ->subject('New Message - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello '.$notifiable->name.',')
             ->line('You have received a new message in a conversation.')
-            ->line('Conversation: ' . $this->conversation->subject)
-            ->line('From: ' . $this->message->sender->name);
+            ->line('Conversation: '.$this->conversation->subject)
+            ->line('From: '.$this->message->sender->name);
 
         if ($this->message->hasAttachments()) {
             $attachmentCount = $this->message->attachmentCount();
@@ -63,7 +63,7 @@ class NewMessageNotification extends Notification
         }
 
         $mailMessage->line('Please log in to view the full message and respond.')
-            ->action('View Message', config('app.frontend_url') . '/inbox/conversations/' . $this->conversation->id)
+            ->action('View Message', config('app.frontend_url').'/inbox/conversations/'.$this->conversation->id)
             ->salutation('Camp Burnt Gin');
 
         return $mailMessage;
@@ -79,23 +79,23 @@ class NewMessageNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $senderName   = $this->message->sender->name;
-        $subject      = $this->conversation->subject;
-        $attachments  = $this->message->hasAttachments();
-        $attachNote   = $attachments ? ' (includes attachment)' : '';
+        $senderName = $this->message->sender->name;
+        $subject = $this->conversation->subject;
+        $attachments = $this->message->hasAttachments();
+        $attachNote = $attachments ? ' (includes attachment)' : '';
 
         return [
-            'type'                 => 'new_message',
-            'title'                => "New message from {$senderName}",
-            'message'              => "You have a new message in \"{$subject}\"{$attachNote}.",
-            'message_id'           => $this->message->id,
-            'conversation_id'      => $this->conversation->id,
+            'type' => 'new_message',
+            'title' => "New message from {$senderName}",
+            'message' => "You have a new message in \"{$subject}\"{$attachNote}.",
+            'message_id' => $this->message->id,
+            'conversation_id' => $this->conversation->id,
             'conversation_subject' => $subject,
-            'sender_name'          => $senderName,
-            'sender_id'            => $this->message->sender->id,
-            'has_attachments'      => $attachments,
-            'attachment_count'     => $this->message->attachmentCount(),
-            'created_at'           => $this->message->created_at->toIso8601String(),
+            'sender_name' => $senderName,
+            'sender_id' => $this->message->sender->id,
+            'has_attachments' => $attachments,
+            'attachment_count' => $this->message->attachmentCount(),
+            'created_at' => $this->message->created_at->toIso8601String(),
         ];
     }
 }

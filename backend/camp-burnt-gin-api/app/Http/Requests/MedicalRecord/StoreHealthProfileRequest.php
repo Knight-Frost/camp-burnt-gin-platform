@@ -27,23 +27,23 @@ class StoreHealthProfileRequest extends FormRequest
     {
         return [
             // Insurance
-            'insurance_group'              => 'nullable|string|max:100',
-            'medicaid_number'              => 'nullable|string|max:100',
+            'insurance_group' => 'nullable|string|max:100',
+            'medicaid_number' => 'nullable|string|max:100',
             // Physician
-            'physician_address'            => 'nullable|string|max:500',
+            'physician_address' => 'nullable|string|max:500',
             // Immunization
-            'immunizations_current'        => 'nullable|boolean',
-            'tetanus_date'                 => 'nullable|date',
+            'immunizations_current' => 'nullable|boolean',
+            'tetanus_date' => 'nullable|date',
             // Mobility (PHI — encrypted in model)
-            'mobility_notes'               => 'nullable|string|max:2000',
+            'mobility_notes' => 'nullable|string|max:2000',
             // Contagious illness
-            'has_contagious_illness'        => 'nullable|boolean',
-            'contagious_illness_description'=> 'nullable|string|max:2000',
+            'has_contagious_illness' => 'nullable|boolean',
+            'contagious_illness_description' => 'nullable|string|max:2000',
             // Ear tubes
-            'tubes_in_ears'                => 'nullable|boolean',
+            'tubes_in_ears' => 'nullable|boolean',
             // Recent illness
-            'has_recent_illness'           => 'nullable|boolean',
-            'recent_illness_description'   => 'nullable|string|max:2000',
+            'has_recent_illness' => 'nullable|boolean',
+            'recent_illness_description' => 'nullable|string|max:2000',
         ];
     }
 }

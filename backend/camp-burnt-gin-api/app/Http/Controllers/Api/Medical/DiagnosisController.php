@@ -43,9 +43,9 @@ class DiagnosisController extends Controller
             'data' => $diagnoses->items(),
             'meta' => [
                 'current_page' => $diagnoses->currentPage(),
-                'last_page'    => $diagnoses->lastPage(),
-                'per_page'     => $diagnoses->perPage(),
-                'total'        => $diagnoses->total(),
+                'last_page' => $diagnoses->lastPage(),
+                'per_page' => $diagnoses->perPage(),
+                'total' => $diagnoses->total(),
             ],
         ]);
     }
@@ -70,7 +70,7 @@ class DiagnosisController extends Controller
         // HTTP 201 Created indicates a new resource was successfully added.
         return response()->json([
             'message' => 'Diagnosis created successfully.',
-            'data'    => $diagnosis,
+            'data' => $diagnosis,
         ], Response::HTTP_CREATED);
     }
 
@@ -106,7 +106,7 @@ class DiagnosisController extends Controller
 
         return response()->json([
             'message' => 'Diagnosis updated successfully.',
-            'data'    => $diagnosis,
+            'data' => $diagnosis,
         ]);
     }
 

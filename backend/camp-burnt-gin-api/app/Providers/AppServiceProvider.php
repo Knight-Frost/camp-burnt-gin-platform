@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\ActivityPermission;
 use App\Models\Allergy;
+use App\Models\ApplicantDocument;
 use App\Models\Application;
 use App\Models\AssistiveDevice;
 use App\Models\BehavioralProfile;
@@ -11,36 +12,36 @@ use App\Models\Camp;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\Conversation;
+use App\Models\Deadline;
 use App\Models\Diagnosis;
 use App\Models\Document;
 use App\Models\DocumentRequest;
 use App\Models\EmergencyContact;
 use App\Models\FeedingPlan;
-use App\Models\MedicalProviderLink;
-use App\Models\MedicalRecord;
-use App\Models\Medication;
-use App\Models\TreatmentLog;
-use App\Models\MedicalIncident;
-use App\Models\MedicalFollowUp;
-use App\Models\MedicalVisit;
-use App\Models\ApplicantDocument;
-use App\Models\Deadline;
 use App\Models\FormDefinition;
 use App\Models\FormField;
 use App\Models\FormSection;
+use App\Models\MedicalFollowUp;
+use App\Models\MedicalIncident;
+use App\Models\MedicalProviderLink;
+use App\Models\MedicalRecord;
 use App\Models\MedicalRestriction;
+use App\Models\MedicalVisit;
+use App\Models\Medication;
 use App\Models\Message;
 use App\Models\Role;
+use App\Models\TreatmentLog;
 use App\Models\UserEmergencyContact;
 use App\Observers\AssistiveDeviceObserver;
-use App\Observers\DeadlineObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\CamperObserver;
+use App\Observers\DeadlineObserver;
 use App\Observers\DiagnosisObserver;
 use App\Observers\FeedingPlanObserver;
 use App\Observers\MedicalRecordObserver;
 use App\Policies\ActivityPermissionPolicy;
 use App\Policies\AllergyPolicy;
+use App\Policies\ApplicantDocumentPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\AssistiveDevicePolicy;
 use App\Policies\BehavioralProfilePolicy;
@@ -48,26 +49,25 @@ use App\Policies\CamperPolicy;
 use App\Policies\CampPolicy;
 use App\Policies\CampSessionPolicy;
 use App\Policies\ConversationPolicy;
+use App\Policies\DeadlinePolicy;
 use App\Policies\DiagnosisPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\DocumentRequestPolicy;
 use App\Policies\EmergencyContactPolicy;
 use App\Policies\FeedingPlanPolicy;
+use App\Policies\FormDefinitionPolicy;
+use App\Policies\FormFieldPolicy;
+use App\Policies\FormSectionPolicy;
+use App\Policies\MedicalFollowUpPolicy;
+use App\Policies\MedicalIncidentPolicy;
 use App\Policies\MedicalProviderLinkPolicy;
 use App\Policies\MedicalRecordPolicy;
+use App\Policies\MedicalRestrictionPolicy;
+use App\Policies\MedicalVisitPolicy;
 use App\Policies\MedicationPolicy;
 use App\Policies\MessagePolicy;
 use App\Policies\RolePolicy;
 use App\Policies\TreatmentLogPolicy;
-use App\Policies\MedicalIncidentPolicy;
-use App\Policies\MedicalFollowUpPolicy;
-use App\Policies\MedicalVisitPolicy;
-use App\Policies\ApplicantDocumentPolicy;
-use App\Policies\FormDefinitionPolicy;
-use App\Policies\FormFieldPolicy;
-use App\Policies\FormSectionPolicy;
-use App\Policies\DeadlinePolicy;
-use App\Policies\MedicalRestrictionPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -159,8 +159,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Application form management (Phase 14 — dynamic form builder)
         FormDefinition::class => FormDefinitionPolicy::class,
-        FormSection::class    => FormSectionPolicy::class,
-        FormField::class      => FormFieldPolicy::class,
+        FormSection::class => FormSectionPolicy::class,
+        FormField::class => FormFieldPolicy::class,
 
         // Document requests — admin-initiated document request workflow (Phase 13)
         DocumentRequest::class => DocumentRequestPolicy::class,

@@ -7,24 +7,24 @@ use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\Camp\CampController;
-use App\Http\Controllers\Api\Deadline\DeadlineController;
-use App\Http\Controllers\Api\Family\FamilyController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
 use App\Http\Controllers\Api\Camper\CamperController;
 use App\Http\Controllers\Api\Camper\PersonalCarePlanController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
+use App\Http\Controllers\Api\Deadline\DeadlineController;
 use App\Http\Controllers\Api\Document\ApplicantDocumentController;
 use App\Http\Controllers\Api\Document\DocumentController;
 use App\Http\Controllers\Api\Document\DocumentRequestController;
+use App\Http\Controllers\Api\Family\FamilyController;
 use App\Http\Controllers\Api\Form\FormDefinitionController;
 use App\Http\Controllers\Api\Form\FormFieldController;
 use App\Http\Controllers\Api\Form\FormFieldOptionController;
+use App\Http\Controllers\Api\Form\FormsDownloadController;
 use App\Http\Controllers\Api\Form\FormSectionController;
 use App\Http\Controllers\Api\Form\FormTemplateController;
 use App\Http\Controllers\Api\Form\PublicFormController;
-use App\Http\Controllers\Api\Form\FormsDownloadController;
 use App\Http\Controllers\Api\Inbox\ConversationController;
 use App\Http\Controllers\Api\Inbox\InboxUserController;
 use App\Http\Controllers\Api\Inbox\MessageController;
@@ -823,9 +823,9 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             Route::get('/', [ConversationController::class, 'index'])
                 ->middleware('throttle:60,1')
                 ->name('inbox.conversations.index');
-            // Create a new conversation — throttled to 30 per hour to prevent spam
+            // Create a new conversation — throttled to 5 per minute to prevent spam
             Route::post('/', [ConversationController::class, 'store'])
-                ->middleware('throttle:30,60')
+                ->middleware('throttle:5,1')
                 ->name('inbox.conversations.store');
             // View a specific conversation and its messages
             Route::get('/{conversation}', [ConversationController::class, 'show'])

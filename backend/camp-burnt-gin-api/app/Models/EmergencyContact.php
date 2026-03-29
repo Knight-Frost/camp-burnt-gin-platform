@@ -63,18 +63,18 @@ class EmergencyContact extends Model
     {
         return [
             // Contact details are PHI — encrypted so they cannot be read from the raw DB.
-            'name'                 => 'encrypted',
-            'relationship'         => 'encrypted',
-            'phone_primary'        => 'encrypted',
-            'phone_secondary'      => 'encrypted',
-            'email'                => 'encrypted',
-            'address'              => 'encrypted',  // Full street address is PHI.
-            'phone_work'           => 'encrypted',  // Work phone is PHI.
+            'name' => 'encrypted',
+            'relationship' => 'encrypted',
+            'phone_primary' => 'encrypted',
+            'phone_secondary' => 'encrypted',
+            'email' => 'encrypted',
+            'address' => 'encrypted',  // Full street address is PHI.
+            'phone_work' => 'encrypted',  // Work phone is PHI.
             // Boolean flags stored as tiny integers in MySQL.
-            'is_primary'           => 'boolean',
+            'is_primary' => 'boolean',
             'is_authorized_pickup' => 'boolean',
-            'is_guardian'          => 'boolean',
-            'interpreter_needed'   => 'boolean',
+            'is_guardian' => 'boolean',
+            'interpreter_needed' => 'boolean',
         ];
     }
 

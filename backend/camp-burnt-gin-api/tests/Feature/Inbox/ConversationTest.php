@@ -3,8 +3,8 @@
 namespace Tests\Feature\Inbox;
 
 use App\Models\Conversation;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;

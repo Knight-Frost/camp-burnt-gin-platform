@@ -94,9 +94,9 @@ class MedicalProviderLinkController extends Controller
             'data' => $links->items(),
             'meta' => [
                 'current_page' => $links->currentPage(),
-                'last_page'    => $links->lastPage(),
-                'per_page'     => $links->perPage(),
-                'total'        => $links->total(),
+                'last_page' => $links->lastPage(),
+                'per_page' => $links->perPage(),
+                'total' => $links->total(),
             ],
         ]);
     }
@@ -124,7 +124,7 @@ class MedicalProviderLinkController extends Controller
 
         return response()->json([
             'message' => 'Provider link created and sent successfully.',
-            'data'    => $link,
+            'data' => $link,
         ], Response::HTTP_CREATED);
     }
 
@@ -183,7 +183,7 @@ class MedicalProviderLinkController extends Controller
 
         return response()->json([
             'message' => 'New provider link generated and sent.',
-            'data'    => $newLink,
+            'data' => $newLink,
         ]);
     }
 
@@ -223,10 +223,10 @@ class MedicalProviderLinkController extends Controller
 
         return response()->json([
             'data' => [
-                'camper_name'    => $camper->full_name,
+                'camper_name' => $camper->full_name,
                 'medical_record' => $camper->medicalRecord,
-                'allergies'      => $camper->allergies,
-                'medications'    => $camper->medications,
+                'allergies' => $camper->allergies,
+                'medications' => $camper->medications,
             ],
         ]);
     }
@@ -254,7 +254,7 @@ class MedicalProviderLinkController extends Controller
         if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
-                'errors'  => $result['errors'] ?? [],
+                'errors' => $result['errors'] ?? [],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -282,7 +282,7 @@ class MedicalProviderLinkController extends Controller
 
         $request->validate([
             // Accept common medical document formats; limit to 10 MB
-            'file'          => ['required', 'file', 'mimes:pdf,jpeg,jpg,png', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:pdf,jpeg,jpg,png', 'max:10240'],
             'document_type' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -297,7 +297,7 @@ class MedicalProviderLinkController extends Controller
 
         return response()->json([
             'message' => 'Document uploaded successfully.',
-            'data'    => $result['document'],
+            'data' => $result['document'],
         ], Response::HTTP_CREATED);
     }
 

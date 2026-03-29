@@ -15,16 +15,16 @@ enum TreatmentType: string
     case MedicationAdministered = 'medication_administered';
 
     // Basic care was provided — bandages, ice packs, wound cleaning, etc.
-    case FirstAid                = 'first_aid';
+    case FirstAid = 'first_aid';
 
     // The camper was watched for a period of time to see how they were doing.
-    case Observation             = 'observation';
+    case Observation = 'observation';
 
     // A serious or urgent situation that required immediate action.
-    case Emergency               = 'emergency';
+    case Emergency = 'emergency';
 
     // Any type of care that doesn't fit the categories above.
-    case Other                   = 'other';
+    case Other = 'other';
 
     /**
      * Returns a friendly label for each treatment type to display in the UI.
@@ -33,10 +33,10 @@ enum TreatmentType: string
     {
         return match ($this) {
             self::MedicationAdministered => 'Medication Administered',
-            self::FirstAid               => 'First Aid',
-            self::Observation            => 'Observation',
-            self::Emergency              => 'Emergency',
-            self::Other                  => 'Other',
+            self::FirstAid => 'First Aid',
+            self::Observation => 'Observation',
+            self::Emergency => 'Emergency',
+            self::Other => 'Other',
         };
     }
 }

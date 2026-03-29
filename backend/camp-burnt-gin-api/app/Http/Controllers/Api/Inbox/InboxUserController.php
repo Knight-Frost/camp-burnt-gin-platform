@@ -32,9 +32,6 @@ class InboxUserController extends Controller
      *   3. Apply role-based visibility filters
      *   4. Narrow by name/email if a search term was provided
      *   5. Return up to 20 results ordered alphabetically
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -45,7 +42,7 @@ class InboxUserController extends Controller
 
         $authUser = $request->user();
         // trim() removes leading/trailing whitespace the frontend may send
-        $search   = trim($request->string('search', ''));
+        $search = trim($request->string('search', ''));
 
         // Start with all users and eagerly load their role for the filter below
         $query = User::query()
@@ -68,7 +65,7 @@ class InboxUserController extends Controller
             $query->where(function ($q) use ($search) {
                 // Search by full name OR email address (partial match using LIKE)
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -79,11 +76,11 @@ class InboxUserController extends Controller
             'success' => true,
             // Map each user to only the fields needed by the compose window
             'data' => $users->map(fn (User $u) => [
-                'id'    => $u->id,
-                'name'  => $u->name,
+                'id' => $u->id,
+                'name' => $u->name,
                 'email' => $u->email,
                 // Include the role name so the UI can show "Admin" or "Medical" badges
-                'role'  => $u->role?->name ?? 'unknown',
+                'role' => $u->role?->name ?? 'unknown',
             ])->values(),
         ]);
     }

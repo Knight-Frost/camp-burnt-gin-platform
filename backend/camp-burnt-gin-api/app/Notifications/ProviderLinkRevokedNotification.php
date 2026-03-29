@@ -38,11 +38,11 @@ class ProviderLinkRevokedNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Medical Provider Link Revoked - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
-            ->line('The medical provider link for ' . $this->link->camper->full_name . ' has been revoked.')
-            ->line('Provider: ' . ($this->link->provider_name ?? $this->link->provider_email))
+            ->greeting('Hello '.$notifiable->name.',')
+            ->line('The medical provider link for '.$this->link->camper->full_name.' has been revoked.')
+            ->line('Provider: '.($this->link->provider_name ?? $this->link->provider_email))
             ->line('If you need to send a new link to your medical provider, you can do so from your account.')
-            ->action('Manage Provider Links', config('app.frontend_url') . '/provider-links')
+            ->action('Manage Provider Links', config('app.frontend_url').'/provider-links')
             ->salutation('Camp Burnt Gin');
     }
 

@@ -49,8 +49,8 @@ class Diagnosis extends Model
     protected function casts(): array
     {
         return [
-            'description'   => 'encrypted',              // PHI — encrypted at rest.
-            'notes'         => 'encrypted',              // PHI — encrypted at rest.
+            'description' => 'encrypted',              // PHI — encrypted at rest.
+            'notes' => 'encrypted',              // PHI — encrypted at rest.
             // Maps the stored string to a DiagnosisSeverity enum instance on read.
             'severity_level' => DiagnosisSeverity::class,
         ];

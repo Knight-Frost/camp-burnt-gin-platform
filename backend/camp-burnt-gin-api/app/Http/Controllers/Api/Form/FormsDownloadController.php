@@ -33,16 +33,17 @@ class FormsDownloadController extends Controller
     public function index(): JsonResponse
     {
         $forms = array_map(function (OfficialFormType $form) {
-            $path = storage_path('app/forms/' . $form->storageFilename());
+            $path = storage_path('app/forms/'.$form->storageFilename());
+
             return [
-                'id'                         => $form->value,
-                'label'                      => $form->label(),
-                'description'                => $form->description(),
-                'download_filename'          => $form->downloadFilename(),
-                'document_type'              => $form->documentType(),
+                'id' => $form->value,
+                'label' => $form->label(),
+                'description' => $form->description(),
+                'download_filename' => $form->downloadFilename(),
+                'document_type' => $form->documentType(),
                 'requires_medical_signature' => $form->requiresMedicalSignature(),
-                'available'                  => file_exists($path),
-                'url'                        => $this->downloadUrl($form),
+                'available' => file_exists($path),
+                'url' => $this->downloadUrl($form),
             ];
         }, OfficialFormType::cases());
 
@@ -78,21 +79,21 @@ class FormsDownloadController extends Controller
      */
     private function serveForm(OfficialFormType $form): BinaryFileResponse|JsonResponse
     {
-        $path = storage_path('app/forms/' . $form->storageFilename());
+        $path = storage_path('app/forms/'.$form->storageFilename());
 
         if (! file_exists($path)) {
             return response()->json([
                 'message' => "The form '{$form->label()}' is currently unavailable. "
-                    . 'Contact your camp administrator.',
+                    .'Contact your camp administrator.',
             ], 503);
         }
 
         return response()->download($path, $form->downloadFilename(), [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $form->downloadFilename() . '"',
-            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
-            'Pragma'              => 'no-cache',
-            'Expires'             => '0',
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$form->downloadFilename().'"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
         ]);
     }
 
@@ -104,8 +105,8 @@ class FormsDownloadController extends Controller
         return match ($form) {
             OfficialFormType::EnglishApplication => url('/api/forms/application'),
             OfficialFormType::SpanishApplication => url('/api/forms/application-spanish'),
-            OfficialFormType::MedicalForm        => url('/api/forms/medical-exam'),
-            OfficialFormType::CyshcnForm         => url('/api/forms/cyshcn'),
+            OfficialFormType::MedicalForm => url('/api/forms/medical-exam'),
+            OfficialFormType::CyshcnForm => url('/api/forms/cyshcn'),
         };
     }
 }

@@ -28,12 +28,12 @@ class UpdateCamperRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'first_name'     => ['sometimes', 'required', 'string', 'max:255'],
-            'last_name'      => ['sometimes', 'required', 'string', 'max:255'],
+            'first_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'last_name' => ['sometimes', 'required', 'string', 'max:255'],
             'preferred_name' => ['nullable', 'string', 'max:255'],
-            'date_of_birth'  => ['sometimes', 'required', 'date', 'before:today'],
-            'gender'         => ['nullable', 'string', 'max:50'],
-            'tshirt_size'    => ['nullable', 'string', 'max:20'],
+            'date_of_birth' => ['sometimes', 'required', 'date', 'before:today'],
+            'gender' => ['nullable', 'string', 'max:50'],
+            'tshirt_size' => ['nullable', 'string', 'max:20'],
         ];
     }
 

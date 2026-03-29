@@ -18,7 +18,7 @@ class ReorderFormItemsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'ids'   => ['required', 'array', 'min:1'],
+            'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['required', 'integer', 'min:1'],
         ];
     }

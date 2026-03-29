@@ -55,7 +55,7 @@ class RejectionLetterNotification extends Notification implements ShouldQueue
     {
         // Load session and camp to personalise the letter with specific program details
         $session = $this->application->campSession;
-        $camp    = $session->camp;
+        $camp = $session->camp;
 
         // Build the base message — the negative news is delivered gently but clearly
         $message = (new MailMessage)

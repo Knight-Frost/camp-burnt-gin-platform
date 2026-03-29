@@ -231,9 +231,9 @@ class ApplicationWorkflowTest extends TestCase
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $application = Application::factory()->create([
-            'camper_id'  => $camper->id,
-            'status'     => ApplicationStatus::Pending,
-            'notes'      => 'Original admin note',
+            'camper_id' => $camper->id,
+            'status' => ApplicationStatus::Pending,
+            'notes' => 'Original admin note',
         ]);
 
         // The notes field is filtered out for non-admin roles — the original value must survive.

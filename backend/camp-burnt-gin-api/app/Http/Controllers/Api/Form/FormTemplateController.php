@@ -58,7 +58,7 @@ class FormTemplateController extends Controller
             return response()->json(['message' => 'Form type not found.'], 404);
         }
 
-        $storagePath = storage_path('app/forms/' . $formType->storageFilename());
+        $storagePath = storage_path('app/forms/'.$formType->storageFilename());
 
         if (! file_exists($storagePath)) {
             return response()->json(['message' => 'Form file is currently unavailable.'], 503);
@@ -68,21 +68,21 @@ class FormTemplateController extends Controller
         AuditLog::logAdminAction(
             action: 'form_template_download',
             user: $request->user(),
-            description: 'Downloaded blank form template: ' . $formType->label(),
+            description: 'Downloaded blank form template: '.$formType->label(),
             metadata: [
-                'form_type'  => $formType->value,
+                'form_type' => $formType->value,
                 'form_label' => $formType->label(),
             ]
         );
 
         return response()->download($storagePath, $formType->downloadFilename(), [
-            'Content-Type'        => 'application/pdf',
+            'Content-Type' => 'application/pdf',
             // Force save-to-disk rather than inline display
-            'Content-Disposition' => 'attachment; filename="' . $formType->downloadFilename() . '"',
+            'Content-Disposition' => 'attachment; filename="'.$formType->downloadFilename().'"',
             // HIPAA: no caching of form files
-            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
-            'Pragma'              => 'no-cache',
-            'Expires'             => '0',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
         ]);
     }
 }

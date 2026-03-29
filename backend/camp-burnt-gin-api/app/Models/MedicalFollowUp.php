@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\FollowUpStatus;
 use App\Enums\FollowUpPriority;
+use App\Enums\FollowUpStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -50,10 +50,10 @@ class MedicalFollowUp extends Model
     protected function casts(): array
     {
         return [
-            'status'       => FollowUpStatus::class,   // Maps stored string to enum instance.
-            'priority'     => FollowUpPriority::class, // Maps stored string to enum instance.
+            'status' => FollowUpStatus::class,   // Maps stored string to enum instance.
+            'priority' => FollowUpPriority::class, // Maps stored string to enum instance.
             // 'Y-m-d' ensures consistent date serialisation in API responses.
-            'due_date'     => 'date:Y-m-d',
+            'due_date' => 'date:Y-m-d',
             'completed_at' => 'datetime',
         ];
     }

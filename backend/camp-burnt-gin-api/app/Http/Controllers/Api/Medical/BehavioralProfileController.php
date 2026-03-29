@@ -47,9 +47,9 @@ class BehavioralProfileController extends Controller
             'data' => $profiles->items(),
             'meta' => [
                 'current_page' => $profiles->currentPage(),
-                'last_page'    => $profiles->lastPage(),
-                'per_page'     => $profiles->perPage(),
-                'total'        => $profiles->total(),
+                'last_page' => $profiles->lastPage(),
+                'per_page' => $profiles->perPage(),
+                'total' => $profiles->total(),
             ],
         ]);
     }
@@ -80,9 +80,10 @@ class BehavioralProfileController extends Controller
         $profile->load('camper');
 
         $status = $profile->wasRecentlyCreated ? Response::HTTP_CREATED : Response::HTTP_OK;
+
         return response()->json([
             'message' => 'Behavioral profile saved successfully.',
-            'data'    => $profile,
+            'data' => $profile,
         ], $status);
     }
 
@@ -116,7 +117,7 @@ class BehavioralProfileController extends Controller
         // Confirm the caller is permitted to edit this profile.
         $this->authorize('update', $behavioralProfile);
 
-        $data        = $request->validated();
+        $data = $request->validated();
         $oldSnapshot = array_intersect_key($behavioralProfile->only(array_keys($data)), $data);
 
         $behavioralProfile->update($data);
@@ -126,7 +127,7 @@ class BehavioralProfileController extends Controller
         if ($oldSnapshot !== $newSnapshot) {
             AuditLog::logContentChange(
                 auditable: $behavioralProfile,
-                editor:    $request->user(),
+                editor: $request->user(),
                 oldValues: $oldSnapshot,
                 newValues: $newSnapshot,
             );
@@ -134,7 +135,7 @@ class BehavioralProfileController extends Controller
 
         return response()->json([
             'message' => 'Behavioral profile updated successfully.',
-            'data'    => $behavioralProfile,
+            'data' => $behavioralProfile,
         ]);
     }
 

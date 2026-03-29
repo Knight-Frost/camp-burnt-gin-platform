@@ -42,7 +42,7 @@ class ReportService
      *  - date_to:         Only applications submitted on or before this date
      *
      * @param  array<string, mixed>  $filters
-     * @return array<string, mixed>  'data' array + 'summary' totals
+     * @return array<string, mixed> 'data' array + 'summary' totals
      */
     public function generateApplicationsReport(array $filters): array
     {
@@ -107,7 +107,7 @@ class ReportService
      * date of birth and age so staff can prepare age-appropriate programming.
      *
      * @param  array<string, mixed>  $filters  Supports camp_session_id filter
-     * @return array<string, mixed>  'data' array + 'total' count
+     * @return array<string, mixed> 'data' array + 'total' count
      */
     public function generateAcceptedApplicantsReport(array $filters): array
     {
@@ -151,7 +151,7 @@ class ReportService
      * Includes reviewer notes so the admin team can audit decisions.
      *
      * @param  array<string, mixed>  $filters  Supports camp_session_id filter
-     * @return array<string, mixed>  'data' array + 'total' count
+     * @return array<string, mixed> 'data' array + 'total' count
      */
     public function generateRejectedApplicantsReport(array $filters): array
     {

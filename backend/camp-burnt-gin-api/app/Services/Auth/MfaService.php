@@ -50,7 +50,7 @@ class MfaService
      * From that point on, both the server and the phone can independently generate
      * the same 6-digit codes every 30 seconds.
      *
-     * @return array<string, mixed>  Contains 'secret' and 'qr_code_url'
+     * @return array<string, mixed> Contains 'secret' and 'qr_code_url'
      */
     public function initializeSetup(User $user): array
     {
@@ -80,7 +80,7 @@ class MfaService
      * If that code is valid, we know their app is synced with our secret and we
      * officially turn MFA on for their account.
      *
-     * @return array<string, mixed>  'success' => true/false with optional 'message'
+     * @return array<string, mixed> 'success' => true/false with optional 'message'
      */
     public function verifyAndEnable(User $user, string $code): array
     {
@@ -155,7 +155,7 @@ class MfaService
      *
      * On success: MFA fields are cleared and the secret is wiped from the database.
      *
-     * @return array<string, mixed>  'success' => true/false with optional 'message'
+     * @return array<string, mixed> 'success' => true/false with optional 'message'
      */
     public function disable(User $user, string $code, string $password): array
     {

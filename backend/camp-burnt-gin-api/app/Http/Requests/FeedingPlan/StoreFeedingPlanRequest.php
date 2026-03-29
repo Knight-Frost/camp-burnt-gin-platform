@@ -36,21 +36,21 @@ class StoreFeedingPlanRequest extends FormRequest
             : ['required', 'integer', Rule::exists('campers', 'id')->where('user_id', $user->id)];
 
         return [
-            'camper_id'         => $camperRule,
-            'special_diet'      => ['boolean'],
-            'diet_description'  => ['nullable', 'string', 'max:5000'],
-            'texture_modified'  => ['nullable', 'boolean'],
-            'texture_level'     => ['nullable', 'string', 'max:100'],
+            'camper_id' => $camperRule,
+            'special_diet' => ['boolean'],
+            'diet_description' => ['nullable', 'string', 'max:5000'],
+            'texture_modified' => ['nullable', 'boolean'],
+            'texture_level' => ['nullable', 'string', 'max:100'],
             'fluid_restriction' => ['nullable', 'boolean'],
-            'fluid_details'     => ['nullable', 'string', 'max:2000'],
-            'g_tube'            => ['boolean'],
-            'formula'           => ['nullable', 'string', 'max:255'],
-            'amount_per_feeding'=> ['nullable', 'string', 'max:255'],
-            'feedings_per_day'  => ['nullable', 'integer', 'min:1', 'max:24'],
-            'feeding_times'     => ['nullable', 'array'],
-            'feeding_times.*'   => ['string', 'max:50'],
-            'bolus_only'        => ['boolean'],
-            'notes'             => ['nullable', 'string', 'max:5000'],
+            'fluid_details' => ['nullable', 'string', 'max:2000'],
+            'g_tube' => ['boolean'],
+            'formula' => ['nullable', 'string', 'max:255'],
+            'amount_per_feeding' => ['nullable', 'string', 'max:255'],
+            'feedings_per_day' => ['nullable', 'integer', 'min:1', 'max:24'],
+            'feeding_times' => ['nullable', 'array'],
+            'feeding_times.*' => ['string', 'max:50'],
+            'bolus_only' => ['boolean'],
+            'notes' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

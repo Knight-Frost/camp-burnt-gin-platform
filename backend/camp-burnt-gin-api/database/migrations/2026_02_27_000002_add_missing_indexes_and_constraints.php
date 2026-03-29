@@ -31,9 +31,9 @@ return new class extends Migration
             // Use prefix lengths (100 chars each) → 4 × 100 × 4 = 1600 bytes.
             \Illuminate\Support\Facades\DB::statement(
                 'ALTER TABLE required_document_rules '
-                . 'ADD UNIQUE INDEX rdr_unique_rule ('
-                . 'medical_complexity_tier(100), supervision_level(100), '
-                . 'condition_flag(100), document_type(100))'
+                .'ADD UNIQUE INDEX rdr_unique_rule ('
+                .'medical_complexity_tier(100), supervision_level(100), '
+                .'condition_flag(100), document_type(100))'
             );
         } else {
             // SQLite (tests) and other drivers have no key-length limit.

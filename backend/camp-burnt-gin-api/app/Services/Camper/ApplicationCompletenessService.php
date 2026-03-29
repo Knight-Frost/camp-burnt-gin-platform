@@ -27,12 +27,12 @@ class ApplicationCompletenessService
      * Key = model attribute, value = human-readable label for the warning modal.
      */
     private const REQUIRED_CAMPER_FIELDS = [
-        'first_name'    => 'Camper first name',
-        'last_name'     => 'Camper last name',
+        'first_name' => 'Camper first name',
+        'last_name' => 'Camper last name',
         'date_of_birth' => 'Date of birth',
-        'gender'        => 'Gender',
-        'tshirt_size'   => 'T-shirt size',
-        'county'        => 'County (required for CYSHCN eligibility)',
+        'gender' => 'Gender',
+        'tshirt_size' => 'T-shirt size',
+        'county' => 'County (required for CYSHCN eligibility)',
     ];
 
     /**
@@ -40,10 +40,10 @@ class ApplicationCompletenessService
      * These match the values accepted by storeConsents() in ApplicationController.
      */
     private const REQUIRED_CONSENT_TYPES = [
-        'general'       => 'Medical treatment authorization',
-        'photos'        => 'Photo and media release',
-        'liability'     => 'Release of liability',
-        'activity'      => 'Activity participation consent',
+        'general' => 'Medical treatment authorization',
+        'photos' => 'Photo and media release',
+        'liability' => 'Release of liability',
+        'activity' => 'Activity participation consent',
         'authorization' => 'HIPAA authorization',
     ];
 
@@ -57,7 +57,6 @@ class ApplicationCompletenessService
      * Loads required relationships before checking; safe to call with an already-
      * loaded application (loadMissing is idempotent).
      *
-     * @param  Application  $application
      * @return array{
      *   is_complete: bool,
      *   missing_fields: list<array{key: string, label: string, severity: string}>,
@@ -74,15 +73,15 @@ class ApplicationCompletenessService
             'documents',
         ]);
 
-        $missingFields    = $this->checkCamperFields($application);
+        $missingFields = $this->checkCamperFields($application);
         $missingDocuments = $this->checkDocuments($application);
-        $missingConsents  = $this->checkConsents($application);
+        $missingConsents = $this->checkConsents($application);
 
         return [
-            'is_complete'       => empty($missingFields) && empty($missingDocuments) && empty($missingConsents),
-            'missing_fields'    => $missingFields,
+            'is_complete' => empty($missingFields) && empty($missingDocuments) && empty($missingConsents),
+            'missing_fields' => $missingFields,
             'missing_documents' => $missingDocuments,
-            'missing_consents'  => $missingConsents,
+            'missing_consents' => $missingConsents,
         ];
     }
 
@@ -91,7 +90,7 @@ class ApplicationCompletenessService
     private function checkCamperFields(Application $application): array
     {
         $missing = [];
-        $camper  = $application->camper;
+        $camper = $application->camper;
 
         foreach (self::REQUIRED_CAMPER_FIELDS as $field => $label) {
             if (empty($camper->{$field})) {
@@ -102,8 +101,8 @@ class ApplicationCompletenessService
         // The application must have been formally submitted (not still a draft).
         if ($application->is_draft || ! $application->submitted_at) {
             $missing[] = [
-                'key'      => 'submitted',
-                'label'    => 'Application has not been submitted by the family',
+                'key' => 'submitted',
+                'label' => 'Application has not been submitted by the family',
                 'severity' => 'high',
             ];
         }
@@ -111,8 +110,8 @@ class ApplicationCompletenessService
         // A digital guardian signature is required for legal record.
         if (! $application->signed_at) {
             $missing[] = [
-                'key'      => 'signature',
-                'label'    => 'Guardian signature is missing',
+                'key' => 'signature',
+                'label' => 'Guardian signature is missing',
                 'severity' => 'high',
             ];
         }
@@ -121,16 +120,16 @@ class ApplicationCompletenessService
         $contacts = $camper->emergencyContacts;
         if ($contacts->isEmpty()) {
             $missing[] = [
-                'key'      => 'emergency_contact',
-                'label'    => 'No emergency contact on file',
+                'key' => 'emergency_contact',
+                'label' => 'No emergency contact on file',
                 'severity' => 'high',
             ];
         } else {
             $hasPhone = $contacts->contains(fn ($c) => ! empty($c->phone_primary));
             if (! $hasPhone) {
                 $missing[] = [
-                    'key'      => 'emergency_contact_phone',
-                    'label'    => 'Emergency contact primary phone number is missing',
+                    'key' => 'emergency_contact_phone',
+                    'label' => 'Emergency contact primary phone number is missing',
                     'severity' => 'high',
                 ];
             }
@@ -150,8 +149,8 @@ class ApplicationCompletenessService
 
         if (! $hasMedicalForm) {
             $missing[] = [
-                'key'      => 'medical_form',
-                'label'    => 'Medical Form (physician-completed) has not been uploaded',
+                'key' => 'medical_form',
+                'label' => 'Medical Form (physician-completed) has not been uploaded',
                 'severity' => 'high',
             ];
         }
@@ -163,24 +162,24 @@ class ApplicationCompletenessService
 
             foreach ($compliance['missing_documents'] as $doc) {
                 $missing[] = [
-                    'key'      => 'doc_' . $doc['document_type'],
-                    'label'    => $doc['description'] ?? ucwords(str_replace('_', ' ', $doc['document_type'])),
+                    'key' => 'doc_'.$doc['document_type'],
+                    'label' => $doc['description'] ?? ucwords(str_replace('_', ' ', $doc['document_type'])),
                     'severity' => 'high',
                 ];
             }
 
             foreach ($compliance['expired_documents'] as $doc) {
                 $missing[] = [
-                    'key'      => 'expired_' . ($doc['document_id'] ?? $doc['document_type']),
-                    'label'    => ucwords(str_replace('_', ' ', $doc['document_type'])) . ' has expired',
+                    'key' => 'expired_'.($doc['document_id'] ?? $doc['document_type']),
+                    'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' has expired',
                     'severity' => 'medium',
                 ];
             }
 
             foreach ($compliance['unverified_documents'] as $doc) {
                 $missing[] = [
-                    'key'      => 'unverified_' . ($doc['document_id'] ?? $doc['document_type']),
-                    'label'    => ucwords(str_replace('_', ' ', $doc['document_type'])) . ' has not been verified by admin',
+                    'key' => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
+                    'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' has not been verified by admin',
                     'severity' => 'medium',
                 ];
             }
@@ -191,14 +190,14 @@ class ApplicationCompletenessService
 
     private function checkConsents(Application $application): array
     {
-        $missing     = [];
+        $missing = [];
         $signedTypes = $application->consents->pluck('consent_type')->all();
 
         foreach (self::REQUIRED_CONSENT_TYPES as $type => $label) {
             if (! in_array($type, $signedTypes, true)) {
                 $missing[] = [
-                    'key'      => $type,
-                    'label'    => $label . ' not signed',
+                    'key' => $type,
+                    'label' => $label.' not signed',
                     'severity' => 'high',
                 ];
             }

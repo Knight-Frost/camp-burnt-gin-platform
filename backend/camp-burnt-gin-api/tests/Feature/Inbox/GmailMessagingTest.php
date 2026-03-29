@@ -5,8 +5,8 @@ namespace Tests\Feature\Inbox;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageRecipient;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -45,12 +45,12 @@ class GmailMessagingTest extends TestCase
 
         Storage::fake('local');
 
-        $adminRole   = Role::firstOrCreate(['name' => 'admin'],    ['description' => 'Administrator']);
-        $parentRole  = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
-        $medRole     = Role::firstOrCreate(['name' => 'medical'],   ['description' => 'Medical Provider']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'Administrator']);
+        $parentRole = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
+        $medRole = Role::firstOrCreate(['name' => 'medical'], ['description' => 'Medical Provider']);
 
-        $this->admin        = User::factory()->create(['role_id' => $adminRole->id]);
-        $this->parent       = User::factory()->create(['role_id' => $parentRole->id]);
+        $this->admin = User::factory()->create(['role_id' => $adminRole->id]);
+        $this->parent = User::factory()->create(['role_id' => $parentRole->id]);
         $this->secondParent = User::factory()->create(['role_id' => $parentRole->id]);
         $this->medicalStaff = User::factory()->create(['role_id' => $medRole->id]);
 
@@ -72,8 +72,8 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
-            'body'            => 'Original message',
+            'sender_id' => $this->admin->id,
+            'body' => 'Original message',
         ]);
 
         Sanctum::actingAs($this->parent);
@@ -81,7 +81,7 @@ class GmailMessagingTest extends TestCase
         $response = $this->postJson(
             "/api/inbox/conversations/{$this->conversation->id}/reply",
             [
-                'body'              => 'Reply body',
+                'body' => 'Reply body',
                 'parent_message_id' => $original->id,
             ]
         );
@@ -91,11 +91,11 @@ class GmailMessagingTest extends TestCase
             ->assertJsonPath('data.parent_message_id', $original->id);
 
         $this->assertDatabaseHas('messages', [
-            'conversation_id'   => $this->conversation->id,
-            'sender_id'         => $this->parent->id,
-            'body'              => 'Reply body',
+            'conversation_id' => $this->conversation->id,
+            'sender_id' => $this->parent->id,
+            'body' => 'Reply body',
             'parent_message_id' => $original->id,
-            'reply_type'        => 'reply',
+            'reply_type' => 'reply',
         ]);
     }
 
@@ -104,7 +104,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         Sanctum::actingAs($this->parent);
@@ -119,8 +119,8 @@ class GmailMessagingTest extends TestCase
         $replyId = $response->json('data.id');
 
         $this->assertDatabaseHas('message_recipients', [
-            'message_id'     => $replyId,
-            'user_id'        => $this->admin->id,
+            'message_id' => $replyId,
+            'user_id' => $this->admin->id,
             'recipient_type' => 'to',
         ]);
     }
@@ -130,7 +130,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         Sanctum::actingAs($this->parent);
@@ -147,7 +147,7 @@ class GmailMessagingTest extends TestCase
         // The sender (parent) must NOT appear as a recipient of their own reply
         $this->assertDatabaseMissing('message_recipients', [
             'message_id' => $replyId,
-            'user_id'    => $this->parent->id,
+            'user_id' => $this->parent->id,
         ]);
     }
 
@@ -156,7 +156,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         Sanctum::actingAs($this->medicalStaff);
@@ -188,7 +188,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         Sanctum::actingAs($this->parent);
@@ -209,8 +209,8 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
-            'body'            => 'Original',
+            'sender_id' => $this->admin->id,
+            'body' => 'Original',
         ]);
 
         // Add explicit TO/CC/BCC recipients on the original message
@@ -233,7 +233,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         // secondParent was a BCC on the original — must NOT appear in reply-all recipients
@@ -254,7 +254,7 @@ class GmailMessagingTest extends TestCase
         // secondParent (BCC) must NOT appear as a recipient in the reply-all
         $this->assertDatabaseMissing('message_recipients', [
             'message_id' => $replyId,
-            'user_id'    => $this->secondParent->id,
+            'user_id' => $this->secondParent->id,
         ]);
     }
 
@@ -262,13 +262,13 @@ class GmailMessagingTest extends TestCase
     public function reply_all_includes_to_and_cc_recipients_from_original_message()
     {
         // A third participant for CC
-        $adminRole  = Role::where('name', 'admin')->first();
-        $ccUser     = User::factory()->create(['role_id' => $adminRole->id]);
+        $adminRole = Role::where('name', 'admin')->first();
+        $ccUser = User::factory()->create(['role_id' => $adminRole->id]);
         $this->conversation->participantRecords()->create(['user_id' => $ccUser->id, 'joined_at' => now()]);
 
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         MessageRecipient::create(['message_id' => $original->id, 'user_id' => $this->parent->id, 'recipient_type' => 'to', 'is_read' => false]);
@@ -287,15 +287,15 @@ class GmailMessagingTest extends TestCase
 
         // admin (original sender) must be in reply-all as TO
         $this->assertDatabaseHas('message_recipients', [
-            'message_id'     => $replyId,
-            'user_id'        => $this->admin->id,
+            'message_id' => $replyId,
+            'user_id' => $this->admin->id,
             'recipient_type' => 'to',
         ]);
 
         // ccUser must be in reply-all as CC
         $this->assertDatabaseHas('message_recipients', [
-            'message_id'     => $replyId,
-            'user_id'        => $ccUser->id,
+            'message_id' => $replyId,
+            'user_id' => $ccUser->id,
             'recipient_type' => 'cc',
         ]);
     }
@@ -305,7 +305,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         MessageRecipient::create(['message_id' => $original->id, 'user_id' => $this->parent->id, 'recipient_type' => 'to', 'is_read' => false]);
@@ -324,7 +324,7 @@ class GmailMessagingTest extends TestCase
         // The sender (parent) must NOT appear as a recipient of their own reply-all
         $this->assertDatabaseMissing('message_recipients', [
             'message_id' => $replyId,
-            'user_id'    => $this->parent->id,
+            'user_id' => $this->parent->id,
         ]);
     }
 
@@ -334,7 +334,7 @@ class GmailMessagingTest extends TestCase
         // Make admin appear both as original sender AND as a TO recipient — should deduplicate
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         // Admin is already the sender; also add admin as an explicit TO (edge case)
@@ -368,7 +368,7 @@ class GmailMessagingTest extends TestCase
         // Sender sends a message with a BCC recipient
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         MessageRecipient::create(['message_id' => $original->id, 'user_id' => $this->parent->id,       'recipient_type' => 'to',  'is_read' => false]);
@@ -395,7 +395,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         MessageRecipient::create(['message_id' => $original->id, 'user_id' => $this->parent->id,       'recipient_type' => 'to',  'is_read' => false]);
@@ -420,12 +420,12 @@ class GmailMessagingTest extends TestCase
     public function bcc_recipient_sees_themselves_but_not_other_bcc_recipients()
     {
         $adminRole = Role::where('name', 'admin')->first();
-        $otherBcc  = User::factory()->create(['role_id' => $adminRole->id]);
+        $otherBcc = User::factory()->create(['role_id' => $adminRole->id]);
         $this->conversation->participantRecords()->create(['user_id' => $otherBcc->id, 'joined_at' => now()]);
 
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         MessageRecipient::create(['message_id' => $original->id, 'user_id' => $this->parent->id,  'recipient_type' => 'to',  'is_read' => false]);
@@ -453,7 +453,7 @@ class GmailMessagingTest extends TestCase
     {
         $original = Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $this->admin->id,
+            'sender_id' => $this->admin->id,
         ]);
 
         MessageRecipient::create(['message_id' => $original->id, 'user_id' => $this->parent->id,       'recipient_type' => 'to', 'is_read' => false]);
@@ -486,7 +486,7 @@ class GmailMessagingTest extends TestCase
         $response = $this->postJson(
             "/api/inbox/conversations/{$this->conversation->id}/messages",
             [
-                'body'       => 'Test with explicit recipients',
+                'body' => 'Test with explicit recipients',
                 'recipients' => [
                     ['user_id' => $this->parent->id,       'type' => 'to'],
                     ['user_id' => $this->secondParent->id, 'type' => 'cc'],
@@ -499,14 +499,14 @@ class GmailMessagingTest extends TestCase
         $messageId = $response->json('data.id');
 
         $this->assertDatabaseHas('message_recipients', [
-            'message_id'     => $messageId,
-            'user_id'        => $this->parent->id,
+            'message_id' => $messageId,
+            'user_id' => $this->parent->id,
             'recipient_type' => 'to',
         ]);
 
         $this->assertDatabaseHas('message_recipients', [
-            'message_id'     => $messageId,
-            'user_id'        => $this->secondParent->id,
+            'message_id' => $messageId,
+            'user_id' => $this->secondParent->id,
             'recipient_type' => 'cc',
         ]);
     }
@@ -520,7 +520,7 @@ class GmailMessagingTest extends TestCase
         $response = $this->postJson(
             "/api/inbox/conversations/{$this->conversation->id}/messages",
             [
-                'body'       => 'Duplicate recipient test',
+                'body' => 'Duplicate recipient test',
                 'recipients' => [
                     ['user_id' => $this->parent->id, 'type' => 'to'],
                     ['user_id' => $this->parent->id, 'type' => 'cc'], // duplicate

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\Medical;
 
 use App\Http\Controllers\Controller;
 use App\Models\Camper;
-use App\Models\TreatmentLog;
-use App\Models\MedicalIncident;
 use App\Models\MedicalFollowUp;
+use App\Models\MedicalIncident;
 use App\Models\MedicalVisit;
+use App\Models\TreatmentLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -44,7 +44,7 @@ class MedicalStatsController extends Controller
         $this->authorize('viewAny', TreatmentLog::class);
 
         // Define the two reference dates used across multiple queries below.
-        $today   = Carbon::today()->toDateString();
+        $today = Carbon::today()->toDateString();
         $weekAgo = Carbon::today()->subDays(7)->toDateString();
 
         // --- Camper overview counts ---
@@ -119,21 +119,21 @@ class MedicalStatsController extends Controller
         return response()->json([
             'data' => [
                 'campers' => [
-                    'total'                    => $totalCampers,
-                    'with_severe_allergies'    => $campersWithSevereAllergies,
-                    'on_medications'           => $campersOnMedications,
+                    'total' => $totalCampers,
+                    'with_severe_allergies' => $campersWithSevereAllergies,
+                    'on_medications' => $campersOnMedications,
                     'with_active_restrictions' => $campersWithRestrictions,
-                    'missing_medical_record'   => $campersWithoutMedicalRecord,
+                    'missing_medical_record' => $campersWithoutMedicalRecord,
                 ],
                 'follow_ups' => [
                     'due_today' => $followUpsDueToday,
-                    'overdue'   => $overdueFollowUps,
-                    'open'      => $openFollowUps,
+                    'overdue' => $overdueFollowUps,
+                    'open' => $openFollowUps,
                 ],
                 'recent_activity' => [
                     'treatments' => $recentTreatments,
-                    'incidents'  => $recentIncidents,
-                    'visits'     => $recentVisits,
+                    'incidents' => $recentIncidents,
+                    'visits' => $recentVisits,
                 ],
                 'treatment_type_counts' => $treatmentTypeCounts,
             ],

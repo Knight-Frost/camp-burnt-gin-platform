@@ -63,8 +63,8 @@ class EmailVerificationNotification extends Notification
         );
 
         // Extract only the query string from the backend URL (contains signature, expires, etc.)
-        $parsed    = parse_url($signedUrl);
-        $query     = $parsed['query'] ?? '';
+        $parsed = parse_url($signedUrl);
+        $query = $parsed['query'] ?? '';
 
         // Redirect the user to the frontend React page, passing all the signature params
         // The frontend will then call the backend API to complete verification

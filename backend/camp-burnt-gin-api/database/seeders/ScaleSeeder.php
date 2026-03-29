@@ -9,7 +9,6 @@ use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\EmergencyContact;
 use App\Models\MedicalRecord;
-use App\Models\PersonalCarePlan;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -48,10 +47,11 @@ class ScaleSeeder extends Seeder
     public function run(): void
     {
         $parentRole = Role::where('name', 'applicant')->firstOrFail();
-        $sessions   = CampSession::orderBy('start_date')->get();
+        $sessions = CampSession::orderBy('start_date')->get();
 
         if ($sessions->count() < 2) {
             $this->command->warn('  ScaleSeeder skipped — no camp sessions found. Run CampSeeder first.');
+
             return;
         }
 
@@ -60,23 +60,23 @@ class ScaleSeeder extends Seeder
         $s2 = $sessions->get(2) ?? $sessions->first();
 
         $camperCount = 0;
-        $appCount    = 0;
+        $appCount = 0;
 
         foreach ($this->families() as $family) {
             $user = User::firstOrCreate(
                 ['email' => $family['email']],
                 [
-                    'name'              => $family['name'],
-                    'role_id'           => $parentRole->id,
-                    'password'          => Hash::make('password'),
+                    'name' => $family['name'],
+                    'role_id' => $parentRole->id,
+                    'password' => Hash::make('password'),
                     'email_verified_at' => now(),
-                    'is_active'         => true,
-                    'phone'             => $family['phone'] ?? null,
-                    'address_line_1'    => $family['address'] ?? null,
-                    'city'              => $family['city'] ?? null,
-                    'state'             => 'SC',
-                    'postal_code'       => $family['zip'] ?? null,
-                    'country'           => 'US',
+                    'is_active' => true,
+                    'phone' => $family['phone'] ?? null,
+                    'address_line_1' => $family['address'] ?? null,
+                    'city' => $family['city'] ?? null,
+                    'state' => 'SC',
+                    'postal_code' => $family['zip'] ?? null,
+                    'country' => 'US',
                     'notification_preferences' => ['email', 'database'],
                 ]
             );
@@ -85,17 +85,17 @@ class ScaleSeeder extends Seeder
                 $camper = Camper::firstOrCreate(
                     ['user_id' => $user->id, 'first_name' => $c['first_name'], 'last_name' => $c['last_name']],
                     [
-                        'date_of_birth'     => $c['dob'],
-                        'gender'            => $c['gender'],
-                        'tshirt_size'       => $c['tshirt'] ?? 'M',
-                        'county'            => $family['county'] ?? null,
+                        'date_of_birth' => $c['dob'],
+                        'gender' => $c['gender'],
+                        'tshirt_size' => $c['tshirt'] ?? 'M',
+                        'county' => $family['county'] ?? null,
                         'supervision_level' => $c['supervision'] ?? 'standard',
                         'needs_interpreter' => $family['interpreter'] ?? false,
                         'preferred_language' => ($family['interpreter'] ?? false) ? ($family['language'] ?? null) : null,
                         'applicant_address' => $family['address'] ?? null,
-                        'applicant_city'    => $family['city'] ?? null,
-                        'applicant_state'   => 'SC',
-                        'applicant_zip'     => $family['zip'] ?? null,
+                        'applicant_city' => $family['city'] ?? null,
+                        'applicant_state' => 'SC',
+                        'applicant_zip' => $family['zip'] ?? null,
                     ]
                 );
                 $camperCount++;
@@ -103,22 +103,22 @@ class ScaleSeeder extends Seeder
                 // ── Emergency contact ─────────────────────────────────────────
                 if (! EmergencyContact::where('camper_id', $camper->id)->exists()) {
                     EmergencyContact::create([
-                        'camper_id'            => $camper->id,
-                        'name'                 => $c['ec_name'],
-                        'relationship'         => $c['ec_rel'],
-                        'phone_primary'        => $c['ec_phone'],
-                        'phone_secondary'      => $c['ec_phone2'] ?? null,
-                        'phone_work'           => $c['ec_phone_work'] ?? null,
-                        'email'                => $c['ec_email'] ?? null,
-                        'is_primary'           => true,
+                        'camper_id' => $camper->id,
+                        'name' => $c['ec_name'],
+                        'relationship' => $c['ec_rel'],
+                        'phone_primary' => $c['ec_phone'],
+                        'phone_secondary' => $c['ec_phone2'] ?? null,
+                        'phone_work' => $c['ec_phone_work'] ?? null,
+                        'email' => $c['ec_email'] ?? null,
+                        'is_primary' => true,
                         'is_authorized_pickup' => true,
-                        'is_guardian'          => true,
-                        'address'              => $family['address'] ?? null,
-                        'city'                 => $family['city'] ?? null,
-                        'state'                => 'SC',
-                        'zip'                  => $family['zip'] ?? null,
-                        'primary_language'     => $family['language'] ?? null,
-                        'interpreter_needed'   => $family['interpreter'] ?? false,
+                        'is_guardian' => true,
+                        'address' => $family['address'] ?? null,
+                        'city' => $family['city'] ?? null,
+                        'state' => 'SC',
+                        'zip' => $family['zip'] ?? null,
+                        'primary_language' => $family['language'] ?? null,
+                        'interpreter_needed' => $family['interpreter'] ?? false,
                     ]);
                 }
 
@@ -127,23 +127,23 @@ class ScaleSeeder extends Seeder
                 // 'draft' is not an ApplicationStatus enum value — it is controlled
                 // by the is_draft boolean. Treat draft entries as pending status.
                 $rawStatus = $c['status'] ?? 'pending';
-                $status    = ApplicationStatus::from($rawStatus === 'draft' ? 'pending' : $rawStatus);
+                $status = ApplicationStatus::from($rawStatus === 'draft' ? 'pending' : $rawStatus);
 
                 $app = Application::firstOrCreate(
                     ['camper_id' => $camper->id, 'camp_session_id' => $targetSession->id],
                     [
-                        'status'              => $status,
-                        'is_draft'            => $c['draft'] ?? false,
-                        'first_application'   => $c['first_app'] ?? true,
-                        'attended_before'     => $c['attended_before'] ?? false,
-                        'notes'               => $c['admin_notes'] ?? null,
-                        'submitted_at'        => ($c['draft'] ?? false) ? null : now()->subDays(rand(1, 30)),
-                        'narrative_rustic_environment'       => $c['narrative_rustic'] ?? null,
-                        'narrative_camp_benefit'             => $c['narrative_benefit'] ?? null,
-                        'narrative_heat_tolerance'           => $c['narrative_heat'] ?? null,
-                        'narrative_participation_concerns'   => $c['narrative_concerns'] ?? null,
-                        'narrative_staff_suggestions'        => $c['narrative_staff'] ?? null,
-                        'narrative_transportation'           => $c['narrative_transport'] ?? null,
+                        'status' => $status,
+                        'is_draft' => $c['draft'] ?? false,
+                        'first_application' => $c['first_app'] ?? true,
+                        'attended_before' => $c['attended_before'] ?? false,
+                        'notes' => $c['admin_notes'] ?? null,
+                        'submitted_at' => ($c['draft'] ?? false) ? null : now()->subDays(rand(1, 30)),
+                        'narrative_rustic_environment' => $c['narrative_rustic'] ?? null,
+                        'narrative_camp_benefit' => $c['narrative_benefit'] ?? null,
+                        'narrative_heat_tolerance' => $c['narrative_heat'] ?? null,
+                        'narrative_participation_concerns' => $c['narrative_concerns'] ?? null,
+                        'narrative_staff_suggestions' => $c['narrative_staff'] ?? null,
+                        'narrative_transportation' => $c['narrative_transport'] ?? null,
                     ]
                 );
                 $appCount++;
@@ -161,20 +161,20 @@ class ScaleSeeder extends Seeder
                 if ($needsMedical && isset($c['medical']) && ! MedicalRecord::where('camper_id', $camper->id)->exists()) {
                     $m = $c['medical'];
                     MedicalRecord::create([
-                        'camper_id'            => $camper->id,
-                        'physician_name'       => $m['physician'] ?? 'Dr. Unknown',
-                        'physician_phone'      => $m['physician_phone'] ?? '803-555-0000',
-                        'insurance_provider'   => $m['insurance'] ?? 'Medicaid',
-                        'special_needs'        => $m['special_needs'] ?? null,
+                        'camper_id' => $camper->id,
+                        'physician_name' => $m['physician'] ?? 'Dr. Unknown',
+                        'physician_phone' => $m['physician_phone'] ?? '803-555-0000',
+                        'insurance_provider' => $m['insurance'] ?? 'Medicaid',
+                        'special_needs' => $m['special_needs'] ?? null,
                         'dietary_restrictions' => $m['diet'] ?? null,
-                        'notes'                => $m['notes'] ?? null,
-                        'has_seizures'         => $m['seizures'] ?? false,
-                        'tubes_in_ears'        => $m['tubes_in_ears'] ?? false,
+                        'notes' => $m['notes'] ?? null,
+                        'has_seizures' => $m['seizures'] ?? false,
+                        'tubes_in_ears' => $m['tubes_in_ears'] ?? false,
                         'has_contagious_illness' => false,
-                        'has_recent_illness'   => $m['recent_illness'] ?? false,
+                        'has_recent_illness' => $m['recent_illness'] ?? false,
                         'recent_illness_description' => $m['recent_illness_desc'] ?? null,
                         'immunizations_current' => $m['immunizations_current'] ?? true,
-                        'is_active'            => $status === ApplicationStatus::Approved,
+                        'is_active' => $status === ApplicationStatus::Approved,
                     ]);
                 }
 
@@ -574,34 +574,34 @@ class ScaleSeeder extends Seeder
             // ── 53–62. Remaining 10 families — shorter definitions ─────────────
 
             ['name' => 'Laura Bennett', 'email' => 'laura.bennett@example.com', 'phone' => '803-555-1201', 'address' => '345 Sunset Blvd', 'city' => 'Irmo', 'zip' => '29063', 'county' => 'Lexington', 'interpreter' => false,
-            'campers' => [['first_name' => 'Nathan', 'last_name' => 'Bennett', 'dob' => '2013-10-10', 'gender' => 'male', 'tshirt' => 'YL', 'supervision' => 'standard', 'session' => 's1', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Greg Bennett', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1202', 'medical' => ['physician' => 'Dr. Ann Taylor', 'physician_phone' => '803-749-3000', 'insurance' => 'BCBS SC', 'special_needs' => 'ASD Level 1. High verbal, academic abilities. Social pragmatics delays.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => false, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'General education', 'communication_methods' => ['verbal'], 'notes' => 'ASD Level 1.']]]],
+                'campers' => [['first_name' => 'Nathan', 'last_name' => 'Bennett', 'dob' => '2013-10-10', 'gender' => 'male', 'tshirt' => 'YL', 'supervision' => 'standard', 'session' => 's1', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Greg Bennett', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1202', 'medical' => ['physician' => 'Dr. Ann Taylor', 'physician_phone' => '803-749-3000', 'insurance' => 'BCBS SC', 'special_needs' => 'ASD Level 1. High verbal, academic abilities. Social pragmatics delays.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => false, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'General education', 'communication_methods' => ['verbal'], 'notes' => 'ASD Level 1.']]]],
 
             ['name' => 'Patricia Greene', 'email' => 'patricia.greene@example.com', 'phone' => '803-555-1211', 'address' => '678 Garners Ferry Rd', 'city' => 'Columbia', 'zip' => '29209', 'county' => 'Richland', 'interpreter' => false,
-            'campers' => [['first_name' => 'Aaliyah', 'last_name' => 'Greene', 'dob' => '2014-06-23', 'gender' => 'female', 'tshirt' => 'YM', 'supervision' => 'enhanced', 'session' => 's2', 'status' => 'under_review', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Derek Greene', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1212', 'medical' => ['physician' => 'Dr. Brenda Moore', 'physician_phone' => '803-434-2100', 'insurance' => 'Medicaid', 'special_needs' => 'Rett syndrome. Limited voluntary hand use. Communication via eye gaze technology. Requires full ADL assistance.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => true, 'one_to_one_description' => '1:1 for physical care and communication support.', 'developmental_delay' => true, 'verbal_communication' => false, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Self-contained', 'communication_methods' => ['eye gaze'], 'notes' => 'Rett syndrome. Eye gaze AAC. Full assist all ADLs.']]]],
+                'campers' => [['first_name' => 'Aaliyah', 'last_name' => 'Greene', 'dob' => '2014-06-23', 'gender' => 'female', 'tshirt' => 'YM', 'supervision' => 'enhanced', 'session' => 's2', 'status' => 'under_review', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Derek Greene', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1212', 'medical' => ['physician' => 'Dr. Brenda Moore', 'physician_phone' => '803-434-2100', 'insurance' => 'Medicaid', 'special_needs' => 'Rett syndrome. Limited voluntary hand use. Communication via eye gaze technology. Requires full ADL assistance.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => true, 'one_to_one_description' => '1:1 for physical care and communication support.', 'developmental_delay' => true, 'verbal_communication' => false, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Self-contained', 'communication_methods' => ['eye gaze'], 'notes' => 'Rett syndrome. Eye gaze AAC. Full assist all ADLs.']]]],
 
             ['name' => 'Sandra Phillips', 'email' => 'sandra.phillips@example.com', 'phone' => '803-555-1221', 'address' => '901 Broad River Rd', 'city' => 'Columbia', 'zip' => '29210', 'county' => 'Richland', 'interpreter' => false,
-            'campers' => [['first_name' => 'Brandon', 'last_name' => 'Phillips', 'dob' => '2012-03-30', 'gender' => 'male', 'tshirt' => 'AM', 'supervision' => 'standard', 'session' => 's1', 'status' => 'pending', 'first_app' => false, 'attended_before' => true, 'ec_name' => 'Wayne Phillips', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1222', 'medical' => ['physician' => 'Dr. Lisa Chen', 'physician_phone' => '803-434-5000', 'insurance' => 'Tricare', 'special_needs' => 'Down syndrome. Good verbal skills. Enthusiastic participant. Prior year notes on file.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Self-contained', 'communication_methods' => ['verbal', 'sign language'], 'notes' => 'Down syndrome. Returning. Great personality.']]]],
+                'campers' => [['first_name' => 'Brandon', 'last_name' => 'Phillips', 'dob' => '2012-03-30', 'gender' => 'male', 'tshirt' => 'AM', 'supervision' => 'standard', 'session' => 's1', 'status' => 'pending', 'first_app' => false, 'attended_before' => true, 'ec_name' => 'Wayne Phillips', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1222', 'medical' => ['physician' => 'Dr. Lisa Chen', 'physician_phone' => '803-434-5000', 'insurance' => 'Tricare', 'special_needs' => 'Down syndrome. Good verbal skills. Enthusiastic participant. Prior year notes on file.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Self-contained', 'communication_methods' => ['verbal', 'sign language'], 'notes' => 'Down syndrome. Returning. Great personality.']]]],
 
             ['name' => 'Monica Evans', 'email' => 'monica.evans@example.com', 'phone' => '864-555-1231', 'address' => '432 East Main Street', 'city' => 'Spartanburg', 'zip' => '29302', 'county' => 'Spartanburg', 'interpreter' => false,
-            'campers' => [['first_name' => 'Jeremiah', 'last_name' => 'Evans', 'dob' => '2013-12-15', 'gender' => 'male', 'tshirt' => 'YL', 'supervision' => 'enhanced', 'session' => 's2', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'George Evans', 'ec_rel' => 'Father', 'ec_phone' => '864-555-1232', 'medical' => ['physician' => 'Dr. Howard Jones', 'physician_phone' => '864-560-7000', 'insurance' => 'BCBS SC', 'special_needs' => 'ASD Level 2 + significant sensory processing disorder. Auditory filtering difficulties. Noise-cancelling headphones provided.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => true, 'follows_instructions' => true, 'group_participation' => false, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal', 'picture exchange'], 'notes' => 'ASD Level 2. Significant auditory SPD. Noise-cancelling headphones at all loud events.']]]],
+                'campers' => [['first_name' => 'Jeremiah', 'last_name' => 'Evans', 'dob' => '2013-12-15', 'gender' => 'male', 'tshirt' => 'YL', 'supervision' => 'enhanced', 'session' => 's2', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'George Evans', 'ec_rel' => 'Father', 'ec_phone' => '864-555-1232', 'medical' => ['physician' => 'Dr. Howard Jones', 'physician_phone' => '864-560-7000', 'insurance' => 'BCBS SC', 'special_needs' => 'ASD Level 2 + significant sensory processing disorder. Auditory filtering difficulties. Noise-cancelling headphones provided.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => true, 'follows_instructions' => true, 'group_participation' => false, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal', 'picture exchange'], 'notes' => 'ASD Level 2. Significant auditory SPD. Noise-cancelling headphones at all loud events.']]]],
 
             ['name' => 'Rhonda Jackson', 'email' => 'rhonda.jackson@example.com', 'phone' => '803-555-1241', 'address' => '567 Two Notch Road', 'city' => 'Columbia', 'zip' => '29204', 'county' => 'Richland', 'interpreter' => false,
-            'campers' => [['first_name' => 'Zara', 'last_name' => 'Jackson', 'dob' => '2014-04-11', 'gender' => 'female', 'tshirt' => 'YS', 'supervision' => 'standard', 'session' => 's1', 'status' => 'waitlisted', 'first_app' => true, 'attended_before' => false, 'admin_notes' => 'Waitlisted — S1 full. Good candidate for S2 waitlist promotion.', 'ec_name' => 'Terrence Jackson', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1242', 'medical' => ['physician' => 'Dr. Dorothy Allen', 'physician_phone' => '803-434-6000', 'insurance' => 'Medicaid', 'special_needs' => 'Intellectual disability, mild. Very socially motivated. No medical concerns.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal'], 'notes' => 'ID mild. Social butterfly. Very enthusiastic.']]]],
+                'campers' => [['first_name' => 'Zara', 'last_name' => 'Jackson', 'dob' => '2014-04-11', 'gender' => 'female', 'tshirt' => 'YS', 'supervision' => 'standard', 'session' => 's1', 'status' => 'waitlisted', 'first_app' => true, 'attended_before' => false, 'admin_notes' => 'Waitlisted — S1 full. Good candidate for S2 waitlist promotion.', 'ec_name' => 'Terrence Jackson', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1242', 'medical' => ['physician' => 'Dr. Dorothy Allen', 'physician_phone' => '803-434-6000', 'insurance' => 'Medicaid', 'special_needs' => 'Intellectual disability, mild. Very socially motivated. No medical concerns.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal'], 'notes' => 'ID mild. Social butterfly. Very enthusiastic.']]]],
 
             ['name' => 'Connie White', 'email' => 'connie.white@example.com', 'phone' => '843-555-1251', 'address' => '123 Meeting Street', 'city' => 'Charleston', 'zip' => '29401', 'county' => 'Charleston', 'interpreter' => false,
-            'campers' => [['first_name' => 'Sophia', 'last_name' => 'White', 'dob' => '2012-07-29', 'gender' => 'female', 'tshirt' => 'AS', 'supervision' => 'standard', 'session' => 's2', 'status' => 'approved', 'first_app' => false, 'attended_before' => true, 'ec_name' => 'James White', 'ec_rel' => 'Father', 'ec_phone' => '843-555-1252', 'medical' => ['physician' => 'Dr. Charles Brown', 'physician_phone' => '843-792-4000', 'insurance' => 'Aetna', 'special_needs' => 'ASD Level 1. Third year at camp. Full self-advocacy skills.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => false, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'General education', 'communication_methods' => ['verbal'], 'notes' => 'ASD Level 1 returning veteran.']]]],
+                'campers' => [['first_name' => 'Sophia', 'last_name' => 'White', 'dob' => '2012-07-29', 'gender' => 'female', 'tshirt' => 'AS', 'supervision' => 'standard', 'session' => 's2', 'status' => 'approved', 'first_app' => false, 'attended_before' => true, 'ec_name' => 'James White', 'ec_rel' => 'Father', 'ec_phone' => '843-555-1252', 'medical' => ['physician' => 'Dr. Charles Brown', 'physician_phone' => '843-792-4000', 'insurance' => 'Aetna', 'special_needs' => 'ASD Level 1. Third year at camp. Full self-advocacy skills.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => false, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'General education', 'communication_methods' => ['verbal'], 'notes' => 'ASD Level 1 returning veteran.']]]],
 
             ['name' => 'Latoya Hall', 'email' => 'latoya.hall@example.com', 'phone' => '803-555-1261', 'address' => '789 Elmwood Ave', 'city' => 'Columbia', 'zip' => '29201', 'county' => 'Richland', 'interpreter' => false,
-            'campers' => [['first_name' => 'Malachi', 'last_name' => 'Hall', 'dob' => '2013-01-17', 'gender' => 'male', 'tshirt' => 'YL', 'supervision' => 'enhanced', 'session' => 's1', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Curtis Hall', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1262', 'medical' => ['physician' => 'Dr. Elizabeth Young', 'physician_phone' => '803-434-7000', 'insurance' => 'Medicaid', 'special_needs' => 'Tuberous sclerosis complex. Focal seizures (medicated). ASD traits. Vigabatrin daily.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => false, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal'], 'notes' => 'TSC with ASD traits. Seizure protocol on file. Medication at 8am.']]]],
+                'campers' => [['first_name' => 'Malachi', 'last_name' => 'Hall', 'dob' => '2013-01-17', 'gender' => 'male', 'tshirt' => 'YL', 'supervision' => 'enhanced', 'session' => 's1', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Curtis Hall', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1262', 'medical' => ['physician' => 'Dr. Elizabeth Young', 'physician_phone' => '803-434-7000', 'insurance' => 'Medicaid', 'special_needs' => 'Tuberous sclerosis complex. Focal seizures (medicated). ASD traits. Vigabatrin daily.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => false, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal'], 'notes' => 'TSC with ASD traits. Seizure protocol on file. Medication at 8am.']]]],
 
             ['name' => 'Gloria King', 'email' => 'gloria.king@example.com', 'phone' => '803-555-1271', 'address' => '456 Killian Road', 'city' => 'Columbia', 'zip' => '29203', 'county' => 'Richland', 'interpreter' => false,
-            'campers' => [['first_name' => 'Mia', 'last_name' => 'King', 'dob' => '2014-09-04', 'gender' => 'female', 'tshirt' => 'YS', 'supervision' => 'standard', 'session' => 's2', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Robert King', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1272', 'medical' => ['physician' => 'Dr. Patricia Lewis', 'physician_phone' => '803-434-8000', 'insurance' => 'Medicaid', 'special_needs' => 'Down syndrome. Very social, loves music and dance. No medical concerns beyond annual cardiac echo (normal last 3 years).', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Self-contained', 'communication_methods' => ['verbal'], 'notes' => 'Down syndrome. Music lover.']]]],
+                'campers' => [['first_name' => 'Mia', 'last_name' => 'King', 'dob' => '2014-09-04', 'gender' => 'female', 'tshirt' => 'YS', 'supervision' => 'standard', 'session' => 's2', 'status' => 'pending', 'first_app' => true, 'attended_before' => false, 'ec_name' => 'Robert King', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1272', 'medical' => ['physician' => 'Dr. Patricia Lewis', 'physician_phone' => '803-434-8000', 'insurance' => 'Medicaid', 'special_needs' => 'Down syndrome. Very social, loves music and dance. No medical concerns beyond annual cardiac echo (normal last 3 years).', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'Self-contained', 'communication_methods' => ['verbal'], 'notes' => 'Down syndrome. Music lover.']]]],
 
             ['name' => 'Nicole Wright', 'email' => 'nicole.wright@example.com', 'phone' => '864-555-1281', 'address' => '234 Woodruff Road', 'city' => 'Greenville', 'zip' => '29607', 'county' => 'Greenville', 'interpreter' => false,
-            'campers' => [['first_name' => 'Lucas', 'last_name' => 'Wright', 'dob' => '2012-05-21', 'gender' => 'male', 'tshirt' => 'AL', 'supervision' => 'enhanced', 'session' => 's1', 'status' => 'rejected', 'first_app' => true, 'attended_before' => false, 'admin_notes' => 'Rejected — incomplete medical documentation. Family notified to resubmit with physician clearance for cardiac condition.', 'ec_name' => 'Brian Wright', 'ec_rel' => 'Father', 'ec_phone' => '864-555-1282', 'medical' => ['physician' => 'Dr. Kevin Adams', 'physician_phone' => '864-455-5000', 'insurance' => 'Cigna', 'special_needs' => 'ASD Level 2. Unresolved cardiac workup (bicuspid aortic valve) — physician clearance required before participation. Application on hold.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => false, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal'], 'notes' => 'ASD Level 2. Pending cardiac clearance.']]]],
+                'campers' => [['first_name' => 'Lucas', 'last_name' => 'Wright', 'dob' => '2012-05-21', 'gender' => 'male', 'tshirt' => 'AL', 'supervision' => 'enhanced', 'session' => 's1', 'status' => 'rejected', 'first_app' => true, 'attended_before' => false, 'admin_notes' => 'Rejected — incomplete medical documentation. Family notified to resubmit with physician clearance for cardiac condition.', 'ec_name' => 'Brian Wright', 'ec_rel' => 'Father', 'ec_phone' => '864-555-1282', 'medical' => ['physician' => 'Dr. Kevin Adams', 'physician_phone' => '864-455-5000', 'insurance' => 'Cigna', 'special_needs' => 'ASD Level 2. Unresolved cardiac workup (bicuspid aortic valve) — physician clearance required before participation. Application on hold.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => true, 'verbal_communication' => true, 'social_skills' => false, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => false, 'attends_school' => true, 'classroom_type' => 'Resource room', 'communication_methods' => ['verbal'], 'notes' => 'ASD Level 2. Pending cardiac clearance.']]]],
 
             ['name' => 'Vanessa Turner', 'email' => 'vanessa.turner@example.com', 'phone' => '803-555-1291', 'address' => '890 Atlas Road', 'city' => 'Columbia', 'zip' => '29209', 'county' => 'Richland', 'interpreter' => false,
-            'campers' => [['first_name' => 'Alexis', 'last_name' => 'Turner', 'dob' => '2013-07-07', 'gender' => 'female', 'tshirt' => 'YM', 'supervision' => 'enhanced', 'session' => 's2', 'status' => 'draft', 'draft' => true, 'first_app' => true, 'attended_before' => false, 'ec_name' => 'James Turner', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1292', 'medical' => ['physician' => 'Dr. Susan Campbell', 'physician_phone' => '803-434-9000', 'insurance' => 'United Healthcare', 'special_needs' => 'CP, left hemiplegia. Functional ambulation with AFO. Full cognition. Application in progress.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => false, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'General education', 'communication_methods' => ['verbal'], 'notes' => 'CP hemiplegia. Cognitively typical. Draft application.']]]],
+                'campers' => [['first_name' => 'Alexis', 'last_name' => 'Turner', 'dob' => '2013-07-07', 'gender' => 'female', 'tshirt' => 'YM', 'supervision' => 'enhanced', 'session' => 's2', 'status' => 'draft', 'draft' => true, 'first_app' => true, 'attended_before' => false, 'ec_name' => 'James Turner', 'ec_rel' => 'Father', 'ec_phone' => '803-555-1292', 'medical' => ['physician' => 'Dr. Susan Campbell', 'physician_phone' => '803-434-9000', 'insurance' => 'United Healthcare', 'special_needs' => 'CP, left hemiplegia. Functional ambulation with AFO. Full cognition. Application in progress.', 'immunizations_current' => true], 'behavioral' => ['aggression' => false, 'self_abuse' => false, 'wandering_risk' => false, 'one_to_one_supervision' => false, 'developmental_delay' => false, 'verbal_communication' => true, 'social_skills' => true, 'behavior_plan' => false, 'follows_instructions' => true, 'group_participation' => true, 'attends_school' => true, 'classroom_type' => 'General education', 'communication_methods' => ['verbal'], 'notes' => 'CP hemiplegia. Cognitively typical. Draft application.']]]],
         ];
     }
 }

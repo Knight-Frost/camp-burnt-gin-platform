@@ -36,7 +36,7 @@ class MfaService
      */
     public function __construct()
     {
-        $this->google2fa = new Google2FA();
+        $this->google2fa = new Google2FA;
     }
 
     /**
@@ -46,7 +46,7 @@ class MfaService
      * a QR code URL that an authenticator app can scan. After scanning, the
      * app and server share the same secret and can generate matching codes.
      *
-     * @return array<string, mixed>  'secret' and 'qr_code_url'
+     * @return array<string, mixed> 'secret' and 'qr_code_url'
      */
     public function initializeSetup(User $user): array
     {
@@ -75,12 +75,12 @@ class MfaService
      * The user scans the QR code and enters the first 6-digit code shown.
      * If valid, MFA is officially enabled on their account.
      *
-     * @return array<string, mixed>  'success' => true/false with optional 'message'
+     * @return array<string, mixed> 'success' => true/false with optional 'message'
      */
     public function verifyAndEnable(User $user, string $code): array
     {
         // Guard: cannot verify a code if setup hasn't been started
-        if (!$user->mfa_secret) {
+        if (! $user->mfa_secret) {
             return [
                 'success' => false,
                 'message' => 'MFA setup has not been initialized.',
@@ -89,7 +89,7 @@ class MfaService
 
         try {
             // verifyKey checks the code against the current 30-second TOTP window
-            if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+            if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
                 return [
                     'success' => false,
                     'message' => 'Invalid verification code.',
@@ -123,7 +123,7 @@ class MfaService
     public function verifyCode(User $user, string $code): bool
     {
         // Cannot verify without a stored secret
-        if (!$user->mfa_secret) {
+        if (! $user->mfa_secret) {
             return false;
         }
 
@@ -144,12 +144,12 @@ class MfaService
      * Note: This version does not implement rate limiting. See Auth\MfaService
      * for the version with per-user attempt tracking.
      *
-     * @return array<string, mixed>  'success' => true/false with optional 'message'
+     * @return array<string, mixed> 'success' => true/false with optional 'message'
      */
     public function disable(User $user, string $code, string $password): array
     {
         // Guard: MFA must be enabled before it can be disabled
-        if (!$user->mfa_secret) {
+        if (! $user->mfa_secret) {
             return [
                 'success' => false,
                 'message' => 'MFA is not enabled for this account.',
@@ -157,7 +157,7 @@ class MfaService
         }
 
         // Proof 1: Verify the current account password against the stored hash
-        if (!Hash::check($password, $user->password)) {
+        if (! Hash::check($password, $user->password)) {
             return [
                 'success' => false,
                 'message' => 'Invalid password.',
@@ -166,7 +166,7 @@ class MfaService
 
         try {
             // Proof 2: Verify the current TOTP code from the authenticator app
-            if (!$this->google2fa->verifyKey($user->mfa_secret, $code)) {
+            if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
                 return [
                     'success' => false,
                     'message' => 'Invalid verification code.',

@@ -31,27 +31,27 @@ class StaffSeeder extends Seeder
 {
     public function run(): void
     {
-        $adminRole    = Role::where('name', 'admin')->firstOrFail();
-        $medicalRole  = Role::where('name', 'medical')->firstOrFail();
-        $superRole    = Role::where('name', 'super_admin')->firstOrFail();
+        $adminRole = Role::where('name', 'admin')->firstOrFail();
+        $medicalRole = Role::where('name', 'medical')->firstOrFail();
+        $superRole = Role::where('name', 'super_admin')->firstOrFail();
         $applicantRole = Role::where('name', 'applicant')->firstOrFail();
 
         // ── Deputy Super Admin ────────────────────────────────────────────────
         User::firstOrCreate(
             ['email' => 'admin2@campburntgin.org'],
             [
-                'name'              => 'Jordan Blake',
-                'role_id'           => $superRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Jordan Blake',
+                'role_id' => $superRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
-                'phone'             => '803-555-0001',
-                'address_line_1'    => '445 Gervais Street',
-                'city'              => 'Columbia',
-                'state'             => 'SC',
-                'postal_code'       => '29201',
-                'country'           => 'US',
-                'preferred_name'    => 'Jordan',
+                'is_active' => true,
+                'phone' => '803-555-0001',
+                'address_line_1' => '445 Gervais Street',
+                'city' => 'Columbia',
+                'state' => 'SC',
+                'postal_code' => '29201',
+                'country' => 'US',
+                'preferred_name' => 'Jordan',
             ]
         );
 
@@ -59,18 +59,18 @@ class StaffSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['email' => 'admin@example.com'],
             [
-                'name'              => 'Alex Rivera',
-                'role_id'           => $adminRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Alex Rivera',
+                'role_id' => $adminRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
-                'phone'             => '803-555-0002',
-                'address_line_1'    => '112 Blanding Street',
-                'city'              => 'Columbia',
-                'state'             => 'SC',
-                'postal_code'       => '29201',
-                'country'           => 'US',
-                'preferred_name'    => 'Alex',
+                'is_active' => true,
+                'phone' => '803-555-0002',
+                'address_line_1' => '112 Blanding Street',
+                'city' => 'Columbia',
+                'state' => 'SC',
+                'postal_code' => '29201',
+                'country' => 'US',
+                'preferred_name' => 'Alex',
                 'notification_preferences' => ['email', 'database'],
             ]
         );
@@ -78,11 +78,11 @@ class StaffSeeder extends Seeder
         // Admin emergency contact
         if (! UserEmergencyContact::where('user_id', $admin->id)->exists()) {
             UserEmergencyContact::create([
-                'user_id'      => $admin->id,
-                'name'         => 'Carmen Rivera',
+                'user_id' => $admin->id,
+                'name' => 'Carmen Rivera',
                 'relationship' => 'Spouse',
-                'phone'        => '803-555-0003',
-                'email'        => 'carmen.rivera@example.com',
+                'phone' => '803-555-0003',
+                'email' => 'carmen.rivera@example.com',
             ]);
         }
 
@@ -90,18 +90,18 @@ class StaffSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin3@campburntgin.org'],
             [
-                'name'              => 'Taylor Brooks',
-                'role_id'           => $adminRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Taylor Brooks',
+                'role_id' => $adminRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
-                'phone'             => '803-555-0004',
-                'address_line_1'    => '318 Senate Street',
-                'city'              => 'Columbia',
-                'state'             => 'SC',
-                'postal_code'       => '29201',
-                'country'           => 'US',
-                'preferred_name'    => 'Taylor',
+                'is_active' => true,
+                'phone' => '803-555-0004',
+                'address_line_1' => '318 Senate Street',
+                'city' => 'Columbia',
+                'state' => 'SC',
+                'postal_code' => '29201',
+                'country' => 'US',
+                'preferred_name' => 'Taylor',
                 'notification_preferences' => ['email', 'database'],
             ]
         );
@@ -110,18 +110,18 @@ class StaffSeeder extends Seeder
         $medical = User::firstOrCreate(
             ['email' => 'medical@example.com'],
             [
-                'name'              => 'Dr. Morgan Chen',
-                'role_id'           => $medicalRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Dr. Morgan Chen',
+                'role_id' => $medicalRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
-                'phone'             => '803-555-0005',
-                'address_line_1'    => '1 Medical Park Drive',
-                'city'              => 'Orangeburg',
-                'state'             => 'SC',
-                'postal_code'       => '29115',
-                'country'           => 'US',
-                'preferred_name'    => 'Dr. Chen',
+                'is_active' => true,
+                'phone' => '803-555-0005',
+                'address_line_1' => '1 Medical Park Drive',
+                'city' => 'Orangeburg',
+                'state' => 'SC',
+                'postal_code' => '29115',
+                'country' => 'US',
+                'preferred_name' => 'Dr. Chen',
                 'notification_preferences' => ['email', 'database'],
             ]
         );
@@ -129,11 +129,11 @@ class StaffSeeder extends Seeder
         // Medical director emergency contact
         if (! UserEmergencyContact::where('user_id', $medical->id)->exists()) {
             UserEmergencyContact::create([
-                'user_id'      => $medical->id,
-                'name'         => 'Wei Chen',
+                'user_id' => $medical->id,
+                'name' => 'Wei Chen',
                 'relationship' => 'Spouse',
-                'phone'        => '803-555-0006',
-                'email'        => 'wei.chen@example.com',
+                'phone' => '803-555-0006',
+                'email' => 'wei.chen@example.com',
             ]);
         }
 
@@ -141,18 +141,18 @@ class StaffSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'medical2@campburntgin.org'],
             [
-                'name'              => 'Jamie Santos',
-                'role_id'           => $medicalRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Jamie Santos',
+                'role_id' => $medicalRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
-                'phone'             => '803-555-0007',
-                'address_line_1'    => '820 Barnwell Street',
-                'city'              => 'Columbia',
-                'state'             => 'SC',
-                'postal_code'       => '29201',
-                'country'           => 'US',
-                'preferred_name'    => 'Jamie',
+                'is_active' => true,
+                'phone' => '803-555-0007',
+                'address_line_1' => '820 Barnwell Street',
+                'city' => 'Columbia',
+                'state' => 'SC',
+                'postal_code' => '29201',
+                'country' => 'US',
+                'preferred_name' => 'Jamie',
                 'notification_preferences' => ['database'],
             ]
         );
@@ -161,12 +161,12 @@ class StaffSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'mfa.admin@campburntgin.org'],
             [
-                'name'              => 'Dana Forsythe',
-                'role_id'           => $adminRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Dana Forsythe',
+                'role_id' => $adminRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
-                'mfa_enabled'       => true,
+                'is_active' => true,
+                'mfa_enabled' => true,
                 // mfa_secret left null — forces user to complete MFA setup in tests
                 'notification_preferences' => ['email', 'database'],
             ]
@@ -176,11 +176,11 @@ class StaffSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'inactive@example.com'],
             [
-                'name'              => 'Deactivated User',
-                'role_id'           => $applicantRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Deactivated User',
+                'role_id' => $applicantRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => false,   // ← login will be denied
+                'is_active' => false,   // ← login will be denied
             ]
         );
 
@@ -188,14 +188,14 @@ class StaffSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'locked.applicant@example.com'],
             [
-                'name'              => 'Locked Applicant',
-                'role_id'           => $applicantRole->id,
-                'password'          => Hash::make('password'),
+                'name' => 'Locked Applicant',
+                'role_id' => $applicantRole->id,
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
+                'is_active' => true,
                 'failed_login_attempts' => 5,
-                'lockout_until'         => now()->addHours(2),  // ← still locked
-                'last_failed_login_at'  => now()->subMinutes(10),
+                'lockout_until' => now()->addHours(2),  // ← still locked
+                'last_failed_login_at' => now()->subMinutes(10),
             ]
         );
 

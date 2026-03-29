@@ -12,13 +12,13 @@ namespace App\Enums;
 enum FollowUpPriority: string
 {
     // Can wait — handle it when there is available time.
-    case Low    = 'low';
+    case Low = 'low';
 
     // Should be done soon, but not immediately.
     case Medium = 'medium';
 
     // Needs attention before the end of the day.
-    case High   = 'high';
+    case High = 'high';
 
     // Must be handled right away — do not delay.
     case Urgent = 'urgent';
@@ -28,10 +28,10 @@ enum FollowUpPriority: string
      */
     public function label(): string
     {
-        return match($this) {
-            self::Low    => 'Low',
+        return match ($this) {
+            self::Low => 'Low',
             self::Medium => 'Medium',
-            self::High   => 'High',
+            self::High => 'High',
             self::Urgent => 'Urgent',
         };
     }

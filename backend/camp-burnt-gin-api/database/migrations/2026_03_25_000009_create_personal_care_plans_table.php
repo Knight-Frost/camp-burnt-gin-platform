@@ -23,8 +23,8 @@ return new class extends Migration
         Schema::create('personal_care_plans', function (Blueprint $table) {
             $table->id();
             $table->foreignId('camper_id')
-                  ->constrained()
-                  ->cascadeOnDelete();
+                ->constrained()
+                ->cascadeOnDelete();
 
             // Bathing / showering
             $table->string('bathing_level', 50)->nullable();

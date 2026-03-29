@@ -9,7 +9,6 @@ use App\Models\Message;
 use App\Models\MessageRecipient;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -62,17 +61,18 @@ class MessageService
      *     handle attachments, update conversation timestamp, notify other participants
      *  3. Write audit log entry
      *
-     * @param  Conversation    $conversation     The conversation to send into
-     * @param  User            $sender           The user sending the message
-     * @param  string          $body             The message text content
-     * @param  array           $attachments      Array of UploadedFile objects (optional)
-     * @param  string|null     $idempotencyKey   Unique key to prevent duplicate sends
-     * @param  array           $recipients       TO/CC/BCC recipients: [{user_id, type}]
-     *                                           If empty, no message_recipients rows are created
-     *                                           (legacy messages without explicit recipient types)
-     * @param  int|null        $parentMessageId  Message being replied to (null for new)
-     * @param  string|null     $replyType        'reply' | 'reply_all' | null
-     * @throws \Exception      If attachment upload fails
+     * @param  Conversation  $conversation  The conversation to send into
+     * @param  User  $sender  The user sending the message
+     * @param  string  $body  The message text content
+     * @param  array  $attachments  Array of UploadedFile objects (optional)
+     * @param  string|null  $idempotencyKey  Unique key to prevent duplicate sends
+     * @param  array  $recipients  TO/CC/BCC recipients: [{user_id, type}]
+     *                             If empty, no message_recipients rows are created
+     *                             (legacy messages without explicit recipient types)
+     * @param  int|null  $parentMessageId  Message being replied to (null for new)
+     * @param  string|null  $replyType  'reply' | 'reply_all' | null
+     *
+     * @throws \Exception If attachment upload fails
      */
     public function sendMessage(
         Conversation $conversation,
@@ -85,7 +85,7 @@ class MessageService
         ?string $replyType = null
     ): Message {
         // Generate a random UUID idempotency key if the caller didn't provide one
-        if (!$idempotencyKey) {
+        if (! $idempotencyKey) {
             $idempotencyKey = Str::uuid()->toString();
         }
 
@@ -110,23 +110,23 @@ class MessageService
 
             // Create the new message record
             $message = Message::create([
-                'conversation_id'  => $conversation->id,
-                'sender_id'        => $sender->id,
-                'body'             => $body,
-                'idempotency_key'  => $idempotencyKey,
+                'conversation_id' => $conversation->id,
+                'sender_id' => $sender->id,
+                'body' => $body,
+                'idempotency_key' => $idempotencyKey,
                 'parent_message_id' => $parentMessageId,
-                'reply_type'       => $replyType,
+                'reply_type' => $replyType,
             ]);
 
             // Create TO/CC/BCC recipient records if explicit recipients were provided.
             // Messages without recipients (legacy or system messages) are still valid —
             // the API falls back to treating all conversation_participants as implicit TO.
-            if (!empty($recipients)) {
+            if (! empty($recipients)) {
                 $this->createRecipientRecords($message, $recipients);
             }
 
             // Process and upload each attached file through DocumentService
-            if (!empty($attachments)) {
+            if (! empty($attachments)) {
                 foreach ($attachments as $file) {
                     $this->attachFile($message, $file, $sender);
                 }
@@ -154,17 +154,17 @@ class MessageService
                 'action' => 'sent',
                 'description' => "Message sent in conversation: {$conversation->subject}",
                 'new_values' => [
-                    'conversation_id'  => $conversation->id,
+                    'conversation_id' => $conversation->id,
                     // Log body length rather than content to avoid logging PHI in the audit table
-                    'body_length'      => strlen($body),
+                    'body_length' => strlen($body),
                     'attachment_count' => count($attachments),
-                    'reply_type'       => $replyType,
-                    'recipient_count'  => count($recipients),
+                    'reply_type' => $replyType,
+                    'recipient_count' => count($recipients),
                 ],
                 'metadata' => [
                     'conversation_subject' => $conversation->subject,
-                    'has_attachments'      => !empty($attachments),
-                    'parent_message_id'    => $parentMessageId,
+                    'has_attachments' => ! empty($attachments),
+                    'parent_message_id' => $parentMessageId,
                 ],
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
@@ -183,11 +183,11 @@ class MessageService
      * is preserved in one place. The original message author receives the reply;
      * CC and BCC recipients of the original message are NOT included.
      *
-     * @param  Conversation  $conversation   The thread to send the reply in
-     * @param  Message       $parentMessage  The message being replied to
-     * @param  User          $sender         The user sending the reply
-     * @param  string        $body           Reply message body
-     * @param  array         $attachments    Optional UploadedFile attachments
+     * @param  Conversation  $conversation  The thread to send the reply in
+     * @param  Message  $parentMessage  The message being replied to
+     * @param  User  $sender  The user sending the reply
+     * @param  string  $body  Reply message body
+     * @param  array  $attachments  Optional UploadedFile attachments
      */
     public function reply(
         Conversation $conversation,
@@ -203,9 +203,9 @@ class MessageService
         }
 
         // Ensure the reply-to author is a conversation participant (they should be, but be safe)
-        if (!empty($recipients)) {
+        if (! empty($recipients)) {
             $replyTarget = User::find($recipients[0]['user_id']);
-            if ($replyTarget && !$conversation->hasParticipant($replyTarget)) {
+            if ($replyTarget && ! $conversation->hasParticipant($replyTarget)) {
                 $this->inboxService->addParticipant($conversation, $replyTarget);
             }
         }
@@ -229,11 +229,11 @@ class MessageService
      * The current user is excluded from the recipient list (you don't send to yourself).
      * Any duplicate user IDs (e.g. original sender also appears in TO) are deduplicated.
      *
-     * @param  Conversation  $conversation   The thread to send the reply in
-     * @param  Message       $parentMessage  The message being replied to
-     * @param  User          $sender         The user sending the reply-all
-     * @param  string        $body           Reply message body
-     * @param  array         $attachments    Optional UploadedFile attachments
+     * @param  Conversation  $conversation  The thread to send the reply in
+     * @param  Message  $parentMessage  The message being replied to
+     * @param  User  $sender  The user sending the reply-all
+     * @param  string  $body  Reply message body
+     * @param  array  $attachments  Optional UploadedFile attachments
      */
     public function replyAll(
         Conversation $conversation,
@@ -246,10 +246,10 @@ class MessageService
 
         // Ensure all reply-all targets are conversation participants
         $recipientUserIds = array_column($recipients, 'user_id');
-        if (!empty($recipientUserIds)) {
+        if (! empty($recipientUserIds)) {
             $users = User::whereIn('id', $recipientUserIds)->get();
             foreach ($users as $user) {
-                if (!$conversation->hasParticipant($user)) {
+                if (! $conversation->hasParticipant($user)) {
                     $this->inboxService->addParticipant($conversation, $user);
                 }
             }
@@ -281,9 +281,9 @@ class MessageService
      * sent before TO/CC/BCC was introduced), fall back to all conversation participants
      * excluding the sender and current user, treating them all as TO.
      *
-     * @param  Message  $message      The original message being replied to
-     * @param  User     $currentUser  The user performing the reply-all
-     * @return array    Array of ['user_id' => int, 'type' => 'to'|'cc']
+     * @param  Message  $message  The original message being replied to
+     * @param  User  $currentUser  The user performing the reply-all
+     * @return array Array of ['user_id' => int, 'type' => 'to'|'cc']
      */
     public function calculateReplyAllRecipients(Message $message, User $currentUser): array
     {
@@ -291,7 +291,7 @@ class MessageService
         $addedUserIds = [$currentUser->id]; // Pre-exclude self
 
         // 1. Add original sender as TO (if they are not the current user)
-        if ($message->sender_id && !in_array($message->sender_id, $addedUserIds)) {
+        if ($message->sender_id && ! in_array($message->sender_id, $addedUserIds)) {
             $recipients[] = ['user_id' => $message->sender_id, 'type' => 'to'];
             $addedUserIds[] = $message->sender_id;
         }
@@ -312,7 +312,7 @@ class MessageService
                 }
                 $recipients[] = [
                     'user_id' => $recipient->user_id,
-                    'type'    => $recipient->recipient_type, // preserve 'to' or 'cc'
+                    'type' => $recipient->recipient_type, // preserve 'to' or 'cc'
                 ];
                 $addedUserIds[] = $recipient->user_id;
             }
@@ -346,29 +346,29 @@ class MessageService
      * Silently skips any entry that would violate the UNIQUE constraint
      * (same user appearing twice — should not happen but guard defensively).
      *
-     * @param  Message  $message     The newly created message
-     * @param  array    $recipients  [['user_id' => int, 'type' => 'to'|'cc'|'bcc'], ...]
+     * @param  Message  $message  The newly created message
+     * @param  array  $recipients  [['user_id' => int, 'type' => 'to'|'cc'|'bcc'], ...]
      */
     protected function createRecipientRecords(Message $message, array $recipients): void
     {
         $seen = [];
         foreach ($recipients as $entry) {
             $userId = $entry['user_id'] ?? null;
-            $type   = $entry['type'] ?? 'to';
+            $type = $entry['type'] ?? 'to';
 
-            if (!$userId || in_array($userId, $seen)) {
+            if (! $userId || in_array($userId, $seen)) {
                 continue;
             }
 
-            if (!in_array($type, ['to', 'cc', 'bcc'])) {
+            if (! in_array($type, ['to', 'cc', 'bcc'])) {
                 $type = 'to'; // Safe default for unrecognised types
             }
 
             MessageRecipient::create([
-                'message_id'     => $message->id,
-                'user_id'        => $userId,
+                'message_id' => $message->id,
+                'user_id' => $userId,
                 'recipient_type' => $type,
-                'is_read'        => false,
+                'is_read' => false,
             ]);
 
             $seen[] = $userId;
@@ -382,10 +382,11 @@ class MessageService
      * security scanning. This method adds the audit log entry specific to
      * the attachment action.
      *
-     * @param  Message       $message   The message to attach the file to
-     * @param  UploadedFile  $file      The file being attached
-     * @param  User          $uploader  The user performing the upload
-     * @throws \Exception    If the file fails validation or upload
+     * @param  Message  $message  The message to attach the file to
+     * @param  UploadedFile  $file  The file being attached
+     * @param  User  $uploader  The user performing the upload
+     *
+     * @throws \Exception If the file fails validation or upload
      */
     protected function attachFile(Message $message, UploadedFile $file, User $uploader)
     {
@@ -405,7 +406,7 @@ class MessageService
             $uploader
         );
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             throw new \Exception($result['message'] ?? 'File upload failed');
         }
 
@@ -440,7 +441,7 @@ class MessageService
      *  - 10 MB file size limit
      *  - MIME type must be in the allowed list (PDF, JPEG, PNG, GIF, DOC, DOCX)
      *
-     * @throws \Exception  With a human-readable message if validation fails
+     * @throws \Exception With a human-readable message if validation fails
      */
     protected function validateAttachment(UploadedFile $file): void
     {
@@ -458,7 +459,7 @@ class MessageService
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ];
 
-        if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
+        if (! in_array($file->getMimeType(), $allowedMimeTypes)) {
             throw new \Exception('File type not allowed');
         }
     }
@@ -471,8 +472,8 @@ class MessageService
      * marked as read — so opening a conversation clears the unread badge.
      *
      * @param  Conversation  $conversation  The conversation to fetch messages for
-     * @param  User          $user          The user viewing the messages
-     * @param  int           $perPage       Messages per page (default 25)
+     * @param  User  $user  The user viewing the messages
+     * @param  int  $perPage  Messages per page (default 25)
      */
     public function getConversationMessages(
         Conversation $conversation,
@@ -486,7 +487,7 @@ class MessageService
 
         // Auto-mark any unread messages as read for this user
         foreach ($messages as $message) {
-            if (!$message->isReadBy($user)) {
+            if (! $message->isReadBy($user)) {
                 $this->markAsRead($message, $user);
             }
         }
@@ -542,14 +543,14 @@ class MessageService
      * the user hasn't already read (and didn't send themselves) to stay efficient.
      *
      * @param  Conversation  $conversation  The conversation to mark as read
-     * @param  User          $user          The user performing the action
+     * @param  User  $user  The user performing the action
      */
     public function markAllAsRead(Conversation $conversation, User $user): void
     {
         $unread = Message::where('conversation_id', $conversation->id)
             ->where(function ($q) use ($user) {
                 $q->whereNull('sender_id')
-                  ->orWhere('sender_id', '!=', $user->id);
+                    ->orWhere('sender_id', '!=', $user->id);
             })
             ->whereDoesntHave('reads', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
@@ -569,14 +570,14 @@ class MessageService
      * The underlying message_reads table stores receipts; deleting a row undoes a read.
      *
      * @param  Conversation  $conversation  The conversation to mark as unread
-     * @param  User          $user          The user performing the action
+     * @param  User  $user  The user performing the action
      */
     public function markConversationUnread(Conversation $conversation, User $user): void
     {
         $latest = Message::where('conversation_id', $conversation->id)
             ->where(function ($q) use ($user) {
                 $q->whereNull('sender_id')
-                  ->orWhere('sender_id', '!=', $user->id);
+                    ->orWhere('sender_id', '!=', $user->id);
             })
             ->latest('created_at')
             ->first();
@@ -599,8 +600,8 @@ class MessageService
             // Only count messages in conversations this user is part of and that are active
             $query->forUser($user)->active();
         })
-        ->unreadBy($user)  // scope: no read receipt exists for this user
-        ->count();
+            ->unreadBy($user)  // scope: no read receipt exists for this user
+            ->count();
     }
 
     /**
@@ -632,7 +633,7 @@ class MessageService
             'auditable_type' => Message::class,
             'auditable_id' => $message->id,
             'action' => 'soft_deleted',
-            'description' => "Message soft deleted by admin",
+            'description' => 'Message soft deleted by admin',
             // Capture the message content in old_values for the audit trail
             'old_values' => $message->toArray(),
             'metadata' => [
@@ -651,10 +652,11 @@ class MessageService
      * written recording who accessed which document and when. This is required
      * for healthcare data access traceability.
      *
-     * @param  Message  $message     The message that owns the attachment
-     * @param  int      $documentId  The ID of the document to access
-     * @param  User     $user        The user accessing the attachment
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException  If document not found
+     * @param  Message  $message  The message that owns the attachment
+     * @param  int  $documentId  The ID of the document to access
+     * @param  User  $user  The user accessing the attachment
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If document not found
      */
     public function accessAttachment(Message $message, int $documentId, User $user)
     {

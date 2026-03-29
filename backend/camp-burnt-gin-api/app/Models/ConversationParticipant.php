@@ -56,12 +56,12 @@ class ConversationParticipant extends Model
     protected function casts(): array
     {
         return [
-            'joined_at'    => 'datetime',
-            'left_at'      => 'datetime',
-            'is_starred'   => 'boolean',
+            'joined_at' => 'datetime',
+            'left_at' => 'datetime',
+            'is_starred' => 'boolean',
             'is_important' => 'boolean',
             // User-level soft-trash; does NOT delete the conversation for other participants
-            'trashed_at'   => 'datetime',
+            'trashed_at' => 'datetime',
         ];
     }
 
@@ -153,6 +153,7 @@ class ConversationParticipant extends Model
     {
         $newValue = ! $this->is_starred;
         $this->update(['is_starred' => $newValue]);
+
         return $newValue;
     }
 
@@ -165,6 +166,7 @@ class ConversationParticipant extends Model
     {
         $newValue = ! $this->is_important;
         $this->update(['is_important' => $newValue]);
+
         return $newValue;
     }
 

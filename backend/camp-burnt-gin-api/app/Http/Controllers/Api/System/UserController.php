@@ -62,12 +62,12 @@ class UserController extends Controller
         $role = Role::where('name', $data['role'])->firstOrFail();
 
         $user = User::create([
-            'name'              => $data['name'],
-            'email'             => $data['email'],
-            'password'          => Hash::make($data['password']),
-            'role_id'           => $role->id,
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+            'role_id' => $role->id,
             // Mark as active and email-verified immediately — super admin vouches for this account.
-            'is_active'         => true,
+            'is_active' => true,
             'email_verified_at' => now(),
         ]);
 
@@ -87,7 +87,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User account created successfully.',
-            'data'    => $this->formatUser($user),
+            'data' => $this->formatUser($user),
         ], 201);
     }
 
@@ -109,7 +109,7 @@ class UserController extends Controller
         // Validate filter inputs to prevent injection and ensure sensible lengths.
         $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
-            'role'   => ['nullable', 'string', 'max:50'],
+            'role' => ['nullable', 'string', 'max:50'],
         ]);
 
         // Start from newest accounts first — most recent signups appear at the top.
@@ -120,29 +120,29 @@ class UserController extends Controller
             // Match against both name and email so admins can search however they remember the user.
             $query->where(function ($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
-                  ->orWhere('email', 'like', "%{$term}%");
+                    ->orWhere('email', 'like', "%{$term}%");
             });
         }
 
         if ($request->filled('role')) {
             $roleName = $request->string('role');
             // Filter by role name using a whereHas sub-query through the role relationship.
-            $query->whereHas('role', fn($q) => $q->where('name', $roleName));
+            $query->whereHas('role', fn ($q) => $q->where('name', $roleName));
         }
 
         $users = $query->paginate($request->integer('per_page', 20));
 
         return response()->json([
             // Map each User model through formatUser() to produce the flat shape the frontend expects.
-            'data' => collect($users->items())->map(fn($u) => $this->formatUser($u))->values(),
+            'data' => collect($users->items())->map(fn ($u) => $this->formatUser($u))->values(),
             'meta' => [
                 'current_page' => $users->currentPage(),
-                'last_page'    => $users->lastPage(),
-                'per_page'     => $users->perPage(),
-                'total'        => $users->total(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
                 // from/to tell the frontend which records (e.g., "21-40 of 150") are shown.
-                'from'         => $users->firstItem(),
-                'to'           => $users->lastItem(),
+                'from' => $users->firstItem(),
+                'to' => $users->lastItem(),
             ],
         ]);
     }
@@ -183,7 +183,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Role updated.',
-            'data'    => $this->formatUser($user),
+            'data' => $this->formatUser($user),
         ]);
     }
 
@@ -245,17 +245,17 @@ class UserController extends Controller
     private function formatUser(User $user): array
     {
         return [
-            'id'                => $user->id,
-            'name'              => $user->name,
-            'email'             => $user->email,
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
             // Flatten the role relationship to just the name string; default to 'applicant' if unset.
-            'role'              => $user->role?->name ?? 'applicant',
+            'role' => $user->role?->name ?? 'applicant',
             // Cast to bool so JSON encodes as true/false, not 1/0.
-            'is_active'         => (bool) $user->is_active,
+            'is_active' => (bool) $user->is_active,
             // toISOString() gives the frontend a timezone-aware string (e.g., "2026-01-15T10:30:00.000Z").
             'email_verified_at' => $user->email_verified_at?->toISOString(),
-            'mfa_enabled'       => (bool) $user->mfa_enabled,
-            'created_at'        => $user->created_at->toISOString(),
+            'mfa_enabled' => (bool) $user->mfa_enabled,
+            'created_at' => $user->created_at->toISOString(),
         ];
     }
 }

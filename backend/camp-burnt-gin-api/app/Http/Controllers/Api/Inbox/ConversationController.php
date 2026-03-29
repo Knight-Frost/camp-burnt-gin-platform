@@ -46,8 +46,7 @@ class ConversationController extends Controller
     public function __construct(
         protected InboxService $inboxService,
         protected MessageService $messageService
-    ) {
-    }
+    ) {}
 
     /**
      * List conversations for the authenticated user, grouped by folder.
@@ -59,9 +58,6 @@ class ConversationController extends Controller
      * notifications (e.g., "Your application was approved") separately from human messages.
      *
      * GET /api/inbox/conversations
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -105,9 +101,9 @@ class ConversationController extends Controller
             'data' => ConversationResource::collection($conversations->items())->resolve($request),
             'meta' => [
                 'current_page' => $conversations->currentPage(),
-                'last_page'    => $conversations->lastPage(),
-                'per_page'     => $conversations->perPage(),
-                'total'        => $conversations->total(),
+                'last_page' => $conversations->lastPage(),
+                'per_page' => $conversations->perPage(),
+                'total' => $conversations->total(),
                 // Included in every list response so the inbox badge can update without a separate request
                 'unread_count' => $this->inboxService->getUnreadConversationCount($user),
             ],
@@ -123,22 +119,20 @@ class ConversationController extends Controller
      *
      * POST /api/inbox/conversations
      *
-     * @param Request $request
-     * @return JsonResponse
      * @throws ValidationException
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'subject'            => 'nullable|string|max:255',
-            'category'           => 'nullable|string|in:general,medical,application,other',
+            'subject' => 'nullable|string|max:255',
+            'category' => 'nullable|string|in:general,medical,application,other',
             // At least one other participant is required; cap at 10 to prevent spam broadcasts
-            'participant_ids'    => 'required|array|min:1|max:10',
+            'participant_ids' => 'required|array|min:1|max:10',
             // Each participant must be a real user ID; distinct prevents duplicate entries
-            'participant_ids.*'  => 'required|integer|exists:users,id|distinct',
-            'application_id'     => 'nullable|integer|exists:applications,id',
-            'camper_id'          => 'nullable|integer|exists:campers,id',
-            'camp_session_id'    => 'nullable|integer|exists:camp_sessions,id',
+            'participant_ids.*' => 'required|integer|exists:users,id|distinct',
+            'application_id' => 'nullable|integer|exists:applications,id',
+            'camper_id' => 'nullable|integer|exists:campers,id',
+            'camp_session_id' => 'nullable|integer|exists:camp_sessions,id',
         ]);
 
         $user = $request->user();
@@ -156,7 +150,7 @@ class ConversationController extends Controller
 
             // If any participant is NOT an admin or super_admin, the flag is raised
             $hasNonAdminParticipants = $participantRoles->contains(
-                fn($role) => !in_array($role, ['admin', 'super_admin'], true)
+                fn ($role) => ! in_array($role, ['admin', 'super_admin'], true)
             );
         }
 
@@ -177,7 +171,7 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => (new ConversationResource($conversation))->resolve($request),
+            'data' => (new ConversationResource($conversation))->resolve($request),
             'message' => 'Conversation created successfully',
         ], 201);
     }
@@ -189,10 +183,6 @@ class ConversationController extends Controller
      * so the frontend can immediately show the conversation thread.
      *
      * GET /api/inbox/conversations/{conversation}
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      */
     public function show(Request $request, Conversation $conversation): JsonResponse
     {
@@ -204,8 +194,8 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => (new ConversationResource($conversation))->resolve($request),
-            'meta'    => [
+            'data' => (new ConversationResource($conversation))->resolve($request),
+            'meta' => [
                 // Let the frontend know how many unread messages exist in this thread
                 'unread_count' => $conversation->getUnreadCountForUser($request->user()),
             ],
@@ -219,10 +209,6 @@ class ConversationController extends Controller
      * Delegates to InboxService which sets the archived_at timestamp.
      *
      * POST /api/inbox/conversations/{conversation}/archive
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      */
     public function archive(Request $request, Conversation $conversation): JsonResponse
     {
@@ -232,7 +218,7 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $conversation,
+            'data' => $conversation,
             'message' => 'Conversation archived successfully',
         ]);
     }
@@ -243,10 +229,6 @@ class ConversationController extends Controller
      * Reuses the 'archive' policy since the same permission governs both directions.
      *
      * POST /api/inbox/conversations/{conversation}/unarchive
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      */
     public function unarchive(Request $request, Conversation $conversation): JsonResponse
     {
@@ -257,7 +239,7 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $conversation,
+            'data' => $conversation,
             'message' => 'Conversation unarchived successfully',
         ]);
     }
@@ -270,9 +252,6 @@ class ConversationController extends Controller
      *
      * POST /api/inbox/conversations/{conversation}/participants
      *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      * @throws ValidationException
      */
     public function addParticipant(Request $request, Conversation $conversation): JsonResponse
@@ -304,10 +283,7 @@ class ConversationController extends Controller
      *
      * DELETE /api/inbox/conversations/{conversation}/participants/{user}
      *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @param User $user The user to remove
-     * @return JsonResponse
+     * @param  User  $user  The user to remove
      */
     public function removeParticipant(
         Request $request,
@@ -331,10 +307,6 @@ class ConversationController extends Controller
      * Unlike removeParticipant, this is self-service — the user leaves voluntarily.
      *
      * POST /api/inbox/conversations/{conversation}/leave
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      */
     public function leave(Request $request, Conversation $conversation): JsonResponse
     {
@@ -369,9 +341,9 @@ class ConversationController extends Controller
         $isStarred = $this->inboxService->toggleStar($conversation, $request->user());
 
         return response()->json([
-            'success'    => true,
+            'success' => true,
             'is_starred' => $isStarred,
-            'message'    => $isStarred ? 'Conversation starred.' : 'Star removed.',
+            'message' => $isStarred ? 'Conversation starred.' : 'Star removed.',
         ]);
     }
 
@@ -389,9 +361,9 @@ class ConversationController extends Controller
         $isImportant = $this->inboxService->toggleImportant($conversation, $request->user());
 
         return response()->json([
-            'success'      => true,
+            'success' => true,
             'is_important' => $isImportant,
-            'message'      => $isImportant ? 'Marked as important.' : 'Removed from important.',
+            'message' => $isImportant ? 'Marked as important.' : 'Removed from important.',
         ]);
     }
 
@@ -483,10 +455,6 @@ class ConversationController extends Controller
      * The record is kept in the database with a deleted_at timestamp (soft delete).
      *
      * DELETE /api/inbox/conversations/{conversation}
-     *
-     * @param Request $request
-     * @param Conversation $conversation
-     * @return JsonResponse
      */
     public function destroy(Request $request, Conversation $conversation): JsonResponse
     {

@@ -27,16 +27,16 @@ class UpdateTreatmentLogRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'treatment_date'    => ['sometimes', 'date', 'before_or_equal:today'],
-            'treatment_time'    => ['nullable', 'date_format:H:i'],
-            'type'              => ['sometimes', Rule::enum(TreatmentType::class)],
-            'title'             => ['sometimes', 'string', 'max:255'],
-            'description'       => ['sometimes', 'string', 'max:5000'],
-            'outcome'           => ['nullable', 'string', 'max:2000'],
-            'medication_given'  => ['nullable', 'string', 'max:500'],
-            'dosage_given'      => ['nullable', 'string', 'max:255'],
+            'treatment_date' => ['sometimes', 'date', 'before_or_equal:today'],
+            'treatment_time' => ['nullable', 'date_format:H:i'],
+            'type' => ['sometimes', Rule::enum(TreatmentType::class)],
+            'title' => ['sometimes', 'string', 'max:255'],
+            'description' => ['sometimes', 'string', 'max:5000'],
+            'outcome' => ['nullable', 'string', 'max:2000'],
+            'medication_given' => ['nullable', 'string', 'max:500'],
+            'dosage_given' => ['nullable', 'string', 'max:255'],
             'follow_up_required' => ['boolean'],
-            'follow_up_notes'   => ['nullable', 'string', 'max:2000'],
+            'follow_up_notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

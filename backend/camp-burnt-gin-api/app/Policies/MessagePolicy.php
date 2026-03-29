@@ -61,7 +61,7 @@ class MessagePolicy
         }
 
         // User must be an active participant to send messages.
-        if (!$conversation->hasParticipant($user)) {
+        if (! $conversation->hasParticipant($user)) {
             return false;
         }
 

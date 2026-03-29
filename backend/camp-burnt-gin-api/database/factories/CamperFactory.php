@@ -16,26 +16,26 @@ class CamperFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id'           => User::factory()->applicant(),
-            'first_name'        => fake()->firstName(),
-            'last_name'         => fake()->lastName(),
-            'preferred_name'    => fake()->optional(0.3)->firstName(),
-            'date_of_birth'     => fake()->dateTimeBetween('-17 years', '-6 years')->format('Y-m-d'),
-            'gender'            => fake()->randomElement(['male', 'female', 'other', null]),
-            'tshirt_size'       => fake()->randomElement(['YS', 'YM', 'YL', 'AS', 'AM', 'AL', 'AXL']),
+            'user_id' => User::factory()->applicant(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'preferred_name' => fake()->optional(0.3)->firstName(),
+            'date_of_birth' => fake()->dateTimeBetween('-17 years', '-6 years')->format('Y-m-d'),
+            'gender' => fake()->randomElement(['male', 'female', 'other', null]),
+            'tshirt_size' => fake()->randomElement(['YS', 'YM', 'YL', 'AS', 'AM', 'AL', 'AXL']),
             // Standard supervision is the most common; enhanced and one_to_one are deliberately rare
             'supervision_level' => fake()->randomElement(['standard', 'standard', 'standard', 'enhanced', 'one_to_one']),
             // is_active is false by default — set to true only when an application is approved
-            'is_active'         => false,
-            'county'            => fake()->optional(0.6)->randomElement([
+            'is_active' => false,
+            'county' => fake()->optional(0.6)->randomElement([
                 'Richland', 'Lexington', 'Greenville', 'Horry', 'Charleston', 'Spartanburg', 'York',
             ]),
-            'needs_interpreter'  => false,
+            'needs_interpreter' => false,
             'preferred_language' => 'English',
-            'applicant_address'  => fake()->streetAddress(),
-            'applicant_city'     => fake()->city(),
-            'applicant_state'    => 'SC',
-            'applicant_zip'      => fake()->numerify('#####'),
+            'applicant_address' => fake()->streetAddress(),
+            'applicant_city' => fake()->city(),
+            'applicant_state' => 'SC',
+            'applicant_zip' => fake()->numerify('#####'),
         ];
     }
 
@@ -73,7 +73,7 @@ class CamperFactory extends Factory
     public function withInterpreter(): static
     {
         return $this->state(fn () => [
-            'needs_interpreter'  => true,
+            'needs_interpreter' => true,
             'preferred_language' => 'Spanish',
         ]);
     }

@@ -45,16 +45,16 @@ class EmailVerificationController extends Controller
     {
         // Ensure the four signed-URL components are present and have the right types.
         $request->validate([
-            'id'        => ['required', 'integer'],
-            'hash'      => ['required', 'string'],
-            'expires'   => ['required', 'integer'],
+            'id' => ['required', 'integer'],
+            'hash' => ['required', 'string'],
+            'expires' => ['required', 'integer'],
             'signature' => ['required', 'string'],
         ]);
 
         // Reconstruct the verification route URL using the id and hash from the request body.
         // Validate the signed URL parameters against the backend verification route.
         $signedRoute = route('verification.verify', [
-            'id'   => $request->integer('id'),
+            'id' => $request->integer('id'),
             'hash' => $request->string('hash'),
         ]);
         // Append the expiry and signature query params to form the full signed URL string.

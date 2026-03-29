@@ -63,10 +63,10 @@ class AuditLog extends Model
     protected function casts(): array
     {
         return [
-            'old_values'  => 'array',    // Before-state snapshot decoded to an associative array.
-            'new_values'  => 'array',    // After-state snapshot decoded to an associative array.
-            'metadata'    => 'array',    // Flexible context data decoded to an associative array.
-            'created_at'  => 'datetime',
+            'old_values' => 'array',    // Before-state snapshot decoded to an associative array.
+            'new_values' => 'array',    // After-state snapshot decoded to an associative array.
+            'metadata' => 'array',    // Flexible context data decoded to an associative array.
+            'created_at' => 'datetime',
         ];
     }
 
@@ -125,10 +125,10 @@ class AuditLog extends Model
         return static::create([
             // Use the X-Request-ID header if present, otherwise generate a fresh UUID.
             'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
-            'user_id'    => $user?->id,
+            'user_id' => $user?->id,
             'event_type' => static::EVENT_TYPE_AUTH,
-            'action'     => $action,
-            'metadata'   => $metadata,
+            'action' => $action,
+            'metadata' => $metadata,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'created_at' => now(),
@@ -144,17 +144,17 @@ class AuditLog extends Model
     public static function logPhiAccess(string $action, User $user, $auditable, array $metadata = []): self
     {
         return static::create([
-            'request_id'      => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
-            'user_id'         => $user->id,
-            'event_type'      => static::EVENT_TYPE_PHI_ACCESS,
+            'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id' => $user->id,
+            'event_type' => static::EVENT_TYPE_PHI_ACCESS,
             // Store the full class name so morphTo() can reload the record later.
-            'auditable_type'  => get_class($auditable),
-            'auditable_id'    => $auditable->id,
-            'action'          => $action,
-            'metadata'        => $metadata,
-            'ip_address'      => request()->ip(),
-            'user_agent'      => request()->userAgent(),
-            'created_at'      => now(),
+            'auditable_type' => get_class($auditable),
+            'auditable_id' => $auditable->id,
+            'action' => $action,
+            'metadata' => $metadata,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
     }
 
@@ -167,15 +167,15 @@ class AuditLog extends Model
     public static function logAdminAction(string $action, User $user, ?string $description = null, array $metadata = []): self
     {
         return static::create([
-            'request_id'  => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
-            'user_id'     => $user->id,
-            'event_type'  => static::EVENT_TYPE_ADMIN_ACTION,
-            'action'      => $action,
+            'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id' => $user->id,
+            'event_type' => static::EVENT_TYPE_ADMIN_ACTION,
+            'action' => $action,
             'description' => $description,
-            'metadata'    => $metadata,
-            'ip_address'  => request()->ip(),
-            'user_agent'  => request()->userAgent(),
-            'created_at'  => now(),
+            'metadata' => $metadata,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
     }
 
@@ -189,10 +189,10 @@ class AuditLog extends Model
      * $changedFields is the subset of fields that actually differ between
      * oldValues and newValues — stored in metadata for quick filtering.
      *
-     * @param  \Illuminate\Database\Eloquent\Model  $auditable   The record that was modified.
-     * @param  User                                 $editor      The user who made the change.
-     * @param  array<string, mixed>                 $oldValues   Field snapshot before the change.
-     * @param  array<string, mixed>                 $newValues   Field snapshot after the change.
+     * @param  \Illuminate\Database\Eloquent\Model  $auditable  The record that was modified.
+     * @param  User  $editor  The user who made the change.
+     * @param  array<string, mixed>  $oldValues  Field snapshot before the change.
+     * @param  array<string, mixed>  $newValues  Field snapshot after the change.
      */
     public static function logContentChange(
         \Illuminate\Database\Eloquent\Model $auditable,
@@ -207,23 +207,23 @@ class AuditLog extends Model
         ));
 
         return static::create([
-            'request_id'     => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
-            'user_id'        => $editor->id,
-            'event_type'     => static::EVENT_TYPE_DATA_CHANGE,
+            'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id' => $editor->id,
+            'event_type' => static::EVENT_TYPE_DATA_CHANGE,
             'auditable_type' => get_class($auditable),
-            'auditable_id'   => $auditable->getKey(),
-            'action'         => 'content.edited',
-            'description'    => 'Application content fields edited by ' . $editor->role . ' (user #' . $editor->id . ').',
-            'old_values'     => $oldValues,
-            'new_values'     => $newValues,
-            'metadata'       => [
-                'editor_role'    => $editor->role,
+            'auditable_id' => $auditable->getKey(),
+            'action' => 'content.edited',
+            'description' => 'Application content fields edited by '.$editor->role.' (user #'.$editor->id.').',
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'metadata' => [
+                'editor_role' => $editor->role,
                 'changed_fields' => $changedFields,
-                'field_count'    => count($changedFields),
+                'field_count' => count($changedFields),
             ],
-            'ip_address'     => request()->ip(),
-            'user_agent'     => request()->userAgent(),
-            'created_at'     => now(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
     }
 }

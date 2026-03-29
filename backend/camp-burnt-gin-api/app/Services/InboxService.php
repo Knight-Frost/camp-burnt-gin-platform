@@ -56,14 +56,15 @@ class InboxService
      *  - Maximum 10 participants per conversation
      *  - All participant IDs must correspond to existing users
      *
-     * @param  User        $creator         The user starting the conversation
-     * @param  string|null $subject         Conversation subject line (can be null)
-     * @param  array       $participantIds  User IDs to include (not including creator)
-     * @param  int|null    $applicationId   Optional: links conversation to an application
-     * @param  int|null    $camperId        Optional: links conversation to a camper
-     * @param  int|null    $campSessionId   Optional: links conversation to a session
-     * @param  string      $category        Conversation category (default: 'general')
-     * @throws \InvalidArgumentException   If participant validation fails
+     * @param  User  $creator  The user starting the conversation
+     * @param  string|null  $subject  Conversation subject line (can be null)
+     * @param  array  $participantIds  User IDs to include (not including creator)
+     * @param  int|null  $applicationId  Optional: links conversation to an application
+     * @param  int|null  $camperId  Optional: links conversation to a camper
+     * @param  int|null  $campSessionId  Optional: links conversation to a session
+     * @param  string  $category  Conversation category (default: 'general')
+     *
+     * @throws \InvalidArgumentException If participant validation fails
      */
     public function createConversation(
         User $creator,
@@ -321,10 +322,10 @@ class InboxService
      *  - system:    is_system_generated = true
      *  - all:       no additional filter (catch-all / backward compat)
      *
-     * @param  User       $user       The user whose conversations to retrieve
-     * @param  int        $perPage    Number of results per page (default 25)
-     * @param  bool|null  $systemOnly Deprecated — prefer the 'system' folder instead
-     * @param  string     $folder     Which folder to display (default: 'inbox')
+     * @param  User  $user  The user whose conversations to retrieve
+     * @param  int  $perPage  Number of results per page (default 25)
+     * @param  bool|null  $systemOnly  Deprecated — prefer the 'system' folder instead
+     * @param  string  $folder  Which folder to display (default: 'inbox')
      */
     public function getUserConversations(
         User $user,
@@ -343,18 +344,18 @@ class InboxService
             case 'inbox':
                 // Active (not archived), human conversations, not trashed by this user
                 $query->active()
-                      ->userConversations()
-                      ->whereHas('participantRecords', function ($q) use ($user) {
-                          $q->where('user_id', $user->id)->whereNull('trashed_at');
-                      });
+                    ->userConversations()
+                    ->whereHas('participantRecords', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->whereNull('trashed_at');
+                    });
                 break;
 
             case 'starred':
                 // This user has starred the conversation and hasn't trashed it
                 $query->whereHas('participantRecords', function ($q) use ($user) {
                     $q->where('user_id', $user->id)
-                      ->where('is_starred', true)
-                      ->whereNull('trashed_at');
+                        ->where('is_starred', true)
+                        ->whereNull('trashed_at');
                 });
                 break;
 
@@ -362,25 +363,25 @@ class InboxService
                 // This user has flagged the conversation as important and hasn't trashed it
                 $query->whereHas('participantRecords', function ($q) use ($user) {
                     $q->where('user_id', $user->id)
-                      ->where('is_important', true)
-                      ->whereNull('trashed_at');
+                        ->where('is_important', true)
+                        ->whereNull('trashed_at');
                 });
                 break;
 
             case 'sent':
                 // Conversations that this user created (regardless of archive status)
                 $query->where('created_by_id', $user->id)
-                      ->whereHas('participantRecords', function ($q) use ($user) {
-                          $q->where('user_id', $user->id)->whereNull('trashed_at');
-                      });
+                    ->whereHas('participantRecords', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->whereNull('trashed_at');
+                    });
                 break;
 
             case 'archive':
                 // Archived conversations this user participates in
                 $query->archived()
-                      ->whereHas('participantRecords', function ($q) use ($user) {
-                          $q->where('user_id', $user->id)->whereNull('trashed_at');
-                      });
+                    ->whereHas('participantRecords', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->whereNull('trashed_at');
+                    });
                 break;
 
             case 'trash':
@@ -394,10 +395,10 @@ class InboxService
             case 'system':
                 // System-generated notifications (no human creator or sender)
                 $query->active()
-                      ->systemGenerated()
-                      ->whereHas('participantRecords', function ($q) use ($user) {
-                          $q->where('user_id', $user->id)->whereNull('trashed_at');
-                      });
+                    ->systemGenerated()
+                    ->whereHas('participantRecords', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->whereNull('trashed_at');
+                    });
                 break;
 
             case 'all':
@@ -464,16 +465,16 @@ class InboxService
             ->update(['trashed_at' => now()]);
 
         AuditLog::create([
-            'request_id'      => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
-            'user_id'         => $user->id,
-            'event_type'      => 'conversation',
-            'auditable_type'  => Conversation::class,
-            'auditable_id'    => $conversation->id,
-            'action'          => 'trashed',
-            'description'     => "User {$user->id} moved conversation to trash: {$conversation->subject}",
-            'ip_address'      => request()->ip(),
-            'user_agent'      => request()->userAgent(),
-            'created_at'      => now(),
+            'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id' => $user->id,
+            'event_type' => 'conversation',
+            'auditable_type' => Conversation::class,
+            'auditable_id' => $conversation->id,
+            'action' => 'trashed',
+            'description' => "User {$user->id} moved conversation to trash: {$conversation->subject}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
     }
 
@@ -492,16 +493,16 @@ class InboxService
             ->update(['trashed_at' => null]);
 
         AuditLog::create([
-            'request_id'      => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
-            'user_id'         => $user->id,
-            'event_type'      => 'conversation',
-            'auditable_type'  => Conversation::class,
-            'auditable_id'    => $conversation->id,
-            'action'          => 'restored_from_trash',
-            'description'     => "User {$user->id} restored conversation from trash: {$conversation->subject}",
-            'ip_address'      => request()->ip(),
-            'user_agent'      => request()->userAgent(),
-            'created_at'      => now(),
+            'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+            'user_id' => $user->id,
+            'event_type' => 'conversation',
+            'auditable_type' => Conversation::class,
+            'auditable_id' => $conversation->id,
+            'action' => 'restored_from_trash',
+            'description' => "User {$user->id} restored conversation from trash: {$conversation->subject}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
     }
 
@@ -525,7 +526,7 @@ class InboxService
                 })->where(function ($q) use ($user) {
                     // Include system messages (sender_id = null) as unread
                     $q->whereNull('sender_id')
-                      ->orWhere('sender_id', '!=', $user->id);
+                        ->orWhere('sender_id', '!=', $user->id);
                 });
             })
             ->count();

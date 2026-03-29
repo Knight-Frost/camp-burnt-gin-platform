@@ -51,9 +51,9 @@ class ActivityPermissionController extends Controller
             'data' => $permissions->items(),
             'meta' => [
                 'current_page' => $permissions->currentPage(),
-                'last_page'    => $permissions->lastPage(),
-                'per_page'     => $permissions->perPage(),
-                'total'        => $permissions->total(),
+                'last_page' => $permissions->lastPage(),
+                'per_page' => $permissions->perPage(),
+                'total' => $permissions->total(),
             ],
         ]);
     }
@@ -78,7 +78,7 @@ class ActivityPermissionController extends Controller
         // HTTP 201 Created signals a new resource was successfully added.
         return response()->json([
             'message' => 'Activity permission created successfully.',
-            'data'    => $permission,
+            'data' => $permission,
         ], Response::HTTP_CREATED);
     }
 
@@ -115,7 +115,7 @@ class ActivityPermissionController extends Controller
 
         return response()->json([
             'message' => 'Activity permission updated successfully.',
-            'data'    => $activityPermission,
+            'data' => $activityPermission,
         ]);
     }
 

@@ -81,15 +81,15 @@ class Document extends Model
     protected function casts(): array
     {
         return [
-            'original_filename'   => 'encrypted',                    // PHI — encrypted at rest.
-            'file_size'           => 'integer',
-            'is_scanned'          => 'boolean',
-            'scan_passed'         => 'boolean',
-            'scanned_at'          => 'datetime',
+            'original_filename' => 'encrypted',                    // PHI — encrypted at rest.
+            'file_size' => 'integer',
+            'is_scanned' => 'boolean',
+            'scan_passed' => 'boolean',
+            'scanned_at' => 'datetime',
             // Maps the stored string to a DocumentVerificationStatus enum instance.
             'verification_status' => DocumentVerificationStatus::class,
-            'verified_at'         => 'datetime',
-            'expiration_date'     => 'date',
+            'verified_at' => 'datetime',
+            'expiration_date' => 'date',
         ];
     }
 

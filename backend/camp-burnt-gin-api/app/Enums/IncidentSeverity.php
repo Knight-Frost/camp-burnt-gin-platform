@@ -12,13 +12,13 @@ namespace App\Enums;
 enum IncidentSeverity: string
 {
     // Small issue, handled easily on-site — no lasting concern.
-    case Minor    = 'minor';
+    case Minor = 'minor';
 
     // Noticeable situation that required some care and follow-up.
     case Moderate = 'moderate';
 
     // A serious situation with potential lasting impact on the camper.
-    case Severe   = 'severe';
+    case Severe = 'severe';
 
     // A dangerous or life-threatening situation requiring immediate escalation.
     case Critical = 'critical';
@@ -28,10 +28,10 @@ enum IncidentSeverity: string
      */
     public function label(): string
     {
-        return match($this) {
-            self::Minor    => 'Minor',
+        return match ($this) {
+            self::Minor => 'Minor',
             self::Moderate => 'Moderate',
-            self::Severe   => 'Severe',
+            self::Severe => 'Severe',
             self::Critical => 'Critical',
         };
     }
@@ -42,7 +42,7 @@ enum IncidentSeverity: string
      */
     public function requiresEscalation(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::Severe, self::Critical => true,
             default => false,
         };

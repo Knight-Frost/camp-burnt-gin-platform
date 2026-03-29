@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Medical;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\MedicalRecord\StoreMedicalRecordRequest;
 use App\Http\Requests\MedicalRecord\StoreHealthProfileRequest;
+use App\Http\Requests\MedicalRecord\StoreMedicalRecordRequest;
 use App\Http\Requests\MedicalRecord\UpdateMedicalRecordRequest;
 use App\Models\Camper;
 use App\Models\MedicalRecord;
@@ -49,9 +49,9 @@ class MedicalRecordController extends Controller
             'data' => $medicalRecords->items(),
             'meta' => [
                 'current_page' => $medicalRecords->currentPage(),
-                'last_page'    => $medicalRecords->lastPage(),
-                'per_page'     => $medicalRecords->perPage(),
-                'total'        => $medicalRecords->total(),
+                'last_page' => $medicalRecords->lastPage(),
+                'per_page' => $medicalRecords->perPage(),
+                'total' => $medicalRecords->total(),
             ],
         ]);
     }
@@ -76,7 +76,7 @@ class MedicalRecordController extends Controller
         // 201 Created signals that a new resource was successfully made.
         return response()->json([
             'message' => 'Medical record created successfully.',
-            'data'    => $medicalRecord,
+            'data' => $medicalRecord,
         ], Response::HTTP_CREATED);
     }
 
@@ -115,7 +115,7 @@ class MedicalRecordController extends Controller
 
         return response()->json([
             'message' => 'Medical record updated successfully.',
-            'data'    => $medicalRecord,
+            'data' => $medicalRecord,
         ]);
     }
 
@@ -127,10 +127,6 @@ class MedicalRecordController extends Controller
      * parents can re-submit without creating duplicates.
      *
      * Authorization: the requesting user must own the camper (CamperPolicy::update).
-     *
-     * @param  StoreHealthProfileRequest  $request
-     * @param  Camper                     $camper
-     * @return JsonResponse
      */
     public function storeHealthProfile(StoreHealthProfileRequest $request, Camper $camper): JsonResponse
     {

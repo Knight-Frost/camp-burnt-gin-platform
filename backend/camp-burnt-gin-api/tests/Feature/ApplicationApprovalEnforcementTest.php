@@ -231,8 +231,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
         $this->assertEquals(ApplicationStatus::Rejected, $this->application->status);
     }
 
-
-public function test_high_complexity_camper_requires_additional_documents(): void
+    public function test_high_complexity_camper_requires_additional_documents(): void
     {
         // Create high complexity camper
         $this->camper->medicalRecord()->update([

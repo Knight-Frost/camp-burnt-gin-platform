@@ -55,6 +55,7 @@ class DeadlineController extends Controller
         if (! $user->isAdmin()) {
             // Applicants: return their own visible deadlines via the service
             $deadlines = $this->deadlineService->getApplicantDeadlines($user);
+
             return response()->json(['data' => $deadlines->map->toApiArray()->values()]);
         }
 
@@ -85,8 +86,8 @@ class DeadlineController extends Controller
             'data' => collect($deadlines->items())->map->toApiArray()->values(),
             'meta' => [
                 'current_page' => $deadlines->currentPage(),
-                'last_page'    => $deadlines->lastPage(),
-                'total'        => $deadlines->total(),
+                'last_page' => $deadlines->lastPage(),
+                'total' => $deadlines->total(),
             ],
         ]);
     }
@@ -128,7 +129,7 @@ class DeadlineController extends Controller
 
         return response()->json([
             'message' => 'Deadline created.',
-            'data'    => $deadline->toApiArray(),
+            'data' => $deadline->toApiArray(),
         ], Response::HTTP_CREATED);
     }
 
@@ -145,18 +146,18 @@ class DeadlineController extends Controller
         $this->authorize('create', Deadline::class);
 
         $validated = $request->validate([
-            'camp_session_id'          => ['required', 'integer', 'exists:camp_sessions,id'],
-            'entity_type'              => ['required', Rule::in(['document_request', 'application', 'medical_requirement'])],
-            'title'                    => ['required', 'string', 'max:255'],
-            'description'              => ['nullable', 'string', 'max:2000'],
-            'due_date'                 => ['required', 'date', 'after:today'],
-            'grace_period_days'        => ['integer', 'min:0', 'max:30'],
-            'is_enforced'              => ['boolean'],
-            'enforcement_mode'         => [Rule::in(['hard', 'soft'])],
+            'camp_session_id' => ['required', 'integer', 'exists:camp_sessions,id'],
+            'entity_type' => ['required', Rule::in(['document_request', 'application', 'medical_requirement'])],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'due_date' => ['required', 'date', 'after:today'],
+            'grace_period_days' => ['integer', 'min:0', 'max:30'],
+            'is_enforced' => ['boolean'],
+            'enforcement_mode' => [Rule::in(['hard', 'soft'])],
             'is_visible_to_applicants' => ['boolean'],
         ]);
 
-        $session  = CampSession::findOrFail($validated['camp_session_id']);
+        $session = CampSession::findOrFail($validated['camp_session_id']);
         $deadline = $this->deadlineService->createSessionWide(
             $session,
             $validated['entity_type'],
@@ -166,7 +167,7 @@ class DeadlineController extends Controller
 
         return response()->json([
             'message' => 'Session-wide deadline created.',
-            'data'    => $deadline->toApiArray(),
+            'data' => $deadline->toApiArray(),
         ], Response::HTTP_CREATED);
     }
 
@@ -203,7 +204,7 @@ class DeadlineController extends Controller
 
         return response()->json([
             'message' => 'Deadline updated.',
-            'data'    => $deadline->fresh()->toApiArray(),
+            'data' => $deadline->fresh()->toApiArray(),
         ]);
     }
 
@@ -238,7 +239,7 @@ class DeadlineController extends Controller
 
         $validated = $request->validate([
             'new_due_date' => ['required', 'date'],
-            'reason'       => ['required', 'string', 'max:1000'],
+            'reason' => ['required', 'string', 'max:1000'],
         ]);
 
         $extended = $this->deadlineService->extend(
@@ -250,7 +251,7 @@ class DeadlineController extends Controller
 
         return response()->json([
             'message' => 'Deadline extended.',
-            'data'    => $extended->toApiArray(),
+            'data' => $extended->toApiArray(),
         ]);
     }
 
@@ -280,7 +281,7 @@ class DeadlineController extends Controller
 
         return response()->json([
             'message' => 'Deadline marked as completed.',
-            'data'    => $completed->toApiArray(),
+            'data' => $completed->toApiArray(),
         ]);
     }
 }

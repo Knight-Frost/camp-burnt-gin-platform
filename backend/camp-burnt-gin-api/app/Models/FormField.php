@@ -46,10 +46,10 @@ class FormField extends Model
     protected function casts(): array
     {
         return [
-            'is_required'       => 'boolean',
-            'is_active'         => 'boolean',
-            'sort_order'        => 'integer',
-            'validation_rules'  => 'array',
+            'is_required' => 'boolean',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+            'validation_rules' => 'array',
             'conditional_logic' => 'array',
         ];
     }

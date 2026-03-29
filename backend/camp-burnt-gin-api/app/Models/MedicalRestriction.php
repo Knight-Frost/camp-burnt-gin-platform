@@ -46,14 +46,14 @@ class MedicalRestriction extends Model
     protected function casts(): array
     {
         return [
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
             // PHI field — encrypted at rest; decrypted automatically by Eloquent on read
             'description' => 'encrypted',
             // PHI field — encrypted at rest; decrypted automatically by Eloquent on read
-            'notes'       => 'encrypted',
+            'notes' => 'encrypted',
             // Date-only format (no time) so end_date->isPast() compares calendar days correctly
-            'start_date'  => 'date:Y-m-d',
-            'end_date'    => 'date:Y-m-d',
+            'start_date' => 'date:Y-m-d',
+            'end_date' => 'date:Y-m-d',
         ];
     }
 

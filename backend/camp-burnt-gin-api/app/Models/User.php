@@ -89,15 +89,15 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             // Treat these timestamp columns as Carbon date objects.
-            'email_verified_at'      => 'datetime',
-            'mfa_verified_at'        => 'datetime',
-            'lockout_until'          => 'datetime',
-            'last_failed_login_at'   => 'datetime',
+            'email_verified_at' => 'datetime',
+            'mfa_verified_at' => 'datetime',
+            'lockout_until' => 'datetime',
+            'last_failed_login_at' => 'datetime',
             // Boolean flags — stored as 0/1 in MySQL, returned as true/false in PHP.
-            'is_active'              => 'boolean',
-            'mfa_enabled'            => 'boolean',
+            'is_active' => 'boolean',
+            'mfa_enabled' => 'boolean',
             // 'hashed' cast automatically bcrypt-hashes the value when you set it.
-            'password'               => 'hashed',
+            'password' => 'hashed',
             // JSON column decoded to a PHP array automatically on read.
             'notification_preferences' => 'array',
         ];
@@ -269,8 +269,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // The lockout has expired — clean up so the next login attempt works normally.
         $this->update([
-            'lockout_until'          => null,
-            'failed_login_attempts'  => 0,
+            'lockout_until' => null,
+            'failed_login_attempts' => 0,
         ]);
 
         return false;
@@ -289,7 +289,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $data = [
             'failed_login_attempts' => $attempts,
-            'last_failed_login_at'  => now(),
+            'last_failed_login_at' => now(),
         ];
 
         // Trigger the lockout once the attempt count reaches the threshold.
@@ -310,8 +310,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->update([
             'failed_login_attempts' => 0,
-            'lockout_until'         => null,
-            'last_failed_login_at'  => null,
+            'lockout_until' => null,
+            'last_failed_login_at' => null,
         ]);
     }
 

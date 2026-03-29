@@ -78,11 +78,11 @@ class MedicalProviderLink extends Model
     protected function casts(): array
     {
         return [
-            'expires_at'   => 'datetime',
-            'accessed_at'  => 'datetime',
+            'expires_at' => 'datetime',
+            'accessed_at' => 'datetime',
             'submitted_at' => 'datetime',
-            'revoked_at'   => 'datetime',
-            'is_used'      => 'boolean',
+            'revoked_at' => 'datetime',
+            'is_used' => 'boolean',
         ];
     }
 
@@ -227,7 +227,7 @@ class MedicalProviderLink extends Model
     public function markAsUsed(): void
     {
         $this->update([
-            'is_used'      => true,
+            'is_used' => true,
             'submitted_at' => now(),
         ]);
     }

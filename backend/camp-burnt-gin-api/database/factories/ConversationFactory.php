@@ -19,14 +19,14 @@ class ConversationFactory extends Factory
     public function definition(): array
     {
         return [
-            'created_by_id'   => User::factory(),
-            'subject'         => fake()->sentence(),
-            'category'        => fake()->randomElement(['General', 'Medical', 'Application']),
-            'application_id'  => null,
-            'camper_id'       => null,
+            'created_by_id' => User::factory(),
+            'subject' => fake()->sentence(),
+            'category' => fake()->randomElement(['General', 'Medical', 'Application']),
+            'application_id' => null,
+            'camper_id' => null,
             'camp_session_id' => null,
             'last_message_at' => now(),
-            'is_archived'     => false,
+            'is_archived' => false,
         ];
     }
 
@@ -35,7 +35,7 @@ class ConversationFactory extends Factory
     {
         return $this->state(fn () => [
             'application_id' => $applicationId ?? Application::factory(),
-            'category'       => 'Application',
+            'category' => 'Application',
         ]);
     }
 

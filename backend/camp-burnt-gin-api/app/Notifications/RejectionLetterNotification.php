@@ -40,11 +40,11 @@ class RejectionLetterNotification extends Notification
         $camp = $session->camp;
 
         $message = (new MailMessage)
-            ->subject('Application Update - ' . $camp->name)
-            ->greeting('Dear ' . $notifiable->name . ',')
-            ->line('Thank you for your interest in ' . $camp->name . '.')
+            ->subject('Application Update - '.$camp->name)
+            ->greeting('Dear '.$notifiable->name.',')
+            ->line('Thank you for your interest in '.$camp->name.'.')
             ->line('')
-            ->line('After careful review, we regret to inform you that we are unable to accept the application for ' . $this->application->camper->full_name . ' for the ' . $session->name . ' session at this time.');
+            ->line('After careful review, we regret to inform you that we are unable to accept the application for '.$this->application->camper->full_name.' for the '.$session->name.' session at this time.');
 
         if ($this->application->notes) {
             $message->line('')
@@ -55,9 +55,9 @@ class RejectionLetterNotification extends Notification
         return $message
             ->line('')
             ->line('We encourage you to apply for future camp sessions. If you have any questions, please do not hesitate to contact us.')
-            ->action('View Other Sessions', config('app.frontend_url') . '/sessions')
+            ->action('View Other Sessions', config('app.frontend_url').'/sessions')
             ->line('')
             ->line('Thank you for your understanding.')
-            ->salutation('Sincerely,' . "\n" . 'Camp Burnt Gin');
+            ->salutation('Sincerely,'."\n".'Camp Burnt Gin');
     }
 }

@@ -105,7 +105,7 @@ class DocumentEnforcementService
      * conditions rather than multiple separate queries.
      *
      * @param  array  $assessment  Result from SpecialNeedsRiskAssessmentService::assessCamper()
-     * @return Collection  Deduplicated collection of RequiredDocumentRule models
+     * @return Collection Deduplicated collection of RequiredDocumentRule models
      */
     protected function getRequiredDocuments(array $assessment): Collection
     {

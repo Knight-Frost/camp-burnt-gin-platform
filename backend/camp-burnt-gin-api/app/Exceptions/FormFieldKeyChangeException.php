@@ -17,8 +17,8 @@ class FormFieldKeyChangeException extends Exception
     public function __construct(string $fieldKey, int $applicationCount)
     {
         parent::__construct(
-            "Cannot change field_key '{$fieldKey}': {$applicationCount} submitted application(s) reference this field. " .
-            "Deactivate this field and create a new field with the desired key instead."
+            "Cannot change field_key '{$fieldKey}': {$applicationCount} submitted application(s) reference this field. ".
+            'Deactivate this field and create a new field with the desired key instead.'
         );
     }
 }

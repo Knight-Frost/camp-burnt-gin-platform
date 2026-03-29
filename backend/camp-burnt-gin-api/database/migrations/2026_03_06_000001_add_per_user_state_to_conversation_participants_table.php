@@ -25,9 +25,9 @@ return new class extends Migration
             $table->timestamp('trashed_at')->nullable()->after('is_important');
 
             // Indexes for efficient folder queries
-            $table->index(['user_id', 'is_starred'],   'cp_user_starred');
-            $table->index(['user_id', 'is_important'],  'cp_user_important');
-            $table->index(['user_id', 'trashed_at'],    'cp_user_trashed');
+            $table->index(['user_id', 'is_starred'], 'cp_user_starred');
+            $table->index(['user_id', 'is_important'], 'cp_user_important');
+            $table->index(['user_id', 'trashed_at'], 'cp_user_trashed');
         });
     }
 

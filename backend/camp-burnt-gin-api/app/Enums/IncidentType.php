@@ -12,35 +12,35 @@ namespace App\Enums;
 enum IncidentType: string
 {
     // A behavioral issue — e.g., conflict with another camper, rule violation.
-    case Behavioral    = 'behavioral';
+    case Behavioral = 'behavioral';
 
     // A health-related situation that required medical attention.
-    case Medical       = 'medical';
+    case Medical = 'medical';
 
     // The camper got physically hurt — a cut, sprain, bump, etc.
-    case Injury        = 'injury';
+    case Injury = 'injury';
 
     // Something in the environment caused a problem — heat, insects, weather, etc.
     case Environmental = 'environmental';
 
     // A life-threatening or urgent situation requiring immediate emergency response.
-    case Emergency     = 'emergency';
+    case Emergency = 'emergency';
 
     // Anything that does not fit neatly into the categories above.
-    case Other         = 'other';
+    case Other = 'other';
 
     /**
      * Returns a friendly label for the incident type to display in the UI.
      */
     public function label(): string
     {
-        return match($this) {
-            self::Behavioral    => 'Behavioral',
-            self::Medical       => 'Medical',
-            self::Injury        => 'Injury',
+        return match ($this) {
+            self::Behavioral => 'Behavioral',
+            self::Medical => 'Medical',
+            self::Injury => 'Injury',
             self::Environmental => 'Environmental',
-            self::Emergency     => 'Emergency',
-            self::Other         => 'Other',
+            self::Emergency => 'Emergency',
+            self::Other => 'Other',
         };
     }
 }

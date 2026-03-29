@@ -67,9 +67,9 @@ class MedicalVisitController extends Controller
             'data' => $visits->items(),
             'meta' => [
                 'current_page' => $visits->currentPage(),
-                'last_page'    => $visits->lastPage(),
-                'per_page'     => $visits->perPage(),
-                'total'        => $visits->total(),
+                'last_page' => $visits->lastPage(),
+                'per_page' => $visits->perPage(),
+                'total' => $visits->total(),
             ],
         ]);
     }
@@ -88,27 +88,27 @@ class MedicalVisitController extends Controller
 
         // Validate the visit payload including the nested vitals object.
         $validated = $request->validate([
-            'camper_id'                => 'required|integer|exists:campers,id',
+            'camper_id' => 'required|integer|exists:campers,id',
             // 'before_or_equal:today' prevents recording future visits.
-            'visit_date'               => 'required|date|before_or_equal:today',
-            'visit_time'               => 'nullable|date_format:H:i',
-            'chief_complaint'          => 'required|string|max:500',
-            'symptoms'                 => 'required|string|max:5000',
+            'visit_date' => 'required|date|before_or_equal:today',
+            'visit_time' => 'nullable|date_format:H:i',
+            'chief_complaint' => 'required|string|max:500',
+            'symptoms' => 'required|string|max:5000',
             // Vitals are optional as a whole but each sub-field has physiological limits.
-            'vitals'                   => 'nullable|array',
-            'vitals.temp'              => 'nullable|numeric|min:90|max:110',      // Fahrenheit range
-            'vitals.pulse'             => 'nullable|integer|min:30|max:300',      // BPM range
-            'vitals.bp_systolic'       => 'nullable|integer|min:50|max:300',      // mmHg range
-            'vitals.bp_diastolic'      => 'nullable|integer|min:20|max:200',      // mmHg range
-            'vitals.weight'            => 'nullable|numeric|min:0|max:1000',      // lbs range
-            'vitals.spo2'              => 'nullable|integer|min:50|max:100',      // % oxygen saturation
-            'treatment_provided'       => 'nullable|string|max:5000',
+            'vitals' => 'nullable|array',
+            'vitals.temp' => 'nullable|numeric|min:90|max:110',      // Fahrenheit range
+            'vitals.pulse' => 'nullable|integer|min:30|max:300',      // BPM range
+            'vitals.bp_systolic' => 'nullable|integer|min:50|max:300',      // mmHg range
+            'vitals.bp_diastolic' => 'nullable|integer|min:20|max:200',      // mmHg range
+            'vitals.weight' => 'nullable|numeric|min:0|max:1000',      // lbs range
+            'vitals.spo2' => 'nullable|integer|min:50|max:100',      // % oxygen saturation
+            'treatment_provided' => 'nullable|string|max:5000',
             'medications_administered' => 'nullable|string|max:2000',
             // Disposition is required — staff must document the outcome of every visit.
-            'disposition'              => 'required|string|in:returned_to_activity,monitoring,sent_home,emergency_transfer,other',
-            'disposition_notes'        => 'nullable|string|max:2000',
-            'follow_up_required'       => 'boolean',
-            'follow_up_notes'          => 'nullable|string|max:2000',
+            'disposition' => 'required|string|in:returned_to_activity,monitoring,sent_home,emergency_transfer,other',
+            'disposition_notes' => 'nullable|string|max:2000',
+            'follow_up_required' => 'boolean',
+            'follow_up_notes' => 'nullable|string|max:2000',
         ]);
 
         // Stamp the authenticated user as the recorder before saving.
@@ -121,7 +121,7 @@ class MedicalVisitController extends Controller
 
         return response()->json([
             'message' => 'Medical visit recorded successfully.',
-            'data'    => $visit,
+            'data' => $visit,
         ], Response::HTTP_CREATED);
     }
 
@@ -155,23 +155,23 @@ class MedicalVisitController extends Controller
 
         // 'sometimes' means each field is only checked if it was included in the request.
         $validated = $request->validate([
-            'visit_date'               => 'sometimes|date|before_or_equal:today',
-            'visit_time'               => 'nullable|date_format:H:i',
-            'chief_complaint'          => 'sometimes|string|max:500',
-            'symptoms'                 => 'sometimes|string|max:5000',
-            'vitals'                   => 'nullable|array',
-            'vitals.temp'              => 'nullable|numeric|min:90|max:110',
-            'vitals.pulse'             => 'nullable|integer|min:30|max:300',
-            'vitals.bp_systolic'       => 'nullable|integer|min:50|max:300',
-            'vitals.bp_diastolic'      => 'nullable|integer|min:20|max:200',
-            'vitals.weight'            => 'nullable|numeric|min:0|max:1000',
-            'vitals.spo2'              => 'nullable|integer|min:50|max:100',
-            'treatment_provided'       => 'nullable|string|max:5000',
+            'visit_date' => 'sometimes|date|before_or_equal:today',
+            'visit_time' => 'nullable|date_format:H:i',
+            'chief_complaint' => 'sometimes|string|max:500',
+            'symptoms' => 'sometimes|string|max:5000',
+            'vitals' => 'nullable|array',
+            'vitals.temp' => 'nullable|numeric|min:90|max:110',
+            'vitals.pulse' => 'nullable|integer|min:30|max:300',
+            'vitals.bp_systolic' => 'nullable|integer|min:50|max:300',
+            'vitals.bp_diastolic' => 'nullable|integer|min:20|max:200',
+            'vitals.weight' => 'nullable|numeric|min:0|max:1000',
+            'vitals.spo2' => 'nullable|integer|min:50|max:100',
+            'treatment_provided' => 'nullable|string|max:5000',
             'medications_administered' => 'nullable|string|max:2000',
-            'disposition'              => 'sometimes|string|in:returned_to_activity,monitoring,sent_home,emergency_transfer,other',
-            'disposition_notes'        => 'nullable|string|max:2000',
-            'follow_up_required'       => 'boolean',
-            'follow_up_notes'          => 'nullable|string|max:2000',
+            'disposition' => 'sometimes|string|in:returned_to_activity,monitoring,sent_home,emergency_transfer,other',
+            'disposition_notes' => 'nullable|string|max:2000',
+            'follow_up_required' => 'boolean',
+            'follow_up_notes' => 'nullable|string|max:2000',
         ]);
 
         $medicalVisit->update($validated);
@@ -181,7 +181,7 @@ class MedicalVisitController extends Controller
 
         return response()->json([
             'message' => 'Medical visit updated successfully.',
-            'data'    => $medicalVisit,
+            'data' => $medicalVisit,
         ]);
     }
 

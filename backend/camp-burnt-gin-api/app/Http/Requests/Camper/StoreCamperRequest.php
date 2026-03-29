@@ -28,20 +28,20 @@ class StoreCamperRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'first_name'         => ['required', 'string', 'max:255'],
-            'last_name'          => ['required', 'string', 'max:255'],
-            'date_of_birth'      => ['required', 'date', 'before:today'],
-            'gender'             => ['nullable', 'string', 'max:50'],
-            'tshirt_size'        => ['nullable', 'string', 'max:10'],
-            'preferred_name'     => ['nullable', 'string', 'max:100'],
-            'county'             => ['nullable', 'string', 'max:100'],
-            'needs_interpreter'  => ['nullable', 'boolean'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'date_of_birth' => ['required', 'date', 'before:today'],
+            'gender' => ['nullable', 'string', 'max:50'],
+            'tshirt_size' => ['nullable', 'string', 'max:10'],
+            'preferred_name' => ['nullable', 'string', 'max:100'],
+            'county' => ['nullable', 'string', 'max:100'],
+            'needs_interpreter' => ['nullable', 'boolean'],
             'preferred_language' => ['nullable', 'string', 'max:100'],
             // Form parity (2026_03_26_000004) — applicant mailing address
-            'applicant_address'  => ['nullable', 'string', 'max:500'],
-            'applicant_city'     => ['nullable', 'string', 'max:100'],
-            'applicant_state'    => ['nullable', 'string', 'max:10'],
-            'applicant_zip'      => ['nullable', 'string', 'max:20'],
+            'applicant_address' => ['nullable', 'string', 'max:500'],
+            'applicant_city' => ['nullable', 'string', 'max:100'],
+            'applicant_state' => ['nullable', 'string', 'max:10'],
+            'applicant_zip' => ['nullable', 'string', 'max:20'],
         ];
 
         if ($this->user()->isAdmin()) {

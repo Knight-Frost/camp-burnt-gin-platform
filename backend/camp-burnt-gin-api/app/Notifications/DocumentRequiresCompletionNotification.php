@@ -49,15 +49,15 @@ class DocumentRequiresCompletionNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $adminName = $this->applicantDocument->uploadedByAdmin?->name ?? 'Camp Staff';
-        $docName   = $this->applicantDocument->original_file_name;
+        $docName = $this->applicantDocument->original_file_name;
 
         return (new MailMessage)
             ->subject('Document Requires Your Completion - Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
-            ->line($adminName . ' has sent you a document that requires your completion.')
-            ->line('Document: ' . $docName)
+            ->greeting('Hello '.$notifiable->name.',')
+            ->line($adminName.' has sent you a document that requires your completion.')
+            ->line('Document: '.$docName)
             ->line('Please log in to download the document, complete it, and upload your completed version.')
-            ->action('View Document', config('app.frontend_url') . '/applicant/documents')
+            ->action('View Document', config('app.frontend_url').'/applicant/documents')
             ->salutation('Camp Burnt Gin');
     }
 
@@ -72,13 +72,13 @@ class DocumentRequiresCompletionNotification extends Notification
     public function toArray(object $notifiable): array
     {
         $adminName = $this->applicantDocument->uploadedByAdmin?->name ?? 'Camp Staff';
-        $docName   = $this->applicantDocument->original_file_name;
+        $docName = $this->applicantDocument->original_file_name;
 
         return [
-            'type'                   => 'document_requires_completion',
-            'title'                  => 'Document Requires Your Completion',
-            'message'                => $adminName . ' has sent you a document to complete: "' . $docName . '".',
-            'applicant_document_id'  => $this->applicantDocument->id,
+            'type' => 'document_requires_completion',
+            'title' => 'Document Requires Your Completion',
+            'message' => $adminName.' has sent you a document to complete: "'.$docName.'".',
+            'applicant_document_id' => $this->applicantDocument->id,
         ];
     }
 }

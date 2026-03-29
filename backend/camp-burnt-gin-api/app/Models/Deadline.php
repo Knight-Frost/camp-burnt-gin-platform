@@ -54,10 +54,10 @@ class Deadline extends Model
     protected function casts(): array
     {
         return [
-            'due_date'                  => 'datetime',
-            'grace_period_days'         => 'integer',
-            'is_enforced'               => 'boolean',
-            'is_visible_to_applicants'  => 'boolean',
+            'due_date' => 'datetime',
+            'grace_period_days' => 'integer',
+            'is_enforced' => 'boolean',
+            'is_visible_to_applicants' => 'boolean',
         ];
     }
 
@@ -213,25 +213,25 @@ class Deadline extends Model
     public function toApiArray(): array
     {
         return [
-            'id'                       => $this->id,
-            'camp_session_id'          => $this->camp_session_id,
-            'entity_type'              => $this->entity_type,
-            'entity_id'                => $this->entity_id,
-            'title'                    => $this->title,
-            'description'              => $this->description,
-            'due_date'                 => $this->due_date->toIso8601String(),
-            'effective_due_date'       => $this->effectiveDueDate()->toIso8601String(),
-            'grace_period_days'        => $this->grace_period_days,
-            'days_until_due'           => $this->daysUntilDue(),
-            'urgency_level'            => $this->urgencyLevel(),
-            'status'                   => $this->status,
-            'is_enforced'              => $this->is_enforced,
-            'enforcement_mode'         => $this->enforcement_mode,
+            'id' => $this->id,
+            'camp_session_id' => $this->camp_session_id,
+            'entity_type' => $this->entity_type,
+            'entity_id' => $this->entity_id,
+            'title' => $this->title,
+            'description' => $this->description,
+            'due_date' => $this->due_date->toIso8601String(),
+            'effective_due_date' => $this->effectiveDueDate()->toIso8601String(),
+            'grace_period_days' => $this->grace_period_days,
+            'days_until_due' => $this->daysUntilDue(),
+            'urgency_level' => $this->urgencyLevel(),
+            'status' => $this->status,
+            'is_enforced' => $this->is_enforced,
+            'enforcement_mode' => $this->enforcement_mode,
             'is_visible_to_applicants' => $this->is_visible_to_applicants,
-            'override_note'            => $this->override_note,
-            'created_by'               => $this->created_by,
-            'created_at'               => $this->created_at?->toIso8601String(),
-            'updated_at'               => $this->updated_at?->toIso8601String(),
+            'override_note' => $this->override_note,
+            'created_by' => $this->created_by,
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

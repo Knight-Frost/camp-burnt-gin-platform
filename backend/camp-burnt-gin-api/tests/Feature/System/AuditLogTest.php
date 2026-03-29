@@ -3,8 +3,6 @@
 namespace Tests\Feature\System;
 
 use App\Models\AuditLog;
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -146,18 +144,18 @@ class AuditLogTest extends TestCase
 
         // Entry created "yesterday"
         AuditLog::create([
-            'request_id'  => \Illuminate\Support\Str::uuid(),
-            'user_id'     => $superAdmin->id,
-            'event_type'  => AuditLog::EVENT_TYPE_AUTH,
-            'action'      => 'login',
-            'ip_address'  => '127.0.0.1',
-            'created_at'  => now()->subDay(),
+            'request_id' => \Illuminate\Support\Str::uuid(),
+            'user_id' => $superAdmin->id,
+            'event_type' => AuditLog::EVENT_TYPE_AUTH,
+            'action' => 'login',
+            'ip_address' => '127.0.0.1',
+            'created_at' => now()->subDay(),
         ]);
 
         Sanctum::actingAs($superAdmin);
 
         // Filter to only today — should exclude yesterday's entry
-        $response = $this->getJson('/api/audit-log?from=' . now()->toDateString() . '&to=' . now()->toDateString());
+        $response = $this->getJson('/api/audit-log?from='.now()->toDateString().'&to='.now()->toDateString());
 
         $response->assertOk();
         $this->assertEquals(0, $response->json('meta.total'));

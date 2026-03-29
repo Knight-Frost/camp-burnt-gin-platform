@@ -81,12 +81,12 @@ class ApplicationService
      * It validates, persists, activates/deactivates operational records, writes
      * the audit log, and dispatches post-commit notifications.
      *
-     * @param  Application        $application       The application being reviewed.
-     * @param  ApplicationStatus  $newStatus         The target status.
-     * @param  string|null        $notes             Optional reviewer notes.
-     * @param  User               $reviewedBy        The admin performing the review.
-     * @param  bool               $overrideIncomplete True when admin explicitly approved despite missing data.
-     * @param  array              $missingSummary     Structured list of what was missing at approval time.
+     * @param  Application  $application  The application being reviewed.
+     * @param  ApplicationStatus  $newStatus  The target status.
+     * @param  string|null  $notes  Optional reviewer notes.
+     * @param  User  $reviewedBy  The admin performing the review.
+     * @param  bool  $overrideIncomplete  True when admin explicitly approved despite missing data.
+     * @param  array  $missingSummary  Structured list of what was missing at approval time.
      * @return array{success: bool, invalid_transition?: bool, capacity_exceeded?: bool, compliance_details?: array}
      */
     public function reviewApplication(
@@ -105,7 +105,7 @@ class ApplicationService
         // An invalid transition is rejected immediately before any I/O.
         if (! $previousStatus->canTransitionTo($newStatus)) {
             return [
-                'success'            => false,
+                'success' => false,
                 'invalid_transition' => true,
             ];
         }
@@ -119,15 +119,14 @@ class ApplicationService
         // These checks are read-only and do not modify state. Running them before
         // the transaction keeps the transaction scope as narrow as possible.
         if ($newStatus === ApplicationStatus::Approved) {
-
             // Step 0: Capacity gate — block approval when the session is full.
             if ($application->campSession && $application->campSession->isAtCapacity()) {
                 return [
-                    'success'           => false,
+                    'success' => false,
                     'capacity_exceeded' => true,
-                    'session_name'      => $application->campSession->name,
-                    'capacity'          => $application->campSession->capacity,
-                    'enrolled'          => $application->campSession->enrolled_count,
+                    'session_name' => $application->campSession->name,
+                    'capacity' => $application->campSession->capacity,
+                    'enrolled' => $application->campSession->enrolled_count,
                 ];
             }
 
@@ -139,10 +138,10 @@ class ApplicationService
                 $compliance = $this->documentEnforcement->checkCompliance($application->camper);
                 if (! $compliance['is_compliant']) {
                     return [
-                        'success'            => false,
+                        'success' => false,
                         'compliance_details' => [
-                            'missing_documents'    => $compliance['missing_documents'],
-                            'expired_documents'    => $compliance['expired_documents'],
+                            'missing_documents' => $compliance['missing_documents'],
+                            'expired_documents' => $compliance['expired_documents'],
                             'unverified_documents' => $compliance['unverified_documents'],
                         ],
                     ];
@@ -154,11 +153,10 @@ class ApplicationService
         // All writes are wrapped in a single transaction. If any step fails, the
         // entire block is rolled back and the system remains in its prior state.
         DB::transaction(function () use ($application, $newStatus, $notes, $reviewedBy, $previousStatus, $overrideIncomplete, $missingSummary) {
-
             // Step 2: Persist the review decision.
             $updateData = [
-                'status'      => $newStatus,
-                'notes'       => $notes,
+                'status' => $newStatus,
+                'notes' => $notes,
                 'reviewed_at' => now(),
                 'reviewed_by' => $reviewedBy->id,
             ];
@@ -214,16 +212,16 @@ class ApplicationService
             // description make this explicit, and the missing_at_approval metadata
             // records exactly what was missing so it is never silently lost.
             $auditMetadata = [
-                'application_id'  => $application->id,
-                'camper_id'       => $application->camper_id,
+                'application_id' => $application->id,
+                'camper_id' => $application->camper_id,
                 'previous_status' => $previousStatus->value,
-                'new_status'      => $newStatus->value,
-                'notes'           => $notes,
+                'new_status' => $newStatus->value,
+                'notes' => $notes,
             ];
 
             if ($overrideIncomplete && ! empty($missingSummary)) {
                 $auditMetadata['forced_approval_with_missing'] = true;
-                $auditMetadata['missing_at_approval']          = $missingSummary;
+                $auditMetadata['missing_at_approval'] = $missingSummary;
             }
 
             $auditAction = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
@@ -232,14 +230,14 @@ class ApplicationService
 
             $auditDescription = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
                 ? "Application #{$application->id} FORCE APPROVED with missing data by admin #{$reviewedBy->id}. "
-                  . "Previous status: {$previousStatus->value}."
+                  ."Previous status: {$previousStatus->value}."
                 : "Application #{$application->id} status changed from {$previousStatus->value} to {$newStatus->value}.";
 
             AuditLog::logAdminAction(
-                action:      $auditAction,
-                user:        $reviewedBy,
+                action: $auditAction,
+                user: $reviewedBy,
                 description: $auditDescription,
-                metadata:    $auditMetadata,
+                metadata: $auditMetadata,
             );
         });
 
@@ -248,7 +246,7 @@ class ApplicationService
         // committed successfully. If the transaction were to roll back, these
         // would not execute.
         $parentUser = $application->camper->user;
-        $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+        $camperName = $application->camper->first_name.' '.$application->camper->last_name;
 
         // Queue the status-change email notification to the parent.
         $this->queueNotification(
@@ -291,18 +289,18 @@ class ApplicationService
      * on file; the parent reviews and submits the new application as a fresh
      * cycle for a new camp session.
      *
-     * @param  Application  $source      The application being reapplied from.
-     * @param  User         $requestedBy The parent initiating the reapplication.
-     * @return Application  The new draft application.
+     * @param  Application  $source  The application being reapplied from.
+     * @param  User  $requestedBy  The parent initiating the reapplication.
+     * @return Application The new draft application.
      */
     public function cloneApplication(Application $source, User $requestedBy): Application
     {
         return DB::transaction(function () use ($source) {
             return Application::create([
-                'camper_id'          => $source->camper_id,
-                'reapplied_from_id'  => $source->id,
-                'status'             => \App\Enums\ApplicationStatus::Pending,
-                'is_draft'           => true,
+                'camper_id' => $source->camper_id,
+                'reapplied_from_id' => $source->id,
+                'status' => \App\Enums\ApplicationStatus::Pending,
+                'is_draft' => true,
                 'form_definition_id' => \App\Models\FormDefinition::where('status', 'active')->value('id'),
             ]);
         });
@@ -320,7 +318,7 @@ class ApplicationService
      * camper is only deactivated when no other approved application exists for them.
      *
      * @param  Application  $application  The application being withdrawn.
-     * @param  User         $withdrawnBy  The parent performing the withdrawal.
+     * @param  User  $withdrawnBy  The parent performing the withdrawal.
      * @return array{success: bool}
      */
     public function withdrawApplication(Application $application, User $withdrawnBy): array
@@ -330,7 +328,6 @@ class ApplicationService
         $application->loadMissing('camper.user', 'campSession');
 
         DB::transaction(function () use ($application, $previousStatus, $withdrawnBy) {
-
             $application->update([
                 'status' => ApplicationStatus::Withdrawn,
             ]);
@@ -352,21 +349,21 @@ class ApplicationService
             }
 
             AuditLog::logAdminAction(
-                action:      'application.withdrawn',
-                user:        $withdrawnBy,
+                action: 'application.withdrawn',
+                user: $withdrawnBy,
                 description: "Application #{$application->id} withdrawn by parent "
-                             . "(user #{$withdrawnBy->id}). Previous status: {$previousStatus->value}.",
-                metadata:    [
-                    'application_id'  => $application->id,
-                    'camper_id'       => $application->camper_id,
+                             ."(user #{$withdrawnBy->id}). Previous status: {$previousStatus->value}.",
+                metadata: [
+                    'application_id' => $application->id,
+                    'camper_id' => $application->camper_id,
                     'previous_status' => $previousStatus->value,
-                    'new_status'      => ApplicationStatus::Withdrawn->value,
+                    'new_status' => ApplicationStatus::Withdrawn->value,
                 ]
             );
         });
 
         $parentUser = $application->camper->user;
-        $camperName = $application->camper->first_name . ' ' . $application->camper->last_name;
+        $camperName = $application->camper->first_name.' '.$application->camper->last_name;
 
         // Confirm the withdrawal to the parent via in-app inbox.
         $this->systemNotifications->applicationStatusChanged(

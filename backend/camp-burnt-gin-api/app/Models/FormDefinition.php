@@ -35,7 +35,7 @@ class FormDefinition extends Model
     {
         return [
             'published_at' => 'datetime',
-            'version'      => 'integer',
+            'version' => 'integer',
         ];
     }
 
