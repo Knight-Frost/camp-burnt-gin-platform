@@ -31,9 +31,9 @@ Camp Burnt Gin serves families of children and youth with complex medical and de
 
 The system is built around three core concerns:
 
-- **Enrollment integrity** — Applications flow through a defined, enforced state machine. Approval requires capacity checks, document compliance verification, and an authorized reviewer. Every status change is recorded.
-- **Medical data protection** — Personally identifiable health information (PHI) is encrypted at rest using Laravel's encrypted cast, accessed only by authorized roles, and logged to a tamper-evident audit trail on every read.
-- **Operational clarity** — Administrators can manage camp sessions with capacity enforcement and waitlist promotion, issue and track document requests, generate mailing and ID-label reports, communicate through a threaded inbox, and publish announcements and deadlines to all users.
+- **Enrollment integrity:** Applications flow through a defined, enforced state machine. Approval requires capacity checks, document compliance verification, and an authorized reviewer. Every status change is recorded.
+- **Medical data protection:** Personally identifiable health information (PHI) is encrypted at rest using Laravel's encrypted cast, accessed only by authorized roles, and logged to a tamper-evident audit trail on every read.
+- **Operational clarity:** Administrators can manage camp sessions with capacity enforcement and waitlist promotion, issue and track document requests, generate mailing and ID-label reports, communicate through a threaded inbox, and publish announcements and deadlines to all users.
 
 The platform is implemented as a Laravel 12 REST API consumed by a React 18 TypeScript single-page application. Both layers are fully operational across all four portals. The backend has 95 database migrations, 51 controllers, 42 models, and more than 380 passing integration and unit tests.
 
@@ -55,7 +55,7 @@ The medical portal provides read/write access to a comprehensive health profile 
 
 During camp operations, medical staff can log treatment interventions, record medical station visits with disposition, document incidents with severity classification, create follow-up tasks with priority and deadline, and place activity restrictions. Each of these actions is policy-gated and audit-logged.
 
-An emergency snapshot view (`MedicalEmergencyViewPage`) presents critical information — allergies, behavioral risks, medications, and emergency contacts — in a single-screen format designed for rapid reference during incidents.
+An emergency snapshot view (`MedicalEmergencyViewPage`) presents critical information (allergies, behavioral risks, medications, and emergency contacts) in a single-screen format designed for rapid reference during incidents.
 
 External medical providers (physicians, specialists) can be granted time-limited, token-based read access to a specific camper's health record without requiring a full system account.
 
@@ -293,7 +293,7 @@ erDiagram
 | `applications` | Enrollment applications | `status` (enum), `is_draft`, `is_incomplete_at_approval`, `submitted_at`, `signature_data` (hidden), `reapplied_from_id` |
 | `application_consents` | Consent records per application | `consent_type` (enum), `is_agreed`, `agreed_at` |
 
-### Medical Tables (PHI — all sensitive fields encrypted)
+### Medical Tables (PHI, all sensitive fields encrypted)
 
 | Table | Purpose |
 |-------|---------|
@@ -719,18 +719,18 @@ pnpm run lint:fix       # ESLint auto-fix
 
 All four portals are feature-complete and wired to the API:
 
-- **Applicant portal** — Dashboard, multi-section application form with auto-save, save-and-resume, re-apply flow, document requests, official forms (download and upload), calendar, announcements, inbox, profile, settings.
-- **Admin portal** — Dashboard, application list with filters, full application review with inline editing, family workspace (3-level IA), camper directory, session management, archived sessions, session dashboard, reports, document management, document request management, deadlines, calendar, announcements, inbox, form builder access, profile, settings.
-- **Medical portal** — Dashboard with alert summary, camper medical directory, full medical record view, treatment log, incident log, follow-up task queue, clinic visit log, emergency snapshot view, inbox, profile, settings.
-- **Super admin portal** — Dashboard, user management (create staff, role assignment, deactivation), audit log browser with export, form builder (version management, section/field/option CRUD).
+- **Applicant portal:** Dashboard, multi-section application form with auto-save, save-and-resume, re-apply flow, document requests, official forms (download and upload), calendar, announcements, inbox, profile, settings.
+- **Admin portal:** Dashboard, application list with filters, full application review with inline editing, family workspace (3-level IA), camper directory, session management, archived sessions, session dashboard, reports, document management, document request management, deadlines, calendar, announcements, inbox, form builder access, profile, settings.
+- **Medical portal:** Dashboard with alert summary, camper medical directory, full medical record view, treatment log, incident log, follow-up task queue, clinic visit log, emergency snapshot view, inbox, profile, settings.
+- **Super admin portal:** Dashboard, user management (create staff, role assignment, deactivation), audit log browser with export, form builder (version management, section/field/option CRUD).
 
 ### Known Architectural Notes
 
-- **Medical form upload** — The physician-completed medical form upload associates the document with the applicant's general document library rather than a specific application. Admin review works correctly because `application.documents` covers all applicant documents. Cross-application disambiguation if a camper submits multiple applications in the same session is a future concern.
-- **Gmail-style messaging migrations** — Two migrations (`2026_03_27_000001` and `2026_03_27_000002`) introduced message recipients and reply threading. Any deployment that was running before these migrations must apply them before the messaging features function correctly: `php artisan migrate`.
-- **Draft persistence** — Application draft state is client-side only (localStorage key `cbg_app_draft`). There is no server-side draft recovery beyond the API's own `is_draft` flag on the application record. Clearing browser storage discards unsaved form progress.
-- **Cabin management** — The `cabins` table and migration exist. Cabin assignment is not yet surfaced in the admin UI as a manageable workflow.
-- **External provider links** — The backend fully implements token-based external provider access (`MedicalProviderLinkController`, `MedicalProviderLinkService`). The frontend provider access flow exists in a `features/provider/` module; a dedicated provider-facing UI is partially scaffolded.
+- **Medical form upload:** The physician-completed medical form upload associates the document with the applicant's general document library rather than a specific application. Admin review works correctly because `application.documents` covers all applicant documents. Cross-application disambiguation if a camper submits multiple applications in the same session is a future concern.
+- **Gmail-style messaging migrations:** Two migrations (`2026_03_27_000001` and `2026_03_27_000002`) introduced message recipients and reply threading. Any deployment that was running before these migrations must apply them before the messaging features function correctly: `php artisan migrate`.
+- **Draft persistence:** Application draft state is client-side only (localStorage key `cbg_app_draft`). There is no server-side draft recovery beyond the API's own `is_draft` flag on the application record. Clearing browser storage discards unsaved form progress.
+- **Cabin management:** The `cabins` table and migration exist. Cabin assignment is not yet surfaced in the admin UI as a manageable workflow.
+- **External provider links:** The backend fully implements token-based external provider access (`MedicalProviderLinkController`, `MedicalProviderLinkService`). The frontend provider access flow exists in a `features/provider/` module; a dedicated provider-facing UI is partially scaffolded.
 
 ### Frontend/Backend Alignment
 
@@ -750,9 +750,9 @@ Tokens are stored in `sessionStorage` under the key `auth_token`. They are loade
 
 Role-based access is enforced at three independent layers:
 
-1. **Route middleware** — `EnsureUserHasRole` and `EnsureUserIsAdmin` gate entire route groups before any controller code runs.
-2. **Controller policy calls** — Every mutation and sensitive read calls `$this->authorize()` against the resource's policy class.
-3. **Policy classes** — One policy class per Eloquent model defines the precise conditions under which each action is permitted for each role.
+1. **Route middleware:** `EnsureUserHasRole` and `EnsureUserIsAdmin` gate entire route groups before any controller code runs.
+2. **Controller policy calls:** Every mutation and sensitive read calls `$this->authorize()` against the resource's policy class.
+3. **Policy classes:** One policy class per Eloquent model defines the precise conditions under which each action is permitted for each role.
 
 Super admin privilege inheritance is implemented in a single override (`isAdmin()`) rather than duplicating permissions. The last active super_admin account is protected against deletion and demotion.
 
@@ -904,6 +904,6 @@ All reference documentation is in `docs/`. The index file [docs/INDEX.md](docs/I
 
 ## Conclusion
 
-Camp Burnt Gin is a complete, production-grade camp management platform. All four portals — applicant, admin, medical, and super admin — are fully implemented and wired to the API. The backend enforces a HIPAA-conscious security model across 51 controllers, 42 models, and more than 380 passing tests. The frontend enforces the same model at the routing, state, and API layers.
+Camp Burnt Gin is a complete, production-grade camp management platform. All four portals (applicant, admin, medical, and super admin) are fully implemented and wired to the API. The backend enforces a HIPAA-conscious security model across 51 controllers, 42 models, and more than 380 passing tests. The frontend enforces the same model at the routing, state, and API layers.
 
 This README reflects the state of the implementation as of March 2026. For the authoritative workflow specification, consult [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md). For the complete API surface, consult [docs/api/API_Reference.md](docs/api/API_Reference.md). For local development setup, follow Section 9 of this document.
