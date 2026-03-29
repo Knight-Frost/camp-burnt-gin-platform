@@ -9,6 +9,7 @@
 #
 # Scanned targets:
 #   - backend/camp-burnt-gin-api/app/          PHP application source
+#   - backend/camp-burnt-gin-api/config/       Laravel configuration files
 #   - backend/camp-burnt-gin-api/database/     Migrations and seeders
 #   - backend/camp-burnt-gin-api/routes/       API route definitions
 #   - backend/camp-burnt-gin-api/tests/        Backend tests
@@ -42,6 +43,7 @@ scan_dir() {
 echo "Scanning application source for prohibited references..."
 
 scan_dir "backend/camp-burnt-gin-api/app"
+scan_dir "backend/camp-burnt-gin-api/config"
 scan_dir "backend/camp-burnt-gin-api/database"
 scan_dir "backend/camp-burnt-gin-api/routes"
 scan_dir "backend/camp-burnt-gin-api/tests"

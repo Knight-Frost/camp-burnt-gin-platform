@@ -17,9 +17,15 @@ permissions:
 
 jobs:
 
+  # ─── Migration Validation ─────────────────────────────────────────────────
+  # Runs migrate:fresh, tests rollback + re-migration, runs the full seeder
+  # suite, and outputs a schema summary -- all against real MySQL 8.0.
+  # The schema summary is included here rather than a separate job to avoid
+  # spinning up a second MySQL service container for read-only output.
   migration-validation:
     name: Migration Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       mysql:
@@ -79,7 +85,7 @@ jobs:
       - name: Test rollback and re-migration
         working-directory: backend/camp-burnt-gin-api
         run: |
-          BATCH_COUNT=$(php artisan migrate:status --env=testing | grep -c "Ran" || true)
+          BATCH_COUNT=$(php artisan migrate:status | grep -c "Ran" || true)
           if [ "$BATCH_COUNT" -gt 0 ]; then
             echo "Testing rollback of last migration batch..."
             php artisan migrate:rollback --step=1 --force
@@ -107,9 +113,30 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: password
 
+      - name: Output schema summary
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          echo "=== Migration Status ==="
+          php artisan migrate:status
+          echo ""
+          echo "=== Tables ==="
+          mysql -h127.0.0.1 -uroot camp_burnt_gin_test -e "SHOW TABLES;"
+        env:
+          MYSQL_PWD: password
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: camp_burnt_gin_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+  # ─── Migration Conflict Detection ────────────────────────────────────────
+  # Detects duplicate migration timestamps and non-standard file naming.
+  # No database service required -- inspects filenames only.
   migration-conflict-check:
     name: Migration Conflict Detection
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout code
@@ -144,75 +171,3 @@ jobs:
           else
             echo "PASS: All migration names conform to conventions."
           fi
-
-  schema-documentation:
-    name: Schema Documentation
-    runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: camp_burnt_gin_test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, bcmath
-          coverage: none
-          tools: composer:v2
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: backend/camp-burnt-gin-api/vendor
-          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
-          restore-keys: |
-            composer-php8.2-
-
-      - name: Install Composer dependencies
-        working-directory: backend/camp-burnt-gin-api
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Prepare environment
-        working-directory: backend/camp-burnt-gin-api
-        run: |
-          cp .env.example .env
-          php artisan key:generate
-
-      - name: Run migrations
-        working-directory: backend/camp-burnt-gin-api
-        run: php artisan migrate --force
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: camp_burnt_gin_test
-          DB_USERNAME: root
-          DB_PASSWORD: password
-
-      - name: Output schema summary
-        working-directory: backend/camp-burnt-gin-api
-        run: |
-          php artisan migrate:status
-          mysql -h127.0.0.1 -uroot -ppassword camp_burnt_gin_test -e "SHOW TABLES;"
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: camp_burnt_gin_test
-          DB_USERNAME: root
-          DB_PASSWORD: password

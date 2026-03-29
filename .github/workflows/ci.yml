@@ -21,6 +21,7 @@ jobs:
   policy:
     name: Repository Policy
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout code
@@ -44,6 +45,7 @@ jobs:
     name: Backend Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
     needs: policy
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -95,12 +97,79 @@ jobs:
           SESSION_DRIVER: array
           QUEUE_CONNECTION: sync
 
+  # ─── Backend Coverage Gate ────────────────────────────────────────────────
+  # Runs the test suite with PCOV enabled and enforces a 50% minimum coverage
+  # threshold. Uploads the Clover XML report as a build artifact (30-day
+  # retention) for downstream analysis or badge generation.
+  #
+  # Runs on PHP 8.2 only -- coverage collection is a quality gate, not a
+  # compatibility check (that is the job of backend-tests above).
+  backend-coverage:
+    name: Backend Coverage Gate
+    runs-on: ubuntu-latest
+    needs: policy
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2 with PCOV
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, fileinfo
+          coverage: pcov
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/camp-burnt-gin-api/vendor
+          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          restore-keys: |
+            composer-php8.2-
+
+      - name: Install Composer dependencies
+        working-directory: backend/camp-burnt-gin-api
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Prepare application environment
+        working-directory: backend/camp-burnt-gin-api
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+        env:
+          APP_ENV: testing
+
+      - name: Run tests with coverage (minimum 50%)
+        working-directory: backend/camp-burnt-gin-api
+        run: php artisan test --coverage --min=50
+        env:
+          APP_ENV: testing
+          APP_DEBUG: false
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          MAIL_MAILER: array
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/camp-burnt-gin-api/coverage.xml
+          retention-days: 30
+
   # ─── Code Style ───────────────────────────────────────────────────────────
   # Runs Laravel Pint in dry-run mode. Any style violation fails the build.
   code-style:
     name: Code Style (Pint)
     runs-on: ubuntu-latest
     needs: policy
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -136,6 +205,7 @@ jobs:
     name: Static Analysis (PHPStan)
     runs-on: ubuntu-latest
     needs: policy
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -174,12 +244,14 @@ jobs:
         run: ./vendor/bin/phpstan analyse --memory-limit=2G
 
   # ─── Frontend Validation ──────────────────────────────────────────────────
-  # Runs TypeScript type checking, ESLint (zero-warning policy), and a full
-  # production build using pnpm with a frozen lockfile.
+  # Runs TypeScript type checking, ESLint (zero-warning policy), Vitest with
+  # coverage collection, and a full production build using pnpm with a frozen
+  # lockfile. Coverage artifacts are uploaded for downstream inspection.
   frontend:
     name: Frontend Validation
     runs-on: ubuntu-latest
     needs: policy
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -208,6 +280,20 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: pnpm lint
+
+      - name: Run tests with coverage
+        working-directory: frontend
+        run: pnpm exec vitest run --coverage --passWithNoTests
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 30
 
       - name: Production build
         working-directory: frontend
