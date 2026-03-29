@@ -1310,6 +1310,8 @@ function Section1({
               return (
                 <label
                   key={session.id}
+                  htmlFor={`session-2nd-${session.id}`}
+                  aria-label={session.name}
                   className="flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all"
                   style={{
                     background: selected ? 'rgba(22,163,74,0.06)' : 'var(--card)',
@@ -1317,6 +1319,7 @@ function Section1({
                   }}
                 >
                   <input
+                    id={`session-2nd-${session.id}`}
                     type="radio"
                     checked={selected}
                     onChange={() => onChange({ session_id_2nd: session.id })}

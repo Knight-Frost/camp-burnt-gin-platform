@@ -313,6 +313,7 @@ export function MedicalRecordTreatmentPage() {
             placeholder={t('medical.record_treatment.search_placeholder')}
             className="w-full rounded-xl border pl-9 pr-9 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--ember-orange)]/40 transition-shadow"
             style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           />
           {loading && !loadingMore && (

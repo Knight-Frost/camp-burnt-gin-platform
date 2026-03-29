@@ -358,6 +358,7 @@ export interface LogAction {
 }
 
 /** Classifies an audit entry into a semantic log type. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getLogType(entry: AuditLogEntry): LogType {
   const cat  = (entry.category ?? '').toLowerCase();
   const evt  = (entry.event_type ?? '').toLowerCase();
@@ -401,6 +402,7 @@ export function getLogType(entry: AuditLogEntry): LogType {
  * success   — approvals, completions, creations
  * info      — view/retrieve, notifications, system events
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getLogSeverity(entry: AuditLogEntry): LogSeverity {
   const act  = (entry.action ?? '').toLowerCase();
   const evt  = (entry.event_type ?? '').toLowerCase();
@@ -452,6 +454,7 @@ function isRawApiText(text: string): boolean {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function formatActivitySummary(entry: AuditLogEntry): string {
   const actor  = entry.user?.name ?? 'System';
   const meta   = entry.metadata ?? {};
@@ -509,6 +512,7 @@ export function formatActivitySummary(entry: AuditLogEntry): string {
  * Returns relevant navigation actions for a log entry.
  * Only returns actions when a valid target ID exists — never fabricates links.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getLogActions(entry: AuditLogEntry): LogAction[] {
   const actions: LogAction[] = [];
   const atype = (entry.auditable_type ?? '').toLowerCase();
@@ -1138,7 +1142,9 @@ function AuditEntryRow({ entry }: { entry: AuditLogEntry }) {
         <div
           className="px-4 pb-4 pt-2 border-t space-y-3"
           style={{ borderColor: 'var(--border)', background: 'rgba(248,249,250,0.6)' }}
+          role="presentation"
           onClick={(e) => e.stopPropagation()} // prevent row-click collapsing from panel interactions
+          onKeyDown={(e) => e.stopPropagation()}
         >
           {/* ── Section header with severity badge */}
           <div className="flex items-center gap-2 pb-1 border-b" style={{ borderColor: 'var(--border)' }}>

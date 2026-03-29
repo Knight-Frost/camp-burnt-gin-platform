@@ -13,7 +13,7 @@
  *   - Save: diff all sections → build ops array → Promise.allSettled
  */
 
-import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -404,7 +404,18 @@ export function AdminApplicationEditPage() {
   const snInit       = useRef<SnState>(defaultSn);
 
   // ── Section scroll refs ────────────────────────────────────────────────────
-  const secRefs = Array.from({ length: 11 }, () => useRef<HTMLElement | null>(null));
+  const secRef0  = useRef<HTMLElement | null>(null);
+  const secRef1  = useRef<HTMLElement | null>(null);
+  const secRef2  = useRef<HTMLElement | null>(null);
+  const secRef3  = useRef<HTMLElement | null>(null);
+  const secRef4  = useRef<HTMLElement | null>(null);
+  const secRef5  = useRef<HTMLElement | null>(null);
+  const secRef6  = useRef<HTMLElement | null>(null);
+  const secRef7  = useRef<HTMLElement | null>(null);
+  const secRef8  = useRef<HTMLElement | null>(null);
+  const secRef9  = useRef<HTMLElement | null>(null);
+  const secRef10 = useRef<HTMLElement | null>(null);
+  const secRefs = useMemo(() => [secRef0, secRef1, secRef2, secRef3, secRef4, secRef5, secRef6, secRef7, secRef8, secRef9, secRef10], []);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -580,7 +591,7 @@ export function AdminApplicationEditPage() {
       })
       .catch(() => setError('Failed to load application data. Go back and try again.'))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [id]);
 
   // ── Extra refs for list inits (declared here to avoid hook order issues) ───

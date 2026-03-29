@@ -136,6 +136,7 @@ export function MedicalEmergencyViewPage() {
   const [recentTreatments, setRecentTreatments] = useState<TreatmentLog[]>([]);
   const [recentVisits, setRecentVisits] = useState<MedicalVisit[]>([]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [riskData, setRiskData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -172,6 +173,7 @@ export function MedicalEmergencyViewPage() {
         setCamper(camperData);
         setRecord(recordData);
         // Fetch risk summary independently — failure is non-fatal
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getCamperRiskSummary(id).then((d) => setRiskData(d as any)).catch(() => {});
         setAllergies(allergyData);
         setMedications(medData);

@@ -48,6 +48,7 @@ export function FieldTypePickerModal({ onSelect, onClose }: FieldTypePickerModal
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search field types…"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               className="w-full pl-8 pr-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--background)] focus:outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
             />

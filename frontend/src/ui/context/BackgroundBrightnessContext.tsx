@@ -43,6 +43,7 @@ export function BackgroundBrightnessProvider({ children }: { children: ReactNode
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useBackgroundTone(): BackgroundBrightnessContextValue {
   return useContext(BackgroundBrightnessContext);
 }

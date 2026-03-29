@@ -705,13 +705,14 @@ function NarrativesSection({ application, onSaved }: NarrativesSectionProps) {
 
           {/* Admin Notes — internal only, not visible to applicants */}
           <div className="mb-3">
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+            <label htmlFor="admin-internal-notes" className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
               Internal Admin Notes
               <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.1)', color: 'rgb(99,102,241)' }}>
                 Staff only
               </span>
             </label>
             <textarea
+              id="admin-internal-notes"
               value={values.notes ?? ''}
               onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
               rows={3}

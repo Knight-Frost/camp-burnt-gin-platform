@@ -54,6 +54,7 @@ export function CreateFormModal({ onSave, onClose }: CreateFormModalProps) {
               value={name}
               onChange={(e) => { setName(e.target.value); setNameError(''); }}
               placeholder="e.g. Camp Application Form"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               className={`w-full px-3 py-2 text-sm border rounded-lg bg-[var(--background)] focus:outline-none focus:ring-1 ${
                 nameError

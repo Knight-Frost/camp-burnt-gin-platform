@@ -57,6 +57,19 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'clover'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/__tests__/**',
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+      ],
+    },
   },
 
   optimizeDeps: {

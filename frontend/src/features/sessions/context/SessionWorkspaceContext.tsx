@@ -144,6 +144,7 @@ export function SessionWorkspaceProvider({ children }: { children: React.ReactNo
  * Components in non-admin portals (applicant, medical) will receive null and can
  * simply skip any session-workspace-specific rendering.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSessionWorkspace(): SessionWorkspaceValue | null {
   return useContext(SessionWorkspaceContext);
 }

@@ -374,7 +374,9 @@ export function UserManagementPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.40)' }}
+          role="presentation"
           onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowCreateModal(false); }}
         >
           <div
             className="glass-panel w-full max-w-md rounded-2xl p-6 shadow-2xl"

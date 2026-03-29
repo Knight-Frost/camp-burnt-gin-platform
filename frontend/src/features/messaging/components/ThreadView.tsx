@@ -145,10 +145,11 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
 
   // Revoke all blob URLs when the conversation changes or component unmounts
   useEffect(() => {
+    const loadingPreviews = loadingPreviewsRef.current;
     return () => {
       blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       blobUrlsRef.current = [];
-      loadingPreviewsRef.current.clear();
+      loadingPreviews.clear();
       setPreviewUrls({});
       setPreviewModal(null);
       setPreviewLoadingIds(new Set());

@@ -53,6 +53,10 @@ export default [
       ...tseslint.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
+      // TypeScript's own compiler catches undefined references; disabling
+      // no-undef prevents false positives for React namespace usage and
+      // other type-level globals (React.FC, React.lazy, etc.).
+      'no-undef': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [

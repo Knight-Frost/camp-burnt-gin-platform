@@ -16,7 +16,7 @@
  * regardless of where in the tree it is mounted.
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, Globe, CheckCircle2, Calendar, ChevronRight, Archive } from 'lucide-react';
@@ -228,7 +228,8 @@ export function SessionSelectorModal() {
   const sessionsLoading = ctx?.sessionsLoading ?? false;
   const selectorOpen    = ctx?.selectorOpen    ?? false;
   const setCurrentSession = ctx?.setCurrentSession ?? (() => {});
-  const closeSelector     = ctx?.closeSelector     ?? (() => {});
+  const ctxCloseSelector  = ctx?.closeSelector;
+  const closeSelector = useMemo(() => ctxCloseSelector ?? (() => {}), [ctxCloseSelector]);
 
   // Close on Escape key — hooks must be called before any conditional returns.
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -263,7 +264,9 @@ export function SessionSelectorModal() {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.52)', backdropFilter: 'blur(8px)' }}
+      role="presentation"
       onClick={(e) => { if (e.target === e.currentTarget) closeSelector(); }}
+      onKeyDown={(e) => { if (e.key === 'Escape') closeSelector(); }}
     >
       <div
         className="relative w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden"

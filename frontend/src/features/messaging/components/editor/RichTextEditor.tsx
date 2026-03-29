@@ -57,6 +57,7 @@ export interface RichTextEditorProps extends RichEditorOptions {
 
 // ─── useRichEditor ────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useRichEditor({
   onUpdate,
   placeholder = 'Write a message…',

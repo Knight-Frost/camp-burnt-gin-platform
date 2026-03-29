@@ -286,6 +286,7 @@ export function MedicalDashboardPage() {
           </div>
         )}
         <div className="relative z-10 p-6 lg:p-8">
+          {/* eslint-disable-next-line jsx-a11y/aria-role */}
           <PersonalGreeting user={user} role="medical" stats={{ overdueCount }} />
         </div>
       </div>

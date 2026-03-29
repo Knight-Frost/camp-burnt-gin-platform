@@ -134,6 +134,7 @@ export function EmojiPicker({ editor, open, onClose, anchorRef }: EmojiPickerPro
             borderColor: 'var(--border)',
             color: 'var(--foreground)',
           }}
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
         />
 

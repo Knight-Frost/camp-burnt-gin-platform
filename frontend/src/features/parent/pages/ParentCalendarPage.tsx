@@ -310,10 +310,14 @@ export function ParentCalendarPage() {
                 const style = resolveEventStyle(ev);
                 const isClickableDeadline = ev.deadline_id !== null;
                 return (
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
                   <li
                     key={ev.id}
                     className="glass-card rounded-xl p-3"
                     onClick={isClickableDeadline ? () => handleDeadlineClick(ev) : undefined}
+                    onKeyDown={isClickableDeadline ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleDeadlineClick(ev); } : undefined}
+                    role={isClickableDeadline ? 'button' : undefined}
+                    tabIndex={isClickableDeadline ? 0 : undefined}
                     style={{ cursor: isClickableDeadline ? 'pointer' : 'default' }}
                     title={isClickableDeadline ? 'Click to go to the upload page' : undefined}
                   >

@@ -119,6 +119,7 @@ export function CamperDetailPage() {
   // All medical sub-resources live in one state object to avoid many useState calls
   const [med, setMed]               = useState<MedData | null>(null);
   // Risk assessment data fetched independently alongside camper data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [riskData, setRiskData]     = useState<any>(null);
   const [loading, setLoading]       = useState(true);
   // Separate loading flag for medical data — it loads after core camper data
@@ -139,6 +140,7 @@ export function CamperDetailPage() {
         const data = await getCamper(camperId);
         if (!cancelled) setCamper(data);
         // Fetch risk summary in parallel with camper — silently ignore failures
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getCamperRiskSummary(camperId).then(data => { if (!cancelled) setRiskData(data as any); }).catch(() => {});
       } catch {
         if (!cancelled) { setError(true); toast.error(t('common.error_loading')); }
@@ -149,7 +151,7 @@ export function CamperDetailPage() {
 
     void run();
     return () => { cancelled = true; };
-  }, [camperId]);
+  }, [camperId, t]);
 
   // --- Effect 2: fetch all medical data in parallel ---
   // Runs independently so medical info loads without waiting for camper details.

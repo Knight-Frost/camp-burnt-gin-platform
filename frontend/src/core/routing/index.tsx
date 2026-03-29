@@ -120,6 +120,7 @@ const SettingsPage = withSuspense(lazy(() => import('@/features/profile/pages/Se
  * pathname as resetKey to ErrorBoundary, which resets the error state on
  * navigation so the new page renders normally instead of staying crashed.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 function RouteErrorBoundary() {
   const { pathname } = useLocation();
   return <ErrorBoundary resetKey={pathname}><Outlet /></ErrorBoundary>;

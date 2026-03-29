@@ -105,6 +105,7 @@ export function ApplicantDashboardPage() {
         <div className="relative z-10 p-6 lg:p-8">
           <PersonalGreeting
             user={user}
+            // eslint-disable-next-line jsx-a11y/aria-role
             role="applicant"
             stats={{ camperCount: campers.length }}
           />

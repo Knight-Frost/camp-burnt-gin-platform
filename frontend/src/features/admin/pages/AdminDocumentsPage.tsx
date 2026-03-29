@@ -255,6 +255,8 @@ function ParentCombobox({
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls="applicant-combobox-listbox"
+        tabIndex={0}
         className="flex items-center rounded-lg border text-sm px-3 min-h-[42px] cursor-text gap-2"
         style={{
           background: 'var(--input)',
@@ -264,6 +266,7 @@ function ParentCombobox({
           opacity: disabled ? 0.5 : 1,
         }}
         onClick={handleContainerClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleContainerClick(); }}
       >
         {selected && !open ? (
           /* SELECTED state — name text + clear × */
@@ -312,6 +315,7 @@ function ParentCombobox({
       {open && (
         <ul
           ref={listRef}
+          id="applicant-combobox-listbox"
           role="listbox"
           className="absolute z-20 left-0 right-0 mt-1.5 rounded-xl border overflow-y-auto"
           style={{
@@ -408,7 +412,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
     setForm((prev) => ({ ...prev, camper_id: '' }));
     axiosInstance.get('/campers', { params: { user_id: Number(form.applicant_id) } })
       .then((res) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const list = (res.data as any)?.data ?? res.data ?? [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mapped: { id: number; name: string }[] = list.map((c: any) => ({
           id: c.id,
           name: `${c.first_name} ${c.last_name}`,
@@ -421,7 +427,7 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
       })
       .catch(() => setChildren([]))
       .finally(() => setLoadingChildren(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [form.applicant_id]);
 
   function set(field: keyof typeof form, value: string) {

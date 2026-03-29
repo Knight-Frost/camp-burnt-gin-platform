@@ -551,7 +551,12 @@ export function FloatingCompose({ onClose, onCreated, isAdmin = false }: Floatin
             </div>
 
             {/* ── Editor body ──────────────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto min-h-0" onClick={() => setShowDropdown(false)}>
+            <div
+              className="flex-1 overflow-y-auto min-h-0"
+              role="presentation"
+              onClick={() => setShowDropdown(false)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setShowDropdown(false); }}
+            >
               <EditorBody
                 editor={editor}
                 minHeight={maximized ? 320 : 160}

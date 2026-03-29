@@ -399,6 +399,7 @@ export const getAdminApplicantDocuments = async (params?: {
   applicant_id?: number;
   status?: string;
   page?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }): Promise<{ data: ApplicantDocumentRecord[]; meta: any }> => {
   const { data } = await axiosInstance.get('/admin/documents', { params });
   return data;
@@ -475,6 +476,7 @@ export const getDocumentRequests = async (params?: {
   status?: string;
   search?: string;
   page?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }): Promise<{ data: DocumentRequest[]; meta: any }> => {
   const { data } = await axiosInstance.get('/document-requests', { params });
   return data;

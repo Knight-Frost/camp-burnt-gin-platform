@@ -31,12 +31,15 @@ export function IncompleteApprovalModal({ completeness, submitting, onClose, onA
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.45)' }}
+      role="presentation"
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
     >
       {/* Panel — stop propagation so clicks inside don't close */}
       <div
         className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
         style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

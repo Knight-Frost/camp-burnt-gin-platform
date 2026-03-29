@@ -264,6 +264,7 @@ export function AdminDashboardPage() {
         <div className="relative z-10 p-6 lg:p-8">
           <PersonalGreeting
             user={user}
+            // eslint-disable-next-line jsx-a11y/aria-role
             role="admin"
             stats={{ pendingCount: stats.pending, unreadCount: unread }}
           />
