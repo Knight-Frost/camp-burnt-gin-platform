@@ -392,7 +392,8 @@ export function LoginPage() {
             {/* Forgot password link lives next to the label for easy discovery */}
             <Link
               to={ROUTES.FORGOT_PASSWORD}
-              className="text-slate-500 hover:text-[#166534] transition-colors"
+              className="hover:text-[#166534] transition-colors"
+              style={{ color: '#4a2c0e' }}
               style={{ fontSize: '0.875rem' }}
             >
               {t('auth.login.forgot_password')}
