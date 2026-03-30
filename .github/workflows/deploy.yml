@@ -62,7 +62,23 @@ jobs:
           VITE_ENABLE_DEVTOOLS: "false"
           NODE_ENV: production
 
+      - name: Check Vercel configuration (staging)
+        id: check_vercel_staging
+        run: |
+          if [[ -z "$VERCEL_TOKEN_VALUE" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          VERCEL_TOKEN_VALUE: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Skip notice (Vercel secrets not configured)
+        if: steps.check_vercel_staging.outputs.configured == 'false'
+        run: echo "Staging frontend deployment skipped -- VERCEL_TOKEN not configured."
+
       - name: Deploy to Vercel (staging)
+        if: steps.check_vercel_staging.outputs.configured == 'true'
         working-directory: frontend
         run: npx vercel --yes
         env:
@@ -204,7 +220,23 @@ jobs:
           VITE_ENABLE_DEVTOOLS: "false"
           NODE_ENV: production
 
+      - name: Check Vercel configuration (production)
+        id: check_vercel_prod
+        run: |
+          if [[ -z "$VERCEL_TOKEN_VALUE" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          VERCEL_TOKEN_VALUE: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Skip notice (Vercel secrets not configured)
+        if: steps.check_vercel_prod.outputs.configured == 'false'
+        run: echo "Production frontend deployment skipped -- VERCEL_TOKEN not configured."
+
       - name: Deploy to Vercel (production)
+        if: steps.check_vercel_prod.outputs.configured == 'true'
         working-directory: frontend
         run: npx vercel --prod --yes
         env:
