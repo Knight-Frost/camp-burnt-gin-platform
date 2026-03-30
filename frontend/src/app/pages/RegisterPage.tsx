@@ -76,7 +76,7 @@ function CriterionRow({ met, typing, label }: { met: boolean; typing: boolean; l
       className="flex items-center gap-1.5 italic"
       style={{
         fontSize: '0.8125rem',
-        color: typing ? (met ? '#16a34a' : '#9ca3af') : '#9ca3af',
+        color: typing ? (met ? '#16a34a' : '#5c3a18') : '#4a2c0e',
       }}
     >
       {typing
