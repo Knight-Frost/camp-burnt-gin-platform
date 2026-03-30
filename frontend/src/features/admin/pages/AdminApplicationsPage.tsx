@@ -198,7 +198,7 @@ export function AdminApplicationsPage() {
         <>
           <div className="glass-data rounded-xl overflow-hidden">
             {/* Column headers
-                Grid: Q#(1) | Camper(3) | Session(2) | Submitted(3) | Status(2) | Action(1) = 12 */}
+                Grid: Q#(1) | Camper(2) | Session(3) | Submitted(3) | Status(2) | Action(1) = 12 */}
             <div
               className="grid grid-cols-12 px-4 py-3 text-xs font-medium uppercase tracking-wide border-b"
               style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
@@ -206,11 +206,11 @@ export function AdminApplicationsPage() {
               {/* Queue # — always 1 col, not sortable (it follows the sort) */}
               <div className="col-span-1 text-center">#</div>
 
-              {/* Camper — 3 cols */}
-              <div className="col-span-3">{t('admin.applications.col_camper')}</div>
+              {/* Camper — 2 cols */}
+              <div className="col-span-2">{t('admin.applications.col_camper')}</div>
 
-              {/* Session — 2 cols */}
-              <div className="col-span-2">{t('admin.applications.col_session')}</div>
+              {/* Session — 3 cols */}
+              <div className="col-span-3">{t('admin.applications.col_session')}</div>
 
               {/* Submitted — 3 cols, sortable */}
               <button
@@ -271,8 +271,8 @@ export function AdminApplicationsPage() {
                   )}
                 </div>
 
-                {/* ── Camper (3 cols) ──────────────────────────────────── */}
-                <div className="col-span-3">
+                {/* ── Camper (2 cols) ──────────────────────────────────── */}
+                <div className="col-span-2">
                   <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                     {app.camper?.full_name ?? `Camper #${app.camper_id}`}
                   </p>
@@ -291,8 +291,8 @@ export function AdminApplicationsPage() {
                   )}
                 </div>
 
-                {/* ── Session (2 cols) ─────────────────────────────────── */}
-                <div className="col-span-2">
+                {/* ── Session (3 cols) ─────────────────────────────────── */}
+                <div className="col-span-3">
                   <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                     {app.session?.name ?? t('admin.applications.unknown_session')}
                   </p>
