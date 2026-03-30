@@ -345,7 +345,7 @@ export function LoginPage() {
     <div className={shaking ? 'auth-shake' : undefined}>
     <AuthCard
       title={t('auth.login.title')}
-      subtitle={`${getGreeting()}. ${tagline}`}
+      subtitle={<>{getGreeting()}.<br />{tagline}</>}
       footer={
         <p>
           {t('auth.login.no_account')}{' '}

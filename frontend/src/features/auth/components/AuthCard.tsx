@@ -13,6 +13,7 @@
  *  7. Content / footer
  */
 
+import React from 'react';
 import type { ReactNode, CSSProperties } from 'react';
 
 /* ── Width map ─────────────────────────────────────────────────────────────── */
@@ -349,7 +350,7 @@ function RootVineFrame() {
    ══════════════════════════════════════════════════════════════════════════════ */
 interface AuthCardProps {
   title:      string;
-  subtitle?:  string;
+  subtitle?:  React.ReactNode;
   accentBar?: boolean;
   children:   ReactNode;
   footer?:    ReactNode;
