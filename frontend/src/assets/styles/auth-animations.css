@@ -1,0 +1,54 @@
+/* ─── auth-animations.css ─────────────────────────────────────────────────── */
+/* Keyframes + utility classes used exclusively by the auth portal.            */
+/* Imported by AuthLayout.tsx — no side effects on other pages.               */
+
+/* ── Ken Burns: slow zoom-and-drift across background photo ─────────────── */
+@keyframes kenBurns {
+  0%   { transform: scale(1.00) translate(0%,    0%); }
+  100% { transform: scale(1.10) translate(-1.5%, -0.8%); }
+}
+
+/* ── Firefly: drifts upward with a gentle lateral sway ──────────────────── */
+@keyframes fireflyRise {
+  0%   { transform: translateY(0px)   translateX(0px);   opacity: 0; }
+  8%   {                                                  opacity: 0.95; }
+  50%  { transform: translateY(-65px) translateX(14px); }
+  92%  {                                                  opacity: 0.55; }
+  100% { transform: translateY(-130px) translateX(-7px); opacity: 0; }
+}
+
+/* ── Firefly glow pulse ──────────────────────────────────────────────────── */
+@keyframes fireflyPulse {
+  0%, 100% { box-shadow: 0 0 4px 2px rgba(255, 240, 100, 0.45); }
+  50%       { box-shadow: 0 0 10px 5px rgba(255, 248, 140, 0.90); }
+}
+
+/* ── Film grain shift: jitters the noise tile position each frame ────────── */
+@keyframes grainShift {
+  0%  { background-position:   0%   0%; }
+  10% { background-position: -5%  -8%; }
+  20% { background-position:  8%   3%; }
+  30% { background-position: -3%   6%; }
+  40% { background-position:  6%  -4%; }
+  50% { background-position: -7%   2%; }
+  60% { background-position:  3%  -6%; }
+  70% { background-position: -4%   8%; }
+  80% { background-position:  7%  -2%; }
+  90% { background-position: -2%   5%; }
+}
+
+/* ── Card shake: plays once on auth error ────────────────────────────────── */
+@keyframes authShake {
+  0%, 100% { transform: translateX(0); }
+  12%      { transform: translateX(-9px); }
+  25%      { transform: translateX(8px); }
+  37%      { transform: translateX(-6px); }
+  50%      { transform: translateX(5px); }
+  62%      { transform: translateX(-3px); }
+  75%      { transform: translateX(2px); }
+  87%      { transform: translateX(-1px); }
+}
+
+.auth-shake {
+  animation: authShake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}

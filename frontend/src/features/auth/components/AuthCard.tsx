@@ -34,10 +34,11 @@ export function AuthCard({
   return (
     <div className={`w-full ${maxWidthMap[maxWidth]}`}>
       <div
-        className="bg-white rounded-2xl border px-10 py-10"
+        className="rounded-2xl border px-10 py-10 backdrop-blur-sm"
         style={{
-          borderColor: '#d1dce8',
-          boxShadow: '0 4px 32px rgba(30,58,110,0.10)',
+          background:  'rgba(255, 255, 255, 0.93)',
+          borderColor: 'rgba(255, 255, 255, 0.65)',
+          boxShadow:   '0 8px 48px rgba(0,0,0,0.32), 0 1px 0 rgba(255,255,255,0.5) inset',
         }}
       >
         {/* Card header */}

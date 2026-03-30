@@ -14,7 +14,7 @@
  *   history clean and prevents back-button weirdness during MFA entry.
  */
 
-import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
+import { useRef, useState, useMemo, useCallback, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,9 +31,28 @@ import type { User } from '@/shared/types';
 import { isValidationError, isLockoutError, isRateLimitError } from '@/shared/types';
 import { useTranslation } from 'react-i18next';
 import { AuthCard } from '@/features/auth/components/AuthCard';
+import '@/assets/styles/auth-animations.css';
 
 // How many individual digit boxes the MFA input renders (always 6 for TOTP codes).
 const CODE_LENGTH = 6;
+
+/* ── Camp taglines — one is picked randomly on page mount ────────────────── */
+const TAGLINES = [
+  'The forest is calling.',
+  'Where adventures begin.',
+  'Ready for another summer?',
+  'Leave the ordinary behind.',
+  'Every trail leads somewhere wonderful.',
+  'A place to grow, explore, and belong.',
+  'Summer starts here.',
+];
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 /**
  * Builds the CSS class string for text inputs.
@@ -54,6 +73,21 @@ export function LoginPage() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  // ── Delight state ─────────────────────────────────────────────────────────
+
+  // One tagline picked at random on mount; stable across re-renders.
+  const tagline = useMemo(
+    () => TAGLINES[Math.floor(Math.random() * TAGLINES.length)],
+    [],
+  );
+
+  // Momentary shake animation triggered on auth errors.
+  const [shaking, setShaking] = useState(false);
+  const triggerShake = useCallback(() => {
+    setShaking(true);
+    setTimeout(() => setShaking(false), 600);
+  }, []);
 
   // ── Phase 1 local state ────────────────────────────────────────────────────
 
@@ -134,8 +168,10 @@ export function LoginPage() {
         Object.entries(error.errors).forEach(([field, messages]) => {
           setError(field as keyof LoginFormValues, { message: messages[0] });
         });
+        triggerShake();
         return;
       }
+      triggerShake();
       toast.error((error as { message: string }).message ?? 'Login failed. Please try again.');
     }
   };
@@ -213,6 +249,7 @@ export function LoginPage() {
     } catch (err) {
       const msg = (err as { message?: string })?.message ?? 'Invalid code. Please try again.';
       setMfaError(msg);
+      triggerShake();
       // Clear the digit boxes and refocus the first one for a fresh attempt.
       setMfaDigits(Array(CODE_LENGTH).fill(''));
       setTimeout(() => inputRefs.current[0]?.focus(), 60);
@@ -229,6 +266,7 @@ export function LoginPage() {
   // Phase 2 UI: render only the MFA digit entry, not the email/password form.
   if (mfaStep) {
     return (
+      <div className={shaking ? 'auth-shake' : undefined}>
       <AuthCard
         title={t('auth.mfa.title')}
         subtitle={t('auth.mfa.description')}
@@ -300,14 +338,16 @@ export function LoginPage() {
           </button>
         </div>
       </AuthCard>
+      </div>
     );
   }
 
   // Phase 1 UI: the standard email + password login form.
   return (
+    <div className={shaking ? 'auth-shake' : undefined}>
     <AuthCard
       title={t('auth.login.title')}
-      subtitle={t('auth.login.description')}
+      subtitle={`${getGreeting()}. ${tagline}`}
       footer={
         <p>
           {t('auth.login.no_account')}{' '}
@@ -403,7 +443,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting || lockoutSeconds > 0}
-          className="w-full mt-1 py-3.5 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`w-full mt-1 py-3.5 rounded-xl font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed ${isSubmitting ? 'animate-pulse' : 'transition-opacity'}`}
           style={{ background: '#166534', fontSize: '1rem' }}
         >
           {isSubmitting ? t('common.loading') : t('auth.login.submit')}
@@ -419,5 +459,6 @@ export function LoginPage() {
 
       </form>
     </AuthCard>
+    </div>
   );
 }
