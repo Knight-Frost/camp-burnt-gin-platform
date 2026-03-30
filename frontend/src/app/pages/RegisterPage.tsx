@@ -311,7 +311,6 @@ export function RegisterPage() {
               placeholder="Re-enter your password"
               aria-invalid={errors.password_confirmation ? 'true' : 'false'}
               className={inputCls(
-                // Turn the border red if the server rejects it OR if the values don't match yet.
                 !!errors.password_confirmation || confirmMatchState === 'no-match',
                 'pr-12'
               )}

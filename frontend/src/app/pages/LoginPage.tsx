@@ -72,7 +72,6 @@ export function LoginPage() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-
   // ── Delight state ─────────────────────────────────────────────────────────
 
   // One tagline picked at random on mount; stable across re-renders.
@@ -393,8 +392,7 @@ export function LoginPage() {
             <Link
               to={ROUTES.FORGOT_PASSWORD}
               className="hover:text-[#166534] transition-colors"
-              style={{ color: '#4a2c0e' }}
-              style={{ fontSize: '0.875rem' }}
+              style={{ color: '#4a2c0e', fontSize: '0.875rem' }}
             >
               {t('auth.login.forgot_password')}
             </Link>
@@ -403,7 +401,6 @@ export function LoginPage() {
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" style={{ width: '1.125rem', height: '1.125rem' }} />
             <input
               id="login-password"
-              // Toggle between password (hidden) and text (visible) based on showPassword state.
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder={t('auth.login.password_placeholder')}
