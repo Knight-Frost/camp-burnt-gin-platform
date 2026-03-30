@@ -61,10 +61,9 @@ function getGreeting(): string {
  */
 function inputCls(hasError: boolean, extra = '') {
   return [
-    'w-full pl-11 py-3.5 rounded-xl border outline-none bg-white',
-    'transition-all focus:ring-2 focus:ring-[#166534]/20 focus:border-[#166534]',
-    hasError ? 'border-red-400' : 'border-[#d1dce8]',
-    'text-[#1e293b] placeholder:text-slate-400',
+    'w-full pl-11 py-3.5 rounded-xl border outline-none',
+    'transition-all',
+    hasError ? 'border-red-400' : 'border-[#9b5f26]/55',
     extra,
   ].join(' ');
 }
@@ -296,11 +295,11 @@ export function LoginPage() {
                 aria-label={`Digit ${index + 1}`}
                 className="w-12 h-14 text-center text-xl font-semibold rounded-xl border outline-none transition-all duration-200 focus:ring-2 focus:ring-[#166534]/30"
                 style={{
-                  background: '#f8fafc',
-                  color: '#1e293b',
-                  // Red border on error; green when a digit is filled; light gray when empty.
-                  borderColor: mfaError ? '#f87171' : digit ? '#166534' : '#d1dce8',
+                  background: 'rgba(255,249,228,0.94)',
+                  color: '#2c1608',
+                  borderColor: mfaError ? '#f87171' : digit ? '#166534' : 'rgba(155,95,38,0.55)',
                   fontSize: '1.375rem',
+                  boxShadow: 'inset 0 1px 4px rgba(65,32,7,0.18)',
                 }}
               />
             ))}

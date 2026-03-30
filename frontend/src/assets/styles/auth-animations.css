@@ -23,6 +23,51 @@
   50%       { box-shadow: 0 0 10px 5px rgba(255, 248, 140, 0.90); }
 }
 
+/* ── Wood card — input + text theming for all auth pages ─────────────────── */
+/* Applied via .auth-wood-card on AuthCard's root div; covers every auth page
+   (login, register, MFA, forgot/reset password) without per-page changes.    */
+
+.auth-wood-card input[type="email"],
+.auth-wood-card input[type="password"],
+.auth-wood-card input[type="text"],
+.auth-wood-card input[type="tel"] {
+  background:   rgba(255, 249, 228, 0.94) !important;
+  border-color: rgba(155, 95, 38, 0.55)   !important;
+  color:        #2c1608                   !important;
+  box-shadow:   inset 0 1px 4px rgba(65, 32, 7, 0.18) !important;
+}
+
+.auth-wood-card input::placeholder {
+  color: #a0825a !important;
+}
+
+.auth-wood-card input:focus {
+  border-color: #166534               !important;
+  box-shadow:   0 0 0 3px rgba(22, 101, 52, 0.14),
+                inset 0 1px 3px rgba(65, 32, 7, 0.14) !important;
+  outline: none !important;
+}
+
+/* Labels */
+.auth-wood-card label {
+  color: #2c1608 !important;
+}
+
+/* "Forgot password" and similar muted links */
+.auth-wood-card a.text-slate-500 {
+  color: #9a7248 !important;
+}
+
+/* HIPAA / helper text */
+.auth-wood-card .text-slate-400 {
+  color: #9a7850 !important;
+}
+
+/* Checkbox (register page) */
+.auth-wood-card input[type="checkbox"] {
+  accent-color: #166534;
+}
+
 /* ── Film grain shift: jitters the noise tile position each frame ────────── */
 @keyframes grainShift {
   0%  { background-position:   0%   0%; }
