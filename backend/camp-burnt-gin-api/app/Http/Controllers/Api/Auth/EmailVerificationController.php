@@ -57,8 +57,8 @@ class EmailVerificationController extends Controller
         // The route has no path params, so we build the query string manually.
         $params = [
             'expires' => $request->integer('expires'),
-            'hash'    => (string) $request->string('hash'),
-            'id'      => $request->integer('id'),
+            'hash' => (string) $request->string('hash'),
+            'id' => $request->integer('id'),
         ];
         ksort($params);
         $urlToVerify = route('verification.verify').'?'.http_build_query($params).'&signature='.$request->string('signature');
