@@ -18,7 +18,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { User, Mail, Lock, Eye, EyeOff, Check, X, ShieldCheck } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, Check, X, ShieldCheck, AlertCircle } from 'lucide-react';
 
 import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas/auth.schema';
 import { register as registerUser } from '@/features/auth/api/auth.api';
@@ -56,9 +56,18 @@ function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNod
   );
 }
 
-/** Renders a red error message paragraph when `message` is truthy; renders nothing otherwise. */
+/** Renders a high-contrast error badge when `message` is truthy; renders nothing otherwise. */
 function FieldError({ message }: { message?: string }) {
-  return message ? <p role="alert" className="text-sm text-red-500">{message}</p> : null;
+  return message ? (
+    <p
+      role="alert"
+      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium"
+      style={{ background: 'rgba(10,3,0,0.72)', color: '#fca5a5' }}
+    >
+      <AlertCircle style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
+      {message}
+    </p>
+  ) : null;
 }
 
 /**
@@ -67,23 +76,23 @@ function FieldError({ message }: { message?: string }) {
  * @param typing - whether the user has started typing a password yet
  * @param label  - the human-readable rule text
  *
- * Before typing begins all bullets are neutral gray. Once typing starts,
- * met criteria turn green and unmet ones stay gray, giving live feedback.
+ * Before typing begins all bullets are a soft cream. Once typing starts,
+ * met criteria turn bright green and unmet ones turn rose-red.
  */
 function CriterionRow({ met, typing, label }: { met: boolean; typing: boolean; label: string }) {
   return (
     <li
-      className="flex items-center gap-1.5 italic"
+      className="flex items-center gap-1.5"
       style={{
-        fontSize: '0.8125rem',
-        color: typing ? (met ? '#16a34a' : '#5c3a18') : '#4a2c0e',
+        fontSize: '0.875rem',
+        color: typing ? (met ? '#4ade80' : '#fca5a5') : 'rgba(232,200,160,0.80)',
       }}
     >
       {typing
         ? met
-          ? <Check style={{ width: '0.75rem', height: '0.75rem', flexShrink: 0 }} className="text-green-600" />
-          : <X style={{ width: '0.75rem', height: '0.75rem', flexShrink: 0, opacity: 0.5 }} />
-        : <span style={{ width: '0.75rem', height: '0.75rem', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>•</span>
+          ? <Check style={{ width: '0.75rem', height: '0.75rem', flexShrink: 0, color: '#4ade80' }} />
+          : <X style={{ width: '0.75rem', height: '0.75rem', flexShrink: 0, color: '#fca5a5' }} />
+        : <span style={{ width: '0.75rem', height: '0.75rem', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: 0.55 }}>•</span>
       }
       {label}
     </li>
@@ -289,13 +298,15 @@ export function RegisterPage() {
           </div>
 
           {/* Criteria checklist — always visible so the user knows the rules up front */}
-          <ul className="flex flex-col gap-1 mt-0.5 pl-0.5">
-            <CriterionRow met={criteria.length}    typing={isTyping} label="Must be 8–64 characters" />
-            <CriterionRow met={criteria.uppercase} typing={isTyping} label="Must include 1 uppercase letter (A–Z)" />
-            <CriterionRow met={criteria.lowercase} typing={isTyping} label="Must include 1 lowercase letter (a–z)" />
-            <CriterionRow met={criteria.number}    typing={isTyping} label="Must include 1 number (0–9)" />
-            <CriterionRow met={criteria.special}   typing={isTyping} label="Must include 1 special character (@, #, $, %, !, ?)" />
-          </ul>
+          <div style={{ background: 'rgba(10,3,0,0.65)', borderRadius: '10px', padding: '10px 14px' }}>
+            <ul className="flex flex-col gap-1.5">
+              <CriterionRow met={criteria.length}    typing={isTyping} label="Must be 8–64 characters" />
+              <CriterionRow met={criteria.uppercase} typing={isTyping} label="Must include 1 uppercase letter (A–Z)" />
+              <CriterionRow met={criteria.lowercase} typing={isTyping} label="Must include 1 lowercase letter (a–z)" />
+              <CriterionRow met={criteria.number}    typing={isTyping} label="Must include 1 number (0–9)" />
+              <CriterionRow met={criteria.special}   typing={isTyping} label="Must include 1 special character (@, #, $, %, !, ?)" />
+            </ul>
+          </div>
           <FieldError message={errors.password?.message} />
         </div>
 
@@ -330,8 +341,11 @@ export function RegisterPage() {
           {/* "Passwords match" / "do not match" indicator */}
           {confirmMatchState && (
             <p
-              className="flex items-center gap-1.5 text-sm"
-              style={{ color: confirmMatchState === 'match' ? 'var(--forest-green)' : 'var(--destructive)' }}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium"
+              style={{
+                background: 'rgba(10,3,0,0.72)',
+                color: confirmMatchState === 'match' ? '#4ade80' : '#fca5a5',
+              }}
             >
               {confirmMatchState === 'match'
                 ? <><Check style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} /> Passwords match</>
@@ -344,6 +358,7 @@ export function RegisterPage() {
 
         {/* ── Terms and Conditions checkbox ── */}
         <div className="flex flex-col gap-1.5">
+          <div style={{ background: 'rgba(10,3,0,0.65)', borderRadius: '10px', padding: '10px 14px' }}>
           <label className="flex items-start gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -355,15 +370,21 @@ export function RegisterPage() {
               }}
               className="mt-0.5 h-4 w-4 shrink-0 rounded cursor-pointer"
             />
-            <span className="leading-relaxed text-[#374151]" style={{ fontSize: '0.9375rem' }}>
+            <span className="leading-relaxed" style={{ fontSize: '0.9375rem', color: 'rgba(232,200,160,0.90)' }}>
               I agree to the{' '}
-              <span className="text-green-700 font-medium hover:underline cursor-pointer">Terms of Use</span>
+              <span className="font-semibold hover:underline cursor-pointer" style={{ color: '#fbbf24' }}>Terms of Use</span>
               {' '}and{' '}
-              <span className="text-green-700 font-medium hover:underline cursor-pointer">Privacy Policy</span>.
+              <span className="font-semibold hover:underline cursor-pointer" style={{ color: '#fbbf24' }}>Privacy Policy</span>.
             </span>
           </label>
+          </div>
           {termsError && (
-            <p role="alert" className="text-sm pl-7 text-red-500">
+            <p
+              role="alert"
+              className="flex items-center gap-1.5 ml-7 rounded-lg px-2.5 py-1.5 text-sm font-medium"
+              style={{ background: 'rgba(10,3,0,0.72)', color: '#fca5a5' }}
+            >
+              <AlertCircle style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
               You must agree to continue.
             </p>
           )}

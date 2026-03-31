@@ -19,7 +19,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft, AlertCircle } from 'lucide-react';
 
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/auth.schema';
 import { login } from '@/features/auth/api/auth.api';
@@ -308,8 +308,10 @@ export function LoginPage() {
           {mfaError && (
             <p
               role="alert"
-              className="text-sm text-center text-red-500"
+              className="flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium"
+              style={{ background: 'rgba(10,3,0,0.72)', color: '#fca5a5' }}
             >
+              <AlertCircle style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
               {mfaError}
             </p>
           )}
@@ -378,7 +380,10 @@ export function LoginPage() {
             />
           </div>
           {errors.email && (
-            <p role="alert" className="text-sm text-red-500">{errors.email.message}</p>
+            <p role="alert" className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium" style={{ background: 'rgba(10,3,0,0.72)', color: '#fca5a5' }}>
+              <AlertCircle style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
+              {errors.email.message}
+            </p>
           )}
         </div>
 
@@ -391,8 +396,8 @@ export function LoginPage() {
             {/* Forgot password link lives next to the label for easy discovery */}
             <Link
               to={ROUTES.FORGOT_PASSWORD}
-              className="hover:text-[#166534] transition-colors"
-              style={{ color: '#4a2c0e', fontSize: '0.875rem' }}
+              className="font-semibold transition-colors hover:opacity-80"
+              style={{ color: '#fbbf24', fontSize: '0.875rem' }}
             >
               {t('auth.login.forgot_password')}
             </Link>
@@ -421,7 +426,10 @@ export function LoginPage() {
             </button>
           </div>
           {errors.password && (
-            <p role="alert" className="text-sm text-red-500">{errors.password.message}</p>
+            <p role="alert" className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium" style={{ background: 'rgba(10,3,0,0.72)', color: '#fca5a5' }}>
+              <AlertCircle style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
+              {errors.password.message}
+            </p>
           )}
         </div>
 
