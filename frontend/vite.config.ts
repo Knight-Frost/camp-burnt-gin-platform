@@ -45,8 +45,26 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Bind to all interfaces so the dev server is reachable via LAN IP,
+    // not just localhost. Required for remote/mobile device testing.
+    host: true,
     hmr: {
+      // HMR must use the client port (5173) explicitly when accessed via LAN IP,
+      // otherwise the browser tries to open a WebSocket to an internal address.
+      clientPort: 5173,
       overlay: false,
+    },
+    proxy: {
+      // Forward all /api/* requests from the browser to the Laravel backend.
+      // The proxy runs server-side (machine → machine), so the browser always
+      // sends requests to the Vite origin regardless of whether it connected via
+      // localhost or a LAN IP. This eliminates CORS entirely in development and
+      // ensures the correct backend is reached in both scenarios.
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   // ─── Vitest ──────────────────────────────────────────────────────────────────

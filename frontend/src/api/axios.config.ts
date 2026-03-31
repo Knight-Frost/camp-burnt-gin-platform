@@ -36,12 +36,27 @@ if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL && !DEMO_MODE) {
   );
 }
 
+// Resolve the base URL for API requests.
+//
+// Development: When VITE_API_BASE_URL is not set, use a relative path (/api).
+// The Vite dev server proxy forwards /api/* to the Laravel backend at
+// 127.0.0.1:8000 server-side, so the browser always sends requests to its
+// own origin regardless of whether it reached the frontend via localhost or
+// a LAN IP. This removes any CORS requirement and works out-of-the-box for
+// local and remote dev access without any IP-specific configuration.
+//
+// Production: VITE_API_BASE_URL must be set (e.g. via Vercel env vars) to
+// the fully-qualified backend URL (e.g. https://api.campburntgin.com).
+const resolvedBaseURL = import.meta.env.VITE_API_BASE_URL
+  ? `${import.meta.env.VITE_API_BASE_URL}/api`
+  : '/api';
+
 // Create the shared Axios instance with sensible defaults
 // All requests go to /api/* under the configured base URL
 // In demo mode, the custom demoAdapter intercepts every request and returns
 // mock data — no network calls are made at all.
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api`,
+  baseURL: resolvedBaseURL,
   // 30 seconds — requests that take longer are considered failed
   timeout: 30_000,
   headers: {
