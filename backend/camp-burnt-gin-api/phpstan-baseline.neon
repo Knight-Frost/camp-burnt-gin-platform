@@ -139,6 +139,18 @@ parameters:
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/Camper/ApplicationController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type string\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Api/Camper/ApplicationController.php
+
+		-
 			message: '#^Offset ''session_name'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
 			identifier: offsetAccess.notFound
 			count: 1
@@ -562,6 +574,12 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 2
+			path: app/Http/Controllers/Api/Inbox/MessageController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$avatar_path\.$#'
+			identifier: property.notFound
+			count: 1
 			path: app/Http/Controllers/Api/Inbox/MessageController.php
 
 		-
@@ -1447,7 +1465,7 @@ parameters:
 			path: app/Policies/AllergyPolicy.php
 
 		-
-			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ApplicationStatus\:\:Pending, App\\Enums\\ApplicationStatus\:\:UnderReview, App\\Enums\\ApplicationStatus\:\:Approved, App\\Enums\\ApplicationStatus\:\:Waitlisted\} will always evaluate to false\.$#'
+			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ApplicationStatus\:\:Submitted, App\\Enums\\ApplicationStatus\:\:UnderReview, App\\Enums\\ApplicationStatus\:\:Approved, App\\Enums\\ApplicationStatus\:\:Waitlisted\} will always evaluate to false\.$#'
 			identifier: function.impossibleType
 			count: 1
 			path: app/Policies/ApplicationPolicy.php
@@ -1455,7 +1473,7 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$camper of method App\\Models\\User\:\:ownsCamper\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
-			count: 3
+			count: 4
 			path: app/Policies/ApplicationPolicy.php
 
 		-

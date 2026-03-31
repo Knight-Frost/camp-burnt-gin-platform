@@ -55,8 +55,8 @@ class ApplicationDraftController extends Controller
         ]);
 
         $draft = ApplicationDraft::create([
-            'user_id'    => $request->user()->id,
-            'label'      => $validated['label'] ?? 'New Application',
+            'user_id' => $request->user()->id,
+            'label' => $validated['label'] ?? 'New Application',
             'draft_data' => null,
         ]);
 
@@ -86,12 +86,12 @@ class ApplicationDraftController extends Controller
         $this->authorize('update', $draft);
 
         $validated = $request->validate([
-            'label'      => ['sometimes', 'string', 'max:255'],
+            'label' => ['sometimes', 'string', 'max:255'],
             'draft_data' => ['required', 'array'],
         ]);
 
         $draft->update([
-            'label'      => $validated['label'] ?? $draft->label,
+            'label' => $validated['label'] ?? $draft->label,
             'draft_data' => $validated['draft_data'],
         ]);
 

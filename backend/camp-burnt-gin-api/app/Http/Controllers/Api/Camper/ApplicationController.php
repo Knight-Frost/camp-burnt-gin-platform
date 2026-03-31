@@ -414,16 +414,16 @@ class ApplicationController extends Controller
         AuditLog::logAdminAction(
             'application.deleted',
             $user,
-            "Application #{$application->id} deleted" .
-                ($application->is_draft ? ' (draft)' : ' (submitted)') .
+            "Application #{$application->id} deleted".
+                ($application->is_draft ? ' (draft)' : ' (submitted)').
                 " for camper #{$application->camper_id}",
             [
                 'application_id' => $application->id,
-                'camper_id'      => $application->camper_id,
-                'session_id'     => $application->camp_session_id,
-                'status'         => $application->status?->value,
-                'is_draft'       => $application->is_draft,
-                'deleted_by'     => $user->id,
+                'camper_id' => $application->camper_id,
+                'session_id' => $application->camp_session_id,
+                'status' => $application->status?->value,
+                'is_draft' => $application->is_draft,
+                'deleted_by' => $user->id,
             ]
         );
 

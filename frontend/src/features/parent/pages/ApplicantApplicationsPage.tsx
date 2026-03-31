@@ -92,11 +92,18 @@ function DeleteDraftModal({
   return (
     // Backdrop
     <div
+      role="button"
+      tabIndex={-1}
+      aria-label="Close dialog"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onCancel}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onCancel(); }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
       <div
+        role="dialog"
+        aria-modal="true"
         className="w-full max-w-sm rounded-2xl p-6 shadow-xl flex flex-col gap-4"
         style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
@@ -439,7 +446,7 @@ export function ApplicantApplicationsPage() {
       const last  = (parsed.s1?.camper_last_name  ?? '').trim();
       setLocalDraft({ camperName: first || last ? `${first} ${last}`.trim() : null });
     } catch { /* ignore corrupt draft */ }
-  }, []);
+  }, [localDraftKey]);
 
   // Fetch all applications + server drafts in parallel
   const load = () => {

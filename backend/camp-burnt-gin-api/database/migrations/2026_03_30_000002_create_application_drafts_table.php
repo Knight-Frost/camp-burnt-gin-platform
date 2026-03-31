@@ -25,8 +25,8 @@ return new class extends Migration
         Schema::create('application_drafts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')
-                  ->constrained()
-                  ->cascadeOnDelete();  // Deleting a user wipes their drafts
+                ->constrained()
+                ->cascadeOnDelete();  // Deleting a user wipes their drafts
             $table->string('label')->default('New Application');
             $table->longText('draft_data')->nullable();
             $table->timestamps();

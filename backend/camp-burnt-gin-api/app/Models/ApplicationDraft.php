@@ -18,10 +18,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *   Updated → auto-save (every ~30 s) or explicit "Save Draft" click
  *   Deleted → parent deletes it, or submission succeeds (handled by frontend)
  *
- * @property int        $id
- * @property int        $user_id
- * @property string     $label       Derived from camper first+last name as typed
- * @property array|null $draft_data  Full FormState blob
+ * @property int $id
+ * @property int $user_id
+ * @property string $label Derived from camper first+last name as typed
+ * @property array|null $draft_data Full FormState blob
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */

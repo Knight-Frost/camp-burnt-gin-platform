@@ -155,7 +155,7 @@ class CampSession extends Model
     public function getStatusAttribute(): string
     {
         $today = today();   // Date-only — matches the 'date' cast on start_date / end_date.
-        $now   = now();     // Full datetime — used for registration_closes_at comparison.
+        $now = now();     // Full datetime — used for registration_closes_at comparison.
 
         // ── Camp schedule: ground truth, no override possible ─────────────────
         if ($today->gt($this->end_date)) {

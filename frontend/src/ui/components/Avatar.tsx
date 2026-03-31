@@ -24,6 +24,7 @@ export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 const AVATAR_PALETTE = ['#16a34a','#1d4ed8','#7c3aed','#0f766e','#b45309','#be123c','#0369a1','#4338ca'];
 
 /** Returns a deterministic background colour for a given display name. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function avatarBg(name: string): string {
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;

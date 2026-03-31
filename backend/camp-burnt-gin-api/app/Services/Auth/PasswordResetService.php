@@ -152,7 +152,7 @@ class PasswordResetService
 
         // Notify the account holder that their password changed so they can act
         // if the change was unauthorised (security assurance email)
-        $user->notify(new PasswordChangedConfirmationNotification());
+        $user->notify(new PasswordChangedConfirmationNotification);
 
         // Step 5: Delete the used token so it cannot be replayed
         DB::table('password_reset_tokens')

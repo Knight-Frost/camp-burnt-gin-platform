@@ -452,10 +452,10 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     |
     */
     Route::prefix('application-drafts')->group(function () {
-        Route::get('/',         [ApplicationDraftController::class, 'index'])  ->name('application-drafts.index');
-        Route::post('/',        [ApplicationDraftController::class, 'store'])  ->name('application-drafts.store');
-        Route::get('/{draft}',  [ApplicationDraftController::class, 'show'])   ->name('application-drafts.show');
-        Route::put('/{draft}',  [ApplicationDraftController::class, 'update']) ->name('application-drafts.update');
+        Route::get('/', [ApplicationDraftController::class, 'index'])->name('application-drafts.index');
+        Route::post('/', [ApplicationDraftController::class, 'store'])->name('application-drafts.store');
+        Route::get('/{draft}', [ApplicationDraftController::class, 'show'])->name('application-drafts.show');
+        Route::put('/{draft}', [ApplicationDraftController::class, 'update'])->name('application-drafts.update');
         Route::delete('/{draft}', [ApplicationDraftController::class, 'destroy'])->name('application-drafts.destroy');
     });
 

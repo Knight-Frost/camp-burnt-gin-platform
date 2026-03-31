@@ -147,7 +147,7 @@ export function ApplicantOfficialFormsPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [draftKey]);
 
   // ── Download handler (for medical_form only) ──────────────────────────────
 

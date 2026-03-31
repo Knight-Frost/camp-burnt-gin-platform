@@ -36,7 +36,7 @@ class PasswordChangedConfirmationNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Your Password Has Been Changed — Camp Burnt Gin')
-            ->greeting('Hello ' . $notifiable->name . ',')
+            ->greeting('Hello '.$notifiable->name.',')
             ->line('Your Camp Burnt Gin account password was successfully changed.')
             ->line('If you made this change, no further action is required.')
             ->line('If you did **not** make this change, please reset your password immediately and contact us so we can secure your account.')

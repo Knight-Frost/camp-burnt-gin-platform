@@ -132,7 +132,7 @@ export function AdminDeadlinesPage() {
       .then((res) => setDeadlines(res.data))
       .catch(() => toast.error(t('deadlines.error_load')))
       .finally(() => setLoading(false));
-  }, [retryKey, filterStatus, filterType]);
+  }, [retryKey, filterStatus, filterType, t]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
 
