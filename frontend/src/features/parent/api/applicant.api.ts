@@ -160,6 +160,65 @@ export async function cloneApplication(id: number): Promise<Application> {
 }
 
 // ---------------------------------------------------------------------------
+// Application Drafts (server-side save slots)
+// ---------------------------------------------------------------------------
+
+/**
+ * A server-side save slot for an in-progress application form.
+ * draft_data is the full FormState JSON — present only in the `show` response.
+ */
+export interface ApplicationDraft {
+  id: number;
+  label: string;
+  draft_data?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** List all drafts for the authenticated user (no draft_data in list response). */
+export async function getDrafts(): Promise<ApplicationDraft[]> {
+  const { data } = await axiosInstance.get<{ data: ApplicationDraft[] }>('/application-drafts');
+  return data.data ?? [];
+}
+
+/** Create a new empty draft save slot. Returns the created draft with its id. */
+export async function createDraft(label?: string): Promise<ApplicationDraft> {
+  const { data } = await axiosInstance.post<{ data: ApplicationDraft }>('/application-drafts', {
+    label: label ?? 'New Application',
+  });
+  return data.data;
+}
+
+/** Fetch a single draft including its full draft_data. */
+export async function getDraft(id: number): Promise<ApplicationDraft> {
+  const { data } = await axiosInstance.get<{ data: ApplicationDraft }>(`/application-drafts/${id}`);
+  return data.data;
+}
+
+/** Auto-save the full form state to a draft slot. */
+export async function saveDraft(
+  id: number,
+  label: string,
+  draftData: Record<string, unknown>,
+): Promise<void> {
+  await axiosInstance.put(`/application-drafts/${id}`, { label, draft_data: draftData });
+}
+
+/** Permanently delete a draft. No confirmation on the server — confirm in the UI. */
+export async function deleteDraft(id: number): Promise<void> {
+  await axiosInstance.delete(`/application-drafts/${id}`);
+}
+
+/**
+ * Delete an Application record that is still in draft state (is_draft = true).
+ * The backend enforces this constraint via ApplicationPolicy — submitting a
+ * request to delete a non-draft application will return 403.
+ */
+export async function deleteApplication(id: number): Promise<void> {
+  await axiosInstance.delete(`/applications/${id}`);
+}
+
+// ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 

@@ -26,36 +26,33 @@ import type { CampSession } from '@/features/admin/types/admin.types';
 import { ROUTES } from '@/shared/constants/routes';
 
 // ─── Session photo system ─────────────────────────────────────────────────────
-// Maps each session to a landscape photograph based on season.
-// Three real images are cycled deterministically by session ID so each
-// session in the list always has a distinct visual identity.
-
-const SESSION_IMAGES = {
-  summer: '/images/sessions/summer.jpg',   // Mountain valley — warm golden sunset
-  spring: '/images/sessions/spring.jpg',   // River rocks — fresh, earthy
-  fall:   '/images/sessions/fall.jpg',     // Misty autumn mountains
-} as const;
-
-const IMAGE_CYCLE = ['summer', 'spring', 'fall'] as const;
-
-function getSessionImage(sessionId: number): string {
-  return SESSION_IMAGES[IMAGE_CYCLE[sessionId % 3]];
-}
+import { getSessionImage } from '../utils/sessionImages';
 
 // ─── Session status ──────────────────────────────────────────────────────────
 // Only called for active sessions — no 'Archived' case needed in the modal.
 
+const STATUS_DISPLAY: Record<string, { label: string; bg: string; text: string }> = {
+  upcoming:   { label: 'Upcoming',    bg: 'rgba(37,99,235,0.72)',  text: '#fff' },
+  open:       { label: 'Open',        bg: 'rgba(22,163,74,0.72)',  text: '#fff' },
+  in_session: { label: 'In Session',  bg: 'rgba(14,90,42,0.80)',   text: '#fff' },
+  closed:     { label: 'Closed',      bg: 'rgba(194,65,12,0.72)',  text: '#fff' },
+  completed:  { label: 'Completed',   bg: 'rgba(75,85,99,0.72)',   text: 'rgba(255,255,255,0.90)' },
+};
+
 function getSessionStatus(session: CampSession): { label: string; bg: string; text: string } {
-  const now = new Date();
+  // Always prefer server-computed status — incorporates portal_open and registration window.
+  if (session.status && STATUS_DISPLAY[session.status]) return STATUS_DISPLAY[session.status];
+
+  // Fallback: date-only derivation when server status is absent.
   try {
+    const now   = new Date();
     const start = parseISO(session.start_date);
     const end   = parseISO(session.end_date);
-    if (isBefore(now, start)) return { label: 'Upcoming', bg: 'rgba(37,99,235,0.72)',  text: '#fff' };
-    if (isAfter(now, end))    return { label: 'Completed', bg: 'rgba(75,85,99,0.72)',   text: 'rgba(255,255,255,0.90)' };
-  } catch {
-    // Fall through to active
-  }
-  return { label: 'Active', bg: 'rgba(22,163,74,0.72)', text: '#fff' };
+    if (isBefore(now, start)) return STATUS_DISPLAY.upcoming;
+    if (isAfter(now, end))    return STATUS_DISPLAY.completed;
+  } catch { /* ignore */ }
+
+  return STATUS_DISPLAY.in_session;
 }
 
 // ─── Session card ────────────────────────────────────────────────────────────
@@ -249,16 +246,17 @@ export function SessionSelectorModal() {
   // Both early-exit conditions are now AFTER all hooks.
   if (!ctx || !selectorOpen) return null;
 
-  // Show non-archived sessions only. Split into two groups based on date-derived status:
-  //   activeSessions  — currently running (start_date <= today <= end_date)
-  //   upcomingSessions — not yet started (today < start_date)
-  // Completed sessions are excluded — they are no longer viable workspaces.
+  // Show non-archived, non-completed sessions. Three groups:
+  //   inSessionSessions — camp is physically happening today (in_session)
+  //   openSessions      — applications accepted or recently closed; camp hasn't started yet (open | closed)
+  //   upcomingSessions  — portal not yet open; camp hasn't started (upcoming)
   const nonArchived = [...sessions]
     .filter((s) => s.is_active)
     .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
-  const activeSessions   = nonArchived.filter((s) => getSessionStatus(s).label === 'Active');
-  const upcomingSessions = nonArchived.filter((s) => getSessionStatus(s).label === 'Upcoming');
+  const inSessionSessions = nonArchived.filter((s) => s.status === 'in_session');
+  const openSessions      = nonArchived.filter((s) => s.status === 'open' || s.status === 'closed');
+  const upcomingSessions  = nonArchived.filter((s) => s.status === 'upcoming');
 
   const modal = (
     <div
@@ -347,10 +345,10 @@ export function SessionSelectorModal() {
             </button>
           </div>
 
-          {/* Session cards — active and upcoming sessions, clearly separated */}
+          {/* Session cards — three groups: in-session, open for applications, upcoming */}
           <div className="space-y-6">
 
-            {/* ── Currently Running ── */}
+            {/* ── In Session — Currently Running ── */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <span
@@ -359,7 +357,7 @@ export function SessionSelectorModal() {
                   aria-hidden
                 />
                 <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
-                  Active — Currently Running {activeSessions.length > 0 && `(${activeSessions.length})`}
+                  In Session — Currently Running {inSessionSessions.length > 0 && `(${inSessionSessions.length})`}
                 </p>
               </div>
 
@@ -367,7 +365,7 @@ export function SessionSelectorModal() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from({ length: 2 }).map((_, i) => <SessionCardSkeleton key={i} />)}
                 </div>
-              ) : activeSessions.length === 0 ? (
+              ) : inSessionSessions.length === 0 ? (
                 <div
                   className="rounded-xl border flex items-center justify-center py-8 text-center"
                   style={{ borderColor: 'var(--border)', borderStyle: 'dashed' }}
@@ -378,7 +376,7 @@ export function SessionSelectorModal() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {activeSessions.map((session) => (
+                  {inSessionSessions.map((session) => (
                     <SessionCard
                       key={session.id}
                       session={session}
@@ -390,7 +388,40 @@ export function SessionSelectorModal() {
               )}
             </div>
 
-            {/* ── Upcoming ── */}
+            {/* ── Open for Applications ── */}
+            {(sessionsLoading || openSessions.length > 0) && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span
+                    className="h-2 w-2 rounded-full flex-shrink-0"
+                    style={{ background: 'rgba(22,163,74,1)' }}
+                    aria-hidden
+                  />
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
+                    Open for Applications {openSessions.length > 0 && `(${openSessions.length})`}
+                  </p>
+                </div>
+
+                {sessionsLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 1 }).map((_, i) => <SessionCardSkeleton key={i} />)}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {openSessions.map((session) => (
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        isSelected={currentSession?.id === session.id}
+                        onSelect={() => setCurrentSession(session)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Upcoming — Portal Not Yet Open ── */}
             {(sessionsLoading || upcomingSessions.length > 0) && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -400,7 +431,7 @@ export function SessionSelectorModal() {
                     aria-hidden
                   />
                   <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
-                    Upcoming — Not Yet Started {upcomingSessions.length > 0 && `(${upcomingSessions.length})`}
+                    Upcoming — Not Yet Open {upcomingSessions.length > 0 && `(${upcomingSessions.length})`}
                   </p>
                 </div>
 
@@ -424,7 +455,7 @@ export function SessionSelectorModal() {
             )}
 
             {/* Empty state — no sessions at all */}
-            {!sessionsLoading && activeSessions.length === 0 && upcomingSessions.length === 0 && (
+            {!sessionsLoading && inSessionSessions.length === 0 && openSessions.length === 0 && upcomingSessions.length === 0 && (
               <div
                 className="rounded-xl border flex flex-col items-center justify-center py-12 text-center"
                 style={{ borderColor: 'var(--border)', borderStyle: 'dashed' }}

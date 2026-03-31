@@ -52,9 +52,9 @@ class CampSessionController extends Controller
                 $q->where('status', 'approved');
             }]);
 
-        // Non-admins should not see inactive/hidden sessions in the portal
+        // Non-admins only see sessions that are active (not archived) AND open for applications.
         if (! $request->user()->isAdmin()) {
-            $query->where('is_active', true);
+            $query->where('is_active', true)->where('portal_open', true);
         }
 
         // Allow frontend to scope to one specific camp's sessions
@@ -165,6 +165,58 @@ class CampSessionController extends Controller
 
         return response()->json([
             'message' => 'Camp session deleted successfully.',
+        ]);
+    }
+
+    /**
+     * Open a session for applications in the parent portal.
+     *
+     * POST /api/sessions/{session}/activate
+     *
+     * Sets portal_open = true so the session appears in the applicant's session picker.
+     * This is separate from is_active (archive flag) and the date-derived status —
+     * admins can open registration early, before the camp dates arrive.
+     *
+     * Returns 422 if the session is already open (idempotency guard).
+     */
+    public function activate(CampSession $session): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        if ($session->portal_open) {
+            return response()->json(['message' => 'Session is already open for applications.'], 422);
+        }
+
+        $session->update(['portal_open' => true]);
+
+        return response()->json([
+            'message' => 'Session is now open for applications.',
+            'data' => $session->fresh(),
+        ]);
+    }
+
+    /**
+     * Close a session to new applications in the parent portal.
+     *
+     * POST /api/sessions/{session}/deactivate
+     *
+     * Sets portal_open = false so the session no longer appears in the applicant's
+     * session picker. Existing applications are unaffected.
+     * Returns 422 if the session is already closed.
+     */
+    public function deactivate(CampSession $session): JsonResponse
+    {
+        $this->authorize('update', $session);
+
+        if (! $session->portal_open) {
+            return response()->json(['message' => 'Session is already closed for applications.'], 422);
+        }
+
+        $session->update(['portal_open' => false]);
+
+        return response()->json([
+            'message' => 'Session is now closed for applications.',
+            'data' => $session->fresh(),
         ]);
     }
 

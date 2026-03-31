@@ -16,25 +16,13 @@ import {
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
-import { Avatar } from '@/ui/components/Avatar';
+import { Avatar, avatarBg } from '@/ui/components/Avatar';
 import type { Conversation } from '@/features/messaging/api/messaging.api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BRAND   = '#16a34a';
 const BRAND_T = 'rgba(22,163,74,0.10)';
-
-// ─── Avatar helpers ───────────────────────────────────────────────────────────
-
-const PALETTE = ['#16a34a','#1d4ed8','#7c3aed','#0f766e','#b45309','#be123c','#0369a1','#4338ca'];
-
-function avatarBg(name: string): string {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return PALETTE[h % PALETTE.length];
-}
-
-
 
 function relativeTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -96,6 +84,9 @@ export function MessageRow({
   const senderName = isSystem
     ? 'Camp Burnt Gin'
     : (conv.last_message?.sender?.name ?? (others[0]?.name ?? 'Unknown'));
+  const senderAvatar = isSystem
+    ? null
+    : (conv.last_message?.sender?.avatar_url ?? others[0]?.avatar_url ?? null);
   const preview    = conv.last_message?.body
     ? conv.last_message.body.replace(/<[^>]*>/g, '').slice(0, 90)
     : '—';
@@ -162,7 +153,7 @@ export function MessageRow({
           <Bot className="h-4 w-4" style={{ color: BRAND }} />
         </div>
       ) : (
-        <Avatar name={senderName} size="md" fallbackColor={avatarBg(senderName)} />
+        <Avatar src={senderAvatar} name={senderName} size="md" fallbackColor={avatarBg(senderName)} />
       )}
 
       {/* Content */}

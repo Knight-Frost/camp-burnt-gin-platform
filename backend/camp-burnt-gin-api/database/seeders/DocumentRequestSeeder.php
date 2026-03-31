@@ -79,15 +79,15 @@ class DocumentRequestSeeder extends Seeder
             ->first();
 
         $appNoah = Application::where('camper_id', $campers['noah']->id)
-            ->where('status', ApplicationStatus::Pending->value)
+            ->where('status', ApplicationStatus::Submitted->value)
             ->first();
 
         $appLucas = Application::where('camper_id', $campers['lucas']->id)
-            ->where('status', ApplicationStatus::Pending->value)
+            ->where('status', ApplicationStatus::Submitted->value)
             ->first();
 
         $appLily = Application::where('camper_id', $campers['lily']->id)
-            ->where('status', ApplicationStatus::Pending->value)
+            ->where('status', ApplicationStatus::Submitted->value)
             ->first();
 
         $appAva = Application::where('camper_id', $campers['ava']->id)

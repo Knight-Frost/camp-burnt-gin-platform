@@ -36,7 +36,7 @@ class ReportService
      * block with totals broken down by status and session.
      *
      * Supported filters:
-     *  - status:          ApplicationStatus value (e.g. "approved", "pending")
+     *  - status:          ApplicationStatus value (e.g. "approved", "submitted")
      *  - camp_session_id: Only applications for a specific session
      *  - date_from:       Only applications submitted on or after this date
      *  - date_to:         Only applications submitted on or before this date

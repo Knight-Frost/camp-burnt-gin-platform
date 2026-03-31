@@ -22,7 +22,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
 
-import { getCampers, getApplications, getRequiredDocuments, getDocumentRequests, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
+import { getCampers, getApplications, getDrafts, getRequiredDocuments, getDocumentRequests, type ApplicationDraft, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
 import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application } from '@/shared/types';
@@ -36,12 +36,15 @@ import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
+import { Avatar } from '@/ui/components/Avatar';
 
 export function ApplicantDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
 
+  const [localDraftName, setLocalDraftName]     = useState<string | null | undefined>(undefined); // undefined = not yet checked
+  const [serverDrafts, setServerDrafts]         = useState<ApplicationDraft[]>([]);
   const [campers, setCampers]                   = useState<Camper[]>([]);
   const [applications, setApplications]         = useState<Application[]>([]);
   const [conversations, setConversations]       = useState<Conversation[]>([]);
@@ -86,7 +89,28 @@ export function ApplicantDashboardPage() {
       .finally(() => setLoading(false));
   }, [retryKey]);
 
-  const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
+  // Load server drafts to surface a "Continue" prompt on the dashboard.
+  useEffect(() => {
+    if (!user?.id) return;
+    getDrafts()
+      .then((drafts) => {
+        setServerDrafts(drafts);
+        setLocalDraftName(drafts.length > 0 ? (drafts[0].label ?? null) : null);
+      })
+      .catch(() => {
+        // Fallback: try localStorage so the banner still shows if API fails
+        try {
+          const raw = localStorage.getItem(`cbg_app_draft_${user.id}`);
+          if (!raw) { setLocalDraftName(null); return; }
+          const parsed = JSON.parse(raw) as { s1?: { camper_first_name?: string; camper_last_name?: string } };
+          const first = (parsed.s1?.camper_first_name ?? '').trim();
+          const last  = (parsed.s1?.camper_last_name  ?? '').trim();
+          setLocalDraftName(first || last ? `${first} ${last}`.trim() : null);
+        } catch { setLocalDraftName(null); }
+      });
+  }, [user?.id]);
+
+  const pendingCount = applications.filter((a) => a.status === 'submitted' || a.status === 'under_review').length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
   const activityFeed = buildActivityFeed(conversations, applications, campers, documentRequests, user?.id);
@@ -138,6 +162,44 @@ export function ApplicantDashboardPage() {
           <StatCard label={t('applicant.dashboard.stat_applications')} value={applications.length} icon={FileText} color="var(--night-sky-blue)" delay={0.1} />
           <StatCard label={t('applicant.dashboard.stat_pending')} value={pendingCount} icon={Calendar} color="var(--warm-amber)" delay={0.2} />
         </div>
+      )}
+
+      {/* ── In-progress draft banner ─────────────────────────── */}
+      {localDraftName !== undefined && localDraftName !== null && (
+        <button
+          type="button"
+          onClick={() => {
+            if (serverDrafts.length > 1) {
+              // Multiple drafts — go to the applications list so the user can choose
+              navigate(ROUTES.PARENT_APPLICATIONS);
+            } else if (serverDrafts.length === 1) {
+              // Single draft — open it directly in the form
+              navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { draftId: serverDrafts[0].id } });
+            } else {
+              navigate(ROUTES.PARENT_APPLICATION_NEW);
+            }
+          }}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+          style={{ background: 'rgba(22,101,52,0.05)', borderColor: 'var(--ember-orange)' }}
+        >
+          <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+              {serverDrafts.length > 1
+                ? `${serverDrafts.length} draft applications in progress`
+                : `Draft – ${localDraftName || 'Not Submitted'}`}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              {serverDrafts.length > 1 ? 'Click to view all drafts' : 'Not yet submitted · Saved to your account'}
+            </p>
+          </div>
+          <span
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
+            style={{ background: 'var(--ember-orange)', color: '#fff' }}
+          >
+            {serverDrafts.length > 1 ? 'View all' : 'Continue'}
+          </span>
+        </button>
       )}
 
       {/* ── Quick Actions — moved near top ───────────────────── */}
@@ -242,12 +304,7 @@ export function ApplicantDashboardPage() {
                     className="glass-card rounded-2xl p-4 flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-headline font-semibold text-sm"
-                        style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--ember-orange)' }}
-                      >
-                        {camper.first_name.charAt(0)}{camper.last_name.charAt(0)}
-                      </div>
+                      <Avatar name={camper.full_name} size="sm" />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
                           {camper.full_name}
@@ -467,7 +524,7 @@ function getApplicationTitle(status: string, camperName: string): string {
     case 'rejected':     return `Application not approved — ${camperName}`;
     case 'under_review': return `Application under review — ${camperName}`;
     case 'waitlisted':   return `Application waitlisted — ${camperName}`;
-    case 'pending':      return `Application submitted — ${camperName}`;
+    case 'submitted':    return `Application submitted — ${camperName}`;
     default:             return `Application updated — ${camperName}`;
   }
 }
@@ -487,7 +544,7 @@ function getDocumentTitle(doc: DocumentRequestRecord): string {
 
 function getStatusLabel(status: string): string {
   switch (status) {
-    case 'pending':      return 'Pending review';
+    case 'submitted':    return 'Pending review';
     case 'under_review': return 'Under review';
     case 'approved':     return 'Approved';
     case 'rejected':     return 'Not approved';

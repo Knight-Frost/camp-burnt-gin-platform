@@ -90,7 +90,7 @@ function StatusTimeline({ status }: { status: string }) {
 
   // Defines the three main forward-progress steps for a typical application
   const STATUS_STEPS: { status: string; label: string; icon: ReactNode }[] = [
-    { status: 'pending',      label: t('applicant_detail.step_submitted'),    icon: <FileText className="h-3.5 w-3.5" /> },
+    { status: 'submitted',    label: t('applicant_detail.step_submitted'),    icon: <FileText className="h-3.5 w-3.5" /> },
     { status: 'under_review', label: t('applicant_detail.step_under_review'), icon: <Clock className="h-3.5 w-3.5" /> },
     { status: 'approved',     label: t('applicant_detail.step_approved'),     icon: <CheckCircle className="h-3.5 w-3.5" /> },
   ];
@@ -118,7 +118,7 @@ function StatusTimeline({ status }: { status: string }) {
     );
   }
 
-  const stepOrder = ['pending', 'under_review', 'approved'];
+  const stepOrder = ['submitted', 'under_review', 'approved'];
   // Find where the current status sits in the ordered list
   const currentIdx = stepOrder.indexOf(status);
 
@@ -473,7 +473,7 @@ export function ApplicantApplicationDetailPage() {
             title={application.status === 'approved' ? 'You\'re In!' : 'What Happens Next'}
             icon={<Info className="h-4 w-4" />}
           >
-            {application.status === 'pending' && (
+            {application.status === 'submitted' && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                   <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#b45309' }} />
@@ -578,7 +578,7 @@ export function ApplicantApplicationDetailPage() {
           )}
 
           {/* Withdraw button — only visible when the application is still withdrawable. */}
-          {application && ['pending', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
+          {application && ['submitted', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
             <button
               onClick={handleWithdraw}
               disabled={withdrawing}

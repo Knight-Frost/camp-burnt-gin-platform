@@ -167,7 +167,7 @@ class DatabaseIndexPerformanceTest extends TestCase
         $session2 = \App\Models\CampSession::factory()->create();
 
         Application::factory()->count(2)->create([
-            'status' => 'pending',
+            'status' => 'submitted',
             'camp_session_id' => $session1->id,
         ]);
 
@@ -177,12 +177,12 @@ class DatabaseIndexPerformanceTest extends TestCase
         ]);
 
         Application::factory()->create([
-            'status' => 'pending',
+            'status' => 'submitted',
             'camp_session_id' => $session2->id,
         ]);
 
         // Query using composite status+session index
-        $pendingSession1 = Application::where('status', 'pending')
+        $pendingSession1 = Application::where('status', 'submitted')
             ->where('camp_session_id', $session1->id)
             ->get();
 
@@ -240,7 +240,7 @@ class DatabaseIndexPerformanceTest extends TestCase
 
         // Create test data
         Application::factory()->count(5)->create([
-            'status' => 'pending',
+            'status' => 'submitted',
             'camp_session_id' => $session->id,
         ]);
 
@@ -251,7 +251,7 @@ class DatabaseIndexPerformanceTest extends TestCase
         ]);
 
         // Simulate admin filtered query (uses multiple indexes)
-        $response = $this->actingAs($admin)->getJson('/api/applications?status=pending&camp_session_id='.$session->id);
+        $response = $this->actingAs($admin)->getJson('/api/applications?status=submitted&camp_session_id='.$session->id);
 
         $response->assertStatus(200);
         $this->assertCount(5, $response->json('data'));

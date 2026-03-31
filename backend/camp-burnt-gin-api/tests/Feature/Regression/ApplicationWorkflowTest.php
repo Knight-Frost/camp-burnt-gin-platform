@@ -51,7 +51,7 @@ class ApplicationWorkflowTest extends TestCase
         $this->assertDatabaseHas('applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => ApplicationStatus::Pending->value,
+            'status' => ApplicationStatus::Submitted->value,
             'is_draft' => false,
         ]);
 
@@ -132,7 +132,7 @@ class ApplicationWorkflowTest extends TestCase
         $camper = Camper::factory()->create();
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
         ]);
 
         // Review application
@@ -169,7 +169,7 @@ class ApplicationWorkflowTest extends TestCase
         $camper = Camper::factory()->create();
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
         ]);
 
         // Reject application
@@ -195,7 +195,7 @@ class ApplicationWorkflowTest extends TestCase
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
         ]);
 
         // View application
@@ -203,7 +203,7 @@ class ApplicationWorkflowTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonPath('data.id', $application->id);
-        $response->assertJsonPath('data.status', 'pending');
+        $response->assertJsonPath('data.status', 'submitted');
     }
 
     public function test_parent_can_edit_pending_application(): void
@@ -212,7 +212,7 @@ class ApplicationWorkflowTest extends TestCase
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
         ]);
 
         // Parents can edit narrative fields but NOT internal admin notes
@@ -232,7 +232,7 @@ class ApplicationWorkflowTest extends TestCase
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
             'notes' => 'Original admin note',
         ]);
 
@@ -266,12 +266,12 @@ class ApplicationWorkflowTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        Application::factory()->count(3)->create(['status' => ApplicationStatus::Pending]);
+        Application::factory()->count(3)->create(['status' => ApplicationStatus::Submitted]);
         Application::factory()->count(2)->create(['status' => ApplicationStatus::Approved]);
         Application::factory()->count(1)->create(['status' => ApplicationStatus::Rejected]);
 
-        // Filter by pending
-        $response = $this->actingAs($admin)->getJson('/api/applications?status=pending');
+        // Filter by submitted
+        $response = $this->actingAs($admin)->getJson('/api/applications?status=submitted');
         $response->assertStatus(200);
         $this->assertCount(3, $response->json('data'));
 

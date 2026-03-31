@@ -17,6 +17,19 @@ import { useState, useEffect } from 'react';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
+// ---------------------------------------------------------------------------
+// Deterministic per-user color (exported for messaging components)
+// ---------------------------------------------------------------------------
+
+const AVATAR_PALETTE = ['#16a34a','#1d4ed8','#7c3aed','#0f766e','#b45309','#be123c','#0369a1','#4338ca'];
+
+/** Returns a deterministic background colour for a given display name. */
+export function avatarBg(name: string): string {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+}
+
 export interface AvatarProps {
   /** Public URL of the user's profile photo. */
   src?: string | null;
@@ -38,17 +51,17 @@ export interface AvatarProps {
 
 const SIZE_MAP: Record<AvatarSize, number> = {
   xs: 20,
-  sm: 24,
-  md: 32,
-  lg: 48,
+  sm: 32,   // tables, compact lists, header
+  md: 40,   // inbox rows, conversation list, sidebar
+  lg: 48,   // profile views, detail pages
   xl: 80,
 };
 
 const FONT_MAP: Record<AvatarSize, string> = {
   xs: '9px',
-  sm: '10px',
-  md: '12px',
-  lg: '16px',
+  sm: '12px',
+  md: '14px',
+  lg: '17px',
   xl: '24px',
 };
 

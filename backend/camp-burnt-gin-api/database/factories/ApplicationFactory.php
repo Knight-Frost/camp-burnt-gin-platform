@@ -21,7 +21,7 @@ class ApplicationFactory extends Factory
         return [
             'camper_id' => Camper::factory(),
             'camp_session_id' => CampSession::factory(),
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
             'is_draft' => false,
             'submitted_at' => now(),
             'reviewed_at' => null,
@@ -52,7 +52,7 @@ class ApplicationFactory extends Factory
     {
         return $this->state(fn () => [
             'is_draft' => true,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
             'signed_at' => null,
         ]);

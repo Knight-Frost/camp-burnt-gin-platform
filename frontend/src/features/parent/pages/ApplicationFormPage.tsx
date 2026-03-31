@@ -69,16 +69,20 @@ import {
   uploadDocument,
   signApplication,
   storeConsents,
+  getDraft,
+  saveDraft as apiSaveDraft,
+  deleteDraft as apiDeleteDraft,
 } from '@/features/parent/api/applicant.api';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Session } from '@/shared/types';
 import { Button } from '@/ui/components/Button';
+import { useAppSelector } from '@/store/hooks';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const DRAFT_KEY = 'cbg_app_draft';
+const DRAFT_KEY_BASE = 'cbg_app_draft';
 const AUTOSAVE_DELAY = 3000; // 3 s
 
 const STATES_US = [
@@ -89,46 +93,8 @@ const STATES_US = [
   'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
 ];
 
-const COMMUNICATION_METHODS = [
-  'Verbal speech',
-  'AAC device',
-  'Sign language',
-  'Picture symbols',
-  'Gestures',
-  'Written text',
-  'Eye gaze',
-];
-
-const DEVICE_TYPES = [
-  'Wheelchair (manual)',
-  'Wheelchair (power)',
-  'Walker',
-  'Crutches',
-  'Cane',
-  'Leg brace(s)',
-  'CPAP / BiPAP',
-  'Hearing aid',
-  'Cochlear implant',
-  'Glasses / contacts',
-  'Prosthetic limb',
-  'Orthotics / AFOs',
-  'Computerized communication device',
-  'Gait trainer',
-  'Other',
-];
-
-const TEXTURE_LEVELS = [
-  'Regular',
-  'Minced & moist',
-  'Minced',
-  'Puréed',
-  'Liquidised',
-  'Thin liquids',
-  'Slightly thick',
-  'Mildly thick',
-  'Moderately thick',
-  'Extremely thick',
-];
+// COMMUNICATION_METHODS, DEVICE_TYPES, TEXTURE_LEVELS are defined inside the
+// component (or passed via helpers) so they rebuild when the language changes.
 
 // ---------------------------------------------------------------------------
 // FormState type
@@ -936,7 +902,7 @@ function Section1({
 
       {/* Application meta */}
       <SectionCard>
-        <SubHeading>Application type</SubHeading>
+        <SubHeading>{t('applicant.form.s1_application_type_heading')}</SubHeading>
         <div className="flex flex-col gap-2">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -944,7 +910,7 @@ function Section1({
               checked={data.first_application}
               onChange={(e) => onChange({ first_application: e.target.checked, attended_before: e.target.checked ? false : data.attended_before })}
             />
-            <span className="text-sm" style={{ color: 'var(--foreground)' }}>First application — this applicant has never applied to Camp Burnt Gin before</span>
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s1_first_application_label')}</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -952,7 +918,7 @@ function Section1({
               checked={data.attended_before}
               onChange={(e) => onChange({ attended_before: e.target.checked, first_application: e.target.checked ? false : data.first_application })}
             />
-            <span className="text-sm" style={{ color: 'var(--foreground)' }}>Attended Camp Burnt Gin before</span>
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s1_attended_before_label')}</span>
           </label>
         </div>
       </SectionCard>
@@ -978,12 +944,12 @@ function Section1({
           <div>
             <FieldLabel required>{t('applicant.form.gender')}</FieldLabel>
             <SelectInput value={data.camper_gender} onChange={set('camper_gender')}>
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="non_binary">Non-binary</option>
-              <option value="prefer_not_to_say">Prefer not to say</option>
-              <option value="other">Other</option>
+              <option value="">{t('applicant.form.s1_select_gender')}</option>
+              <option value="male">{t('applicant.form.s1_gender_male')}</option>
+              <option value="female">{t('applicant.form.s1_gender_female')}</option>
+              <option value="non_binary">{t('applicant.form.s1_gender_nonbinary')}</option>
+              <option value="prefer_not_to_say">{t('applicant.form.s1_gender_prefer_not')}</option>
+              <option value="other">{t('applicant.form.s1_gender_other')}</option>
             </SelectInput>
           </div>
         </FormRow>
@@ -998,22 +964,22 @@ function Section1({
           </div>
         </FormRow>
         <div>
-          <FieldLabel>Applicant mailing address</FieldLabel>
-          <TextInput value={data.camper_address} onChange={set('camper_address')} placeholder="Street address" />
+          <FieldLabel>{t('applicant.form.s1_camper_address_label')}</FieldLabel>
+          <TextInput value={data.camper_address} onChange={set('camper_address')} placeholder={t('applicant.form.s1_street_address_placeholder')} />
         </div>
         <FormRow cols={3}>
           <div>
-            <FieldLabel>City</FieldLabel>
-            <TextInput value={data.camper_city} onChange={set('camper_city')} placeholder="City" />
+            <FieldLabel>{t('applicant.form.city')}</FieldLabel>
+            <TextInput value={data.camper_city} onChange={set('camper_city')} placeholder={t('applicant.form.city')} />
           </div>
           <div>
-            <FieldLabel>State</FieldLabel>
+            <FieldLabel>{t('applicant.form.state')}</FieldLabel>
             <SelectInput value={data.camper_state} onChange={set('camper_state')}>
               {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
             </SelectInput>
           </div>
           <div>
-            <FieldLabel>ZIP code</FieldLabel>
+            <FieldLabel>{t('applicant.form.zip')}</FieldLabel>
             <TextInput value={data.camper_zip} onChange={set('camper_zip')} placeholder="00000" />
           </div>
         </FormRow>
@@ -1021,18 +987,18 @@ function Section1({
           <div>
             <FieldLabel>{t('applicant.form.tshirt_size')}</FieldLabel>
             <SelectInput value={data.tshirt_size} onChange={set('tshirt_size')}>
-              <option value="">Select size</option>
-              <option value="YXS">Youth XS</option>
-              <option value="YS">Youth S</option>
-              <option value="YM">Youth M</option>
-              <option value="YL">Youth L</option>
-              <option value="YXL">Youth XL</option>
-              <option value="AS">Adult S</option>
-              <option value="AM">Adult M</option>
-              <option value="AL">Adult L</option>
-              <option value="AXL">Adult XL</option>
-              <option value="A2XL">Adult 2XL</option>
-              <option value="A3XL">Adult 3XL</option>
+              <option value="">{t('applicant.form.s1_select_size')}</option>
+              <option value="YXS">{t('applicant.form.s1_size_yxs')}</option>
+              <option value="YS">{t('applicant.form.s1_size_ys')}</option>
+              <option value="YM">{t('applicant.form.s1_size_ym')}</option>
+              <option value="YL">{t('applicant.form.s1_size_yl')}</option>
+              <option value="YXL">{t('applicant.form.s1_size_yxl')}</option>
+              <option value="AS">{t('applicant.form.s1_size_as')}</option>
+              <option value="AM">{t('applicant.form.s1_size_am')}</option>
+              <option value="AL">{t('applicant.form.s1_size_al')}</option>
+              <option value="AXL">{t('applicant.form.s1_size_axl')}</option>
+              <option value="A2XL">{t('applicant.form.s1_size_a2xl')}</option>
+              <option value="A3XL">{t('applicant.form.s1_size_a3xl')}</option>
             </SelectInput>
           </div>
           <div />
@@ -1041,52 +1007,52 @@ function Section1({
 
       {/* Guardian 1 */}
       <SectionCard>
-        <SubHeading>Primary guardian / parent</SubHeading>
+        <SubHeading>{t('applicant.form.s1_primary_guardian_heading')}</SubHeading>
         <FormRow>
           <div>
-            <FieldLabel required>Full name</FieldLabel>
-            <TextInput value={data.g1_name} onChange={set('g1_name')} placeholder="Full legal name" />
+            <FieldLabel required>{t('applicant.form.s1_full_name_label')}</FieldLabel>
+            <TextInput value={data.g1_name} onChange={set('g1_name')} placeholder={t('applicant.form.s1_full_legal_name_placeholder')} />
           </div>
           <div>
-            <FieldLabel>Relationship to camper</FieldLabel>
-            <TextInput value={data.g1_relationship} onChange={set('g1_relationship')} placeholder="e.g. Mother, Father, Guardian" />
+            <FieldLabel>{t('applicant.form.s1_relationship_to_camper_label')}</FieldLabel>
+            <TextInput value={data.g1_relationship} onChange={set('g1_relationship')} placeholder={t('applicant.form.s1_relationship_placeholder')} />
           </div>
         </FormRow>
         <FormRow cols={3}>
           <div>
-            <FieldLabel>Home phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_home_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.g1_phone_home} onChange={set('g1_phone_home')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
-            <FieldLabel>Work phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_work_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.g1_phone_work} onChange={set('g1_phone_work')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
-            <FieldLabel required>Cell phone</FieldLabel>
+            <FieldLabel required>{t('applicant.form.s1_cell_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.g1_phone_cell} onChange={set('g1_phone_cell')} placeholder="(xxx) xxx-xxxx" />
           </div>
         </FormRow>
         <div>
-          <FieldLabel>Email</FieldLabel>
+          <FieldLabel>{t('applicant.form.s1_email_label')}</FieldLabel>
           <TextInput type="email" value={data.g1_email} onChange={set('g1_email')} placeholder="email@example.com" />
         </div>
         <div>
-          <FieldLabel>Street address</FieldLabel>
-          <TextInput value={data.g1_address} onChange={set('g1_address')} placeholder="123 Main St" />
+          <FieldLabel>{t('applicant.form.s1_street_address_label')}</FieldLabel>
+          <TextInput value={data.g1_address} onChange={set('g1_address')} placeholder={t('applicant.form.s1_street_address_placeholder')} />
         </div>
         <FormRow cols={3}>
           <div>
-            <FieldLabel>City</FieldLabel>
-            <TextInput value={data.g1_city} onChange={set('g1_city')} placeholder="City" />
+            <FieldLabel>{t('applicant.form.city')}</FieldLabel>
+            <TextInput value={data.g1_city} onChange={set('g1_city')} placeholder={t('applicant.form.city')} />
           </div>
           <div>
-            <FieldLabel>State</FieldLabel>
+            <FieldLabel>{t('applicant.form.state')}</FieldLabel>
             <SelectInput value={data.g1_state} onChange={set('g1_state')}>
               {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
             </SelectInput>
           </div>
           <div>
-            <FieldLabel>ZIP code</FieldLabel>
+            <FieldLabel>{t('applicant.form.zip')}</FieldLabel>
             <TextInput value={data.g1_zip} onChange={set('g1_zip')} placeholder="00000" />
           </div>
         </FormRow>
@@ -1094,67 +1060,67 @@ function Section1({
 
       {/* Guardian 2 (optional) */}
       <SectionCard>
-        <SubHeading>Secondary guardian / parent (optional)</SubHeading>
+        <SubHeading>{t('applicant.form.s1_secondary_guardian_heading')}</SubHeading>
         <FormRow>
           <div>
-            <FieldLabel>Full name</FieldLabel>
-            <TextInput value={data.g2_name} onChange={set('g2_name')} placeholder="Full legal name" />
+            <FieldLabel>{t('applicant.form.s1_full_name_label')}</FieldLabel>
+            <TextInput value={data.g2_name} onChange={set('g2_name')} placeholder={t('applicant.form.s1_full_legal_name_placeholder')} />
           </div>
           <div>
-            <FieldLabel>Relationship to camper</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_relationship_to_camper_label')}</FieldLabel>
             <SelectInput value={data.g2_relationship} onChange={set('g2_relationship')}>
-              <option value="">Select relationship</option>
-              <option value="Parent">Parent</option>
-              <option value="Foster parent">Foster parent</option>
-              <option value="Other">Other</option>
+              <option value="">{t('applicant.form.s1_select_relationship')}</option>
+              <option value="Parent">{t('applicant.form.s1_rel_parent')}</option>
+              <option value="Foster parent">{t('applicant.form.s1_rel_foster_parent')}</option>
+              <option value="Other">{t('applicant.form.s1_gender_other')}</option>
             </SelectInput>
           </div>
         </FormRow>
         <FormRow cols={3}>
           <div>
-            <FieldLabel>Home phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_home_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.g2_phone_home} onChange={set('g2_phone_home')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
-            <FieldLabel>Work phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_work_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.g2_phone_work} onChange={set('g2_phone_work')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
-            <FieldLabel>Cell phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_cell_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.g2_phone_cell} onChange={set('g2_phone_cell')} placeholder="(xxx) xxx-xxxx" />
           </div>
         </FormRow>
         <div>
-          <FieldLabel>Email</FieldLabel>
+          <FieldLabel>{t('applicant.form.s1_email_label')}</FieldLabel>
           <TextInput type="email" value={data.g2_email} onChange={set('g2_email')} placeholder="email@example.com" />
         </div>
         <div>
-          <FieldLabel>Street address</FieldLabel>
-          <TextInput value={data.g2_address} onChange={set('g2_address')} placeholder="Street address (if different from applicant)" />
+          <FieldLabel>{t('applicant.form.s1_street_address_label')}</FieldLabel>
+          <TextInput value={data.g2_address} onChange={set('g2_address')} placeholder={t('applicant.form.s1_g2_address_placeholder')} />
         </div>
         <FormRow cols={3}>
           <div>
-            <FieldLabel>City</FieldLabel>
-            <TextInput value={data.g2_city} onChange={set('g2_city')} placeholder="City" />
+            <FieldLabel>{t('applicant.form.city')}</FieldLabel>
+            <TextInput value={data.g2_city} onChange={set('g2_city')} placeholder={t('applicant.form.city')} />
           </div>
           <div>
-            <FieldLabel>State</FieldLabel>
+            <FieldLabel>{t('applicant.form.state')}</FieldLabel>
             <SelectInput value={data.g2_state} onChange={set('g2_state')}>
               {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
             </SelectInput>
           </div>
           <div>
-            <FieldLabel>ZIP code</FieldLabel>
+            <FieldLabel>{t('applicant.form.zip')}</FieldLabel>
             <TextInput value={data.g2_zip} onChange={set('g2_zip')} placeholder="00000" />
           </div>
         </FormRow>
         <FormRow>
           <div>
-            <FieldLabel>Primary language (if not English)</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_primary_language_label')}</FieldLabel>
             <SelectInput value={data.g2_primary_language} onChange={set('g2_primary_language')}>
-              <option value="">English</option>
-              <option value="Spanish">Spanish</option>
-              <option value="Other">Other</option>
+              <option value="">{t('applicant.form.s1_lang_english')}</option>
+              <option value="Spanish">{t('applicant.form.s1_lang_spanish')}</option>
+              <option value="Other">{t('applicant.form.s1_gender_other')}</option>
             </SelectInput>
           </div>
           <div className="flex items-center self-end pb-2">
@@ -1164,7 +1130,7 @@ function Section1({
                 checked={data.g2_interpreter}
                 onChange={(e) => onChange({ g2_interpreter: e.target.checked })}
               />
-              <span className="text-sm" style={{ color: 'var(--foreground)' }}>Interpreter needed</span>
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s1_interpreter_needed_label')}</span>
             </label>
           </div>
         </FormRow>
@@ -1172,58 +1138,58 @@ function Section1({
 
       {/* Emergency Contact */}
       <SectionCard>
-        <SubHeading>Emergency contact (other than guardians above)</SubHeading>
+        <SubHeading>{t('applicant.form.s1_emergency_contact_heading')}</SubHeading>
         <FormRow>
           <div>
-            <FieldLabel required>Full name</FieldLabel>
-            <TextInput value={data.ec_name} onChange={set('ec_name')} placeholder="Full name" />
+            <FieldLabel required>{t('applicant.form.s1_full_name_label')}</FieldLabel>
+            <TextInput value={data.ec_name} onChange={set('ec_name')} placeholder={t('applicant.form.s1_full_name_label')} />
           </div>
           <div>
-            <FieldLabel>Relationship</FieldLabel>
-            <TextInput value={data.ec_relationship} onChange={set('ec_relationship')} placeholder="Relationship" />
+            <FieldLabel>{t('applicant.form.s1_relationship_label')}</FieldLabel>
+            <TextInput value={data.ec_relationship} onChange={set('ec_relationship')} placeholder={t('applicant.form.s1_relationship_label')} />
           </div>
         </FormRow>
         <FormRow cols={3}>
           <div>
-            <FieldLabel required>Cell / primary phone</FieldLabel>
+            <FieldLabel required>{t('applicant.form.s1_cell_primary_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.ec_phone} onChange={set('ec_phone')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
-            <FieldLabel>Home phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_home_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.ec_phone_home} onChange={set('ec_phone_home')} placeholder="(xxx) xxx-xxxx" />
           </div>
           <div>
-            <FieldLabel>Work phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_work_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.ec_phone_work} onChange={set('ec_phone_work')} placeholder="(xxx) xxx-xxxx" />
           </div>
         </FormRow>
         <div>
-          <FieldLabel>Street address</FieldLabel>
-          <TextInput value={data.ec_address} onChange={set('ec_address')} placeholder="Street address" />
+          <FieldLabel>{t('applicant.form.s1_street_address_label')}</FieldLabel>
+          <TextInput value={data.ec_address} onChange={set('ec_address')} placeholder={t('applicant.form.s1_street_address_placeholder')} />
         </div>
         <FormRow cols={3}>
           <div>
-            <FieldLabel>City</FieldLabel>
-            <TextInput value={data.ec_city} onChange={set('ec_city')} placeholder="City" />
+            <FieldLabel>{t('applicant.form.city')}</FieldLabel>
+            <TextInput value={data.ec_city} onChange={set('ec_city')} placeholder={t('applicant.form.city')} />
           </div>
           <div>
-            <FieldLabel>State</FieldLabel>
+            <FieldLabel>{t('applicant.form.state')}</FieldLabel>
             <SelectInput value={data.ec_state} onChange={set('ec_state')}>
               {STATES_US.map((s) => <option key={s} value={s}>{s}</option>)}
             </SelectInput>
           </div>
           <div>
-            <FieldLabel>ZIP code</FieldLabel>
+            <FieldLabel>{t('applicant.form.zip')}</FieldLabel>
             <TextInput value={data.ec_zip} onChange={set('ec_zip')} placeholder="00000" />
           </div>
         </FormRow>
         <FormRow>
           <div>
-            <FieldLabel>Primary language (if not English)</FieldLabel>
+            <FieldLabel>{t('applicant.form.s1_primary_language_label')}</FieldLabel>
             <SelectInput value={data.ec_primary_language} onChange={set('ec_primary_language')}>
-              <option value="">English</option>
-              <option value="Spanish">Spanish</option>
-              <option value="Other">Other</option>
+              <option value="">{t('applicant.form.s1_lang_english')}</option>
+              <option value="Spanish">{t('applicant.form.s1_lang_spanish')}</option>
+              <option value="Other">{t('applicant.form.s1_gender_other')}</option>
             </SelectInput>
           </div>
           <div className="flex items-center self-end pb-2">
@@ -1233,7 +1199,7 @@ function Section1({
                 checked={data.ec_interpreter}
                 onChange={(e) => onChange({ ec_interpreter: e.target.checked })}
               />
-              <span className="text-sm" style={{ color: 'var(--foreground)' }}>Interpreter needed</span>
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s1_interpreter_needed_label')}</span>
             </label>
           </div>
         </FormRow>
@@ -1241,7 +1207,7 @@ function Section1({
 
       {/* Session & Language */}
       <SectionCard>
-        <SubHeading>Camp session</SubHeading>
+        <SubHeading>{t('applicant.form.s1_camp_session_heading')}</SubHeading>
         {sessions.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Loading available sessions…
@@ -1275,7 +1241,7 @@ function Section1({
                       {new Date(session.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       {' – '}
                       {new Date(session.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      <span className="ml-2">{session.available_spots} spots open</span>
+                      <span className="ml-2">{t('applicant.form.s1_spots_open', { count: session.available_spots })}</span>
                     </div>
                   </div>
                 </label>
@@ -1285,9 +1251,9 @@ function Section1({
         )}
 
         <div className="border-t pt-4 flex flex-col gap-3" style={{ borderColor: 'var(--border)' }}>
-          <SubHeading>Second choice session (optional)</SubHeading>
+          <SubHeading>{t('applicant.form.s1_second_choice_heading')}</SubHeading>
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            If your first choice is full, we will try to place your camper in this session.
+            {t('applicant.form.s1_second_choice_desc')}
           </p>
           <div className="flex flex-col gap-2">
             <label
@@ -1303,7 +1269,7 @@ function Section1({
                 onChange={() => onChange({ session_id_2nd: '' })}
                 className="mt-0.5"
               />
-              <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>No second choice</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s1_no_second_choice')}</p>
             </label>
             {sessions.filter((s) => s.id !== data.session_id).map((session) => {
               const selected = data.session_id_2nd === session.id;
@@ -1341,7 +1307,7 @@ function Section1({
         </div>
 
         <div className="border-t pt-4 flex flex-col gap-3" style={{ borderColor: 'var(--border)' }}>
-          <SubHeading>Language & interpreter</SubHeading>
+          <SubHeading>{t('applicant.form.s1_language_interpreter_heading')}</SubHeading>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -1349,13 +1315,13 @@ function Section1({
               onChange={(e) => onChange({ needs_interpreter: e.target.checked })}
             />
             <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-              An interpreter is needed to communicate with our family
+              {t('applicant.form.s1_interpreter_family_label')}
             </span>
           </label>
           {data.needs_interpreter && (
             <div className="max-w-xs">
-              <FieldLabel>Preferred language</FieldLabel>
-              <TextInput value={data.preferred_language} onChange={set('preferred_language')} placeholder="e.g. Spanish, ASL" />
+              <FieldLabel>{t('applicant.form.preferred_language')}</FieldLabel>
+              <TextInput value={data.preferred_language} onChange={set('preferred_language')} placeholder={t('applicant.form.s1_preferred_language_placeholder')} />
             </div>
           )}
         </div>
@@ -1375,6 +1341,8 @@ function Section2({
   data: FormState['s2'];
   onChange: (patch: Partial<FormState['s2']>) => void;
 }) {
+  const { t } = useTranslation();
+
   function addDiagnosis() {
     onChange({ diagnoses: [...data.diagnoses, { condition: '', notes: '' }] });
   }
@@ -1411,14 +1379,14 @@ function Section2({
     <div className="flex flex-col gap-6 p-8">
       {/* Insurance */}
       <SectionCard>
-        <SubHeading>Insurance information</SubHeading>
+        <SubHeading>{t('applicant.form.s2_insurance_heading')}</SubHeading>
         <div className="flex flex-col gap-1 mb-4">
-          <FieldLabel>Insurance type</FieldLabel>
+          <FieldLabel>{t('applicant.form.s2_insurance_type_label')}</FieldLabel>
           <div className="flex flex-col gap-1.5">
             {([
-              { value: 'none',     label: 'No insurance' },
-              { value: 'medicaid', label: 'Medicaid / CHIP' },
-              { value: 'other',    label: 'Private / other insurance' },
+              { value: 'none',     label: t('applicant.form.s2_insurance_none') },
+              { value: 'medicaid', label: t('applicant.form.s2_insurance_medicaid') },
+              { value: 'other',    label: t('applicant.form.s2_insurance_other') },
             ] as const).map(({ value, label }) => (
               <label key={value} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: 'var(--foreground)' }}>
                 <input
@@ -1435,61 +1403,61 @@ function Section2({
         </div>
         <FormRow>
           <div>
-            <FieldLabel required>Insurance provider</FieldLabel>
-            <TextInput value={data.insurance_provider} onChange={(v) => onChange({ insurance_provider: v })} placeholder="e.g. BlueCross, Medicaid" />
+            <FieldLabel required>{t('applicant.form.s2_insurance_provider_label')}</FieldLabel>
+            <TextInput value={data.insurance_provider} onChange={(v) => onChange({ insurance_provider: v })} placeholder={t('applicant.form.s2_insurance_provider_placeholder')} />
           </div>
           <div>
-            <FieldLabel>Policy / member ID number</FieldLabel>
-            <TextInput value={data.insurance_policy} onChange={(v) => onChange({ insurance_policy: v })} placeholder="Policy number" />
+            <FieldLabel>{t('applicant.form.s2_policy_number_label')}</FieldLabel>
+            <TextInput value={data.insurance_policy} onChange={(v) => onChange({ insurance_policy: v })} placeholder={t('applicant.form.s2_policy_number_placeholder')} />
           </div>
         </FormRow>
         <FormRow>
           <div>
-            <FieldLabel>Group number</FieldLabel>
-            <TextInput value={data.insurance_group} onChange={(v) => onChange({ insurance_group: v })} placeholder="Group number" />
+            <FieldLabel>{t('applicant.form.s2_group_number_label')}</FieldLabel>
+            <TextInput value={data.insurance_group} onChange={(v) => onChange({ insurance_group: v })} placeholder={t('applicant.form.s2_group_number_placeholder')} />
           </div>
           <div>
-            <FieldLabel>Medicaid number (if applicable)</FieldLabel>
-            <TextInput value={data.medicaid_number} onChange={(v) => onChange({ medicaid_number: v })} placeholder="Medicaid number" />
+            <FieldLabel>{t('applicant.form.s2_medicaid_number_label')}</FieldLabel>
+            <TextInput value={data.medicaid_number} onChange={(v) => onChange({ medicaid_number: v })} placeholder={t('applicant.form.s2_medicaid_number_placeholder')} />
           </div>
         </FormRow>
       </SectionCard>
 
       {/* Physician */}
       <SectionCard>
-        <SubHeading>Primary physician</SubHeading>
+        <SubHeading>{t('applicant.form.s2_physician_heading')}</SubHeading>
         <FormRow>
           <div>
-            <FieldLabel required>Physician name</FieldLabel>
-            <TextInput value={data.physician_name} onChange={(v) => onChange({ physician_name: v })} placeholder="Dr. First Last" />
+            <FieldLabel required>{t('applicant.form.s2_physician_name_label')}</FieldLabel>
+            <TextInput value={data.physician_name} onChange={(v) => onChange({ physician_name: v })} placeholder={t('applicant.form.s2_physician_name_placeholder')} />
           </div>
           <div>
-            <FieldLabel>Physician phone</FieldLabel>
+            <FieldLabel>{t('applicant.form.s2_physician_phone_label')}</FieldLabel>
             <TextInput type="tel" value={data.physician_phone} onChange={(v) => onChange({ physician_phone: v })} placeholder="(xxx) xxx-xxxx" />
           </div>
         </FormRow>
         <div>
-          <FieldLabel>Practice address</FieldLabel>
-          <TextInput value={data.physician_address} onChange={(v) => onChange({ physician_address: v })} placeholder="Street address, city, state" />
+          <FieldLabel>{t('applicant.form.s2_practice_address_label')}</FieldLabel>
+          <TextInput value={data.physician_address} onChange={(v) => onChange({ physician_address: v })} placeholder={t('applicant.form.s2_practice_address_placeholder')} />
         </div>
       </SectionCard>
 
       {/* Diagnoses */}
       <SectionCard>
         <div className="flex items-center justify-between">
-          <SubHeading>Diagnoses / medical conditions</SubHeading>
+          <SubHeading>{t('applicant.form.s2_diagnoses_heading')}</SubHeading>
           <button
             type="button"
             onClick={addDiagnosis}
             className="flex items-center gap-1 text-xs font-medium hover:underline"
             style={{ color: 'var(--ember-orange)' }}
           >
-            <Plus className="h-3 w-3" /> Add diagnosis
+            <Plus className="h-3 w-3" /> {t('applicant.form.s2_add_diagnosis')}
           </button>
         </div>
         {data.diagnoses.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            No diagnoses added. Click "Add diagnosis" if applicable.
+            {t('applicant.form.s2_no_diagnoses')}
           </p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -1501,12 +1469,12 @@ function Section2({
               >
                 <FormRow>
                   <div>
-                    <FieldLabel>Condition / diagnosis</FieldLabel>
-                    <TextInput value={d.condition} onChange={(v) => updateDiagnosis(i, 'condition', v)} placeholder="e.g. Autism Spectrum Disorder" />
+                    <FieldLabel>{t('applicant.form.s2_condition_label')}</FieldLabel>
+                    <TextInput value={d.condition} onChange={(v) => updateDiagnosis(i, 'condition', v)} placeholder={t('applicant.form.s2_condition_placeholder')} />
                   </div>
                   <div>
-                    <FieldLabel>Notes</FieldLabel>
-                    <TextInput value={d.notes} onChange={(v) => updateDiagnosis(i, 'notes', v)} placeholder="Any relevant details" />
+                    <FieldLabel>{t('applicant.form.notes')}</FieldLabel>
+                    <TextInput value={d.notes} onChange={(v) => updateDiagnosis(i, 'notes', v)} placeholder={t('applicant.form.s2_notes_placeholder')} />
                   </div>
                 </FormRow>
                 <div className="flex justify-end">
@@ -1516,7 +1484,7 @@ function Section2({
                     className="flex items-center gap-1 text-xs"
                     style={{ color: 'var(--destructive)' }}
                   >
-                    <Trash2 className="h-3 w-3" /> Remove
+                    <Trash2 className="h-3 w-3" /> {t('applicant.form.remove')}
                   </button>
                 </div>
               </div>
@@ -1528,19 +1496,19 @@ function Section2({
       {/* Allergies */}
       <SectionCard>
         <div className="flex items-center justify-between">
-          <SubHeading>Allergies</SubHeading>
+          <SubHeading>{t('applicant.form.s2_allergies_heading')}</SubHeading>
           <button
             type="button"
             onClick={addAllergy}
             className="flex items-center gap-1 text-xs font-medium hover:underline"
             style={{ color: 'var(--ember-orange)' }}
           >
-            <Plus className="h-3 w-3" /> Add allergy
+            <Plus className="h-3 w-3" /> {t('applicant.form.s2_add_allergy')}
           </button>
         </div>
         {data.allergies.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            No allergies added. Click "Add allergy" if applicable.
+            {t('applicant.form.s2_no_allergies')}
           </p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -1552,23 +1520,23 @@ function Section2({
               >
                 <FormRow>
                   <div>
-                    <FieldLabel>Allergen</FieldLabel>
-                    <TextInput value={a.allergen} onChange={(v) => updateAllergy(i, 'allergen', v)} placeholder="e.g. Peanuts, Bee stings" />
+                    <FieldLabel>{t('applicant.form.s2_allergen_label')}</FieldLabel>
+                    <TextInput value={a.allergen} onChange={(v) => updateAllergy(i, 'allergen', v)} placeholder={t('applicant.form.s2_allergen_placeholder')} />
                   </div>
                   <div>
-                    <FieldLabel>Reaction</FieldLabel>
-                    <TextInput value={a.reaction} onChange={(v) => updateAllergy(i, 'reaction', v)} placeholder="Describe reaction" />
+                    <FieldLabel>{t('applicant.form.s2_reaction_label')}</FieldLabel>
+                    <TextInput value={a.reaction} onChange={(v) => updateAllergy(i, 'reaction', v)} placeholder={t('applicant.form.s2_reaction_placeholder')} />
                   </div>
                 </FormRow>
                 <FormRow>
                   <div>
-                    <FieldLabel>Severity</FieldLabel>
+                    <FieldLabel>{t('applicant.form.s2_severity_label')}</FieldLabel>
                     <SelectInput value={a.severity} onChange={(v) => updateAllergy(i, 'severity', v)}>
-                      <option value="">Select severity</option>
-                      <option value="mild">Mild</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="severe">Severe</option>
-                      <option value="life-threatening">Life-threatening</option>
+                      <option value="">{t('applicant.form.s2_select_severity')}</option>
+                      <option value="mild">{t('applicant.form.s2_severity_mild')}</option>
+                      <option value="moderate">{t('applicant.form.s2_severity_moderate')}</option>
+                      <option value="severe">{t('applicant.form.s2_severity_severe')}</option>
+                      <option value="life-threatening">{t('applicant.form.s2_severity_life_threatening')}</option>
                     </SelectInput>
                   </div>
                   <div className="flex items-center gap-2 self-end pb-1">
@@ -1579,7 +1547,7 @@ function Section2({
                       onChange={(e) => updateAllergy(i, 'epi_pen', e.target.checked)}
                     />
                     <label htmlFor={`epi_pen_${i}`} className="text-sm cursor-pointer" style={{ color: 'var(--foreground)' }}>
-                      Epi-pen required
+                      {t('applicant.form.s2_epi_pen_label')}
                     </label>
                   </div>
                 </FormRow>
@@ -1590,7 +1558,7 @@ function Section2({
                     className="flex items-center gap-1 text-xs"
                     style={{ color: 'var(--destructive)' }}
                   >
-                    <Trash2 className="h-3 w-3" /> Remove
+                    <Trash2 className="h-3 w-3" /> {t('applicant.form.remove')}
                   </button>
                 </div>
               </div>
@@ -1601,17 +1569,17 @@ function Section2({
 
       {/* Seizures & Neurostimulator */}
       <SectionCard>
-        <SubHeading>Seizure history</SubHeading>
+        <SubHeading>{t('applicant.form.s2_seizure_heading')}</SubHeading>
         <div className="flex flex-col">
           <YesNoField
             id="has_seizures"
-            label="Does your camper have a history of seizures?"
+            label={t('applicant.form.s2_has_seizures_label')}
             value={data.has_seizures}
             onChange={(v) => onChange({ has_seizures: v })}
           />
           <YesNoField
             id="has_neurostimulator"
-            label="Does your camper have a neurostimulator / VNS?"
+            label={t('applicant.form.s2_has_neurostimulator_label')}
             value={data.has_neurostimulator}
             onChange={(v) => onChange({ has_neurostimulator: v })}
           />
@@ -1620,20 +1588,20 @@ function Section2({
           <div className="flex flex-col gap-4 pt-2">
             <FormRow>
               <div>
-                <FieldLabel>Date of last seizure</FieldLabel>
+                <FieldLabel>{t('applicant.form.s2_last_seizure_date_label')}</FieldLabel>
                 <TextInput type="date" value={data.last_seizure_date} onChange={(v) => onChange({ last_seizure_date: v })} />
               </div>
             </FormRow>
             <div>
-              <FieldLabel>Describe seizure type / pattern</FieldLabel>
-              <TextArea value={data.seizure_description} onChange={(v) => onChange({ seizure_description: v })} placeholder="Describe the type, duration, and any warning signs" />
+              <FieldLabel>{t('applicant.form.s2_seizure_description_label')}</FieldLabel>
+              <TextArea value={data.seizure_description} onChange={(v) => onChange({ seizure_description: v })} placeholder={t('applicant.form.s2_seizure_description_placeholder')} />
             </div>
             <div
               className="flex items-start gap-2 rounded-lg p-3 text-xs"
               style={{ background: 'rgba(251,191,36,0.10)', color: '#92400e', border: '1px solid rgba(251,191,36,0.30)' }}
             >
               <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              A Seizure Action Plan is required in Section 9 (Required Documents).
+              {t('applicant.form.s2_seizure_plan_required')}
             </div>
           </div>
         )}
@@ -1641,23 +1609,23 @@ function Section2({
 
       {/* Immunizations */}
       <SectionCard>
-        <SubHeading>Immunizations</SubHeading>
+        <SubHeading>{t('applicant.form.s2_immunizations_heading')}</SubHeading>
         <div className="flex flex-col">
           <YesNoField
             id="immunizations_current"
-            label="Is your camper current on all required immunizations?"
+            label={t('applicant.form.s2_immunizations_current_label')}
             value={data.immunizations_current}
             onChange={(v) => onChange({ immunizations_current: v })}
           />
         </div>
         <div className="max-w-xs">
-          <FieldLabel>Date of last tetanus / Tdap booster</FieldLabel>
+          <FieldLabel>{t('applicant.form.s2_tetanus_date_label')}</FieldLabel>
           <TextInput type="date" value={data.tetanus_date} onChange={(v) => onChange({ tetanus_date: v })} />
         </div>
         <div className="max-w-xs">
-          <FieldLabel>Date of Medical Examination (Form 4523)</FieldLabel>
+          <FieldLabel>{t('applicant.form.s2_medical_exam_date_label')}</FieldLabel>
           <p className="text-xs mb-1" style={{ color: 'var(--muted-foreground)' }}>
-            The physical exam must have been completed within 12 months of the first day of camp.
+            {t('applicant.form.s2_medical_exam_note')}
           </p>
           <TextInput type="date" value={data.date_of_medical_exam} onChange={(v) => onChange({ date_of_medical_exam: v })} />
         </div>
@@ -1666,49 +1634,49 @@ function Section2({
           style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--ember-orange)', border: '1px solid rgba(22,163,74,0.20)' }}
         >
           <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-          An SC Immunization Certificate is required in Section 9 (Required Documents).
+          {t('applicant.form.s2_immunization_cert_required')}
         </div>
       </SectionCard>
 
       {/* Other Health Information */}
       <SectionCard>
-        <SubHeading>Other health information</SubHeading>
+        <SubHeading>{t('applicant.form.s2_other_health_heading')}</SubHeading>
         <div className="flex flex-col">
           <YesNoField
             id="tubes_in_ears"
-            label="Does your camper have tubes in the ears?"
+            label={t('applicant.form.s2_tubes_in_ears_label')}
             value={data.tubes_in_ears}
             onChange={(v) => onChange({ tubes_in_ears: v })}
           />
           <YesNoField
             id="has_contagious_illness"
-            label="Has your camper had a contagious illness in the past 30 days?"
+            label={t('applicant.form.s2_contagious_illness_label')}
             value={data.has_contagious_illness}
             onChange={(v) => onChange({ has_contagious_illness: v })}
           />
           {data.has_contagious_illness === true && (
             <div className="ml-8 mt-1 mb-3">
-              <FieldLabel>Please describe the illness</FieldLabel>
+              <FieldLabel>{t('applicant.form.s2_describe_illness_label')}</FieldLabel>
               <TextInput
                 value={data.contagious_illness_description}
                 onChange={(v) => onChange({ contagious_illness_description: v })}
-                placeholder="Describe illness and recovery status"
+                placeholder={t('applicant.form.s2_describe_illness_placeholder')}
               />
             </div>
           )}
           <YesNoField
             id="has_recent_illness"
-            label="Has your camper had a significant illness, injury, or hospitalization in the past year?"
+            label={t('applicant.form.s2_recent_illness_label')}
             value={data.has_recent_illness}
             onChange={(v) => onChange({ has_recent_illness: v })}
           />
           {data.has_recent_illness === true && (
             <div className="ml-8 mt-1 mb-3">
-              <FieldLabel>Please describe</FieldLabel>
+              <FieldLabel>{t('applicant.form.s2_please_describe_label')}</FieldLabel>
               <TextInput
                 value={data.recent_illness_description}
                 onChange={(v) => onChange({ recent_illness_description: v })}
-                placeholder="Describe illness, injury, or hospitalization"
+                placeholder={t('applicant.form.s2_recent_illness_placeholder')}
               />
             </div>
           )}
@@ -1730,6 +1698,18 @@ function Section3({
   data: FormState['s3'];
   onChange: (patch: Partial<FormState['s3']>) => void;
 }) {
+  const { t } = useTranslation();
+
+  const COMMUNICATION_METHODS = [
+    t('applicant.form.dev_comm_verbal'),
+    t('applicant.form.dev_comm_aac'),
+    t('applicant.form.dev_comm_sign'),
+    t('applicant.form.dev_comm_picture'),
+    t('applicant.form.dev_comm_gestures'),
+    t('applicant.form.dev_comm_written'),
+    t('applicant.form.dev_comm_eye_gaze'),
+  ];
+
   function toggleMethod(method: string) {
     const current = data.communication_methods;
     if (current.includes(method)) {
@@ -1742,120 +1722,120 @@ function Section3({
   return (
     <div className="flex flex-col gap-6 p-8">
       <SectionCard>
-        <SubHeading>Behavioral indicators</SubHeading>
+        <SubHeading>{t('applicant.form.s3_behavioral_heading')}</SubHeading>
         <p className="text-xs mb-2" style={{ color: 'var(--muted-foreground)' }}>
-          Answer Yes or No for each item. If Yes, please describe in the field that appears.
+          {t('applicant.form.s3_behavioral_instructions')}
         </p>
         <div className="flex flex-col">
-          <YesNoField id="aggression" label="Exhibits aggression toward others (hitting, biting, kicking)" value={data.aggression} onChange={(v) => onChange({ aggression: v })} />
+          <YesNoField id="aggression" label={t('applicant.form.s3_aggression_label')} value={data.aggression} onChange={(v) => onChange({ aggression: v })} />
           {data.aggression && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe the aggressive behaviors</FieldLabel>
-              <TextInput value={data.aggression_description} onChange={(v) => onChange({ aggression_description: v })} placeholder="Types, frequency, triggers, de-escalation strategies" />
+              <FieldLabel>{t('applicant.form.s3_aggression_desc_label')}</FieldLabel>
+              <TextInput value={data.aggression_description} onChange={(v) => onChange({ aggression_description: v })} placeholder={t('applicant.form.s3_aggression_desc_placeholder')} />
             </div>
           )}
-          <YesNoField id="self_abuse" label="Exhibits self-injurious behavior" value={data.self_abuse} onChange={(v) => onChange({ self_abuse: v })} />
+          <YesNoField id="self_abuse" label={t('applicant.form.s3_self_abuse_label')} value={data.self_abuse} onChange={(v) => onChange({ self_abuse: v })} />
           {data.self_abuse && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe the self-injurious behaviors</FieldLabel>
-              <TextInput value={data.self_abuse_description} onChange={(v) => onChange({ self_abuse_description: v })} placeholder="Types, frequency, triggers" />
+              <FieldLabel>{t('applicant.form.s3_self_abuse_desc_label')}</FieldLabel>
+              <TextInput value={data.self_abuse_description} onChange={(v) => onChange({ self_abuse_description: v })} placeholder={t('applicant.form.s3_self_abuse_desc_placeholder')} />
             </div>
           )}
-          <YesNoField id="wandering" label="Has a wandering / elopement risk" value={data.wandering} onChange={(v) => onChange({ wandering: v })} />
+          <YesNoField id="wandering" label={t('applicant.form.s3_wandering_label')} value={data.wandering} onChange={(v) => onChange({ wandering: v })} />
           {data.wandering && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe wandering behaviors and precautions</FieldLabel>
-              <TextInput value={data.wandering_description} onChange={(v) => onChange({ wandering_description: v })} placeholder="Situations, triggers, current safeguards" />
+              <FieldLabel>{t('applicant.form.s3_wandering_desc_label')}</FieldLabel>
+              <TextInput value={data.wandering_description} onChange={(v) => onChange({ wandering_description: v })} placeholder={t('applicant.form.s3_wandering_desc_placeholder')} />
             </div>
           )}
-          <YesNoField id="one_to_one" label="Requires one-to-one supervision at all times" value={data.one_to_one} onChange={(v) => onChange({ one_to_one: v })} />
+          <YesNoField id="one_to_one" label={t('applicant.form.s3_one_to_one_label')} value={data.one_to_one} onChange={(v) => onChange({ one_to_one: v })} />
           {data.one_to_one && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe the supervision needs</FieldLabel>
-              <TextInput value={data.one_to_one_description} onChange={(v) => onChange({ one_to_one_description: v })} placeholder="What situations require 1:1 and why" />
+              <FieldLabel>{t('applicant.form.s3_one_to_one_desc_label')}</FieldLabel>
+              <TextInput value={data.one_to_one_description} onChange={(v) => onChange({ one_to_one_description: v })} placeholder={t('applicant.form.s3_one_to_one_desc_placeholder')} />
             </div>
           )}
-          <YesNoField id="developmental_delay" label="Has a documented developmental delay" value={data.developmental_delay} onChange={(v) => onChange({ developmental_delay: v })} />
-          <YesNoField id="sexual_behaviors" label="Exhibits sexual or inappropriate social behaviors toward others" value={data.sexual_behaviors} onChange={(v) => onChange({ sexual_behaviors: v })} />
+          <YesNoField id="developmental_delay" label={t('applicant.form.s3_developmental_delay_label')} value={data.developmental_delay} onChange={(v) => onChange({ developmental_delay: v })} />
+          <YesNoField id="sexual_behaviors" label={t('applicant.form.s3_sexual_behaviors_label')} value={data.sexual_behaviors} onChange={(v) => onChange({ sexual_behaviors: v })} />
           {data.sexual_behaviors && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe the behaviors</FieldLabel>
-              <TextInput value={data.sexual_behaviors_description} onChange={(v) => onChange({ sexual_behaviors_description: v })} placeholder="Nature of behaviors and management strategies" />
+              <FieldLabel>{t('applicant.form.s3_describe_behaviors_label')}</FieldLabel>
+              <TextInput value={data.sexual_behaviors_description} onChange={(v) => onChange({ sexual_behaviors_description: v })} placeholder={t('applicant.form.s3_sexual_behaviors_placeholder')} />
             </div>
           )}
-          <YesNoField id="interpersonal_behavior" label="Has significant interpersonal behavior challenges (disruption, non-compliance)" value={data.interpersonal_behavior} onChange={(v) => onChange({ interpersonal_behavior: v })} />
+          <YesNoField id="interpersonal_behavior" label={t('applicant.form.s3_interpersonal_label')} value={data.interpersonal_behavior} onChange={(v) => onChange({ interpersonal_behavior: v })} />
           {data.interpersonal_behavior && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe the challenges</FieldLabel>
-              <TextInput value={data.interpersonal_behavior_description} onChange={(v) => onChange({ interpersonal_behavior_description: v })} placeholder="Situations and management strategies" />
+              <FieldLabel>{t('applicant.form.s3_describe_challenges_label')}</FieldLabel>
+              <TextInput value={data.interpersonal_behavior_description} onChange={(v) => onChange({ interpersonal_behavior_description: v })} placeholder={t('applicant.form.s3_interpersonal_placeholder')} />
             </div>
           )}
-          <YesNoField id="social_emotional" label="Has social-emotional difficulties (anxiety, mood regulation)" value={data.social_emotional} onChange={(v) => onChange({ social_emotional: v })} />
+          <YesNoField id="social_emotional" label={t('applicant.form.s3_social_emotional_label')} value={data.social_emotional} onChange={(v) => onChange({ social_emotional: v })} />
           {data.social_emotional && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe the difficulties</FieldLabel>
-              <TextInput value={data.social_emotional_description} onChange={(v) => onChange({ social_emotional_description: v })} placeholder="Types of difficulties and coping strategies used" />
+              <FieldLabel>{t('applicant.form.s3_describe_difficulties_label')}</FieldLabel>
+              <TextInput value={data.social_emotional_description} onChange={(v) => onChange({ social_emotional_description: v })} placeholder={t('applicant.form.s3_social_emotional_placeholder')} />
             </div>
           )}
-          <YesNoField id="follows_instructions" label="Is able to follow simple instructions independently" value={data.follows_instructions} onChange={(v) => onChange({ follows_instructions: v })} />
+          <YesNoField id="follows_instructions" label={t('applicant.form.s3_follows_instructions_label')} value={data.follows_instructions} onChange={(v) => onChange({ follows_instructions: v })} />
           {data.follows_instructions && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe level of prompting needed</FieldLabel>
-              <TextInput value={data.follows_instructions_description} onChange={(v) => onChange({ follows_instructions_description: v })} placeholder="One-step vs. multi-step, verbal vs. physical prompts" />
+              <FieldLabel>{t('applicant.form.s3_prompting_label')}</FieldLabel>
+              <TextInput value={data.follows_instructions_description} onChange={(v) => onChange({ follows_instructions_description: v })} placeholder={t('applicant.form.s3_prompting_placeholder')} />
             </div>
           )}
-          <YesNoField id="group_participation" label="Participates in group activities with peers" value={data.group_participation} onChange={(v) => onChange({ group_participation: v })} />
+          <YesNoField id="group_participation" label={t('applicant.form.s3_group_participation_label')} value={data.group_participation} onChange={(v) => onChange({ group_participation: v })} />
           {data.group_participation && (
             <div className="ml-8 mb-3">
-              <FieldLabel>Describe participation level and any supports needed</FieldLabel>
-              <TextInput value={data.group_participation_description} onChange={(v) => onChange({ group_participation_description: v })} placeholder="Level of engagement, preferred activity types" />
+              <FieldLabel>{t('applicant.form.s3_participation_desc_label')}</FieldLabel>
+              <TextInput value={data.group_participation_description} onChange={(v) => onChange({ group_participation_description: v })} placeholder={t('applicant.form.s3_participation_desc_placeholder')} />
             </div>
           )}
-          <YesNoField id="functional_reading" label="Reads at a functional level" value={data.functional_reading} onChange={(v) => onChange({ functional_reading: v })} />
-          <YesNoField id="functional_writing" label="Writes at a functional level" value={data.functional_writing} onChange={(v) => onChange({ functional_writing: v })} />
-          <YesNoField id="independent_mobility" label="Moves independently (walks without assistance)" value={data.independent_mobility} onChange={(v) => onChange({ independent_mobility: v })} />
-          <YesNoField id="verbal_communication" label="Communicates verbally" value={data.verbal_communication} onChange={(v) => onChange({ verbal_communication: v })} />
-          <YesNoField id="social_skills" label="Demonstrates age-appropriate social skills with peers" value={data.social_skills} onChange={(v) => onChange({ social_skills: v })} />
-          <YesNoField id="behavior_plan" label="Has a current behavioral support or intervention plan" value={data.behavior_plan} onChange={(v) => onChange({ behavior_plan: v })} />
+          <YesNoField id="functional_reading" label={t('applicant.form.s3_functional_reading_label')} value={data.functional_reading} onChange={(v) => onChange({ functional_reading: v })} />
+          <YesNoField id="functional_writing" label={t('applicant.form.s3_functional_writing_label')} value={data.functional_writing} onChange={(v) => onChange({ functional_writing: v })} />
+          <YesNoField id="independent_mobility" label={t('applicant.form.s3_independent_mobility_label')} value={data.independent_mobility} onChange={(v) => onChange({ independent_mobility: v })} />
+          <YesNoField id="verbal_communication" label={t('applicant.form.s3_verbal_communication_label')} value={data.verbal_communication} onChange={(v) => onChange({ verbal_communication: v })} />
+          <YesNoField id="social_skills" label={t('applicant.form.s3_social_skills_label')} value={data.social_skills} onChange={(v) => onChange({ social_skills: v })} />
+          <YesNoField id="behavior_plan" label={t('applicant.form.s3_behavior_plan_label')} value={data.behavior_plan} onChange={(v) => onChange({ behavior_plan: v })} />
         </div>
       </SectionCard>
 
       <SectionCard>
-        <SubHeading>School attendance</SubHeading>
+        <SubHeading>{t('applicant.form.s3_school_attendance_heading')}</SubHeading>
         <div className="flex flex-col">
           <YesNoField
             id="attends_school"
-            label="Does your camper currently attend school?"
+            label={t('applicant.form.s3_attends_school_label')}
             value={data.attends_school}
             onChange={(v) => onChange({ attends_school: v })}
           />
           {data.attends_school === true && (
             <div className="ml-8 mt-1 mb-3">
-              <FieldLabel>Classroom / program type</FieldLabel>
+              <FieldLabel>{t('applicant.form.s3_classroom_type_label')}</FieldLabel>
               <SelectInput value={data.classroom_type} onChange={(v) => onChange({ classroom_type: v })}>
-                <option value="">Select type</option>
-                <option value="General education">General education (fully included)</option>
-                <option value="Resource room">Resource room (partial inclusion)</option>
-                <option value="Self-contained">Self-contained special education</option>
-                <option value="Life skills">Life skills / functional skills program</option>
-                <option value="Home school">Home school</option>
-                <option value="Other">Other</option>
+                <option value="">{t('applicant.form.s3_select_type')}</option>
+                <option value="General education">{t('applicant.form.s3_class_general')}</option>
+                <option value="Resource room">{t('applicant.form.s3_class_resource')}</option>
+                <option value="Self-contained">{t('applicant.form.s3_class_self_contained')}</option>
+                <option value="Life skills">{t('applicant.form.s3_class_life_skills')}</option>
+                <option value="Home school">{t('applicant.form.s3_class_home_school')}</option>
+                <option value="Other">{t('applicant.form.s1_gender_other')}</option>
               </SelectInput>
             </div>
           )}
         </div>
         <div className="mt-2">
-          <FieldLabel>Functional age level (if known)</FieldLabel>
+          <FieldLabel>{t('applicant.form.s3_functional_age_label')}</FieldLabel>
           <TextInput
             value={data.functional_age_level}
             onChange={(v) => onChange({ functional_age_level: v })}
-            placeholder="e.g. 3–4 years, kindergarten level"
+            placeholder={t('applicant.form.s3_functional_age_placeholder')}
           />
         </div>
       </SectionCard>
 
       <SectionCard>
-        <SubHeading>Communication methods (select all that apply)</SubHeading>
+        <SubHeading>{t('applicant.form.s3_comm_methods_heading')}</SubHeading>
         <div className="flex flex-wrap gap-2">
           {COMMUNICATION_METHODS.map((m) => {
             const active = data.communication_methods.includes(m);
@@ -1879,11 +1859,11 @@ function Section3({
       </SectionCard>
 
       <SectionCard>
-        <SubHeading>Additional behavioral notes</SubHeading>
+        <SubHeading>{t('applicant.form.s3_behavior_notes_heading')}</SubHeading>
         <TextArea
           value={data.behavior_notes}
           onChange={(v) => onChange({ behavior_notes: v })}
-          placeholder="Describe any triggers, strategies that help, or other important behavioral context…"
+          placeholder={t('applicant.form.s3_behavior_notes_placeholder')}
           rows={4}
         />
       </SectionCard>
@@ -1902,6 +1882,26 @@ function Section4({
   data: FormState['s4'];
   onChange: (patch: Partial<FormState['s4']>) => void;
 }) {
+  const { t } = useTranslation();
+
+  const DEVICE_TYPES = [
+    t('applicant.form.device_wheelchair_manual'),
+    t('applicant.form.device_wheelchair_power'),
+    t('applicant.form.device_walker'),
+    t('applicant.form.device_crutches'),
+    t('applicant.form.device_cane'),
+    t('applicant.form.device_leg_brace'),
+    t('applicant.form.device_cpap'),
+    t('applicant.form.device_hearing_aid'),
+    t('applicant.form.device_cochlear'),
+    t('applicant.form.device_glasses'),
+    t('applicant.form.device_prosthetic'),
+    t('applicant.form.device_orthotics'),
+    t('applicant.form.device_comm_device'),
+    t('applicant.form.device_gait_trainer'),
+    t('applicant.form.s1_gender_other'),
+  ];
+
   function addDevice() {
     onChange({ devices: [...data.devices, { device_type: '', requires_transfer: false, notes: '' }] });
   }
@@ -1921,19 +1921,19 @@ function Section4({
     <div className="flex flex-col gap-6 p-8">
       <SectionCard>
         <div className="flex items-center justify-between">
-          <SubHeading>Assistive devices & equipment</SubHeading>
+          <SubHeading>{t('applicant.form.s4_devices_heading')}</SubHeading>
           <button
             type="button"
             onClick={addDevice}
             className="flex items-center gap-1 text-xs font-medium hover:underline"
             style={{ color: 'var(--ember-orange)' }}
           >
-            <Plus className="h-3 w-3" /> Add device
+            <Plus className="h-3 w-3" /> {t('applicant.form.s4_add_device')}
           </button>
         </div>
         {data.devices.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            No assistive devices. Click "Add device" if your camper uses any equipment.
+            {t('applicant.form.s4_no_devices')}
           </p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -1944,15 +1944,15 @@ function Section4({
                 style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
               >
                 <div>
-                  <FieldLabel>Device / equipment type</FieldLabel>
+                  <FieldLabel>{t('applicant.form.s4_device_type_label')}</FieldLabel>
                   <SelectInput value={d.device_type} onChange={(v) => updateDevice(i, 'device_type', v)}>
-                    <option value="">Select type</option>
-                    {DEVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    <option value="">{t('applicant.form.s3_select_type')}</option>
+                    {DEVICE_TYPES.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
                   </SelectInput>
                 </div>
                 <div>
-                  <FieldLabel>Notes (e.g. settings, restrictions)</FieldLabel>
-                  <TextInput value={d.notes} onChange={(v) => updateDevice(i, 'notes', v)} placeholder="Any relevant details" />
+                  <FieldLabel>{t('applicant.form.s4_device_notes_label')}</FieldLabel>
+                  <TextInput value={d.notes} onChange={(v) => updateDevice(i, 'notes', v)} placeholder={t('applicant.form.s2_notes_placeholder')} />
                 </div>
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -1962,7 +1962,7 @@ function Section4({
                       onChange={(e) => updateDevice(i, 'requires_transfer', e.target.checked)}
                     />
                     <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-                      Requires staff assistance for transfer / use
+                      {t('applicant.form.s4_requires_transfer_label')}
                     </span>
                   </label>
                   <button
@@ -1971,16 +1971,16 @@ function Section4({
                     className="flex items-center gap-1 text-xs"
                     style={{ color: 'var(--destructive)' }}
                   >
-                    <Trash2 className="h-3 w-3" /> Remove
+                    <Trash2 className="h-3 w-3" /> {t('applicant.form.remove')}
                   </button>
                 </div>
-                {d.device_type === 'CPAP / BiPAP' && (
+                {d.device_type === t('applicant.form.device_cpap') && (
                   <div
                     className="flex items-start gap-2 rounded-lg p-3 text-xs"
                     style={{ background: 'rgba(251,191,36,0.10)', color: '#92400e', border: '1px solid rgba(251,191,36,0.30)' }}
                   >
                     <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                    A CPAP waiver is required in Section 9 (Required Documents).
+                    {t('applicant.form.s4_cpap_waiver_required')}
                   </div>
                 )}
               </div>
@@ -1990,11 +1990,11 @@ function Section4({
       </SectionCard>
 
       <SectionCard>
-        <SubHeading>Mobility notes</SubHeading>
+        <SubHeading>{t('applicant.form.s4_mobility_notes_heading')}</SubHeading>
         <TextArea
           value={data.mobility_notes}
           onChange={(v) => onChange({ mobility_notes: v })}
-          placeholder="Describe any specific mobility needs, accessibility requirements, or terrain restrictions…"
+          placeholder={t('applicant.form.s4_mobility_notes_placeholder')}
           rows={3}
         />
       </SectionCard>
@@ -2013,11 +2013,26 @@ function Section5({
   data: FormState['s5'];
   onChange: (patch: Partial<FormState['s5']>) => void;
 }) {
+  const { t } = useTranslation();
+
+  const TEXTURE_LEVELS = [
+    t('applicant.form.s5_texture_regular'),
+    t('applicant.form.s5_texture_minced_moist'),
+    t('applicant.form.s5_texture_minced'),
+    t('applicant.form.s5_texture_pureed'),
+    t('applicant.form.s5_texture_liquidised'),
+    t('applicant.form.s5_texture_thin_liquids'),
+    t('applicant.form.s5_texture_slightly_thick'),
+    t('applicant.form.s5_texture_mildly_thick'),
+    t('applicant.form.s5_texture_moderately_thick'),
+    t('applicant.form.s5_texture_extremely_thick'),
+  ];
+
   return (
     <div className="flex flex-col gap-6 p-8">
       {/* Special Diet */}
       <SectionCard>
-        <SubHeading>Dietary restrictions</SubHeading>
+        <SubHeading>{t('applicant.form.s5_dietary_heading')}</SubHeading>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -2025,16 +2040,16 @@ function Section5({
             onChange={(e) => onChange({ special_diet: e.target.checked })}
           />
           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            This camper requires a special diet
+            {t('applicant.form.s5_special_diet_label')}
           </span>
         </label>
         {data.special_diet && (
           <div>
-            <FieldLabel required>Describe dietary needs</FieldLabel>
+            <FieldLabel required>{t('applicant.form.s5_describe_diet_label')}</FieldLabel>
             <TextArea
               value={data.diet_description}
               onChange={(v) => onChange({ diet_description: v })}
-              placeholder="e.g. Gluten-free, dairy-free, no red meat, kosher, halal…"
+              placeholder={t('applicant.form.s5_describe_diet_placeholder')}
               rows={3}
             />
           </div>
@@ -2043,7 +2058,7 @@ function Section5({
 
       {/* Texture & Fluid */}
       <SectionCard>
-        <SubHeading>Texture & fluid modifications</SubHeading>
+        <SubHeading>{t('applicant.form.s5_texture_heading')}</SubHeading>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -2051,15 +2066,15 @@ function Section5({
             onChange={(e) => onChange({ texture_modified: e.target.checked })}
           />
           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            Food textures must be modified (IDDSI standard)
+            {t('applicant.form.s5_texture_modified_label')}
           </span>
         </label>
         {data.texture_modified && (
           <div className="max-w-xs">
-            <FieldLabel>Texture / consistency level</FieldLabel>
+            <FieldLabel>{t('applicant.form.s5_texture_level_label')}</FieldLabel>
             <SelectInput value={data.texture_level} onChange={(v) => onChange({ texture_level: v })}>
-              <option value="">Select texture level</option>
-              {TEXTURE_LEVELS.map((t) => <option key={t} value={t}>{t}</option>)}
+              <option value="">{t('applicant.form.s5_select_texture')}</option>
+              {TEXTURE_LEVELS.map((tl) => <option key={tl} value={tl}>{tl}</option>)}
             </SelectInput>
           </div>
         )}
@@ -2071,20 +2086,20 @@ function Section5({
             onChange={(e) => onChange({ fluid_restriction: e.target.checked })}
           />
           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            Fluid intake must be restricted or thickened
+            {t('applicant.form.s5_fluid_restriction_label')}
           </span>
         </label>
         {data.fluid_restriction && (
           <div>
-            <FieldLabel>Details</FieldLabel>
-            <TextInput value={data.fluid_details} onChange={(v) => onChange({ fluid_details: v })} placeholder="Describe fluid restriction or thickening requirements" />
+            <FieldLabel>{t('applicant.form.s5_details_label')}</FieldLabel>
+            <TextInput value={data.fluid_details} onChange={(v) => onChange({ fluid_details: v })} placeholder={t('applicant.form.s5_fluid_details_placeholder')} />
           </div>
         )}
       </SectionCard>
 
       {/* G-Tube */}
       <SectionCard>
-        <SubHeading>Tube feeding (G-tube / NG-tube)</SubHeading>
+        <SubHeading>{t('applicant.form.s5_gtube_heading')}</SubHeading>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -2092,29 +2107,29 @@ function Section5({
             onChange={(e) => onChange({ g_tube: e.target.checked })}
           />
           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            This camper receives nutrition via G-tube or NG-tube
+            {t('applicant.form.s5_gtube_label')}
           </span>
         </label>
         {data.g_tube && (
           <div className="flex flex-col gap-4 pt-1">
             <FormRow>
               <div>
-                <FieldLabel required>Formula / formula name</FieldLabel>
-                <TextInput value={data.formula} onChange={(v) => onChange({ formula: v })} placeholder="e.g. Pediasure, Compleat Pediatric" />
+                <FieldLabel required>{t('applicant.form.s5_formula_label')}</FieldLabel>
+                <TextInput value={data.formula} onChange={(v) => onChange({ formula: v })} placeholder={t('applicant.form.s5_formula_placeholder')} />
               </div>
               <div>
-                <FieldLabel required>Amount per feeding</FieldLabel>
-                <TextInput value={data.amount_per_feeding} onChange={(v) => onChange({ amount_per_feeding: v })} placeholder="e.g. 240 mL" />
+                <FieldLabel required>{t('applicant.form.s5_amount_per_feeding_label')}</FieldLabel>
+                <TextInput value={data.amount_per_feeding} onChange={(v) => onChange({ amount_per_feeding: v })} placeholder={t('applicant.form.s5_amount_per_feeding_placeholder')} />
               </div>
             </FormRow>
             <FormRow>
               <div>
-                <FieldLabel>Number of feedings per day</FieldLabel>
-                <TextInput value={data.feedings_per_day} onChange={(v) => onChange({ feedings_per_day: v })} placeholder="e.g. 4" />
+                <FieldLabel>{t('applicant.form.s5_feedings_per_day_label')}</FieldLabel>
+                <TextInput value={data.feedings_per_day} onChange={(v) => onChange({ feedings_per_day: v })} placeholder={t('applicant.form.s5_feedings_per_day_placeholder')} />
               </div>
               <div>
-                <FieldLabel>Scheduled feeding times</FieldLabel>
-                <TextInput value={data.feeding_times} onChange={(v) => onChange({ feeding_times: v })} placeholder="e.g. 8am, 12pm, 5pm, 9pm" />
+                <FieldLabel>{t('applicant.form.s5_feeding_times_label')}</FieldLabel>
+                <TextInput value={data.feeding_times} onChange={(v) => onChange({ feeding_times: v })} placeholder={t('applicant.form.s5_feeding_times_placeholder')} />
               </div>
             </FormRow>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -2123,23 +2138,23 @@ function Section5({
                 checked={data.bolus_only}
                 onChange={(e) => onChange({ bolus_only: e.target.checked })}
               />
-              <span className="text-sm" style={{ color: 'var(--foreground)' }}>Bolus feeding only (not continuous)</span>
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s5_bolus_only_label')}</span>
             </label>
             <div
               className="flex items-start gap-2 rounded-lg p-3 text-xs"
               style={{ background: 'rgba(251,191,36,0.10)', color: '#92400e', border: '1px solid rgba(251,191,36,0.30)' }}
             >
               <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              A G-Tube / Feeding Action Plan is required in Section 9 (Required Documents).
+              {t('applicant.form.s5_gtube_plan_required')}
             </div>
           </div>
         )}
         <div>
-          <FieldLabel>Additional feeding notes</FieldLabel>
+          <FieldLabel>{t('applicant.form.s5_feeding_notes_label')}</FieldLabel>
           <TextArea
             value={data.feeding_notes}
             onChange={(v) => onChange({ feeding_notes: v })}
-            placeholder="Any other feeding-related information staff should know…"
+            placeholder={t('applicant.form.s5_feeding_notes_placeholder')}
             rows={2}
           />
         </div>
@@ -2153,11 +2168,8 @@ function Section5({
 // Section 6 — Personal Care
 // ---------------------------------------------------------------------------
 
-const ASSISTANCE_LEVELS = [
-  { value: 'independent', label: 'Independent' },
-  { value: 'assisted',    label: 'Needs assistance' },
-  { value: 'dependent',   label: 'Fully dependent on staff' },
-];
+// ASSISTANCE_LEVELS is kept module-level with English labels; AssistanceLevelSelect
+// has its own useTranslation call so the displayed labels update on language change.
 
 function AssistanceLevelSelect({
   id,
@@ -2176,6 +2188,14 @@ function AssistanceLevelSelect({
   onNotesChange: (v: string) => void;
   notesPlaceholder?: string;
 }) {
+  const { t } = useTranslation();
+
+  const ASSISTANCE_LEVELS = [
+    { value: 'independent', label: t('applicant.form.s6_level_independent') },
+    { value: 'assisted',    label: t('applicant.form.s6_level_assisted') },
+    { value: 'dependent',   label: t('applicant.form.s6_level_dependent') },
+  ];
+
   return (
     <div
       className="rounded-xl border p-4 flex flex-col gap-3"
@@ -2208,7 +2228,7 @@ function AssistanceLevelSelect({
           id={`${id}_notes`}
           value={notes}
           onChange={onNotesChange}
-          placeholder={notesPlaceholder ?? 'Any specific notes for staff (optional)'}
+          placeholder={notesPlaceholder ?? t('applicant.form.s6_notes_staff_placeholder')}
         />
       )}
     </div>
@@ -2222,6 +2242,8 @@ function Section6({
   data: FormState['s6'];
   onChange: (patch: Partial<FormState['s6']>) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div
@@ -2229,31 +2251,31 @@ function Section6({
         style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--ember-orange)', border: '1px solid rgba(22,163,74,0.20)' }}
       >
         <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-        For each area, select the level of assistance your camper requires. Add notes for any specific care protocols staff should follow.
+        {t('applicant.form.s6_instructions')}
       </div>
 
       <AssistanceLevelSelect
         id="bathing"
-        label="Bathing / showering"
+        label={t('applicant.form.s6_bathing_label')}
         value={data.bathing_level}
         onChange={(v) => onChange({ bathing_level: v })}
         notes={data.bathing_notes}
         onNotesChange={(v) => onChange({ bathing_notes: v })}
-        notesPlaceholder="e.g. Needs seat, uses handheld shower, max temp 100°F"
+        notesPlaceholder={t('applicant.form.s6_bathing_placeholder')}
       />
 
       <AssistanceLevelSelect
         id="toileting"
-        label="Toileting (daytime)"
+        label={t('applicant.form.s6_toileting_label')}
         value={data.toileting_level}
         onChange={(v) => onChange({ toileting_level: v })}
         notes={data.toileting_notes}
         onNotesChange={(v) => onChange({ toileting_notes: v })}
-        notesPlaceholder="e.g. Uses grab bars, wears pull-ups, catheter"
+        notesPlaceholder={t('applicant.form.s6_toileting_placeholder')}
       />
 
       <SectionCard>
-        <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Nighttime toileting</p>
+        <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s6_nighttime_toileting_label')}</p>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -2261,63 +2283,63 @@ function Section6({
             onChange={(e) => onChange({ nighttime_toileting: e.target.checked })}
           />
           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            Camper needs help with toileting during the night
+            {t('applicant.form.s6_nighttime_help_label')}
           </span>
         </label>
         {data.nighttime_toileting && (
           <TextInput
             value={data.nighttime_notes}
             onChange={(v) => onChange({ nighttime_notes: v })}
-            placeholder="Describe nighttime routine or waking schedule"
+            placeholder={t('applicant.form.s6_nighttime_notes_placeholder')}
           />
         )}
       </SectionCard>
 
       <AssistanceLevelSelect
         id="dressing"
-        label="Dressing & undressing"
+        label={t('applicant.form.s6_dressing_label')}
         value={data.dressing_level}
         onChange={(v) => onChange({ dressing_level: v })}
         notes={data.dressing_notes}
         onNotesChange={(v) => onChange({ dressing_notes: v })}
-        notesPlaceholder="e.g. Can manage buttons, needs help with shoes, adaptive clothing"
+        notesPlaceholder={t('applicant.form.s6_dressing_placeholder')}
       />
 
       <AssistanceLevelSelect
         id="oral_hygiene"
-        label="Oral hygiene (brushing teeth)"
+        label={t('applicant.form.s6_oral_hygiene_label')}
         value={data.oral_hygiene_level}
         onChange={(v) => onChange({ oral_hygiene_level: v })}
         notes={data.oral_hygiene_notes}
         onNotesChange={(v) => onChange({ oral_hygiene_notes: v })}
-        notesPlaceholder="e.g. Electric toothbrush, special toothpaste, staff must supervise"
+        notesPlaceholder={t('applicant.form.s6_oral_hygiene_placeholder')}
       />
 
       <SectionCard>
-        <SubHeading>Positioning & transfers</SubHeading>
+        <SubHeading>{t('applicant.form.s6_positioning_heading')}</SubHeading>
         <TextArea
           value={data.positioning_notes}
           onChange={(v) => onChange({ positioning_notes: v })}
-          placeholder="Describe any specific positioning, transfer techniques, or lifting requirements staff must know…"
+          placeholder={t('applicant.form.s6_positioning_placeholder')}
           rows={3}
         />
       </SectionCard>
 
       <SectionCard>
-        <SubHeading>Sleep routine & special needs</SubHeading>
+        <SubHeading>{t('applicant.form.s6_sleep_heading')}</SubHeading>
         <TextArea
           value={data.sleep_notes}
           onChange={(v) => onChange({ sleep_notes: v })}
-          placeholder="e.g. Must sleep on left side, uses CPAP, needs white noise, usual bedtime, waking patterns…"
+          placeholder={t('applicant.form.s6_sleep_placeholder')}
           rows={3}
         />
         <div className="mt-4 flex flex-col gap-2.5">
           {([
-            ['falling_asleep_issues', 'Has difficulty falling asleep'],
-            ['sleep_walking',         'History of sleep-walking'],
-            ['night_wandering',       'History of night wandering'],
-            ['urinary_catheter',      'Uses urinary catheter'],
-            ['menstruation_support',  'Requires staff support during menstruation'],
+            ['falling_asleep_issues', t('applicant.form.s6_falling_asleep_label')],
+            ['sleep_walking',         t('applicant.form.s6_sleep_walking_label')],
+            ['night_wandering',       t('applicant.form.s6_night_wandering_label')],
+            ['urinary_catheter',      t('applicant.form.s6_urinary_catheter_label')],
+            ['menstruation_support',  t('applicant.form.s6_menstruation_label')],
           ] as [keyof FormState['s6'], string][]).map(([field, label]) => (
             <label key={field} className="flex items-center gap-2 cursor-pointer">
               <input
@@ -2332,11 +2354,11 @@ function Section6({
       </SectionCard>
 
       <SectionCard>
-        <SubHeading>Bowel & continence notes</SubHeading>
+        <SubHeading>{t('applicant.form.s6_bowel_heading')}</SubHeading>
         <TextArea
           value={data.bowel_control_notes}
           onChange={(v) => onChange({ bowel_control_notes: v })}
-          placeholder="Describe any bowel management routines, schedules, or special requirements…"
+          placeholder={t('applicant.form.s6_bowel_placeholder')}
           rows={3}
         />
         <div className="flex flex-col mt-3">
@@ -2346,15 +2368,15 @@ function Section6({
               checked={data.irregular_bowel}
               onChange={(e) => onChange({ irregular_bowel: e.target.checked })}
             />
-            <span className="text-sm" style={{ color: 'var(--foreground)' }}>Has irregular bowel patterns requiring monitoring or intervention</span>
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s6_irregular_bowel_label')}</span>
           </label>
           {data.irregular_bowel && (
             <div className="mt-2">
-              <FieldLabel>Describe irregular bowel patterns</FieldLabel>
+              <FieldLabel>{t('applicant.form.s6_irregular_bowel_desc_label')}</FieldLabel>
               <TextInput
                 value={data.irregular_bowel_notes}
                 onChange={(v) => onChange({ irregular_bowel_notes: v })}
-                placeholder="Frequency, schedule, management approach"
+                placeholder={t('applicant.form.s6_irregular_bowel_placeholder')}
               />
             </div>
           )}
@@ -2368,49 +2390,6 @@ function Section6({
 // Section 9 (display) — Narratives
 // ---------------------------------------------------------------------------
 
-const NARRATIVE_QUESTIONS: { key: keyof FormState['sn']; label: string; placeholder: string }[] = [
-  {
-    key: 'narrative_rustic_environment',
-    label: 'Rustic environment suitability',
-    placeholder: 'Is a rustic outdoor environment (heat, bugs, uneven terrain, limited AC) suitable for your camper? Please explain any concerns.',
-  },
-  {
-    key: 'narrative_staff_suggestions',
-    label: 'Suggestions for staff',
-    placeholder: 'What suggestions do you have for camp staff to best support your camper\'s unique needs during activities and daily routines?',
-  },
-  {
-    key: 'narrative_participation_concerns',
-    label: 'Participation concerns',
-    placeholder: 'Are there any specific activities or situations that concern you regarding your camper\'s participation?',
-  },
-  {
-    key: 'narrative_camp_benefit',
-    label: 'How will camp benefit your camper?',
-    placeholder: 'How do you believe attending camp will benefit your camper? What goals or outcomes are you hoping for?',
-  },
-  {
-    key: 'narrative_heat_tolerance',
-    label: 'Heat and sun tolerance',
-    placeholder: 'Please describe your camper\'s tolerance for heat and sun exposure, and any precautions staff should take.',
-  },
-  {
-    key: 'narrative_transportation',
-    label: 'Transportation',
-    placeholder: 'Are there any concerns or special accommodations needed regarding transportation to and from camp?',
-  },
-  {
-    key: 'narrative_additional_info',
-    label: 'Additional information',
-    placeholder: 'Is there any additional information about your camper that camp staff should know that has not been covered elsewhere?',
-  },
-  {
-    key: 'narrative_emergency_protocols',
-    label: 'Special emergency protocols',
-    placeholder: 'Are there any special emergency procedures or protocols specific to your camper\'s condition that staff must follow?',
-  },
-];
-
 function SectionNarratives({
   data,
   onChange,
@@ -2418,6 +2397,51 @@ function SectionNarratives({
   data: FormState['sn'];
   onChange: (patch: Partial<FormState['sn']>) => void;
 }) {
+  const { t } = useTranslation();
+
+  const NARRATIVE_QUESTIONS: { key: keyof FormState['sn']; label: string; placeholder: string }[] = [
+    {
+      key: 'narrative_rustic_environment',
+      label: t('applicant.form.sn_rustic_label'),
+      placeholder: t('applicant.form.sn_rustic_placeholder'),
+    },
+    {
+      key: 'narrative_staff_suggestions',
+      label: t('applicant.form.sn_staff_suggestions_label'),
+      placeholder: t('applicant.form.sn_staff_suggestions_placeholder'),
+    },
+    {
+      key: 'narrative_participation_concerns',
+      label: t('applicant.form.sn_participation_label'),
+      placeholder: t('applicant.form.sn_participation_placeholder'),
+    },
+    {
+      key: 'narrative_camp_benefit',
+      label: t('applicant.form.sn_camp_benefit_label'),
+      placeholder: t('applicant.form.sn_camp_benefit_placeholder'),
+    },
+    {
+      key: 'narrative_heat_tolerance',
+      label: t('applicant.form.sn_heat_label'),
+      placeholder: t('applicant.form.sn_heat_placeholder'),
+    },
+    {
+      key: 'narrative_transportation',
+      label: t('applicant.form.sn_transportation_label'),
+      placeholder: t('applicant.form.sn_transportation_placeholder'),
+    },
+    {
+      key: 'narrative_additional_info',
+      label: t('applicant.form.sn_additional_info_label'),
+      placeholder: t('applicant.form.sn_additional_info_placeholder'),
+    },
+    {
+      key: 'narrative_emergency_protocols',
+      label: t('applicant.form.sn_emergency_protocols_label'),
+      placeholder: t('applicant.form.sn_emergency_protocols_placeholder'),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div
@@ -2425,7 +2449,7 @@ function SectionNarratives({
         style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--ember-orange)', border: '1px solid rgba(22,163,74,0.20)' }}
       >
         <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-        These questions are optional but help our staff prepare for your camper's arrival. Your answers are kept confidential and shared only with relevant staff.
+        {t('applicant.form.sn_instructions')}
       </div>
       {NARRATIVE_QUESTIONS.map(({ key, label, placeholder }) => (
         <SectionCard key={key}>
@@ -2605,8 +2629,8 @@ function Section7({
 // Section 8 — Medications
 // ---------------------------------------------------------------------------
 
-const MEDICATION_ROUTES = ['Oral', 'Injectable', 'Topical', 'Inhaled', 'Transdermal', 'Nasal', 'Optic', 'Otic', 'Rectal', 'Other'];
-const MEDICATION_FREQUENCIES = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Every 4 hours', 'Every 6 hours', 'Every 8 hours', 'As needed (PRN)', 'Weekly', 'Other'];
+// MEDICATION_ROUTES and MEDICATION_FREQUENCIES are English-only clinical terms;
+// they are kept as-is since medical route/frequency labels are internationally standardized.
 
 function newMedication(): MedicationEntry {
   return {
@@ -2620,6 +2644,11 @@ function Section8({ data, onChange }: {
   data: FormState['s8'];
   onChange: (patch: Partial<FormState['s8']>) => void;
 }) {
+  const { t } = useTranslation();
+
+  const MEDICATION_ROUTES = ['Oral', 'Injectable', 'Topical', 'Inhaled', 'Transdermal', 'Nasal', 'Optic', 'Otic', 'Rectal', 'Other'];
+  const MEDICATION_FREQUENCIES = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Every 4 hours', 'Every 6 hours', 'Every 8 hours', 'As needed (PRN)', 'Weekly', 'Other'];
+
   function addMed() {
     onChange({ medications: [...data.medications, newMedication()] });
   }
@@ -2637,7 +2666,7 @@ function Section8({ data, onChange }: {
   return (
     <div className="p-5 flex flex-col gap-5">
       {/* No medications checkbox */}
-      <label aria-label="Camper takes no medications" className="flex items-center gap-3 cursor-pointer select-none">
+      <label aria-label={t('applicant.form.s8_no_medications_label')} className="flex items-center gap-3 cursor-pointer select-none">
         <input
           type="checkbox"
           className="w-4 h-4 rounded"
@@ -2646,10 +2675,10 @@ function Section8({ data, onChange }: {
         />
         <div>
           <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-            Camper takes no medications
+            {t('applicant.form.s8_no_medications_label')}
           </span>
           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            Check this if the camper does not require any medications at camp.
+            {t('applicant.form.s8_no_medications_desc')}
           </p>
         </div>
       </label>
@@ -2658,7 +2687,7 @@ function Section8({ data, onChange }: {
         <>
           {data.medications.length === 0 && (
             <p className="text-sm text-center py-4" style={{ color: 'var(--muted-foreground)' }}>
-              No medications added yet. Use the button below to add each medication.
+              {t('applicant.form.s8_no_meds_added')}
             </p>
           )}
 
@@ -2670,7 +2699,7 @@ function Section8({ data, onChange }: {
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--ember-orange)' }}>
-                  Medication {idx + 1}
+                  {t('applicant.form.s8_medication_label', { num: idx + 1 })}
                 </span>
                 <button
                   type="button"
@@ -2687,22 +2716,22 @@ function Section8({ data, onChange }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor={`med-name-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                    Medication name *
+                    {t('applicant.form.s8_med_name_label')}
                   </label>
                   <TextInput
                     id={`med-name-${med.id}`}
-                    placeholder="e.g. Metformin"
+                    placeholder={t('applicant.form.s8_med_name_placeholder')}
                     value={med.name}
                     onChange={(v) => updateMed(med.id, { name: v })}
                   />
                 </div>
                 <div>
                   <label htmlFor={`med-dosage-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                    Dosage *
+                    {t('applicant.form.s8_dosage_label')}
                   </label>
                   <TextInput
                     id={`med-dosage-${med.id}`}
-                    placeholder="e.g. 500 mg"
+                    placeholder={t('applicant.form.s8_dosage_placeholder')}
                     value={med.dosage}
                     onChange={(v) => updateMed(med.id, { dosage: v })}
                   />
@@ -2713,19 +2742,19 @@ function Section8({ data, onChange }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor={`med-frequency-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                    Frequency
+                    {t('applicant.form.s8_frequency_label')}
                   </label>
                   <SelectInput id={`med-frequency-${med.id}`} value={med.frequency} onChange={(v) => updateMed(med.id, { frequency: v })}>
-                    <option value="">Select frequency</option>
+                    <option value="">{t('applicant.form.s8_select_frequency')}</option>
                     {MEDICATION_FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
                   </SelectInput>
                 </div>
                 <div>
                   <label htmlFor={`med-route-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                    Route
+                    {t('applicant.form.s8_route_label')}
                   </label>
                   <SelectInput id={`med-route-${med.id}`} value={med.route} onChange={(v) => updateMed(med.id, { route: v })}>
-                    <option value="">Select route</option>
+                    <option value="">{t('applicant.form.s8_select_route')}</option>
                     {MEDICATION_ROUTES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </SelectInput>
                 </div>
@@ -2735,22 +2764,22 @@ function Section8({ data, onChange }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor={`med-reason-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                    Reason / condition treated
+                    {t('applicant.form.s8_reason_label')}
                   </label>
                   <TextInput
                     id={`med-reason-${med.id}`}
-                    placeholder="e.g. Type 2 diabetes"
+                    placeholder={t('applicant.form.s8_reason_placeholder')}
                     value={med.reason}
                     onChange={(v) => updateMed(med.id, { reason: v })}
                   />
                 </div>
                 <div>
                   <label htmlFor={`med-physician-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                    Prescribing physician
+                    {t('applicant.form.s8_physician_label')}
                   </label>
                   <TextInput
                     id={`med-physician-${med.id}`}
-                    placeholder="Dr. Smith"
+                    placeholder={t('applicant.form.s8_physician_placeholder')}
                     value={med.physician}
                     onChange={(v) => updateMed(med.id, { physician: v })}
                   />
@@ -2766,7 +2795,7 @@ function Section8({ data, onChange }: {
                     checked={med.self_admin}
                     onChange={(e) => updateMed(med.id, { self_admin: e.target.checked })}
                   />
-                  <span className="text-xs" style={{ color: 'var(--foreground)' }}>Camper self-administers</span>
+                  <span className="text-xs" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s8_self_admin_label')}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -2775,18 +2804,18 @@ function Section8({ data, onChange }: {
                     checked={med.refrigeration}
                     onChange={(e) => updateMed(med.id, { refrigeration: e.target.checked })}
                   />
-                  <span className="text-xs" style={{ color: 'var(--foreground)' }}>Requires refrigeration</span>
+                  <span className="text-xs" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s8_refrigeration_label')}</span>
                 </label>
               </div>
 
               {/* Notes */}
               <div>
                 <label htmlFor={`med-notes-${med.id}`} className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                  Administration notes (optional)
+                  {t('applicant.form.s8_admin_notes_label')}
                 </label>
                 <TextArea
                   id={`med-notes-${med.id}`}
-                  placeholder="Special instructions, side effects to watch for, etc."
+                  placeholder={t('applicant.form.s8_admin_notes_placeholder')}
                   value={med.notes}
                   onChange={(v) => updateMed(med.id, { notes: v })}
                   rows={2}
@@ -2797,7 +2826,7 @@ function Section8({ data, onChange }: {
 
           <Button variant="secondary" size="sm" onClick={addMed} className="self-start">
             <Plus className="h-3.5 w-3.5" />
-            Add medication
+            {t('applicant.form.s8_add_medication')}
           </Button>
         </>
       )}
@@ -2809,20 +2838,7 @@ function Section8({ data, onChange }: {
 // Section 9 — Required Documents
 // ---------------------------------------------------------------------------
 
-const DOC_DEFS: {
-  key: keyof FormState['s9'];
-  label: string;
-  description: string;
-  required: boolean;
-  accept: string;
-}[] = [
-  { key: 'immunization',  label: 'Immunization Record',    description: 'Current immunization history from physician.', required: true,  accept: '.pdf,.jpg,.jpeg,.png' },
-  { key: 'medical_exam',  label: 'Medical Examination',    description: 'Physical exam completed within the past 12 months.', required: true, accept: '.pdf,.jpg,.jpeg,.png' },
-  { key: 'insurance_card', label: 'Insurance Card',        description: 'Front and back of insurance card.', required: true, accept: '.pdf,.jpg,.jpeg,.png' },
-  { key: 'cpap_waiver',   label: 'CPAP/BiPAP Waiver',      description: 'Required if camper uses a CPAP or BiPAP device.', required: false, accept: '.pdf' },
-  { key: 'seizure_plan',  label: 'Seizure Action Plan',    description: 'Required if camper has a seizure history.', required: false, accept: '.pdf' },
-  { key: 'gtube_plan',    label: 'G-Tube Care Plan',       description: 'Required if camper receives tube feedings.', required: false, accept: '.pdf' },
-];
+// DOC_DEFS is built inside Section9 with t() so labels/descriptions translate on language change.
 
 function DocumentUploader({
   docKey,
@@ -2843,6 +2859,7 @@ function DocumentUploader({
   onSelect: (key: string, file: File, slot: DocSlot) => void;
   onRemove: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   const inputId = `doc-upload-${docKey}`;
   return (
     <div
@@ -2857,9 +2874,9 @@ function DocumentUploader({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{label}</span>
             {required ? (
-              <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--ember-orange)' }}>Required</span>
+              <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--ember-orange)' }}>{t('applicant.form.s9_required_badge')}</span>
             ) : (
-              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--glass-medium, #f3f4f6)', color: 'var(--muted-foreground)' }}>Conditional</span>
+              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--glass-medium, #f3f4f6)', color: 'var(--muted-foreground)' }}>{t('applicant.form.s9_conditional_badge')}</span>
             )}
           </div>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{description}</p>
@@ -2892,8 +2909,8 @@ function DocumentUploader({
           style={{ borderColor: 'var(--border)' }}
         >
           <Upload className="h-3.5 w-3.5" style={{ color: 'var(--muted-foreground)' }} />
-          <span className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>Choose file</span>
-          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>PDF, JPG, PNG</span>
+          <span className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>{t('applicant.form.s9_choose_file')}</span>
+          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant.form.s9_accepted_formats')}</span>
           <input
             id={inputId}
             type="file"
@@ -2927,6 +2944,23 @@ function Section9({
   onChange: (patch: Partial<FormState['s9']>) => void;
   onFileSelect: (key: string, file: File, slot: DocSlot) => void;
 }) {
+  const { t } = useTranslation();
+
+  const DOC_DEFS: {
+    key: keyof FormState['s9'];
+    label: string;
+    description: string;
+    required: boolean;
+    accept: string;
+  }[] = [
+    { key: 'immunization',   label: t('applicant.form.s9_doc_immunization_label'),   description: t('applicant.form.s9_doc_immunization_desc'),   required: true,  accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: 'medical_exam',   label: t('applicant.form.s9_doc_medical_exam_label'),   description: t('applicant.form.s9_doc_medical_exam_desc'),   required: true,  accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: 'insurance_card', label: t('applicant.form.s9_doc_insurance_card_label'), description: t('applicant.form.s9_doc_insurance_card_desc'), required: true,  accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: 'cpap_waiver',    label: t('applicant.form.s9_doc_cpap_waiver_label'),    description: t('applicant.form.s9_doc_cpap_waiver_desc'),    required: false, accept: '.pdf' },
+    { key: 'seizure_plan',   label: t('applicant.form.s9_doc_seizure_plan_label'),   description: t('applicant.form.s9_doc_seizure_plan_desc'),   required: false, accept: '.pdf' },
+    { key: 'gtube_plan',     label: t('applicant.form.s9_doc_gtube_plan_label'),     description: t('applicant.form.s9_doc_gtube_plan_desc'),     required: false, accept: '.pdf' },
+  ];
+
   const conditionalFlags: Record<string, boolean> = {
     cpap_waiver: hasCpap,
     seizure_plan: hasSeizures,
@@ -2956,11 +2990,10 @@ function Section9({
         <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
         <div>
           <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-            Documents are required before submission
+            {t('applicant.form.s9_docs_required_title')}
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-            Upload all required documents. Conditional documents are shown based on your earlier responses.
-            Accepted formats: PDF, JPG, PNG. Max 10 MB per file.
+            {t('applicant.form.s9_docs_required_desc')}
           </p>
         </div>
       </div>
@@ -3031,6 +3064,7 @@ function SignaturePad({
   onCapture: (dataUrl: string) => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing  = useRef(false);
   const hasStrokes = useRef(false);
@@ -3116,7 +3150,7 @@ function SignaturePad({
         className="text-xs self-end hover:underline"
         style={{ color: 'var(--muted-foreground)' }}
       >
-        Clear signature
+        {t('applicant.form.s10_clear_signature')}
       </button>
     </div>
   );
@@ -3129,6 +3163,7 @@ function Section10({
   data: FormState['s10'];
   onChange: (patch: Partial<FormState['s10']>) => void;
 }) {
+  const { t } = useTranslation();
   const today = new Date().toISOString().split('T')[0];
 
   // Pre-populate today's date in state so the section can mark as complete
@@ -3149,7 +3184,7 @@ function Section10({
       {/* Consent blocks */}
       <div className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
-          Read and acknowledge each item
+          {t('applicant.form.s10_read_acknowledge')}
         </p>
         {CONSENT_DEFS.map((c) => (
           <label
@@ -3182,24 +3217,24 @@ function Section10({
           style={{ borderColor: 'var(--border)', background: 'var(--glass-light, #fafafa)' }}
         >
           <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-            Guardian signature
+            {t('applicant.form.s10_guardian_signature_label')}
           </p>
 
           {/* Signature type toggle */}
           <div className="flex gap-2">
-            {(['drawn', 'typed'] as const).map((t) => (
+            {(['drawn', 'typed'] as const).map((sigType) => (
               <button
-                key={t}
+                key={sigType}
                 type="button"
-                onClick={() => onChange({ signature_type: t, signature_data: '' })}
+                onClick={() => onChange({ signature_type: sigType, signature_data: '' })}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
                 style={{
-                  borderColor: data.signature_type === t ? 'var(--ember-orange)' : 'var(--border)',
-                  background:  data.signature_type === t ? 'rgba(22,163,74,0.08)' : 'transparent',
-                  color:       data.signature_type === t ? 'var(--ember-orange)' : 'var(--muted-foreground)',
+                  borderColor: data.signature_type === sigType ? 'var(--ember-orange)' : 'var(--border)',
+                  background:  data.signature_type === sigType ? 'rgba(22,163,74,0.08)' : 'transparent',
+                  color:       data.signature_type === sigType ? 'var(--ember-orange)' : 'var(--muted-foreground)',
                 }}
               >
-                {t === 'drawn' ? 'Draw signature' : 'Type name instead'}
+                {sigType === 'drawn' ? t('applicant.form.s10_draw_signature') : t('applicant.form.s10_type_name_instead')}
               </button>
             ))}
           </div>
@@ -3212,12 +3247,12 @@ function Section10({
           ) : (
             <div className="flex flex-col gap-2">
               <TextInput
-                placeholder="Type your full legal name"
+                placeholder={t('applicant.form.s10_type_name_placeholder')}
                 value={data.signed_name}
                 onChange={(v) => onChange({ signed_name: v })}
               />
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                Typing your name constitutes a legally binding electronic signature.
+                {t('applicant.form.s10_electronic_signature_note')}
               </p>
             </div>
           )}
@@ -3226,18 +3261,18 @@ function Section10({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="sig-name" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                Printed name *
+                {t('applicant.form.s10_printed_name_label')}
               </label>
               <TextInput
                 id="sig-name"
-                placeholder="Guardian full legal name"
+                placeholder={t('applicant.form.s10_guardian_name_placeholder')}
                 value={data.signed_name}
                 onChange={(v) => onChange({ signed_name: v })}
               />
             </div>
             <div>
               <label htmlFor="sig-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
-                Date *
+                {t('applicant.form.s10_date_label')}
               </label>
               <TextInput
                 id="sig-date"
@@ -3255,7 +3290,7 @@ function Section10({
             >
               <Check className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
               <p className="text-xs" style={{ color: 'var(--ember-orange)' }}>
-                Signed by <strong>{data.signed_name}</strong> on {data.signed_date}
+                {t('applicant.form.s10_signed_by_prefix')} <strong>{data.signed_name}</strong> {t('applicant.form.s10_signed_on')} {data.signed_date}
               </p>
             </div>
           )}
@@ -3264,7 +3299,7 @@ function Section10({
 
       {!allConsents && (
         <p className="text-xs text-center" style={{ color: 'var(--muted-foreground)' }}>
-          Please acknowledge all consent items above before signing.
+          {t('applicant.form.s10_acknowledge_first')}
         </p>
       )}
     </div>
@@ -3329,21 +3364,31 @@ export function ApplicationFormPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const draftKey = `${DRAFT_KEY_BASE}_${userId ?? 'anon'}`;
 
   // Recompute section labels when language changes
   const sections = useMemo(() => getSections(t), [t]);
 
   // ── State ─────────────────────────────────────────────────────────────────
 
-  // Read language preference from navigation state (set by ApplicationStartPage)
-  const stateLanguage = (location.state as { language?: string; prefill?: Partial<Record<string, string>> } | null)?.language;
+  // Read navigation state set by ApplicationStartPage
+  const navState = location.state as {
+    language?: string;
+    prefill?: Partial<Record<string, string>>;
+    draftId?: number;
+    sessionId?: number;
+  } | null;
+  const stateLanguage = navState?.language;
+  // Server draft ID — present when user clicked "Start New" or "Continue" on the start page
+  const serverDraftId = navState?.draftId;
 
   const [form, setForm] = useState<FormState>(() => {
     // Re-apply flow: when navigated here with prefill state, start a fresh form
     // with the camper's basic info pre-populated. Any existing localStorage draft
     // is intentionally ignored — the user is starting a brand-new application.
-    const prefill = (location.state as { prefill?: Partial<Record<string, string>> } | null)?.prefill;
-    if (prefill) {
+    if (navState?.prefill) {
+      const prefill = navState.prefill;
       return {
         ...INITIAL_STATE,
         s1: {
@@ -3357,8 +3402,12 @@ export function ApplicationFormPage() {
       };
     }
 
+    // Server-draft continue flow: when draftId is present, the server copy is
+    // authoritative. We start from INITIAL_STATE here (sync); a useEffect below
+    // fetches the server draft and overwrites the form state asynchronously.
+    // We still check localStorage as a fast-path in case the page was refreshed.
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(draftKey);
       if (raw) {
         const parsed = JSON.parse(raw) as FormState;
         return { ...INITIAL_STATE, ...parsed, meta: { ...INITIAL_STATE.meta, ...parsed.meta } };
@@ -3386,6 +3435,8 @@ export function ApplicationFormPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Separate timer for debounced server-side draft saves (30 s cadence). */
+  const serverSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Holds actual File objects for document uploads — not serialized to localStorage */
   const docFilesRef = useRef<Record<string, File | null>>({});
   /**
@@ -3401,16 +3452,33 @@ export function ApplicationFormPage() {
     getSessions().then(setSessions).catch(() => {});
   }, []);
 
+  // ── Hydrate from server draft (async, runs once on mount) ─────────────────
+  // When the user clicks "Continue" on a server draft, the draftId is passed
+  // via navigation state. We fetch the full draft_data and overwrite the form.
+  // This runs after the sync initializer so the page renders immediately.
+
+  useEffect(() => {
+    if (!serverDraftId) return;
+    getDraft(serverDraftId)
+      .then((draft) => {
+        if (!draft.draft_data) return;
+        const saved = draft.draft_data as unknown as FormState;
+        setForm((prev) => ({ ...INITIAL_STATE, ...saved, meta: { ...INITIAL_STATE.meta, ...(saved.meta ?? {}), activeSection: prev.meta.activeSection } }));
+      })
+      .catch(() => { /* fall back to whatever localStorage/INITIAL_STATE loaded */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Auto-save to localStorage ──────────────────────────────────────────────
 
   const persistDraft = useCallback((state: FormState) => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
+      localStorage.setItem(draftKey, JSON.stringify(state));
       setLastSavedAt(new Date());
     } catch {
       /* quota exceeded — silently ignore */
     }
-  }, []);
+  }, [draftKey]);
 
   useEffect(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -3423,6 +3491,20 @@ export function ApplicationFormPage() {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
   }, [form, persistDraft]);
+
+  // ── Auto-save to server (debounced 30 s, only when serverDraftId is set) ──
+
+  useEffect(() => {
+    if (!serverDraftId) return;
+    if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
+    serverSaveTimer.current = setTimeout(() => {
+      const label = [form.s1.camper_first_name, form.s1.camper_last_name].filter(Boolean).join(' ') || 'New Application';
+      apiSaveDraft(serverDraftId, label, form as unknown as Record<string, unknown>).catch(() => {});
+    }, 30_000);
+    return () => {
+      if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
+    };
+  }, [form, serverDraftId]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -3439,7 +3521,8 @@ export function ApplicationFormPage() {
   }
 
   function handleClearDraft() {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(draftKey);
+    if (serverDraftId) apiDeleteDraft(serverDraftId).catch(() => {});
     setForm(INITIAL_STATE);
     setCurrentStep(0);
     toast.success(t('applicant.form.draft_cleared'));
@@ -3447,7 +3530,11 @@ export function ApplicationFormPage() {
 
   function handleSaveDraft() {
     persistDraft(form);
-    toast.success('Draft saved.');
+    if (serverDraftId) {
+      const label = [form.s1.camper_first_name, form.s1.camper_last_name].filter(Boolean).join(' ') || 'New Application';
+      apiSaveDraft(serverDraftId, label, form as unknown as Record<string, unknown>).catch(() => {});
+    }
+    toast.success(t('applicant.form.draft_saved'));
   }
 
   async function handleSubmit() {
@@ -3818,7 +3905,9 @@ export function ApplicationFormPage() {
       pendingCamperIdRef.current = null;
       toast.dismiss(tid);
       toast.success(t('applicant.form.submit_success'));
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(draftKey);
+      // Delete the server draft now that the real application record exists
+      if (serverDraftId) await apiDeleteDraft(serverDraftId).catch(() => {});
       navigate(ROUTES.PARENT_APPLICATIONS);
 
     } catch (err: unknown) {
@@ -4033,12 +4122,12 @@ export function ApplicationFormPage() {
                 >
                   <p className="text-xs font-semibold flex items-center gap-2" style={{ color: '#92400e' }}>
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    Additional documents required
+                    {t('applicant.form.s9_additional_docs_required')}
                   </p>
                   <ul className="text-xs space-y-1 ml-5" style={{ color: '#92400e', listStyleType: 'disc' }}>
-                    {form.s2.has_seizures === true && <li>Seizure Action Plan</li>}
-                    {form.s5.g_tube && <li>G-Tube / Feeding Action Plan</li>}
-                    {hasCpap && <li>CPAP Waiver</li>}
+                    {form.s2.has_seizures === true && <li>{t('applicant.form.s9_seizure_action_plan')}</li>}
+                    {form.s5.g_tube && <li>{t('applicant.form.s9_gtube_action_plan')}</li>}
+                    {hasCpap && <li>{t('applicant.form.s9_cpap_waiver')}</li>}
                   </ul>
                 </div>
               )}

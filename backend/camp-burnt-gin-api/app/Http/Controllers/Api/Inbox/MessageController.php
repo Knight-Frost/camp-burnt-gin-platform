@@ -404,6 +404,9 @@ class MessageController extends Controller
                 'name' => $message->sender->name,
                 'email' => $message->sender->email,
                 'role' => 'unknown', // role relationship not loaded in message queries
+                'avatar_url' => $message->sender->avatar_path
+                    ? Storage::disk('public')->url($message->sender->avatar_path)
+                    : null,
             ];
         }
 

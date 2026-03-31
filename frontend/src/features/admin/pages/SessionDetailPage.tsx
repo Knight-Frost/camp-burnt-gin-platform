@@ -20,9 +20,10 @@ import { format, parseISO } from 'date-fns';
 import {
   ArrowLeft, Calendar, Users, CheckCircle2, Clock,
   AlertTriangle, TrendingUp, BarChart3, UserCheck, ListFilter, Archive,
+  Globe, GlobeLock,
 } from 'lucide-react';
 
-import { getSessionDashboard, archiveSession } from '@/features/admin/api/admin.api';
+import { getSessionDashboard, archiveSession, activateSession, deactivateSession } from '@/features/admin/api/admin.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { ErrorState } from '@/ui/components/EmptyState';
@@ -36,14 +37,14 @@ import { toast } from 'sonner';
 function StatusBadge({ status }: { status: string }) {
   const styleMap: Record<string, React.CSSProperties> = {
     approved:     { background: 'rgba(22,163,74,0.12)',   color: '#166534' },
-    pending:      { background: 'rgba(234,179,8,0.12)',   color: '#854d0e' },
+    submitted:    { background: 'rgba(234,179,8,0.12)',   color: '#854d0e' },
     under_review: { background: 'rgba(59,130,246,0.12)',  color: '#1e40af' },
     rejected:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
     waitlisted:   { background: 'rgba(234,88,12,0.12)',   color: '#9a3412' },
     cancelled:    { background: 'rgba(107,114,128,0.12)', color: '#374151' },
   };
   const labels: Record<string, string> = {
-    approved: 'Approved', pending: 'Pending', under_review: 'Under Review',
+    approved: 'Approved', submitted: 'Submitted', under_review: 'Under Review',
     rejected: 'Rejected', waitlisted: 'Waitlisted', cancelled: 'Cancelled',
   };
   const style = styleMap[status] ?? styleMap.cancelled;
@@ -158,7 +159,8 @@ export function SessionDetailPage() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
   const [retryKey, setRetryKey]   = useState(0);
-  const [archiving, setArchiving] = useState(false);
+  const [archiving, setArchiving]         = useState(false);
+  const [togglingPortal, setTogglingPortal] = useState(false);
 
   const load = useCallback(async (signal: AbortSignal) => {
     if (!id) return;
@@ -180,6 +182,25 @@ export function SessionDetailPage() {
     void load(ac.signal);
     return () => ac.abort();
   }, [load]);
+
+  async function handlePortalToggle() {
+    if (!id || !data) return;
+    setTogglingPortal(true);
+    try {
+      if (data.session.portal_open) {
+        await deactivateSession(Number(id));
+        toast.success('Portal closed — session hidden from applicant portal.');
+      } else {
+        await activateSession(Number(id));
+        toast.success('Portal opened — session is now accepting applications.');
+      }
+      setRetryKey((k) => k + 1);
+    } catch {
+      toast.error('Failed to update portal status. Please try again.');
+    } finally {
+      setTogglingPortal(false);
+    }
+  }
 
   async function handleArchive() {
     if (!id) return;
@@ -272,6 +293,16 @@ export function SessionDetailPage() {
             >
               {session.is_active ? 'Active' : 'Archived'}
             </span>
+            <span
+              className="text-xs px-2.5 py-1 rounded-full font-medium"
+              style={
+                session.portal_open
+                  ? { background: 'rgba(59,130,246,0.12)', color: '#1e40af' }
+                  : { background: 'rgba(107,114,128,0.12)', color: 'var(--muted-foreground)' }
+              }
+            >
+              {session.portal_open ? 'Portal Open' : 'Portal Closed'}
+            </span>
           </div>
           <p className="text-sm mt-1 flex items-center gap-1.5" style={{ color: 'var(--muted-foreground)' }}>
             <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
@@ -288,6 +319,24 @@ export function SessionDetailPage() {
             <ListFilter className="h-3.5 w-3.5" />
             Applications
           </Link>
+          {session.is_active && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={session.portal_open
+                ? <GlobeLock className="h-3.5 w-3.5" />
+                : <Globe className="h-3.5 w-3.5" />
+              }
+              loading={togglingPortal}
+              onClick={handlePortalToggle}
+              title={session.portal_open
+                ? 'Close portal — hide this session from applicants'
+                : 'Open portal — allow applicants to select this session'
+              }
+            >
+              {session.portal_open ? 'Close Portal' : 'Open Portal'}
+            </Button>
+          )}
           {session.is_active && (
             <Button
               variant="ghost"

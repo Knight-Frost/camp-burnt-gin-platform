@@ -27,19 +27,7 @@ import { format, parseISO } from 'date-fns';
 import { useSessionWorkspace } from '../context/SessionWorkspaceContext';
 
 // ─── Session photo system ─────────────────────────────────────────────────────
-// Identical cycle to SessionSelectorModal — deterministic, repeatable identity.
-
-const SESSION_IMAGES = {
-  summer: '/images/sessions/summer.jpg',
-  spring: '/images/sessions/spring.jpg',
-  fall:   '/images/sessions/fall.jpg',
-} as const;
-
-const IMAGE_CYCLE = ['summer', 'spring', 'fall'] as const;
-
-function getSessionImage(sessionId: number): string {
-  return SESSION_IMAGES[IMAGE_CYCLE[sessionId % 3]];
-}
+import { SESSION_IMAGES, getSessionImage } from '../utils/sessionImages';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 

@@ -148,9 +148,9 @@ export function SuperAdminDashboardPage() {
         setUnreadCount(unread);
         setCamps(campsData);
 
-        // Needs Attention: pending + under_review, oldest first
+        // Needs Attention: submitted + under_review, oldest first
         const actionable = apps
-          .filter((a) => a.status === 'pending' || a.status === 'under_review')
+          .filter((a) => a.status === 'submitted' || a.status === 'under_review')
           .sort((a, b) => {
             const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
             const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;

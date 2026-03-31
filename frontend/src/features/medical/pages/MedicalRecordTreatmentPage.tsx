@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Avatar } from '@/ui/components/Avatar';
 import { useNavigate } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -102,15 +103,11 @@ function CamperCard({
         className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)] cursor-pointer group"
       >
         {/* Avatar */}
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold select-none"
-          style={{
-            background: hasLifeThreatening ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.12)',
-            color: hasLifeThreatening ? 'var(--destructive)' : 'var(--ember-orange)',
-          }}
-        >
-          {camper.full_name.charAt(0).toUpperCase()}
-        </div>
+        <Avatar
+          name={camper.full_name}
+          size="sm"
+          fallbackColor={hasLifeThreatening ? 'rgba(220,38,38,0.65)' : undefined}
+        />
 
         {/* Info */}
         <div className="flex-1 min-w-0">

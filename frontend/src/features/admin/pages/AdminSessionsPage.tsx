@@ -22,13 +22,14 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users, Archive, ExternalLink, FolderOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users, Archive, ExternalLink, FolderOpen, Zap } from 'lucide-react';
+import { getSessionImage } from '@/features/sessions/utils/sessionImages';
 import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 import {
   getCamps, createCamp, updateCamp, deleteCamp,
-  getSessions, createSession, updateSession, deleteSession, archiveSession,
+  getSessions, createSession, updateSession, deleteSession, archiveSession, activateSession, deactivateSession,
 } from '@/features/admin/api/admin.api';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -280,24 +281,28 @@ function SessionModal({ session, camps, onClose, onSaved }: SessionModalProps) {
 // Mirrors the backend's getStatusAttribute() logic so the UI badge matches
 // what the API returns without an extra round-trip.
 
-type SessionStatus = 'active' | 'upcoming' | 'completed';
+type SessionStatus = 'upcoming' | 'open' | 'in_session' | 'closed' | 'completed';
 
-function getDateStatus(session: CampSession): SessionStatus {
-  // Prefer server-supplied status; fall back to client-computed value.
+function getStatus(session: CampSession): SessionStatus {
+  // Always prefer server-computed status — it incorporates portal_open and registration window.
   if (session.status) return session.status;
+
+  // Fallback: date-only derivation when server status is absent (e.g. stale cached data).
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(session.start_date);
   const end   = new Date(session.end_date);
   if (today < start) return 'upcoming';
   if (today > end)   return 'completed';
-  return 'active';
+  return 'in_session';
 }
 
 const STATUS_BADGE: Record<SessionStatus, { label: string; bg: string; color: string }> = {
-  active:    { label: 'Active',    bg: 'rgba(22,163,74,0.12)',   color: '#166534' },
-  upcoming:  { label: 'Upcoming',  bg: 'rgba(37,99,235,0.12)',   color: '#1d4ed8' },
-  completed: { label: 'Completed', bg: 'rgba(107,114,128,0.12)', color: '#6b7280' },
+  upcoming:   { label: 'Upcoming',    bg: 'rgba(37,99,235,0.12)',   color: '#1d4ed8' },
+  open:       { label: 'Open',        bg: 'rgba(22,163,74,0.12)',   color: '#166534' },
+  in_session: { label: 'In Session',  bg: 'rgba(22,163,74,0.20)',   color: '#14532d' },
+  closed:     { label: 'Closed',      bg: 'rgba(234,88,12,0.12)',   color: '#c2410c' },
+  completed:  { label: 'Completed',   bg: 'rgba(107,114,128,0.12)', color: '#6b7280' },
 };
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -311,8 +316,10 @@ export function AdminSessionsPage() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);
   const [retryKey, setRetryKey]       = useState(0);
-  // Track which sessions are mid-archive request so buttons show a loading state.
-  const [archivingId, setArchivingId] = useState<number | null>(null);
+  // Track which sessions are mid-archive or mid-activate request so buttons show a loading state.
+  const [archivingId, setArchivingId]       = useState<number | null>(null);
+  const [activatingId, setActivatingId]     = useState<number | null>(null);
+  const [deactivatingId, setDeactivatingId] = useState<number | null>(null);
 
   // Modal state objects hold both whether the modal is open and which item is being edited.
   const [campModal, setCampModal]     = useState<{ open: boolean; camp: Camp | null }>({ open: false, camp: null });
@@ -376,6 +383,42 @@ export function AdminSessionsPage() {
       } else {
         toast.error(t('common.delete_error'));
       }
+    }
+  }
+
+  // Open a session for applications — sets portal_open=true so it appears in the applicant portal.
+  async function handleActivateSession(session: CampSession) {
+    const confirmed = window.confirm(
+      `Open "${session.name}" for applications?\n\nApplicants will immediately be able to select this session and begin their application. This cannot be undone without contacting a developer.`
+    );
+    if (!confirmed) return;
+    setActivatingId(session.id);
+    try {
+      const updated = await activateSession(session.id);
+      setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, ...updated } : s)));
+      toast.success(`"${session.name}" is now open for applications.`);
+    } catch {
+      toast.error('Failed to activate session. Please try again.');
+    } finally {
+      setActivatingId(null);
+    }
+  }
+
+  // Close a session to new applications — reverses a previous activate() call.
+  async function handleDeactivateSession(session: CampSession) {
+    const confirmed = window.confirm(
+      `Close "${session.name}" for applications?\n\nApplicants will no longer be able to select this session. Existing applications are not affected.`
+    );
+    if (!confirmed) return;
+    setDeactivatingId(session.id);
+    try {
+      const updated = await deactivateSession(session.id);
+      setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, ...updated } : s)));
+      toast.success(`"${session.name}" is now closed for applications.`);
+    } catch {
+      toast.error('Failed to deactivate session. Please try again.');
+    } finally {
+      setDeactivatingId(null);
     }
   }
 
@@ -565,64 +608,86 @@ export function AdminSessionsPage() {
                       return (
                         <div
                           key={session.id}
-                          className="glass-card rounded-xl flex flex-col"
-                          style={{ borderTop: `3px solid ${fillColor}` }}
+                          className="group rounded-xl overflow-hidden flex flex-col"
+                          style={{
+                            border: '1px solid var(--border)',
+                            boxShadow: 'var(--shadow-card-subtle)',
+                          }}
                         >
-                          {/* Card body */}
-                          <div className="p-4 flex-1">
-                            {/* Name + badges row */}
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <p className="font-semibold text-sm leading-snug" style={{ color: 'var(--foreground)' }}>
-                                {session.name}
-                              </p>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                {session.is_active ? (() => {
-                                  const ds = getDateStatus(session);
-                                  const badge = STATUS_BADGE[ds];
-                                  return (
-                                    <span
-                                      className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                      style={{ background: badge.bg, color: badge.color }}
-                                    >
-                                      {badge.label}
-                                    </span>
-                                  );
-                                })() : (
+                          {/* Photo header */}
+                          <div className="relative h-36 overflow-hidden flex-shrink-0">
+                            {/* Background photo — zooms on hover */}
+                            <div
+                              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105"
+                              style={{
+                                backgroundImage: `url(${getSessionImage(session.id)})`,
+                                filter: session.is_active ? 'none' : 'grayscale(80%)',
+                              }}
+                              aria-hidden
+                            />
+                            {/* Gradient overlay */}
+                            <div
+                              className="absolute inset-0"
+                              style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.30) 50%, rgba(0,0,0,0.78) 100%)' }}
+                              aria-hidden
+                            />
+                            {/* Badges — top right */}
+                            <div className="absolute top-2.5 right-2.5 flex items-center gap-1 flex-wrap justify-end">
+                              {session.is_active ? (() => {
+                                const ds = getStatus(session);
+                                const badge = STATUS_BADGE[ds];
+                                return (
                                   <span
-                                    className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                    style={{ background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}
+                                    className="text-xs px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm"
+                                    style={{ background: badge.bg + 'cc', color: '#fff' }}
                                   >
-                                    Archived
+                                    {badge.label}
                                   </span>
-                                )}
-                                {isFull && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                    style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}>
-                                    Full
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Date */}
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <Calendar className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-                              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                {format(new Date(session.start_date), 'MMM d')} — {format(new Date(session.end_date), 'MMM d, yyyy')}
-                              </span>
-                            </div>
-
-                            {/* Capacity numbers */}
-                            <div className="flex items-center gap-1.5 mb-3">
-                              <Users className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-                              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                {enrolled} / {session.capacity} enrolled
-                              </span>
-                              {isNearFull && !isFull && (
-                                <span className="text-xs font-medium" style={{ color: '#d97706' }}>· {fillPct}% full</span>
+                                );
+                              })() : (
+                                <span
+                                  className="text-xs px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm"
+                                  style={{ background: 'rgba(75,85,99,0.80)', color: '#fff' }}
+                                >
+                                  Archived
+                                </span>
+                              )}
+                              {isFull && (
+                                <span
+                                  className="text-xs px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm"
+                                  style={{ background: 'rgba(220,38,38,0.80)', color: '#fff' }}
+                                >
+                                  Full
+                                </span>
                               )}
                             </div>
+                            {/* Text overlay — bottom of photo */}
+                            <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-6">
+                              <p className="font-headline font-bold text-sm leading-tight" style={{ color: '#fff' }}>
+                                {session.name}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Calendar className="h-3 w-3 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.64)' }} />
+                                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.80)' }}>
+                                  {format(parseISO(session.start_date), 'MMM d')} — {format(parseISO(session.end_date), 'MMM d, yyyy')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
+                          {/* Card body — capacity */}
+                          <div className="px-3 py-3 flex-1" style={{ background: 'var(--card)' }}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Users className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+                                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                  {enrolled} / {session.capacity} enrolled
+                                </span>
+                              </div>
+                              {isNearFull && !isFull && (
+                                <span className="text-xs font-medium" style={{ color: '#d97706' }}>{fillPct}%</span>
+                              )}
+                            </div>
                             {/* Capacity bar */}
                             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
                               <div
@@ -646,6 +711,29 @@ export function AdminSessionsPage() {
                               View dashboard
                             </Link>
                             <div className="flex items-center gap-0.5">
+                              {session.is_active && (session.portal_open ? (
+                                <button
+                                  onClick={() => handleDeactivateSession(session)}
+                                  disabled={deactivatingId === session.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors hover:opacity-80"
+                                  style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}
+                                  title="Close for applications"
+                                >
+                                  <Zap className="h-3 w-3" />
+                                  {deactivatingId === session.id ? 'Closing…' : 'Close Applications'}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleActivateSession(session)}
+                                  disabled={activatingId === session.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors hover:opacity-80"
+                                  style={{ background: 'rgba(22,163,74,0.12)', color: '#166534' }}
+                                  title="Open for applications"
+                                >
+                                  <Zap className="h-3 w-3" />
+                                  {activatingId === session.id ? 'Opening…' : 'Open Applications'}
+                                </button>
+                              ))}
                               <button
                                 onClick={() => setSessionModal({ open: true, session })}
                                 className="p-1.5 rounded transition-colors hover:bg-[var(--glass-strong)]"

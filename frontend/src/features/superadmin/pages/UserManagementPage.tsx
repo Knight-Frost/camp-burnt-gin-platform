@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 
 import { getUsers, updateUserRole, deactivateUser, reactivateUser, createUser } from '@/features/admin/api/admin.api';
 import type { CreateUserPayload } from '@/features/admin/api/admin.api';
+import { ROLE_LABELS, type RoleName } from '@/shared/constants/roles';
 import { useAppSelector } from '@/store/hooks';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
@@ -230,7 +231,7 @@ export function UserManagementPage() {
           <option value="">{t('superadmin.users.all_roles')}</option>
           {ROLES.map((r) => (
             <option key={r} value={r} style={{ background: 'var(--card)' }}>
-              {r.replace('_', ' ')}
+              {ROLE_LABELS[r as RoleName] ?? r}
             </option>
           ))}
         </select>
@@ -302,7 +303,7 @@ export function UserManagementPage() {
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r} style={{ background: 'var(--card)', color: 'var(--foreground)' }}>
-                            {r.replace('_', ' ')}
+                            {ROLE_LABELS[r as RoleName] ?? r}
                           </option>
                         ))}
                       </select>

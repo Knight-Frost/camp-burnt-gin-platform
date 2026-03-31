@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Avatar } from '@/ui/components/Avatar';
 import { Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -101,15 +102,11 @@ function CamperCard({ camper }: { camper: Camper }) {
       <div className="p-4 flex flex-col gap-3 flex-1">
         {/* Header: icon + name + age */}
         <div className="flex items-start gap-3">
-          <div
-            className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-headline font-semibold text-sm"
-            style={{
-              background: hasLifeThreatening ? 'rgba(220,38,38,0.10)' : 'rgba(22,163,74,0.10)',
-              color: hasLifeThreatening ? 'var(--destructive)' : 'var(--ember-orange)',
-            }}
-          >
-            {camper.first_name?.charAt(0)}{camper.last_name?.charAt(0)}
-          </div>
+          <Avatar
+            name={camper.full_name}
+            size="sm"
+            fallbackColor={hasLifeThreatening ? 'rgba(220,38,38,0.65)' : undefined}
+          />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate" style={{ color: 'var(--foreground)' }}>
               {camper.full_name}

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Camp\CampController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
+use App\Http\Controllers\Api\Camper\ApplicationDraftController;
 use App\Http\Controllers\Api\Camper\CamperController;
 use App\Http\Controllers\Api\Camper\PersonalCarePlanController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
@@ -246,6 +247,8 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         // Session dashboard + operations (Phase 15)
         Route::get('/{session}/dashboard', [SessionDashboardController::class, 'dashboard'])->middleware('admin')->name('sessions.dashboard');
         Route::get('/{session}/applications', [SessionDashboardController::class, 'applications'])->middleware('admin')->name('sessions.applications');
+        Route::post('/{session}/activate', [CampSessionController::class, 'activate'])->middleware('admin')->name('sessions.activate');
+        Route::post('/{session}/deactivate', [CampSessionController::class, 'deactivate'])->middleware('admin')->name('sessions.deactivate');
         Route::post('/{session}/archive', [CampSessionController::class, 'archive'])->middleware('admin')->name('sessions.archive');
         Route::post('/{session}/restore', [CampSessionController::class, 'restore'])->middleware('admin')->name('sessions.restore');
     });
@@ -439,6 +442,23 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     | workflow (compliance check, status update, notifications, letters).
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Application Drafts (server-side save slots for in-progress forms)
+    |--------------------------------------------------------------------------
+    |
+    | Applicant-only. Each draft is a raw JSON blob of FormState — no camper
+    | record is created until final submission.
+    |
+    */
+    Route::prefix('application-drafts')->group(function () {
+        Route::get('/',         [ApplicationDraftController::class, 'index'])  ->name('application-drafts.index');
+        Route::post('/',        [ApplicationDraftController::class, 'store'])  ->name('application-drafts.store');
+        Route::get('/{draft}',  [ApplicationDraftController::class, 'show'])   ->name('application-drafts.show');
+        Route::put('/{draft}',  [ApplicationDraftController::class, 'update']) ->name('application-drafts.update');
+        Route::delete('/{draft}', [ApplicationDraftController::class, 'destroy'])->name('application-drafts.destroy');
+    });
+
     Route::prefix('applications')->group(function () {
         Route::get('/', [ApplicationController::class, 'index'])->name('applications.index');
         Route::post('/', [ApplicationController::class, 'store'])->name('applications.store');

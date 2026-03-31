@@ -6,6 +6,7 @@ use App\Models\ActivityPermission;
 use App\Models\Allergy;
 use App\Models\ApplicantDocument;
 use App\Models\Application;
+use App\Models\ApplicationDraft;
 use App\Models\AssistiveDevice;
 use App\Models\BehavioralProfile;
 use App\Models\Camp;
@@ -42,6 +43,7 @@ use App\Observers\MedicalRecordObserver;
 use App\Policies\ActivityPermissionPolicy;
 use App\Policies\AllergyPolicy;
 use App\Policies\ApplicantDocumentPolicy;
+use App\Policies\ApplicationDraftPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\AssistiveDevicePolicy;
 use App\Policies\BehavioralProfilePolicy;
@@ -115,6 +117,7 @@ class AppServiceProvider extends ServiceProvider
         // Core camper and application data
         Camper::class => CamperPolicy::class,
         Application::class => ApplicationPolicy::class,
+        ApplicationDraft::class => ApplicationDraftPolicy::class,
 
         // Medical record and clinical data (PHI — strict access control)
         MedicalRecord::class => MedicalRecordPolicy::class,

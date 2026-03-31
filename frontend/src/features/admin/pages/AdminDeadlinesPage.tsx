@@ -19,6 +19,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Plus, Calendar, CheckCircle, Trash2, Edit2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import {
   getDeadlines, createDeadline, createBulkSessionDeadline,
@@ -61,13 +62,6 @@ const DEFAULT_CREATE: CreateFormState = {
   is_session_wide: false,
 };
 
-const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
-  document_request:    'Document Request',
-  application:         'Application',
-  medical_requirement: 'Medical Requirement',
-  session:             'Session',
-};
-
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 function card(extra: CSSProperties = {}): CSSProperties {
@@ -99,6 +93,16 @@ function labelStyle(): CSSProperties {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export function AdminDeadlinesPage() {
+  const { t } = useTranslation();
+
+  // Defined inside component so labels re-render when language changes
+  const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
+    document_request:    t('deadlines.entity_type_document_request'),
+    application:         t('deadlines.entity_type_application'),
+    medical_requirement: t('deadlines.entity_type_medical_requirement'),
+    session:             t('deadlines.entity_type_session'),
+  };
+
   const [deadlines, setDeadlines]     = useState<Deadline[]>([]);
   const [loading, setLoading]         = useState(true);
   const [retryKey, setRetryKey]       = useState(0);
@@ -126,7 +130,7 @@ export function AdminDeadlinesPage() {
       entity_type: filterType || undefined,
     })
       .then((res) => setDeadlines(res.data))
-      .catch(() => toast.error('Failed to load deadlines.'))
+      .catch(() => toast.error(t('deadlines.error_load')))
       .finally(() => setLoading(false));
   }, [retryKey, filterStatus, filterType]);
 
@@ -134,7 +138,7 @@ export function AdminDeadlinesPage() {
 
   async function handleCreate() {
     if (!createForm.camp_session_id || !createForm.title || !createForm.due_date) {
-      toast.error('Session, title, and due date are required.');
+      toast.error(t('deadlines.error_create_validation'));
       return;
     }
     setSaving(true);
@@ -151,7 +155,7 @@ export function AdminDeadlinesPage() {
           enforcement_mode:         createForm.enforcement_mode,
           is_visible_to_applicants: createForm.is_visible_to_applicants,
         });
-        toast.success('Session-wide deadline created and added to calendar.');
+        toast.success(t('deadlines.success_create_session_wide'));
       } else {
         await createDeadline({
           camp_session_id:          +createForm.camp_session_id,
@@ -165,13 +169,13 @@ export function AdminDeadlinesPage() {
           enforcement_mode:         createForm.enforcement_mode,
           is_visible_to_applicants: createForm.is_visible_to_applicants,
         });
-        toast.success('Deadline created and added to calendar.');
+        toast.success(t('deadlines.success_create'));
       }
       setModalMode(null);
       setCreateForm(DEFAULT_CREATE);
       setRetryKey((k) => k + 1);
     } catch {
-      toast.error('Failed to create deadline.');
+      toast.error(t('deadlines.error_create'));
     } finally {
       setSaving(false);
     }
@@ -179,19 +183,19 @@ export function AdminDeadlinesPage() {
 
   async function handleExtend() {
     if (!selectedDeadline || !extendDate || !extendReason) {
-      toast.error('New date and reason are required.');
+      toast.error(t('deadlines.error_extend_validation'));
       return;
     }
     setSaving(true);
     try {
       await extendDeadline(selectedDeadline.id, { new_due_date: extendDate, reason: extendReason });
-      toast.success('Deadline extended. Calendar event updated automatically.');
+      toast.success(t('deadlines.success_extend'));
       setModalMode(null);
       setExtendDate('');
       setExtendReason('');
       setRetryKey((k) => k + 1);
     } catch {
-      toast.error('Failed to extend deadline.');
+      toast.error(t('deadlines.error_extend'));
     } finally {
       setSaving(false);
     }
@@ -199,31 +203,31 @@ export function AdminDeadlinesPage() {
 
   async function handleComplete() {
     if (!selectedDeadline || !completeReason) {
-      toast.error('Reason is required.');
+      toast.error(t('deadlines.error_complete_validation'));
       return;
     }
     setSaving(true);
     try {
       await completeDeadline(selectedDeadline.id, completeReason);
-      toast.success('Deadline marked complete. Applicant is now unblocked.');
+      toast.success(t('deadlines.success_complete'));
       setModalMode(null);
       setCompleteReason('');
       setRetryKey((k) => k + 1);
     } catch {
-      toast.error('Failed to complete deadline.');
+      toast.error(t('deadlines.error_complete'));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(deadline: Deadline) {
-    if (!confirm(`Delete deadline "${deadline.title}"? The calendar event will also be removed.`)) return;
+    if (!confirm(t('deadlines.confirm_delete', { title: deadline.title }))) return;
     try {
       await deleteDeadline(deadline.id);
-      toast.success('Deadline and calendar event deleted.');
+      toast.success(t('deadlines.success_delete'));
       setRetryKey((k) => k + 1);
     } catch {
-      toast.error('Failed to delete deadline.');
+      toast.error(t('deadlines.error_delete'));
     }
   }
 
@@ -241,23 +245,23 @@ export function AdminDeadlinesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>
-            Deadline Management
+            {t('deadlines.page_title')}
           </h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--muted-foreground)', marginTop: '4px' }}>
-            Single source of truth — deadlines auto-sync to the calendar.
+            {t('deadlines.page_subtitle')}
           </p>
         </div>
         <Button onClick={() => { setCreateForm(DEFAULT_CREATE); setModalMode('create'); }}>
-          <Plus size={16} style={{ marginRight: '6px' }} /> New Deadline
+          <Plus size={16} style={{ marginRight: '6px' }} /> {t('deadlines.new_deadline_btn')}
         </Button>
       </div>
 
       {/* ── Stats strip ───────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
         {[
-          { label: 'Total Deadlines',  value: stats.total,      color: 'var(--foreground)' },
-          { label: 'Approaching',      value: stats.approaching, color: '#b45309' },
-          { label: 'Overdue',          value: stats.overdue,     color: '#dc2626' },
+          { label: t('deadlines.stat_total'),      value: stats.total,       color: 'var(--foreground)' },
+          { label: t('deadlines.stat_approaching'), value: stats.approaching, color: '#b45309' },
+          { label: t('deadlines.stat_overdue'),     value: stats.overdue,     color: '#dc2626' },
         ].map((s) => (
           <div key={s.label} style={card({ textAlign: 'center' })}>
             <div style={{ fontSize: '1.75rem', fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -273,18 +277,18 @@ export function AdminDeadlinesPage() {
           onChange={(e) => setFilterStatus(e.target.value)}
           style={{ ...inputStyle(), width: 'auto', minWidth: '140px' }}
         >
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="overdue">Overdue</option>
-          <option value="extended">Extended</option>
-          <option value="completed">Completed</option>
+          <option value="">{t('deadlines.filter_all_statuses')}</option>
+          <option value="pending">{t('deadlines.filter_status_pending')}</option>
+          <option value="overdue">{t('deadlines.filter_status_overdue')}</option>
+          <option value="extended">{t('deadlines.filter_status_extended')}</option>
+          <option value="completed">{t('deadlines.filter_status_completed')}</option>
         </select>
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value as EntityType | '')}
           style={{ ...inputStyle(), width: 'auto', minWidth: '180px' }}
         >
-          <option value="">All Types</option>
+          <option value="">{t('deadlines.filter_all_types')}</option>
           {(Object.entries(ENTITY_TYPE_LABELS) as [EntityType, string][]).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
           ))}
@@ -299,9 +303,9 @@ export function AdminDeadlinesPage() {
       ) : deadlines.length === 0 ? (
         <div style={{ ...card(), textAlign: 'center', padding: '48px', color: 'var(--muted-foreground)' }}>
           <Calendar size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
-          <p>No deadlines found. Create one to get started.</p>
+          <p>{t('deadlines.empty_state_message')}</p>
           <p style={{ fontSize: '0.8125rem', marginTop: '4px' }}>
-            Each deadline automatically creates a calendar event.
+            {t('deadlines.empty_state_subtitle')}
           </p>
         </div>
       ) : (
@@ -320,12 +324,12 @@ export function AdminDeadlinesPage() {
 
       {/* ── Create Modal ───────────────────────────────────────────────────── */}
       {modalMode === 'create' && (
-        <Modal title="New Deadline" onClose={() => setModalMode(null)}>
+        <Modal title={t('deadlines.modal_create_title')} onClose={() => setModalMode(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <FormField label="Session ID *">
+            <FormField label={t('deadlines.form_session_id_label')}>
               <input
                 type="number"
-                placeholder="Camp Session ID"
+                placeholder={t('deadlines.form_session_id_placeholder')}
                 value={createForm.camp_session_id}
                 onChange={(e) => setCreateForm((f) => ({ ...f, camp_session_id: e.target.value }))}
                 style={inputStyle()}
@@ -340,11 +344,11 @@ export function AdminDeadlinesPage() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, is_session_wide: e.target.checked, entity_id: '' }))}
               />
               <label htmlFor="session-wide" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>
-                Session-wide (applies to all applicants in this session)
+                {t('deadlines.form_session_wide_label')}
               </label>
             </div>
 
-            <FormField label="Type *">
+            <FormField label={t('deadlines.form_type_label')}>
               <select
                 value={createForm.entity_type}
                 onChange={(e) => setCreateForm((f) => ({ ...f, entity_type: e.target.value as EntityType }))}
@@ -357,10 +361,10 @@ export function AdminDeadlinesPage() {
             </FormField>
 
             {!createForm.is_session_wide && (
-              <FormField label="Entity ID (leave blank for session-wide)">
+              <FormField label={t('deadlines.form_entity_id_label')}>
                 <input
                   type="number"
-                  placeholder="Specific record ID"
+                  placeholder={t('deadlines.form_entity_id_placeholder')}
                   value={createForm.entity_id}
                   onChange={(e) => setCreateForm((f) => ({ ...f, entity_id: e.target.value }))}
                   style={inputStyle()}
@@ -368,18 +372,18 @@ export function AdminDeadlinesPage() {
               </FormField>
             )}
 
-            <FormField label="Title *">
+            <FormField label={t('deadlines.form_title_label')}>
               <input
-                placeholder="e.g. Medical Form Submission"
+                placeholder={t('deadlines.form_title_placeholder')}
                 value={createForm.title}
                 onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
                 style={inputStyle()}
               />
             </FormField>
 
-            <FormField label="Description">
+            <FormField label={t('deadlines.form_description_label')}>
               <textarea
-                placeholder="Optional instructions for applicants"
+                placeholder={t('deadlines.form_description_placeholder')}
                 value={createForm.description}
                 onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
@@ -388,7 +392,7 @@ export function AdminDeadlinesPage() {
             </FormField>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <FormField label="Due Date *">
+              <FormField label={t('deadlines.form_due_date_label')}>
                 <input
                   type="date"
                   value={createForm.due_date}
@@ -396,7 +400,7 @@ export function AdminDeadlinesPage() {
                   style={inputStyle()}
                 />
               </FormField>
-              <FormField label="Grace Period (days)">
+              <FormField label={t('deadlines.form_grace_period_label')}>
                 <input
                   type="number"
                   min="0" max="30"
@@ -408,7 +412,7 @@ export function AdminDeadlinesPage() {
             </div>
 
             <div style={{ padding: '12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '10px' }}>Enforcement</div>
+              <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '10px' }}>{t('deadlines.form_enforcement_section_title')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
@@ -416,7 +420,7 @@ export function AdminDeadlinesPage() {
                     checked={createForm.is_enforced}
                     onChange={(e) => setCreateForm((f) => ({ ...f, is_enforced: e.target.checked }))}
                   />
-                  <span style={{ fontSize: '0.875rem' }}>Enforce this deadline</span>
+                  <span style={{ fontSize: '0.875rem' }}>{t('deadlines.form_enforce_checkbox_label')}</span>
                 </label>
                 {createForm.is_enforced && (
                   <select
@@ -424,8 +428,8 @@ export function AdminDeadlinesPage() {
                     onChange={(e) => setCreateForm((f) => ({ ...f, enforcement_mode: e.target.value as EnforcementMode }))}
                     style={{ ...inputStyle(), width: 'auto' }}
                   >
-                    <option value="soft">Soft (warning only — upload still allowed)</option>
-                    <option value="hard">Hard (block upload — HTTP 422)</option>
+                    <option value="soft">{t('deadlines.form_enforcement_soft_option')}</option>
+                    <option value="hard">{t('deadlines.form_enforcement_hard_option')}</option>
                   </select>
                 )}
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -434,15 +438,15 @@ export function AdminDeadlinesPage() {
                     checked={createForm.is_visible_to_applicants}
                     onChange={(e) => setCreateForm((f) => ({ ...f, is_visible_to_applicants: e.target.checked }))}
                   />
-                  <span style={{ fontSize: '0.875rem' }}>Visible to applicants on their calendar and dashboard</span>
+                  <span style={{ fontSize: '0.875rem' }}>{t('deadlines.form_visible_to_applicants_label')}</span>
                 </label>
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
-              <Button variant="ghost" onClick={() => setModalMode(null)}>Cancel</Button>
+              <Button variant="ghost" onClick={() => setModalMode(null)}>{t('deadlines.modal_cancel_btn')}</Button>
               <Button onClick={handleCreate} disabled={saving}>
-                {saving ? 'Creating…' : 'Create Deadline'}
+                {saving ? t('deadlines.modal_create_btn_loading') : t('deadlines.modal_create_btn')}
               </Button>
             </div>
           </div>
@@ -451,12 +455,12 @@ export function AdminDeadlinesPage() {
 
       {/* ── Extend Modal ───────────────────────────────────────────────────── */}
       {modalMode === 'extend' && selectedDeadline && (
-        <Modal title={`Extend: ${selectedDeadline.title}`} onClose={() => setModalMode(null)}>
+        <Modal title={t('deadlines.modal_extend_title', { title: selectedDeadline.title })} onClose={() => setModalMode(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
-              Current due date: <strong>{format(parseISO(selectedDeadline.due_date), 'MMM d, yyyy')}</strong>
+              {t('deadlines.extend_current_due_date_label')} <strong>{format(parseISO(selectedDeadline.due_date), 'MMM d, yyyy')}</strong>
             </div>
-            <FormField label="New Due Date *">
+            <FormField label={t('deadlines.form_new_due_date_label')}>
               <input
                 type="date"
                 value={extendDate}
@@ -464,9 +468,9 @@ export function AdminDeadlinesPage() {
                 style={inputStyle()}
               />
             </FormField>
-            <FormField label="Reason *">
+            <FormField label={t('deadlines.form_extend_reason_label')}>
               <textarea
-                placeholder="Reason for extending this deadline"
+                placeholder={t('deadlines.form_extend_reason_placeholder')}
                 value={extendReason}
                 onChange={(e) => setExtendReason(e.target.value)}
                 rows={3}
@@ -474,9 +478,9 @@ export function AdminDeadlinesPage() {
               />
             </FormField>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <Button variant="ghost" onClick={() => setModalMode(null)}>Cancel</Button>
+              <Button variant="ghost" onClick={() => setModalMode(null)}>{t('deadlines.modal_cancel_btn')}</Button>
               <Button onClick={handleExtend} disabled={saving}>
-                {saving ? 'Extending…' : 'Extend Deadline'}
+                {saving ? t('deadlines.modal_extend_btn_loading') : t('deadlines.modal_extend_btn')}
               </Button>
             </div>
           </div>
@@ -485,15 +489,14 @@ export function AdminDeadlinesPage() {
 
       {/* ── Complete Override Modal ────────────────────────────────────────── */}
       {modalMode === 'complete' && selectedDeadline && (
-        <Modal title={`Override: ${selectedDeadline.title}`} onClose={() => setModalMode(null)}>
+        <Modal title={t('deadlines.modal_complete_title', { title: selectedDeadline.title })} onClose={() => setModalMode(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ padding: '10px 12px', background: 'rgba(217,119,6,0.08)', borderRadius: '8px', fontSize: '0.875rem' }}>
-              Manually completing this deadline will unblock the applicant and remove enforcement.
-              This action is logged to the audit trail.
+              {t('deadlines.complete_warning_message')}
             </div>
-            <FormField label="Reason *">
+            <FormField label={t('deadlines.form_complete_reason_label')}>
               <textarea
-                placeholder="Reason for manual completion (will be logged)"
+                placeholder={t('deadlines.form_complete_reason_placeholder')}
                 value={completeReason}
                 onChange={(e) => setCompleteReason(e.target.value)}
                 rows={3}
@@ -501,9 +504,9 @@ export function AdminDeadlinesPage() {
               />
             </FormField>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <Button variant="ghost" onClick={() => setModalMode(null)}>Cancel</Button>
+              <Button variant="ghost" onClick={() => setModalMode(null)}>{t('deadlines.modal_cancel_btn')}</Button>
               <Button onClick={handleComplete} disabled={saving}>
-                {saving ? 'Completing…' : 'Mark Complete'}
+                {saving ? t('deadlines.modal_complete_btn_loading') : t('deadlines.modal_complete_btn')}
               </Button>
             </div>
           </div>
@@ -526,6 +529,16 @@ function DeadlineRow({
   onComplete: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
+
+  // Defined here so labels re-render when language changes
+  const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
+    document_request:    t('deadlines.entity_type_document_request'),
+    application:         t('deadlines.entity_type_application'),
+    medical_requirement: t('deadlines.entity_type_medical_requirement'),
+    session:             t('deadlines.entity_type_session'),
+  };
+
   return (
     <div
       style={{
@@ -550,15 +563,15 @@ function DeadlineRow({
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', background: 'rgba(0,0,0,0.05)', padding: '2px 7px', borderRadius: '4px' }}>
             {ENTITY_TYPE_LABELS[deadline.entity_type]}
-            {deadline.entity_id !== null ? ` #${deadline.entity_id}` : ' · Session-wide'}
+            {deadline.entity_id !== null ? ` #${deadline.entity_id}` : t('deadlines.entity_session_wide_suffix')}
           </span>
           {deadline.is_enforced && (
             <span style={{ fontSize: '0.75rem', color: deadline.enforcement_mode === 'hard' ? '#dc2626' : '#b45309', fontWeight: 600 }}>
-              {deadline.enforcement_mode === 'hard' ? '⛔ Hard block' : '⚠ Soft warning'}
+              {deadline.enforcement_mode === 'hard' ? t('deadlines.enforcement_hard_badge') : t('deadlines.enforcement_soft_badge')}
             </span>
           )}
           {!deadline.is_visible_to_applicants && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>· Internal only</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{t('deadlines.visibility_internal_only')}</span>
           )}
         </div>
       </div>
@@ -575,10 +588,10 @@ function DeadlineRow({
         {deadline.status !== 'completed' && (
           <>
             <Button variant="ghost" size="sm" onClick={onExtend}>
-              <Edit2 size={13} style={{ marginRight: '4px' }} /> Extend
+              <Edit2 size={13} style={{ marginRight: '4px' }} /> {t('deadlines.action_extend')}
             </Button>
             <Button variant="ghost" size="sm" onClick={onComplete}>
-              <CheckCircle size={13} style={{ marginRight: '4px' }} /> Complete
+              <CheckCircle size={13} style={{ marginRight: '4px' }} /> {t('deadlines.action_complete')}
             </Button>
           </>
         )}

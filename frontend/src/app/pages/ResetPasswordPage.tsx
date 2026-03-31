@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -33,7 +33,6 @@ import { Button } from '@/ui/components/Button';
 
 export function ResetPasswordPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   // useSearchParams gives us read access to the URL query string (?token=...&email=...).
   const [searchParams] = useSearchParams();
   // Extract the two required URL parameters; fall back to empty string if missing.
@@ -42,6 +41,8 @@ export function ResetPasswordPage() {
   // Separate visibility toggles for each password field.
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // Tracks whether the reset completed successfully — shows a dedicated success card.
+  const [success, setSuccess] = useState(false);
 
   const {
     register,
@@ -70,12 +71,28 @@ export function ResetPasswordPage() {
     );
   }
 
+  // Success: show a confirmation card instead of the form.
+  if (success) {
+    return (
+      <AuthCard
+        title={t('auth_extra.reset_success_title')}
+        subtitle={t('auth_extra.reset_success_body')}
+        footer={
+          <Link to={ROUTES.LOGIN} className="text-ember-orange hover:underline">
+            {t('auth_extra.reset_success_cta')}
+          </Link>
+        }
+      >
+        <div />
+      </AuthCard>
+    );
+  }
+
   const onSubmit = async (values: ResetPasswordFormValues) => {
     try {
       // Include token and email from the URL — the server needs them to validate the request.
       await resetPassword({ ...values, token, email });
-      toast.success(t('auth_extra.reset_success'));
-      navigate(ROUTES.LOGIN);
+      setSuccess(true);
     } catch (error) {
       // Map field-level server errors (e.g. "token has expired") back onto the form.
       if (isValidationError(error)) {
@@ -93,7 +110,7 @@ export function ResetPasswordPage() {
   return (
     <AuthCard
       title={t('auth_extra.reset_password_title')}
-      subtitle="Choose a strong password for your account."
+      subtitle={t('auth_extra.reset_password_requirements')}
       footer={
         <Link to={ROUTES.LOGIN} className="text-ember-orange hover:underline">
           {t('auth_extra.back_to_login')}

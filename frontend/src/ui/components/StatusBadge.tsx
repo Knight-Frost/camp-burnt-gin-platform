@@ -11,7 +11,7 @@
  *     tinted backgrounds — ensuring accessibility compliance.
  *
  * Supported status values:
- *   Application statuses: draft, pending, under_review, approved, rejected,
+ *   Application statuses: draft, submitted, under_review, approved, rejected,
  *                         withdrawn, cancelled, waitlisted
  *   General statuses:     active, inactive, open, closed, waitlist
  *   Medical severity:     low, moderate, high, critical
@@ -24,8 +24,8 @@ import type { ApplicationStatus } from '@/shared/types';
 /** Union of all accepted status string values. */
 type BadgeVariant =
   | ApplicationStatus
-  | 'draft'   // not an ApplicationStatus — is_draft boolean on server, kept as UI-only fallback
-  | 'pending'
+  | 'draft'     // not an ApplicationStatus — is_draft boolean on server, kept as UI-only fallback
+  | 'submitted' // included via ApplicationStatus but listed here explicitly for clarity
   | 'active'
   | 'inactive'
   | 'open'
@@ -41,7 +41,7 @@ type BadgeVariant =
 // Visual styles only — colors never change with language so kept as a static map.
 // All text colors meet WCAG AA 4.5:1 contrast on their tinted backgrounds.
 const variantStyles: Record<BadgeVariant, { bg: string; text: string }> = {
-  pending:      { bg: 'rgba(107,114,128,0.12)', text: '#374151'  },
+  submitted:    { bg: 'rgba(37,99,235,0.10)',   text: '#1d4ed8'  },
   draft:        { bg: 'rgba(107,114,128,0.12)', text: '#374151'  },
   under_review: { bg: 'rgba(37,99,235,0.12)',   text: '#2563eb'  },
   approved:     { bg: 'rgba(22,163,74,0.10)',   text: '#16a34a'  },
@@ -62,7 +62,7 @@ const variantStyles: Record<BadgeVariant, { bg: string; text: string }> = {
 
 // Maps each variant to its i18n key in the status_labels namespace.
 const variantLabelKeys: Record<BadgeVariant, string> = {
-  pending:      'status_labels.pending',
+  submitted:    'status_labels.submitted',
   draft:        'status_labels.draft',
   under_review: 'status_labels.under_review',
   approved:     'status_labels.approved',

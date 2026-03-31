@@ -5,10 +5,21 @@
 
 import { z } from 'zod';
 
+// Used for registration — backend requires min 8 characters.
 const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
   .max(64, 'Password must be 64 characters or fewer');
+
+// Used for password reset — backend requires min 12 characters with full complexity.
+const strongPasswordSchema = z
+  .string()
+  .min(12, 'Password must be at least 12 characters')
+  .max(64, 'Password must be 64 characters or fewer')
+  .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Must contain at least one special character');
 
 // ---------------------------------------------------------------------------
 // Login
@@ -67,7 +78,7 @@ export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z
   .object({
-    password: passwordSchema,
+    password: strongPasswordSchema,
     password_confirmation: z.string().min(1, 'Please confirm your password'),
   })
   .refine((data) => data.password === data.password_confirmation, {

@@ -4,8 +4,8 @@
  */
 
 export interface ApplicationReviewPayload {
-  // Valid admin review statuses. 'pending' and 'withdrawn' are excluded:
-  // — 'pending' is only an initial state, never set by admin review action.
+  // Valid admin review statuses. 'submitted' and 'withdrawn' are excluded:
+  // — 'submitted' is the initial post-submission state, never set by admin review action.
   // — 'withdrawn' is parent-initiated only, via the separate /withdraw endpoint.
   status: 'approved' | 'rejected' | 'under_review' | 'waitlisted' | 'cancelled';
   notes?: string;
@@ -53,8 +53,10 @@ export interface CampSession {
   enrolled_count?: number;
   remaining_capacity?: number;
   is_active?: boolean;
-  /** Date-derived status computed by the backend: active | upcoming | completed */
-  status?: 'active' | 'upcoming' | 'completed';
+  /** Admin-controlled: true when the session is open for applications in the parent portal. */
+  portal_open?: boolean;
+  /** Status computed by the backend — combines camp schedule with admin-controlled application window. */
+  status?: 'upcoming' | 'open' | 'in_session' | 'closed' | 'completed';
   registration_opens_at?: string;
   registration_closes_at?: string;
   min_age?: number;
@@ -67,7 +69,7 @@ export interface Application {
   camper_id: number;
   camp_session_id: number;
   // 'draft' is not a status value — it is represented by the is_draft boolean.
-  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn';
+  status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn';
   is_draft?: boolean;
   // True when an admin overrode the completeness warning and approved with known gaps.
   is_incomplete_at_approval?: boolean;
@@ -498,6 +500,7 @@ export interface SessionDashboardStats {
     start_date: string;
     end_date: string;
     is_active: boolean;
+    portal_open: boolean;
   };
   capacity_stats: {
     capacity: number;

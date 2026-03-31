@@ -62,6 +62,7 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import axiosInstance from '@/api/axios.config';
+import { ROLE_LABELS, type RoleName } from '@/shared/constants/roles';
 
 // File types accepted by the hidden <input> and the drag-and-drop zone
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png,.webp';
@@ -282,7 +283,7 @@ function SendDocumentModal({
                 style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
               >
                 {admins.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                  <option key={a.id} value={a.id}>{a.name} ({ROLE_LABELS[a.role as RoleName] ?? a.role})</option>
                 ))}
               </select>
             )}

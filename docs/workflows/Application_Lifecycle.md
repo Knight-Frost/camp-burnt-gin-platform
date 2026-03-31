@@ -129,7 +129,7 @@ erDiagram
 
 | State | Value | Description | Can Parent Edit | Who Sets |
 |-------|-------|-------------|-----------------|----------|
-| Pending | `pending` | Submitted; awaiting admin review | Yes | System |
+| Submitted | `submitted` | Submitted; awaiting admin review | Yes | System |
 | Under Review | `under_review` | Admin has opened the application for review | Yes | Admin |
 | Approved | `approved` | Admin has accepted the application | No | Admin |
 | Rejected | `rejected` | Admin has declined the application | No | Admin |
@@ -293,7 +293,7 @@ After a successful approval:
 
 ## 6. Rejection Workflow (Before Approval)
 
-When an application is rejected before it has ever been approved (e.g., `pending → rejected` or `under_review → rejected`), the workflow is identical to any other non-approval status transition:
+When an application is rejected before it has ever been approved (e.g., `submitted → rejected` or `under_review → rejected`), the workflow is identical to any other non-approval status transition:
 
 1. Validate the state transition.
 2. Inside a transaction: update application status, reviewer metadata, and write the audit log.
@@ -350,7 +350,7 @@ After a successful reversal (with no other approved application):
 
 ## 8. Re-Approval Workflow
 
-A re-approval occurs when an application transitions from `rejected` to `approved` (or from `pending`/`under_review` to `approved` after a prior rejection cycle). The system must not create duplicate camper or medical records.
+A re-approval occurs when an application transitions from `rejected` to `approved` (or from `submitted`/`under_review` to `approved` after a prior rejection cycle). The system must not create duplicate camper or medical records.
 
 ### Process
 
@@ -402,7 +402,7 @@ Withdrawal from `approved` follows the same multi-session safety check as admin 
 
 ### Invariants
 
-- Withdrawal from `pending`, `under_review`, or `waitlisted` does NOT touch `is_active` fields (camper was never activated).
+- Withdrawal from `submitted`, `under_review`, or `waitlisted` does NOT touch `is_active` fields (camper was never activated).
 - Withdrawal never deletes medical records (HIPAA retention).
 - Withdrawal is irreversible — `withdrawn` is a terminal state. Parents may re-apply by creating a new application.
 
@@ -414,7 +414,7 @@ Withdrawal from `approved` follows the same multi-session safety check as admin 
 
 ### UI Enforcement
 
-- The **"Withdraw application"** button appears on `ApplicantApplicationDetailPage` when status is `pending`, `under_review`, `approved`, or `waitlisted`.
+- The **"Withdraw application"** button appears on `ApplicantApplicationDetailPage` when status is `submitted`, `under_review`, `approved`, or `waitlisted`.
 - The button is hidden (not just disabled) for `rejected`, `cancelled`, and `withdrawn` states.
 - A confirmation dialog must be shown before the withdrawal is submitted.
 - The **"Re-apply"** button on `ApplicantApplicationsPage` is shown for `withdrawn` applications (same as `rejected` and `cancelled`).

@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Conversation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Transforms a Conversation model into a consistent API response shape.
@@ -79,6 +80,7 @@ class ConversationResource extends JsonResource
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->relationLoaded('role') ? ($user->role?->name ?? 'unknown') : 'unknown',
+                'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
             ])->values()->all();
         }
 
@@ -89,6 +91,7 @@ class ConversationResource extends JsonResource
                 'name' => $record->user?->name,
                 'email' => $record->user?->email,
                 'role' => $record->user?->role?->name ?? 'unknown',
+                'avatar_url' => $record->user?->avatar_path ? Storage::disk('public')->url($record->user->avatar_path) : null,
             ])->filter(fn ($p) => $p['id'] !== null)->values()->all();
         }
 
@@ -115,6 +118,7 @@ class ConversationResource extends JsonResource
                 'role' => $msg->sender->relationLoaded('role')
                     ? ($msg->sender->role?->name ?? 'unknown')
                     : 'unknown',
+                'avatar_url' => $msg->sender->avatar_path ? Storage::disk('public')->url($msg->sender->avatar_path) : null,
             ];
         }
 

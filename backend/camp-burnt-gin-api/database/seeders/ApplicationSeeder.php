@@ -100,7 +100,7 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $lily->id, 'camp_session_id' => $session1->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'submitted_at' => now()->subDays(5),
                 'reviewed_at' => null,
@@ -162,7 +162,7 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $noah->id, 'camp_session_id' => $session2->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'submitted_at' => now()->subDays(2),
                 'reviewed_at' => null,
@@ -201,7 +201,7 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $lucas->id, 'camp_session_id' => $session1->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'submitted_at' => now()->subDays(3),
                 'reviewed_at' => null,
@@ -262,7 +262,7 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $mia->id, 'camp_session_id' => $session1->id],
             [
-                'status' => ApplicationStatus::Pending,  // status is set when submitted
+                'status' => ApplicationStatus::Submitted,  // status is set when submitted
                 'is_draft' => true,                         // KEY: not yet submitted
                 'submitted_at' => null,
                 'reviewed_at' => null,
@@ -327,7 +327,7 @@ class ApplicationSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $henry->id, 'camp_session_id' => $session2->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'submitted_at' => now()->subDays(5),
                 'reviewed_at' => null,

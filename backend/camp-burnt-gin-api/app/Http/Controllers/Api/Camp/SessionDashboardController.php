@@ -55,7 +55,7 @@ class SessionDashboardController extends Controller
 
         $enrolled = (int) ($statusCounts[ApplicationStatus::Approved->value] ?? 0);
         $pending = (int) (
-            ($statusCounts[ApplicationStatus::Pending->value] ?? 0) +
+            ($statusCounts[ApplicationStatus::Submitted->value] ?? 0) +
             ($statusCounts[ApplicationStatus::UnderReview->value] ?? 0)
         );
         $rejected = (int) ($statusCounts[ApplicationStatus::Rejected->value] ?? 0);
@@ -161,6 +161,7 @@ class SessionDashboardController extends Controller
                     'end_date' => $session->end_date?->toDateString(),
                     'capacity' => $session->capacity,
                     'is_active' => $session->is_active,
+                    'portal_open' => $session->portal_open,
                     'registration_opens_at' => $session->registration_opens_at?->toIso8601String(),
                     'registration_closes_at' => $session->registration_closes_at?->toIso8601String(),
                 ],

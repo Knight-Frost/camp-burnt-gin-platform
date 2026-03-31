@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Notifications\Auth\PasswordChangedConfirmationNotification;
 use App\Notifications\Auth\PasswordResetNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -148,6 +149,10 @@ class PasswordResetService
         $user->update([
             'password' => Hash::make($password),
         ]);
+
+        // Notify the account holder that their password changed so they can act
+        // if the change was unauthorised (security assurance email)
+        $user->notify(new PasswordChangedConfirmationNotification());
 
         // Step 5: Delete the used token so it cannot be replayed
         DB::table('password_reset_tokens')

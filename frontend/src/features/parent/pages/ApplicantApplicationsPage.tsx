@@ -15,7 +15,7 @@
  * attention are easy to find at the top.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -25,11 +25,20 @@ import {
   RefreshCw,
   ChevronDown,
   SlidersHorizontal,
+  Trash2,
+  AlertTriangle,
+  Search,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { useTranslation } from 'react-i18next';
-import { getApplications } from '@/features/parent/api/applicant.api';
+import {
+  getApplications,
+  getDrafts,
+  deleteDraft as apiDeleteDraft,
+  deleteApplication as apiDeleteApplication,
+  type ApplicationDraft,
+} from '@/features/parent/api/applicant.api';
 import type { Application, ApplicationStatus } from '@/shared/types';
 import type { CamperInfoValues } from '@/features/parent/schemas/application.schema';
 import { ROUTES } from '@/shared/constants/routes';
@@ -38,16 +47,14 @@ import { EmptyState } from '@/ui/components/EmptyState';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
-
-// localStorage key where ApplicationFormPage auto-saves in-progress drafts
-const LOCAL_DRAFT_KEY = 'cbg_app_draft';
+import { useAppSelector } from '@/store/hooks';
 
 type ViewMode = 'all' | 'active' | 'past';
 type SortOrder = 'newest' | 'oldest';
 
 // Statuses that mean the application is still in flight and needs monitoring.
 // waitlisted is included here — it can still be promoted to approved, so it is "active".
-const ACTIVE_STATUSES: ApplicationStatus[] = ['pending', 'under_review', 'waitlisted'];
+const ACTIVE_STATUSES: ApplicationStatus[] = ['submitted', 'under_review', 'waitlisted'];
 // Statuses that mean the process is finished (one way or another)
 const PAST_STATUSES: ApplicationStatus[]   = ['approved', 'rejected', 'withdrawn', 'cancelled'];
 
@@ -63,9 +70,92 @@ function sortApps(apps: Application[], order: SortOrder): Application[] {
   });
 }
 
+/**
+ * Confirmation modal for deleting a draft application.
+ * Matches the directive spec: specific title, message, Cancel + Delete actions.
+ */
+function DeleteDraftModal({
+  camperName,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  camperName: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  // Trap focus inside the modal when open
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { cancelRef.current?.focus(); }, []);
+
+  return (
+    // Backdrop
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-6 shadow-xl flex flex-col gap-4"
+        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+            style={{ background: 'rgba(220,38,38,0.1)' }}
+          >
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+              Delete Draft Application
+            </h3>
+            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+              {camperName
+                ? `This will permanently delete the draft for ${camperName}.`
+                : 'This will permanently delete this draft.'}{' '}
+              This action cannot be undone.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="text-sm px-4 py-2 rounded-xl border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+            style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="text-sm px-4 py-2 rounded-xl font-medium transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+          >
+            {loading ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Single application row — a card that links to the detail page
-function AppCard({ app }: { app: Application }) {
+function AppCard({
+  app,
+  onDeleteDraft,
+}: {
+  app: Application;
+  onDeleteDraft?: (app: Application) => void;
+}) {
   const navigate = useNavigate();
+  const isDraft = app.is_draft === true;
+
   return (
     <li>
       <div className="flex items-center justify-between gap-4 px-6 py-4">
@@ -76,9 +166,12 @@ function AppCard({ app }: { app: Application }) {
         >
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(96,165,250,0.1)' }}
+            style={{ background: isDraft ? 'rgba(234,88,12,0.10)' : 'rgba(96,165,250,0.1)' }}
           >
-            <FileText className="h-4 w-4" style={{ color: 'var(--night-sky-blue)' }} />
+            <FileText
+              className="h-4 w-4"
+              style={{ color: isDraft ? 'var(--ember-orange)' : 'var(--night-sky-blue)' }}
+            />
           </div>
           <div className="min-w-0">
             {/* Fall back to a generic label if the camper was not eager-loaded */}
@@ -91,45 +184,75 @@ function AppCard({ app }: { app: Application }) {
             >
               <Calendar className="h-3 w-3" />
               <span>{app.session?.name ?? `Session #${app.session_id}`}</span>
-              {app.submitted_at && (
+              {isDraft ? (
+                <>
+                  <span aria-hidden="true">&middot;</span>
+                  <span>Draft – Not Submitted</span>
+                </>
+              ) : app.submitted_at ? (
                 <>
                   <span aria-hidden="true">&middot;</span>
                   <span>Submitted {format(new Date(app.submitted_at), 'MMM d, yyyy')}</span>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
         </Link>
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <StatusBadge status={app.status} />
-          {/* Re-apply button shown when the application has reached a terminal or withdrawn state */}
-          {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled' || app.status === 'withdrawn') && app.camper && (
-            <button
-              onClick={() =>
-                // Navigate to the new application form and pre-fill camper details
-                navigate(ROUTES.PARENT_APPLICATION_NEW, {
-                  state: {
-                    prefill: {
-                      first_name:    app.camper!.first_name,
-                      last_name:     app.camper!.last_name,
-                      date_of_birth: app.camper!.date_of_birth,
-                      gender:        app.camper!.gender as CamperInfoValues['gender'],
-                      tshirt_size:   app.camper!.tshirt_size as CamperInfoValues['tshirt_size'],
-                    } satisfies Partial<CamperInfoValues>,
-                  },
-                })
-              }
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
-              style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-              title="Re-apply with same camper info"
-            >
-              <RefreshCw className="h-3 w-3" />
-              Re-apply
-            </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isDraft ? (
+            // Draft: show Continue and Delete
+            <>
+              <Button
+                size="sm"
+                onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { applicationId: app.id } })}
+              >
+                Continue
+              </Button>
+              {onDeleteDraft && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteDraft(app)}
+                  className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                  title="Delete draft"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
+          ) : (
+            // Submitted/reviewed: show status badge and actions
+            <>
+              <StatusBadge status={app.status} />
+              {/* Re-apply button shown when the application has reached a terminal state */}
+              {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled' || app.status === 'withdrawn') && app.camper && (
+                <button
+                  onClick={() =>
+                    navigate(ROUTES.PARENT_APPLICATION_NEW, {
+                      state: {
+                        prefill: {
+                          first_name:    app.camper!.first_name,
+                          last_name:     app.camper!.last_name,
+                          date_of_birth: app.camper!.date_of_birth,
+                          gender:        app.camper!.gender as CamperInfoValues['gender'],
+                          tshirt_size:   app.camper!.tshirt_size as CamperInfoValues['tshirt_size'],
+                        } satisfies Partial<CamperInfoValues>,
+                      },
+                    })
+                  }
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                  title="Re-apply with same camper info"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Re-apply
+                </button>
+              )}
+              <Link to={ROUTES.PARENT_APPLICATION_DETAIL(app.id)}>
+                <ArrowRight className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+              </Link>
+            </>
           )}
-          <Link to={ROUTES.PARENT_APPLICATION_DETAIL(app.id)}>
-            <ArrowRight className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-          </Link>
         </div>
       </div>
     </li>
@@ -140,9 +263,11 @@ function AppCard({ app }: { app: Application }) {
 function AppGroup({
   title,
   apps,
+  onDeleteDraft,
 }: {
   title: string;
   apps: Application[];
+  onDeleteDraft?: (app: Application) => void;
 }) {
   // Render nothing when there are no apps in this group — avoids empty section headers
   if (apps.length === 0) return null;
@@ -167,7 +292,9 @@ function AppGroup({
         className="divide-y"
         style={{ borderColor: 'var(--border)' }}
       >
-        {apps.map((app) => <AppCard key={app.id} app={app} />)}
+        {apps.map((app) => (
+          <AppCard key={app.id} app={app} onDeleteDraft={onDeleteDraft} />
+        ))}
       </ul>
     </div>
   );
@@ -207,13 +334,76 @@ function LocalDraftCard({ camperName }: { camperName: string | null }) {
   );
 }
 
+// Card for a server-side draft — survives logout/login, deleteable
+function ServerDraftCard({
+  draft,
+  onDelete,
+}: {
+  draft: ApplicationDraft;
+  onDelete: (id: number) => void;
+}) {
+  const navigate = useNavigate();
+  // Try to parse a camper name from the stored draft_data blob
+  const label = draft.label && draft.label !== 'New Application' ? draft.label : null;
+  return (
+    <div
+      className="flex items-center justify-between gap-4 px-6 py-4 rounded-2xl border"
+      style={{ background: 'var(--card)', borderColor: 'var(--ember-orange)' }}
+    >
+      <div className="flex items-center gap-4 min-w-0 flex-1">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(234,88,12,0.10)' }}
+        >
+          <FileText className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+              {label ?? 'Untitled application'}
+            </p>
+            <span
+              className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: 'rgba(234,88,12,0.12)', color: '#c2410c' }}
+            >
+              Draft – Not Submitted
+            </span>
+          </div>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+            Last saved {new Date(draft.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Button
+          size="sm"
+          onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { draftId: draft.id } })}
+        >
+          Continue
+        </Button>
+        <button
+          type="button"
+          onClick={() => onDelete(draft.id)}
+          className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
+          style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+          title="Delete draft"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ApplicantApplicationsPage() {
   const { t } = useTranslation();
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const localDraftKey = `cbg_app_draft_${userId ?? 'anon'}`;
   const navigate = useNavigate();
 
   // Built inside the component so labels re-compute when language changes.
   const STATUS_LABELS: Record<ApplicationStatus, string> = {
-    pending:      t('status_labels.pending'),
+    submitted:    t('status_labels.submitted'),
     under_review: t('status_labels.under_review'),
     approved:     t('status_labels.approved'),
     rejected:     t('status_labels.rejected'),
@@ -222,6 +412,7 @@ export function ApplicantApplicationsPage() {
     waitlisted:   t('status_labels.waitlisted'),
   };
   const [applications, setApplications] = useState<Application[]>([]);
+  const [serverDrafts, setServerDrafts] = useState<ApplicationDraft[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(false);
   // View mode: 'all' shows all groups, 'active' only in-flight, 'past' only resolved
@@ -230,13 +421,18 @@ export function ApplicantApplicationsPage() {
   // 'draft' is not an ApplicationStatus — it maps to the is_draft boolean on the server.
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'draft' | ''>('');
   const [sortOrder, setSortOrder]       = useState<SortOrder>('newest');
+  // Free-text search — filters by camper name (partial, case-insensitive, client-side)
+  const [search, setSearch]             = useState('');
   // Holds camper name parsed from localStorage draft if one exists
   const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
+  // Delete-draft confirmation modal state
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'draft'; id: number; camperName: string | null } | { type: 'application'; app: Application } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // On mount, try to read the local draft key and extract the camper's name
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(LOCAL_DRAFT_KEY);
+      const raw = localStorage.getItem(localDraftKey);
       if (!raw) return;
       const parsed = JSON.parse(raw) as { s1?: { camper_first_name?: string; camper_last_name?: string } };
       const first = (parsed.s1?.camper_first_name ?? '').trim();
@@ -245,17 +441,46 @@ export function ApplicantApplicationsPage() {
     } catch { /* ignore corrupt draft */ }
   }, []);
 
-  // Fetch all applications; the load function is also passed to ErrorState for retry
+  // Fetch all applications + server drafts in parallel
   const load = () => {
     setLoading(true);
     setError(false);
-    getApplications()
-      .then(setApplications)
+    Promise.all([getApplications(), getDrafts()])
+      .then(([apps, drafts]) => { setApplications(apps); setServerDrafts(drafts); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
+
+  /** Opens the delete-draft confirmation modal for a server-side ApplicationDraft. */
+  function requestDeleteDraft(draftId: number, camperName: string | null) {
+    setDeleteTarget({ type: 'draft', id: draftId, camperName });
+  }
+
+  /** Opens the delete confirmation modal for an Application record that is still a draft. */
+  function requestDeleteApplication(app: Application) {
+    setDeleteTarget({ type: 'application', app });
+  }
+
+  /** Executes the deletion after the user confirms in the modal. */
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      if (deleteTarget.type === 'draft') {
+        await apiDeleteDraft(deleteTarget.id);
+        setServerDrafts((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+        localStorage.removeItem(localDraftKey);
+        setLocalDraft(null);
+      } else {
+        await apiDeleteApplication(deleteTarget.app.id);
+        setApplications((prev) => prev.filter((a) => a.id !== deleteTarget.app.id));
+      }
+    } catch { /* record already gone */ }
+    setDeleteLoading(false);
+    setDeleteTarget(null);
+  }
 
   // Derive the filtered + sorted list without modifying state directly (useMemo)
   const filtered = useMemo(() => {
@@ -270,8 +495,14 @@ export function ApplicantApplicationsPage() {
     } else if (view === 'past') {
       list = list.filter((a) => PAST_STATUSES.includes(a.status));
     }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((a) =>
+        (a.camper?.full_name ?? `Camper #${a.camper_id}`).toLowerCase().includes(q)
+      );
+    }
     return sortApps(list, sortOrder);
-  }, [applications, statusFilter, view, sortOrder]);
+  }, [applications, statusFilter, view, sortOrder, search]);
 
   // Pre-split the filtered list into three groups for the sectioned "all" view
   const draftApps = useMemo(
@@ -287,7 +518,23 @@ export function ApplicantApplicationsPage() {
     [filtered]
   );
 
+  // Resolve the camper name for the delete modal based on target type
+  const deleteModalCamperName = deleteTarget?.type === 'draft'
+    ? deleteTarget.camperName
+    : deleteTarget?.type === 'application'
+      ? (deleteTarget.app.camper?.full_name ?? null)
+      : null;
+
   return (
+    <>
+    {deleteTarget && (
+      <DeleteDraftModal
+        camperName={deleteModalCamperName}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
+    )}
     <div className="flex flex-col gap-6 max-w-4xl">
       {/* Page header */}
       <div className="flex items-center justify-between">
@@ -359,6 +606,19 @@ export function ApplicantApplicationsPage() {
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
         </div>
 
+        {/* Camper name search — client-side partial match */}
+        <div className="relative ml-auto">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3" style={{ color: 'var(--muted-foreground)' }} />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by camper name…"
+            className="text-xs pl-7 pr-3 py-1.5 rounded-xl border outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
+            style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)', width: '180px' }}
+          />
+        </div>
+
         {/* Reset button appears only when a non-default filter is active */}
         {(statusFilter || view !== 'all') && (
           <button
@@ -382,7 +642,7 @@ export function ApplicantApplicationsPage() {
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <ErrorState onRetry={load} />
         </div>
-      ) : filtered.length === 0 && !(statusFilter === 'draft' && localDraft) ? (
+      ) : filtered.length === 0 && !localDraft && serverDrafts.length === 0 ? (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <EmptyState
             title={applications.length === 0 ? 'No applications yet' : 'No matching applications'}
@@ -404,22 +664,40 @@ export function ApplicantApplicationsPage() {
             {view === 'all' && !statusFilter ? (
               // Default grouped view: Drafts → Active → Past sections
               <>
-                {(draftApps.length > 0 || localDraft) && (
+                {(draftApps.length > 0 || localDraft || serverDrafts.length > 0) && (
                   <div className="flex flex-col gap-3">
                     <div className="px-1">
                       <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
                         Drafts
                       </span>
+                      <span
+                        className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'var(--border)', color: 'var(--muted-foreground)' }}
+                      >
+                        {serverDrafts.length + draftApps.length + (localDraft ? 1 : 0)}
+                      </span>
                     </div>
-                    {/* LocalDraftCard appears first when a localStorage draft exists */}
-                    {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
+                    {/* Server drafts — authoritative; survive logout/login */}
+                    {serverDrafts.map((draft) => (
+                      <ServerDraftCard
+                        key={draft.id}
+                        draft={draft}
+                        onDelete={(id) => requestDeleteDraft(id, draft.label && draft.label !== 'New Application' ? draft.label : null)}
+                      />
+                    ))}
+                    {/* LocalDraftCard is a fallback for pre-server-draft localStorage drafts */}
+                    {localDraft && serverDrafts.length === 0 && (
+                      <LocalDraftCard camperName={localDraft.camperName} />
+                    )}
                     {draftApps.length > 0 && (
                       <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                         <ul
                           className="divide-y"
                           style={{ borderColor: 'var(--border)' }}
                         >
-                          {draftApps.map((app) => <AppCard key={app.id} app={app} />)}
+                          {draftApps.map((app) => (
+                            <AppCard key={app.id} app={app} onDeleteDraft={requestDeleteApplication} />
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -429,16 +707,27 @@ export function ApplicantApplicationsPage() {
                 <AppGroup title="Past Applications" apps={pastApps} />
               </>
             ) : statusFilter === 'draft' ? (
-              // When "Draft" is selected in the status filter, show local draft + server drafts
+              // When "Draft" is selected in the status filter, show server drafts + local draft
               <div className="flex flex-col gap-3">
-                {localDraft && <LocalDraftCard camperName={localDraft.camperName} />}
+                {serverDrafts.map((draft) => (
+                  <ServerDraftCard
+                    key={draft.id}
+                    draft={draft}
+                    onDelete={(id) => requestDeleteDraft(id, draft.label && draft.label !== 'New Application' ? draft.label : null)}
+                  />
+                ))}
+                {localDraft && serverDrafts.length === 0 && (
+                  <LocalDraftCard camperName={localDraft.camperName} />
+                )}
                 {filtered.length > 0 && (
                   <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                     <ul
                       className="divide-y"
                       style={{ borderColor: 'var(--border)' }}
                     >
-                      {filtered.map((app) => <AppCard key={app.id} app={app} />)}
+                      {filtered.map((app) => (
+                        <AppCard key={app.id} app={app} onDeleteDraft={requestDeleteApplication} />
+                      ))}
                     </ul>
                   </div>
                 )}
@@ -450,12 +739,15 @@ export function ApplicantApplicationsPage() {
                   className="divide-y"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  {filtered.map((app) => <AppCard key={app.id} app={app} />)}
+                  {filtered.map((app) => (
+                    <AppCard key={app.id} app={app} onDeleteDraft={requestDeleteApplication} />
+                  ))}
                 </ul>
               </div>
             )}
           </div>
       )}
     </div>
+    </>
   );
 }

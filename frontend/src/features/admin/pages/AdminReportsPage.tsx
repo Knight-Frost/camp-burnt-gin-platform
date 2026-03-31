@@ -35,7 +35,7 @@ type ReportType = 'applications' | 'accepted' | 'rejected' | 'mailing-labels' | 
 
 // Maps each application status to a hex color used in the charts.
 const CHART_COLORS = {
-  pending: '#f59e0b',
+  submitted: '#f59e0b',
   under_review: '#3b82f6',
   approved: '#16a34a',
   rejected: '#dc2626',
@@ -87,7 +87,7 @@ export function AdminReportsPage() {
     { name: 'Under Review', value: byStatus['under_review'] ?? 0, color: CHART_COLORS.under_review },
     { name: 'Approved',     value: byStatus['approved']     ?? 0, color: CHART_COLORS.approved },
     { name: 'Rejected',     value: byStatus['rejected']     ?? 0, color: CHART_COLORS.rejected },
-    { name: 'Pending',      value: byStatus['pending']      ?? 0, color: CHART_COLORS.pending },
+    { name: 'Submitted',    value: byStatus['submitted']    ?? 0, color: CHART_COLORS.submitted },
     { name: 'Waitlisted',   value: byStatus['waitlisted']   ?? 0, color: CHART_COLORS.waitlisted },
     { name: 'Cancelled',    value: byStatus['cancelled']    ?? 0, color: '#9ca3af' },
   ].filter((s) => s.value > 0); // Don't show bars for statuses with no applications.

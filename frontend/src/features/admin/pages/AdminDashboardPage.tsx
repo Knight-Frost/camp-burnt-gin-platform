@@ -145,9 +145,9 @@ export function AdminDashboardPage() {
     ])
       .then(([rptSummary, apps, campsData, unreadCount]) => {
         setSummary(rptSummary);
-        // Needs Attention: pending + under_review, sorted oldest-first (most urgent)
+        // Needs Attention: submitted + under_review, sorted oldest-first (most urgent)
         const actionable = apps
-          .filter((a) => a.status === 'pending' || a.status === 'under_review')
+          .filter((a) => a.status === 'submitted' || a.status === 'under_review')
           .sort((a, b) => {
             const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
             const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;

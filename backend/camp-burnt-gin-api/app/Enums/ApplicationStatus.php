@@ -11,8 +11,8 @@ namespace App\Enums;
  */
 enum ApplicationStatus: string
 {
-    // The application was submitted but nobody has looked at it yet.
-    case Pending = 'pending';
+    // The parent has fully submitted the application; nobody has looked at it yet.
+    case Submitted = 'submitted';
 
     // Staff are actively reviewing the application right now.
     case UnderReview = 'under_review';
@@ -39,7 +39,7 @@ enum ApplicationStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pending',
+            self::Submitted => 'Submitted',
             self::UnderReview => 'Under Review',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
@@ -79,7 +79,7 @@ enum ApplicationStatus: string
     public function isEditable(): bool
     {
         return in_array($this, [
-            self::Pending,
+            self::Submitted,
             self::UnderReview,
         ]);
     }
@@ -93,8 +93,8 @@ enum ApplicationStatus: string
      * method and is NOT routed through canTransitionTo().
      *
      * Transition table (admin review endpoint only):
-     *   Pending      → UnderReview, Approved, Rejected, Waitlisted, Cancelled
-     *   UnderReview  → Approved, Rejected, Waitlisted, Cancelled, Pending
+     *   Submitted    → UnderReview, Approved, Rejected, Waitlisted, Cancelled
+     *   UnderReview  → Approved, Rejected, Waitlisted, Cancelled, Submitted
      *   Approved     → Rejected (reversal), Cancelled (admin cancellation)
      *   Rejected     → Approved (re-approval only — cannot re-open to Pending/UnderReview)
      *   Waitlisted   → Approved, Rejected, Cancelled
@@ -111,7 +111,7 @@ enum ApplicationStatus: string
         }
 
         return match ($this) {
-            self::Pending => in_array($new, [
+            self::Submitted => in_array($new, [
                 self::UnderReview,
                 self::Approved,
                 self::Rejected,
@@ -123,7 +123,7 @@ enum ApplicationStatus: string
                 self::Rejected,
                 self::Waitlisted,
                 self::Cancelled,
-                self::Pending,
+                self::Submitted,
             ]),
             // Reversal: an approved application may only move to rejected (reversal)
             // or cancelled (admin-initiated cancellation of enrollment).

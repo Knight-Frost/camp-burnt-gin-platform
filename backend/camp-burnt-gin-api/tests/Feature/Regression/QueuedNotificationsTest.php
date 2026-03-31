@@ -97,7 +97,7 @@ class QueuedNotificationsTest extends TestCase
         $camper = Camper::factory()->create();
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => 'pending',
+            'status' => 'submitted',
         ]);
 
         // Review application

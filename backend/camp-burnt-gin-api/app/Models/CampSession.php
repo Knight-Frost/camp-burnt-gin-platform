@@ -27,7 +27,7 @@ class CampSession extends Model
 
     /**
      * Append computed attributes to every serialized response.
-     * `status` is date-derived (active/upcoming/completed) and has no DB column.
+     * `status` is computed (upcoming/open/in_session/closed/completed) and has no DB column.
      *
      * @var list<string>
      */
@@ -48,7 +48,8 @@ class CampSession extends Model
         'max_age',                  // Maximum camper age (inclusive) at session start.
         'registration_opens_at',    // Date/time applications begin being accepted.
         'registration_closes_at',   // Date/time after which no new applications are accepted.
-        'is_active',                // Controls whether the session shows in the portal.
+        'is_active',                // Controls whether the session shows in the portal (archive flag).
+        'portal_open',              // Admin-controlled: true = session is accepting applications.
     ];
 
     /**
@@ -70,6 +71,7 @@ class CampSession extends Model
             'registration_opens_at' => 'datetime',
             'registration_closes_at' => 'datetime',
             'is_active' => 'boolean',
+            'portal_open' => 'boolean',
         ];
     }
 
@@ -137,26 +139,42 @@ class CampSession extends Model
     }
 
     /**
-     * Date-derived session status.
+     * Deterministic session status — combines camp schedule (ground truth) with
+     * the admin-controlled application window.
      *
-     * - upcoming  : today is before start_date
-     * - active    : today is between start_date and end_date (inclusive)
-     * - completed : today is after end_date
+     * Priority order (highest → lowest):
+     *   1. completed  — today is after end_date (immutable, cannot be overridden)
+     *   2. in_session — today is on or after start_date (camp is happening; apps blocked)
+     *   3. open       — portal_open=true and registration window has not closed
+     *   4. closed     — portal_open=true but registration_closes_at has passed
+     *   5. upcoming   — default; portal not open, camp hasn't started
      *
-     * This is independent of `is_active` (which controls portal visibility).
+     * This is independent of `is_active` (which controls portal visibility / archival).
+     * start_date and end_date are NEVER modified by application-window actions.
      */
     public function getStatusAttribute(): string
     {
-        $today = today();
+        $today = today();   // Date-only — matches the 'date' cast on start_date / end_date.
+        $now   = now();     // Full datetime — used for registration_closes_at comparison.
 
-        if ($today->lt($this->start_date)) {
-            return 'upcoming';
-        }
-
+        // ── Camp schedule: ground truth, no override possible ─────────────────
         if ($today->gt($this->end_date)) {
             return 'completed';
         }
 
-        return 'active';
+        if ($today->greaterThanOrEqualTo($this->start_date)) {
+            return 'in_session';
+        }
+
+        // ── Admin-controlled application window ───────────────────────────────
+        if ($this->portal_open) {
+            if ($this->registration_closes_at !== null && $now->gt($this->registration_closes_at)) {
+                return 'closed';
+            }
+
+            return 'open';
+        }
+
+        return 'upcoming';
     }
 }

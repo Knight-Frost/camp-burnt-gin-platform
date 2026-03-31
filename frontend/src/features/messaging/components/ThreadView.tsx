@@ -21,19 +21,13 @@ import {
   type Conversation, type Message, type MessageAttachment,
 } from '@/features/messaging/api/messaging.api';
 import { Skeletons } from '@/ui/components/Skeletons';
-import { Avatar } from '@/ui/components/Avatar';
+import { Avatar, avatarBg } from '@/ui/components/Avatar';
 import { RichTextEditor } from './editor/RichTextEditor';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BRAND = '#16a34a';
 
-const PALETTE = ['#16a34a','#1d4ed8','#7c3aed','#0f766e','#b45309','#be123c','#0369a1','#4338ca'];
-function avatarBg(name: string): string {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return PALETTE[h % PALETTE.length];
-}
 function formatFileSize(bytes: number): string {
   if (!bytes) return '—';
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -281,8 +275,9 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
     setPreviewModal({ url, mimeType: att.mime_type, name: att.original_filename || 'Attachment' });
   }
 
-  const others      = conversation.participants.filter((p) => p.id !== currentUserId);
-  const displayName = isSystem ? 'Camp Burnt Gin' : (others.length > 0 ? others[0].name : 'Conversation');
+  const others        = conversation.participants.filter((p) => p.id !== currentUserId);
+  const displayName   = isSystem ? 'Camp Burnt Gin' : (others.length > 0 ? others[0].name : 'Conversation');
+  const displayAvatar = isSystem ? null : (others[0]?.avatar_url ?? null);
 
   return (
     <div className="flex flex-col h-full">
@@ -308,7 +303,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
             <Bot className="h-4 w-4" style={{ color: BRAND }} />
           </div>
         ) : (
-          <Avatar name={displayName} size="md" fallbackColor={avatarBg(displayName)} />
+          <Avatar src={displayAvatar} name={displayName} size="md" fallbackColor={avatarBg(displayName)} />
         )}
 
         <div className="flex-1 min-w-0">
@@ -366,7 +361,7 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                   />
                 ) : (
                   <>
-                    {!isMine && <Avatar name={senderName} size="md" fallbackColor={avatarBg(senderName)} />}
+                    {!isMine && <Avatar src={msg.sender?.avatar_url} name={senderName} size="md" fallbackColor={avatarBg(senderName)} />}
                     <div className={`max-w-[75%] flex flex-col gap-1 ${isMine ? 'items-end' : ''}`}>
                       {!isMine && (
                         <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>

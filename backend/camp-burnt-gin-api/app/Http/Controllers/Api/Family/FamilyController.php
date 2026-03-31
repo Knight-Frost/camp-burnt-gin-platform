@@ -109,7 +109,7 @@ class FamilyController extends Controller
 
         // ── Global aggregate stats (full filtered dataset, not the current page) ─
         // These run as separate lean queries against the same filtered user set.
-        $activeStatuses = ['pending', 'under_review', 'waitlisted', 'approved'];
+        $activeStatuses = ['submitted', 'under_review', 'waitlisted', 'approved'];
         $matchingUserIds = $applyFilters(User::query())->select('id');
 
         $summaryTotalCampers = Camper::whereIn('user_id', $matchingUserIds)->count();
@@ -150,7 +150,7 @@ class FamilyController extends Controller
             // Flatten all applications across all campers to compute aggregate stats.
             $allApplications = $user->campers->flatMap(fn ($c) => $c->applications);
 
-            $activeStatuses = ['pending', 'under_review', 'waitlisted', 'approved'];
+            $activeStatuses = ['submitted', 'under_review', 'waitlisted', 'approved'];
             $activeCount = $allApplications->filter(function ($app) use ($activeStatuses): bool {
                 $value = $app->status instanceof \BackedEnum ? $app->status->value : $app->status;
 

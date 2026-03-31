@@ -34,7 +34,8 @@ import {
 } from '@/features/messaging/api/messaging.api';
 import { useRichEditor, EditorBody, EditorToolbar } from './editor/RichTextEditor';
 import { ConfirmDialog } from '@/ui/overlay/ConfirmDialog';
-import { Avatar } from '@/ui/components/Avatar';
+import { Avatar, avatarBg } from '@/ui/components/Avatar';
+import { ROLE_LABELS, type RoleName } from '@/shared/constants/roles';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,15 +54,6 @@ interface Draft { subject: string; body: string }
 function saveDraft(d: Draft)       { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /**/ } }
 function loadDraft(): Draft | null { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') as Draft | null; } catch { return null; } }
 function clearDraft()              { try { localStorage.removeItem(DRAFT_KEY); } catch { /**/ } }
-
-// ─── Avatar helpers ───────────────────────────────────────────────────────────
-
-const PALETTE = ['#16a34a','#1d4ed8','#7c3aed','#0f766e','#b45309','#be123c','#0369a1','#4338ca'];
-function avatarBg(name: string): string {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return PALETTE[h % PALETTE.length];
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,7 +146,7 @@ function RecipientRow({
             >
               <Avatar name={u.name} size="sm" fallbackColor={avatarBg(u.name)} />
               <span className="text-sm" style={{ color: 'var(--foreground)' }}>{u.name}</span>
-              <span className="text-xs ml-auto" style={{ color: 'var(--muted-foreground)' }}>{u.role}</span>
+              <span className="text-xs ml-auto" style={{ color: 'var(--muted-foreground)' }}>{ROLE_LABELS[u.role as RoleName] ?? u.role}</span>
             </button>
           ))}
         </div>

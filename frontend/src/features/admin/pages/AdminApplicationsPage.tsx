@@ -26,7 +26,7 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
 import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBanner';
 
-const STATUS_FILTERS = ['all', 'draft', 'pending', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled'] as const;
+const STATUS_FILTERS = ['all', 'draft', 'submitted', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled'] as const;
 
 type SortKey = 'submitted_at' | 'status' | 'reviewed_at';
 

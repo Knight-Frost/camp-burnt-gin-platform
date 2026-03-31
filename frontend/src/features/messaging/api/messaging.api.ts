@@ -76,6 +76,7 @@ export interface ConversationParticipant {
   name: string;
   email: string;
   role: string;
+  avatar_url?: string | null;
 }
 
 export interface Message {

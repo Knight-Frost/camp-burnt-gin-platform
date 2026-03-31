@@ -195,7 +195,7 @@ class ApplicationAuthorizationTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create();
         $application = Application::factory()->create([
             'camper_id' => $camper->id,
-            'status' => ApplicationStatus::Pending,
+            'status' => ApplicationStatus::Submitted,
         ]);
 
         $response = $this->actingAs($parent)->putJson("/api/applications/{$application->id}", [

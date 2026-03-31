@@ -66,8 +66,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Account created successfully. Please check your email to verify your address.',
             'data' => [
-                // Load the `role` relationship so the frontend knows what the user can access.
-                'user' => $user->load('role'),
+                'user' => $this->buildUserArray($user->load('role')),
                 'token' => $token,
             ],
         ], Response::HTTP_CREATED);
@@ -125,7 +124,7 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Login successful.',
             'data' => [
-                'user' => $result['user'],
+                'user' => $this->buildUserArray($result['user']),
                 'token' => $result['token'],
             ],
         ]);
@@ -161,11 +160,24 @@ class AuthController extends Controller
     {
         $user = $request->user()->load('role');
 
+        return response()->json(['data' => $this->buildUserArray($user)]);
+    }
+
+    /**
+     * Convert a User model to a response-ready array with the computed avatar_url field.
+     *
+     * Laravel's toArray() only serialises database columns. avatar_url is a computed
+     * public Storage URL that must be appended manually. Centralising this here ensures
+     * login, register, and the /user endpoint all return an identical user shape so the
+     * frontend always has avatar_url regardless of which auth flow was used.
+     */
+    private function buildUserArray(User $user): array
+    {
         $data = $user->toArray();
         $data['avatar_url'] = $user->avatar_path
             ? Storage::disk('public')->url($user->avatar_path)
             : null;
 
-        return response()->json(['data' => $data]);
+        return $data;
     }
 }

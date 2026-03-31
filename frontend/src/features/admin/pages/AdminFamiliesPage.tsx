@@ -35,7 +35,7 @@ import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBan
 type AppStatus = FamilyCard['application_statuses'][number];
 
 const STATUS_STYLE: Record<AppStatus, { bg: string; color: string }> = {
-  pending:      { bg: 'rgba(107,114,128,0.12)', color: '#6b7280' },
+  submitted:    { bg: 'rgba(37,99,235,0.10)',   color: '#1d4ed8' },
   under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
   approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
   rejected:     { bg: 'rgba(220,38,38,0.12)',   color: '#dc2626' },
@@ -46,7 +46,7 @@ const STATUS_STYLE: Record<AppStatus, { bg: string; color: string }> = {
 
 function StatusChip({ status }: { status: AppStatus }) {
   const { t } = useTranslation();
-  const cfg = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
+  const cfg = STATUS_STYLE[status] ?? STATUS_STYLE.submitted;
   return (
     <span
       className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
@@ -105,7 +105,7 @@ function StatCard({ label, value, tooltip }: { label: string; value: number | st
 
 function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase: string }) {
   const { t } = useTranslation();
-  const activeStatuses: AppStatus[] = ['pending', 'under_review', 'waitlisted', 'approved'];
+  const activeStatuses: AppStatus[] = ['submitted', 'under_review', 'waitlisted', 'approved'];
   const activeStatusSet = new Set(
     family.application_statuses.filter((s) => activeStatuses.includes(s))
   );
@@ -360,7 +360,7 @@ export function AdminFamiliesPage() {
             style={{ color: 'var(--foreground)' }}
           >
             <option value="" style={{ background: 'var(--card)' }}>{t('admin_extra.all_statuses')}</option>
-            <option value="pending"      style={{ background: 'var(--card)' }}>{t('status_labels.pending')}</option>
+            <option value="submitted"    style={{ background: 'var(--card)' }}>{t('status_labels.submitted')}</option>
             <option value="under_review" style={{ background: 'var(--card)' }}>{t('status_labels.under_review')}</option>
             <option value="approved"     style={{ background: 'var(--card)' }}>{t('status_labels.approved')}</option>
             <option value="waitlisted"   style={{ background: 'var(--card)' }}>{t('status_labels.waitlisted')}</option>

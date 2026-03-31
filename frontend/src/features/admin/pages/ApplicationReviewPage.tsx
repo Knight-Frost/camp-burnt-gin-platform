@@ -935,8 +935,8 @@ function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelPr
                 buttons for every non-terminal application. */}
             <div className="flex flex-col gap-2">
 
-              {/* PENDING (Unreviewed) — single action: open the review */}
-              {currentStatus === 'pending' && (
+              {/* SUBMITTED (Unreviewed) — single action: open the review */}
+              {currentStatus === 'submitted' && (
                 <>
                   <div
                     className="rounded-lg px-3 py-2 text-xs"

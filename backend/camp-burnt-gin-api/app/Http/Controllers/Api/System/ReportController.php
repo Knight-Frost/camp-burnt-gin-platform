@@ -86,12 +86,12 @@ class ReportController extends Controller
             'data' => [
                 'total_campers' => Camper::count(),
                 'total_applications' => Application::count(),
-                // Full breakdown map, e.g. {"pending": 12, "accepted": 45, "rejected": 3}
+                // Full breakdown map, e.g. {"submitted": 12, "approved": 45, "rejected": 3}
                 'applications_by_status' => $apps,
                 // Individual status shortcuts for the dashboard counter cards.
                 'accepted_applications' => $apps['approved'] ?? 0,
-                // Group pending and under_review together as "awaiting action".
-                'pending_applications' => ($apps['pending'] ?? 0) + ($apps['under_review'] ?? 0),
+                // Group submitted and under_review together as "awaiting action".
+                'pending_applications' => ($apps['submitted'] ?? 0) + ($apps['under_review'] ?? 0),
                 'rejected_applications' => $apps['rejected'] ?? 0,
                 'sessions' => $sessions,
                 'applications_over_time' => $timeline,

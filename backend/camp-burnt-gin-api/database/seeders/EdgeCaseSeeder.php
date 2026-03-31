@@ -156,7 +156,7 @@ class EdgeCaseSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
@@ -655,7 +655,7 @@ class EdgeCaseSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
@@ -717,7 +717,7 @@ class EdgeCaseSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'first_application' => false,
                 'attended_before' => true,
@@ -813,7 +813,7 @@ class EdgeCaseSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
@@ -1036,7 +1036,7 @@ class EdgeCaseSeeder extends Seeder
         Application::firstOrCreate(
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,

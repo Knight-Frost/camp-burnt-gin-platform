@@ -30,7 +30,7 @@ export interface Session {
   capacity: number;
   enrolled_count: number;
   available_spots: number;
-  status: 'open' | 'closed' | 'waitlist' | 'cancelled';
+  status: 'open' | 'closed' | 'waitlist' | 'cancelled' | 'upcoming' | 'active' | 'completed';
   age_min?: number;
   age_max?: number;
   created_at: string;
@@ -76,7 +76,7 @@ export interface ComplianceStatus {
 // ---------------------------------------------------------------------------
 
 export type ApplicationStatus =
-  | 'pending'
+  | 'submitted'
   | 'under_review'
   | 'approved'
   | 'rejected'

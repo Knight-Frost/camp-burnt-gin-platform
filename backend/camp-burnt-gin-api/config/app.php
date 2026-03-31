@@ -137,4 +137,17 @@ return [
         'per_page' => env('PAGINATION_PER_PAGE', 15),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | The base URL of the React SPA. Used when the backend needs to generate
+    | links that users click (e.g., email verification, password reset).
+    | Must point to the Vite dev server in development (port 5173).
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+
 ];

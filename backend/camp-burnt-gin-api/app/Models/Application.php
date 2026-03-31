@@ -202,7 +202,7 @@ class Application extends Model
      * ⚠ NOT in $appends — executes 2 COUNT queries. Call via ->append('queue_position')
      *   only on single-record detail fetches (show()), never on list endpoints.
      *
-     * Active statuses: pending, under_review, waitlisted (approved/rejected/cancelled/withdrawn
+     * Active statuses: submitted, under_review, waitlisted (approved/rejected/cancelled/withdrawn
      * are terminal — those applications have left the queue).
      */
     public function getQueuePositionAttribute(): ?array
@@ -211,7 +211,7 @@ class Application extends Model
             return null;
         }
 
-        $activeStatuses = ['pending', 'under_review', 'waitlisted'];
+        $activeStatuses = ['submitted', 'under_review', 'waitlisted'];
 
         // Count how many active applications in this session were submitted before this one.
         // Tie-break by id ASC so the result is deterministic when two apps share a timestamp.

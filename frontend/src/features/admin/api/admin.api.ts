@@ -537,6 +537,16 @@ export const getSessionDashboard = async (id: number, signal?: AbortSignal): Pro
   return data.data;
 };
 
+export const activateSession = async (id: number): Promise<CampSession> => {
+  const { data } = await axiosInstance.post<ApiResponse<CampSession>>(`/sessions/${id}/activate`);
+  return data.data;
+};
+
+export const deactivateSession = async (id: number): Promise<CampSession> => {
+  const { data } = await axiosInstance.post<ApiResponse<CampSession>>(`/sessions/${id}/deactivate`);
+  return data.data;
+};
+
 export const archiveSession = async (id: number): Promise<void> => {
   await axiosInstance.post(`/sessions/${id}/archive`);
 };

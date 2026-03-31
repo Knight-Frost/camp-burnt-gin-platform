@@ -45,6 +45,7 @@ import type { OfficialFormTemplate, OfficialFormTypeKey } from '@/shared/types';
 import type { Document } from '@/features/parent/api/applicant.api';
 import { ROUTES } from '@/shared/constants/routes';
 import { Button } from '@/ui/components/Button';
+import { useAppSelector } from '@/store/hooks';
 
 // These form types are completed digitally — no upload required.
 const DIGITAL_FORM_TYPES: OfficialFormTypeKey[] = [
@@ -94,6 +95,8 @@ type AppStatus = 'submitted' | 'draft' | 'none';
 
 export function ApplicantOfficialFormsPage() {
   const { t } = useTranslation();
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const draftKey = `cbg_app_draft_${userId ?? 'anon'}`;
 
   const [forms, setForms]   = useState<OfficialFormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +121,7 @@ export function ApplicantOfficialFormsPage() {
         // Determine application completion status
         const hasSubmitted = apps.some((a) => !a.is_draft && a.submitted_at);
         const hasDraft     = apps.some((a) => a.is_draft);
-        const localDraft   = localStorage.getItem('cbg_app_draft');
+        const localDraft   = localStorage.getItem(draftKey);
         if (hasSubmitted) {
           setAppStatus('submitted');
         } else if (hasDraft || localDraft) {

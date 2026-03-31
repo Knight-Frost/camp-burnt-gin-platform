@@ -13,30 +13,40 @@ import {
   ArrowRight,
   Calendar,
   Check,
+  CheckCircle2,
   ChevronRight,
   Clock,
   FileText,
   Globe,
   Stethoscope,
-  Users,
+  Trash2,
+  PenLine,
+  AlertTriangle,
 } from 'lucide-react';
+import { formatDistanceToNow, parseISO as parseDateISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
-import { getSessions } from '@/features/parent/api/applicant.api';
+import {
+  getSessions,
+  getDrafts,
+  createDraft,
+  deleteDraft as apiDeleteDraft,
+  type ApplicationDraft,
+} from '@/features/parent/api/applicant.api';
 import type { Session } from '@/shared/types';
 import { ROUTES } from '@/shared/constants/routes';
 import { Button } from '@/ui/components/Button';
-
-const DRAFT_KEY = 'cbg_app_draft';
+import { useAppSelector } from '@/store/hooks';
+import { getSessionImage } from '@/features/sessions/utils/sessionImages';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDateRange(start: string, end: string): string {
-  const toDate = (d: string) => new Date(`${d}T12:00:00`);
-  const startStr = toDate(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const endStr   = toDate(end).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-  return `${startStr} – ${endStr}`;
+  try {
+    return `${format(parseISO(start), 'MMM d')} – ${format(parseISO(end), 'MMM d, yyyy')}`;
+  } catch {
+    return `${start} – ${end}`;
+  }
 }
 
 // Label key is resolved via t() inside the component — only visual props here.
@@ -47,7 +57,7 @@ function getSessionBadge(session: Session): BadgeConfig {
     session.capacity > 0
       ? (session.capacity - session.available_spots) / session.capacity
       : 1;
-  if (session.status === 'closed' || session.status === 'cancelled') {
+  if (session.status === 'closed' || session.status === 'cancelled' || session.status === 'completed') {
     return { labelKey: 'app_start.session_badge_closed',   color: '#6b7280', bg: 'rgba(107,114,128,0.10)', selectable: false };
   }
   if (session.status === 'waitlist') {
@@ -140,56 +150,77 @@ function ChecklistRow({
 export function ApplicationStartPage() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const draftKey = `cbg_app_draft_${userId ?? 'anon'}`;
 
-  const [sessions, setSessions]               = useState<Session[]>([]);
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  const [language, setLanguage]               = useState<'english' | 'spanish'>('english');
-  const [localDraft, setLocalDraft]           = useState<{ camperName: string | null } | null>(null);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessions, setSessions]                 = useState<Session[]>([]);
+  const [selectedSession, setSelectedSession]   = useState<Session | null>(null);
+  const [language, setLanguage]                 = useState<'english' | 'spanish'>('english');
+  const [serverDrafts, setServerDrafts]         = useState<ApplicationDraft[]>([]);
+  const [serverDraftsLoading, setServerDraftsLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading]   = useState(true);
+  const [startingNew, setStartingNew]           = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as {
-          s1?: { camper_first_name?: string; camper_last_name?: string };
-        };
-        const first = (parsed.s1?.camper_first_name ?? '').trim();
-        const last  = (parsed.s1?.camper_last_name  ?? '').trim();
-        setLocalDraft({ camperName: first || last ? `${first} ${last}`.trim() : null });
-      }
-    } catch { /* ignore corrupt draft */ }
-
     getSessions()
       .then((data) => setSessions(data.filter((s) => s.status !== 'cancelled')))
       .catch(() => setSessions([]))
       .finally(() => setSessionsLoading(false));
+
+    getDrafts()
+      .then(setServerDrafts)
+      .catch(() => setServerDrafts([]))
+      .finally(() => setServerDraftsLoading(false));
   }, []);
 
-  function startNew() {
-    if (!selectedSession) return;
-    i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
-    localStorage.removeItem(DRAFT_KEY);
-    navigate(ROUTES.PARENT_APPLICATION_NEW, {
-      state: { language, sessionId: selectedSession.id },
-    });
+  async function startNew() {
+    if (!selectedSession || startingNew) return;
+    setStartingNew(true);
+    try {
+      i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
+      const draft = await createDraft('New Application');
+      navigate(ROUTES.PARENT_APPLICATION_NEW, {
+        state: { language, sessionId: selectedSession.id, draftId: draft.id },
+      });
+    } catch {
+      // If server draft creation fails, fall back to localStorage-only mode
+      i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
+      navigate(ROUTES.PARENT_APPLICATION_NEW, {
+        state: { language, sessionId: selectedSession.id },
+      });
+    } finally {
+      setStartingNew(false);
+    }
   }
 
-  function continueDraft() {
-    navigate(ROUTES.PARENT_APPLICATION_NEW);
+  function continueDraft(draftId: number) {
+    navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { draftId } });
+  }
+
+  async function handleDeleteDraft(draftId: number, label: string) {
+    if (!window.confirm(`Delete "${label}"?\n\nThis will permanently delete this draft application. This cannot be undone.`)) return;
+    try {
+      await apiDeleteDraft(draftId);
+      setServerDrafts((prev) => prev.filter((d) => d.id !== draftId));
+      // Also clear any matching localStorage draft
+      localStorage.removeItem(draftKey);
+    } catch {
+      // Silently ignore — draft may have already been deleted
+    }
   }
 
   const canStartNew     = selectedSession !== null;
-  const activeSessions  = sessions.filter((s) => s.status === 'open' || s.status === 'waitlist');
-  const closedSessions  = sessions.filter((s) => s.status === 'closed');
+  const activeSessions  = sessions.filter((s) => s.status !== 'cancelled');
+  const closedSessions  = sessions.filter((s) => s.status === 'cancelled');
   const orderedSessions = [...activeSessions, ...closedSessions];
 
-  const progressLabel = localDraft
+  const hasDrafts    = serverDrafts.length > 0;
+  const progressLabel = hasDrafts
     ? t('app_start.panel_progress_draft')
     : canStartNew
     ? t('app_start.panel_progress_ready')
     : t('app_start.panel_progress_not_started');
-  const progressDot = localDraft ? '#d97706' : canStartNew ? '#16a34a' : '#9ca3af';
+  const progressDot = hasDrafts ? '#d97706' : canStartNew ? '#16a34a' : '#9ca3af';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -285,10 +316,16 @@ export function ApplicationStartPage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {orderedSessions.map((session) => {
                     const badge      = getSessionBadge(session);
                     const isSelected = selectedSession?.id === session.id;
+                    const photoUrl   = getSessionImage(session.id);
+                    const enrolled   = session.enrolled_count ?? 0;
+                    const fillPct    = session.capacity > 0
+                      ? Math.min(100, Math.round((enrolled / session.capacity) * 100))
+                      : 0;
+                    const fillColor  = fillPct >= 100 ? '#ef4444' : fillPct >= 80 ? '#f59e0b' : '#86efac';
 
                     return (
                       <button
@@ -298,74 +335,89 @@ export function ApplicationStartPage() {
                         onClick={() =>
                           badge.selectable && setSelectedSession(isSelected ? null : session)
                         }
-                        className="flex flex-col gap-3 rounded-2xl p-5 text-left transition-all duration-200"
+                        className="group text-left rounded-xl overflow-hidden transition-all duration-200 focus:outline-none"
                         style={{
-                          background:  isSelected ? 'rgba(22,163,74,0.04)' : 'var(--card)',
-                          border:      isSelected
+                          border: isSelected
                             ? '2px solid var(--ember-orange)'
                             : '2px solid var(--border)',
                           boxShadow: isSelected
-                            ? '0 0 0 4px rgba(22,163,74,0.06), var(--shadow-card-subtle)'
+                            ? '0 0 0 3px rgba(22,163,74,0.15), 0 8px 32px rgba(0,0,0,0.12)'
                             : 'var(--shadow-card-subtle)',
-                          opacity:  badge.selectable ? 1 : 0.45,
-                          cursor:   badge.selectable ? 'pointer' : 'not-allowed',
+                          opacity: badge.selectable ? 1 : 0.5,
+                          cursor:  badge.selectable ? 'pointer' : 'not-allowed',
                         }}
                       >
-                        {/* Name + selector */}
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className="text-sm font-semibold leading-snug flex-1"
-                            style={{ color: 'var(--foreground)' }}
-                          >
-                            {session.name}
-                          </p>
+                        {/* Photo header */}
+                        <div className="relative h-40 overflow-hidden">
+                          {/* Background photo — zooms on hover */}
                           <div
-                            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all duration-200"
-                            style={{
-                              background:  isSelected ? 'var(--ember-orange)' : 'transparent',
-                              borderColor: isSelected ? 'var(--ember-orange)' : 'var(--border)',
-                            }}
+                            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105"
+                            style={{ backgroundImage: `url(${photoUrl})` }}
+                            aria-hidden
+                          />
+                          {/* Gradient overlay */}
+                          <div
+                            className="absolute inset-0"
+                            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.28) 45%, rgba(0,0,0,0.72) 100%)' }}
+                            aria-hidden
+                          />
+                          {/* Status badge — top right */}
+                          <span
+                            className="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm"
+                            style={{ background: badge.bg, color: badge.color }}
                           >
-                            {isSelected && <Check className="h-2.5 w-2.5" style={{ color: '#ffffff' }} />}
+                            {t(badge.labelKey)}
+                          </span>
+                          {/* Selected checkmark — top left */}
+                          {isSelected && (
+                            <div
+                              className="absolute top-3 left-3 rounded-full p-0.5"
+                              style={{ background: 'rgba(255,255,255,0.92)' }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+                            </div>
+                          )}
+                          {/* Text overlay — bottom of photo */}
+                          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-6">
+                            <h3 className="font-headline font-bold text-sm leading-tight" style={{ color: '#fff' }}>
+                              {session.name}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <Calendar className="h-3 w-3 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.64)' }} />
+                              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.80)' }}>
+                                {formatDateRange(session.start_date, session.end_date)}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Dates */}
-                        <div className="flex items-center gap-1.5">
-                          <Calendar
-                            className="h-3.5 w-3.5 flex-shrink-0"
-                            style={{ color: 'var(--muted-foreground)' }}
-                          />
-                          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                            {formatDateRange(session.start_date, session.end_date)}
-                          </span>
-                        </div>
-
-                        {/* Status + spots */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                            style={{ background: badge.bg, color: badge.color }}
-                          >
-                            <span
-                              className="w-1.5 h-1.5 rounded-full inline-block"
-                              style={{ background: badge.color }}
-                            />
-                            {t(badge.labelKey)}
-                          </span>
-                          {session.available_spots > 0 && badge.selectable && (
-                            <span
-                              className="flex items-center gap-1 text-xs"
-                              style={{ color: 'var(--muted-foreground)' }}
-                            >
-                              <Users className="h-3 w-3" />
-                              {t(
-                                session.available_spots === 1
-                                  ? 'app_start.spots_left_one'
-                                  : 'app_start.spots_left_other',
-                                { count: session.available_spots }
-                              )}
-                            </span>
+                        {/* Card body — capacity */}
+                        <div className="px-4 py-3" style={{ background: 'var(--card)' }}>
+                          {session.capacity > 0 && (
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                  <span className="font-medium" style={{ color: 'var(--foreground)' }}>{enrolled}</span>
+                                  {' / '}{session.capacity} {t('app_start.spots_enrolled', 'enrolled')}
+                                </span>
+                                {session.available_spots > 0 && badge.selectable && (
+                                  <span className="text-xs font-medium" style={{ color: badge.color }}>
+                                    {t(
+                                      session.available_spots === 1
+                                        ? 'app_start.spots_left_one'
+                                        : 'app_start.spots_left_other',
+                                      { count: session.available_spots }
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{ width: `${fillPct}%`, background: fillColor }}
+                                />
+                              </div>
+                            </div>
                           )}
                         </div>
                       </button>
@@ -378,7 +430,7 @@ export function ApplicationStartPage() {
             {/* ── STEP 2: Language ─────────────────────────────────────────── */}
             <section>
               <div className="flex items-center gap-3 mb-6">
-                <StepBadge number={2} complete />
+                <StepBadge number={2} />
                 <div>
                   <p
                     className="text-base font-semibold leading-tight"
@@ -428,7 +480,7 @@ export function ApplicationStartPage() {
             {/* ── STEP 3: What You'll Need ──────────────────────────────────── */}
             <section>
               <div className="flex items-center gap-3 mb-6">
-                <StepBadge number={3} complete />
+                <StepBadge number={3} />
                 <div>
                   <p
                     className="text-base font-semibold leading-tight"
@@ -544,10 +596,121 @@ export function ApplicationStartPage() {
               </div>
             </section>
 
+            {/* ── In-Progress Applications (server drafts) ──────────────── */}
+            {(serverDraftsLoading || hasDrafts) && (
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(217,119,6,0.12)', border: '2px solid rgba(217,119,6,0.25)' }}
+                  >
+                    <PenLine className="h-3.5 w-3.5" style={{ color: '#d97706' }} />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
+                      Your In-Progress Applications
+                    </p>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      These are saved to your account — continue any time, from any device.
+                    </p>
+                  </div>
+                </div>
+
+                {serverDraftsLoading ? (
+                  <div className="flex flex-col gap-2">
+                    {[0, 1].map((i) => (
+                      <div
+                        key={i}
+                        className="h-16 rounded-xl animate-pulse"
+                        style={{ background: 'var(--muted)' }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {serverDrafts.map((draft) => {
+                      let relativeTime = '';
+                      try {
+                        relativeTime = formatDistanceToNow(parseDateISO(draft.updated_at), { addSuffix: true });
+                      } catch { relativeTime = ''; }
+
+                      return (
+                        <div
+                          key={draft.id}
+                          className="flex items-center gap-4 px-4 py-3 rounded-xl border"
+                          style={{
+                            background: 'var(--card)',
+                            borderColor: 'rgba(217,119,6,0.30)',
+                          }}
+                        >
+                          {/* Icon */}
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'rgba(217,119,6,0.10)' }}
+                          >
+                            <FileText className="h-4 w-4" style={{ color: '#d97706' }} />
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
+                              {draft.label}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span
+                                className="text-xs font-medium px-1.5 py-0.5 rounded-full"
+                                style={{ background: 'rgba(217,119,6,0.10)', color: '#b45309' }}
+                              >
+                                Draft — Not Submitted
+                              </span>
+                              {relativeTime && (
+                                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                  · Updated {relativeTime}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleDeleteDraft(draft.id, draft.label)}
+                              aria-label={`Delete draft: ${draft.label}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => continueDraft(draft.id)}
+                            >
+                              Continue
+                              <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div
+                  className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-lg"
+                  style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.15)' }}
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: '#b45309' }} />
+                  <p className="text-xs" style={{ color: '#92400e' }}>
+                    <strong>Each application is for one camper only.</strong> Starting a new application below will not affect these in-progress drafts.
+                  </p>
+                </div>
+              </section>
+            )}
+
             {/* ── STEP 4: Action Area ───────────────────────────────────────── */}
             <section className="pb-4">
               <div className="flex items-center gap-3 mb-6">
-                <StepBadge number={4} />
+                <StepBadge number={4} complete={canStartNew} />
                 <div>
                   <p
                     className="text-base font-semibold leading-tight"
@@ -563,106 +726,40 @@ export function ApplicationStartPage() {
                 </div>
               </div>
 
-              {localDraft ? (
-                /* DRAFT EXISTS ── Primary: continue  |  Secondary: start new */
-                <div className="flex flex-col gap-4">
-
-                  {/* Primary: Continue */}
-                  <div
-                    className="rounded-2xl p-6 flex flex-col gap-4"
-                    style={{
-                      background:  'rgba(22,163,74,0.04)',
-                      border:      '2px solid var(--border-ember)',
-                      boxShadow:   'var(--shadow-card-subtle)',
-                    }}
-                  >
-                    <div>
-                      <p className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
-                        {t('app_start.continue_title')}
-                      </p>
-                      <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                        {localDraft.camperName
-                          ? t('app_start.continue_desc_named', { name: localDraft.camperName })
-                          : t('app_start.continue_desc_generic')}
-                      </p>
-                    </div>
-                    <Button size="lg" onClick={continueDraft} fullWidth>
-                      {t('app_start.resume_btn')}
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
+              <div
+                className="rounded-2xl p-6 flex flex-col gap-4 transition-all duration-300"
+                style={{
+                  background: canStartNew ? 'rgba(22,163,74,0.03)' : 'var(--card)',
+                  border:     canStartNew ? '2px solid var(--border-ember)' : '2px solid var(--border)',
+                  boxShadow:  'var(--shadow-card-subtle)',
+                }}
+              >
+                {canStartNew && selectedSession && (
+                  <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--ember-orange)' }}>
+                    <Check className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-semibold">{selectedSession.name}</span>
+                    <span style={{ color: 'var(--muted-foreground)' }}>
+                      · {formatDateRange(selectedSession.start_date, selectedSession.end_date)}
+                    </span>
                   </div>
+                )}
 
-                  {/* Secondary: Start new */}
-                  <div
-                    className="rounded-2xl p-5 flex flex-col gap-3"
-                    style={{
-                      background:  'var(--card)',
-                      border:      '1px solid var(--border)',
-                      boxShadow:   'var(--shadow-card-subtle)',
-                    }}
-                  >
-                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                      {t('app_start.new_app_warning')}
-                    </p>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      disabled={!canStartNew}
-                      onClick={startNew}
-                      fullWidth
-                    >
-                      {t('app_start.start_new_btn')}
-                    </Button>
-                    {!canStartNew && (
-                      <p className="text-xs text-center" style={{ color: 'var(--muted-foreground)' }}>
-                        {t('app_start.select_session_hint')}
-                      </p>
-                    )}
-                  </div>
-
-                </div>
-              ) : (
-                /* NO DRAFT ── Single dominant CTA */
-                <div
-                  className="rounded-2xl p-6 flex flex-col gap-4 transition-all duration-300"
-                  style={{
-                    background:  canStartNew ? 'rgba(22,163,74,0.03)' : 'var(--card)',
-                    border:      canStartNew
-                      ? '2px solid var(--border-ember)'
-                      : '2px solid var(--border)',
-                    boxShadow: 'var(--shadow-card-subtle)',
-                  }}
+                <Button
+                  size="lg"
+                  disabled={!canStartNew || startingNew}
+                  onClick={startNew}
+                  fullWidth
                 >
-                  {canStartNew && selectedSession && (
-                    <div
-                      className="flex items-center gap-2 text-sm"
-                      style={{ color: 'var(--ember-orange)' }}
-                    >
-                      <Check className="h-4 w-4 flex-shrink-0" />
-                      <span className="font-semibold">{selectedSession.name}</span>
-                      <span style={{ color: 'var(--muted-foreground)' }}>
-                        · {formatDateRange(selectedSession.start_date, selectedSession.end_date)}
-                      </span>
-                    </div>
-                  )}
+                  {startingNew ? 'Starting…' : (hasDrafts ? t('app_start.start_another_btn', 'Start Another Application') : t('app_start.start_btn'))}
+                  {!startingNew && <ArrowRight className="h-4 w-4 ml-1" />}
+                </Button>
 
-                  <Button
-                    size="lg"
-                    disabled={!canStartNew}
-                    onClick={startNew}
-                    fullWidth
-                  >
-                    {t('app_start.start_btn')}
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-
-                  {!canStartNew && (
-                    <p className="text-xs text-center" style={{ color: 'var(--muted-foreground)' }}>
-                      {t('app_start.select_session_hint2')}
-                    </p>
-                  )}
-                </div>
-              )}
+                {!canStartNew && (
+                  <p className="text-xs text-center" style={{ color: 'var(--muted-foreground)' }}>
+                    {t('app_start.select_session_hint2')}
+                  </p>
+                )}
+              </div>
             </section>
 
           </div>

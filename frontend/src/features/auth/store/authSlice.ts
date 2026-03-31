@@ -118,6 +118,21 @@ const authSlice = createSlice({
     },
 
     /**
+     * Merge a partial update into the current user without replacing the whole object.
+     *
+     * Prefer this over setUser when only one or two fields change (e.g. after an
+     * avatar upload or a profile field save). Unlike `setUser({ ...authUser, ... })`,
+     * this reads from the *current* Immer-managed state inside the reducer, so it
+     * is immune to stale-closure bugs that occur when the caller spreads a
+     * render-time snapshot of the user.
+     */
+    patchUser(state, action: PayloadAction<Partial<User>>) {
+      if (state.user) {
+        Object.assign(state.user, action.payload);
+      }
+    },
+
+    /**
      * Full state reset — called on logout or when a 401 mid-session event fires.
      * Returns the initial state but with isLoading explicitly false so no spinner
      * appears after logout.
@@ -131,6 +146,7 @@ const authSlice = createSlice({
 // Export individual action creators so components can dispatch them
 export const {
   setUser,
+  patchUser,
   setToken,
   setMfaRequired,
   setMfaVerified,

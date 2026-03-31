@@ -149,7 +149,7 @@ class ApplicationController extends Controller
             $queueTotal = null;
             if ($request->filled('camp_session_id')) {
                 $queueTotal = Application::where('camp_session_id', $request->camp_session_id)
-                    ->whereIn('status', ['pending', 'under_review', 'waitlisted'])
+                    ->whereIn('status', ['submitted', 'under_review', 'waitlisted'])
                     ->where('is_draft', false)
                     ->count();
             }
@@ -234,8 +234,9 @@ class ApplicationController extends Controller
         $isDraft = $request->boolean('is_draft', false);
 
         $data['is_draft'] = $isDraft;
-        // All new applications start as Pending regardless of what the client sends.
-        $data['status'] = ApplicationStatus::Pending;
+        // All new applications start as Submitted regardless of what the client sends.
+        // Drafts also use Submitted as their status — the is_draft flag separates them.
+        $data['status'] = ApplicationStatus::Submitted;
 
         // Only stamp the submission timestamp when the application is actually submitted (not a draft).
         if (! $isDraft) {
@@ -396,12 +397,35 @@ class ApplicationController extends Controller
      *
      * DELETE /api/applications/{application}
      *
-     * Only administrators can delete applications via ApplicationPolicy.
-     * Applicants cannot delete their own applications once created.
+     * Admins can delete any application. Applicants can only delete their own
+     * draft (is_draft=true) applications — submitted applications are locked.
+     * See ApplicationPolicy::delete() for the authorization rules.
+     *
+     * All deletions are written to the audit log before the record is removed
+     * so there is always a permanent record of what was deleted, by whom, and when.
      */
     public function destroy(Application $application): JsonResponse
     {
         $this->authorize('delete', $application);
+
+        $user = request()->user();
+
+        // Capture snapshot before deletion for the audit trail.
+        AuditLog::logAdminAction(
+            'application.deleted',
+            $user,
+            "Application #{$application->id} deleted" .
+                ($application->is_draft ? ' (draft)' : ' (submitted)') .
+                " for camper #{$application->camper_id}",
+            [
+                'application_id' => $application->id,
+                'camper_id'      => $application->camper_id,
+                'session_id'     => $application->camp_session_id,
+                'status'         => $application->status?->value,
+                'is_draft'       => $application->is_draft,
+                'deleted_by'     => $user->id,
+            ]
+        );
 
         $application->delete();
 

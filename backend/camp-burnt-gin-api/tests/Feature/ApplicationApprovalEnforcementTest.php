@@ -49,7 +49,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
             ->for($this->camper)
             ->for($session, 'campSession')
             ->create([
-                'status' => ApplicationStatus::Pending,
+                'status' => ApplicationStatus::Submitted,
                 'is_draft' => false,
                 'submitted_at' => now(),
             ]);
@@ -76,7 +76,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
         // Verify application was NOT approved
         $this->application->refresh();
-        $this->assertEquals(ApplicationStatus::Pending, $this->application->status);
+        $this->assertEquals(ApplicationStatus::Submitted, $this->application->status);
     }
 
     public function test_approval_blocked_when_documents_unverified(): void
@@ -126,7 +126,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
         ]);
 
         $this->application->refresh();
-        $this->assertEquals(ApplicationStatus::Pending, $this->application->status);
+        $this->assertEquals(ApplicationStatus::Submitted, $this->application->status);
     }
 
     public function test_approval_blocked_when_documents_expired(): void
@@ -161,7 +161,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
         });
 
         $this->application->refresh();
-        $this->assertEquals(ApplicationStatus::Pending, $this->application->status);
+        $this->assertEquals(ApplicationStatus::Submitted, $this->application->status);
     }
 
     public function test_approval_succeeds_when_all_documents_valid(): void

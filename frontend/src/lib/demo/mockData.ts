@@ -201,7 +201,7 @@ export const CAMPERS = [
     tshirt_size: 'XS',
     created_at: '2026-01-20T00:00:00Z',
     user: { id: 205, name: 'Lisa Washington', email: 'lwashington@example.com' },
-    applications: [{ id: 6, camp_session_id: 1, status: 'pending', session: SESSIONS[0] }],
+    applications: [{ id: 6, camp_session_id: 1, status: 'submitted', session: SESSIONS[0] }],
   },
   {
     id: 7,
@@ -279,7 +279,7 @@ export const CAMPERS = [
     tshirt_size: 'L',
     created_at: '2026-02-03T00:00:00Z',
     user: { id: 210, name: 'Denise Greene', email: 'dgreene@example.com' },
-    applications: [{ id: 12, camp_session_id: 3, status: 'pending', session: SESSIONS[2] }],
+    applications: [{ id: 12, camp_session_id: 3, status: 'submitted', session: SESSIONS[2] }],
   },
 ];
 
@@ -367,7 +367,7 @@ export const APPLICATIONS = [
     id: 6,
     camper_id: 6,
     camp_session_id: 1,
-    status: 'pending',
+    status: 'submitted',
     notes: '',
     submitted_at: '2026-01-21T12:00:00Z',
     reviewed_at: null,
@@ -457,7 +457,7 @@ export const APPLICATIONS = [
     id: 12,
     camper_id: 12,
     camp_session_id: 3,
-    status: 'pending',
+    status: 'submitted',
     notes: '',
     submitted_at: '2026-02-04T14:00:00Z',
     reviewed_at: null,
@@ -1221,7 +1221,7 @@ export const AUDIT_LOG_ENTRIES = [
     auditable_type: 'Application',
     auditable_id: 2,
     entity_label: 'Application #2 — Maya Chen',
-    old_values: { status: 'pending' },
+    old_values: { status: 'submitted' },
     new_values: { status: 'approved' },
     metadata: null,
     ip_address: '127.0.0.1',
@@ -1374,7 +1374,7 @@ export const SESSION_DASHBOARDS: Record<number, object> = {
     capacity_stats: { capacity: 30, enrolled: 24, remaining: 6, fill_pct: 80, is_at_capacity: false },
     application_stats: { total_submitted: 6, pending: 1, under_review: 1, approved: 3, rejected: 1, waitlisted: 0, cancelled: 0, acceptance_rate: 60 },
     recent_applications: [
-      { id: 6, camper_name: 'Noah Washington', status: 'pending', submitted_at: '2026-01-21T12:00:00Z' },
+      { id: 6, camper_name: 'Noah Washington', status: 'submitted', submitted_at: '2026-01-21T12:00:00Z' },
       { id: 5, camper_name: 'Ava Thompson', status: 'under_review', submitted_at: '2026-01-19T09:00:00Z' },
       { id: 8, camper_name: 'Ethan Taylor', status: 'rejected', submitted_at: '2026-01-23T08:00:00Z' },
       { id: 2, camper_name: 'Maya Chen', status: 'approved', submitted_at: '2026-01-13T10:05:00Z' },
@@ -1399,7 +1399,7 @@ export const SESSION_DASHBOARDS: Record<number, object> = {
     capacity_stats: { capacity: 30, enrolled: 18, remaining: 12, fill_pct: 60, is_at_capacity: false },
     application_stats: { total_submitted: 3, pending: 1, under_review: 0, approved: 2, rejected: 0, waitlisted: 0, cancelled: 0, acceptance_rate: 67 },
     recent_applications: [
-      { id: 12, camper_name: 'Marcus Greene', status: 'pending', submitted_at: '2026-02-04T14:00:00Z' },
+      { id: 12, camper_name: 'Marcus Greene', status: 'submitted', submitted_at: '2026-02-04T14:00:00Z' },
       { id: 11, camper_name: 'Zoe Patel', status: 'approved', submitted_at: '2026-02-02T10:00:00Z' },
       { id: 4, camper_name: 'Liam Rodriguez', status: 'approved', submitted_at: '2026-01-16T16:30:00Z' },
     ],
@@ -1471,7 +1471,7 @@ export const MEDICAL_FOLLOW_UPS = [
     // title matches MedicalFollowUp.title (required); description kept as alias
     title: 'Neurologist Clearance Required',
     description: 'Neurologist report required before final clearance.',
-    status: 'pending' as const,
+    status: 'submitted' as const,
     priority: 'high' as const,
     due_date: '2026-04-01',
     created_at: '2026-03-19T09:00:00Z',

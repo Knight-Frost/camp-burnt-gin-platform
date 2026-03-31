@@ -299,7 +299,7 @@ class ApplicationService
             return Application::create([
                 'camper_id' => $source->camper_id,
                 'reapplied_from_id' => $source->id,
-                'status' => \App\Enums\ApplicationStatus::Pending,
+                'status' => \App\Enums\ApplicationStatus::Submitted,
                 'is_draft' => true,
                 'form_definition_id' => \App\Models\FormDefinition::where('status', 'active')->value('id'),
             ]);

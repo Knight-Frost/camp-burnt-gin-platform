@@ -105,13 +105,24 @@ class ApplicationPolicy
     /**
      * Can the user delete an application?
      *
-     * Only admins can permanently delete applications for data-integrity reasons.
-     * Parents may cancel an application through a separate workflow, but they
-     * cannot remove the record entirely.
+     * Admins can delete any application.
+     *
+     * Applicants may delete their own application only when it is still a DRAFT
+     * (is_draft = true). Once submitted, an application is locked from deletion
+     * by the parent — they can only withdraw it through the dedicated endpoint.
+     * This prevents accidental loss of submitted application history.
      */
     public function delete(User $user, Application $application): bool
     {
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
+            return $application->is_draft === true;
+        }
+
+        return false;
     }
 
     /**
@@ -151,7 +162,7 @@ class ApplicationPolicy
         }
 
         return in_array($application->status, [
-            ApplicationStatus::Pending,
+            ApplicationStatus::Submitted,
             ApplicationStatus::UnderReview,
             ApplicationStatus::Approved,
             ApplicationStatus::Waitlisted,
