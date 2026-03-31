@@ -51,14 +51,17 @@ class EmailVerificationController extends Controller
             'signature' => ['required', 'string'],
         ]);
 
-        // Reconstruct the verification route URL using the id and hash from the request body.
-        // Validate the signed URL parameters against the backend verification route.
-        $signedRoute = route('verification.verify', [
-            'id' => $request->integer('id'),
-            'hash' => $request->string('hash'),
-        ]);
-        // Append the expiry and signature query params to form the full signed URL string.
-        $urlToVerify = $signedRoute.'?expires='.$request->integer('expires').'&signature='.$request->string('signature');
+        // Reconstruct the signed URL in the exact format Laravel produced when signing.
+        // Laravel's signedRoute() calls ksort() on all parameters before computing the HMAC,
+        // so params must appear in alphabetical order: expires, hash, id, signature.
+        // The route has no path params, so we build the query string manually.
+        $params = [
+            'expires' => $request->integer('expires'),
+            'hash'    => (string) $request->string('hash'),
+            'id'      => $request->integer('id'),
+        ];
+        ksort($params);
+        $urlToVerify = route('verification.verify').'?'.http_build_query($params).'&signature='.$request->string('signature');
 
         // Ask Laravel's URL facade to confirm the HMAC signature is valid and hasn't expired.
         if (! \Illuminate\Support\Facades\URL::hasValidSignature(

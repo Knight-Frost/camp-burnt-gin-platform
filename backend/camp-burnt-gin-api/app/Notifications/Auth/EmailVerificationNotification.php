@@ -68,9 +68,8 @@ class EmailVerificationNotification extends Notification
 
         // Redirect the user to the frontend React page, passing all the signature params
         // The frontend will then call the backend API to complete verification
-        $verifyUrl = config('app.frontend_url').'/verify-email?'.$query
-            .'&id='.$notifiable->getKey()
-            .'&hash='.sha1($notifiable->getEmailForVerification());
+        // Note: $query already contains id, hash, expires, and signature from temporarySignedRoute()
+        $verifyUrl = config('app.frontend_url').'/verify-email?'.$query;
 
         return (new MailMessage)
             ->subject('Verify Your Email Address - Camp Burnt Gin')
