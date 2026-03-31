@@ -224,9 +224,10 @@
   html {
     font-size: var(--font-size);
     scroll-behavior: smooth;
-    /* Fallback background for non-dashboard pages (login, register, etc.).
-       Body is transparent so position:fixed z-index:-1 backgrounds can show through. */
-    background-color: var(--background);
+    /* Fallback background — dark so the 1-frame gap during route transitions
+       doesn't flash white. Both AuthLayout and DashboardShell use position:fixed
+       background images; this is only visible if neither has painted yet. */
+    background-color: #111;
     /* Lock the document from ever scrolling. All scrolling is delegated to
        the <main> scroll container inside DashboardShell. Without this, macOS
        elastic overscroll propagates from <main> to the document, physically
@@ -237,7 +238,7 @@
   }
 
   body {
-    background: #ffffff;
+    background: #111;
     overflow: hidden;
     height: 100%;
     color: var(--foreground);

@@ -83,7 +83,7 @@ function getActivityMessage(status: string, camperName: string): string {
     case 'rejected':     return `${camperName}'s application was not approved`;
     case 'waitlisted':   return `${camperName} was added to the waitlist`;
     case 'under_review': return `${camperName}'s application is under review`;
-    case 'pending':      return `New application submitted for ${camperName}`;
+    case 'submitted':    return `New application submitted for ${camperName}`;
     default:             return `Application updated for ${camperName}`;
   }
 }

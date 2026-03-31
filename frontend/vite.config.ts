@@ -64,6 +64,12 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
+        // Fail fast if the backend is unresponsive — prevents indefinite hangs
+        // when php artisan serve is slow or not yet running. Without these,
+        // a single stuck request blocks the browser connection indefinitely,
+        // triggering useAuthInit's 20-second retry cascade.
+        timeout: 10000,
+        proxyTimeout: 10000,
       },
     },
   },

@@ -93,8 +93,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
     } catch {
       // Silently ignore logout errors — clear local state regardless
     } finally {
-      dispatch(clearAuth());
       navigate(ROUTES.LOGIN, { replace: true });
+      dispatch(clearAuth());
       toast.success(t('sidebar.signed_out'));
     }
   };

@@ -88,8 +88,8 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
     } catch {
       // ignore logout API errors
     }
-    dispatch(clearAuth());
     navigate(ROUTES.LOGIN, { replace: true });
+    dispatch(clearAuth());
     toast.success(t('sidebar.signed_out'));
   };
 

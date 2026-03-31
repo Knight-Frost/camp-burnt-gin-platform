@@ -128,7 +128,7 @@ function ShellInner({
             tabIndex={-1}
             style={{ background: 'var(--dash-main-bg)', overscrollBehavior: 'none' }}
           >
-            <div key={location.pathname} style={{ animation: 'pageIn 160ms ease-out backwards' }}>
+            <div key={location.pathname}>
               {children}
             </div>
           </main>
