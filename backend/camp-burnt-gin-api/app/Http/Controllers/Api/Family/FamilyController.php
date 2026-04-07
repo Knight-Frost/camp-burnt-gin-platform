@@ -101,7 +101,8 @@ class FamilyController extends Controller
                         'applications' => fn ($q2) => $q2
                             ->select(['id', 'camper_id', 'status', 'camp_session_id', 'submitted_at', 'created_at'])
                             ->with('campSession:id,name')
-                            ->latest(),
+                            ->latest()
+                            ->limit(5), // Prevent loading hundreds of historical applications per camper on list view
                     ]),
             ])
             ->orderBy('name')
@@ -216,14 +217,16 @@ class FamilyController extends Controller
             return response()->json(['message' => 'Family not found.'], 404);
         }
 
-        // Load all campers belonging to this guardian, with each camper's full application
-        // history sorted newest-first, plus session details for each application.
+        // Load all campers belonging to this guardian, with each camper's application
+        // history sorted newest-first (capped at 50 per camper to bound payload size
+        // for families with many historical applications), plus session details.
         // No medical data is loaded — PHI stays off this endpoint.
         $user->load([
             'campers' => fn ($q) => $q->with([
                 'applications' => fn ($q2) => $q2
                     ->with('campSession:id,name,start_date,end_date,is_active')
-                    ->latest(),
+                    ->latest()
+                    ->limit(50),
             ]),
         ]);
 

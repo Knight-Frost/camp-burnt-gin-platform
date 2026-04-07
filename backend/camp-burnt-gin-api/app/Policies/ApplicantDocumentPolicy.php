@@ -16,13 +16,14 @@ use App\Models\User;
 class ApplicantDocumentPolicy
 {
     /**
-     * Can the user browse the full document list?
+     * Can the user browse the document list?
      *
-     * Only admins and super admins may see the full list.
+     * Admins see the full list across all applicants.
+     * Applicants may list their own documents (query is scoped in the controller).
      */
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->role?->name === 'applicant';
     }
 
     /**

@@ -592,12 +592,17 @@ Full frontend reference: [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md
 
 ## 11. Running the System
 
+**All four processes must be running for full functionality.** Real-time messaging requires Reverb. Email delivery requires the queue worker.
+
 ### Start Backend API
 
 ```bash
 cd backend/camp-burnt-gin-api
 php artisan serve
 # API available at http://localhost:8000
+
+# To also serve the API on your LAN IP (for testing from other devices):
+php artisan serve --host=0.0.0.0
 ```
 
 ### Start Queue Worker
@@ -608,12 +613,30 @@ The queue worker processes background jobs (email dispatch, notification deliver
 php artisan queue:work --queue=default
 ```
 
+### Start Reverb WebSocket Server
+
+**Required for real-time messaging.** Without this, message toast notifications and inbox badge updates will not work. The first time you start Reverb, run `php artisan reverb:install` if the package is not yet installed.
+
+```bash
+cd backend/camp-burnt-gin-api
+php artisan reverb:start
+# WebSocket server listening on 0.0.0.0:8080 (all interfaces)
+# Reachable at ws://localhost:8080 locally
+# Reachable at ws://<your-lan-ip>:8080 from other devices on the network
+```
+
 ### Start Frontend Development Server
 
 ```bash
 cd frontend
 pnpm run dev
-# Application available at http://localhost:5173
+# Application available at:
+#   http://localhost:5173       (local browser)
+#   http://<your-lan-ip>:5173  (other devices on the same network)
+#
+# The frontend is automatically reachable via LAN IP — no extra config needed.
+# WebSocket connections from LAN devices also work automatically because
+# echo.ts resolves wsHost from window.location.hostname at runtime.
 ```
 
 ### Combined Development (via Composer script)
@@ -622,7 +645,16 @@ pnpm run dev
 cd backend/camp-burnt-gin-api
 composer dev
 # Starts API server, queue worker, log tail, and Vite dev server concurrently
+# Note: add `php artisan reverb:start` to the Procfile if not already present
 ```
+
+### ERR_ADDRESS_UNREACHABLE on a LAN IP?
+
+If the browser shows `ERR_ADDRESS_UNREACHABLE` when accessing `http://<lan-ip>:5173`:
+
+1. **Verify the Vite dev server is running** (`pnpm run dev` in `frontend/`).
+2. **Check macOS firewall** — System Settings → Network → Firewall → Options. If the firewall blocks incoming connections, add Node.js/Vite as an exception, or temporarily disable it for testing.
+3. **Verify the LAN IP** — run `ipconfig getifaddr en0` (Wi-Fi) or `ipconfig getifaddr en1` (Ethernet) to confirm the machine's current IP matches what you are accessing.
 
 ### Production Build (Frontend)
 

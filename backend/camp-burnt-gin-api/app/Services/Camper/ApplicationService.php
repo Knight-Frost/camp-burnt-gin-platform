@@ -295,14 +295,39 @@ class ApplicationService
      */
     public function cloneApplication(Application $source, User $requestedBy): Application
     {
-        return DB::transaction(function () use ($source) {
-            return Application::create([
+        // Verify the requesting user owns the camper this application belongs to.
+        // Admins are always permitted. For parents, the camper must belong to them.
+        if (! $requestedBy->isAdmin()) {
+            $ownerUserId = $source->camper->user_id ?? $source->camper()->value('user_id');
+            if ((int) $ownerUserId !== (int) $requestedBy->id) {
+                throw new \Illuminate\Auth\Access\AuthorizationException(
+                    'You may only reapply for your own campers.'
+                );
+            }
+        }
+
+        return DB::transaction(function () use ($source, $requestedBy) {
+            $draft = Application::create([
                 'camper_id' => $source->camper_id,
                 'reapplied_from_id' => $source->id,
                 'status' => \App\Enums\ApplicationStatus::Submitted,
                 'is_draft' => true,
                 'form_definition_id' => \App\Models\FormDefinition::where('status', 'active')->value('id'),
             ]);
+
+            AuditLog::logAdminAction(
+                action: 'application.reapply',
+                user: $requestedBy,
+                description: "Draft application #{$draft->id} created as reapplication from "
+                             ."application #{$source->id} by user #{$requestedBy->id}.",
+                metadata: [
+                    'new_application_id' => $draft->id,
+                    'source_application_id' => $source->id,
+                    'camper_id' => $source->camper_id,
+                ]
+            );
+
+            return $draft;
         });
     }
 

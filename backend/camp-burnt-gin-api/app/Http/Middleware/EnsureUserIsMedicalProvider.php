@@ -52,7 +52,17 @@ class EnsureUserIsMedicalProvider
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // User is either medical staff or an admin — allow the request through.
+        // MFA gate: medical providers (and admins) must have MFA enrolled before
+        // accessing clinical PHI routes. This matches the check in EnsureUserIsAdmin
+        // and EnsureUserHasRole so all privileged roles are consistently enforced.
+        if (! $user->mfa_enabled) {
+            return response()->json([
+                'message' => 'Multi-factor authentication is required to access this resource. Please set up MFA on your profile.',
+                'mfa_setup_required' => true,
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // User is either medical staff or an admin with MFA enrolled — allow through.
         return $next($request);
     }
 }

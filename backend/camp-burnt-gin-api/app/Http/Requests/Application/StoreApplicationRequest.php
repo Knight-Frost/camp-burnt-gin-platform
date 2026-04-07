@@ -71,7 +71,11 @@ class StoreApplicationRequest extends FormRequest
             'camp_session_id' => [
                 'required',
                 'integer',
-                'exists:camp_sessions,id',
+                // Admins can create applications for any session (open or closed).
+                // Applicants may only submit to sessions with portal_open=true and is_active=true.
+                $this->user()?->isAdmin()
+                    ? 'exists:camp_sessions,id'
+                    : Rule::exists('camp_sessions', 'id')->where('portal_open', true)->where('is_active', true),
                 Rule::unique('applications')->where(function ($query) {
                     return $query->where('camper_id', $this->input('camper_id'));
                 }),
@@ -90,8 +94,9 @@ class StoreApplicationRequest extends FormRequest
             'first_application' => ['nullable', 'boolean'],
             'attended_before' => ['nullable', 'boolean'],
             'session_id_second' => ['nullable', 'integer', 'exists:camp_sessions,id'],
-            // camp_session_id_second is the canonical column name (mapped from session_id_second via prepareForValidation)
-            'camp_session_id_second' => ['nullable', 'integer', 'exists:camp_sessions,id'],
+            // camp_session_id_second is the canonical column name (mapped from session_id_second via prepareForValidation).
+            // The 'different' rule ensures the second choice cannot duplicate the first choice.
+            'camp_session_id_second' => ['nullable', 'integer', 'exists:camp_sessions,id', 'different:camp_session_id'],
         ];
     }
 
@@ -104,8 +109,9 @@ class StoreApplicationRequest extends FormRequest
     {
         return [
             'camper_id.exists' => 'The selected camper is invalid or does not belong to you.',
-            'camp_session_id.exists' => 'The selected camp session does not exist.',
+            'camp_session_id.exists' => 'The selected camp session is not currently accepting applications.',
             'camp_session_id.unique' => 'An application for this camper and session already exists.',
+            'camp_session_id_second.different' => 'Your second session choice must be different from your first choice.',
         ];
     }
 }

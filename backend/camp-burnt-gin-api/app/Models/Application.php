@@ -249,6 +249,18 @@ class Application extends Model
     }
 
     /**
+     * Get the second-choice camp session for this application.
+     *
+     * Populated by the application form when the parent selects a fallback session.
+     * Null when no second choice was provided. The foreign key (camp_session_id_second)
+     * uses nullOnDelete so this becomes null if that session is ever deleted.
+     */
+    public function secondSession(): BelongsTo
+    {
+        return $this->belongsTo(CampSession::class, 'camp_session_id_second');
+    }
+
+    /**
      * Get the form definition version that was active when this application was submitted.
      *
      * Null means the application predates the dynamic form system (Phase 14).

@@ -212,3 +212,126 @@ describe('RichTextEditor source structure', () => {
     expect(editorSrc).toContain("title=\"Numbered list\"");
   });
 });
+
+// ─── Unread count system integrity guards ─────────────────────────────────────
+//
+// These static checks enforce the correct timing for the 'messaging:unread-changed'
+// event. The event MUST be dispatched only AFTER the server operation completes —
+// never before — to prevent ghost badge counts.
+
+describe('unread count — event dispatch timing', () => {
+  const inboxSrc    = readFileSync(resolve(__dirname, '../pages/InboxPage.tsx'), 'utf-8');
+  const threadSrc   = readFileSync(resolve(__dirname, '../components/ThreadView.tsx'), 'utf-8');
+
+  test('openConversation does NOT dispatch messaging:unread-changed (premature dispatch guard)', () => {
+    // Extract the openConversation function body.
+    // The event must NOT be dispatched (window.dispatchEvent) here — the server
+    // hasn't written read receipts yet. Comments mentioning the event name are fine.
+    const fnMatch = inboxSrc.match(/function openConversation[\s\S]*?^  \}/m);
+    expect(fnMatch, 'openConversation function not found').not.toBeNull();
+    const fnBody = fnMatch![0];
+    // Look for an actual dispatch call, not just the event name appearing in a comment.
+    expect(fnBody).not.toMatch(/window\.dispatchEvent/);
+  });
+
+  test('ThreadView dispatches messaging:unread-changed inside getMessages .then() handler', () => {
+    // The event must fire AFTER getMessages resolves — that is when the server has
+    // committed the read receipts (auto-marked during the message list fetch).
+    expect(threadSrc).toContain('messaging:unread-changed');
+    // The dispatch must be inside the .then() callback, not before getMessages is called.
+    const thenIdx = threadSrc.indexOf('.then((res) => {');
+    const eventIdx = threadSrc.indexOf('messaging:unread-changed');
+    expect(thenIdx).toBeGreaterThan(0);
+    expect(eventIdx).toBeGreaterThan(thenIdx);
+  });
+
+  test('ThreadView guards event on hadUnread — never fires for already-read conversations', () => {
+    // Fires only when the conversation actually had unread messages.
+    expect(threadSrc).toContain('hadUnread');
+    expect(threadSrc).toMatch(/hadUnread.*messaging:unread-changed|messaging:unread-changed.*hadUnread/s);
+  });
+
+  test('handleMarkRead dispatches event after successful API call', () => {
+    // Event must come AFTER the await markConversationAsRead(id), not before.
+    const markReadMatch = inboxSrc.match(/async function handleMarkRead[\s\S]*?^  \}/m);
+    expect(markReadMatch).not.toBeNull();
+    const fnBody = markReadMatch![0];
+    expect(fnBody).toContain('messaging:unread-changed');
+    // The await must come before the dispatch.
+    const awaitIdx    = fnBody.indexOf('await markConversationAsRead');
+    const dispatchIdx = fnBody.indexOf('messaging:unread-changed');
+    expect(awaitIdx).toBeGreaterThan(0);
+    expect(dispatchIdx).toBeGreaterThan(awaitIdx);
+  });
+
+  test('handleBulkMarkRead dispatches event after API calls complete', () => {
+    const bulkMatch = inboxSrc.match(/async function handleBulkMarkRead[\s\S]*?^  \}/m);
+    expect(bulkMatch).not.toBeNull();
+    const fnBody = bulkMatch![0];
+    expect(fnBody).toContain('messaging:unread-changed');
+    const promiseIdx  = fnBody.indexOf('Promise.all');
+    const dispatchIdx = fnBody.indexOf('messaging:unread-changed');
+    expect(promiseIdx).toBeGreaterThan(0);
+    expect(dispatchIdx).toBeGreaterThan(promiseIdx);
+  });
+});
+
+describe('unread count — single source of truth (context)', () => {
+  const UI_CONTEXT_DIR = resolve(__dirname, '../../../ui/context');
+  const contextSrc = readFileSync(resolve(UI_CONTEXT_DIR, 'MessagingCountContext.tsx'), 'utf-8');
+  const headerSrc  = readFileSync(resolve(__dirname, '../../../ui/layout/DashboardHeader.tsx'), 'utf-8');
+  const adminSrc   = readFileSync(resolve(__dirname, '../../../ui/layout/AdminLayout.tsx'), 'utf-8');
+  const superSrc   = readFileSync(resolve(__dirname, '../../../ui/layout/SuperAdminLayout.tsx'), 'utf-8');
+
+  test('MessagingCountContext exports MessagingCountProvider and useUnreadMessageCount', () => {
+    expect(contextSrc).toContain('export function MessagingCountProvider');
+    expect(contextSrc).toContain('export function useUnreadMessageCount');
+  });
+
+  test('context has exactly ONE event listener for messaging:unread-changed', () => {
+    const listenerCount = (contextSrc.match(/addEventListener.*messaging:unread-changed/g) ?? []).length;
+    expect(listenerCount).toBe(1);
+  });
+
+  test('DashboardHeader consumes useUnreadMessageCount from context, not its own fetch', () => {
+    expect(headerSrc).toContain('useUnreadMessageCount');
+    // Must NOT independently call getUnreadCount — that would duplicate the fetch.
+    expect(headerSrc).not.toContain("getUnreadCount()");
+    expect(headerSrc).not.toContain("getUnreadMessageCount()");
+  });
+
+  test('AdminLayout consumes useUnreadMessageCount from context, not its own fetch', () => {
+    expect(adminSrc).toContain('useUnreadMessageCount');
+    expect(adminSrc).not.toContain("getUnreadCount()");
+  });
+
+  test('SuperAdminLayout consumes useUnreadMessageCount from context, not its own fetch', () => {
+    expect(superSrc).toContain('useUnreadMessageCount');
+    expect(superSrc).not.toContain("getUnreadCount()");
+  });
+
+  test('DashboardHeader uses meta.unread_count for notification bell (not local page filter)', () => {
+    // Local filter: res.data.filter((n) => !n.read_at).length  — WRONG (paginated to 15)
+    // Server count:  res.meta.unread_count                      — CORRECT
+    expect(headerSrc).toContain('meta.unread_count');
+    expect(headerSrc).not.toMatch(/\.data\.filter.*read_at/);
+  });
+});
+
+describe('unread count — badge visibility rules', () => {
+  const sidebarSrc = readFileSync(resolve(__dirname, '../../../ui/layout/DashboardSidebar.tsx'), 'utf-8');
+  const headerSrc  = readFileSync(resolve(__dirname, '../../../ui/layout/DashboardHeader.tsx'), 'utf-8');
+
+  test('sidebar badge only renders when badge > 0', () => {
+    // The badge pill must be conditional on a positive value.
+    expect(sidebarSrc).toMatch(/item\.badge.*>\s*0|item\.badge\s*!=.*null.*item\.badge\s*>/);
+  });
+
+  test('bell badge dot only renders when unreadCount > 0', () => {
+    expect(headerSrc).toMatch(/unreadCount\s*>\s*0/);
+  });
+
+  test('bell unreadCount is a sum of both notification and message counts', () => {
+    expect(headerSrc).toContain('unreadNotifications + unreadMessageCount');
+  });
+});

@@ -41,6 +41,7 @@ class CampSessionFactory extends Factory
             'registration_opens_at' => now()->subMonth(),
             'registration_closes_at' => $startDate,
             'is_active' => true,
+            'portal_open' => true,
         ];
     }
 
@@ -51,6 +52,16 @@ class CampSessionFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_active' => false,
+        ]);
+    }
+
+    /**
+     * Create a session with the registration portal closed.
+     */
+    public function portalClosed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'portal_open' => false,
         ]);
     }
 }

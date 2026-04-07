@@ -39,9 +39,9 @@ class ConversationTest extends TestCase
         $this->medicalRole = Role::firstOrCreate(['name' => 'medical'], ['description' => 'Medical Provider']);
 
         // Create users with roles
-        $this->admin = User::factory()->create(['role_id' => $this->adminRole->id]);
+        $this->admin = User::factory()->create(['role_id' => $this->adminRole->id, 'mfa_enabled' => true]);
         $this->parent = User::factory()->create(['role_id' => $this->parentRole->id]);
-        $this->medicalProvider = User::factory()->create(['role_id' => $this->medicalRole->id]);
+        $this->medicalProvider = User::factory()->create(['role_id' => $this->medicalRole->id, 'mfa_enabled' => true]);
     }
 
     #[Test]

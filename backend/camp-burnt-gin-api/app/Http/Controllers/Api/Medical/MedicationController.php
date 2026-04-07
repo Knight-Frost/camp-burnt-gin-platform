@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Medical;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Medication\StoreMedicationRequest;
 use App\Http\Requests\Medication\UpdateMedicationRequest;
+use App\Models\AuditLog;
 use App\Models\Medication;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,11 @@ class MedicationController extends Controller
         // Only validated (safe) fields are written to the database.
         $medication = Medication::create($request->validated());
 
+        // Audit log: adding a medication record is a clinical PHI event.
+        AuditLog::logPhiAccess('medication.created', $request->user(), $medication, [
+            'camper_id' => $medication->camper_id,
+        ]);
+
         // Load camper details so the API response is self-contained.
         $medication->load('camper');
 
@@ -102,7 +108,11 @@ class MedicationController extends Controller
         // Check the user is permitted to edit this specific medication record.
         $this->authorize('update', $medication);
 
+        $oldValues = $medication->only(array_keys($request->validated()));
         $medication->update($request->validated());
+
+        // Audit log: medication changes are clinical PHI mutations.
+        AuditLog::logContentChange($medication, $request->user(), $oldValues, $medication->only(array_keys($request->validated())));
 
         return response()->json([
             'message' => 'Medication updated successfully.',
@@ -121,6 +131,12 @@ class MedicationController extends Controller
     {
         // Hard gate before permanently deleting this PHI record.
         $this->authorize('delete', $medication);
+
+        // Audit log: medication deletion must be recorded before the record is removed.
+        AuditLog::logAdminAction('medication.deleted', request()->user(), 'Medication record deleted', [
+            'medication_id' => $medication->id,
+            'camper_id' => $medication->camper_id,
+        ]);
 
         $medication->delete();
 

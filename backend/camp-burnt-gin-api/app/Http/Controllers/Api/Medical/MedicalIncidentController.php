@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Medical;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\MedicalIncident;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -114,6 +115,13 @@ class MedicalIncidentController extends Controller
             ['recorded_by' => $request->user()->id]
         ));
 
+        // Audit log: incident creation is a significant clinical PHI event.
+        AuditLog::logPhiAccess('incident.created', $request->user(), $incident, [
+            'camper_id' => $incident->camper_id,
+            'type' => $incident->type,
+            'severity' => $incident->severity,
+        ]);
+
         // Load relationships so the response is fully populated.
         $incident->load(['camper', 'recorder']);
 
@@ -166,7 +174,11 @@ class MedicalIncidentController extends Controller
             'treatment_log_id' => 'nullable|integer|exists:treatment_logs,id',
         ]);
 
+        $oldValues = $medicalIncident->only(array_keys($validated));
         $medicalIncident->update($validated);
+
+        // Audit log: incident updates are sensitive clinical PHI changes.
+        AuditLog::logContentChange($medicalIncident, $request->user(), $oldValues, $medicalIncident->only(array_keys($validated)));
 
         // Reload so the response reflects the freshly updated data.
         $medicalIncident->load(['camper', 'recorder']);
@@ -187,6 +199,14 @@ class MedicalIncidentController extends Controller
     {
         // Hard gate before permanently removing this PHI incident record.
         $this->authorize('delete', $medicalIncident);
+
+        // Audit log: incident deletion must be recorded before the record is removed.
+        AuditLog::logAdminAction('incident.deleted', request()->user(), 'Medical incident deleted', [
+            'incident_id' => $medicalIncident->id,
+            'camper_id' => $medicalIncident->camper_id,
+            'type' => $medicalIncident->type,
+            'severity' => $medicalIncident->severity,
+        ]);
 
         $medicalIncident->delete();
 

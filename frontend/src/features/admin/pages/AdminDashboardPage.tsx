@@ -11,11 +11,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FileText, Users, CheckCircle, XCircle, Clock,
+  FileText, Users, CheckCircle, Clock,
   ArrowRight, MessageSquare, AlertTriangle,
   Activity, ChevronRight, Info, UserCheck,
 } from 'lucide-react';
-import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -23,10 +23,12 @@ import {
   getCamps,
   getReportsSummary,
   getSessionDashboard,
+  getFamilies,
   type ReportsSummary,
 } from '@/features/admin/api/admin.api';
-import type { SessionDashboardStats } from '@/features/admin/types/admin.types';
-import { getUnreadCount } from '@/features/messaging/api/messaging.api';
+import type { SessionDashboardStats, FamiliesSummary } from '@/features/admin/types/admin.types';
+import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 import type { Application, Camp } from '@/features/admin/types/admin.types';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
@@ -35,6 +37,7 @@ import { ErrorState } from '@/ui/components/EmptyState';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 import { SessionsCarousel, type SessionCardData } from '@/ui/components/SessionsCarousel';
 import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
+import { ActivityFeed, type ActivityItem } from '@/ui/components/ActivityFeed';
 
 // ─── Urgency scoring ──────────────────────────────────────────────────────────
 
@@ -66,39 +69,6 @@ const URGENCY_STYLES: Record<UrgencyLevel, { dot: string; label: string; labelSt
   },
 };
 
-// ─── Activity helpers ─────────────────────────────────────────────────────────
-
-function activityIcon(status: string): typeof FileText {
-  switch (status) {
-    case 'approved':     return CheckCircle;
-    case 'rejected':     return XCircle;
-    case 'waitlisted':   return Clock;
-    case 'under_review': return Clock;
-    default:             return FileText;
-  }
-}
-
-function activityColor(status: string): string {
-  switch (status) {
-    case 'approved':     return 'var(--forest-green)';
-    case 'rejected':     return 'var(--destructive)';
-    case 'waitlisted':   return '#d97706';
-    case 'under_review': return '#2563eb';
-    default:             return 'var(--ember-orange)';
-  }
-}
-
-function getActivityMessage(status: string, camperName: string): string {
-  switch (status) {
-    case 'approved':     return `${camperName}'s application was approved`;
-    case 'rejected':     return `${camperName}'s application was not approved`;
-    case 'waitlisted':   return `${camperName} was added to the waitlist`;
-    case 'under_review': return `${camperName}'s application is under review`;
-    case 'submitted':    return `New application submitted for ${camperName}`;
-    default:             return `Application updated for ${camperName}`;
-  }
-}
-
 // ─── Inline tooltip ───────────────────────────────────────────────────────────
 
 function MetricTooltip({ text }: { text: string }) {
@@ -122,59 +92,99 @@ export function AdminDashboardPage() {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
 
-  const [summary,         setSummary]         = useState<ReportsSummary | null>(null);
-  const [pendingApps,     setPendingApps]     = useState<Application[]>([]);
-  const [camps,           setCamps]           = useState<Camp[]>([]);
-  const [unread,          setUnread]          = useState(0);
-  const [activity,        setActivity]        = useState<Application[]>([]);
+  const [summary,             setSummary]             = useState<ReportsSummary | null>(null);
+  const [pendingApps,         setPendingApps]         = useState<Application[]>([]);
+  const [camps,               setCamps]               = useState<Camp[]>([]);
+  const [activity,            setActivity]            = useState<Application[]>([]);
+  const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
+  // Unread message count from shared context — no extra API call.
+  const { unreadMessageCount: unread } = useUnreadMessageCount();
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(false);
   const [retryKey,        setRetryKey]        = useState(0);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [sessionDash,     setSessionDash]     = useState<SessionDashboardStats | null>(null);
-  const [sessionLoading,  setSessionLoading]  = useState(false);
+  const [selectedSessionId,   setSelectedSessionId]   = useState<number | null>(null);
+  const [sessionDash,         setSessionDash]         = useState<SessionDashboardStats | null>(null);
+  const [sessionLoading,      setSessionLoading]      = useState(false);
+  const [globalFamilySummary, setGlobalFamilySummary] = useState<FamiliesSummary | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError(false);
+    // Fetch dashboard data in three targeted calls so each panel always shows
+    // correct data regardless of total application volume:
+    //   1. Global stats + session list + family summary — aggregate counts (no pagination gap)
+    //   2. Needs Attention — oldest pending apps, status-filtered so we never miss one
+    //      beyond a paginated boundary
+    //   3. Recent Activity — most recently updated apps system-wide, sorted updated_at DESC
     Promise.all([
       getReportsSummary(),
-      getAdminApplications().then((res) => res.data),
       getCamps().catch(() => [] as Camp[]),
-      getUnreadCount().catch(() => 0),
+      getFamilies({ page: 1 }).then((res) => res.summary).catch(() => null),
+      // Needs Attention: fetch oldest submitted + oldest under_review independently.
+      // Status filter + submitted_at ASC guarantees the longest-waiting apps surface first,
+      // even if they were submitted before a large batch of already-reviewed applications.
+      Promise.all([
+        getAdminApplications({ status: 'submitted',    sort: 'submitted_at', direction: 'asc', per_page: 8 }).then((r) => r.data).catch(() => [] as Application[]),
+        getAdminApplications({ status: 'under_review', sort: 'submitted_at', direction: 'asc', per_page: 8 }).then((r) => r.data).catch(() => [] as Application[]),
+      ]),
+      // Recent Activity: most recently changed apps regardless of status.
+      // updated_at DESC surfaces newly submitted applications AND recent admin decisions.
+      getAdminApplications({ sort: 'updated_at', direction: 'desc', per_page: 10 })
+        .then((r) => r.data)
+        .catch(() => [] as Application[]),
     ])
-      .then(([rptSummary, apps, campsData, unreadCount]) => {
+      .then(([rptSummary, campsData, familySummary, [submittedApps, underReviewApps], recentAppsData]) => {
         setSummary(rptSummary);
-        // Needs Attention: submitted + under_review, sorted oldest-first (most urgent)
-        const actionable = apps
-          .filter((a) => a.status === 'submitted' || a.status === 'under_review')
-          .sort((a, b) => {
-            const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
-            const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
-            return da - db; // oldest first
-          })
-          .slice(0, 5);
-        setPendingApps(actionable);
+        setGlobalFamilySummary(familySummary);
         setCamps(campsData);
-        setUnread(unreadCount);
+
         // Auto-select the first active session for session-scoped metrics
         const firstActive = campsData.flatMap((c) => c.sessions ?? []).find((s) => s.is_active);
         if (firstActive) {
           setSelectedSessionId(firstActive.id);
         }
-        // Recent Activity: all active applications, most recently updated first
-        const recentActivity = apps
-          .filter((a) => !['draft', 'cancelled'].includes(a.status))
+
+        // Merge submitted + under_review, de-duplicate by id (shouldn't overlap but
+        // defensive), sort oldest-first, take top 5 for the Needs Attention panel.
+        const seen = new Set<number>();
+        const actionable = [...submittedApps, ...underReviewApps]
+          .filter((a) => { if (seen.has(a.id)) return false; seen.add(a.id); return true; })
           .sort((a, b) => {
-            const da = new Date(a.updated_at ?? a.created_at).getTime();
-            const db = new Date(b.updated_at ?? b.created_at).getTime();
-            return db - da;
+            const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+            const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+            return da - db;
           })
+          .slice(0, 5);
+        setPendingApps(actionable);
+
+        // Recent Activity: already sorted updated_at DESC by the backend — just take top 6.
+        const recentActivity = recentAppsData
+          .filter((a) => !['draft', 'cancelled'].includes(a.status))
           .slice(0, 6);
         setActivity(recentActivity);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+  }, [retryKey]);
+
+  // Secondary non-blocking fetch — recent inbox conversations for the activity feed.
+  // Runs independently so it never delays the primary dashboard render.
+  // Also re-runs whenever a new message arrives (realtime:message-arrived event).
+  useEffect(() => {
+    function refreshConversations() {
+      getConversations({ folder: 'inbox' })
+        .then((res) => {
+          const recentConvs = [...res.data]
+            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+            .slice(0, 4);
+          setRecentConversations(recentConvs);
+        })
+        .catch((err) => { console.error('[AdminDashboard] Recent conversations load failed:', err); });
+    }
+
+    refreshConversations();
+    window.addEventListener('realtime:message-arrived', refreshConversations);
+    return () => window.removeEventListener('realtime:message-arrived', refreshConversations);
   }, [retryKey]);
 
   // ── Session-scoped metrics ───────────────────────────────────────────────────
@@ -184,7 +194,7 @@ export function AdminDashboardPage() {
     setSessionLoading(true);
     getSessionDashboard(selectedSessionId, controller.signal)
       .then(setSessionDash)
-      .catch(() => { /* session metrics unavailable; keep previous or null */ })
+      .catch((err) => { console.error('[AdminDashboard] Session metrics unavailable:', err); })
       .finally(() => setSessionLoading(false));
     return () => controller.abort();
   }, [selectedSessionId]);
@@ -197,6 +207,20 @@ export function AdminDashboardPage() {
     rejected:   summary?.rejected_applications ?? 0,
     waitlisted: summary?.applications_by_status?.['waitlisted'] ?? 0,
   };
+
+  // Session-scoped family stats when a session is active; fall back to cross-session summary otherwise.
+  const isSessionScoped = selectedSessionId !== null && sessionDash !== null;
+  const familyStats = isSessionScoped
+    ? sessionDash!.family_stats
+    : globalFamilySummary
+      ? {
+          registered_families:   globalFamilySummary.total_families,
+          registered_campers:    globalFamilySummary.total_campers,
+          active_applications:   globalFamilySummary.active_applications,
+          multi_camper_families: globalFamilySummary.multi_camper_families,
+        }
+      : null;
+  const tooltipScope = isSessionScoped ? 'this session' : 'all sessions';
 
   // Only explicitly active sessions — no past/archived/inactive
   const sessionCards: SessionCardData[] = camps.flatMap((c) =>
@@ -275,7 +299,7 @@ export function AdminDashboardPage() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
-            Session Overview
+            {selectedSessionId !== null ? 'Session Overview' : 'Overview — All Sessions'}
           </h2>
           <div className="flex items-center gap-3">
             {/* Session selector */}
@@ -320,11 +344,11 @@ export function AdminDashboardPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {sessionDash?.family_stats.registered_families ?? '—'}
+                  {familyStats?.registered_families ?? '—'}
                 </p>
                 <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
                   Registered Families
-                  <MetricTooltip text="Total number of family accounts created for this session." />
+                  <MetricTooltip text={`Total number of family accounts across ${tooltipScope}.`} />
                 </p>
               </div>
             </div>
@@ -336,11 +360,11 @@ export function AdminDashboardPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {sessionDash?.family_stats.registered_campers ?? '—'}
+                  {familyStats?.registered_campers ?? '—'}
                 </p>
                 <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
                   Registered Campers
-                  <MetricTooltip text="Total number of campers with submitted applications." />
+                  <MetricTooltip text={`Total campers with submitted applications across ${tooltipScope}.`} />
                 </p>
               </div>
             </div>
@@ -351,12 +375,12 @@ export function AdminDashboardPage() {
                 <Clock className="h-4 w-4" style={{ color: '#d97706' }} />
               </div>
               <div className="min-w-0">
-                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: (sessionDash?.family_stats.active_applications ?? 0) > 0 ? '#b45309' : 'var(--foreground)' }}>
-                  {sessionDash?.family_stats.active_applications ?? '—'}
+                <p className="text-2xl font-headline font-semibold leading-none" style={{ color: (familyStats?.active_applications ?? 0) > 0 ? '#b45309' : 'var(--foreground)' }}>
+                  {familyStats?.active_applications ?? '—'}
                 </p>
                 <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
                   Active Applications
-                  <MetricTooltip text="Applications currently being reviewed or processed." />
+                  <MetricTooltip text={`Applications currently being reviewed or processed across ${tooltipScope}.`} />
                 </p>
               </div>
             </div>
@@ -368,11 +392,11 @@ export function AdminDashboardPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-headline font-semibold leading-none" style={{ color: 'var(--foreground)' }}>
-                  {sessionDash?.family_stats.multi_camper_families ?? '—'}
+                  {familyStats?.multi_camper_families ?? '—'}
                 </p>
                 <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
                   Multi-Camper Families
-                  <MetricTooltip text="Families with more than one registered camper." />
+                  <MetricTooltip text={`Families with more than one registered camper across ${tooltipScope}.`} />
                 </p>
               </div>
             </div>
@@ -507,46 +531,22 @@ export function AdminDashboardPage() {
           <div className="glass-panel rounded-2xl overflow-hidden">
             {loading ? (
               <div className="p-5"><SkeletonTable rows={5} /></div>
-            ) : activity.length === 0 ? (
-              <div className="flex items-center justify-center py-14">
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No recent activity</p>
-              </div>
             ) : (
-              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {activity.map((app) => {
-                  const name    = app.camper?.full_name ?? `Camper #${app.camper_id}`;
-                  const Icon    = activityIcon(app.status);
-                  const color   = activityColor(app.status);
-                  const timeAgo = formatDistanceToNow(new Date(app.updated_at ?? app.created_at), { addSuffix: true });
-                  const session = app.session?.name ?? null;
-
-                  return (
-                    <li key={app.id}>
-                      <Link
-                        to={ROUTES.ADMIN_APPLICATION_DETAIL(app.id)}
-                        className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                        style={{ textDecoration: 'none' }}
-                      >
-                        <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: `${color}18` }}
-                        >
-                          <Icon className="h-3.5 w-3.5" style={{ color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium leading-snug truncate" style={{ color: 'var(--foreground)' }}>
-                            {getActivityMessage(app.status, name)}
-                          </p>
-                          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                            {session ? `${session} · ` : ''}{timeAgo}
-                          </p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" style={{ color: 'var(--foreground)' }} />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ActivityFeed items={(() => {
+                const appItems: ActivityItem[] = activity.map((app) => ({
+                  kind: 'application',
+                  app,
+                  ts: new Date(app.updated_at ?? app.created_at).getTime(),
+                }));
+                const msgItems: ActivityItem[] = recentConversations.map((conv) => ({
+                  kind: 'message',
+                  conv,
+                  ts: new Date(conv.updated_at).getTime(),
+                }));
+                return [...appItems, ...msgItems]
+                  .sort((a, b) => b.ts - a.ts)
+                  .slice(0, 6);
+              })()} />
             )}
           </div>
         </section>

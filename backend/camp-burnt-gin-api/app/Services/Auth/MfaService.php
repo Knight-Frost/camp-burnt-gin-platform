@@ -80,10 +80,25 @@ class MfaService
      * If that code is valid, we know their app is synced with our secret and we
      * officially turn MFA on for their account.
      *
+     * Rate-limited: 5 failed attempts per 15 minutes. After the threshold, the
+     * account must wait before trying again — this prevents TOTP brute-force attacks
+     * during the enrollment window.
+     *
      * @return array<string, mixed> 'success' => true/false with optional 'message'
      */
     public function verifyAndEnable(User $user, string $code): array
     {
+        // Per-user rate-limit key for MFA setup verification attempts
+        $rateLimitKey = "mfa_verify_attempts:{$user->id}";
+        $attempts = Cache::get($rateLimitKey, 0);
+
+        if ($attempts >= 5) {
+            return [
+                'success' => false,
+                'message' => 'Too many failed verification attempts. Please wait 15 minutes before trying again.',
+            ];
+        }
+
         // Guard: setup must have been run first (initializeSetup stores the secret)
         if (! $user->mfa_secret) {
             return [
@@ -95,22 +110,29 @@ class MfaService
         try {
             // verifyKey checks whether the code matches the current 30-second window
             if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
+                Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+
                 return [
                     'success' => false,
                     'message' => 'Invalid verification code.',
                 ];
             }
         } catch (\Exception $e) {
-            // The library throws if the secret is malformed — treat it as invalid
+            // The library throws if the secret is malformed — count as failed attempt
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+
             return [
                 'success' => false,
                 'message' => 'Invalid verification code.',
             ];
         }
 
-        // Code is valid — flip the MFA flag on and record when it was first verified
+        // Code is valid — clear the rate-limit counter so it resets
+        Cache::forget($rateLimitKey);
+
+        // Flip the MFA flag on and record when it was first verified
         $user->update([
-            'mfa_enabled' => true,
+            'mfa_enabled'     => true,
             'mfa_verified_at' => now(),
         ]);
 

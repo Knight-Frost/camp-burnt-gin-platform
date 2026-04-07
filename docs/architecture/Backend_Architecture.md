@@ -14,7 +14,7 @@ Camp Burnt Gin is a camp program that requires a secure, compliant system to man
 
 The backend system provides:
 
-- **User Management** - Registration, authentication, multi-factor authentication, profile management, avatar uploads, data export, account deletion
+- **User Management** - Registration, authentication, multi-factor authentication, profile management, avatar uploads, account deletion
 - **Camp Management** - Camp definitions, session scheduling, age restrictions, capacity tracking
 - **Camper Management** - Camper profiles linked to parent accounts with age calculation, risk summaries, compliance status, and medical alerts
 - **Application Processing** - Draft support, submission, review, digital signatures, status tracking; dynamic form schema binding via the Form Builder

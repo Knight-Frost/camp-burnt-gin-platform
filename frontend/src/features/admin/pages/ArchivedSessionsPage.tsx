@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, Calendar, Users, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
@@ -25,6 +25,8 @@ import type { CampSession } from '@/features/admin/types/admin.types';
 import { ROUTES } from '@/shared/constants/routes';
 
 export function ArchivedSessionsPage() {
+  const location = useLocation();
+  const isSuper = location.pathname.startsWith('/super-admin');
   const [sessions, setSessions]       = useState<CampSession[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);
@@ -75,7 +77,7 @@ export function ArchivedSessionsPage() {
     <div className="p-6 max-w-4xl">
       {/* Back link */}
       <Link
-        to={ROUTES.ADMIN_SESSIONS}
+        to={isSuper ? '/super-admin/sessions' : ROUTES.ADMIN_SESSIONS}
         className="inline-flex items-center gap-1.5 text-sm mb-6 transition-opacity hover:opacity-70"
         style={{ color: 'var(--muted-foreground)' }}
       >

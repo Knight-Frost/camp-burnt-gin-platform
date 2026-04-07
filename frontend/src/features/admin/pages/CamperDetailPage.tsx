@@ -141,7 +141,7 @@ export function CamperDetailPage() {
         if (!cancelled) setCamper(data);
         // Fetch risk summary in parallel with camper — silently ignore failures
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        getCamperRiskSummary(camperId).then(data => { if (!cancelled) setRiskData(data as any); }).catch(() => {});
+        getCamperRiskSummary(camperId).then(data => { if (!cancelled) setRiskData(data as any); }).catch((err) => { console.error('[CamperDetailPage] Risk summary unavailable:', err); });
       } catch {
         if (!cancelled) { setError(true); toast.error(t('common.error_loading')); }
       } finally {

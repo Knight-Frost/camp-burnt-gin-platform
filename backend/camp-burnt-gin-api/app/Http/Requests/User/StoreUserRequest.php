@@ -36,7 +36,7 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
             // Only staff roles — applicants must self-register
             'role' => ['required', 'string', 'in:admin,medical,super_admin', 'exists:roles,name'],
         ];

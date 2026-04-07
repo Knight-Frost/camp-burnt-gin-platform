@@ -44,7 +44,18 @@ export function LinkPopover({ editor, open, onClose, anchorRef }: LinkPopoverPro
   function handleInsert() {
     if (!editor || !href.trim()) return;
 
-    const cleanHref = href.trim().startsWith('http') ? href.trim() : `https://${href.trim()}`;
+    const rawHref = href.trim();
+    // Block javascript: protocol — it can execute arbitrary code when clicked.
+    // Also block vbscript: and data: URIs which are similarly dangerous.
+    const lowerHref = rawHref.toLowerCase();
+    if (
+      lowerHref.startsWith('javascript:') ||
+      lowerHref.startsWith('vbscript:') ||
+      lowerHref.startsWith('data:')
+    ) {
+      return;
+    }
+    const cleanHref = rawHref.startsWith('http') ? rawHref : `https://${rawHref}`;
 
     if (editor.state.selection.empty) {
       // No text selected: insert a new text node with the link mark

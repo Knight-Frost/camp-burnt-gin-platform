@@ -225,8 +225,11 @@ export const router = createBrowserRouter([
           { path: '/admin/calendar',            element: <AdminCalendarPage /> },
           { path: '/admin/documents',           element: <AdminDocumentsPage /> },
           { path: '/admin/deadlines',           element: <AdminDeadlinesPage /> },
-          { path: '/admin/form-builder',        element: <FormDashboardPage /> },
-          { path: '/admin/form-builder/:formId', element: <FormEditorPage /> },
+          // Form Builder is super_admin-only governance tooling. The parent RoleGuard
+          // allows admin + super_admin into this portal, so these routes add a second
+          // RoleGuard to restrict form-builder access to super_admin exclusively.
+          { path: '/admin/form-builder',        element: <RoleGuard allowedRoles={[ROLES.SUPER_ADMIN]}><FormDashboardPage /></RoleGuard> },
+          { path: '/admin/form-builder/:formId', element: <RoleGuard allowedRoles={[ROLES.SUPER_ADMIN]}><FormEditorPage /></RoleGuard> },
           { path: '/admin/inbox',               element: <InboxPage /> },
           { path: '/admin/profile',             element: <ProfilePage /> },
           { path: '/admin/settings',            element: <SettingsPage /> },
@@ -304,6 +307,7 @@ export const router = createBrowserRouter([
           { path: '/super-admin/reports',              element: <AdminReportsPage /> },
           { path: '/super-admin/announcements',        element: <AdminAnnouncementsPage /> },
           { path: '/super-admin/calendar',             element: <AdminCalendarPage /> },
+          { path: '/super-admin/deadlines',            element: <AdminDeadlinesPage /> },
           { path: '/super-admin/documents',            element: <AdminDocumentsPage /> },
           { path: '/super-admin/inbox',                element: <InboxPage /> },
           { path: '/super-admin/profile',              element: <ProfilePage /> },

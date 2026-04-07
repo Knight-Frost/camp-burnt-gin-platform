@@ -12,11 +12,11 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Users, FileText, Activity, ArrowRight,
+  Users, Activity, ArrowRight,
   AlertTriangle, CheckCircle, Clock, XCircle,
   TrendingUp, ChevronRight,
 } from 'lucide-react';
-import { differenceInDays, formatDistanceToNow } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { useAppSelector } from '@/store/hooks';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
@@ -29,7 +29,9 @@ import {
   type ReportsSummary, type DocumentRequestStats, type DocumentRequest,
 } from '@/features/admin/api/admin.api';
 import type { Application, Camp } from '@/features/admin/types/admin.types';
-import { getUnreadCount } from '@/features/messaging/api/messaging.api';
+import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
+import { ActivityFeed, type ActivityItem } from '@/ui/components/ActivityFeed';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 
 // ─── Urgency scoring ──────────────────────────────────────────────────────────
 
@@ -55,39 +57,6 @@ const URGENCY_BADGE: Record<UrgencyLevel, React.CSSProperties> = {
   normal:   { color: 'var(--muted-foreground)', background: 'rgba(0,0,0,0.05)' },
 };
 
-// ─── Activity icon + color mapping ────────────────────────────────────────────
-
-function activityIcon(status: string): typeof FileText {
-  switch (status) {
-    case 'approved':     return CheckCircle;
-    case 'rejected':     return XCircle;
-    case 'waitlisted':   return Clock;
-    case 'under_review': return Clock;
-    default:             return FileText;
-  }
-}
-
-function activityColor(status: string): string {
-  switch (status) {
-    case 'approved':     return 'var(--forest-green)';
-    case 'rejected':     return 'var(--destructive)';
-    case 'waitlisted':   return '#d97706';
-    case 'under_review': return '#2563eb';
-    default:             return 'var(--ember-orange)';
-  }
-}
-
-function getActivityMessage(status: string, camperName: string): string {
-  switch (status) {
-    case 'approved':     return `${camperName}'s application was approved`;
-    case 'rejected':     return `${camperName}'s application was not approved`;
-    case 'waitlisted':   return `${camperName} was added to the waitlist`;
-    case 'under_review': return `${camperName}'s application is under review`;
-    case 'submitted':    return `New application submitted for ${camperName}`;
-    default:             return `Application updated for ${camperName}`;
-  }
-}
-
 // ─── Priority item type ───────────────────────────────────────────────────────
 
 interface PriorityItem {
@@ -100,18 +69,6 @@ interface PriorityItem {
   status?: Application['status'];
 }
 
-// ─── Activity item type ───────────────────────────────────────────────────────
-
-interface ActivityItem {
-  id: string;
-  camperName: string;
-  subtitle: string;
-  time: string;
-  action: string;
-  status: Application['status'];
-  to: string;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SuperAdminDashboardPage() {
@@ -119,13 +76,16 @@ export function SuperAdminDashboardPage() {
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
 
-  const [summary,      setSummary]      = useState<ReportsSummary | null>(null);
-  const [docStats,     setDocStats]     = useState<DocumentRequestStats | null>(null);
-  const [camps,        setCamps]        = useState<Camp[]>([]);
-  const [pendingApps,  setPendingApps]  = useState<Application[]>([]);
-  const [overdueDocs,  setOverdueDocs]  = useState<DocumentRequest[]>([]);
-  const [recentApps,   setRecentApps]   = useState<Application[]>([]);
-  const [unreadCount,  setUnreadCount]  = useState(0);
+  const [summary,             setSummary]             = useState<ReportsSummary | null>(null);
+  const [docStats,            setDocStats]            = useState<DocumentRequestStats | null>(null);
+  const [camps,               setCamps]               = useState<Camp[]>([]);
+  const [pendingApps,         setPendingApps]         = useState<Application[]>([]);
+  const [overdueDocs,         setOverdueDocs]         = useState<DocumentRequest[]>([]);
+  const [recentApps,          setRecentApps]          = useState<Application[]>([]);
+  const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
+  // Unread message count from shared context — keeps the greeting in sync with the
+  // inbox badge and refreshes automatically when messages are read anywhere in the app.
+  const { unreadMessageCount: unreadCount } = useUnreadMessageCount();
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(false);
   const [retryKey,     setRetryKey]     = useState(0);
@@ -134,23 +94,33 @@ export function SuperAdminDashboardPage() {
     setLoading(true);
     setError(false);
 
+    // Three targeted fetches so each panel is always correct regardless of
+    // application volume — eliminates the pagination blindspot where page-1-only
+    // fetches miss oldest pending or newest recent apps.
     Promise.all([
       getReportsSummary(),
       getDocumentRequestStats().catch(() => null),
-      getApplications({ page: 1 }).then((r) => r.data),
-      getDocumentRequests({ page: 1 }).catch(() => ({ data: [] as DocumentRequest[] })),
-      getUnreadCount().catch(() => 0),
       getCamps().catch(() => [] as Camp[]),
+      getDocumentRequests({ page: 1 }).catch(() => ({ data: [] as DocumentRequest[] })),
+      // Needs Attention: oldest waiting apps, fetched by status so none are missed.
+      Promise.all([
+        getApplications({ status: 'submitted',    sort: 'submitted_at', direction: 'asc', per_page: 6 }).then((r) => r.data).catch(() => [] as Application[]),
+        getApplications({ status: 'under_review', sort: 'submitted_at', direction: 'asc', per_page: 6 }).then((r) => r.data).catch(() => [] as Application[]),
+      ]),
+      // Recent Activity: most recently changed apps regardless of status.
+      getApplications({ sort: 'updated_at', direction: 'desc', per_page: 10 })
+        .then((r) => r.data)
+        .catch(() => [] as Application[]),
     ])
-      .then(([rpt, docs, apps, docPage, unread, campsData]) => {
+      .then(([rpt, docs, campsData, docPage, [submittedApps, underReviewApps], recentAppsData]) => {
         setSummary(rpt);
         setDocStats(docs);
-        setUnreadCount(unread);
         setCamps(campsData);
 
-        // Needs Attention: submitted + under_review, oldest first
-        const actionable = apps
-          .filter((a) => a.status === 'submitted' || a.status === 'under_review')
+        // Merge submitted + under_review, de-duplicate, sort oldest-first.
+        const seen = new Set<number>();
+        const actionable = [...submittedApps, ...underReviewApps]
+          .filter((a) => { if (seen.has(a.id)) return false; seen.add(a.id); return true; })
           .sort((a, b) => {
             const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
             const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
@@ -159,25 +129,38 @@ export function SuperAdminDashboardPage() {
           .slice(0, 4);
         setPendingApps(actionable);
 
-        // Overdue document requests for Needs Attention
+        // Overdue document requests for Needs Attention (from page-1 doc requests)
         const overdueList = (docPage.data ?? [])
           .filter((d: DocumentRequest) => d.status === 'overdue')
           .slice(0, 2);
         setOverdueDocs(overdueList);
 
-        // Recent Activity: all active applications, most recently updated first
-        const reviewed = apps
+        // Recent Activity: already sorted updated_at DESC — filter noise and take top 6.
+        const reviewed = recentAppsData
           .filter((a) => !['draft', 'cancelled'].includes(a.status))
-          .sort((a, b) => {
-            const aTime = a.reviewed_at ?? a.updated_at ?? a.submitted_at ?? a.created_at;
-            const bTime = b.reviewed_at ?? b.updated_at ?? b.submitted_at ?? b.created_at;
-            return new Date(bTime ?? 0).getTime() - new Date(aTime ?? 0).getTime();
-          })
           .slice(0, 6);
         setRecentApps(reviewed);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+  }, [retryKey]);
+
+  // Refresh recent conversations independently — re-runs whenever a message arrives
+  // so the Recent Activity feed stays current without a full dashboard reload.
+  useEffect(() => {
+    function refreshConversations() {
+      getConversations({ folder: 'inbox' })
+        .then((res) => {
+          const sorted = [...res.data]
+            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+            .slice(0, 4);
+          setRecentConversations(sorted);
+        })
+        .catch((err) => { console.error('[SuperAdminDashboard] Conversations load failed:', err); });
+    }
+    refreshConversations();
+    window.addEventListener('realtime:message-arrived', refreshConversations);
+    return () => window.removeEventListener('realtime:message-arrived', refreshConversations);
   }, [retryKey]);
 
   // ── Derived values ───────────────────────────────────────────────────────────
@@ -226,17 +209,6 @@ export function SuperAdminDashboardPage() {
     const order: Record<UrgencyLevel, number> = { critical: 0, high: 1, normal: 2 };
     return order[a.urgency] - order[b.urgency];
   }).slice(0, 5);
-
-  // Activity feed from recently updated apps
-  const activityFeed: ActivityItem[] = recentApps.map((a) => ({
-    id:         `app-${a.id}`,
-    camperName: a.camper?.full_name ?? `Camper #${a.camper_id}`,
-    subtitle:   a.session?.name ?? `Session #${a.camp_session_id}`,
-    time:       a.reviewed_at ?? a.updated_at ?? a.submitted_at ?? a.created_at,
-    action:     a.status,
-    status:     a.status,
-    to:         `/super-admin/applications/${a.id}`,
-  }));
 
   void navigate; // suppress unused warning — kept for future use
 
@@ -488,48 +460,22 @@ export function SuperAdminDashboardPage() {
           <div className="glass-panel rounded-2xl overflow-hidden">
             {loading ? (
               <div className="p-5"><SkeletonTable rows={5} /></div>
-            ) : activityFeed.length === 0 ? (
-              <div className="flex items-center justify-center py-14">
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No recent activity</p>
-              </div>
             ) : (
-              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {activityFeed.map((entry) => {
-                  const Icon    = activityIcon(entry.action);
-                  const color   = activityColor(entry.action);
-                  const timeAgo = entry.time
-                    ? formatDistanceToNow(new Date(entry.time), { addSuffix: true })
-                    : null;
-                  return (
-                    <li key={entry.id}>
-                      <Link
-                        to={entry.to}
-                        className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                        style={{ textDecoration: 'none' }}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
-                          style={{ background: `${color}18` }}
-                        >
-                          <Icon className="h-4 w-4" style={{ color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium leading-snug truncate" style={{ color: 'var(--foreground)' }}>
-                            {getActivityMessage(entry.status, entry.camperName)}
-                          </p>
-                          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                            {entry.subtitle && `${entry.subtitle} · `}{timeAgo}
-                          </p>
-                        </div>
-                        <ChevronRight
-                          className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
-                          style={{ color: 'var(--foreground)' }}
-                        />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ActivityFeed inboxPath="/super-admin/inbox" items={(() => {
+                const appItems: ActivityItem[] = recentApps.map((app) => ({
+                  kind: 'application',
+                  app,
+                  ts: new Date(app.updated_at ?? app.created_at).getTime(),
+                }));
+                const msgItems: ActivityItem[] = recentConversations.map((conv) => ({
+                  kind: 'message',
+                  conv,
+                  ts: new Date(conv.updated_at).getTime(),
+                }));
+                return [...appItems, ...msgItems]
+                  .sort((a, b) => b.ts - a.ts)
+                  .slice(0, 6);
+              })()} />
             )}
           </div>
 

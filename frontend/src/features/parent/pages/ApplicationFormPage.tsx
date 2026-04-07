@@ -7,8 +7,10 @@
  * Route: /applicant/applications/new
  *
  * Architecture:
- * - State: single FormState object, mirrored to localStorage on every change
+ * - State: single FormState object, mirrored to sessionStorage on every change
  * - Auto-save: debounced 3 s write to "cbg_app_draft"
+ * - Draft storage uses sessionStorage (not localStorage) so PHI does not persist
+ *   across browser sessions — required for HIPAA compliance on shared devices.
  * - Layout: 260 px left sidebar (section nav) + right accordion main
  * - Free navigation: user may open any section at any time
  */
@@ -84,6 +86,52 @@ import { useAppSelector } from '@/store/hooks';
 
 const DRAFT_KEY_BASE = 'cbg_app_draft';
 const AUTOSAVE_DELAY = 3000; // 3 s
+
+/** Deep-merge a persisted draft with INITIAL_STATE so null/missing fields
+ *  never override the safe string defaults (prevents .trim() on null crashes). */
+function mergeDraft(parsed: Partial<FormState>): FormState {
+  const mergeSection = <T extends object>(initial: T, saved: Partial<T> | undefined): T => {
+    if (!saved) return initial;
+    const result = { ...initial } as Record<string, unknown>;
+    for (const key of Object.keys(initial) as (keyof T)[]) {
+      const v = (saved as Record<string, unknown>)[key as string];
+      result[key as string] = v == null ? initial[key] : v;
+    }
+    return result as T;
+  };
+
+  const s4 = mergeSection(INITIAL_STATE.s4, parsed.s4);
+  // Backward-compatibility: drafts saved before the section_reviewed field existed will
+  // not have it set. Infer it as true when the user had already entered meaningful data,
+  // so those drafts don't suddenly appear as 'empty' after this change.
+  const s4Merged: FormState['s4'] = {
+    ...s4,
+    section_reviewed: s4.section_reviewed || s4.devices.length > 0 || s4.mobility_notes.trim() !== '',
+  };
+
+  const s5 = mergeSection(INITIAL_STATE.s5, parsed.s5);
+  const s5Merged: FormState['s5'] = {
+    ...s5,
+    section_reviewed: s5.section_reviewed || s5.g_tube || s5.special_diet
+      || s5.texture_modified || s5.fluid_restriction || s5.feeding_notes.trim() !== '',
+  };
+
+  return {
+    ...INITIAL_STATE,
+    s1:  mergeSection(INITIAL_STATE.s1,  parsed.s1),
+    s2:  mergeSection(INITIAL_STATE.s2,  parsed.s2),
+    s3:  mergeSection(INITIAL_STATE.s3,  parsed.s3),
+    s4:  s4Merged,
+    s5:  s5Merged,
+    s6:  mergeSection(INITIAL_STATE.s6,  parsed.s6),
+    s7:  mergeSection(INITIAL_STATE.s7,  parsed.s7),
+    s8:  mergeSection(INITIAL_STATE.s8,  parsed.s8),
+    sn:  mergeSection(INITIAL_STATE.sn,  parsed.sn),
+    s9:  mergeSection(INITIAL_STATE.s9,  parsed.s9),
+    s10: mergeSection(INITIAL_STATE.s10, parsed.s10),
+    meta: { ...INITIAL_STATE.meta, ...(parsed.meta ?? {}) },
+  };
+}
 
 const STATES_US = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -266,6 +314,10 @@ export interface FormState {
     uses_cpap: boolean;
     cpap_notes: string;
     mobility_notes: string;
+    /** Explicit confirmation that the parent has reviewed this section. Required for
+     *  'complete' status — prevents falsely marking the section complete on a new
+     *  application where all fields are at their default (empty/false) values. */
+    section_reviewed: boolean;
   };
   /** Section 5 — Diet & Feeding */
   s5: {
@@ -282,6 +334,10 @@ export interface FormState {
     feeding_times: string;
     bolus_only: boolean;
     feeding_notes: string;
+    /** Explicit confirmation that the parent has reviewed this section. Required for
+     *  'complete' status — prevents falsely marking the section complete on a new
+     *  application where all fields are at their default (empty/false) values. */
+    section_reviewed: boolean;
   };
   /** Section 6 — Personal Care */
   s6: {
@@ -482,6 +538,7 @@ const INITIAL_STATE: FormState = {
     uses_cpap: false,
     cpap_notes: '',
     mobility_notes: '',
+    section_reviewed: false,
   },
   s5: {
     special_diet: false,
@@ -497,6 +554,7 @@ const INITIAL_STATE: FormState = {
     feeding_times: '',
     bolus_only: false,
     feeding_notes: '',
+    section_reviewed: false,
   },
   s6: {
     bathing_level: '',
@@ -614,25 +672,62 @@ function getSectionStatus(sectionId: number, form: FormState): SectionStatus {
     }
     case 1: {
       const { s2 } = form;
-      const required = [s2.insurance_provider, s2.physician_name];
+      const hasInsuranceAnswer = s2.insurance_type !== '';
+      // Required sub-field depends on which insurance type was selected
+      const insuranceFilled = s2.insurance_type === 'none'
+        ? true
+        : s2.insurance_type === 'medicaid'
+        ? Boolean(s2.medicaid_number)
+        : Boolean(s2.insurance_provider); // 'other'
+      const hasPhysician = Boolean(s2.physician_name);
       const hasSeizureAnswer = s2.has_seizures !== '';
       const hasImmunizationAnswer = s2.immunizations_current !== '';
-      const filled = required.filter(Boolean).length;
-      if (filled === 0 && !hasSeizureAnswer) return 'empty';
-      if (filled === required.length && hasSeizureAnswer && hasImmunizationAnswer) return 'complete';
+      if (!hasInsuranceAnswer && !hasPhysician && !hasSeizureAnswer) return 'empty';
+      if (hasInsuranceAnswer && insuranceFilled && hasPhysician && hasSeizureAnswer && hasImmunizationAnswer) return 'complete';
       return 'partial';
     }
     case 2: {
-      return 'complete'; // all items default to false — valid answers
+      const { s3 } = form;
+      // Any active behavioral flag must have a description — an empty description
+      // when the flag is true is not actionable for staff planning.
+      const flagsNeedingDesc: [boolean, string][] = [
+        [s3.aggression,             s3.aggression_description],
+        [s3.self_abuse,             s3.self_abuse_description],
+        [s3.wandering,              s3.wandering_description],
+        [s3.one_to_one,             s3.one_to_one_description],
+        [s3.sexual_behaviors,       s3.sexual_behaviors_description],
+        [s3.interpersonal_behavior, s3.interpersonal_behavior_description],
+        [s3.social_emotional,       s3.social_emotional_description],
+        [s3.follows_instructions,   s3.follows_instructions_description],
+        [s3.group_participation,    s3.group_participation_description],
+      ];
+      if (flagsNeedingDesc.some(([flag, desc]) => flag && !desc.trim())) return 'partial';
+      // attends_school is the minimum required answer that proves the parent has visited
+      // this section. Without it we cannot distinguish "reviewed, no concerns" from
+      // "never opened the section" — all boolean flags default to false.
+      if (s3.attends_school === '') {
+        const anyFlagSet   = flagsNeedingDesc.some(([flag]) => flag);
+        const hasOtherData = s3.communication_methods.length > 0 || s3.behavior_notes.trim() !== '';
+        return (anyFlagSet || hasOtherData) ? 'partial' : 'empty';
+      }
+      return 'complete';
     }
     case 3: {
-      return 'complete'; // no required devices
+      // Equipment section: all fields are opt-in so the default state (no devices,
+      // no notes) is indistinguishable from "never visited". Require explicit review.
+      const { s4 } = form;
+      if (!s4.section_reviewed) return 'empty';
+      return 'complete';
     }
     case 4: {
       const { s5 } = form;
+      // G-tube fields must be filled when g_tube is checked — this is a partial state.
       const gTubeAnswered = !s5.g_tube || (s5.formula !== '' && s5.amount_per_feeding !== '');
-      if (gTubeAnswered) return 'complete';
-      return 'partial';
+      if (!gTubeAnswered) return 'partial';
+      // Feeding section: all items are opt-in checkboxes so the default state
+      // (all false) is indistinguishable from "never visited". Require explicit review.
+      if (!s5.section_reviewed) return 'empty';
+      return 'complete';
     }
     case 5: {
       const { s6 } = form;
@@ -817,7 +912,7 @@ function YesNoField({
             <label
               key={opt}
               htmlFor={`${id}_${opt}`}
-              className="flex items-center gap-1.5 cursor-pointer"
+              className="flex items-center gap-1.5 cursor-pointer relative"
             >
               <input
                 id={`${id}_${opt}`}
@@ -1381,7 +1476,7 @@ function Section2({
       <SectionCard>
         <SubHeading>{t('applicant.form.s2_insurance_heading')}</SubHeading>
         <div className="flex flex-col gap-1 mb-4">
-          <FieldLabel>{t('applicant.form.s2_insurance_type_label')}</FieldLabel>
+          <FieldLabel required>{t('applicant.form.s2_insurance_type_label')}</FieldLabel>
           <div className="flex flex-col gap-1.5">
             {([
               { value: 'none',     label: t('applicant.form.s2_insurance_none') },
@@ -1394,33 +1489,51 @@ function Section2({
                   name="insurance_type"
                   value={value}
                   checked={data.insurance_type === value}
-                  onChange={() => onChange({ insurance_type: value })}
+                  onChange={() => onChange({
+                    insurance_type: value,
+                    // Clear all insurance detail fields when the type changes so
+                    // stale values from the previous selection are never submitted.
+                    insurance_provider: '',
+                    insurance_policy: '',
+                    insurance_group: '',
+                    medicaid_number: '',
+                  })}
                 />
                 {label}
               </label>
             ))}
           </div>
         </div>
-        <FormRow>
-          <div>
-            <FieldLabel required>{t('applicant.form.s2_insurance_provider_label')}</FieldLabel>
-            <TextInput value={data.insurance_provider} onChange={(v) => onChange({ insurance_provider: v })} placeholder={t('applicant.form.s2_insurance_provider_placeholder')} />
-          </div>
-          <div>
-            <FieldLabel>{t('applicant.form.s2_policy_number_label')}</FieldLabel>
-            <TextInput value={data.insurance_policy} onChange={(v) => onChange({ insurance_policy: v })} placeholder={t('applicant.form.s2_policy_number_placeholder')} />
-          </div>
-        </FormRow>
-        <FormRow>
-          <div>
-            <FieldLabel>{t('applicant.form.s2_group_number_label')}</FieldLabel>
-            <TextInput value={data.insurance_group} onChange={(v) => onChange({ insurance_group: v })} placeholder={t('applicant.form.s2_group_number_placeholder')} />
-          </div>
-          <div>
-            <FieldLabel>{t('applicant.form.s2_medicaid_number_label')}</FieldLabel>
-            <TextInput value={data.medicaid_number} onChange={(v) => onChange({ medicaid_number: v })} placeholder={t('applicant.form.s2_medicaid_number_placeholder')} />
-          </div>
-        </FormRow>
+        {/* Medicaid number — only relevant when Medicaid is selected */}
+        {data.insurance_type === 'medicaid' && (
+          <FormRow>
+            <div>
+              <FieldLabel required>{t('applicant.form.s2_medicaid_number_label')}</FieldLabel>
+              <TextInput value={data.medicaid_number} onChange={(v) => onChange({ medicaid_number: v })} placeholder={t('applicant.form.s2_medicaid_number_placeholder')} />
+            </div>
+          </FormRow>
+        )}
+        {/* Provider / policy / group — only relevant for private or other insurance */}
+        {data.insurance_type === 'other' && (
+          <>
+            <FormRow>
+              <div>
+                <FieldLabel required>{t('applicant.form.s2_insurance_provider_label')}</FieldLabel>
+                <TextInput value={data.insurance_provider} onChange={(v) => onChange({ insurance_provider: v })} placeholder={t('applicant.form.s2_insurance_provider_placeholder')} />
+              </div>
+              <div>
+                <FieldLabel>{t('applicant.form.s2_policy_number_label')}</FieldLabel>
+                <TextInput value={data.insurance_policy} onChange={(v) => onChange({ insurance_policy: v })} placeholder={t('applicant.form.s2_policy_number_placeholder')} />
+              </div>
+            </FormRow>
+            <FormRow>
+              <div>
+                <FieldLabel>{t('applicant.form.s2_group_number_label')}</FieldLabel>
+                <TextInput value={data.insurance_group} onChange={(v) => onChange({ insurance_group: v })} placeholder={t('applicant.form.s2_group_number_placeholder')} />
+              </div>
+            </FormRow>
+          </>
+        )}
       </SectionCard>
 
       {/* Physician */}
@@ -1730,28 +1843,28 @@ function Section3({
           <YesNoField id="aggression" label={t('applicant.form.s3_aggression_label')} value={data.aggression} onChange={(v) => onChange({ aggression: v })} />
           {data.aggression && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_aggression_desc_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_aggression_desc_label')}</FieldLabel>
               <TextInput value={data.aggression_description} onChange={(v) => onChange({ aggression_description: v })} placeholder={t('applicant.form.s3_aggression_desc_placeholder')} />
             </div>
           )}
           <YesNoField id="self_abuse" label={t('applicant.form.s3_self_abuse_label')} value={data.self_abuse} onChange={(v) => onChange({ self_abuse: v })} />
           {data.self_abuse && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_self_abuse_desc_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_self_abuse_desc_label')}</FieldLabel>
               <TextInput value={data.self_abuse_description} onChange={(v) => onChange({ self_abuse_description: v })} placeholder={t('applicant.form.s3_self_abuse_desc_placeholder')} />
             </div>
           )}
           <YesNoField id="wandering" label={t('applicant.form.s3_wandering_label')} value={data.wandering} onChange={(v) => onChange({ wandering: v })} />
           {data.wandering && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_wandering_desc_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_wandering_desc_label')}</FieldLabel>
               <TextInput value={data.wandering_description} onChange={(v) => onChange({ wandering_description: v })} placeholder={t('applicant.form.s3_wandering_desc_placeholder')} />
             </div>
           )}
           <YesNoField id="one_to_one" label={t('applicant.form.s3_one_to_one_label')} value={data.one_to_one} onChange={(v) => onChange({ one_to_one: v })} />
           {data.one_to_one && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_one_to_one_desc_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_one_to_one_desc_label')}</FieldLabel>
               <TextInput value={data.one_to_one_description} onChange={(v) => onChange({ one_to_one_description: v })} placeholder={t('applicant.form.s3_one_to_one_desc_placeholder')} />
             </div>
           )}
@@ -1759,35 +1872,35 @@ function Section3({
           <YesNoField id="sexual_behaviors" label={t('applicant.form.s3_sexual_behaviors_label')} value={data.sexual_behaviors} onChange={(v) => onChange({ sexual_behaviors: v })} />
           {data.sexual_behaviors && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_describe_behaviors_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_describe_behaviors_label')}</FieldLabel>
               <TextInput value={data.sexual_behaviors_description} onChange={(v) => onChange({ sexual_behaviors_description: v })} placeholder={t('applicant.form.s3_sexual_behaviors_placeholder')} />
             </div>
           )}
           <YesNoField id="interpersonal_behavior" label={t('applicant.form.s3_interpersonal_label')} value={data.interpersonal_behavior} onChange={(v) => onChange({ interpersonal_behavior: v })} />
           {data.interpersonal_behavior && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_describe_challenges_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_describe_challenges_label')}</FieldLabel>
               <TextInput value={data.interpersonal_behavior_description} onChange={(v) => onChange({ interpersonal_behavior_description: v })} placeholder={t('applicant.form.s3_interpersonal_placeholder')} />
             </div>
           )}
           <YesNoField id="social_emotional" label={t('applicant.form.s3_social_emotional_label')} value={data.social_emotional} onChange={(v) => onChange({ social_emotional: v })} />
           {data.social_emotional && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_describe_difficulties_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_describe_difficulties_label')}</FieldLabel>
               <TextInput value={data.social_emotional_description} onChange={(v) => onChange({ social_emotional_description: v })} placeholder={t('applicant.form.s3_social_emotional_placeholder')} />
             </div>
           )}
           <YesNoField id="follows_instructions" label={t('applicant.form.s3_follows_instructions_label')} value={data.follows_instructions} onChange={(v) => onChange({ follows_instructions: v })} />
           {data.follows_instructions && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_prompting_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_prompting_label')}</FieldLabel>
               <TextInput value={data.follows_instructions_description} onChange={(v) => onChange({ follows_instructions_description: v })} placeholder={t('applicant.form.s3_prompting_placeholder')} />
             </div>
           )}
           <YesNoField id="group_participation" label={t('applicant.form.s3_group_participation_label')} value={data.group_participation} onChange={(v) => onChange({ group_participation: v })} />
           {data.group_participation && (
             <div className="ml-8 mb-3">
-              <FieldLabel>{t('applicant.form.s3_participation_desc_label')}</FieldLabel>
+              <FieldLabel required>{t('applicant.form.s3_participation_desc_label')}</FieldLabel>
               <TextInput value={data.group_participation_description} onChange={(v) => onChange({ group_participation_description: v })} placeholder={t('applicant.form.s3_participation_desc_placeholder')} />
             </div>
           )}
@@ -1998,6 +2111,20 @@ function Section4({
           rows={3}
         />
       </SectionCard>
+
+      <SectionCard>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 flex-shrink-0"
+            checked={data.section_reviewed}
+            onChange={(e) => onChange({ section_reviewed: e.target.checked })}
+          />
+          <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+            {t('applicant.form.s4_section_reviewed_label')}
+          </span>
+        </label>
+      </SectionCard>
     </div>
   );
 }
@@ -2158,6 +2285,20 @@ function Section5({
             rows={2}
           />
         </div>
+      </SectionCard>
+
+      <SectionCard>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 flex-shrink-0"
+            checked={data.section_reviewed}
+            onChange={(e) => onChange({ section_reviewed: e.target.checked })}
+          />
+          <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+            {t('applicant.form.s5_section_reviewed_label')}
+          </span>
+        </label>
       </SectionCard>
     </div>
   );
@@ -3385,7 +3526,7 @@ export function ApplicationFormPage() {
 
   const [form, setForm] = useState<FormState>(() => {
     // Re-apply flow: when navigated here with prefill state, start a fresh form
-    // with the camper's basic info pre-populated. Any existing localStorage draft
+    // with the camper's basic info pre-populated. Any existing sessionStorage draft
     // is intentionally ignored — the user is starting a brand-new application.
     if (navState?.prefill) {
       const prefill = navState.prefill;
@@ -3405,12 +3546,12 @@ export function ApplicationFormPage() {
     // Server-draft continue flow: when draftId is present, the server copy is
     // authoritative. We start from INITIAL_STATE here (sync); a useEffect below
     // fetches the server draft and overwrites the form state asynchronously.
-    // We still check localStorage as a fast-path in case the page was refreshed.
+    // We still check sessionStorage as a fast-path in case the page was refreshed.
     try {
-      const raw = localStorage.getItem(draftKey);
+      const raw = sessionStorage.getItem(draftKey);
       if (raw) {
         const parsed = JSON.parse(raw) as FormState;
-        return { ...INITIAL_STATE, ...parsed, meta: { ...INITIAL_STATE.meta, ...parsed.meta } };
+        return mergeDraft(parsed);
       }
     } catch {
       /* ignore */
@@ -3437,7 +3578,7 @@ export function ApplicationFormPage() {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Separate timer for debounced server-side draft saves (30 s cadence). */
   const serverSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Holds actual File objects for document uploads — not serialized to localStorage */
+  /** Holds actual File objects for document uploads — not serialized to sessionStorage */
   const docFilesRef = useRef<Record<string, File | null>>({});
   /**
    * Tracks the camper ID created in step 1 of handleSubmit.
@@ -3449,7 +3590,7 @@ export function ApplicationFormPage() {
   // ── Load sessions ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    getSessions().then(setSessions).catch(() => {});
+    getSessions().then(setSessions).catch((err) => { console.error('[ApplicationForm] Sessions load failed:', err); });
   }, []);
 
   // ── Hydrate from server draft (async, runs once on mount) ─────────────────
@@ -3463,17 +3604,17 @@ export function ApplicationFormPage() {
       .then((draft) => {
         if (!draft.draft_data) return;
         const saved = draft.draft_data as unknown as FormState;
-        setForm((prev) => ({ ...INITIAL_STATE, ...saved, meta: { ...INITIAL_STATE.meta, ...(saved.meta ?? {}), activeSection: prev.meta.activeSection } }));
+        setForm((prev) => ({ ...mergeDraft(saved), meta: { ...INITIAL_STATE.meta, ...(saved.meta ?? {}), activeSection: prev.meta.activeSection } }));
       })
-      .catch(() => { /* fall back to whatever localStorage/INITIAL_STATE loaded */ });
+      .catch(() => { /* fall back to whatever sessionStorage/INITIAL_STATE loaded */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Auto-save to localStorage ──────────────────────────────────────────────
+  // ── Auto-save to sessionStorage (PHI must not persist across browser sessions) ──
 
   const persistDraft = useCallback((state: FormState) => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify(state));
+      sessionStorage.setItem(draftKey, JSON.stringify(state));
       setLastSavedAt(new Date());
     } catch {
       /* quota exceeded — silently ignore */
@@ -3499,7 +3640,7 @@ export function ApplicationFormPage() {
     if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
     serverSaveTimer.current = setTimeout(() => {
       const label = [form.s1.camper_first_name, form.s1.camper_last_name].filter(Boolean).join(' ') || 'New Application';
-      apiSaveDraft(serverDraftId, label, form as unknown as Record<string, unknown>).catch(() => {});
+      apiSaveDraft(serverDraftId, label, form as unknown as Record<string, unknown>).catch((err) => { console.error('[ApplicationForm] Server draft auto-save failed:', err); });
     }, 30_000);
     return () => {
       if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
@@ -3521,7 +3662,7 @@ export function ApplicationFormPage() {
   }
 
   function handleClearDraft() {
-    localStorage.removeItem(draftKey);
+    sessionStorage.removeItem(draftKey);
     if (serverDraftId) apiDeleteDraft(serverDraftId).catch(() => {});
     setForm(INITIAL_STATE);
     setCurrentStep(0);
@@ -3856,8 +3997,18 @@ export function ApplicationFormPage() {
         seizure_plan:   'seizure_action_plan',
         gtube_plan:     'feeding_action_plan',
       };
+      // Determine which conditional documents are actually applicable for this camper.
+      // If a condition was toggled off after a document was uploaded, the slot may
+      // still be non-null — this guard ensures we never submit documents for inactive
+      // conditions regardless of what remains in form state.
+      const activeConditionalDocs: Record<string, boolean> = {
+        cpap_waiver:  form.s4.devices.some((d) => d.device_type.includes('CPAP')),
+        seizure_plan: form.s2.has_seizures === true,
+        gtube_plan:   form.s5.g_tube === true,
+      };
       for (const [key, slot] of Object.entries(form.s9)) {
         if (!slot) continue;
+        if (key in activeConditionalDocs && !activeConditionalDocs[key]) continue;
         const file = docFilesRef.current[key];
         if (!file) continue;
         const fd = new FormData();
@@ -3905,7 +4056,7 @@ export function ApplicationFormPage() {
       pendingCamperIdRef.current = null;
       toast.dismiss(tid);
       toast.success(t('applicant.form.submit_success'));
-      localStorage.removeItem(draftKey);
+      sessionStorage.removeItem(draftKey);
       // Delete the server draft now that the real application record exists
       if (serverDraftId) await apiDeleteDraft(serverDraftId).catch(() => {});
       navigate(ROUTES.PARENT_APPLICATIONS);
@@ -4052,7 +4203,21 @@ export function ApplicationFormPage() {
               {currentStep === 1 && (
                 <Section2
                   data={form.s2}
-                  onChange={(patch) => updateSection('s2', patch)}
+                  onChange={(patch) => {
+                    // When has_seizures is answered anything other than true, the
+                    // seizure action plan document is no longer applicable — clear it
+                    // from both state and the file ref so it is not accidentally submitted.
+                    if ('has_seizures' in patch && patch.has_seizures !== true) {
+                      setForm((prev) => ({
+                        ...prev,
+                        s2: { ...(prev.s2 as object), ...(patch as object) } as FormState['s2'],
+                        s9: { ...prev.s9, seizure_plan: null },
+                      }));
+                      docFilesRef.current['seizure_plan'] = null;
+                    } else {
+                      updateSection('s2', patch);
+                    }
+                  }}
                 />
               )}
               {currentStep === 2 && (
@@ -4070,7 +4235,20 @@ export function ApplicationFormPage() {
               {currentStep === 4 && (
                 <Section5
                   data={form.s5}
-                  onChange={(patch) => updateSection('s5', patch)}
+                  onChange={(patch) => {
+                    // When g_tube is unchecked, the G-tube feeding plan document is no
+                    // longer applicable — clear it from state and the file ref.
+                    if ('g_tube' in patch && patch.g_tube === false) {
+                      setForm((prev) => ({
+                        ...prev,
+                        s5: { ...(prev.s5 as object), ...(patch as object) } as FormState['s5'],
+                        s9: { ...prev.s9, gtube_plan: null },
+                      }));
+                      docFilesRef.current['gtube_plan'] = null;
+                    } else {
+                      updateSection('s5', patch);
+                    }
+                  }}
                 />
               )}
               {currentStep === 5 && (

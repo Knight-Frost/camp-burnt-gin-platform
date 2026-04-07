@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AddRequestId;
 use App\Http\Middleware\AuditPhiAccess;
+use App\Http\Middleware\EnsureMfaEnrolled;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsMedicalProvider;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         then: function () {
             /**
@@ -92,6 +94,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
             'admin' => EnsureUserIsAdmin::class,
             'medical' => EnsureUserIsMedicalProvider::class,
+            'mfa.enrolled' => EnsureMfaEnrolled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

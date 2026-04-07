@@ -11,7 +11,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle, Languages } from 'lucide-react';
+import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle, Languages, Check, X } from 'lucide-react';
+import { usePasswordValidation, type PasswordRequirement } from '@/features/profile/hooks/usePasswordValidation';
 import {
   applyFontScale,
   applyHighContrast,
@@ -27,9 +28,8 @@ import {
 import { getProfileRoute, getPrimaryRole, ADMIN_ROLES } from '@/shared/constants/roles';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/ui/components/Button';
-import { FormField } from '@/ui/components/FormField';
 import axiosInstance from '@/api/axios.config';
-import { requestDataExport, deleteAccount } from '@/features/profile/api/profile.api';
+import { deleteAccount } from '@/features/profile/api/profile.api';
 import { clearAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch } from '@/store/hooks';
 
@@ -77,6 +77,7 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
   announcements: true,
   messages: true,
   deadlines: true,
+  in_app_message_notifications: true,
 };
 
 export function SettingsPage() {
@@ -92,13 +93,12 @@ export function SettingsPage() {
   const availableLanguages = Object.keys(i18n.options.resources ?? {});
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [notifLoaded, setNotifLoaded] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const [savingNotif, setSavingNotif] = useState<keyof NotificationPreferences | null>(null);
-  // Data & Account
-  const [exportingData, setExportingData] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeletePw, setShowDeletePw] = useState(false);
@@ -108,8 +108,12 @@ export function SettingsPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<PasswordFormValues>({ resolver: zodResolver(passwordSchema) });
+
+  const watchedPassword     = watch('password', '');
+  const watchedConfirmation = watch('password_confirmation', '');
 
   const handleFontScale = (scale: FontScale) => {
     setFontScaleState(scale);
@@ -179,18 +183,6 @@ export function SettingsPage() {
       toast.error((err as { message?: string })?.message ?? 'Failed to update password.');
     } finally {
       setSavingPw(false);
-    }
-  };
-
-  const handleDataExport = async () => {
-    setExportingData(true);
-    try {
-      const { message } = await requestDataExport();
-      toast.success(message);
-    } catch {
-      toast.error('Failed to submit data export request. Please try again.');
-    } finally {
-      setExportingData(false);
     }
   };
 
@@ -417,7 +409,7 @@ export function SettingsPage() {
                     )}
                   </div>
 
-                  {/* New password */}
+                  {/* New password + live requirements checklist */}
                   <div className="flex flex-col gap-1">
                     <label htmlFor="settings-new-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                       New Password
@@ -426,11 +418,12 @@ export function SettingsPage() {
                       <input
                         id="settings-new-password"
                         type={showNew ? 'text' : 'password'}
+                        autoComplete="new-password"
                         className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
                         style={{
                           background: 'var(--input)',
                           color: 'var(--foreground)',
-                          borderColor: errors.password ? 'var(--destructive)' : 'var(--border)',
+                          borderColor: 'var(--border)',
                         }}
                         {...register('password')}
                       />
@@ -439,24 +432,44 @@ export function SettingsPage() {
                         className="absolute right-3 top-1/2 -translate-y-1/2"
                         style={{ color: 'var(--muted-foreground)' }}
                         onClick={() => setShowNew(v => !v)}
+                        aria-label={showNew ? 'Hide new password' : 'Show new password'}
                       >
                         {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    {errors.password && (
-                      <p className="text-xs" style={{ color: 'var(--destructive)' }}>
-                        {errors.password.message}
-                      </p>
-                    )}
+                    <PasswordRequirementsDisplay password={watchedPassword} />
                   </div>
 
-                  {/* Confirm new password */}
-                  <FormField
-                    label="Confirm New Password"
-                    type="password"
-                    error={errors.password_confirmation?.message}
-                    {...register('password_confirmation')}
-                  />
+                  {/* Confirm new password + live match indicator */}
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="settings-confirm-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="settings-confirm-password"
+                        type={showConfirm ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
+                        style={{
+                          background: 'var(--input)',
+                          color: 'var(--foreground)',
+                          borderColor: 'var(--border)',
+                        }}
+                        {...register('password_confirmation')}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        style={{ color: 'var(--muted-foreground)' }}
+                        onClick={() => setShowConfirm(v => !v)}
+                        aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+                      >
+                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <PasswordMatchIndicator password={watchedPassword} confirmation={watchedConfirmation} />
+                  </div>
 
                   <Button type="submit" variant="primary" loading={savingPw} className="self-start mt-2">
                     Update Password
@@ -469,24 +482,6 @@ export function SettingsPage() {
           {/* ── DATA & ACCOUNT ──────────────────────────────────────────── */}
           {activeTab === 'data' && (
             <div className="flex flex-col gap-6">
-
-              {/* Data export */}
-              <div className="rounded-2xl border p-6" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(22,163,74,0.10)', color: 'var(--ember-orange)' }}>
-                    <Database className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Request Data Export</h3>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      Download a copy of your personal data, including profile information, applications, and documents. Delivery takes up to 30 days.
-                    </p>
-                  </div>
-                </div>
-                <Button variant="secondary" size="sm" loading={exportingData} onClick={handleDataExport}>
-                  Request data export
-                </Button>
-              </div>
 
               {/* Account deletion — only available to applicants (parent role) */}
               {!ADMIN_ROLES.includes(getPrimaryRole(user?.roles ?? [])!) && (
@@ -567,11 +562,10 @@ export function SettingsPage() {
               style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
             >
               <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
-                Email Notifications
+                Notifications
               </h3>
               <p className="text-xs mb-4" style={{ color: 'var(--muted-foreground)' }}>
-                Choose which events trigger an email to your registered address.
-                In-app notifications are always delivered regardless of these settings.
+                Control email alerts and in-app popups. Email settings apply to your registered address.
               </p>
 
               {notifLoading ? (
@@ -588,10 +582,11 @@ export function SettingsPage() {
                 <div className="flex flex-col gap-0">
                   {(
                     [
-                      { key: 'application_updates' as keyof NotificationPreferences, label: 'Application status updates', description: 'When an application is submitted, approved, or rejected' },
-                      { key: 'announcements'        as keyof NotificationPreferences, label: 'New announcements',          description: 'When camp staff post a new announcement' },
-                      { key: 'messages'             as keyof NotificationPreferences, label: 'New messages in inbox',      description: 'When you receive a new message or are added to a conversation' },
-                      { key: 'deadlines'            as keyof NotificationPreferences, label: 'Upcoming deadline reminders', description: 'Reminders about application and document deadlines' },
+                      { key: 'in_app_message_notifications' as keyof NotificationPreferences, label: 'In-app message notifications', description: 'Show a popup when a new message arrives while you are logged in' },
+                      { key: 'application_updates'          as keyof NotificationPreferences, label: 'Application status updates (email)', description: 'Email when an application is submitted, approved, or rejected' },
+                      { key: 'announcements'                as keyof NotificationPreferences, label: 'New announcements (email)',          description: 'Email when camp staff post a new announcement' },
+                      { key: 'messages'                     as keyof NotificationPreferences, label: 'New messages in inbox (email)',      description: 'Email when you receive a new message or are added to a conversation' },
+                      { key: 'deadlines'                    as keyof NotificationPreferences, label: 'Upcoming deadline reminders (email)', description: 'Email reminders about application and document deadlines' },
                     ] satisfies { key: keyof NotificationPreferences; label: string; description: string }[]
                   ).map((pref) => (
                     <div
@@ -662,6 +657,74 @@ function SettingsCard({
       </div>
       {children}
     </div>
+  );
+}
+
+// ─── PasswordRequirementsDisplay ──────────────────────────────────────────────
+//
+// Shows each password requirement with a live ✓/✗ indicator as the user types.
+// Neutral state (all gray) when the field is empty — no red until the user starts.
+
+function PasswordRequirementsDisplay({ password }: { password: string }) {
+  const { requirements } = usePasswordValidation(password);
+  const hasInput = password.length > 0;
+
+  return (
+    <ul
+      className="flex flex-col gap-1 mt-1.5"
+      role="list"
+      aria-label="Password requirements"
+      aria-live="polite"
+    >
+      {requirements.map((req: PasswordRequirement) => {
+        const state: 'neutral' | 'met' | 'unmet' = !hasInput ? 'neutral' : req.met ? 'met' : 'unmet';
+        const color =
+          state === 'met'   ? '#16a34a' :
+          state === 'unmet' ? 'var(--destructive)' :
+                              'var(--muted-foreground)';
+
+        return (
+          <li
+            key={req.label}
+            className="flex items-center gap-1.5 text-xs"
+            style={{ color, transition: 'color 0.15s ease' }}
+          >
+            {state === 'met' ? (
+              <Check className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+            ) : (
+              <X className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+            )}
+            <span>{req.label}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ─── PasswordMatchIndicator ───────────────────────────────────────────────────
+//
+// Displays a live match status below the confirm password field.
+// Renders nothing when the confirm field is empty.
+
+function PasswordMatchIndicator({ password, confirmation }: { password: string; confirmation: string }) {
+  if (!confirmation) return null;
+  const matches = password === confirmation;
+  return (
+    <p
+      className="flex items-center gap-1 text-xs mt-0.5"
+      style={{
+        color: matches ? '#16a34a' : 'var(--destructive)',
+        transition: 'color 0.15s ease',
+      }}
+      aria-live="polite"
+    >
+      {matches
+        ? <Check className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+        : <X    className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+      }
+      {matches ? 'Passwords match' : 'Passwords do not match'}
+    </p>
   );
 }
 

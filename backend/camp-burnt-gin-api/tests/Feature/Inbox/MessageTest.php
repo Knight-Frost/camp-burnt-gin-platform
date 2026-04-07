@@ -36,7 +36,7 @@ class MessageTest extends TestCase
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'Administrator']);
         $parentRole = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
 
-        $this->admin = User::factory()->create(['role_id' => $adminRole->id]);
+        $this->admin = User::factory()->create(['role_id' => $adminRole->id, 'mfa_enabled' => true]);
         $this->parent = User::factory()->create(['role_id' => $parentRole->id]);
 
         $this->conversation = Conversation::factory()->create([

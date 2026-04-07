@@ -100,11 +100,36 @@ class ArchiveExpiredRecords extends Command
 
     /**
      * Write the list of expired campers to a CSV file at the given path.
+     *
+     * SECURITY: This file contains PHI (names, DOB, parent email). It must be
+     * written to a secure, access-controlled path. The operator is responsible
+     * for encrypting the file and deleting it after review.
+     *
      * Each row contains identifiers, dates, and the associated application count.
      */
     protected function exportToFile($campers, string $path): void
     {
+        // Restrict export to paths under the configured storage directory to prevent
+        // writing PHI to arbitrary locations (e.g. /tmp, public web root).
+        $allowedBase = storage_path('app/retention-exports');
+        $resolvedPath = realpath(dirname($path)) ?: dirname($path);
+        if (! str_starts_with($resolvedPath, storage_path())) {
+            $this->error('Export path must be within the application storage directory.');
+            $this->error('Allowed base: '.storage_path());
+            $this->error('Provided path resolves to: '.$resolvedPath);
+
+            return;
+        }
+
+        // Create the export directory if it does not exist.
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0700, true);
+        }
+
         $csv = fopen($path, 'w');
+
+        // Restrict file permissions so only the web server user can read it.
+        chmod($path, 0600);
 
         // Write header
         fputcsv($csv, [
@@ -115,8 +140,9 @@ class ArchiveExpiredRecords extends Command
             'Retention Until',
             'Days Overdue',
             'Parent User ID',
-            'Parent Email',
             'Application Count',
+            // Note: parent email excluded — use user_id to look up contact details
+            // through the application rather than storing PII in the export file.
         ]);
 
         // Write data
@@ -129,7 +155,6 @@ class ArchiveExpiredRecords extends Command
                 $camper->record_retention_until->format('Y-m-d'),
                 now()->diffInDays($camper->record_retention_until),
                 $camper->user_id,
-                $camper->user?->email,
                 $camper->applications->count(),
             ]);
         }
@@ -137,5 +162,7 @@ class ArchiveExpiredRecords extends Command
         fclose($csv);
 
         $this->info(sprintf('Exported %d records to: %s', $campers->count(), $path));
+        $this->warn('PHI NOTICE: This file contains Protected Health Information.');
+        $this->warn('Encrypt and securely delete this file after review.');
     }
 }

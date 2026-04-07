@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, X, Calendar, MapPin, Users, Archive, ExternalLink, FolderOpen, Zap } from 'lucide-react';
@@ -309,6 +309,8 @@ const STATUS_BADGE: Record<SessionStatus, { label: string; bg: string; color: st
 
 export function AdminSessionsPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const isSuper = location.pathname.startsWith('/super-admin');
   const workspace = useSessionWorkspace();
 
   const [camps, setCamps]             = useState<Camp[]>([]);
@@ -470,7 +472,7 @@ export function AdminSessionsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link
-            to={ROUTES.ADMIN_ARCHIVED_SESSIONS}
+            to={isSuper ? '/super-admin/sessions/archived' : ROUTES.ADMIN_ARCHIVED_SESSIONS}
             className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
             style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'var(--glass-medium)' }}
           >
@@ -703,7 +705,7 @@ export function AdminSessionsPage() {
                             style={{ borderColor: 'var(--border)' }}
                           >
                             <Link
-                              to={ROUTES.ADMIN_SESSION_DETAIL(session.id)}
+                              to={isSuper ? `/super-admin/sessions/${session.id}` : ROUTES.ADMIN_SESSION_DETAIL(session.id)}
                               className="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-70"
                               style={{ color: '#166534' }}
                             >

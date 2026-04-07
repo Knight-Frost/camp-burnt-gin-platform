@@ -66,7 +66,12 @@ class ConversationResource extends JsonResource
     }
 
     /**
-     * Build flat participants array: [{id, name, email, role}].
+     * Build flat participants array: [{id, name, role}].
+     *
+     * Email addresses are intentionally excluded from participant shapes.
+     * The compose window only needs id/name/role to display recipient chips
+     * and route messages. Exposing emails to all participants creates a PII
+     * enumeration vector — participants should not see each other's emails.
      *
      * Works whether participants were loaded via `participants.role`
      * (HasManyThrough → User with role) or via `activeParticipantRecords.user.role`.
@@ -78,7 +83,6 @@ class ConversationResource extends JsonResource
             return $this->participants->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
-                'email' => $user->email,
                 'role' => $user->relationLoaded('role') ? ($user->role?->name ?? 'unknown') : 'unknown',
                 'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
             ])->values()->all();
@@ -89,7 +93,6 @@ class ConversationResource extends JsonResource
             return $this->activeParticipantRecords->map(fn ($record) => [
                 'id' => $record->user?->id,
                 'name' => $record->user?->name,
-                'email' => $record->user?->email,
                 'role' => $record->user?->role?->name ?? 'unknown',
                 'avatar_url' => $record->user?->avatar_path ? Storage::disk('public')->url($record->user->avatar_path) : null,
             ])->filter(fn ($p) => $p['id'] !== null)->values()->all();
@@ -114,7 +117,7 @@ class ConversationResource extends JsonResource
             $sender = [
                 'id' => $msg->sender->id,
                 'name' => $msg->sender->name,
-                'email' => $msg->sender->email,
+                // Email omitted: participants must not see each other's email addresses.
                 'role' => $msg->sender->relationLoaded('role')
                     ? ($msg->sender->role?->name ?? 'unknown')
                     : 'unknown',

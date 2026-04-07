@@ -48,26 +48,29 @@ class MedicalStatsController extends Controller
         $weekAgo = Carbon::today()->subDays(7)->toDateString();
 
         // --- Camper overview counts ---
+        // All counts are scoped to active (approved, enrolled) campers only.
+        // Medical providers are authorized to see clinical data for active campers;
+        // rejected, withdrawn, pending, and waitlisted campers are out of scope.
 
-        // Total number of campers in the system.
-        $totalCampers = Camper::count();
+        // Total number of active (enrolled) campers in the system.
+        $totalCampers = Camper::active()->count();
 
-        // Campers with at least one severe or life-threatening allergy on file.
-        $campersWithSevereAllergies = Camper::whereHas('allergies', function ($q) {
+        // Active campers with at least one severe or life-threatening allergy on file.
+        $campersWithSevereAllergies = Camper::active()->whereHas('allergies', function ($q) {
             $q->whereIn('severity', ['severe', 'life_threatening']);
         })->count();
 
-        // Campers who have at least one active medication record.
-        $campersOnMedications = Camper::whereHas('medications')->count();
+        // Active campers who have at least one active medication record.
+        $campersOnMedications = Camper::active()->whereHas('medications')->count();
 
-        // Campers with at least one currently active medical restriction.
-        $campersWithRestrictions = Camper::whereHas('restrictions', function ($q) {
+        // Active campers with at least one currently active medical restriction.
+        $campersWithRestrictions = Camper::active()->whereHas('restrictions', function ($q) {
             $q->where('is_active', true);
         })->count();
 
-        // Campers who have not yet had a medical record created — useful for flagging
+        // Active campers who have not yet had a medical record created — useful for flagging
         // incomplete intake paperwork before a camper arrives at camp.
-        $campersWithoutMedicalRecord = Camper::doesntHave('medicalRecord')->count();
+        $campersWithoutMedicalRecord = Camper::active()->doesntHave('medicalRecord')->count();
 
         // --- Follow-up urgency summary ---
 
@@ -85,23 +88,41 @@ class MedicalStatsController extends Controller
         $openFollowUps = MedicalFollowUp::whereNotIn('status', ['completed', 'cancelled'])->count();
 
         // --- Recent activity feed (last 7 days, capped at 5 items each) ---
+        //
+        // Only columns needed by the activity feed are selected to avoid decrypting
+        // and transmitting PHI fields (notes, dosage, full description, etc.) that
+        // the dashboard display never uses. The 'title' and 'chief_complaint' fields
+        // are intentionally included — they are PHI but are required for the feed
+        // summary line and are authorized for medical staff viewing this endpoint.
 
-        // The 5 most recent treatment log entries.
-        $recentTreatments = TreatmentLog::with(['camper', 'recorder'])
+        // The 5 most recent treatment log entries within the past 7 days.
+        $recentTreatments = TreatmentLog::select([
+            'id', 'camper_id', 'recorded_by', 'type', 'treatment_date', 'treatment_time', 'title', 'created_at',
+        ])
+            ->with(['camper:id,first_name,last_name', 'recorder:id,name'])
+            ->whereDate('treatment_date', '>=', $weekAgo)
             ->orderByDesc('treatment_date')
             ->orderByDesc('treatment_time')
             ->limit(5)
             ->get();
 
-        // The 5 most recent incident reports.
-        $recentIncidents = MedicalIncident::with(['camper', 'recorder'])
+        // The 5 most recent incident reports within the past 7 days.
+        $recentIncidents = MedicalIncident::select([
+            'id', 'camper_id', 'recorded_by', 'severity', 'incident_date', 'incident_time', 'title', 'created_at',
+        ])
+            ->with(['camper:id,first_name,last_name', 'recorder:id,name'])
+            ->whereDate('incident_date', '>=', $weekAgo)
             ->orderByDesc('incident_date')
             ->orderByDesc('incident_time')
             ->limit(5)
             ->get();
 
-        // The 5 most recent health center visits.
-        $recentVisits = MedicalVisit::with(['camper', 'recorder'])
+        // The 5 most recent health center visits within the past 7 days.
+        $recentVisits = MedicalVisit::select([
+            'id', 'camper_id', 'recorded_by', 'disposition', 'visit_date', 'visit_time', 'chief_complaint', 'created_at',
+        ])
+            ->with(['camper:id,first_name,last_name', 'recorder:id,name'])
+            ->whereDate('visit_date', '>=', $weekAgo)
             ->orderByDesc('visit_date')
             ->orderByDesc('visit_time')
             ->limit(5)

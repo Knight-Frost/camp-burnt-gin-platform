@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import { useParams, Link } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
@@ -502,7 +503,11 @@ export function MedicalRecordPage() {
       // Append the new allergy to the existing list
       setState((s) => ({ ...s, allergies: [...s.allergies, a] }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditAllergy = async () => {
@@ -513,7 +518,11 @@ export function MedicalRecordPage() {
       // Replace only the edited item in the list using map
       setState((s) => ({ ...s, allergies: s.allergies.map((x) => x.id === editTarget ? a : x) }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddMedication = async () => {
@@ -523,7 +532,11 @@ export function MedicalRecordPage() {
       const m = await createMedication({ camper_id: id, name: form.name, dosage: form.dosage, frequency: form.frequency, notes: form.notes });
       setState((s) => ({ ...s, medications: [...s.medications, m] }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditMedication = async () => {
@@ -533,7 +546,11 @@ export function MedicalRecordPage() {
       const m = await updateMedication(editTarget, { name: form.name, dosage: form.dosage, frequency: form.frequency, notes: form.notes });
       setState((s) => ({ ...s, medications: s.medications.map((x) => x.id === editTarget ? m : x) }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddDiagnosis = async () => {
@@ -544,7 +561,11 @@ export function MedicalRecordPage() {
       const d = await createDiagnosis({ camper_id: id, name: form.name, icd_code: form.icd_code || undefined, notes: form.notes });
       setState((s) => ({ ...s, diagnoses: [...s.diagnoses, d] }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditDiagnosis = async () => {
@@ -554,7 +575,11 @@ export function MedicalRecordPage() {
       const d = await updateDiagnosis(editTarget, { name: form.name, icd_code: form.icd_code || undefined, notes: form.notes });
       setState((s) => ({ ...s, diagnoses: s.diagnoses.map((x) => x.id === editTarget ? d : x) }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditNotes = async () => {
@@ -568,7 +593,11 @@ export function MedicalRecordPage() {
       });
       setState((s) => ({ ...s, record: r }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditBehavioral = async () => {
@@ -583,7 +612,11 @@ export function MedicalRecordPage() {
         setState((s) => ({ ...s, behavioral: b }));
       }
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditFeeding = async () => {
@@ -599,7 +632,11 @@ export function MedicalRecordPage() {
         setState((s) => ({ ...s, feeding: f }));
       }
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddDevice = async () => {
@@ -609,7 +646,11 @@ export function MedicalRecordPage() {
       const d = await createAssistiveDevice({ camper_id: id, type: form.type, description: form.description });
       setState((s) => ({ ...s, devices: [...s.devices, d] }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditDevice = async () => {
@@ -619,7 +660,11 @@ export function MedicalRecordPage() {
       const d = await updateAssistiveDevice(editTarget, { device_type: form.type, notes: form.description });
       setState((s) => ({ ...s, devices: s.devices.map((x) => x.id === editTarget ? d : x) }));
       closeModal();
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   /**
@@ -631,7 +676,11 @@ export function MedicalRecordPage() {
     try {
       const updated = await updateActivityPermission(p.id, { permission_level: p.permission_level === 'yes' ? 'no' : 'yes' });
       setState((s) => ({ ...s, permissions: s.permissions.map((x) => x.id === p.id ? updated : x) }));
-    } finally { setSaving(false); }
+    } catch {
+      toast.error('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ─── Loading ─────────────────────────────────────────────────────────────────

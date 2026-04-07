@@ -150,6 +150,10 @@ class PasswordResetService
             'password' => Hash::make($password),
         ]);
 
+        // Invalidate all active Sanctum tokens so any stolen or remembered sessions
+        // cannot continue after a password reset. The user must log in again.
+        $user->tokens()->delete();
+
         // Notify the account holder that their password changed so they can act
         // if the change was unauthorised (security assurance email)
         $user->notify(new PasswordChangedConfirmationNotification);

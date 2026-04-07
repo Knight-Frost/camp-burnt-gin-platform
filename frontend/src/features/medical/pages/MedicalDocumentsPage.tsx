@@ -101,7 +101,7 @@ export function MedicalDocumentsPage() {
 
   const handleFiles = async (files: File[]) => {
     for (const file of files) {
-      const localId = crypto.randomUUID();
+      const localId = typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       setPending((prev) => [...prev, { id: localId, file, progress: 0, status: 'uploading' }]);
 

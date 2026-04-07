@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\IncidentSeverity;
 use App\Enums\IncidentType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class MedicalIncident extends Model
 {
+    use SoftDeletes;
     /**
      * The attributes that are mass assignable.
      *

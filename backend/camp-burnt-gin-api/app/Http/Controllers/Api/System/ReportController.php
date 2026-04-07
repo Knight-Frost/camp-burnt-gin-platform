@@ -64,12 +64,15 @@ class ReportController extends Controller
         // selectRaw with GROUP BY produces a flat map of status → count without loading all rows.
         $apps = Application::selectRaw('status, COUNT(*) as count')->groupBy('status')->pluck('count', 'status');
 
-        // withCount('applications') adds an applications_count column without a subquery.
-        $sessions = CampSession::withCount('applications')->get()->map(fn ($s) => [
+        // Count only approved applications per session — drafts, rejected, and waitlisted
+        // applications must not inflate the enrolled figure shown on the Reports page.
+        $sessions = CampSession::withCount([
+            'applications as enrolled' => fn ($q) => $q->where('status', 'approved'),
+        ])->get()->map(fn ($s) => [
             'id' => $s->id,
             'name' => $s->name,
             'capacity' => $s->capacity,
-            'enrolled' => $s->applications_count,
+            'enrolled' => (int) $s->enrolled,
         ]);
 
         // Build a monthly timeline of submission counts for the trend chart on the dashboard.
@@ -85,7 +88,8 @@ class ReportController extends Controller
             'success' => true,
             'data' => [
                 'total_campers' => Camper::count(),
-                'total_applications' => Application::count(),
+                // Exclude unsubmitted drafts — they are not real applications.
+                'total_applications' => Application::where('is_draft', false)->count(),
                 // Full breakdown map, e.g. {"submitted": 12, "approved": 45, "rejected": 3}
                 'applications_by_status' => $apps,
                 // Individual status shortcuts for the dashboard counter cards.
@@ -238,8 +242,11 @@ class ReportController extends Controller
         $this->authorize('viewAny', Application::class);
 
         // Validate optional filter inputs before they reach the service.
+        // status must be a real ApplicationStatus enum value — a plain 'string' rule
+        // would silently accept arbitrary input and pass it through to the query.
+        $validStatuses = implode(',', array_column(\App\Enums\ApplicationStatus::cases(), 'value'));
         $request->validate([
-            'status' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', "in:{$validStatuses}"],
             'camp_session_id' => ['nullable', 'exists:camp_sessions,id'],
         ]);
 

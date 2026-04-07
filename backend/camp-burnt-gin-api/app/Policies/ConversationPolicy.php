@@ -194,6 +194,10 @@ class ConversationPolicy
      * System notification threads cannot be left — the user must always be
      * able to access their notification history. The creator of a regular
      * conversation also cannot leave; they must archive it instead.
+     * Exception: if the creator has already moved the conversation to their
+     * personal trash, that represents explicit delete intent and leaving is
+     * permitted (this allows "Delete permanently" from the Trash folder to work
+     * for non-admin users who started the conversation).
      * All other active participants may leave freely.
      */
     public function leave(User $user, Conversation $conversation): bool
@@ -208,9 +212,15 @@ class ConversationPolicy
             return false;
         }
 
-        // The creator cannot leave — they must archive the conversation to close it.
+        // The creator cannot leave unless they have already trashed the conversation.
+        // Trashing signals explicit delete intent, so we allow them to remove themselves.
         if ($conversation->created_by_id === $user->id) {
-            return false;
+            $hasTrashed = $conversation->participantRecords()
+                ->where('user_id', $user->id)
+                ->whereNotNull('trashed_at')
+                ->exists();
+
+            return $hasTrashed;
         }
 
         return true;

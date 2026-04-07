@@ -24,7 +24,6 @@ use Illuminate\Validation\Rules\Password;
  *   - Read and update notification preferences (email/in-app toggles).
  *   - Change the account password (requires current password verification).
  *   - Provide pre-fill data so returning applicants don't re-enter common fields.
- *   - Request a personal data export (GDPR-style).
  *   - Request account deletion (applicant accounts only).
  */
 class UserProfileController extends Controller
@@ -292,6 +291,7 @@ class UserProfileController extends Controller
             'announcements' => true,
             'messages' => true,
             'deadlines' => true,
+            'in_app_message_notifications' => true,
         ];
 
         // Merge stored prefs over defaults — stored values take priority.
@@ -316,6 +316,7 @@ class UserProfileController extends Controller
             'announcements' => ['sometimes', 'boolean'],
             'messages' => ['sometimes', 'boolean'],
             'deadlines' => ['sometimes', 'boolean'],
+            'in_app_message_notifications' => ['sometimes', 'boolean'],
         ]);
 
         $defaults = [
@@ -323,6 +324,7 @@ class UserProfileController extends Controller
             'announcements' => true,
             'messages' => true,
             'deadlines' => true,
+            'in_app_message_notifications' => true,
         ];
 
         // Fetch what the user currently has saved (may be null for brand-new accounts).
@@ -452,34 +454,8 @@ class UserProfileController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // Data & account controls
+    // Account controls
     // -------------------------------------------------------------------------
-
-    /**
-     * Queue a personal data export for the current user.
-     *
-     * POST /api/profile/request-data-export
-     *
-     * Acknowledges the request and records it; actual export delivery
-     * is handled asynchronously by the operations team.
-     *
-     * This satisfies GDPR/privacy "right to access" obligations — a user may
-     * request a copy of all data the system holds about them.
-     */
-    public function requestDataExport(Request $request): JsonResponse
-    {
-        // Log the export request for audit purposes
-        // Write a structured log entry so the ops team can track and fulfill the request.
-        \Log::info('Data export requested', [
-            'user_id' => $request->user()->id,
-            'email' => $request->user()->email,
-            'ip' => $request->ip(),
-        ]);
-
-        return response()->json([
-            'message' => 'Data export request received. You will receive an email with your data within 30 days.',
-        ]);
-    }
 
     /**
      * Request account deletion for the current user.
@@ -527,9 +503,9 @@ class UserProfileController extends Controller
         $user->tokens()->delete();
 
         // Write a structured audit log entry for GDPR and operational records.
+        // Only log user_id and IP — never log email or other PII in log files.
         \Log::info('Account deletion requested', [
             'user_id' => $user->id,
-            'email' => $user->email,
             'ip' => $request->ip(),
         ]);
 

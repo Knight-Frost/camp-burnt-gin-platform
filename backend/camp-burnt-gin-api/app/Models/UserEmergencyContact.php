@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * UserEmergencyContact model — personal emergency contacts stored on a user (applicant) account.
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class UserEmergencyContact extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'user_id',
         'name',
@@ -31,12 +34,21 @@ class UserEmergencyContact extends Model
 
     /**
      * Cast field types for correct PHP representations.
+     *
+     * PHI fields are encrypted at rest using Laravel's 'encrypted' cast
+     * (AES-256-CBC). name, relationship, phone, and email are PII that
+     * must be encrypted consistently with the camper-level EmergencyContact model.
      */
     protected function casts(): array
     {
         return [
             // Stored as tinyint; cast so PHP sees a proper boolean
             'is_primary' => 'boolean',
+            // PII fields encrypted at rest
+            'name'         => 'encrypted',
+            'relationship' => 'encrypted',
+            'phone'        => 'encrypted',
+            'email'        => 'encrypted',
         ];
     }
 

@@ -50,6 +50,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Optional group name — consecutive items sharing a group name are rendered under one header. */
   group?: string;
+  /** Optional unread count badge — renders an orange pill next to the label. */
+  badge?: number;
 }
 
 interface DashboardSidebarProps {
@@ -220,7 +222,16 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
                       )}
                     />
                     {/* z-10 ensures the label text sits above the active background div */}
-                    <span className="relative z-10">{item.label}</span>
+                    <span className="relative z-10 flex-1">{item.label}</span>
+                    {/* Unread count badge — only shown when badge > 0 */}
+                    {item.badge != null && item.badge > 0 && (
+                      <span
+                        className="relative z-10 ml-auto text-[10px] font-semibold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 flex-shrink-0"
+                        style={{ background: 'var(--ember-orange)', color: '#fff' }}
+                      >
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
                   </>
                 )}
               </NavLink>

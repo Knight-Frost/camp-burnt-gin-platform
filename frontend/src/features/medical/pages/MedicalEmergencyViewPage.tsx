@@ -174,7 +174,7 @@ export function MedicalEmergencyViewPage() {
         setRecord(recordData);
         // Fetch risk summary independently — failure is non-fatal
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        getCamperRiskSummary(id).then((d) => setRiskData(d as any)).catch(() => {});
+        getCamperRiskSummary(id).then((d) => setRiskData(d as any)).catch((err) => { console.error('[MedicalEmergencyView] Risk summary unavailable:', err); });
         setAllergies(allergyData);
         setMedications(medData);
         setDiagnoses(diagData);

@@ -9,6 +9,7 @@ use App\Models\Camper;
 use App\Models\DocumentRequest;
 use App\Models\User;
 use App\Services\DeadlineService;
+use App\Services\FileUploadService;
 use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,6 +40,7 @@ class DocumentRequestController extends Controller
     public function __construct(
         protected SystemNotificationService $notifications,
         protected DeadlineService $deadlineService,
+        protected FileUploadService $fileUpload,
     ) {}
 
     // ── Admin Methods ──────────────────────────────────────────────────────────
@@ -268,7 +270,11 @@ class DocumentRequestController extends Controller
 
         return Storage::disk('local')->download(
             $documentRequest->uploaded_document_path,
-            $documentRequest->uploaded_file_name
+            $documentRequest->uploaded_file_name,
+            [
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+                'Pragma'        => 'no-cache',
+            ]
         );
     }
 
@@ -586,26 +592,22 @@ class DocumentRequestController extends Controller
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
         ]);
 
-        $file = $request->file('file');
-        $ext = $file->getClientOriginalExtension();
-        $uuid = Str::uuid()->toString();
-        $path = "document-requests/uploads/{$uuid}.{$ext}";
-
         // If a previously uploaded file exists, delete it before saving the new one
         if ($documentRequest->uploaded_document_path &&
             Storage::disk('local')->exists($documentRequest->uploaded_document_path)) {
             Storage::disk('local')->delete($documentRequest->uploaded_document_path);
         }
 
-        Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
+        // FileUploadService derives extension from detected MIME type — never from client filename
+        $stored = $this->fileUpload->store($request->file('file'), 'document-requests/uploads');
 
         $documentRequest->update([
-            'status' => DocumentRequestStatus::Uploaded,
-            'uploaded_document_path' => $path,
-            'uploaded_file_name' => $file->getClientOriginalName(),
-            'uploaded_mime_type' => $file->getMimeType() ?? $file->getClientMimeType(),
-            'uploaded_at' => now(),
-            'rejection_reason' => null,
+            'status'                  => DocumentRequestStatus::Uploaded,
+            'uploaded_document_path'  => $stored['path'],
+            'uploaded_file_name'      => $stored['file_name'],
+            'uploaded_mime_type'      => $stored['mime_type'],
+            'uploaded_at'             => now(),
+            'rejection_reason'        => null,
         ]);
 
         // Update inbox thread to reflect submission
@@ -658,7 +660,11 @@ class DocumentRequestController extends Controller
 
         return Storage::disk('local')->download(
             $documentRequest->uploaded_document_path,
-            $documentRequest->uploaded_file_name
+            $documentRequest->uploaded_file_name,
+            [
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+                'Pragma'        => 'no-cache',
+            ]
         );
     }
 

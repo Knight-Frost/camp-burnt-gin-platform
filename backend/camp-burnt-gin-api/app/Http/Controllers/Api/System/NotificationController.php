@@ -121,14 +121,14 @@ class NotificationController extends Controller
      *
      * POST /api/notifications/read-all
      *
-     * Iterates the unread collection and stamps read_at on each one.
-     * Uses the property (->unreadNotifications) not the method to get
-     * the already-loaded collection for batch marking.
+     * Issues a single bulk UPDATE instead of loading the entire unread collection
+     * into memory and iterating — avoids O(n) queries for users with many notifications.
      */
     public function markAllAsRead(Request $request): JsonResponse
     {
-        // ->unreadNotifications (property) returns the loaded collection; markAsRead() acts on it in bulk.
-        $request->user()->unreadNotifications->markAsRead();
+        $request->user()
+            ->unreadNotifications()
+            ->update(['read_at' => now()]);
 
         return response()->json([
             'message' => 'All notifications marked as read.',

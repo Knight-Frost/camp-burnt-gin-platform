@@ -51,9 +51,14 @@ const BCC_TEXT  = '#7c3aed';
 
 const DRAFT_KEY = 'inbox_compose_draft';
 interface Draft { subject: string; body: string }
-function saveDraft(d: Draft)       { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /**/ } }
-function loadDraft(): Draft | null { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') as Draft | null; } catch { return null; } }
-function clearDraft()              { try { localStorage.removeItem(DRAFT_KEY); } catch { /**/ } }
+// Use sessionStorage so drafts are tab-scoped and cleared on logout/tab close.
+// localStorage would persist drafts across sessions, exposing PHI to the next user.
+function saveDraft(d: Draft)       { try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /**/ } }
+function loadDraft(): Draft | null { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? 'null') as Draft | null; } catch { return null; } }
+function clearDraft()              { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /**/ } }
+/** Exported so external close paths (e.g. Escape key handler) can clear the draft
+ *  without having to import the internal DRAFT_KEY constant. */
+export function clearComposeDraft() { clearDraft(); }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -309,6 +314,8 @@ export function FloatingCompose({ onClose, onCreated, isAdmin = false }: Floatin
       }
 
       clearDraft();
+      editor?.commands.clearContent();
+      setBodyHtml('');
       onCreated(conv);
       toast.success('Message sent.');
     } catch (err: unknown) {
@@ -552,6 +559,7 @@ export function FloatingCompose({ onClose, onCreated, isAdmin = false }: Floatin
               <EditorBody
                 editor={editor}
                 minHeight={maximized ? 320 : 160}
+                maxHeight={maximized ? undefined : 320}
                 className="px-4 py-3 h-full"
               />
             </div>

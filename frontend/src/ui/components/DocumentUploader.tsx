@@ -130,7 +130,7 @@ export function DocumentUploader({
 
       // Create a local tracking entry for each valid file before uploading.
       const newFiles: UploadedFile[] = valid.map((file) => ({
-        id: crypto.randomUUID(), // unique key for React list rendering
+        id: (typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`), // unique key for React list rendering
         file,
         progress: 0,
         status: 'pending',

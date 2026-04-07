@@ -30,33 +30,11 @@ import { ErrorState } from '@/ui/components/EmptyState';
 import type { SessionDashboardStats } from '@/features/admin/types/admin.types';
 import { ROUTES } from '@/shared/constants/routes';
 import { toast } from 'sonner';
+import { StatusBadge } from '@/ui/components/StatusBadge';
 
 // ---------------------------------------------------------------------------
-// Status badge — converts a raw status string to a colour-coded pill
-// ---------------------------------------------------------------------------
-function StatusBadge({ status }: { status: string }) {
-  const styleMap: Record<string, React.CSSProperties> = {
-    approved:     { background: 'rgba(22,163,74,0.12)',   color: '#166534' },
-    submitted:    { background: 'rgba(234,179,8,0.12)',   color: '#854d0e' },
-    under_review: { background: 'rgba(59,130,246,0.12)',  color: '#1e40af' },
-    rejected:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
-    waitlisted:   { background: 'rgba(234,88,12,0.12)',   color: '#9a3412' },
-    cancelled:    { background: 'rgba(107,114,128,0.12)', color: '#374151' },
-  };
-  const labels: Record<string, string> = {
-    approved: 'Approved', submitted: 'Submitted', under_review: 'Under Review',
-    rejected: 'Rejected', waitlisted: 'Waitlisted', cancelled: 'Cancelled',
-  };
-  const style = styleMap[status] ?? styleMap.cancelled;
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-      style={style}
-    >
-      {labels[status] ?? status}
-    </span>
-  );
-}
+// StatusBadge is imported from the shared component above — using the
+// project-standard colors and labels for consistency across all pages.
 
 // ---------------------------------------------------------------------------
 // Capacity bar — visual fill indicator with colour coding

@@ -36,6 +36,15 @@ if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL && !DEMO_MODE) {
   );
 }
 
+// HIPAA guard: PHI must never be transmitted over plain HTTP in production.
+// If VITE_API_BASE_URL is set but uses http://, the build must fail loudly.
+if (import.meta.env.PROD && !DEMO_MODE && import.meta.env.VITE_API_BASE_URL?.startsWith('http://')) {
+  throw new Error(
+    '[Security] VITE_API_BASE_URL must use HTTPS in production. ' +
+    'Plain HTTP transmits auth tokens and PHI in cleartext.'
+  );
+}
+
 // Resolve the base URL for API requests.
 //
 // Development: When VITE_API_BASE_URL is not set, use a relative path (/api).
@@ -82,8 +91,17 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add a unique ID to each request so server logs can be correlated with frontend errors
-    config.headers['X-Request-ID'] = crypto.randomUUID();
+    // Add a unique ID to each request so server logs can be correlated with frontend errors.
+    // crypto.randomUUID() is only available in secure contexts (https: or localhost).
+    // When the app is accessed via HTTP on a LAN IP during development, fall back to
+    // a Math.random-based UUID v4 so the request interceptor never throws.
+    config.headers['X-Request-ID'] =
+      typeof crypto?.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+          });
 
     // For FormData payloads (file uploads), remove the instance-level
     // 'application/json' Content-Type so the browser can set the correct
@@ -119,6 +137,7 @@ function errorInterceptor(error: AxiosError<{
     message?: string;
     errors?: Record<string, string[]>;
     lockout?: boolean;
+    mfa_setup_required?: boolean;
     retry_after?: number;
     attempts_remaining?: number;
     status?: number;
@@ -168,6 +187,17 @@ function errorInterceptor(error: AxiosError<{
         return Promise.reject({
           lockout: true,
           retryAfter: responseData.retry_after ?? 60,
+        });
+      }
+      // MFA enrollment required — the user's role mandates MFA but they haven't
+      // set it up yet. Dispatch a global event so portal layouts can redirect to
+      // the security settings page. The mfaSetupRequired flag lets callers surface
+      // a targeted message instead of the generic "no permission" text.
+      if (responseData?.mfa_setup_required) {
+        window.dispatchEvent(new CustomEvent('auth:mfa-setup-required'));
+        return Promise.reject({
+          message: responseData.message ?? 'Multi-factor authentication setup is required.',
+          mfaSetupRequired: true,
         });
       }
       return Promise.reject({ message: 'You do not have permission to perform this action.' });

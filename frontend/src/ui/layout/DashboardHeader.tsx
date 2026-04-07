@@ -19,7 +19,7 @@
  *   - getProfileRoute() (imported) does the same for profile links.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bell, User, LogOut, Settings } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -59,23 +59,41 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
   const user = useAppSelector((state) => state.auth.user);
   // Controls whether the notification slide-out panel is open.
   const [notifOpen, setNotifOpen] = useState(false);
-  // Tracks how many unread notifications exist so we can show the orange badge dot.
-  const [unreadCount, setUnreadCount] = useState(0);
+  // System notification unread count — comes from server on mount; updated by NotificationPanel callbacks.
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // Bell badge shows only system notifications — inbox messages have their own badge in the sidebar.
+  const unreadCount = unreadNotifications;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Derive the correct profile and settings URLs for the logged-in user's role.
   const profileRoute = getProfileRoute(getPrimaryRole(user?.roles ?? []));
   const settingsRoute = getSettingsRoute(location.pathname);
 
-  // Fetch the unread notification count once on mount so the bell badge is accurate.
-  useEffect(() => {
+  // Fetch the notification unread count from the server. Extracted as a callback
+  // so it can be called from multiple places: on mount, on an interval, and when
+  // a real-time event signals that something may have changed.
+  const refreshNotificationCount = useCallback(() => {
     getNotifications()
-      .then((res) => {
-        const unread = res.data.filter((n) => !n.read_at).length;
-        setUnreadCount(unread);
-      })
-      .catch(() => {}); // Silently ignore — a badge not showing is not a critical failure.
+      .then((res) => setUnreadNotifications(res.meta.unread_count))
+      .catch(() => {});
   }, []);
+
+  // Initial fetch on mount + periodic refresh every 60 s so new system
+  // notifications (app approved, account security events, etc.) appear
+  // without requiring a page reload.
+  // Also refresh when a real-time inbox event fires — a new message may have
+  // triggered a system notification on the backend at the same time.
+  useEffect(() => {
+    refreshNotificationCount();
+
+    const interval = setInterval(refreshNotificationCount, 60_000);
+    window.addEventListener('notification:refresh', refreshNotificationCount);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notification:refresh', refreshNotificationCount);
+    };
+  }, [refreshNotificationCount]);
 
   /**
    * Signs the user out: calls the API (ignores errors), clears Redux auth
@@ -247,7 +265,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
       <NotificationPanel
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
-        onUnreadChange={setUnreadCount}
+        onUnreadChange={setUnreadNotifications}
       />
     </>
   );

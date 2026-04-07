@@ -54,21 +54,33 @@ class EnsureUserHasRole
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // super_admin inherits all role privileges — let them through immediately.
-        if ($user->isSuperAdmin()) {
-            return $next($request);
-        }
+        // Resolve whether this user holds an acceptable role before any further
+        // checks. Consolidating this here (rather than returning early on each
+        // match) ensures the MFA gate below runs for every role, including
+        // super_admin, which would otherwise bypass it via an early return.
+        $roleAllowed = false;
 
-        // Check each allowed role in turn; pass the request on the first match.
-        foreach ($roles as $role) {
-            if ($user->hasRole($role)) {
-                return $next($request);
+        // super_admin inherits all role privileges.
+        if ($user->isSuperAdmin()) {
+            $roleAllowed = true;
+        } else {
+            foreach ($roles as $role) {
+                if ($user->hasRole($role)) {
+                    $roleAllowed = true;
+                    break;
+                }
             }
         }
 
-        // None of the allowed roles matched — the user lacks sufficient permissions.
-        return response()->json([
-            'message' => 'Access denied. Insufficient permissions.',
-        ], Response::HTTP_FORBIDDEN);
+        if (! $roleAllowed) {
+            return response()->json([
+                'message' => 'Access denied. Insufficient permissions.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // MFA enrollment is encouraged (shown as a banner in the frontend) but
+        // not enforced globally. Strict enforcement is applied only to specific
+        // sensitive routes via the mfa.enrolled middleware in routes/api.php.
+        return $next($request);
     }
 }

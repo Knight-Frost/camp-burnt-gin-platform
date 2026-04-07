@@ -37,6 +37,10 @@ import {
   useBackgroundTone,
   type BgTone,
 } from '@/ui/context/BackgroundBrightnessContext';
+import { MfaWarningBanner } from '@/ui/components/MfaWarningBanner';
+import { MfaRequiredModal } from '@/ui/components/MfaRequiredModal';
+// MessagingCountProvider is now mounted at the AppProviders level (providers.tsx)
+// so it covers ALL portals including applicant and medical. No longer needed here.
 
 interface DashboardShellProps {
   navItems: NavItem[];
@@ -105,6 +109,10 @@ function ShellInner({
         {/* Sticky top bar — shows page title, notifications, user menu */}
         <DashboardHeader title={currentTitle} />
 
+        {/* Non-blocking MFA enrollment nudge — visible to any user with mfa_enabled=false.
+            Dismissible per session. Disappears instantly when MFA is enabled. */}
+        <MfaWarningBanner />
+
         {/*
          * The inbox route gets special treatment:
          *   - No padding so the two-panel messaging layout can fill edge-to-edge.
@@ -134,6 +142,10 @@ function ShellInner({
           </main>
         )}
       </div>
+
+      {/* Modal shown when a sensitive action is blocked due to missing MFA.
+          Event-driven — listens for auth:mfa-setup-required from axios interceptor. */}
+      <MfaRequiredModal />
     </div>
   );
 }

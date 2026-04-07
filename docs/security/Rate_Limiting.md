@@ -72,7 +72,7 @@ The following areas have specific named limiters or inline throttle rules applie
 
 **File uploads** — Document uploads, avatar uploads, and applicant document submissions share the `uploads` limiter. Scoped per user ID.
 
-**Sensitive operations** — Document downloads, document request downloads, message attachment downloads, data export requests, and account deletion share the `sensitive` limiter. Scoped per user ID. The rationale for including downloads is PHI exfiltration prevention: bulk downloading of medical documents at high speed is a meaningful data extraction vector.
+**Sensitive operations** — Document downloads, document request downloads, message attachment downloads, and account deletion share the `sensitive` limiter. Scoped per user ID. The rationale for including downloads is PHI exfiltration prevention: bulk downloading of medical documents at high speed is a meaningful data extraction vector.
 
 **Inbox messaging** — Individual conversation and message routes use inline throttle values tailored to each action's risk profile. New conversation creation (spam risk) is tighter than reading messages (low risk).
 
@@ -177,7 +177,7 @@ No role differentiation. All roles use the same limit.
 | Burst | 10 requests | 1 minute | Per user ID (fallback: IP) |
 | Sustained | 100 requests | 1 hour | Per user ID (fallback: IP) |
 
-Applied to: `GET /api/documents/{id}/download`, `GET /api/document-requests/{id}/download`, `GET /api/applicant/document-requests/{id}/download`, `GET /api/inbox/messages/{id}/attachments/{documentId}`, `POST /api/profile/data-export`, `DELETE /api/profile/account`.
+Applied to: `GET /api/documents/{id}/download`, `GET /api/document-requests/{id}/download`, `GET /api/applicant/document-requests/{id}/download`, `GET /api/inbox/messages/{id}/attachments/{documentId}`, `DELETE /api/profile/account`.
 
 The inclusion of PHI document downloads under this limiter is an explicit exfiltration control. An authenticated user cannot bulk-download more than 10 documents per minute or 100 per hour regardless of role.
 
@@ -236,7 +236,6 @@ All require `auth:sanctum` + `verified`. All carry `throttle:sensitive` (10/min 
 | `/api/document-requests/{id}/download` | GET | admin/super_admin only |
 | `/api/applicant/document-requests/{id}/download` | GET | applicant role only |
 | `/api/inbox/messages/{id}/attachments/{documentId}` | GET | Conversation participant |
-| `/api/profile/data-export` | POST | Own account only |
 | `/api/profile/account` | DELETE | Own account only |
 
 ### 4.5 Inbox Messaging Endpoints
@@ -272,7 +271,7 @@ All require `auth:sanctum` + `verified`. The global `api` limit (300/min) applie
 
 The following route groups carry only the global `api` limit (300/min per user). No additional throttle is applied.
 
-- User profile read/update (`/api/profile/*` except avatar and data-export)
+- User profile read/update (`/api/profile/*` except avatar and account deletion)
 - Camp and session CRUD (`/api/camps/*`, `/api/sessions/*`)
 - Notifications (`/api/notifications/*`)
 - Documents index and metadata (`GET /api/documents`, `GET /api/documents/{id}`)

@@ -74,11 +74,11 @@ class InboxUserController extends Controller
 
         return response()->json([
             'success' => true,
-            // Map each user to only the fields needed by the compose window
+            // Return only id/name/role — email is PII and is not needed by the compose
+            // window to route messages. Excluding it prevents participant enumeration.
             'data' => $users->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
-                'email' => $u->email,
                 // Include the role name so the UI can show "Admin" or "Medical" badges
                 'role' => $u->role?->name ?? 'unknown',
             ])->values(),

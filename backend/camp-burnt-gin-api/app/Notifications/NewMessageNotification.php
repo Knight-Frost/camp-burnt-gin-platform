@@ -15,10 +15,23 @@ use Illuminate\Notifications\Notification;
  * Message body and attachments are only accessible in-app after authentication.
  *
  * HIPAA Compliance: No PHI in email body.
+ *
+ * Channel strategy:
+ *   - Database (in-app bell): sent synchronously via notifyNow() in MessageService
+ *     so the notification appears immediately without requiring a queue worker.
+ *   - Email: queued via SendNotificationJob so mail failures cannot delay the
+ *     HTTP response or roll back the message transaction.
+ *
+ * Use the static factories:
+ *   - NewMessageNotification::forDatabase($msg, $conv) → ['database'] only, not Queueable
+ *   - NewMessageNotification::forMail($msg, $conv)     → ['mail'] only, Queueable
  */
 class NewMessageNotification extends Notification
 {
     use Queueable;
+
+    /** @var array<int, string>|null When set, overrides the via() logic. */
+    private ?array $channelsOverride = null;
 
     public function __construct(
         protected Message $message,
@@ -26,16 +39,41 @@ class NewMessageNotification extends Notification
     ) {}
 
     /**
+     * Returns a database-only instance for synchronous in-app notification.
+     * The Queueable trait is present but unused — callers should use notifyNow().
+     */
+    public static function forDatabase(Message $message, Conversation $conversation): static
+    {
+        $instance = new static($message, $conversation);
+        $instance->channelsOverride = ['database'];
+        return $instance;
+    }
+
+    /**
+     * Returns a mail-only instance intended for queued delivery via SendNotificationJob.
+     * Gating on notification_preferences is handled inside via() when channelsOverride is null.
+     */
+    public static function forMail(Message $message, Conversation $conversation): static
+    {
+        $instance = new static($message, $conversation);
+        $instance->channelsOverride = ['mail'];
+        return $instance;
+    }
+
+    /**
      * Get the notification's delivery channels.
      *
-     * Respects the user's notification_preferences for messages.
-     * The database channel is always included for in-app Recent Updates.
-     * Email is gated by the user's preference (default: enabled).
+     * When channelsOverride is set (via forDatabase/forMail factories), returns
+     * exactly those channels. Otherwise falls back to prefs-based logic.
      *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
+        if ($this->channelsOverride !== null) {
+            return $this->channelsOverride;
+        }
+
         $prefs = $notifiable->notification_preferences ?? [];
         $emailEnabled = $prefs['messages'] ?? true;
 
@@ -72,8 +110,7 @@ class NewMessageNotification extends Notification
     /**
      * Get the array representation of the notification.
      *
-     * Stored in database notifications table for in-app display.
-     * The title and message fields are used by the Recent Updates widget.
+     * Stored in database notifications table for in-app bell display.
      *
      * @return array<string, mixed>
      */

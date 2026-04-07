@@ -213,11 +213,11 @@ class AuditLog extends Model
             'auditable_type' => get_class($auditable),
             'auditable_id' => $auditable->getKey(),
             'action' => 'content.edited',
-            'description' => 'Application content fields edited by '.$editor->role.' (user #'.$editor->id.').',
+            'description' => 'Application content fields edited by '.($editor->role?->name ?? 'unknown').' (user #'.$editor->id.').',
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'metadata' => [
-                'editor_role' => $editor->role,
+                'editor_role' => $editor->role?->name ?? 'unknown',
                 'changed_fields' => $changedFields,
                 'field_count' => count($changedFields),
             ],

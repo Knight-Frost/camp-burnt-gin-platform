@@ -225,7 +225,7 @@ export async function sendMessage(
   idempotencyKey?: string,
 ): Promise<Message> {
   // Use a provided key or generate one; passing to the server ensures retries are safe
-  const key = idempotencyKey ?? crypto.randomUUID();
+  const key = idempotencyKey ?? (typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   if (attachments && attachments.length > 0) {
     const form = new FormData();

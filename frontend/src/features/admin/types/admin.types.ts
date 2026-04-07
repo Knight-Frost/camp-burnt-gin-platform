@@ -3,6 +3,8 @@
  * Type definitions scoped to the admin feature.
  */
 
+import type { ApplicationStatus } from '@/shared/types';
+
 export interface ApplicationReviewPayload {
   // Valid admin review statuses. 'submitted' and 'withdrawn' are excluded:
   // — 'submitted' is the initial post-submission state, never set by admin review action.
@@ -528,7 +530,7 @@ export interface SessionDashboardStats {
   recent_applications: Array<{
     id: number;
     camper_name: string | null;
-    status: string;
+    status: ApplicationStatus;
     submitted_at: string | null;
   }>;
   age_distribution: Record<string, number>;

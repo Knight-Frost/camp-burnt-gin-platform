@@ -43,8 +43,8 @@ class UserManagementTest extends TestCase
         $response = $this->postJson('/api/users', [
             'name' => 'New Admin',
             'email' => 'newadmin@example.com',
-            'password' => 'Password123',
-            'password_confirmation' => 'Password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'role' => 'admin',
         ]);
 
@@ -63,8 +63,8 @@ class UserManagementTest extends TestCase
         $response = $this->postJson('/api/users', [
             'name' => 'Nurse Janet',
             'email' => 'nurse@example.com',
-            'password' => 'Password123',
-            'password_confirmation' => 'Password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'role' => 'medical',
         ]);
 
@@ -80,8 +80,8 @@ class UserManagementTest extends TestCase
         $this->postJson('/api/users', [
             'name' => 'Someone',
             'email' => 'someone@example.com',
-            'password' => 'Password123',
-            'password_confirmation' => 'Password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'role' => 'admin',
         ])->assertForbidden();
     }
@@ -94,8 +94,8 @@ class UserManagementTest extends TestCase
         $this->postJson('/api/users', [
             'name' => 'Parent Person',
             'email' => 'parent@example.com',
-            'password' => 'Password123',
-            'password_confirmation' => 'Password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'role' => 'applicant',
         ])->assertUnprocessable();
     }
@@ -109,8 +109,8 @@ class UserManagementTest extends TestCase
         $this->postJson('/api/users', [
             'name' => 'Another Admin',
             'email' => 'taken@example.com',
-            'password' => 'Password123',
-            'password_confirmation' => 'Password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'role' => 'admin',
         ])->assertUnprocessable();
 
@@ -125,8 +125,8 @@ class UserManagementTest extends TestCase
         $this->postJson('/api/users', [
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'password' => 'Password123',
-            'password_confirmation' => 'DifferentPass123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'DifferentPass123!',
             'role' => 'admin',
         ])->assertUnprocessable();
     }

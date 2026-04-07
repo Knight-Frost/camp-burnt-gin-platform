@@ -24,11 +24,13 @@ Schedule::command('applications:send-reminders --days=7')
     ->weekly()
     ->mondays()
     ->at('09:00')
+    ->withoutOverlapping()
     ->description('Send reminders for incomplete applications');
 
 Schedule::command('provider-links:handle-expired')
     ->daily()
     ->at('06:00')
+    ->withoutOverlapping()
     ->description('Process expired medical provider links');
 
 Schedule::command('campers:calculate-retention')
@@ -41,4 +43,5 @@ Schedule::command('records:identify-expired')
     ->weekly()
     ->sundays()
     ->at('03:00')
+    ->withoutOverlapping()
     ->description('Identify campers past retention period for archival review');

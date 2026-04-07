@@ -130,7 +130,8 @@ class SuperAdminAuthorizationTest extends TestCase
         $deleted = $superAdmin1->delete();
 
         $this->assertTrue($deleted);
-        $this->assertDatabaseMissing('users', ['id' => $superAdmin1Id]);
+        // Users are soft-deleted (HIPAA retention) — row exists but deleted_at is set
+        $this->assertSoftDeleted('users', ['id' => $superAdmin1Id]);
     }
 
     /**

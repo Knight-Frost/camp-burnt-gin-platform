@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\MessageSent;
 use App\Jobs\SendNotificationJob;
 use App\Models\AuditLog;
 use App\Models\Conversation;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -89,8 +91,12 @@ class MessageService
             $idempotencyKey = Str::uuid()->toString();
         }
 
+        // Capture participants outside the closure so we can broadcast after commit.
+        // PHP reference capture (&) lets the closure write the value back out.
+        $otherParticipants = collect();
+
         // Wrap the entire send operation in a transaction for atomicity
-        return DB::transaction(function () use (
+        $message = DB::transaction(function () use (
             $conversation,
             $sender,
             $body,
@@ -98,7 +104,8 @@ class MessageService
             $idempotencyKey,
             $recipients,
             $parentMessageId,
-            $replyType
+            $replyType,
+            &$otherParticipants
         ) {
             // Idempotency check: if a message with this key was already created, return it
             $existingMessage = Message::where('idempotency_key', $idempotencyKey)->first();
@@ -135,13 +142,24 @@ class MessageService
             // Bump the conversation's last_message_at so it sorts to the top of the inbox
             $this->inboxService->updateConversationTimestamp($conversation);
 
-            // Get all participants except the sender to notify them
+            // Get all participants except the sender to notify them.
+            // Captured by reference so we can broadcast after this transaction commits.
             $otherParticipants = $this->inboxService->getParticipantsExcept($conversation, $sender);
 
-            // Dispatch notification via queued job so a mail failure (e.g. rate-limit)
-            // cannot roll back the transaction or block the HTTP response.
+            // Two-channel notification split:
+            //   1. Database (bell icon) — written synchronously via notifyNow() so the
+            //      notification appears immediately without a queue worker running.
+            //   2. Email — queued via SendNotificationJob so a mail failure cannot delay
+            //      the HTTP response or roll back the message transaction.
             foreach ($otherParticipants as $participant) {
-                dispatch(new SendNotificationJob($participant, new NewMessageNotification($message, $conversation)));
+                // In-app bell: always write synchronously to the notifications table.
+                $participant->notifyNow(NewMessageNotification::forDatabase($message, $conversation));
+
+                // Email: only dispatch if the user has messages email preference enabled.
+                $prefs = $participant->notification_preferences ?? [];
+                if ($prefs['messages'] ?? true) {
+                    dispatch(new SendNotificationJob($participant, NewMessageNotification::forMail($message, $conversation)));
+                }
             }
 
             // Write an audit log entry recording this send event
@@ -174,6 +192,27 @@ class MessageService
             // Return the message with all relationships loaded for the API response
             return $message->load(['sender', 'attachments', 'recipients.user']);
         });
+
+        // Broadcast real-time events after the transaction commits.
+        // ShouldBroadcastNow fires immediately (no queue worker needed).
+        // Each recipient gets their own private-channel event so no cross-user
+        // data is exposed.
+        //
+        // Wrapped in try/catch: broadcasting is best-effort. A downed Reverb server
+        // must never prevent message persistence or break the API response.
+        foreach ($otherParticipants as $participant) {
+            try {
+                broadcast(new MessageSent($message, $conversation, $participant->id));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Realtime broadcast failed', [
+                    'message_id'   => $message->id,
+                    'recipient_id' => $participant->id,
+                    'error'        => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $message;
     }
 
     /**
@@ -593,12 +632,23 @@ class MessageService
      *
      * Used to drive the unread badge on the inbox navigation icon.
      * Implemented as a single aggregated query — no N+1.
+     *
+     * Filters applied to match exactly what the inbox displays:
+     *  - userConversations(): excludes system-generated notification threads.
+     *    System threads live in the System folder, not the Inbox — counting their
+     *    unread messages would create a badge count that can never reach zero.
+     *  - trashed_at IS NULL: excludes conversations the user moved to their trash.
      */
     public function getUnreadMessageCount(User $user): int
     {
         return Message::whereHas('conversation', function ($query) use ($user) {
-            // Only count messages in conversations this user is part of and that are active
-            $query->forUser($user)->active();
+            $query->forUser($user)
+                ->active()
+                ->userConversations()  // Exclude is_system_generated threads — not shown in inbox
+                ->whereHas('participantRecords', function ($q) use ($user) {
+                    // Exclude conversations the user has trashed — trashed items don't show in inbox
+                    $q->where('user_id', $user->id)->whereNull('trashed_at');
+                });
         })
             ->unreadBy($user)  // scope: no read receipt exists for this user
             ->count();

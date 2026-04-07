@@ -36,11 +36,17 @@ return [
             'http://127.0.0.1:5173',
         ],
 
-    // Used when the origin contains a dynamic segment (e.g. any LAN IP).
-    // Example for development on any local subnet:
-    //   'allowed_origins_patterns' => ['#^http://192\.168\.\d+\.\d+:5173$#'],
-    // Keep empty in production — use explicit CORS_ALLOWED_ORIGINS instead.
-    'allowed_origins_patterns' => [],
+    // Allows any private LAN IP on port 5173 in development so the Vite dev
+    // server is reachable from other machines on the same network.
+    // These patterns are ignored when CORS_ALLOWED_ORIGINS is set via .env
+    // (production always uses explicit origins, never patterns).
+    'allowed_origins_patterns' => env('CORS_ALLOWED_ORIGINS') ? [] : [
+        '#^http://10\.\d+\.\d+\.\d+:5173$#',
+        '#^http://10\.\d+\.\d+\.\d+:5174$#',
+        '#^http://192\.168\.\d+\.\d+:5173$#',
+        '#^http://192\.168\.\d+\.\d+:5174$#',
+        '#^http://172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:5173$#',
+    ],
 
     'allowed_headers' => [
         'Content-Type',

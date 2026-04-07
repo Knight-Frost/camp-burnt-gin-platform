@@ -49,26 +49,38 @@ trait WithRoles
 
     /**
      * Create a super admin user.
+     *
+     * Defaults to mfa_enabled = true because super_admin accounts must have MFA
+     * enrolled before they can access any protected endpoint (EnsureUserIsAdmin).
+     * Pass ['mfa_enabled' => false] explicitly to test the unenrolled state.
      */
     protected function createSuperAdmin(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role_id' => $this->superAdminRole->id,
+            'role_id'     => $this->superAdminRole->id,
+            'mfa_enabled' => true,
         ], $attributes));
     }
 
     /**
      * Create an admin user.
+     *
+     * Defaults to mfa_enabled = true because admin accounts must have MFA enrolled
+     * before they can access any protected endpoint (EnsureUserIsAdmin).
+     * Pass ['mfa_enabled' => false] explicitly to test the unenrolled state.
      */
     protected function createAdmin(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role_id' => $this->adminRole->id,
+            'role_id'     => $this->adminRole->id,
+            'mfa_enabled' => true,
         ], $attributes));
     }
 
     /**
-     * Create a parent user.
+     * Create a parent (applicant) user.
+     *
+     * MFA is not required for the applicant role.
      */
     protected function createParent(array $attributes = []): User
     {
@@ -79,11 +91,16 @@ trait WithRoles
 
     /**
      * Create a medical provider user.
+     *
+     * Defaults to mfa_enabled = true because medical accounts must have MFA enrolled
+     * before they can access PHI endpoints (EnsureUserHasRole for role:admin,medical).
+     * Pass ['mfa_enabled' => false] explicitly to test the unenrolled state.
      */
     protected function createMedicalProvider(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role_id' => $this->medicalRole->id,
+            'role_id'     => $this->medicalRole->id,
+            'mfa_enabled' => true,
         ], $attributes));
     }
 

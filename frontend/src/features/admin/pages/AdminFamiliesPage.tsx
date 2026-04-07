@@ -239,6 +239,17 @@ export function AdminFamiliesPage() {
   });
   const [retryKey, setRetryKey]   = useState(0);
   const [searchInput, setSearchInput] = useState('');
+
+  // Reset filters to defaults when the workspace session changes so stale
+  // status/page values from the previous session don't produce empty results.
+  const prevWorkspaceSessionIdRef = useRef(workspaceSessionId);
+  useEffect(() => {
+    if (prevWorkspaceSessionIdRef.current !== workspaceSessionId) {
+      prevWorkspaceSessionIdRef.current = workspaceSessionId;
+      setFilters({ search: '', status: '', multi_camper: false, page: 1 });
+      setSearchInput('');
+    }
+  }, [workspaceSessionId]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Helpers ────────────────────────────────────────────────────────────────

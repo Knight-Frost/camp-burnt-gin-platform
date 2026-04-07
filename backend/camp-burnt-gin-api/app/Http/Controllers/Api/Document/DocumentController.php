@@ -86,10 +86,12 @@ class DocumentController extends Controller
 
             $documents = $query->paginate(20);
         } elseif ($user->isMedicalProvider()) {
-            // Medical staff see documents attached to any camper or medical record,
-            // plus any documents they personally uploaded
-            $medicalRecordIds = \App\Models\MedicalRecord::pluck('id');
-            $camperIds = \App\Models\Camper::pluck('id');
+            // Medical staff see documents attached to active campers and their medical records,
+            // plus any documents they personally uploaded.
+            // Scoping to is_active=true prevents PHI enumeration for rejected or withdrawn applicants —
+            // medical staff should only see records for campers currently enrolled at camp.
+            $medicalRecordIds = \App\Models\MedicalRecord::where('is_active', true)->pluck('id');
+            $camperIds = \App\Models\Camper::where('is_active', true)->pluck('id');
 
             $query = Document::with('documentable', 'uploader')
                 ->where(function ($q) use ($camperIds, $medicalRecordIds, $user) {

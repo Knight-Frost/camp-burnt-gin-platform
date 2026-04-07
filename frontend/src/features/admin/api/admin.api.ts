@@ -10,7 +10,7 @@ import type {
   FamilyWorkspace, ProviderLink, User,
 } from '@/features/admin/types/admin.types';
 
-export async function getApplications(params?: { page?: number; status?: string; search?: string; camp_session_id?: number; drafts_only?: boolean; sort?: string; direction?: 'asc' | 'desc' }): Promise<PaginatedResponse<Application>> {
+export async function getApplications(params?: { page?: number; per_page?: number; status?: string; search?: string; camp_session_id?: number; drafts_only?: boolean; sort?: string; direction?: 'asc' | 'desc' }): Promise<PaginatedResponse<Application>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Application>>('/applications', { params });
   return data;
 }

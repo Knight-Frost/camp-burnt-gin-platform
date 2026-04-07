@@ -242,6 +242,17 @@ export function MedicalDashboardPage() {
 
   useEffect(() => { void fetchStats(); }, [fetchStats, statsRetryKey]);
 
+  // Refresh stats automatically when a new notification arrives (e.g., a treatment
+  // was logged by another staff member, or a follow-up was updated elsewhere).
+  // This mirrors the real-time pattern used by the admin dashboard for messages.
+  useEffect(() => {
+    function onNotificationRefresh() {
+      setStatsRetryKey((k) => k + 1);
+    }
+    window.addEventListener('notification:refresh', onNotificationRefresh);
+    return () => window.removeEventListener('notification:refresh', onNotificationRefresh);
+  }, []);
+
   const handleMarkComplete = useCallback(async (id: number) => {
     setCompletingId(id);
     try {

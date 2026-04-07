@@ -39,7 +39,11 @@ echo "  Vite frontend → http://localhost:5173  (LAN: http://$(ipconfig getifad
 echo ""
 
 # Start Laravel in the background (output prefixed for clarity).
-(cd "$API_DIR" && php artisan serve 2>&1 | sed 's/^/[api] /') &
+# --host=0.0.0.0 binds to all interfaces so the Vite proxy can reach the API
+# via the LAN IP set in .env.local (BACKEND_URL=http://<LAN-IP>:8000).
+# Without this, artisan serve binds to 127.0.0.1 only and proxy requests
+# to the LAN IP fail with connection refused → "Network error" on the login page.
+(cd "$API_DIR" && php artisan serve --host=0.0.0.0 2>&1 | sed 's/^/[api] /') &
 
 # Start Vite in the foreground so its interactive output is visible and
 # Ctrl+C propagates naturally. The EXIT trap above will kill the API process.

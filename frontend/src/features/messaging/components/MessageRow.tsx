@@ -17,7 +17,7 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
 import { Avatar, avatarBg } from '@/ui/components/Avatar';
-import type { Conversation } from '@/features/messaging/api/messaging.api';
+import type { Conversation, InboxFolder } from '@/features/messaging/api/messaging.api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,6 +43,8 @@ interface MessageRowProps {
   /** When true, the archive action becomes "Unarchive". */
   isInArchive?: boolean;
   currentUserId?: number;
+  /** Current folder — controls whether we show sender name (inbox) or recipient name (sent). */
+  folder?: InboxFolder;
   onSelect: (id: number, e: MouseEvent) => void;
   onStar: (id: number, e: MouseEvent) => void;
   onArchive: (id: number, e: MouseEvent) => void;
@@ -65,6 +67,7 @@ export function MessageRow({
   isActive = false,
   isInArchive = false,
   currentUserId,
+  folder,
   onSelect,
   onStar,
   onArchive,
@@ -78,15 +81,29 @@ export function MessageRow({
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isSystem   = conv.is_system_generated === true;
-  const isUnread   = (conv.unread_count ?? 0) > 0;
-  const others     = conv.participants.filter((p) => p.id !== currentUserId);
+  const isSystem = conv.is_system_generated === true;
+  const isUnread = (conv.unread_count ?? 0) > 0;
+  const others   = conv.participants.filter((p) => p.id !== currentUserId);
+
+  // In Sent folder, show recipient names ("To: Jack Frost") because the viewer IS the sender.
+  // In all other folders, show the sender's name ("who messaged me?").
+  const iSentThis = folder === 'sent'
+    || conv.last_message?.sender_id === currentUserId
+    || (conv.last_message == null && conv.created_by_id === currentUserId);
+
   const senderName = isSystem
     ? 'Camp Burnt Gin'
-    : (conv.last_message?.sender?.name ?? (others[0]?.name ?? 'Unknown'));
+    : iSentThis
+      ? (others.length > 0
+          ? `To: ${others.map((p) => p.name).join(', ')}`
+          : 'To: Unknown')
+      : (conv.last_message?.sender?.name ?? others[0]?.name ?? 'Unknown');
+
   const senderAvatar = isSystem
     ? null
-    : (conv.last_message?.sender?.avatar_url ?? others[0]?.avatar_url ?? null);
+    : iSentThis
+      ? (others[0]?.avatar_url ?? null)
+      : (conv.last_message?.sender?.avatar_url ?? others[0]?.avatar_url ?? null);
   const preview    = conv.last_message?.body
     ? conv.last_message.body.replace(/<[^>]*>/g, '').slice(0, 90)
     : '—';

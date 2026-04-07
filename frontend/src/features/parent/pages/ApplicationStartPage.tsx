@@ -179,12 +179,19 @@ export function ApplicationStartPage() {
     try {
       i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
       const draft = await createDraft('New Application');
+      // Clear any stale draft from a previous application so the new form
+      // always starts empty — regardless of whether the server fetch later
+      // succeeds or fails.
+      sessionStorage.removeItem(draftKey);
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
         state: { language, sessionId: selectedSession.id, draftId: draft.id },
       });
     } catch {
-      // If server draft creation fails, fall back to localStorage-only mode
+      // Server draft creation failed — fall back to sessionStorage-only mode.
+      // Still clear stale data so a previous camper's info cannot pre-fill
+      // this new application.
       i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
+      sessionStorage.removeItem(draftKey);
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
         state: { language, sessionId: selectedSession.id },
       });
@@ -202,8 +209,8 @@ export function ApplicationStartPage() {
     try {
       await apiDeleteDraft(draftId);
       setServerDrafts((prev) => prev.filter((d) => d.id !== draftId));
-      // Also clear any matching localStorage draft
-      localStorage.removeItem(draftKey);
+      // Also clear any matching sessionStorage draft
+      sessionStorage.removeItem(draftKey);
     } catch {
       // Silently ignore — draft may have already been deleted
     }

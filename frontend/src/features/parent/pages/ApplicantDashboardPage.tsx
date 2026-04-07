@@ -55,6 +55,18 @@ export function ApplicantDashboardPage() {
   const [error, setError]                       = useState(false);
   const [retryKey, setRetryKey]                 = useState(0);
 
+  // Re-fetch conversations whenever a realtime message arrives so the
+  // activity feed reflects new messages without a full page reload.
+  useEffect(() => {
+    function refreshConversations() {
+      getConversations({ page: 1 })
+        .then((res) => setConversations(res.data ?? []))
+        .catch(() => { /* keep stale data on error */ });
+    }
+    window.addEventListener('realtime:message-arrived', refreshConversations);
+    return () => window.removeEventListener('realtime:message-arrived', refreshConversations);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     setError(false);
@@ -98,9 +110,9 @@ export function ApplicantDashboardPage() {
         setLocalDraftName(drafts.length > 0 ? (drafts[0].label ?? null) : null);
       })
       .catch(() => {
-        // Fallback: try localStorage so the banner still shows if API fails
+        // Fallback: try sessionStorage so the banner still shows if API fails
         try {
-          const raw = localStorage.getItem(`cbg_app_draft_${user.id}`);
+          const raw = sessionStorage.getItem(`cbg_app_draft_${user.id}`);
           if (!raw) { setLocalDraftName(null); return; }
           const parsed = JSON.parse(raw) as { s1?: { camper_first_name?: string; camper_last_name?: string } };
           const first = (parsed.s1?.camper_first_name ?? '').trim();
@@ -460,7 +472,7 @@ function buildActivityFeed(
         ? `${count} new messages from ${senderName}`
         : `New message from ${senderName}`,
       subtitle: latest.last_message?.body
-        ? truncateText(latest.last_message.body, 60)
+        ? truncateText(stripHtml(latest.last_message.body), 60)
         : latest.subject ?? 'Open conversation',
       timestamp: latest.updated_at,
       route: '/applicant/inbox',
@@ -553,6 +565,10 @@ function getStatusLabel(status: string): string {
     case 'draft':        return 'Draft';
     default:             return status;
   }
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
 }
 
 function truncateText(str: string, max: number): string {

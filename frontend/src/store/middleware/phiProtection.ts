@@ -69,80 +69,35 @@ function containsPHI(obj: unknown): boolean {
   });
 }
 
-/**
- * Redux Persist Framework Actions
- *
- * These are internal lifecycle actions required for:
- * - Bootstrapping
- * - Rehydration
- * - Registering slices
- * - Flushing storage
- *
- * Blocking these causes PersistGate to hang.
- */
-const PERSIST_FRAMEWORK_ACTIONS = [
-  'persist/PERSIST',
-  'persist/REHYDRATE',
-  'persist/REGISTER',
-  'persist/FLUSH',
-  'persist/PAUSE',
-  'persist/PURGE',
-];
-
 // Middleware signature: a function that receives the store API and returns a handler
 export const phiProtectionMiddleware: Middleware =
   () => (next) => (action) => {
     const typedAction = action as { type: string; payload?: unknown };
 
     /**
-     * Step 1: Allow redux-persist internal framework lifecycle actions.
+     * PHI field monitoring — runs in both development and production.
      *
-     * These do NOT contain PHI payloads.
-     * They are required for app bootstrapping.
-     */
-    if (
-      typedAction.type &&
-      PERSIST_FRAMEWORK_ACTIONS.includes(typedAction.type)
-    ) {
-      return next(action);
-    }
-
-    /**
-     * Step 2: Development-only PHI monitoring.
+     * In development: console.warn so engineers catch accidental PHI dispatches early.
+     * In production: console.error so error-monitoring tools (e.g. Sentry) can alert.
      *
-     * Warn if an action payload contains PHI fields.
-     * This does NOT block execution — only logs a warning in the console.
+     * This does NOT block the action — blocking would break the app if a false positive
+     * triggers in production. The goal is observability, not gatekeeping.
      */
-    if (import.meta.env.DEV) {
-      if (containsPHI(typedAction.payload)) {
+    if (containsPHI(typedAction.payload)) {
+      if (import.meta.env.DEV) {
         console.warn(
           '[PHI Protection] Action contains PHI fields:',
           typedAction.type,
           '\nEnsure this data is NOT persisted to storage.'
         );
+      } else {
+        console.error(
+          '[PHI Protection] Action contains PHI fields:',
+          typedAction.type
+        );
       }
     }
 
-    /**
-     * Step 3: Block custom persistence attempts.
-     *
-     * If any action tries to manually dispatch persist/*
-     * that is NOT part of redux-persist framework,
-     * it will be blocked here to prevent unauthorized data persistence.
-     */
-    if (
-      typedAction.type &&
-      typedAction.type.startsWith('persist/') &&
-      !PERSIST_FRAMEWORK_ACTIONS.includes(typedAction.type)
-    ) {
-      console.error(
-        '[PHI Protection] BLOCKED: Unauthorized persistence attempt detected.',
-        typedAction.type
-      );
-      // Return undefined — the action never reaches the reducer
-      return;
-    }
-
-    // All checks passed — forward the action to the next middleware or reducer
+    // Forward the action to the next middleware or reducer.
     return next(action);
   };

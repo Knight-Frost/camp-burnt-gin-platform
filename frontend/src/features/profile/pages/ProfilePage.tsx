@@ -37,6 +37,7 @@ import {
   X,
   Check,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 
 import {
@@ -260,7 +261,10 @@ function EmergencyContactsSection() {
   useEffect(() => {
     getEmergencyContacts()
       .then(setContacts)
-      .catch(() => {})
+      .catch((err) => {
+        console.error('[ProfilePage] Failed to load emergency contacts:', err);
+        toast.error('Failed to load emergency contacts.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -631,6 +635,9 @@ function MfaSection({
 export function ProfilePage() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const location = useLocation();
+  // True when ProtectedRoute redirected here because MFA enrollment is required.
+  const mfaSetupRequired = !!(location.state as { mfaSetupRequired?: boolean } | null)?.mfaSetupRequired;
 
   const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -667,7 +674,10 @@ export function ProfilePage() {
         setPostalCode(p.postal_code ?? '');
         setCountry(p.country ?? 'US');
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('[ProfilePage] Failed to load profile:', err);
+        toast.error('Failed to load profile. Please refresh the page.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -757,6 +767,29 @@ export function ProfilePage() {
           {t('profile.subtitle')}
         </p>
       </div>
+
+      {/* MFA enrollment required banner — shown when ProtectedRoute redirected
+          here because the user's role (admin/medical) mandates MFA setup. */}
+      {mfaSetupRequired && (
+        <div
+          className="mb-5 flex items-start gap-3 rounded-lg border p-4 text-sm"
+          style={{
+            background: 'rgba(234,88,12,0.08)',
+            borderColor: 'var(--warning, #ea580c)',
+            color: 'var(--foreground)',
+          }}
+        >
+          <ShieldOff className="mt-0.5 h-5 w-5 shrink-0" style={{ color: '#ea580c' }} />
+          <div>
+            <p className="font-semibold" style={{ color: '#ea580c' }}>
+              {t('profile.mfa.setup_required_title', 'Multi-factor authentication required')}
+            </p>
+            <p className="mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('profile.mfa.setup_required_desc', 'Your account type requires MFA before you can access the portal. Please set it up in the Security section below.')}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-5">
 
@@ -872,7 +905,12 @@ export function ProfilePage() {
           <ProfileSection title={t('profile.mfa.title')} icon={<Shield className="h-4 w-4" />}>
             <MfaSection
               mfaEnabled={!!profile?.mfa_enabled}
-              onToggle={() => setProfile((p) => p ? { ...p, mfa_enabled: !p.mfa_enabled } : p)}
+              onToggle={() => {
+                const newValue = !(profile?.mfa_enabled ?? false);
+                setProfile((p) => p ? { ...p, mfa_enabled: newValue } : p);
+                // Sync to Redux so the global MFA banner reacts immediately.
+                dispatch(patchUser({ mfa_enabled: newValue }));
+              }}
             />
           </ProfileSection>
         </div>

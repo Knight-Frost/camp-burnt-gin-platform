@@ -53,6 +53,13 @@ class AuditPhiAccess
         'feeding-plans.*',
         'assistive-devices.*',
         'activity-permissions.*',
+        // Clinical encounter and care records — all contain HIPAA-regulated PHI
+        'personal-care-plans.*',
+        'treatment-logs.*',
+        'medical-visits.*',
+        'medical-incidents.*',
+        'medical-follow-ups.*',
+        'medical-restrictions.*',
     ];
 
     /**

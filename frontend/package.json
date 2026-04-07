@@ -43,7 +43,9 @@
     "dompurify": "^3.3.3",
     "framer-motion": "^12.35.1",
     "i18next": "^25.8.14",
+    "laravel-echo": "^2.3.1",
     "lucide-react": "^0.487.0",
+    "pusher-js": "^8.4.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet-async": "^2.0.5",
@@ -59,7 +61,10 @@
     "zod": "^3.25.76"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["chromedriver", "esbuild"],
+    "onlyBuiltDependencies": [
+      "chromedriver",
+      "esbuild"
+    ],
     "overrides": {
       "brace-expansion@>=4.0.0 <5.0.5": ">=5.0.5",
       "esbuild@<=0.24.2": ">=0.25.0",

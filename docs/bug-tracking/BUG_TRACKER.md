@@ -449,17 +449,17 @@ The audit log UI displays raw action strings such as `view`, `update`, `delete`,
 **Status:** Resolved — Phase 4
 
 **Description:**
-The current `ProfilePage` only supports name, email update, and MFA setup/disable. Missing features: profile photo/avatar, preferred name, phone number, date of birth, contact address, emergency contacts management, privacy settings, language/locale settings, account activity log (login history), data export, and account deletion. The `SettingsPage` only has appearance, security (password), and notifications tabs. Role-specific settings are entirely absent.
+The current `ProfilePage` only supports name, email update, and MFA setup/disable. Missing features: profile photo/avatar, preferred name, phone number, date of birth, contact address, emergency contacts management, privacy settings, language/locale settings, account activity log (login history), and account deletion. The `SettingsPage` only has appearance, security (password), and notifications tabs. Role-specific settings are entirely absent.
 
 **Resolution:**
 - Added migration for profile fields: `preferred_name`, `phone`, `avatar_path`, `address_line_1`, `address_line_2`, `city`, `state`, `postal_code`, `country`
 - Added migration and model for `user_emergency_contacts` table
-- Expanded `UserProfileController` with: `uploadAvatar`, `removeAvatar`, `listEmergencyContacts`, `storeEmergencyContact`, `updateEmergencyContact`, `destroyEmergencyContact`, `requestDataExport`, `deleteAccount`
+- Expanded `UserProfileController` with: `uploadAvatar`, `removeAvatar`, `listEmergencyContacts`, `storeEmergencyContact`, `updateEmergencyContact`, `destroyEmergencyContact`, `deleteAccount`
 - Updated `User` model fillable and `userEmergencyContacts()` relationship
 - Added `UserEmergencyContactPolicy` and registered in `AppServiceProvider`
-- Added new profile API routes: `POST /profile/avatar`, `DELETE /profile/avatar`, CRUD `/profile/emergency-contacts`, `POST /profile/data-export`, `DELETE /profile/account`
+- Added new profile API routes: `POST /profile/avatar`, `DELETE /profile/avatar`, CRUD `/profile/emergency-contacts`, `DELETE /profile/account`
 - Expanded `ProfilePage.tsx`: avatar upload/remove, preferred name, phone, full address form, emergency contacts manager (add/edit/delete/set primary)
-- Added "Data and Account" tab to `SettingsPage.tsx`: data export request and account deletion with password confirmation
+- Added "Data and Account" tab to `SettingsPage.tsx`: account deletion with password confirmation
 - Updated `profile.api.ts` and `user.types.ts` with all new types and functions
 
 **Affected Files:**
@@ -875,7 +875,7 @@ Added `useLocation` to `ApplicationReviewPage`. The back link now detects the po
 **Status:** Resolved — Phase 5 Corrections
 
 **Description:**
-All profile API calls (save profile, upload avatar, delete avatar, emergency contacts, data export, delete account) returned 401, triggering the axios interceptor which fired `auth:unauthorized` → `clearAuth()` → redirect to login. Root cause: `useAuthInit` read `store.getState().auth.token` before `redux-persist` rehydration completed, resulting in a null token being sent on all requests.
+All profile API calls (save profile, upload avatar, delete avatar, emergency contacts, delete account) returned 401, triggering the axios interceptor which fired `auth:unauthorized` → `clearAuth()` → redirect to login. Root cause: `useAuthInit` read `store.getState().auth.token` before `redux-persist` rehydration completed, resulting in a null token being sent on all requests.
 
 **Resolution:**
 Fixed `useAuthInit` hook to await `persistor.getState().bootstrapped` before reading the token. Also fixed FormData Content-Type boundary issue in avatar upload (removed manual `Content-Type` header so axios sets it automatically).

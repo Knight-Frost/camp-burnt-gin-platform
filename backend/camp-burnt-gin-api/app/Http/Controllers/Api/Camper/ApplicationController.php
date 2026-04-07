@@ -133,7 +133,7 @@ class ApplicationController extends Controller
             // queue naturally surfaces the families who applied earliest at the top.
             $sortField = $request->get('sort', 'submitted_at');
             $sortDir = $request->get('direction', 'asc');
-            $allowedSorts = ['created_at', 'submitted_at', 'status', 'reviewed_at'];
+            $allowedSorts = ['created_at', 'submitted_at', 'status', 'reviewed_at', 'updated_at'];
             if (in_array($sortField, $allowedSorts)) {
                 $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
             }

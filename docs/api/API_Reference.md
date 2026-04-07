@@ -196,7 +196,6 @@ Manage authenticated user's account information.
 | `POST` | `/api/profile/emergency-contacts` | Add emergency contact | Authenticated |
 | `PUT` | `/api/profile/emergency-contacts/{contact}` | Update emergency contact | Authenticated |
 | `DELETE` | `/api/profile/emergency-contacts/{contact}` | Delete emergency contact | Authenticated |
-| `POST` | `/api/profile/data-export` | Request data export | Authenticated (throttle: sensitive) |
 | `DELETE` | `/api/profile/account` | Delete account | Authenticated (throttle: sensitive) |
 
 **Key Features:**
@@ -206,7 +205,7 @@ Manage authenticated user's account information.
 - Notification preference management
 - Avatar upload and removal
 - User-level emergency contact management
-- GDPR-compliant data export and account deletion
+- Account deletion
 
 ---
 
@@ -1431,16 +1430,6 @@ Delete a personal emergency contact.
 **URL Parameters:** `contact` (integer) — Emergency contact ID
 
 **Success (200):** `{ "message": "Emergency contact deleted successfully." }`
-
----
-
-### POST /profile/data-export
-
-Request a full data export for the authenticated user. Export is queued and delivered via email.
-
-**Auth:** Yes | **Role:** Any | **Rate Limit:** `sensitive`
-
-**Success (200):** `{ "message": "Data export requested. You will receive an email when it is ready." }`
 
 ---
 

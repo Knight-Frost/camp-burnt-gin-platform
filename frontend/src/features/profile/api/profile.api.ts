@@ -150,11 +150,6 @@ export async function getPreFillData(): Promise<PreFillData> {
 // Data & account controls
 // ---------------------------------------------------------------------------
 
-export async function requestDataExport(): Promise<{ message: string }> {
-  const { data } = await axiosInstance.post<{ message: string }>('/profile/data-export');
-  return data;
-}
-
 export async function deleteAccount(password: string): Promise<{ message: string }> {
   const { data } = await axiosInstance.delete<{ message: string }>('/profile/account', {
     data: { password },

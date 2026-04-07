@@ -19,7 +19,7 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, X, Calendar, Clock, Trash2, Lock } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { ROUTES } from '@/shared/constants/routes';
@@ -87,6 +87,8 @@ export function AdminCalendarPage() {
     .map(([value, meta]) => ({ value: value as EventType, label: meta.label }));
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSuper = location.pathname.startsWith('/super-admin');
 
   /**
    * Returns the urgency-based color for a deadline calendar event.
@@ -401,7 +403,7 @@ export function AdminCalendarPage() {
                       {isDeadlineLocked ? (
                         // Deadline-owned events navigate to the Deadlines page instead of deleting
                         <button
-                          onClick={() => navigate(ROUTES.ADMIN_DEADLINES)}
+                          onClick={() => navigate(isSuper ? '/super-admin/deadlines' : ROUTES.ADMIN_DEADLINES)}
                           className="p-1 rounded hover:bg-[var(--dash-nav-hover-bg)] transition-colors flex-shrink-0"
                           style={{ color: 'var(--muted-foreground)' }}
                           title="Edit via Deadline Management"

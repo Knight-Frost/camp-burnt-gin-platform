@@ -43,15 +43,27 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Clear the bell dot the moment the panel opens — the user has "seen" the
+  // notification list even before reading individual items. The badge returns
+  // to non-zero only when a new notification arrives via real-time event or
+  // the 60-second polling cycle in DashboardHeader.
+  useEffect(() => {
+    if (open) onUnreadChange?.(0);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch notifications every time the panel opens — keeps the list fresh.
+  // Does NOT call onUnreadChange here: the badge was already cleared above.
+  // The count inside the panel is derived from local state (notifications array).
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     getNotifications()
-      .then((res) => setNotifications(res.data))
-      .catch(() => {}) // Silently fail — an empty list is acceptable.
+      .then((res) => {
+        setNotifications(res.data);
+      })
+      .catch(() => {})
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Marks a single notification as read.

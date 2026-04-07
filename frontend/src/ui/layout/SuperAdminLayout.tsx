@@ -43,10 +43,14 @@ import { ROUTES } from '@/shared/constants/routes';
 import type { NavItem } from './DashboardSidebar';
 import { SessionWorkspaceProvider } from '@/features/sessions/context/SessionWorkspaceContext';
 import { SessionSelectorModal } from '@/features/sessions/components/SessionSelectorModal';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 
 export function SuperAdminLayout() {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
+
+  // Consume from shared context — no independent fetch, no duplicate event listeners.
+  const { unreadMessageCount } = useUnreadMessageCount();
 
   // Accept both the normalized roles array and the legacy flat role string.
   const hasAccess = Boolean(
@@ -74,7 +78,7 @@ export function SuperAdminLayout() {
     { group: gPrimary, label: t('portal_nav.camper_directory'),   to: '/super-admin/campers',          icon: Shield },
     { group: gPrimary, label: t('portal_nav.sessions_camps'),     to: '/super-admin/sessions',         icon: CalendarDays },
     // COMMUNICATION
-    { group: gComm,   label: t('portal_nav.inbox'),              to: '/super-admin/inbox',            icon: MessageSquare },
+    { group: gComm,   label: t('portal_nav.inbox'),              to: '/super-admin/inbox',            icon: MessageSquare, badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { group: gComm,   label: t('portal_nav.announcements'),      to: '/super-admin/announcements',    icon: Megaphone },
     { group: gComm,   label: t('portal_nav.documents'),          to: '/super-admin/documents',        icon: FolderOpen },
     // OPERATIONS

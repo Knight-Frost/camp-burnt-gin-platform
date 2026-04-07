@@ -7,10 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ApplicantDocument;
 use App\Models\User;
 use App\Notifications\DocumentRequiresCompletionNotification;
+use App\Services\FileUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -20,56 +20,59 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * The applicant downloads it, fills it out offline, then uploads the completed version.
  * Admins can then review the submission and mark it as reviewed.
  *
+ * Authorization: every method calls $this->authorize() against ApplicantDocumentPolicy.
+ * File uploads: all files validated by MIME type via FileUploadService — never by
+ * client-supplied extension.
+ *
  * Admin routes:
- *   POST   /admin/documents/send                                          — send document to applicant
- *   GET    /admin/documents                                               — list all (filterable)
- *   GET    /admin/documents/{applicantId}                                 — list for one applicant
- *   GET    /admin/applicant-documents/{applicantDocument}/download-original  — stream original
- *   GET    /admin/applicant-documents/{applicantDocument}/download-submitted — stream submitted
- *   PATCH  /admin/applicant-documents/{applicantDocument}/review          — mark reviewed
- *   POST   /admin/applicant-documents/{applicantDocument}/replace         — replace original file
+ *   POST   /admin/documents/send                                              — send document to applicant
+ *   GET    /admin/documents                                                   — list all (filterable)
+ *   GET    /admin/documents/{applicantId}                                     — list for one applicant
+ *   GET    /admin/applicant-documents/{applicantDocument}/download-original   — stream original
+ *   GET    /admin/applicant-documents/{applicantDocument}/download-submitted  — stream submitted
+ *   PATCH  /admin/applicant-documents/{applicantDocument}/review              — mark reviewed
+ *   POST   /admin/applicant-documents/{applicantDocument}/replace             — replace original file
  *
  * Applicant routes:
- *   GET    /applicant/documents                                                — list own documents
+ *   GET    /applicant/documents                                               — list own documents
  *   GET    /applicant/applicant-documents/{applicantDocument}/download        — download original
- *   POST   /applicant/documents/upload                                         — submit completed version
+ *   POST   /applicant/documents/upload                                        — submit completed version
  */
 class ApplicantDocumentController extends Controller
 {
+    public function __construct(protected FileUploadService $fileUpload) {}
+
     // ── Admin Methods ──────────────────────────────────────────────────────────
 
     /**
      * Admin: upload a document and assign it to an applicant.
      *
-     * Stores the file at applicant-documents/sent/{uuid}.{ext} on the local disk,
-     * creates the ApplicantDocument record, and notifies the applicant.
+     * File extension derived from MIME type detected via finfo — the client-supplied
+     * filename extension is ignored for path construction.
      */
     public function adminSend(Request $request): JsonResponse
     {
+        $this->authorize('create', ApplicantDocument::class);
+
         $validated = $request->validate([
             'applicant_id' => ['required', 'integer', 'exists:users,id'],
-            'file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
+            'file'         => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
             'instructions' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $file = $request->file('file');
-        $ext = $file->getClientOriginalExtension();
-        $uuid = Str::uuid()->toString();
-        $path = "applicant-documents/sent/{$uuid}.{$ext}";
-
-        Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
+        $stored = $this->fileUpload->store($request->file('file'), 'applicant-documents/sent');
 
         /** @var \App\Models\User $applicant */
         $applicant = User::findOrFail($validated['applicant_id']);
 
         $doc = ApplicantDocument::create([
-            'applicant_id' => $validated['applicant_id'],
-            'uploaded_by_admin_id' => auth()->id(),
-            'original_document_path' => $path,
-            'original_file_name' => $file->getClientOriginalName(),
-            'original_mime_type' => $file->getMimeType() ?? $file->getClientMimeType(),
-            'instructions' => $validated['instructions'] ?? null,
-            'status' => ApplicantDocumentStatus::Pending,
+            'applicant_id'           => $validated['applicant_id'],
+            'uploaded_by_admin_id'   => auth()->id(),
+            'original_document_path' => $stored['path'],
+            'original_file_name'     => $stored['file_name'],
+            'original_mime_type'     => $stored['mime_type'],
+            'instructions'           => $validated['instructions'] ?? null,
+            'status'                 => ApplicantDocumentStatus::Pending,
         ]);
 
         $doc->load('applicant', 'uploadedByAdmin');
@@ -86,6 +89,8 @@ class ApplicantDocumentController extends Controller
      */
     public function adminList(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', ApplicantDocument::class);
+
         $query = ApplicantDocument::with('applicant', 'uploadedByAdmin')
             ->latest();
 
@@ -103,9 +108,9 @@ class ApplicantDocumentController extends Controller
             'data' => array_map(fn ($doc) => $this->formatDocument($doc, true), $paginated->items()),
             'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page' => $paginated->lastPage(),
-                'per_page' => $paginated->perPage(),
-                'total' => $paginated->total(),
+                'last_page'    => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
             ],
         ]);
     }
@@ -115,6 +120,8 @@ class ApplicantDocumentController extends Controller
      */
     public function adminListForApplicant(Request $request, int $applicantId): JsonResponse
     {
+        $this->authorize('viewAny', ApplicantDocument::class);
+
         $docs = ApplicantDocument::with('applicant', 'uploadedByAdmin')
             ->where('applicant_id', $applicantId)
             ->latest()
@@ -127,30 +134,44 @@ class ApplicantDocumentController extends Controller
 
     /**
      * Admin: stream the original document file.
+     *
+     * Cache-Control: no-store prevents browsers from caching PHI documents.
      */
     public function adminDownloadOriginal(ApplicantDocument $applicantDocument): StreamedResponse
     {
-        $path = $applicantDocument->original_document_path;
+        $this->authorize('view', $applicantDocument);
+
+        $path     = $applicantDocument->original_document_path;
         $fileName = $applicantDocument->original_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
-        return Storage::disk('local')->download($path, $fileName);
+        return Storage::disk('local')->download($path, $fileName, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+            'Pragma'        => 'no-cache',
+        ]);
     }
 
     /**
      * Admin: stream the submitted (applicant-completed) document file.
+     *
+     * Cache-Control: no-store prevents browsers from caching PHI documents.
      */
     public function adminDownloadSubmitted(ApplicantDocument $applicantDocument): StreamedResponse
     {
+        $this->authorize('view', $applicantDocument);
+
         abort_if(is_null($applicantDocument->submitted_document_path), 404, 'No submitted file yet.');
 
-        $path = $applicantDocument->submitted_document_path;
+        $path     = $applicantDocument->submitted_document_path;
         $fileName = $applicantDocument->submitted_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
-        return Storage::disk('local')->download($path, $fileName);
+        return Storage::disk('local')->download($path, $fileName, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+            'Pragma'        => 'no-cache',
+        ]);
     }
 
     /**
@@ -158,8 +179,10 @@ class ApplicantDocumentController extends Controller
      */
     public function adminMarkReviewed(Request $request, ApplicantDocument $applicantDocument): JsonResponse
     {
+        $this->authorize('update', $applicantDocument);
+
         $applicantDocument->update([
-            'status' => ApplicantDocumentStatus::Reviewed,
+            'status'      => ApplicantDocumentStatus::Reviewed,
             'reviewed_by' => auth()->id(),
             'reviewed_at' => now(),
         ]);
@@ -172,11 +195,13 @@ class ApplicantDocumentController extends Controller
     /**
      * Admin: replace the original document file.
      *
-     * Deletes the old file, stores the new one, resets the document back to
-     * pending state, and clears any submitted file fields.
+     * Deletes the old file, stores the new one via MIME-safe FileUploadService,
+     * resets the document back to pending state, and clears submitted file fields.
      */
     public function adminReplace(Request $request, ApplicantDocument $applicantDocument): JsonResponse
     {
+        $this->authorize('update', $applicantDocument);
+
         $request->validate([
             'file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
         ]);
@@ -186,24 +211,19 @@ class ApplicantDocumentController extends Controller
             Storage::disk('local')->delete($applicantDocument->original_document_path);
         }
 
-        $file = $request->file('file');
-        $ext = $file->getClientOriginalExtension();
-        $uuid = Str::uuid()->toString();
-        $path = "applicant-documents/sent/{$uuid}.{$ext}";
-
-        Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
+        $stored = $this->fileUpload->store($request->file('file'), 'applicant-documents/sent');
 
         $applicantDocument->update([
-            'original_document_path' => $path,
-            'original_file_name' => $file->getClientOriginalName(),
-            'original_mime_type' => $file->getMimeType() ?? $file->getClientMimeType(),
+            'original_document_path'  => $stored['path'],
+            'original_file_name'      => $stored['file_name'],
+            'original_mime_type'      => $stored['mime_type'],
             // Reset to pending — applicant must re-submit
-            'status' => ApplicantDocumentStatus::Pending,
+            'status'                  => ApplicantDocumentStatus::Pending,
             'submitted_document_path' => null,
-            'submitted_file_name' => null,
-            'submitted_mime_type' => null,
-            'reviewed_by' => null,
-            'reviewed_at' => null,
+            'submitted_file_name'     => null,
+            'submitted_mime_type'     => null,
+            'reviewed_by'             => null,
+            'reviewed_at'             => null,
         ]);
 
         $applicantDocument->load('applicant', 'uploadedByAdmin');
@@ -215,11 +235,12 @@ class ApplicantDocumentController extends Controller
 
     /**
      * Applicant: list documents assigned to the authenticated applicant.
-     *
-     * Includes a download_url pointing to the applicant download route.
      */
     public function applicantList(Request $request): JsonResponse
     {
+        // viewAny for applicants — policy allows, query scoped to own applicant_id
+        $this->authorize('viewAny', ApplicantDocument::class);
+
         $docs = ApplicantDocument::where('applicant_id', auth()->id())
             ->latest()
             ->get();
@@ -232,48 +253,53 @@ class ApplicantDocumentController extends Controller
     /**
      * Applicant: download the original document file.
      *
-     * Only the assigned applicant may download their own document.
+     * Cache-Control: no-store prevents PHI caching in browser.
      */
     public function applicantDownload(ApplicantDocument $applicantDocument): StreamedResponse
     {
-        abort_unless(auth()->id() === $applicantDocument->applicant_id, 403);
+        $this->authorize('view', $applicantDocument);
 
-        $path = $applicantDocument->original_document_path;
+        $path     = $applicantDocument->original_document_path;
         $fileName = $applicantDocument->original_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
-        return Storage::disk('local')->download($path, $fileName);
+        return Storage::disk('local')->download($path, $fileName, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+            'Pragma'        => 'no-cache',
+        ]);
     }
 
     /**
      * Applicant: download the submitted (completed) version of their own document.
      *
-     * Only the assigned applicant may access this. Returns 404 if no file has
-     * been submitted yet.
+     * Cache-Control: no-store prevents PHI caching in browser.
      */
     public function applicantDownloadSubmitted(ApplicantDocument $applicantDocument): StreamedResponse
     {
-        abort_unless(auth()->id() === $applicantDocument->applicant_id, 403);
+        $this->authorize('view', $applicantDocument);
         abort_if(is_null($applicantDocument->submitted_document_path), 404, 'No submitted file yet.');
 
-        $path = $applicantDocument->submitted_document_path;
+        $path     = $applicantDocument->submitted_document_path;
         $fileName = $applicantDocument->submitted_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
-        return Storage::disk('local')->download($path, $fileName);
+        return Storage::disk('local')->download($path, $fileName, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+            'Pragma'        => 'no-cache',
+        ]);
     }
 
     /**
      * Applicant: upload a completed version of an assigned document.
      *
-     * Validates ownership and pending status, stores the file, and updates the record.
+     * Validates ownership and pending status via policy, then stores the file
+     * using MIME-safe FileUploadService.
      */
     public function applicantSubmit(Request $request, ApplicantDocument $applicantDocument): JsonResponse
     {
-        abort_unless(auth()->id() === $applicantDocument->applicant_id, 403);
-        abort_unless($applicantDocument->status === ApplicantDocumentStatus::Pending, 403);
+        $this->authorize('submit', $applicantDocument);
 
         $request->validate([
             'file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
@@ -285,18 +311,13 @@ class ApplicantDocumentController extends Controller
             Storage::disk('local')->delete($applicantDocument->submitted_document_path);
         }
 
-        $file = $request->file('file');
-        $ext = $file->getClientOriginalExtension();
-        $uuid = Str::uuid()->toString();
-        $path = "applicant-documents/submitted/{$uuid}.{$ext}";
-
-        Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
+        $stored = $this->fileUpload->store($request->file('file'), 'applicant-documents/submitted');
 
         $applicantDocument->update([
-            'submitted_document_path' => $path,
-            'submitted_file_name' => $file->getClientOriginalName(),
-            'submitted_mime_type' => $file->getMimeType() ?? $file->getClientMimeType(),
-            'status' => ApplicantDocumentStatus::Submitted,
+            'submitted_document_path' => $stored['path'],
+            'submitted_file_name'     => $stored['file_name'],
+            'submitted_mime_type'     => $stored['mime_type'],
+            'status'                  => ApplicantDocumentStatus::Submitted,
         ]);
 
         return response()->json($this->formatDocument($applicantDocument, false));
@@ -306,9 +327,6 @@ class ApplicantDocumentController extends Controller
 
     /**
      * Format an ApplicantDocument into a consistent API response shape.
-     *
-     * Admin responses include download URLs for both original and submitted files.
-     * Applicant responses include a single download_url for the original.
      *
      * @return array<string, mixed>
      */
@@ -320,26 +338,26 @@ class ApplicantDocumentController extends Controller
             : 'pending';
 
         $base = [
-            'id' => $doc->id,
-            'applicant_id' => $doc->applicant_id,
-            'applicant_name' => $doc->applicant?->name ?? '',
+            'id'                   => $doc->id,
+            'applicant_id'         => $doc->applicant_id,
+            'applicant_name'       => $doc->applicant?->name ?? '',
             'uploaded_by_admin_id' => $doc->uploaded_by_admin_id,
-            'admin_name' => $doc->uploadedByAdmin?->name ?? '',
-            'original_file_name' => $doc->original_file_name,
-            'instructions' => $doc->instructions,
-            'status' => $status,
-            'created_at' => $doc->created_at?->toIso8601String(),
-            'reviewed_at' => $doc->reviewed_at?->toIso8601String(),
+            'admin_name'           => $doc->uploadedByAdmin?->name ?? '',
+            'original_file_name'   => $doc->original_file_name,
+            'instructions'         => $doc->instructions,
+            'status'               => $status,
+            'created_at'           => $doc->created_at?->toIso8601String(),
+            'reviewed_at'          => $doc->reviewed_at?->toIso8601String(),
         ];
 
         if ($isAdmin) {
-            $base['download_original_url'] = url("/api/admin/applicant-documents/{$doc->id}/download-original");
+            $base['download_original_url']  = url("/api/admin/applicant-documents/{$doc->id}/download-original");
             $base['download_submitted_url'] = $doc->submitted_document_path
                 ? url("/api/admin/applicant-documents/{$doc->id}/download-submitted")
                 : null;
         } else {
-            $base['download_url'] = url("/api/applicant/applicant-documents/{$doc->id}/download");
-            $base['submitted_file_name'] = $doc->submitted_file_name;
+            $base['download_url']           = url("/api/applicant/applicant-documents/{$doc->id}/download");
+            $base['submitted_file_name']    = $doc->submitted_file_name;
             $base['download_submitted_url'] = $doc->submitted_document_path
                 ? url("/api/applicant/applicant-documents/{$doc->id}/download-submitted")
                 : null;

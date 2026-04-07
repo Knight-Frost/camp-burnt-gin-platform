@@ -97,7 +97,7 @@ Route::get('/ready', [HealthController::class, 'readiness'])->name('health.readi
 | families can access the forms at any point in the workflow.
 |
 */
-Route::prefix('forms')->group(function () {
+Route::middleware('throttle:api')->prefix('forms')->group(function () {
     Route::get('/', [FormsDownloadController::class, 'index'])->name('forms.index');
     Route::get('/application', [FormsDownloadController::class, 'application'])->name('forms.application');
     Route::get('/application-spanish', [FormsDownloadController::class, 'applicationSpanish'])->name('forms.application-spanish');
@@ -212,10 +212,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::put('/emergency-contacts/{contact}', [UserProfileController::class, 'updateEmergencyContact'])->name('profile.emergency-contacts.update');
         Route::delete('/emergency-contacts/{contact}', [UserProfileController::class, 'destroyEmergencyContact'])->name('profile.emergency-contacts.destroy');
 
-        // GDPR/privacy data controls (throttled to prevent abuse)
-        Route::post('/data-export', [UserProfileController::class, 'requestDataExport'])
-            ->middleware('throttle:sensitive')
-            ->name('profile.data-export');
+        // Account deletion (throttled to prevent abuse)
         Route::delete('/account', [UserProfileController::class, 'deleteAccount'])
             ->middleware('throttle:sensitive')
             ->name('profile.account.delete');
@@ -305,8 +302,9 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::post('/admin/documents/send', [ApplicantDocumentController::class, 'adminSend']);
         Route::get('/admin/documents', [ApplicantDocumentController::class, 'adminList']);
         Route::get('/admin/documents/{applicantId}', [ApplicantDocumentController::class, 'adminListForApplicant']);
-        Route::get('/admin/applicant-documents/{applicantDocument}/download-original', [ApplicantDocumentController::class, 'adminDownloadOriginal']);
-        Route::get('/admin/applicant-documents/{applicantDocument}/download-submitted', [ApplicantDocumentController::class, 'adminDownloadSubmitted']);
+        // Admin PHI file downloads — require MFA enrollment before serving raw files.
+        Route::get('/admin/applicant-documents/{applicantDocument}/download-original', [ApplicantDocumentController::class, 'adminDownloadOriginal'])->middleware('mfa.enrolled');
+        Route::get('/admin/applicant-documents/{applicantDocument}/download-submitted', [ApplicantDocumentController::class, 'adminDownloadSubmitted'])->middleware('mfa.enrolled');
         Route::patch('/admin/applicant-documents/{applicantDocument}/review', [ApplicantDocumentController::class, 'adminMarkReviewed']);
         Route::post('/admin/applicant-documents/{applicantDocument}/replace', [ApplicantDocumentController::class, 'adminReplace']);
     });
@@ -390,12 +388,14 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     |
     */
     Route::middleware('admin')->prefix('reports')->group(function () {
+        // Summary is aggregate/non-PHI data — no MFA enforcement needed.
         Route::get('/summary', [ReportController::class, 'summary'])->name('reports.summary');
-        Route::get('/applications', [ReportController::class, 'applications'])->name('reports.applications');
-        Route::get('/accepted', [ReportController::class, 'acceptedApplicants'])->name('reports.accepted');
-        Route::get('/rejected', [ReportController::class, 'rejectedApplicants'])->name('reports.rejected');
-        Route::get('/mailing-labels', [ReportController::class, 'mailingLabels'])->name('reports.mailing-labels');
-        Route::get('/id-labels', [ReportController::class, 'idLabels'])->name('reports.id-labels');
+        // CSV exports contain individual camper PHI — require MFA enrollment.
+        Route::get('/applications', [ReportController::class, 'applications'])->middleware('mfa.enrolled')->name('reports.applications');
+        Route::get('/accepted', [ReportController::class, 'acceptedApplicants'])->middleware('mfa.enrolled')->name('reports.accepted');
+        Route::get('/rejected', [ReportController::class, 'rejectedApplicants'])->middleware('mfa.enrolled')->name('reports.rejected');
+        Route::get('/mailing-labels', [ReportController::class, 'mailingLabels'])->middleware('mfa.enrolled')->name('reports.mailing-labels');
+        Route::get('/id-labels', [ReportController::class, 'idLabels'])->middleware('mfa.enrolled')->name('reports.id-labels');
     });
 
     /*
@@ -503,7 +503,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             ->middleware('role:admin,medical')
             ->name('medical-records.index');
         Route::post('/', [MedicalRecordController::class, 'store'])->name('medical-records.store');
-        Route::get('/{medicalRecord}', [MedicalRecordController::class, 'show'])->name('medical-records.show');
+        Route::get('/{medicalRecord}', [MedicalRecordController::class, 'show'])->middleware('mfa.enrolled')->name('medical-records.show');
         Route::put('/{medicalRecord}', [MedicalRecordController::class, 'update'])->name('medical-records.update');
         // Hard delete — admin only
         Route::delete('/{medicalRecord}', [MedicalRecordController::class, 'destroy'])
@@ -776,8 +776,10 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     // Full audit history and CSV/JSON export of all system actions
     Route::middleware('role:super_admin')->prefix('audit-log')->group(function () {
         Route::get('/', [AuditLogController::class, 'index'])->name('audit-log.index');
-        // Export up to 5,000 audit log rows as CSV or JSON
-        Route::get('/export', [AuditLogController::class, 'export'])->name('audit-log.export');
+        // Export up to 5,000 audit log rows — rate-limited + MFA required to prevent bulk PHI exfiltration
+        Route::get('/export', [AuditLogController::class, 'export'])
+            ->middleware(['throttle:phi-export', 'mfa.enrolled'])
+            ->name('audit-log.export');
     });
 
     // ── User Management (super_admin only) ────────────────────────────────────
@@ -841,59 +843,59 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::prefix('conversations')->group(function () {
             // List conversations — filtered by folder via ?folder= query param
             Route::get('/', [ConversationController::class, 'index'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.conversations.index');
-            // Create a new conversation — throttled to 5 per minute to prevent spam
+            // Create a new conversation — 60/min for admins, 15/min for applicants
             Route::post('/', [ConversationController::class, 'store'])
-                ->middleware('throttle:5,1')
+                ->middleware('throttle:inbox-compose')
                 ->name('inbox.conversations.store');
             // View a specific conversation and its messages
             Route::get('/{conversation}', [ConversationController::class, 'show'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.conversations.show');
             // Move to archive folder
             Route::post('/{conversation}/archive', [ConversationController::class, 'archive'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.archive');
             // Restore from archive
             Route::post('/{conversation}/unarchive', [ConversationController::class, 'unarchive'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.unarchive');
             // Add a user to the conversation's participant list
             Route::post('/{conversation}/participants', [ConversationController::class, 'addParticipant'])
-                ->middleware('throttle:10,60')
+                ->middleware('throttle:30,60')
                 ->name('inbox.conversations.add-participant');
             // Remove a specific user from the conversation
             Route::delete('/{conversation}/participants/{user}', [ConversationController::class, 'removeParticipant'])
-                ->middleware('throttle:10,60')
+                ->middleware('throttle:30,60')
                 ->name('inbox.conversations.remove-participant');
             // Leave the conversation (user removes themselves)
             Route::post('/{conversation}/leave', [ConversationController::class, 'leave'])
-                ->middleware('throttle:10,60')
+                ->middleware('throttle:30,60')
                 ->name('inbox.conversations.leave');
             // Toggle starred flag for this user's view of the conversation
             Route::post('/{conversation}/star', [ConversationController::class, 'star'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.conversations.star');
             // Toggle important flag for this user's view of the conversation
             Route::post('/{conversation}/important', [ConversationController::class, 'important'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.conversations.important');
             // Move to trash (per-user — does not affect other participants)
             Route::post('/{conversation}/trash', [ConversationController::class, 'trash'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.trash');
             // Restore from trash
             Route::post('/{conversation}/restore-trash', [ConversationController::class, 'restoreFromTrash'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.restore-trash');
             // Mark all messages in conversation as read (per-user)
             Route::post('/{conversation}/read', [ConversationController::class, 'markRead'])
-                ->middleware('throttle:30,1')
+                ->middleware('throttle:120,1')
                 ->name('inbox.conversations.mark-read');
             // Mark conversation as unread by removing latest read receipt (per-user)
             Route::post('/{conversation}/unread', [ConversationController::class, 'markUnread'])
-                ->middleware('throttle:30,1')
+                ->middleware('throttle:120,1')
                 ->name('inbox.conversations.mark-unread');
             // Hard delete (soft-delete) — admin only
             Route::delete('/{conversation}', [ConversationController::class, 'destroy'])
@@ -903,21 +905,21 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
             // ── Messages within a Conversation ────────────────────────────────
             // Paginated message history (oldest first); auto-marks as read on fetch
             Route::get('/{conversation}/messages', [MessageController::class, 'index'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.conversations.messages.index');
-            // Send a new message (throttled at 20/min to prevent message flooding)
+            // Send a new message
             Route::post('/{conversation}/messages', [MessageController::class, 'store'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.messages.store');
 
             // Reply to a specific message — sends only to the original message's sender
             Route::post('/{conversation}/reply', [MessageController::class, 'reply'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.reply');
 
             // Reply All — sends to original sender + all visible TO/CC recipients (BCC excluded by server)
             Route::post('/{conversation}/reply-all', [MessageController::class, 'replyAll'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.conversations.reply-all');
         });
 
@@ -925,19 +927,19 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::prefix('messages')->group(function () {
             // Total unread message count — used for the inbox nav badge
             Route::get('/unread-count', [MessageController::class, 'unreadCount'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.messages.unread-count');
             // View a single message by ID
             Route::get('/{message}', [MessageController::class, 'show'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:180,1')
                 ->name('inbox.messages.show');
-            // Download a file attached to a message (throttled at 10/hour per user)
+            // Download a file attached to a message (throttled at 30/hour per user)
             Route::get('/{message}/attachments/{documentId}', [MessageController::class, 'downloadAttachment'])
-                ->middleware('throttle:10,60')
+                ->middleware('throttle:30,60')
                 ->name('inbox.messages.download-attachment');
             // Preview a file inline — images/PDFs open in the browser instead of downloading
             Route::get('/{message}/attachments/{documentId}/preview', [MessageController::class, 'previewAttachment'])
-                ->middleware('throttle:30,1')
+                ->middleware('throttle:60,1')
                 ->name('inbox.messages.preview-attachment');
             // Soft-delete a message (admin moderation only)
             Route::delete('/{message}', [MessageController::class, 'destroy'])

@@ -21,8 +21,9 @@
  */
 
 import {
-  useState, useEffect, useRef, type ElementType, type MouseEvent,
+  useState, useEffect, useCallback, useRef, type ElementType, type MouseEvent,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -43,10 +44,18 @@ import { getAnnouncements, type Announcement } from '@/features/admin/api/announ
 import { format } from 'date-fns';
 import { useAppSelector } from '@/store/hooks';
 import { useBootstrapReady } from '@/shared/hooks/useBootstrapReady';
+import { useRealtime } from '@/features/realtime/RealtimeContext';
 import { MessageRow } from '@/features/messaging/components/MessageRow';
 import { ThreadView } from '@/features/messaging/components/ThreadView';
-import { FloatingCompose } from '@/features/messaging/components/FloatingCompose';
-import DOMPurify from 'dompurify';
+import { FloatingCompose, clearComposeDraft } from '@/features/messaging/components/FloatingCompose';
+import DOMPurify, { type Config as DOMPurifyConfig } from 'dompurify';
+
+// Strict DOMPurify config — see ThreadView.tsx for rationale.
+const SAFE_MESSAGE_CONFIG: DOMPurifyConfig = {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'span'],
+  ALLOWED_ATTR: ['href', 'target', 'rel'],
+  FORCE_BODY: true,
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -205,7 +214,14 @@ function FolderNav({
 
 export function InboxPage() {
   const { t } = useTranslation();
+  const location = useLocation();
   const bootstrapReady = useBootstrapReady();
+
+  // If we arrived via a notification "View" button, hold the target ID here
+  // and auto-select it once the conversation list has loaded.
+  const pendingConvIdRef = useRef<number | null>(
+    (location.state as { conversationId?: number } | null)?.conversationId ?? null,
+  );
   const currentUserId  = useAppSelector((s) => s.auth.user?.id);
   const userRoleName   = useAppSelector((s) => {
     const u = s.auth.user;
@@ -225,12 +241,15 @@ export function InboxPage() {
   });
 
   // ── Data state
-  const [conversations,  setConversations]  = useState<Conversation[]>([]);
-  const [announcements,  setAnnouncements]  = useState<Announcement[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState(false);
-  const [inboxUnread,    setInboxUnread]    = useState(0);
-  const [refreshKey,     setRefreshKey]     = useState(0);
+  const [conversations,        setConversations]        = useState<Conversation[]>([]);
+  const [announcements,        setAnnouncements]        = useState<Announcement[]>([]);
+  const [loading,              setLoading]              = useState(true);
+  const [error,                setError]                = useState(false);
+  const [inboxUnread,          setInboxUnread]          = useState(0);
+  const [refreshKey,           setRefreshKey]           = useState(0);
+  // Incremented when a real-time event arrives for the open conversation —
+  // ThreadView watches this to silently re-fetch its message list.
+  const [threadRefreshSignal,  setThreadRefreshSignal]  = useState(0);
 
   // ── Interaction state
   const [search,       setSearch]       = useState('');
@@ -239,13 +258,96 @@ export function InboxPage() {
   const [showCompose,  setShowCompose]  = useState(false);
 
   // ── Refs
-  const searchRef      = useRef<HTMLInputElement>(null);
-  const listRef        = useRef<HTMLDivElement>(null);
-  const savedScroll    = useRef(0);
+  const searchRef         = useRef<HTMLInputElement>(null);
+  const listRef           = useRef<HTMLDivElement>(null);
+  const savedScroll       = useRef(0);
   // Tracks the active fetch token. Updated synchronously in changeFolder so
   // any in-flight fetch from a previous folder sees the mismatch immediately,
   // before React's useEffect cleanup has a chance to run.
-  const activeFetchRef = useRef<symbol | null>(null);
+  const activeFetchRef    = useRef<symbol | null>(null);
+  // Tracks the active silent-refresh token to prevent stale results from
+  // real-time background fetches overwriting a concurrent folder switch.
+  const silentRefreshRef  = useRef<symbol | null>(null);
+  // Mirror of selectedConv for synchronous reads inside effects without needing
+  // selectedConv in the dependency array. Avoids the anti-pattern of reading
+  // current state inside a state-updater function (double-invoke risk in React
+  // Concurrent Mode / StrictMode).
+  const selectedConvRef   = useRef<Conversation | null>(null);
+
+  // ─── Real-time event handling ─────────────────────────────────────────────
+
+  const { lastMessage, setActiveConversationId } = useRealtime();
+
+  // Silently re-fetches the conversation list in the background without
+  // showing a loading spinner. Used after a real-time message event arrives.
+  const silentRefreshConversations = useCallback(() => {
+    if (folder === 'announcements') return;
+    const token = Symbol();
+    silentRefreshRef.current = token;
+    getConversations({ folder })
+      .then((res) => {
+        if (silentRefreshRef.current !== token) return;
+        setConversations(res.data);
+        setInboxUnread((res.meta as { unread_count?: number }).unread_count ?? 0);
+      })
+      .catch((err) => { console.error('[InboxPage] Silent refresh failed:', err); });
+  }, [folder]);
+
+  // Keep the ref in sync with the state so the WebSocket effect below can read
+  // the current conversation synchronously without adding selectedConv as a dep.
+  useEffect(() => {
+    selectedConvRef.current = selectedConv;
+  }, [selectedConv]);
+
+  // React to incoming MessageSent events from the WebSocket channel.
+  useEffect(() => {
+    if (!lastMessage) return;
+    const { event } = lastMessage;
+
+    // Read the current conversation via ref — avoids performing side effects
+    // inside a state-updater function, which React may call multiple times in
+    // Concurrent / StrictMode and would double-increment inboxUnread.
+    const activeConv = selectedConvRef.current;
+
+    // Only increment the badge when the incoming message is NOT in the currently
+    // open conversation. If the conversation is open, ThreadView will trigger a
+    // re-fetch and dispatch messaging:unread-changed, which corrects the count
+    // from the server — no manual increment needed (and it would be wrong to
+    // add +1 for a message the user is actively reading).
+    if (activeConv?.id !== event.conversation_id) {
+      setInboxUnread((c) => c + 1);
+    }
+
+    // Silently refresh the conversation list so the new message appears at the
+    // top and the unread count is accurate without a full loading spinner.
+    silentRefreshConversations();
+
+    // If the user has this conversation open in the thread pane, signal
+    // ThreadView to re-fetch its message list.
+    if (activeConv?.id === event.conversation_id) {
+      setThreadRefreshSignal((k) => k + 1);
+    }
+  // lastMessage.key is a monotonic counter — safe as the sole dep
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMessage?.key]);
+
+  // Polling fallback — keeps unread count and conversation list fresh when
+  // the Reverb WebSocket is unavailable (e.g. Reverb not started in dev).
+  // Runs every 30 seconds only while the inbox is visible. Real-time events
+  // supersede this; the poll is a safety net, not the primary update path.
+  useEffect(() => {
+    if (!bootstrapReady) return;
+    const id = setInterval(silentRefreshConversations, 30_000);
+    return () => clearInterval(id);
+  }, [bootstrapReady, silentRefreshConversations]);
+
+  // Also refresh immediately whenever RealtimeContext signals a new message —
+  // covers both the WebSocket-connected path and the polling fallback path.
+  useEffect(() => {
+    if (!bootstrapReady) return;
+    window.addEventListener('realtime:message-arrived', silentRefreshConversations);
+    return () => window.removeEventListener('realtime:message-arrived', silentRefreshConversations);
+  }, [bootstrapReady, silentRefreshConversations]);
 
   // ─── Persist left pane state ─────────────────────────────────────────────
 
@@ -320,6 +422,16 @@ export function InboxPage() {
         setConversations(res.data);
         // Always update the unread badge — the API returns the total across all folders
         setInboxUnread((res.meta as { unread_count?: number }).unread_count ?? 0);
+
+        // Auto-select a conversation if we were navigated here from a notification.
+        if (pendingConvIdRef.current !== null) {
+          const target = res.data.find((c) => c.id === pendingConvIdRef.current);
+          pendingConvIdRef.current = null;
+          if (target) {
+            setActiveConversationId(target.id);
+            setSelectedConv(target);
+          }
+        }
       } catch {
         if (!isMine()) return;
         setConversations([]);
@@ -345,7 +457,12 @@ export function InboxPage() {
       const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       if (e.key === 'Escape') {
-        if (showCompose) setShowCompose(false);
+        if (showCompose) {
+          // Clear the compose draft so stale subject/body cannot bleed into
+          // the next compose session opened in this tab.
+          clearComposeDraft();
+          setShowCompose(false);
+        }
         return;
       }
       if (inInput) return;
@@ -355,6 +472,46 @@ export function InboxPage() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showCompose]);
+
+  // ─── Notification "View" — same-page handler via custom DOM event ─────────
+  // When the user is ALREADY on InboxPage, RealtimeContext dispatches
+  // "inbox:open-conversation" instead of calling router.navigate() to the same
+  // URL (navigating to an already-active route with changed state only is
+  // unreliable in React Router 6 — useLocation() may not update consistently).
+  //
+  // When the user is NOT on InboxPage, RealtimeContext uses router.navigate()
+  // with location.state; InboxPage mounts fresh and pendingConvIdRef (line 222)
+  // reads the conversationId normally from location.state.
+  useEffect(() => {
+    function onOpenConversation(e: Event) {
+      const convId = (e as CustomEvent<{ convId: number }>).detail.convId;
+
+      if (folder !== 'inbox') {
+        // Switch to inbox — the subsequent data load will consume pendingConvIdRef.
+        pendingConvIdRef.current = convId;
+        changeFolder('inbox');
+        return;
+      }
+
+      // Already on inbox — try to find the conversation in the current list.
+      const target = conversations.find((c) => c.id === convId);
+      if (target) {
+        setActiveConversationId(target.id);
+        setSelectedConv(target);
+      } else {
+        // Not in list yet (new message arrived after last fetch).
+        // Queue and force a refresh so the data-load effect picks it up.
+        pendingConvIdRef.current = convId;
+        setRefreshKey((k) => k + 1);
+      }
+    }
+
+    window.addEventListener('inbox:open-conversation', onOpenConversation);
+    return () => window.removeEventListener('inbox:open-conversation', onOpenConversation);
+  // conversations + folder are read inside the handler — include so the closure
+  // always sees fresh values without needing refs for each.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folder, conversations]);
 
   // ─── Filtered list ────────────────────────────────────────────────────────
 
@@ -558,10 +715,15 @@ export function InboxPage() {
       prev.map((c) => ids.includes(c.id) ? { ...c, unread_count: 0 } : c)
     );
     setSelected(new Set());
-    await Promise.all(ids.map((id) => markConversationAsRead(id))).catch(() => {
+    try {
+      await Promise.all(ids.map((id) => markConversationAsRead(id)));
+      // Only dispatch the unread-changed event after all API calls succeed.
+      window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
+    } catch {
+      // Rollback optimistic state update on failure.
       setRefreshKey((k) => k + 1);
       toast.error('Failed to mark conversations as read.');
-    });
+    }
   }
 
   // ─── Row-level mark-read / mark-unread ────────────────────────────────────
@@ -573,6 +735,8 @@ export function InboxPage() {
     );
     try {
       await markConversationAsRead(id);
+      // Notify the bell and sidebar badge that the unread count has decreased.
+      window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
     } catch {
       setRefreshKey((k) => k + 1);
       toast.error('Failed to mark as read.');
@@ -586,6 +750,8 @@ export function InboxPage() {
     );
     try {
       await markConversationAsUnread(id);
+      // Notify the bell and sidebar badge that the unread count has increased.
+      window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
     } catch {
       setRefreshKey((k) => k + 1);
       toast.error('Failed to mark as unread.');
@@ -596,10 +762,21 @@ export function InboxPage() {
 
   function openConversation(conv: Conversation) {
     savedScroll.current = listRef.current?.scrollTop ?? 0;
+    // Optimistically clear this conversation's local badge so the row un-bolds immediately.
+    // Do NOT dispatch 'messaging:unread-changed' here — the server hasn't marked anything as
+    // read yet. ThreadView will dispatch the event after getMessages() resolves, which is when
+    // the server actually writes the read receipts.
+    if (conv.unread_count > 0) {
+      setConversations((prev) =>
+        prev.map((c) => c.id === conv.id ? { ...c, unread_count: 0 } : c)
+      );
+    }
+    setActiveConversationId(conv.id);
     setSelectedConv(conv);
   }
 
   function handleBack() {
+    setActiveConversationId(null);
     setSelectedConv(null);
     requestAnimationFrame(() => {
       if (listRef.current) listRef.current.scrollTop = savedScroll.current;
@@ -608,6 +785,7 @@ export function InboxPage() {
 
   function handleConvArchived(id: number) {
     setConversations((prev) => prev.filter((c) => c.id !== id));
+    setActiveConversationId(null);
     setSelectedConv(null);
   }
 
@@ -817,6 +995,7 @@ export function InboxPage() {
                     isActive={selectedConv?.id === conv.id}
                     isInArchive={folder === 'archive'}
                     currentUserId={currentUserId}
+                    folder={folder}
                     onSelect={toggleSelect}
                     onStar={(id, e) => void handleStar(id, e)}
                     onArchive={handleArchive}
@@ -843,6 +1022,7 @@ export function InboxPage() {
               currentUserId={currentUserId}
               onBack={handleBack}
               onArchive={handleConvArchived}
+              refreshSignal={threadRefreshSignal}
             />
           </div>
         ) : (
@@ -942,7 +1122,7 @@ function AnnouncementList({ announcements }: { announcements: Announcement[] }) 
           <p
             className="text-xs leading-relaxed line-clamp-2"
             style={{ color: 'var(--muted-foreground)' }}
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ann.body) }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ann.body, SAFE_MESSAGE_CONFIG) }}
           />
         </div>
       ))}

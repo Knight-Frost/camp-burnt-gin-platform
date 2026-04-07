@@ -10,7 +10,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import DOMPurify from 'dompurify';
+import DOMPurify, { type Config as DOMPurifyConfig } from 'dompurify';
+
+// Strict DOMPurify config for message body rendering.
+// Allows only safe inline formatting tags — no <style>, no <script>,
+// no <img> (prevents external pixel tracking), no event attributes.
+// This protects against CSS injection, clickjacking UI confusion,
+// and IP-leaking image requests even if server content is untrusted.
+const SAFE_MESSAGE_CONFIG: DOMPurifyConfig = {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'span'],
+  ALLOWED_ATTR: ['href', 'target', 'rel'],
+  FORCE_BODY: true,
+};
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ArrowLeft, Archive, Paperclip, Send, X, Download, Bot, Eye, FileText, Reply, ReplyAll } from 'lucide-react';
@@ -56,7 +67,11 @@ function RecipientSummary({ recipients, isMine }: { recipients: MessageRecipient
   const { t } = useTranslation();
   const toList  = recipients.filter((r) => r.recipient_type === 'to');
   const ccList  = recipients.filter((r) => r.recipient_type === 'cc');
-  const bccList = recipients.filter((r) => r.recipient_type === 'bcc'); // only visible to sender
+  // Client-side BCC guard: only show BCC entries when this is the sender's own message.
+  // The server already filters BCC from non-senders, but this adds defence-in-depth:
+  // if the server ever returns BCC entries to a non-sender due to a bug, we will not
+  // display them. isMine === false means someone else sent this; hide BCC unconditionally.
+  const bccList = isMine ? recipients.filter((r) => r.recipient_type === 'bcc') : [];
 
   if (toList.length === 0 && ccList.length === 0 && bccList.length === 0) return null;
 
@@ -96,11 +111,14 @@ interface ThreadViewProps {
   currentUserId?: number;
   onBack: () => void;
   onArchive: (id: number) => void;
+  /** Incremented by InboxPage when a real-time event arrives for this conversation.
+   *  Triggers a silent background re-fetch of the message list. */
+  refreshSignal?: number;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ThreadView({ conversation, currentUserId, onBack, onArchive }: ThreadViewProps) {
+export function ThreadView({ conversation, currentUserId, onBack, onArchive, refreshSignal }: ThreadViewProps) {
   const isSystem = conversation.is_system_generated === true;
 
   const [messages, setMessages]             = useState<Message[]>([]);
@@ -112,25 +130,80 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
   // Reply context: which message we're replying to, and how
   const [replyingTo, setReplyingTo]         = useState<Message | null>(null);
   const [replyMode, setReplyMode]           = useState<'reply' | 'reply_all'>('reply');
-  const [archiving, setArchiving]     = useState(false);
-  const [previewUrls, setPreviewUrls]           = useState<Record<number, string>>({});
+  const [archiving, setArchiving]           = useState(false);
+  const [previewUrls, setPreviewUrls]       = useState<Record<number, string>>({});
   const [previewLoadingIds, setPreviewLoadingIds] = useState<Set<number>>(new Set());
-  const [previewModal, setPreviewModal]           = useState<{ url: string; mimeType: string; name: string } | null>(null);
+  const [previewModal, setPreviewModal]     = useState<{ url: string; mimeType: string; name: string } | null>(null);
+  // Pagination: oldest page the user has loaded so far (1 = have loaded everything)
+  const [oldestPageLoaded, setOldestPageLoaded] = useState(1);
+  const [loadingOlder, setLoadingOlder]     = useState(false);
   const fileInputRef          = useRef<HTMLInputElement>(null);
   const bottomRef             = useRef<HTMLDivElement>(null);
   const loadingPreviewsRef    = useRef<Set<number>>(new Set());
   const blobUrlsRef           = useRef<string[]>([]);
+  // Tracks which conversation's messages are currently loaded so the fetch
+  // effect can distinguish a fresh open (needs spinner) from a background
+  // refresh triggered by a real-time signal (should be silent).
+  const messagesConvRef       = useRef<number | null>(null);
 
-  // Load messages when conversation changes
+  // Load messages when conversation changes or a real-time refresh is signalled.
+  // We always load the LAST page first so the user sees the most recent messages
+  // immediately without scrolling. "Load older messages" prepends earlier pages.
   useEffect(() => {
     let isCancelled = false;
-    setLoading(true);
-    getMessages(conversation.id)
-      .then((res) => { if (!isCancelled) setMessages(res.data); })
-      .catch(() => { if (!isCancelled) toast.error('Could not load messages.'); })
+    const silent = messages.length > 0 && conversation.id === messagesConvRef.current;
+    const hadUnread = conversation.unread_count > 0;
+    if (!silent) {
+      setLoading(true);
+      setOldestPageLoaded(1);
+    }
+    messagesConvRef.current = conversation.id;
+
+    // Step 1: Fetch page 1 to discover the total page count, then fetch the last page.
+    getMessages(conversation.id, { page: 1 })
+      .then(async (res) => {
+        if (isCancelled) return;
+        const last = res.meta.last_page;
+        if (last <= 1) {
+          // Only one page — we already have everything
+          setMessages(res.data);
+          setOldestPageLoaded(1);
+        } else {
+          // Fetch the last page to show the most recent messages
+          const lastRes = await getMessages(conversation.id, { page: last });
+          if (!isCancelled) {
+            setMessages(lastRes.data);
+            setOldestPageLoaded(last);
+          }
+        }
+        if (!silent && hadUnread) {
+          window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
+        }
+      })
+      .catch(() => {
+        if (!isCancelled && !silent) toast.error('Could not load messages.');
+      })
       .finally(() => { if (!isCancelled) setLoading(false); });
     return () => { isCancelled = true; };
-  }, [conversation.id]);
+  // refreshSignal is included so real-time events trigger a re-fetch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation.id, refreshSignal]);
+
+  // Load a page of older messages and prepend it to the thread.
+  async function loadOlderMessages() {
+    if (loadingOlder || oldestPageLoaded <= 1) return;
+    const prevPage = oldestPageLoaded - 1;
+    setLoadingOlder(true);
+    try {
+      const res = await getMessages(conversation.id, { page: prevPage });
+      setMessages((prev) => [...res.data, ...prev]);
+      setOldestPageLoaded(prevPage);
+    } catch {
+      toast.error('Could not load older messages.');
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -339,7 +412,26 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
             No messages yet.
           </p>
         ) : (
-          messages.map((msg) => {
+          <>
+            {/* Load older messages button — only shown when earlier pages exist */}
+            {oldestPageLoaded > 1 && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={loadOlderMessages}
+                  disabled={loadingOlder}
+                  className="text-xs px-4 py-1.5 rounded-full border transition-colors disabled:opacity-50"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--muted-foreground)',
+                    background: 'var(--card)',
+                  }}
+                >
+                  {loadingOlder ? 'Loading…' : `Load older messages (${oldestPageLoaded - 1} page${oldestPageLoaded - 1 > 1 ? 's' : ''} earlier)`}
+                </button>
+              </div>
+            )}
+          {messages.map((msg) => {
             const isSystemMsg = msg.sender_id === null;
             const isMine      = !isSystemMsg && msg.sender_id === currentUserId;
             const senderName  = isSystemMsg ? 'Camp Burnt Gin' : (msg.sender?.name ?? 'Unknown');
@@ -351,13 +443,13 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                 {/* System message: centered notification style */}
                 {isSystemMsg ? (
                   <div
-                    className="w-full max-w-lg px-4 py-3 rounded-xl text-sm leading-relaxed"
+                    className="w-full max-w-lg px-4 py-3 rounded-xl text-sm leading-relaxed message-body"
                     style={{
                       background: 'rgba(22,163,74,0.06)',
                       border: '1px solid rgba(22,163,74,0.18)',
                       color: 'var(--foreground)',
                     }}
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.body) }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.body, SAFE_MESSAGE_CONFIG) }}
                   />
                 ) : (
                   <>
@@ -369,14 +461,14 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                         </p>
                       )}
                       <div
-                        className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed"
+                        className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed message-body"
                         style={{
                           background: isMine ? BRAND : 'var(--glass-medium)',
                           color: isMine ? '#fff' : 'var(--foreground)',
                           borderBottomRightRadius: isMine ? 4 : undefined,
                           borderBottomLeftRadius:  isMine ? undefined : 4,
                         }}
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.body) }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.body, SAFE_MESSAGE_CONFIG) }}
                       />
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className={`flex flex-col gap-1.5 mt-1.5 ${isMine ? 'items-end' : 'items-start'}`}>
@@ -543,7 +635,8 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive }: T
                 )}
               </div>
             );
-          })
+          })}
+          </>
         )}
         <div ref={bottomRef} />
       </div>

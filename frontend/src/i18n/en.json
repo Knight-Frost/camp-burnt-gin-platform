@@ -1463,6 +1463,7 @@
       "s4_cpap_waiver_required": "A CPAP waiver is required in Section 9 (Required Documents).",
       "s4_mobility_notes_heading": "Mobility notes",
       "s4_mobility_notes_placeholder": "Describe any specific mobility needs, accessibility requirements, or terrain restrictions…",
+      "s4_section_reviewed_label": "I have reviewed this section — my camper has no additional equipment or mobility needs to report",
 
       "device_wheelchair_manual": "Wheelchair (manual)",
       "device_wheelchair_power": "Wheelchair (power)",
@@ -1514,6 +1515,7 @@
       "s5_gtube_plan_required": "A G-Tube / Feeding Action Plan is required in Section 9 (Required Documents).",
       "s5_feeding_notes_label": "Additional feeding notes",
       "s5_feeding_notes_placeholder": "Any other feeding-related information staff should know…",
+      "s5_section_reviewed_label": "I have reviewed this section — my camper has no additional dietary or feeding needs to report",
 
       "s6_instructions": "For each area, select the level of assistance your camper requires. Add notes for any specific care protocols staff should follow.",
       "s6_level_independent": "Independent",
@@ -1782,7 +1784,9 @@
     "digital_form_label": "Completed digitally — no upload required",
     "medical_form_instructions": "This form must be completed and signed by a licensed physician, APRN, or physician assistant. Download the blank form, take it to your doctor's appointment, and upload the completed copy here.",
     "view_document": "View",
-    "view_uploaded": "View Uploaded File"
+    "view_uploaded": "View Uploaded File",
+    "digital_forms_choose_one": "Complete in your preferred language — only one form required",
+    "digital_forms_status_label": "Your application status:"
   },
   "create_user": {
     "title": "Create Staff Account",

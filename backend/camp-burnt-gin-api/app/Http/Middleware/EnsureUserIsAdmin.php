@@ -51,7 +51,9 @@ class EnsureUserIsAdmin
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // User is an admin — allow the request to continue to the controller.
+        // MFA enrollment is encouraged (shown as a banner in the frontend) but
+        // not enforced globally. Strict enforcement is applied only to specific
+        // sensitive routes via the mfa.enrolled middleware in routes/api.php.
         return $next($request);
     }
 }

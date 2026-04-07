@@ -4,7 +4,7 @@
  * Purpose: Lists all applications for the current applicant's campers.
  * Responsibilities:
  *   - Fetch all applications from the API on mount
- *   - Detect a locally-saved draft in localStorage and surface a "Continue" card
+ *   - Detect a locally-saved draft in sessionStorage and surface a "Continue" card
  *   - Allow filtering by view mode (all / active / past) and by specific status
  *   - Sort the filtered list newest-first or oldest-first
  *   - Render applications in grouped sections: Drafts, Active, Past
@@ -307,7 +307,7 @@ function AppGroup({
   );
 }
 
-// Special card shown when a localStorage draft is detected (not yet submitted to the server)
+// Special card shown when a sessionStorage draft is detected (not yet submitted to the server)
 function LocalDraftCard({ camperName }: { camperName: string | null }) {
   const navigate = useNavigate();
   return (
@@ -333,7 +333,7 @@ function LocalDraftCard({ camperName }: { camperName: string | null }) {
           </p>
         </div>
       </div>
-      {/* "Continue" navigates back to the form, which re-hydrates from localStorage */}
+      {/* "Continue" navigates back to the form, which re-hydrates from sessionStorage */}
       <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW)}>
         Continue
       </Button>
@@ -430,7 +430,7 @@ export function ApplicantApplicationsPage() {
   const [sortOrder, setSortOrder]       = useState<SortOrder>('newest');
   // Free-text search — filters by camper name (partial, case-insensitive, client-side)
   const [search, setSearch]             = useState('');
-  // Holds camper name parsed from localStorage draft if one exists
+  // Holds camper name parsed from sessionStorage draft if one exists
   const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
   // Delete-draft confirmation modal state
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'draft'; id: number; camperName: string | null } | { type: 'application'; app: Application } | null>(null);
@@ -439,7 +439,7 @@ export function ApplicantApplicationsPage() {
   // On mount, try to read the local draft key and extract the camper's name
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(localDraftKey);
+      const raw = sessionStorage.getItem(localDraftKey);
       if (!raw) return;
       const parsed = JSON.parse(raw) as { s1?: { camper_first_name?: string; camper_last_name?: string } };
       const first = (parsed.s1?.camper_first_name ?? '').trim();
@@ -478,7 +478,7 @@ export function ApplicantApplicationsPage() {
       if (deleteTarget.type === 'draft') {
         await apiDeleteDraft(deleteTarget.id);
         setServerDrafts((prev) => prev.filter((d) => d.id !== deleteTarget.id));
-        localStorage.removeItem(localDraftKey);
+        sessionStorage.removeItem(localDraftKey);
         setLocalDraft(null);
       } else {
         await apiDeleteApplication(deleteTarget.app.id);
@@ -692,7 +692,7 @@ export function ApplicantApplicationsPage() {
                         onDelete={(id) => requestDeleteDraft(id, draft.label && draft.label !== 'New Application' ? draft.label : null)}
                       />
                     ))}
-                    {/* LocalDraftCard is a fallback for pre-server-draft localStorage drafts */}
+                    {/* LocalDraftCard is a fallback for pre-server-draft sessionStorage drafts */}
                     {localDraft && serverDrafts.length === 0 && (
                       <LocalDraftCard camperName={localDraft.camperName} />
                     )}

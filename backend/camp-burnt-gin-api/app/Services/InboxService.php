@@ -519,6 +519,7 @@ class InboxService
     {
         return Conversation::forUser($user)
             ->active()
+            ->userConversations()  // Exclude system notifications — they live in the System folder, not Inbox
             ->whereHas('messages', function ($query) use ($user) {
                 $query->whereDoesntHave('reads', function ($q) use ($user) {
                     // Exclude messages already read by this user

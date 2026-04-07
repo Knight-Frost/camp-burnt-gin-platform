@@ -1463,6 +1463,7 @@
       "s4_cpap_waiver_required": "Se requiere una exención de CPAP en la Sección 9 (Documentos Requeridos).",
       "s4_mobility_notes_heading": "Notas de movilidad",
       "s4_mobility_notes_placeholder": "Describa cualquier necesidad específica de movilidad, requisitos de accesibilidad o restricciones de terreno…",
+      "s4_section_reviewed_label": "He revisado esta sección — mi campista no tiene necesidades adicionales de equipo o movilidad que reportar",
 
       "device_wheelchair_manual": "Silla de ruedas (manual)",
       "device_wheelchair_power": "Silla de ruedas (eléctrica)",
@@ -1514,6 +1515,7 @@
       "s5_gtube_plan_required": "Se requiere un Plan de Acción para Sonda G / Alimentación en la Sección 9 (Documentos Requeridos).",
       "s5_feeding_notes_label": "Notas adicionales de alimentación",
       "s5_feeding_notes_placeholder": "Cualquier otra información relacionada con la alimentación que el personal deba saber…",
+      "s5_section_reviewed_label": "He revisado esta sección — mi campista no tiene necesidades adicionales de alimentación que reportar",
 
       "s6_instructions": "Para cada área, seleccione el nivel de asistencia que requiere su campista. Agregue notas sobre protocolos específicos de cuidado que el personal deba seguir.",
       "s6_level_independent": "Independiente",
@@ -1782,7 +1784,9 @@
     "digital_form_label": "Completado digitalmente — no se requiere carga",
     "medical_form_instructions": "Este formulario debe ser completado y firmado por un médico autorizado, APRN o asistente médico. Descargue el formulario en blanco, llévelo a la cita con su médico, y cargue la copia completada aquí.",
     "view_document": "Ver",
-    "view_uploaded": "Ver Archivo Cargado"
+    "view_uploaded": "Ver Archivo Cargado",
+    "digital_forms_choose_one": "Complete en el idioma de su preferencia — solo se requiere un formulario",
+    "digital_forms_status_label": "Estado de su solicitud:"
   },
   "create_user": {
     "title": "Crear Cuenta de Personal",

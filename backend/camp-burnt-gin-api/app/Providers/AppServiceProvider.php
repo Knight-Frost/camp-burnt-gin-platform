@@ -36,10 +36,12 @@ use App\Models\UserEmergencyContact;
 use App\Observers\AssistiveDeviceObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\CamperObserver;
+use App\Observers\DatabaseNotificationObserver;
 use App\Observers\DeadlineObserver;
 use App\Observers\DiagnosisObserver;
 use App\Observers\FeedingPlanObserver;
 use App\Observers\MedicalRecordObserver;
+use Illuminate\Notifications\DatabaseNotification;
 use App\Policies\ActivityPermissionPolicy;
 use App\Policies\AllergyPolicy;
 use App\Policies\ApplicantDocumentPolicy;
@@ -75,7 +77,9 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 /**
  * AppServiceProvider — Application Bootstrap and Service Registration
@@ -188,6 +192,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force all generated URLs to use HTTPS in production.
+        // This ensures redirect responses, asset URLs, and signed URLs are never
+        // downgraded to HTTP — important when Laravel sits behind a TLS terminator.
+        if ($this->app->environment('production')) {
+            URL::forceHttps();
+        }
+
+        // Global password strength defaults — enforces mixed case, numbers, symbols,
+        // and breach-database check on all Password::defaults() usages.
+        Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised());
+
         $this->registerPolicies();
         $this->registerObservers();
         $this->configureRateLimiting();
@@ -249,6 +264,9 @@ class AppServiceProvider extends ServiceProvider
         AssistiveDevice::observe(AssistiveDeviceObserver::class);
         // Deadline observer: maintains 1:1 parity with CalendarEvent on every write
         Deadline::observe(DeadlineObserver::class);
+        // Broadcasts NotificationCreated to the recipient's private channel whenever a
+        // new database notification row is written — powers the real-time bell badge.
+        DatabaseNotification::observe(DatabaseNotificationObserver::class);
     }
 
     /**
@@ -264,7 +282,8 @@ class AppServiceProvider extends ServiceProvider
      *  - provider-link:  10 req/5min — medical provider link creation (HIPAA protection)
      *  - mfa:             5 req/min  — MFA verification (prevents code guessing)
      *  - uploads:        10 req/hour — file uploads (prevents storage abuse)
-     *  - sensitive:      30 req/hour — sensitive operations (password change, data export)
+     *  - sensitive:      30 req/hour — sensitive operations (password change, account deletion)
+     *  - inbox-compose:  30/min (admin) or 5/min (applicant) — conversation creation
      */
     protected function configureRateLimiting(): void
     {
@@ -319,12 +338,38 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
-        // Sensitive operations limit: 30 per hour per user — covers password changes, data exports
+        // Inbox compose limit: admins/super_admins get 60/min; applicants get 15/min.
+        // Prevents conversation spam while not blocking staff who compose in bulk.
+        RateLimiter::for('inbox-compose', function (Request $request) {
+            $user = $request->user();
+            $limit = ($user && $user->isAdmin()) ? 60 : 15;
+
+            return Limit::perMinute($limit)->by($user?->id ?: $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Too Many Attempts.',
+                    ], 429);
+                });
+        });
+
+        // Sensitive operations limit: 30 per hour per user — covers password changes, account deletion
         RateLimiter::for('sensitive', function (Request $request) {
             return Limit::perHour(30)->by($request->user()?->id ?: $request->ip())
                 ->response(function () {
                     return response()->json([
                         'message' => 'Rate limit exceeded for sensitive operations.',
+                    ], 429);
+                });
+        });
+
+        // PHI export limit: 5 per hour per user — covers audit log CSV/JSON export.
+        // Each export can include up to 5,000 rows of sensitive audit data; this
+        // limit prevents bulk exfiltration even from a compromised super_admin account.
+        RateLimiter::for('phi-export', function (Request $request) {
+            return Limit::perHour(5)->by($request->user()?->id ?: $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' => 'Export rate limit exceeded. A maximum of 5 exports per hour is allowed. Please narrow your date range or wait before exporting again.',
                     ], 429);
                 });
         });

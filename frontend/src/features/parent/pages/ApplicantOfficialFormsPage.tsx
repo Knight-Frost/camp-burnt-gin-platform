@@ -121,7 +121,7 @@ export function ApplicantOfficialFormsPage() {
         // Determine application completion status
         const hasSubmitted = apps.some((a) => !a.is_draft && a.submitted_at);
         const hasDraft     = apps.some((a) => a.is_draft);
-        const localDraft   = localStorage.getItem(draftKey);
+        const localDraft   = sessionStorage.getItem(draftKey);
         if (hasSubmitted) {
           setAppStatus('submitted');
         } else if (hasDraft || localDraft) {
@@ -346,6 +346,36 @@ export function ApplicantOfficialFormsPage() {
         </p>
       </div>
 
+      {/* Digital form status — shown once above all digital form cards.
+          All three language variants (English / Spanish / CYSHCN) represent the
+          SAME application form; only one needs to be completed. Displaying the
+          status per-card would imply that each must be filled separately. */}
+      <div style={{ marginBottom: 'var(--spacing-md)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', flexWrap: 'wrap', marginBottom: 4 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 500,
+              color: 'var(--muted-foreground)',
+            }}
+          >
+            {t('official_forms.digital_forms_status_label')}
+          </span>
+          <DigitalStatusPill status={appStatus} />
+        </div>
+        <p
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--muted-foreground)',
+            margin: 0,
+          }}
+        >
+          {t('official_forms.digital_forms_choose_one')}
+        </p>
+      </div>
+
       {/* Form cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
         {forms.map((form) => {
@@ -413,8 +443,6 @@ export function ApplicantOfficialFormsPage() {
                       {config.badgeLabel}
                     </span>
                   )}
-                  {/* Digital form status pill */}
-                  {isDigital && <DigitalStatusPill status={appStatus} />}
                 </div>
 
                 {/* Description */}

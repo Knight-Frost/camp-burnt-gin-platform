@@ -67,7 +67,16 @@ export function useRichEditor({
     extensions: [
       StarterKit,
       Underline,
-      Link.configure({ openOnClick: false, autolink: true }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        // Only allow https, http, and mailto — blocks javascript:, vbscript:, data: URIs
+        protocols: ['https', 'http', 'mailto'],
+        HTMLAttributes: {
+          // Default rel for all links — prevents target page from accessing window.opener
+          rel: 'noopener noreferrer',
+        },
+      }),
       Placeholder.configure({ placeholder }),
     ],
     content: initialHtml,

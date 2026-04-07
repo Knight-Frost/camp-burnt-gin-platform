@@ -20,7 +20,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle, UserPlus, X, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle, UserPlus, X, Loader2, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { getUsers, updateUserRole, deactivateUser, reactivateUser, createUser } from '@/features/admin/api/admin.api';
@@ -72,6 +72,8 @@ export function UserManagementPage() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // searchInput is the controlled input value — updates immediately for UX.
   // filters.search is the debounced API value — only changes after 300ms of inactivity.
@@ -163,14 +165,17 @@ export function UserManagementPage() {
       await createUser(createForm);
       toast.success(t('create_user.success', { email: createForm.email }));
       setShowCreateModal(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setCreateForm({ name: '', email: '', password: '', password_confirmation: '', role: 'admin' });
       // Re-fetch user list to include the new account
       await fetchUsers();
     } catch (err: unknown) {
-      const apiError = err as { response?: { data?: { errors?: Record<string, string[]> } } };
-      if (apiError?.response?.data?.errors) {
+      // The axios interceptor normalizes errors to { message, errors } — no response.data wrapper.
+      const apiError = err as { errors?: Record<string, string[]>; message?: string };
+      if (apiError?.errors && Object.keys(apiError.errors).length > 0) {
         const flat: Record<string, string> = {};
-        for (const [field, msgs] of Object.entries(apiError.response.data.errors)) {
+        for (const [field, msgs] of Object.entries(apiError.errors)) {
           flat[field] = msgs[0];
         }
         setCreateErrors(flat);
@@ -460,14 +465,25 @@ export function UserManagementPage() {
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                   {t('create_user.password_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
                 </label>
-                <input
-                  type="password"
-                  required
-                  value={createForm.password}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
-                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
-                  style={{ background: 'var(--input)', borderColor: createErrors.password ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                    className="w-full rounded-lg px-3 py-2 pr-10 text-sm border outline-none"
+                    style={{ background: 'var(--input)', borderColor: createErrors.password ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-sm"
+                    style={{ color: 'var(--muted-foreground)' }}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 {createErrors.password && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.password}</p>}
               </div>
 
@@ -476,14 +492,25 @@ export function UserManagementPage() {
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
                   {t('create_user.confirm_password_label')} <span style={{ color: 'var(--destructive)' }}>*</span>
                 </label>
-                <input
-                  type="password"
-                  required
-                  value={createForm.password_confirmation}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, password_confirmation: e.target.value }))}
-                  className="w-full rounded-lg px-3 py-2 text-sm border outline-none"
-                  style={{ background: 'var(--input)', borderColor: createErrors.password_confirmation ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={createForm.password_confirmation}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, password_confirmation: e.target.value }))}
+                    className="w-full rounded-lg px-3 py-2 pr-10 text-sm border outline-none"
+                    style={{ background: 'var(--input)', borderColor: createErrors.password_confirmation ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-sm"
+                    style={{ color: 'var(--muted-foreground)' }}
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 {createErrors.password_confirmation && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.password_confirmation}</p>}
               </div>
 

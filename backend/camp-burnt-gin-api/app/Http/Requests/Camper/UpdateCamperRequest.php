@@ -34,6 +34,11 @@ class UpdateCamperRequest extends FormRequest
             'date_of_birth' => ['sometimes', 'required', 'date', 'before:today'],
             'gender' => ['nullable', 'string', 'max:50'],
             'tshirt_size' => ['nullable', 'string', 'max:20'],
+            // Form parity fields (2026_03_26_000004) — must match StoreCamperRequest
+            'applicant_address' => ['nullable', 'string', 'max:500'],
+            'applicant_city' => ['nullable', 'string', 'max:100'],
+            'applicant_state' => ['nullable', 'string', 'max:10'],
+            'applicant_zip' => ['nullable', 'string', 'max:20'],
         ];
     }
 

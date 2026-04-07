@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\VisitDisposition;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class MedicalVisit extends Model
 {
+    use SoftDeletes;
     /**
      * The attributes that are mass assignable.
      *
@@ -63,8 +65,10 @@ class MedicalVisit extends Model
         return [
             // Maps the stored string to a VisitDisposition enum instance.
             'disposition' => VisitDisposition::class,
-            // JSON column automatically decoded to a PHP array on read.
-            'vitals' => 'array',
+            // Vitals (temperature, pulse, blood pressure) are HIPAA-regulated PHI
+            // and must be encrypted at rest. Use encrypted:array to retain array
+            // decoding while applying AES-256-CBC encryption on the stored value.
+            'vitals' => 'encrypted:array',
             // Encrypted PHI text fields.
             'chief_complaint' => 'encrypted',
             'symptoms' => 'encrypted',

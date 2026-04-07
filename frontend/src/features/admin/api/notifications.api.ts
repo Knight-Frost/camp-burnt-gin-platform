@@ -36,6 +36,9 @@ export interface NotificationPreferences {
   announcements: boolean;
   messages: boolean;
   deadlines: boolean;
+  /** Controls whether a popup toast appears when a new message arrives in-app.
+   *  Defaults to true. Independent of the `messages` email preference. */
+  in_app_message_notifications: boolean;
 }
 
 // ---------------------------------------------------------------------------

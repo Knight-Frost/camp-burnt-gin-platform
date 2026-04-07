@@ -23,6 +23,8 @@ import { Toaster } from 'sonner';
 import { store } from '@/store';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from '@/theme/useTheme';
+import { RealtimeProvider } from '@/features/realtime/RealtimeContext';
+import { MessagingCountProvider } from '@/ui/context/MessagingCountContext';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -42,7 +44,19 @@ export function AppProviders({ children }: AppProvidersProps) {
           <ThemeProvider>
             {/* Provider makes the Redux store accessible to all components */}
             <Provider store={store}>
-              {children}
+              {/* RealtimeProvider subscribes to WebSocket when authenticated,
+                  distributes MessageSent events, and shows toast notifications */}
+              <RealtimeProvider>
+                {/* MessagingCountProvider is the single source of truth for the
+                    global unread inbox message count — mounted here so ALL portals
+                    (applicant, admin, medical, super-admin) share the same state
+                    and never miss updates. Previously it was only in AdminLayout
+                    and DashboardShell, leaving applicant and medical users with no
+                    inbox badge at all. */}
+                <MessagingCountProvider>
+                  {children}
+                </MessagingCountProvider>
+              </RealtimeProvider>
               {/* Toaster renders toast messages; richColors adds green/red styling */}
               <Toaster
                 position="top-right"
