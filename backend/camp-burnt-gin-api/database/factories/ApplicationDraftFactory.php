@@ -16,8 +16,8 @@ class ApplicationDraftFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id'    => User::factory(),
-            'label'      => fake()->name(),
+            'user_id' => User::factory(),
+            'label' => fake()->name(),
             'draft_data' => null,
         ];
     }

@@ -52,7 +52,7 @@ class ApplicationDraftTest extends TestCase
 
         $this->assertDatabaseHas('application_drafts', [
             'user_id' => $parent->id,
-            'label'   => 'Jane Smith',
+            'label' => 'Jane Smith',
         ]);
     }
 
@@ -98,7 +98,7 @@ class ApplicationDraftTest extends TestCase
     {
         $parent = $this->createParent();
         ApplicationDraft::factory()->create([
-            'user_id'    => $parent->id,
+            'user_id' => $parent->id,
             'draft_data' => ['section1' => ['first_name' => 'Jane']],
         ]);
 
@@ -114,8 +114,8 @@ class ApplicationDraftTest extends TestCase
     public function test_owner_can_retrieve_draft_with_data(): void
     {
         $parent = $this->createParent();
-        $draft  = ApplicationDraft::factory()->create([
-            'user_id'    => $parent->id,
+        $draft = ApplicationDraft::factory()->create([
+            'user_id' => $parent->id,
             'draft_data' => ['camper' => ['first_name' => 'Alice']],
         ]);
 
@@ -129,9 +129,9 @@ class ApplicationDraftTest extends TestCase
 
     public function test_other_applicant_cannot_view_draft(): void
     {
-        $owner  = $this->createParent();
-        $other  = $this->createParent();
-        $draft  = ApplicationDraft::factory()->create(['user_id' => $owner->id]);
+        $owner = $this->createParent();
+        $other = $this->createParent();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $owner->id]);
 
         $this->actingAs($other)
             ->getJson("/api/application-drafts/{$draft->id}")
@@ -141,8 +141,8 @@ class ApplicationDraftTest extends TestCase
     public function test_admin_cannot_view_applicant_draft(): void
     {
         $parent = $this->createParent();
-        $admin  = $this->createAdmin();
-        $draft  = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+        $admin = $this->createAdmin();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
 
         $this->actingAs($admin)
             ->getJson("/api/application-drafts/{$draft->id}")
@@ -154,7 +154,7 @@ class ApplicationDraftTest extends TestCase
     public function test_owner_can_save_draft_data(): void
     {
         $parent = $this->createParent();
-        $draft  = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
 
         $payload = ['draft_data' => ['camper' => ['first_name' => 'Bob']], 'label' => 'Bob Smith'];
 
@@ -164,7 +164,7 @@ class ApplicationDraftTest extends TestCase
             ->assertJsonPath('data.label', 'Bob Smith');
 
         $this->assertDatabaseHas('application_drafts', [
-            'id'    => $draft->id,
+            'id' => $draft->id,
             'label' => 'Bob Smith',
         ]);
     }
@@ -172,7 +172,7 @@ class ApplicationDraftTest extends TestCase
     public function test_update_requires_draft_data(): void
     {
         $parent = $this->createParent();
-        $draft  = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
 
         $this->actingAs($parent)
             ->putJson("/api/application-drafts/{$draft->id}", [])
@@ -196,7 +196,7 @@ class ApplicationDraftTest extends TestCase
     public function test_owner_can_delete_their_draft(): void
     {
         $parent = $this->createParent();
-        $draft  = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
 
         $this->actingAs($parent)
             ->deleteJson("/api/application-drafts/{$draft->id}")
