@@ -42,6 +42,8 @@ export function MfaRequiredModal() {
     return () => window.removeEventListener(MFA_EVENT, handler);
   }, []);
 
+  const handleClose = useCallback(() => setOpen(false), []);
+
   // Close on Escape key — handled via effect to avoid putting handlers on non-interactive elements
   useEffect(() => {
     if (!open) return;
@@ -49,8 +51,6 @@ export function MfaRequiredModal() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open, handleClose]);
-
-  const handleClose = useCallback(() => setOpen(false), []);
 
   const handleEnable = useCallback(() => {
     setOpen(false);
