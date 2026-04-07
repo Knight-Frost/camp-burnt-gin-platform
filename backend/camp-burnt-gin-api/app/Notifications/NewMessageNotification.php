@@ -46,6 +46,7 @@ class NewMessageNotification extends Notification
     {
         $instance = new static($message, $conversation);
         $instance->channelsOverride = ['database'];
+
         return $instance;
     }
 
@@ -57,6 +58,7 @@ class NewMessageNotification extends Notification
     {
         $instance = new static($message, $conversation);
         $instance->channelsOverride = ['mail'];
+
         return $instance;
     }
 

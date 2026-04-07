@@ -76,15 +76,15 @@ class UpdateApplicationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'notes.max'                             => 'Admin notes may not exceed 1,000 characters.',
-            'narrative_rustic_environment.max'      => 'Response may not exceed 5,000 characters.',
-            'narrative_staff_suggestions.max'       => 'Response may not exceed 5,000 characters.',
-            'narrative_participation_concerns.max'  => 'Response may not exceed 5,000 characters.',
-            'narrative_camp_benefit.max'            => 'Response may not exceed 5,000 characters.',
-            'narrative_heat_tolerance.max'          => 'Response may not exceed 5,000 characters.',
-            'narrative_transportation.max'          => 'Response may not exceed 5,000 characters.',
-            'narrative_additional_info.max'         => 'Response may not exceed 5,000 characters.',
-            'narrative_emergency_protocols.max'     => 'Response may not exceed 5,000 characters.',
+            'notes.max' => 'Admin notes may not exceed 1,000 characters.',
+            'narrative_rustic_environment.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_staff_suggestions.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_participation_concerns.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_camp_benefit.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_heat_tolerance.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_transportation.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_additional_info.max' => 'Response may not exceed 5,000 characters.',
+            'narrative_emergency_protocols.max' => 'Response may not exceed 5,000 characters.',
         ];
     }
 }

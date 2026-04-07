@@ -78,9 +78,18 @@ class EnsureUserHasRole
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // MFA enrollment is encouraged (shown as a banner in the frontend) but
-        // not enforced globally. Strict enforcement is applied only to specific
-        // sensitive routes via the mfa.enrolled middleware in routes/api.php.
+        // Admin, super_admin, and medical roles require MFA enrollment before
+        // accessing protected routes. Applicants are exempt (no PHI write access).
+        if ($user->isAdmin() || $user->isMedicalProvider()) {
+            if (! $user->mfa_enabled) {
+                return response()->json([
+                    'message' => 'Multi-factor authentication is required for your account type. '
+                        .'Please enable MFA in your security settings before accessing this area.',
+                    'mfa_setup_required' => true,
+                ], Response::HTTP_FORBIDDEN);
+            }
+        }
+
         return $next($request);
     }
 }

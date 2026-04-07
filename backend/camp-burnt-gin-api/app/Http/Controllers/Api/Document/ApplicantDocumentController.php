@@ -56,7 +56,7 @@ class ApplicantDocumentController extends Controller
 
         $validated = $request->validate([
             'applicant_id' => ['required', 'integer', 'exists:users,id'],
-            'file'         => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
             'instructions' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -66,13 +66,13 @@ class ApplicantDocumentController extends Controller
         $applicant = User::findOrFail($validated['applicant_id']);
 
         $doc = ApplicantDocument::create([
-            'applicant_id'           => $validated['applicant_id'],
-            'uploaded_by_admin_id'   => auth()->id(),
+            'applicant_id' => $validated['applicant_id'],
+            'uploaded_by_admin_id' => auth()->id(),
             'original_document_path' => $stored['path'],
-            'original_file_name'     => $stored['file_name'],
-            'original_mime_type'     => $stored['mime_type'],
-            'instructions'           => $validated['instructions'] ?? null,
-            'status'                 => ApplicantDocumentStatus::Pending,
+            'original_file_name' => $stored['file_name'],
+            'original_mime_type' => $stored['mime_type'],
+            'instructions' => $validated['instructions'] ?? null,
+            'status' => ApplicantDocumentStatus::Pending,
         ]);
 
         $doc->load('applicant', 'uploadedByAdmin');
@@ -108,9 +108,9 @@ class ApplicantDocumentController extends Controller
             'data' => array_map(fn ($doc) => $this->formatDocument($doc, true), $paginated->items()),
             'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page'    => $paginated->lastPage(),
-                'per_page'     => $paginated->perPage(),
-                'total'        => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
             ],
         ]);
     }
@@ -141,14 +141,14 @@ class ApplicantDocumentController extends Controller
     {
         $this->authorize('view', $applicantDocument);
 
-        $path     = $applicantDocument->original_document_path;
+        $path = $applicantDocument->original_document_path;
         $fileName = $applicantDocument->original_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
         return Storage::disk('local')->download($path, $fileName, [
             'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-            'Pragma'        => 'no-cache',
+            'Pragma' => 'no-cache',
         ]);
     }
 
@@ -163,14 +163,14 @@ class ApplicantDocumentController extends Controller
 
         abort_if(is_null($applicantDocument->submitted_document_path), 404, 'No submitted file yet.');
 
-        $path     = $applicantDocument->submitted_document_path;
+        $path = $applicantDocument->submitted_document_path;
         $fileName = $applicantDocument->submitted_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
         return Storage::disk('local')->download($path, $fileName, [
             'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-            'Pragma'        => 'no-cache',
+            'Pragma' => 'no-cache',
         ]);
     }
 
@@ -182,7 +182,7 @@ class ApplicantDocumentController extends Controller
         $this->authorize('update', $applicantDocument);
 
         $applicantDocument->update([
-            'status'      => ApplicantDocumentStatus::Reviewed,
+            'status' => ApplicantDocumentStatus::Reviewed,
             'reviewed_by' => auth()->id(),
             'reviewed_at' => now(),
         ]);
@@ -214,16 +214,16 @@ class ApplicantDocumentController extends Controller
         $stored = $this->fileUpload->store($request->file('file'), 'applicant-documents/sent');
 
         $applicantDocument->update([
-            'original_document_path'  => $stored['path'],
-            'original_file_name'      => $stored['file_name'],
-            'original_mime_type'      => $stored['mime_type'],
+            'original_document_path' => $stored['path'],
+            'original_file_name' => $stored['file_name'],
+            'original_mime_type' => $stored['mime_type'],
             // Reset to pending — applicant must re-submit
-            'status'                  => ApplicantDocumentStatus::Pending,
+            'status' => ApplicantDocumentStatus::Pending,
             'submitted_document_path' => null,
-            'submitted_file_name'     => null,
-            'submitted_mime_type'     => null,
-            'reviewed_by'             => null,
-            'reviewed_at'             => null,
+            'submitted_file_name' => null,
+            'submitted_mime_type' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
         ]);
 
         $applicantDocument->load('applicant', 'uploadedByAdmin');
@@ -259,14 +259,14 @@ class ApplicantDocumentController extends Controller
     {
         $this->authorize('view', $applicantDocument);
 
-        $path     = $applicantDocument->original_document_path;
+        $path = $applicantDocument->original_document_path;
         $fileName = $applicantDocument->original_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
         return Storage::disk('local')->download($path, $fileName, [
             'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-            'Pragma'        => 'no-cache',
+            'Pragma' => 'no-cache',
         ]);
     }
 
@@ -280,14 +280,14 @@ class ApplicantDocumentController extends Controller
         $this->authorize('view', $applicantDocument);
         abort_if(is_null($applicantDocument->submitted_document_path), 404, 'No submitted file yet.');
 
-        $path     = $applicantDocument->submitted_document_path;
+        $path = $applicantDocument->submitted_document_path;
         $fileName = $applicantDocument->submitted_file_name;
 
         abort_unless(Storage::disk('local')->exists($path), 404, 'File not found.');
 
         return Storage::disk('local')->download($path, $fileName, [
             'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-            'Pragma'        => 'no-cache',
+            'Pragma' => 'no-cache',
         ]);
     }
 
@@ -315,9 +315,9 @@ class ApplicantDocumentController extends Controller
 
         $applicantDocument->update([
             'submitted_document_path' => $stored['path'],
-            'submitted_file_name'     => $stored['file_name'],
-            'submitted_mime_type'     => $stored['mime_type'],
-            'status'                  => ApplicantDocumentStatus::Submitted,
+            'submitted_file_name' => $stored['file_name'],
+            'submitted_mime_type' => $stored['mime_type'],
+            'status' => ApplicantDocumentStatus::Submitted,
         ]);
 
         return response()->json($this->formatDocument($applicantDocument, false));
@@ -338,26 +338,26 @@ class ApplicantDocumentController extends Controller
             : 'pending';
 
         $base = [
-            'id'                   => $doc->id,
-            'applicant_id'         => $doc->applicant_id,
-            'applicant_name'       => $doc->applicant?->name ?? '',
+            'id' => $doc->id,
+            'applicant_id' => $doc->applicant_id,
+            'applicant_name' => $doc->applicant?->name ?? '',
             'uploaded_by_admin_id' => $doc->uploaded_by_admin_id,
-            'admin_name'           => $doc->uploadedByAdmin?->name ?? '',
-            'original_file_name'   => $doc->original_file_name,
-            'instructions'         => $doc->instructions,
-            'status'               => $status,
-            'created_at'           => $doc->created_at?->toIso8601String(),
-            'reviewed_at'          => $doc->reviewed_at?->toIso8601String(),
+            'admin_name' => $doc->uploadedByAdmin?->name ?? '',
+            'original_file_name' => $doc->original_file_name,
+            'instructions' => $doc->instructions,
+            'status' => $status,
+            'created_at' => $doc->created_at?->toIso8601String(),
+            'reviewed_at' => $doc->reviewed_at?->toIso8601String(),
         ];
 
         if ($isAdmin) {
-            $base['download_original_url']  = url("/api/admin/applicant-documents/{$doc->id}/download-original");
+            $base['download_original_url'] = url("/api/admin/applicant-documents/{$doc->id}/download-original");
             $base['download_submitted_url'] = $doc->submitted_document_path
                 ? url("/api/admin/applicant-documents/{$doc->id}/download-submitted")
                 : null;
         } else {
-            $base['download_url']           = url("/api/applicant/applicant-documents/{$doc->id}/download");
-            $base['submitted_file_name']    = $doc->submitted_file_name;
+            $base['download_url'] = url("/api/applicant/applicant-documents/{$doc->id}/download");
+            $base['submitted_file_name'] = $doc->submitted_file_name;
             $base['download_submitted_url'] = $doc->submitted_document_path
                 ? url("/api/applicant/applicant-documents/{$doc->id}/download-submitted")
                 : null;

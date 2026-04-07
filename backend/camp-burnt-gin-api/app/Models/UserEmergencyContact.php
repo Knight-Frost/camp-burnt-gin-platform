@@ -45,10 +45,10 @@ class UserEmergencyContact extends Model
             // Stored as tinyint; cast so PHP sees a proper boolean
             'is_primary' => 'boolean',
             // PII fields encrypted at rest
-            'name'         => 'encrypted',
+            'name' => 'encrypted',
             'relationship' => 'encrypted',
-            'phone'        => 'encrypted',
-            'email'        => 'encrypted',
+            'phone' => 'encrypted',
+            'email' => 'encrypted',
         ];
     }
 

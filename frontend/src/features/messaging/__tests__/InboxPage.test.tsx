@@ -227,7 +227,7 @@ describe('unread count — event dispatch timing', () => {
     // Extract the openConversation function body.
     // The event must NOT be dispatched (window.dispatchEvent) here — the server
     // hasn't written read receipts yet. Comments mentioning the event name are fine.
-    const fnMatch = inboxSrc.match(/function openConversation[\s\S]*?^  \}/m);
+    const fnMatch = inboxSrc.match(/function openConversation[\s\S]*?^ {2}\}/m);
     expect(fnMatch, 'openConversation function not found').not.toBeNull();
     const fnBody = fnMatch![0];
     // Look for an actual dispatch call, not just the event name appearing in a comment.
@@ -253,7 +253,7 @@ describe('unread count — event dispatch timing', () => {
 
   test('handleMarkRead dispatches event after successful API call', () => {
     // Event must come AFTER the await markConversationAsRead(id), not before.
-    const markReadMatch = inboxSrc.match(/async function handleMarkRead[\s\S]*?^  \}/m);
+    const markReadMatch = inboxSrc.match(/async function handleMarkRead[\s\S]*?^ {2}\}/m);
     expect(markReadMatch).not.toBeNull();
     const fnBody = markReadMatch![0];
     expect(fnBody).toContain('messaging:unread-changed');
@@ -265,7 +265,7 @@ describe('unread count — event dispatch timing', () => {
   });
 
   test('handleBulkMarkRead dispatches event after API calls complete', () => {
-    const bulkMatch = inboxSrc.match(/async function handleBulkMarkRead[\s\S]*?^  \}/m);
+    const bulkMatch = inboxSrc.match(/async function handleBulkMarkRead[\s\S]*?^ {2}\}/m);
     expect(bulkMatch).not.toBeNull();
     const fnBody = bulkMatch![0];
     expect(fnBody).toContain('messaging:unread-changed');

@@ -31,11 +31,11 @@ class FileUploadService
      * what the client claims — is rejected as 422 Unprocessable.
      */
     private const MIME_TO_EXTENSION = [
-        'application/pdf'                                                   => 'pdf',
-        'image/jpeg'                                                        => 'jpg',
-        'image/png'                                                         => 'png',
-        'image/gif'                                                         => 'gif',
-        'application/msword'                                                => 'doc',
+        'application/pdf' => 'pdf',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'application/msword' => 'doc',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
     ];
 
@@ -45,16 +45,17 @@ class FileUploadService
      * The path format is: {directory}/{uuid}.{ext}
      * The extension comes from the detected MIME type, not the client filename.
      *
-     * @param  UploadedFile  $file       The uploaded file from the request.
-     * @param  string        $directory  Relative directory within the local disk
-     *                                   (e.g., 'applicant-documents/sent').
+     * @param  UploadedFile  $file  The uploaded file from the request.
+     * @param  string  $directory  Relative directory within the local disk
+     *                             (e.g., 'applicant-documents/sent').
      * @return array{path: string, file_name: string, mime_type: string}
-     * @throws \Illuminate\Validation\ValidationException  If the MIME type is not allowed.
+     *
+     * @throws \Illuminate\Validation\ValidationException If the MIME type is not allowed.
      */
     public function store(UploadedFile $file, string $directory): array
     {
         $mimeType = $this->detectMimeType($file);
-        $ext      = $this->resolveExtension($mimeType, $file->getClientOriginalName());
+        $ext = $this->resolveExtension($mimeType, $file->getClientOriginalName());
 
         $uuid = Str::uuid()->toString();
         $path = "{$directory}/{$uuid}.{$ext}";
@@ -65,7 +66,7 @@ class FileUploadService
         );
 
         return [
-            'path'      => $path,
+            'path' => $path,
             'file_name' => $this->sanitizeFileName($file->getClientOriginalName()),
             'mime_type' => $mimeType,
         ];
@@ -128,6 +129,7 @@ class FileUploadService
         $name = str_replace(["\0", '/', '\\', '..'], '', $name);
         // Remove non-printable characters
         $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name) ?? $name;
+
         // Truncate to 200 chars
         return mb_substr(trim($name), 0, 200);
     }

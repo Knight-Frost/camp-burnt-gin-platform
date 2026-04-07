@@ -83,6 +83,7 @@ const RealtimeContext = createContext<RealtimeContextValue>({
   setActiveConversationId: () => undefined,
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useRealtime(): RealtimeContextValue {
   return useContext(RealtimeContext);
 }
@@ -221,7 +222,6 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
     // without hammering the server. Stops automatically once connected.
     const id = setInterval(() => void pollForNewMessages(), 10_000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, user?.id, token]);
 
   useEffect(() => {
@@ -264,7 +264,6 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
       setIsConnected(false);
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     channel.listen('.NotificationCreated', () => {
       // A new database notification was written for this user (e.g. application
       // status change, new message notification, provider link update, etc.).

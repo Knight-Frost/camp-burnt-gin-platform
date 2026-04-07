@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Regression;
 
-use App\Models\Camper;
 use App\Models\CampSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

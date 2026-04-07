@@ -38,8 +38,8 @@ class DuplicateSessionValidationTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'capacity' => 10]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'              => $camper->id,
-            'camp_session_id'        => $session->id,
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
             'camp_session_id_second' => $session->id, // same as first — must be rejected
         ]);
 
@@ -57,8 +57,8 @@ class DuplicateSessionValidationTest extends TestCase
         $session2 = CampSession::factory()->create(['portal_open' => true, 'capacity' => 10]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'              => $camper->id,
-            'camp_session_id'        => $session1->id,
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session1->id,
             'camp_session_id_second' => $session2->id,
         ]);
 
@@ -73,8 +73,8 @@ class DuplicateSessionValidationTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'capacity' => 10]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'              => $camper->id,
-            'camp_session_id'        => $session->id,
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
             'camp_session_id_second' => null,
         ]);
 
@@ -89,7 +89,7 @@ class DuplicateSessionValidationTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'capacity' => 10]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 

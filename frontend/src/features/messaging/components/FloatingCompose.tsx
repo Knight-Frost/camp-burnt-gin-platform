@@ -58,6 +58,7 @@ function loadDraft(): Draft | null { try { return JSON.parse(sessionStorage.getI
 function clearDraft()              { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /**/ } }
 /** Exported so external close paths (e.g. Escape key handler) can clear the draft
  *  without having to import the internal DRAFT_KEY constant. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function clearComposeDraft() { clearDraft(); }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

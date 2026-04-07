@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Security;
 
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -111,13 +110,13 @@ class FileUploadSecurityTest extends TestCase
 
     public function test_applicant_cannot_send_documents(): void
     {
-        $parent  = $this->createParent();
-        $target  = $this->createParent(['email' => 'target@example.com']);
+        $parent = $this->createParent();
+        $target = $this->createParent(['email' => 'target@example.com']);
         Sanctum::actingAs($parent);
 
         $this->postJson('/api/admin/documents/send', [
             'applicant_id' => $target->id,
-            'file'         => UploadedFile::fake()->create('doc.pdf', 100, 'application/pdf'),
+            'file' => UploadedFile::fake()->create('doc.pdf', 100, 'application/pdf'),
         ])->assertForbidden();
     }
 
@@ -150,8 +149,8 @@ class FileUploadSecurityTest extends TestCase
 
         // Insert a fake reset token record
         \Illuminate\Support\Facades\DB::table('password_reset_tokens')->insert([
-            'email'      => $parent->email,
-            'token'      => \Illuminate\Support\Facades\Hash::make('test-reset-token'),
+            'email' => $parent->email,
+            'token' => \Illuminate\Support\Facades\Hash::make('test-reset-token'),
             'created_at' => now(),
         ]);
 
@@ -185,11 +184,11 @@ class FileUploadSecurityTest extends TestCase
     {
         $parent = $this->createParent();
         $contact = \App\Models\UserEmergencyContact::create([
-            'user_id'      => $parent->id,
-            'name'         => 'Test Contact',
+            'user_id' => $parent->id,
+            'name' => 'Test Contact',
             'relationship' => 'spouse',
-            'phone'        => '555-0000',
-            'is_primary'   => true,
+            'phone' => '555-0000',
+            'is_primary' => true,
         ]);
 
         $id = $contact->id;

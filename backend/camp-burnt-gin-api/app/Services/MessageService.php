@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -205,9 +204,9 @@ class MessageService
                 broadcast(new MessageSent($message, $conversation, $participant->id));
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Realtime broadcast failed', [
-                    'message_id'   => $message->id,
+                    'message_id' => $message->id,
                     'recipient_id' => $participant->id,
-                    'error'        => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

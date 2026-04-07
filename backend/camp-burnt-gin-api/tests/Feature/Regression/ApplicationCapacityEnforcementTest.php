@@ -6,7 +6,6 @@ use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\Camper;
 use App\Models\CampSession;
-use App\Models\MedicalRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;

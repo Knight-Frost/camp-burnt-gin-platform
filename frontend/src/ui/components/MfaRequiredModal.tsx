@@ -42,6 +42,14 @@ export function MfaRequiredModal() {
     return () => window.removeEventListener(MFA_EVENT, handler);
   }, []);
 
+  // Close on Escape key — handled via effect to avoid putting handlers on non-interactive elements
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, handleClose]);
+
   const handleClose = useCallback(() => setOpen(false), []);
 
   const handleEnable = useCallback(() => {
@@ -53,62 +61,71 @@ export function MfaRequiredModal() {
   if (!open) return null;
 
   return (
-    /* Backdrop */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="mfa-modal-title"
-      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
-    >
-      {/* Panel */}
+    <>
+      {/* Backdrop — native button for click-away-to-dismiss (no lint issues) */}
+      <button
+        type="button"
+        aria-label="Close"
+        className="fixed inset-0 z-[49] w-full h-full cursor-default"
+        style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
+        onClick={handleClose}
+      />
+
+      {/* Dialog container — pointer-events-none lets backdrop button receive clicks */}
       <div
-        className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl"
-        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mfa-modal-title"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
       >
-        {/* Close */}
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label="Close"
-          className="absolute top-4 right-4 p-1 rounded-lg transition-colors"
-          style={{ color: 'var(--muted-foreground)' }}
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        {/* Icon */}
+        {/* Panel */}
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
-          style={{ background: 'rgba(217,119,6,0.10)' }}
+          className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl pointer-events-auto"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
         >
-          <ShieldAlert className="h-5 w-5" style={{ color: '#d97706' }} aria-hidden="true" />
-        </div>
+          {/* Close */}
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close"
+            className="absolute top-4 right-4 p-1 rounded-lg transition-colors"
+            style={{ color: 'var(--muted-foreground)' }}
+          >
+            <X className="h-4 w-4" />
+          </button>
 
-        {/* Content */}
-        <h2
-          id="mfa-modal-title"
-          className="text-base font-semibold mb-2"
-          style={{ color: 'var(--foreground)' }}
-        >
-          Multi-Factor Authentication Required
-        </h2>
-        <p className="text-sm mb-5" style={{ color: 'var(--muted-foreground)' }}>
-          This action involves sensitive data and requires MFA to be enabled on
-          your account. Enable MFA to continue.
-        </p>
+          {/* Icon */}
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+            style={{ background: 'rgba(217,119,6,0.10)' }}
+          >
+            <ShieldAlert className="h-5 w-5" style={{ color: '#d97706' }} aria-hidden="true" />
+          </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button variant="primary" onClick={handleEnable} className="flex-1">
-            Enable MFA
-          </Button>
-          <Button variant="secondary" onClick={handleClose} className="flex-1">
-            Cancel
-          </Button>
+          {/* Content */}
+          <h2
+            id="mfa-modal-title"
+            className="text-base font-semibold mb-2"
+            style={{ color: 'var(--foreground)' }}
+          >
+            Multi-Factor Authentication Required
+          </h2>
+          <p className="text-sm mb-5" style={{ color: 'var(--muted-foreground)' }}>
+            This action involves sensitive data and requires MFA to be enabled on
+            your account. Enable MFA to continue.
+          </p>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button variant="primary" onClick={handleEnable} className="flex-1">
+              Enable MFA
+            </Button>
+            <Button variant="secondary" onClick={handleClose} className="flex-1">
+              Cancel
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

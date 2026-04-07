@@ -672,7 +672,6 @@ function PasswordRequirementsDisplay({ password }: { password: string }) {
   return (
     <ul
       className="flex flex-col gap-1 mt-1.5"
-      role="list"
       aria-label="Password requirements"
       aria-live="polite"
     >

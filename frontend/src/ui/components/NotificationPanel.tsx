@@ -63,7 +63,7 @@ export function NotificationPanel({ open, onClose, onUnreadChange }: Notificatio
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]);
 
   /**
    * Marks a single notification as read.

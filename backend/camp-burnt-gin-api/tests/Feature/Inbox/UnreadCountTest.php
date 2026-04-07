@@ -41,10 +41,10 @@ class UnreadCountTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole  = Role::firstOrCreate(['name' => 'admin'],     ['description' => 'Administrator']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'Administrator']);
         $parentRole = Role::firstOrCreate(['name' => 'applicant'], ['description' => 'Parent/Guardian']);
 
-        $this->admin  = User::factory()->create(['role_id' => $adminRole->id,  'mfa_enabled' => true]);
+        $this->admin = User::factory()->create(['role_id' => $adminRole->id,  'mfa_enabled' => true]);
         $this->parent = User::factory()->create(['role_id' => $parentRole->id, 'mfa_enabled' => false]);
 
         $this->conversation = Conversation::factory()->create([
@@ -64,8 +64,8 @@ class UnreadCountTest extends TestCase
     {
         return Message::factory()->create([
             'conversation_id' => $this->conversation->id,
-            'sender_id'       => $sender->id,
-            'body'            => $body,
+            'sender_id' => $sender->id,
+            'body' => $body,
         ]);
     }
 
@@ -74,7 +74,7 @@ class UnreadCountTest extends TestCase
     {
         MessageRead::firstOrCreate([
             'message_id' => $message->id,
-            'user_id'    => $user->id,
+            'user_id' => $user->id,
         ], ['read_at' => now()]);
     }
 
@@ -82,6 +82,7 @@ class UnreadCountTest extends TestCase
     {
         $res = $this->getJson('/api/inbox/messages/unread-count');
         $res->assertOk();
+
         return $res->json('unread_count');
     }
 
@@ -164,7 +165,7 @@ class UnreadCountTest extends TestCase
 
         // Fetching messages auto-marks them as read.
         $this->getJson("/api/inbox/conversations/{$this->conversation->id}/messages")
-             ->assertOk();
+            ->assertOk();
 
         // Count must be 0 immediately — no subsequent call needed.
         $this->assertSame(0, $this->getUnreadCount());
@@ -180,7 +181,7 @@ class UnreadCountTest extends TestCase
         $this->sendMessage($this->admin);
 
         $this->getJson("/api/inbox/conversations/{$this->conversation->id}/messages")
-             ->assertOk();
+            ->assertOk();
 
         // Still 0 — own messages were never counted as unread.
         $this->assertSame(0, $this->getUnreadCount());
@@ -201,7 +202,7 @@ class UnreadCountTest extends TestCase
         $this->assertSame(2, $this->getUnreadCount());
 
         $this->postJson("/api/inbox/conversations/{$this->conversation->id}/read")
-             ->assertOk();
+            ->assertOk();
 
         $this->assertSame(0, $this->getUnreadCount());
     }
@@ -216,7 +217,7 @@ class UnreadCountTest extends TestCase
         $this->assertSame(0, $this->getUnreadCount());
 
         $this->postJson("/api/inbox/conversations/{$this->conversation->id}/unread")
-             ->assertOk();
+            ->assertOk();
 
         $this->assertGreaterThanOrEqual(1, $this->getUnreadCount());
     }
@@ -230,7 +231,7 @@ class UnreadCountTest extends TestCase
         // Admin sends a message → parent has 1 unread, admin has 0 (own message).
         // Parent sends a message → admin has 1 unread, parent has 0 (own message).
 
-        $adminMsg  = $this->sendMessage($this->admin,  'Hello parent');
+        $adminMsg = $this->sendMessage($this->admin, 'Hello parent');
         $parentMsg = $this->sendMessage($this->parent, 'Hello admin');
 
         // Admin: has 1 unread (parent's message). Own sent message doesn't count.
@@ -239,7 +240,7 @@ class UnreadCountTest extends TestCase
 
         // Admin reads the conversation — admin count drops to 0.
         $this->postJson("/api/inbox/conversations/{$this->conversation->id}/read")
-             ->assertOk();
+            ->assertOk();
         $this->assertSame(0, $this->getUnreadCount());
 
         // Parent: independently still has 1 unread (admin's message).
@@ -249,7 +250,7 @@ class UnreadCountTest extends TestCase
 
         // Parent reads — parent count drops to 0.
         $this->postJson("/api/inbox/conversations/{$this->conversation->id}/read")
-             ->assertOk();
+            ->assertOk();
         $this->assertSame(0, $this->getUnreadCount());
 
         // Admin's count is unaffected by the parent reading — still 0.
@@ -271,7 +272,7 @@ class UnreadCountTest extends TestCase
 
         // Open the thread (auto-marks as read).
         $this->getJson("/api/inbox/conversations/{$this->conversation->id}/messages")
-             ->assertOk();
+            ->assertOk();
 
         // Unread count must be exactly 0 — no ghost state.
         $final = $this->getUnreadCount();
@@ -284,9 +285,9 @@ class UnreadCountTest extends TestCase
         Sanctum::actingAs($this->admin);
 
         $this->getJson('/api/inbox/messages/unread-count')
-             ->assertOk()
-             ->assertJsonStructure(['success', 'unread_count'])
-             ->assertJson(['success' => true]);
+            ->assertOk()
+            ->assertJsonStructure(['success', 'unread_count'])
+            ->assertJson(['success' => true]);
     }
 
     // ─── System-generated conversation exclusion ──────────────────────────────
@@ -300,18 +301,18 @@ class UnreadCountTest extends TestCase
         Sanctum::actingAs($this->admin);
 
         $systemConv = Conversation::factory()->create([
-            'created_by_id'      => null,
+            'created_by_id' => null,
             'is_system_generated' => true,
         ]);
         $systemConv->participantRecords()->create([
-            'user_id'   => $this->admin->id,
+            'user_id' => $this->admin->id,
             'joined_at' => now(),
         ]);
         // Unread system message — no sender, so it looks unread under the raw scope
         Message::factory()->create([
             'conversation_id' => $systemConv->id,
-            'sender_id'       => null,
-            'body'            => 'Your application status changed.',
+            'sender_id' => null,
+            'body' => 'Your application status changed.',
         ]);
 
         // The system message must NOT inflate the inbox unread count — it lives
@@ -329,7 +330,7 @@ class UnreadCountTest extends TestCase
         // Send a message into the shared conversation, then trash it for the admin.
         $this->sendMessage($this->parent, 'Trashed message');
         $this->postJson("/api/inbox/conversations/{$this->conversation->id}/trash")
-             ->assertOk();
+            ->assertOk();
 
         $this->assertSame(0, $this->getUnreadCount());
     }

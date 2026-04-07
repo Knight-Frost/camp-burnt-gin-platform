@@ -909,7 +909,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
                 ->name('inbox.conversations.messages.index');
             // Send a new message
             Route::post('/{conversation}/messages', [MessageController::class, 'store'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:20,1')
                 ->name('inbox.conversations.messages.store');
 
             // Reply to a specific message — sends only to the original message's sender

@@ -28,14 +28,14 @@ class NotificationCreated implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        private readonly int    $userId,
+        private readonly int $userId,
         private readonly string $notificationType,
         private readonly string $title,
     ) {}
 
     public function broadcastOn(): Channel
     {
-        return new PrivateChannel('user.' . $this->userId);
+        return new PrivateChannel('user.'.$this->userId);
     }
 
     /**
@@ -56,7 +56,7 @@ class NotificationCreated implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'type'  => $this->notificationType,
+            'type' => $this->notificationType,
             'title' => $this->title,
         ];
     }

@@ -43,7 +43,7 @@ class MessageSent implements ShouldBroadcastNow
      */
     public function broadcastOn(): Channel
     {
-        return new PrivateChannel('user.' . $this->recipientId);
+        return new PrivateChannel('user.'.$this->recipientId);
     }
 
     /**
@@ -68,13 +68,13 @@ class MessageSent implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'message_id'           => $this->message->id,
-            'conversation_id'      => $this->conversation->id,
+            'message_id' => $this->message->id,
+            'conversation_id' => $this->conversation->id,
             'conversation_subject' => $this->conversation->subject,
-            'sender_id'            => $this->message->sender?->id,
-            'sender_name'          => $this->message->sender?->name,
-            'has_attachments'      => $this->message->hasAttachments(),
-            'sent_at'              => $this->message->created_at->toIso8601String(),
+            'sender_id' => $this->message->sender?->id,
+            'sender_name' => $this->message->sender?->name,
+            'has_attachments' => $this->message->hasAttachments(),
+            'sent_at' => $this->message->created_at->toIso8601String(),
         ];
     }
 }

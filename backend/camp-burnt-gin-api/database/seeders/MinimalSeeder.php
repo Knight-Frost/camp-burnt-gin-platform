@@ -78,11 +78,11 @@ class MinimalSeeder extends Seeder
         $created = User::firstOrCreate(
             ['email' => 'admin@campburntgin.org'],
             [
-                'name'              => 'Super Administrator',
-                'role_id'           => $superAdminRole->id,
-                'password'          => Hash::make($password),
+                'name' => 'Super Administrator',
+                'role_id' => $superAdminRole->id,
+                'password' => Hash::make($password),
                 'email_verified_at' => now(),
-                'is_active'         => true,
+                'is_active' => true,
             ]
         );
 

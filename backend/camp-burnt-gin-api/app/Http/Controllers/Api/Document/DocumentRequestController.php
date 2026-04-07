@@ -273,7 +273,7 @@ class DocumentRequestController extends Controller
             $documentRequest->uploaded_file_name,
             [
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-                'Pragma'        => 'no-cache',
+                'Pragma' => 'no-cache',
             ]
         );
     }
@@ -602,12 +602,12 @@ class DocumentRequestController extends Controller
         $stored = $this->fileUpload->store($request->file('file'), 'document-requests/uploads');
 
         $documentRequest->update([
-            'status'                  => DocumentRequestStatus::Uploaded,
-            'uploaded_document_path'  => $stored['path'],
-            'uploaded_file_name'      => $stored['file_name'],
-            'uploaded_mime_type'      => $stored['mime_type'],
-            'uploaded_at'             => now(),
-            'rejection_reason'        => null,
+            'status' => DocumentRequestStatus::Uploaded,
+            'uploaded_document_path' => $stored['path'],
+            'uploaded_file_name' => $stored['file_name'],
+            'uploaded_mime_type' => $stored['mime_type'],
+            'uploaded_at' => now(),
+            'rejection_reason' => null,
         ]);
 
         // Update inbox thread to reflect submission
@@ -663,7 +663,7 @@ class DocumentRequestController extends Controller
             $documentRequest->uploaded_file_name,
             [
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-                'Pragma'        => 'no-cache',
+                'Pragma' => 'no-cache',
             ]
         );
     }

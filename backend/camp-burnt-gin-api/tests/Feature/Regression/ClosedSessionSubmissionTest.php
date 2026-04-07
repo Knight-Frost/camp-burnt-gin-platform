@@ -39,7 +39,7 @@ class ClosedSessionSubmissionTest extends TestCase
         $session = CampSession::factory()->portalClosed()->create();
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
@@ -56,7 +56,7 @@ class ClosedSessionSubmissionTest extends TestCase
         $session = CampSession::factory()->inactive()->create(['portal_open' => false]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
@@ -70,7 +70,7 @@ class ClosedSessionSubmissionTest extends TestCase
         $session = CampSession::factory()->create(); // defaults: portal_open=true, is_active=true
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
@@ -85,7 +85,7 @@ class ClosedSessionSubmissionTest extends TestCase
         $session = CampSession::factory()->portalClosed()->create();
 
         $response = $this->actingAs($admin)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 

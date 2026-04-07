@@ -447,7 +447,7 @@ export function InboxPage() {
       // Also clear on cleanup (unmount / strict-mode double-invoke)
       if (activeFetchRef.current === token) activeFetchRef.current = null;
     };
-  }, [folder, refreshKey, bootstrapReady]);
+  }, [folder, refreshKey, bootstrapReady, setActiveConversationId]);
 
   // ─── Keyboard shortcuts ────────────────────────────────────────────────────
 

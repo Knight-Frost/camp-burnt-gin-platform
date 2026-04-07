@@ -52,7 +52,7 @@ class EnsureMfaEnrolled
             if (! $user->mfa_enabled) {
                 return response()->json([
                     'message' => 'Multi-factor authentication is required for your account type. '
-                        . 'Please enable MFA in your security settings before accessing this area.',
+                        .'Please enable MFA in your security settings before accessing this area.',
                     'mfa_setup_required' => true,
                 ], Response::HTTP_FORBIDDEN);
             }

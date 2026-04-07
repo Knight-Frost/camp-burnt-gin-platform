@@ -177,11 +177,11 @@ class FullSimulationSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin@campburntgin.org'],
             [
-                'name'              => 'Super Administrator',
-                'role_id'           => $superAdminRole->id,
-                'password'          => Hash::make('ChangeThisPassword123!'),
+                'name' => 'Super Administrator',
+                'role_id' => $superAdminRole->id,
+                'password' => Hash::make('ChangeThisPassword123!'),
                 'email_verified_at' => now(),
-                'is_active'         => true,
+                'is_active' => true,
             ]
         );
     }

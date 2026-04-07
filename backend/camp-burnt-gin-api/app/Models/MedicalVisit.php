@@ -4,9 +4,9 @@ namespace App\Models;
 
 use App\Enums\VisitDisposition;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * MedicalVisit model — records a camper's visit to the camp health centre (sick bay).

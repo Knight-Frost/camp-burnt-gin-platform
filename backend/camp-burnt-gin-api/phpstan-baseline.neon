@@ -37,6 +37,18 @@ parameters:
 			path: app/Console/Commands/SendIncompleteApplicationReminders.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/MessageSent.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/MessageSent.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$date_of_birth\.$#'
 			identifier: property.notFound
 			count: 1
@@ -127,6 +139,12 @@ parameters:
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/Camper/ApplicationController.php
+
+		-
 			message: '#^Offset ''capacity'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
 			identifier: offsetAccess.notFound
 			count: 1
@@ -139,20 +157,14 @@ parameters:
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
+			message: '#^Offset ''session_name'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
+			identifier: offsetAccess.notFound
 			count: 1
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
 			message: '#^Using nullsafe property access on non\-nullable type string\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Api/Camper/ApplicationController.php
-
-		-
-			message: '#^Offset ''session_name'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
-			identifier: offsetAccess.notFound
 			count: 1
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
@@ -559,6 +571,12 @@ parameters:
 			path: app/Http/Controllers/Api/Inbox/InboxUserController.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$avatar_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Inbox/MessageController.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
 			identifier: property.notFound
 			count: 2
@@ -574,12 +592,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Api/Inbox/MessageController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$avatar_path\.$#'
-			identifier: property.notFound
-			count: 1
 			path: app/Http/Controllers/Api/Inbox/MessageController.php
 
 		-
@@ -632,6 +644,12 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Application\:\:\$month\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/System/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CampSession\:\:\$enrolled\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/Api/System/ReportController.php
@@ -791,6 +809,18 @@ parameters:
 			identifier: method.nonObject
 			count: 1
 			path: app/Models/Application.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Models/AuditLog.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:requiresImmediateAttention\(\)\.$#'
@@ -976,120 +1006,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Notifications/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Cannot call method label\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\ApplicationStatus\:\:Approved will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\ApplicationStatus\:\:Rejected will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Notifications/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/ApplicationSubmittedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/ApplicationSubmittedNotification.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ApplicationSubmittedNotification.php
-
-		-
-			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ApplicationSubmittedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 1
 			path: app/Notifications/Camper/AcceptanceLetterNotification.php
 
 		-
@@ -1247,24 +1163,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 2
 			path: app/Notifications/DocumentRequiresCompletionNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/IncompleteApplicationReminderNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/IncompleteApplicationReminderNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$registration_closes_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/IncompleteApplicationReminderNotification.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
@@ -1345,76 +1243,10 @@ parameters:
 			path: app/Notifications/NewMessageNotification.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/ProviderLinkCreatedNotification.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ProviderLinkCreatedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
 			count: 2
-			path: app/Notifications/ProviderLinkExpiredNotification.php
-
-		-
-			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ProviderLinkExpiredNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/ProviderLinkRevokedNotification.php
-
-		-
-			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ProviderLinkRevokedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/ProviderSubmissionReceivedNotification.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ProviderSubmissionReceivedNotification.php
-
-		-
-			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/ProviderSubmissionReceivedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/RejectionLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/RejectionLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/RejectionLetterNotification.php
+			path: app/Notifications/NewMessageNotification.php
 
 		-
 			message: '#^Parameter \#1 \$camper of method App\\Services\\Medical\\SpecialNeedsRiskAssessmentService\:\:assessCamper\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model given\.$#'
@@ -1463,6 +1295,12 @@ parameters:
 			identifier: argument.type
 			count: 3
 			path: app/Policies/AllergyPolicy.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Policies/ApplicantDocumentPolicy.php
 
 		-
 			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ApplicationStatus\:\:Submitted, App\\Enums\\ApplicationStatus\:\:UnderReview, App\\Enums\\ApplicationStatus\:\:Approved, App\\Enums\\ApplicationStatus\:\:Waitlisted\} will always evaluate to false\.$#'
@@ -1789,42 +1627,6 @@ parameters:
 			path: app/Services/Form/FormBuilderService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_date\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Services/LetterService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$allergen\.$#'
 			identifier: property.notFound
 			count: 1
@@ -2014,30 +1816,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Services/MedicalProviderLinkService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$medicalRecord\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/MedicalProviderLinkService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/MedicalProviderLinkService.php
-
-		-
-			message: '#^Parameter \#1 \$camper of method App\\Services\\MedicalProviderLinkService\:\:createAndSend\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/MedicalProviderLinkService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 3
 			path: app/Services/MessageService.php
 
 		-
@@ -2054,6 +1832,12 @@ parameters:
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<TRelatedModel of Illuminate\\Database\\Eloquent\\Model\>\:\:forUser\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/MessageService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notifyNow\(\)\.$#'
 			identifier: method.notFound
 			count: 1
 			path: app/Services/MessageService.php

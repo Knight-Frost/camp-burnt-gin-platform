@@ -35,13 +35,13 @@ class DatabaseNotificationObserver
     {
         // Only broadcast for user notifications — other notifiable types
         // (if any future ones are added) should not trigger the user bell.
-        if ($notification->notifiable_type !== (new User())->getMorphClass()) {
+        if ($notification->notifiable_type !== (new User)->getMorphClass()) {
             return;
         }
 
-        $data   = $notification->data ?? [];
-        $type   = $data['type']  ?? class_basename($notification->type);
-        $title  = $data['title'] ?? '';
+        $data = $notification->data ?? [];
+        $type = $data['type'] ?? class_basename($notification->type);
+        $title = $data['title'] ?? '';
         $userId = (int) $notification->notifiable_id;
 
         // Defer until after the active transaction commits.
@@ -52,8 +52,8 @@ class DatabaseNotificationObserver
             } catch (\Throwable $e) {
                 Log::warning('NotificationCreated broadcast failed', [
                     'user_id' => $userId,
-                    'type'    => $type,
-                    'error'   => $e->getMessage(),
+                    'type' => $type,
+                    'error' => $e->getMessage(),
                 ]);
             }
         });

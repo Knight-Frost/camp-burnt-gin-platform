@@ -132,7 +132,7 @@ class MfaService
 
         // Flip the MFA flag on and record when it was first verified
         $user->update([
-            'mfa_enabled'     => true,
+            'mfa_enabled' => true,
             'mfa_verified_at' => now(),
         ]);
 

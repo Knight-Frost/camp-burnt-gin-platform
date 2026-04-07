@@ -57,7 +57,7 @@ trait WithRoles
     protected function createSuperAdmin(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role_id'     => $this->superAdminRole->id,
+            'role_id' => $this->superAdminRole->id,
             'mfa_enabled' => true,
         ], $attributes));
     }
@@ -72,7 +72,7 @@ trait WithRoles
     protected function createAdmin(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role_id'     => $this->adminRole->id,
+            'role_id' => $this->adminRole->id,
             'mfa_enabled' => true,
         ], $attributes));
     }
@@ -99,7 +99,7 @@ trait WithRoles
     protected function createMedicalProvider(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role_id'     => $this->medicalRole->id,
+            'role_id' => $this->medicalRole->id,
             'mfa_enabled' => true,
         ], $attributes));
     }

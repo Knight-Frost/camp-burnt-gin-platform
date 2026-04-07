@@ -41,7 +41,6 @@ use App\Observers\DeadlineObserver;
 use App\Observers\DiagnosisObserver;
 use App\Observers\FeedingPlanObserver;
 use App\Observers\MedicalRecordObserver;
-use Illuminate\Notifications\DatabaseNotification;
 use App\Policies\ActivityPermissionPolicy;
 use App\Policies\AllergyPolicy;
 use App\Policies\ApplicantDocumentPolicy;
@@ -75,6 +74,7 @@ use App\Policies\TreatmentLogPolicy;
 use App\Policies\UserEmergencyContactPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -338,11 +338,11 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
-        // Inbox compose limit: admins/super_admins get 60/min; applicants get 15/min.
+        // Inbox compose limit: admins/super_admins get 30/min; applicants get 5/min.
         // Prevents conversation spam while not blocking staff who compose in bulk.
         RateLimiter::for('inbox-compose', function (Request $request) {
             $user = $request->user();
-            $limit = ($user && $user->isAdmin()) ? 60 : 15;
+            $limit = ($user && $user->isAdmin()) ? 30 : 5;
 
             return Limit::perMinute($limit)->by($user?->id ?: $request->ip())
                 ->response(function () {
