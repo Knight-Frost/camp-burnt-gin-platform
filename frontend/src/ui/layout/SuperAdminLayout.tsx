@@ -86,16 +86,14 @@ export function SuperAdminLayout() {
     { group: gOps,    label: t('portal_nav.deadlines'),          to: '/admin/deadlines',              icon: Clock },
     { group: gOps,    label: t('portal_nav.reports'),            to: '/super-admin/reports',          icon: BarChart3 },
     // SYSTEM — governance & configuration (super_admin exclusive)
+    { group: gSystem, label: t('portal_nav.users_permissions'),  to: ROUTES.SUPER_ADMIN_USERS,        icon: Users },
+    { group: gSystem, label: t('portal_nav.audit_log'),          to: ROUTES.SUPER_ADMIN_AUDIT,        icon: ScrollText },
     { group: gSystem, label: t('portal_nav.form_builder'),       to: ROUTES.SUPER_ADMIN_FORM_BUILDER, icon: Layout },
     { group: gSystem, label: t('portal_nav.my_profile'),         to: '/super-admin/profile',          icon: User },
     { group: gSystem, label: t('portal_nav.settings'),           to: '/super-admin/settings',         icon: Settings },
   ];
 
-  // Pinned at the very bottom of the sidebar — always visible regardless of scroll position.
-  const systemNavItems: NavItem[] = [
-    { label: t('portal_nav.users_permissions'), to: ROUTES.SUPER_ADMIN_USERS, icon: Users },
-    { label: t('portal_nav.audit_log'),         to: ROUTES.SUPER_ADMIN_AUDIT, icon: ScrollText },
-  ];
+  const systemNavItems: NavItem[] = [];
 
   return (
     <SessionWorkspaceProvider>
