@@ -1,68 +1,64 @@
 # ==========================================================
 # Logs & Runtime Files
 # ==========================================================
-*.log                        # Application and debug logs
-.phpunit.result.cache        # PHPUnit cached test results
-.phpunit.cache/              # PHPUnit internal cache directory
+*.log
+.phpunit.result.cache
+.phpunit.cache/
 
 
 # ==========================================================
 # OS / Editor / IDE Files
 # ==========================================================
-.DS_Store                    # macOS Finder metadata
-Thumbs.db                    # Windows Explorer metadata
+.DS_Store
+Thumbs.db
 
-.vscode/                     # VS Code settings (anywhere in repo)
-.idea/                       # JetBrains IDE settings
-.fleet/                      # JetBrains Fleet
-.zed/                        # Zed editor
-.nova/                       # Nova editor
+.vscode/
+.idea/
+.fleet/
+.zed/
+.nova/
 
 
 # ==========================================================
-# Environment & Secrets (CRITICAL)
+# Environment & Secrets (CRITICAL — never commit)
 # ==========================================================
-.env                         # Local environment variables (contains secrets)
-.env.*                       # Any environment variants (production, staging, backups)
-auth.json                    # Composer authentication tokens
+.env
+.env.*
+auth.json
 
 
 # ==========================================================
 # Dependency Directories
 # ==========================================================
-vendor/                      # PHP Composer dependencies (rebuildable)
-node_modules/                # Node dependencies (rebuildable)
+vendor/
+node_modules/
 
 
 # ==========================================================
 # Build & Compiled Assets
 # ==========================================================
-public/build/                # Frontend compiled assets
-public/hot                   # Vite hot reload file
-public/storage               # Laravel storage symlink
+public/build/
+public/hot
+public/storage
 
 
 # ==========================================================
 # Storage & Encryption Artifacts
 # ==========================================================
-storage/*.key                # Encryption keys (VERY sensitive)
-storage/pail                 # Runtime storage artifacts
+storage/*.key
+storage/pail
+storage/database.sqlite
 
 
 # ==========================================================
 # Laravel / Vagrant / Local VM
 # ==========================================================
-Homestead.json               # Local Homestead configuration
-Homestead.yaml               # Local Homestead configuration
+Homestead.json
+Homestead.yaml
 
 
 # ==========================================================
 # Temporary / Miscellaneous
 # ==========================================================
-*.swp                        # Vim swap files
-*.tmp                        # Temporary files
-
-backend/camp-burnt-gin-api/vendor/
-# PHPUnit cache
-.phpunit.result.cache
-.phpunit.cache/
+*.swp
+*.tmp
