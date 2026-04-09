@@ -113,7 +113,6 @@ class ReportService
     {
         $query = Application::with([
             'camper.user',
-            'camper.medicalRecord',  // Loaded so it's available for any future medical flag display
             'campSession.camp',
         ])
             ->where('status', ApplicationStatus::Approved);
@@ -234,8 +233,6 @@ class ReportService
         $query = Application::with([
             'camper.user',
             'camper.allergies',      // Needed to identify severe allergies for the badge
-            'camper.medications',
-            'camper.medicalRecord',
             'campSession',
         ])->where('status', ApplicationStatus::Approved);
 
