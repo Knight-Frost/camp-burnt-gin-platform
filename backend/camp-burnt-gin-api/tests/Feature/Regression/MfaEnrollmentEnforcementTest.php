@@ -123,13 +123,17 @@ class MfaEnrollmentEnforcementTest extends TestCase
     }
 
     // ── Layer 3: Step-up gate (mfa.step_up) ──────────────────────────────────
+    // Application review does NOT require MFA step-up — it is a routine operational
+    // task performed many times per session. Step-up is reserved for irreversible
+    // actions (delete, role change, account creation, deactivation).
 
-    public function test_admin_without_mfa_is_blocked_from_application_review_with_not_enrolled_flag(): void
+    public function test_admin_without_mfa_can_review_application_without_step_up(): void
     {
-        $admin  = $this->createAdmin(['mfa_enabled' => false]);
+        // Review no longer requires step-up, so an enrolled admin proceeds normally.
+        $admin  = $this->createAdmin(['mfa_enabled' => true]);
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = CampSession::factory()->create();
+        $session = CampSession::factory()->create(['capacity' => 10]);
         $application = Application::factory()->create([
             'camper_id'       => $camper->id,
             'camp_session_id' => $session->id,
@@ -138,25 +142,23 @@ class MfaEnrollmentEnforcementTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
-            'status' => 'approved',
+            'status'              => 'approved',
+            'override_incomplete' => true,
         ]);
 
-        $response->assertStatus(403);
-        $response->assertJsonPath('mfa_step_up_required', true);
-        $response->assertJsonPath('mfa_not_enrolled', true);
+        $response->assertStatus(200);
+        $response->assertJsonMissing(['mfa_step_up_required' => true]);
     }
 
-    public function test_admin_with_mfa_but_no_step_up_is_blocked_from_application_review(): void
+    public function test_admin_with_mfa_but_no_step_up_can_still_review_application(): void
     {
-        // Create admin with MFA enabled but do NOT call grantMfaStepUp()
+        // Step-up no longer gates review. Revoking it must not block the request.
         $admin  = $this->createAdmin(['mfa_enabled' => true]);
-        // Clear the auto-granted step-up from WithRoles so we can test the "no step-up" path.
-        // Must clear both the legacy key and the null-tokenId key used in test context.
         $this->revokeMfaStepUp($admin);
 
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = CampSession::factory()->create();
+        $session = CampSession::factory()->create(['capacity' => 10]);
         $application = Application::factory()->create([
             'camper_id'       => $camper->id,
             'camp_session_id' => $session->id,
@@ -165,12 +167,12 @@ class MfaEnrollmentEnforcementTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
-            'status' => 'approved',
+            'status'              => 'approved',
+            'override_incomplete' => true,
         ]);
 
-        $response->assertStatus(403);
-        $response->assertJsonPath('mfa_step_up_required', true);
-        $response->assertJsonPath('mfa_not_enrolled', false);
+        $response->assertStatus(200);
+        $response->assertJsonMissing(['mfa_step_up_required' => true]);
     }
 
     public function test_admin_with_mfa_and_valid_step_up_can_review_application(): void

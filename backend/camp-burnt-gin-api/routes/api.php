@@ -500,10 +500,10 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/{application}/completeness', [ApplicationController::class, 'completeness'])
             ->middleware('admin')
             ->name('applications.completeness');
-        // Approve/reject an application — step-up required (status change triggers notifications,
-        // activates camper record, and may send acceptance/rejection letters)
+        // Approve/reject an application — admin-only; no MFA step-up (routine operational task).
+        // Delete (above) retains step-up because it is irreversible.
         Route::post('/{application}/review', [ApplicationController::class, 'review'])
-            ->middleware(['admin', 'mfa.step_up'])
+            ->middleware('admin')
             ->name('applications.review');
     });
 
