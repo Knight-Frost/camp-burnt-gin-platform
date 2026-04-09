@@ -195,13 +195,30 @@ export async function getDraft(id: number): Promise<ApplicationDraft> {
   return data.data;
 }
 
-/** Auto-save the full form state to a draft slot. */
+/**
+ * Auto-save the full form state to a draft slot.
+ *
+ * Pass `lastKnownUpdatedAt` (the `updated_at` from the last successful save or
+ * fetch) to enable the server-side optimistic concurrency guard. The server
+ * returns 409 if another tab has already overwritten the draft since that
+ * timestamp. Returns the server's new `updated_at` value on success so the
+ * caller can keep their local copy in sync.
+ */
 export async function saveDraft(
   id: number,
   label: string,
   draftData: Record<string, unknown>,
-): Promise<void> {
-  await axiosInstance.put(`/application-drafts/${id}`, { label, draft_data: draftData });
+  lastKnownUpdatedAt?: string,
+): Promise<string | undefined> {
+  const { data } = await axiosInstance.put<{ data: { id: number; label: string; updated_at: string } }>(
+    `/application-drafts/${id}`,
+    {
+      label,
+      draft_data: draftData,
+      ...(lastKnownUpdatedAt ? { last_known_updated_at: lastKnownUpdatedAt } : {}),
+    },
+  );
+  return data.data?.updated_at;
 }
 
 /** Permanently delete a draft. No confirmation on the server — confirm in the UI. */
@@ -355,12 +372,28 @@ export interface CreateFeedingPlanPayload {
 }
 
 export interface StoreHealthProfilePayload {
+  // Physician
+  physician_name?: string;
+  physician_phone?: string;
+  physician_address?: string;
+  // Insurance
+  insurance_provider?: string;
+  insurance_policy?: string;      // mapped to insurance_policy_number by backend
   insurance_group?: string;
   medicaid_number?: string;
-  physician_address?: string;
+  // Immunization
   immunizations_current?: boolean;
   tetanus_date?: string;
+  date_of_medical_exam?: string;
+  // Seizure history
+  has_seizures?: boolean;
+  last_seizure_date?: string;
+  seizure_description?: string;
+  // Other health flags
+  has_neurostimulator?: boolean;
+  // Mobility
   mobility_notes?: string;
+  // Other
   has_contagious_illness?: boolean;
   contagious_illness_description?: string;
   tubes_in_ears?: boolean;
@@ -432,7 +465,7 @@ export interface CreateActivityPermissionPayload {
   camper_id: number;
   activity_name: string;
   permission_level: string;
-  notes?: string;
+  restriction_notes?: string;
 }
 
 export async function createActivityPermission(

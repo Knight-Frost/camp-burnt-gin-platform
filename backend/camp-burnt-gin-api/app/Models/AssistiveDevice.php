@@ -43,6 +43,7 @@ class AssistiveDevice extends Model
         return [
             // Stored as tinyint in MySQL; cast so PHP sees a proper boolean
             'requires_transfer_assistance' => 'boolean',
+            'notes' => 'encrypted',
         ];
     }
 

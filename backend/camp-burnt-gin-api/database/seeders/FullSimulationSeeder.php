@@ -45,7 +45,6 @@ use Illuminate\Support\Facades\Hash;
  *     DocumentSeeder          → Document metadata records (no actual files)
  *     ApplicantDocumentSeeder → Admin-to-applicant documents (3 states)
  *     DocumentRequestSeeder   → Full document request lifecycle (7 states)
- *     ProviderLinkSeeder      → Medical provider link workflow (all lifecycle states)
  *     MessagingSeeder         → Conversations, messages, read receipts
  *     AnnouncementSeeder      → Announcements + calendar events
  *     AuditLogSeeder          → Audit trail entries (55+ entries, all categories)
@@ -145,7 +144,6 @@ class FullSimulationSeeder extends Seeder
             DocumentSeeder::class,              // uploaded document metadata (no real files)
             ApplicantDocumentSeeder::class,     // admin-to-applicant docs (pending/submitted/reviewed)
             DocumentRequestSeeder::class,       // full document request lifecycle (7 states)
-            ProviderLinkSeeder::class,          // medical provider links (all lifecycle states)
 
             // Messaging — MessagingSeeder is the comprehensive replacement for
             // MessageSeeder + ExtendedMessageSeeder + MessageReadSeeder.

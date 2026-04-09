@@ -70,6 +70,9 @@ class EmergencyContact extends Model
             'phone_secondary' => 'encrypted',
             'email' => 'encrypted',
             'address' => 'encrypted',  // Full street address is PHI.
+            'city' => 'encrypted',
+            'state' => 'encrypted',
+            'zip' => 'encrypted',
             'phone_work' => 'encrypted',  // Work phone is PHI.
             // Boolean flags stored as tiny integers in MySQL.
             'is_primary' => 'boolean',

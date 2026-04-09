@@ -4,6 +4,7 @@ namespace App\Notifications\Camper;
 
 use App\Models\Application;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -13,7 +14,7 @@ use Illuminate\Notifications\Notification;
  * Reminds parents about draft applications that need completion.
  * Implements FR-29: Incomplete application reminders.
  */
-class IncompleteApplicationReminderNotification extends Notification
+class IncompleteApplicationReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

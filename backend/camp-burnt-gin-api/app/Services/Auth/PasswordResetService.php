@@ -154,6 +154,17 @@ class PasswordResetService
         // cannot continue after a password reset. The user must log in again.
         $user->tokens()->delete();
 
+        // Record the password reset in the audit log for HIPAA compliance
+        \App\Models\AuditLog::logAuth('password_reset', $user);
+
+        // Best-effort invalidation of any MFA step-up cache entry for this user.
+        // Step-up cache is keyed by user + token ID; since all Sanctum tokens were
+        // deleted above, any surviving step-up grants reference non-existent tokens.
+        // Clear both the legacy user-scoped key and the 'unknown'-tokenId fallback
+        // used when no Sanctum token is active (e.g. web guard or test context).
+        \Illuminate\Support\Facades\Cache::forget("mfa_step_up:{$user->id}");
+        \Illuminate\Support\Facades\Cache::forget("mfa_step_up:{$user->id}:unknown");
+
         // Notify the account holder that their password changed so they can act
         // if the change was unauthorised (security assurance email)
         $user->notify(new PasswordChangedConfirmationNotification);

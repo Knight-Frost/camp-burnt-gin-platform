@@ -231,6 +231,19 @@ When MFA is enabled, login requires both password and TOTP code:
 - Code must be valid for current time window (±1 window for clock skew)
 - Rate limited to 3 attempts per minute per user
 
+### MFA Enforcement by Role
+
+MFA enrollment is mandatory for the `admin`, `super_admin`, and `medical` roles. Enforcement operates at two independent layers:
+
+| Layer | Middleware Alias | Purpose |
+|---|---|---|
+| Enrollment gate | `mfa.enrolled` | Blocks all protected routes until the account has completed MFA setup |
+| Step-up gate | `mfa.step_up` | Requires a fresh TOTP verification for sensitive operations (e.g., audit export, user management) |
+
+The `EnsureUserIsMedicalProvider`, `EnsureUserIsAdmin`, and `EnsureUserHasRole` middleware classes validate role membership only. They do not duplicate the MFA check. MFA is enforced solely via the `mfa.enrolled` alias applied to elevated-role route groups in `routes/api.php`.
+
+`applicant` role accounts are not subject to mandatory MFA enrollment.
+
 ### MFA Disable
 
 **Endpoint:** `POST /api/mfa/disable`
@@ -374,7 +387,6 @@ Each model has a corresponding policy:
 | Medication | MedicationPolicy | `app/Policies/MedicationPolicy.php` |
 | EmergencyContact | EmergencyContactPolicy | `app/Policies/EmergencyContactPolicy.php` |
 | Document | DocumentPolicy | `app/Policies/DocumentPolicy.php` |
-| MedicalProviderLink | MedicalProviderLinkPolicy | `app/Policies/MedicalProviderLinkPolicy.php` |
 | Conversation | ConversationPolicy | `app/Policies/ConversationPolicy.php` |
 | Message | MessagePolicy | `app/Policies/MessagePolicy.php` |
 
@@ -629,7 +641,6 @@ If authorization fails, Laravel automatically returns HTTP 403 Forbidden.
 |----------|-------|-------|---------|
 | `/api/auth/login` | 5/minute | Per IP | Prevent credential stuffing |
 | `/api/mfa/*` | 3/minute | Per user | Prevent MFA brute force |
-| `/api/provider-access/*` | 2/minute | Per IP | Prevent token enumeration |
 | `/api/documents` | 5/minute | Per user | Prevent resource abuse |
 | General API | 60/minute | Per user | Prevent API abuse |
 
@@ -675,14 +686,18 @@ public function update(Request $request, Camper $camper)
 **Audit Record:**
 ```php
 [
-    'user_id' => 1,
-    'action' => 'view',
-    'entity_type' => 'medical_record',
-    'entity_id' => 5,
-    'ip_address' => '192.168.1.1',
-    'user_agent' => 'Mozilla/5.0...',
-    'correlation_id' => 'abc-123-def-456',
-    'timestamp' => '2026-02-11 10:30:45'
+    'request_id'     => 'req_abc-123-def-456',
+    'user_id'        => 1,
+    'event_type'     => 'phi_access',
+    'auditable_type' => 'App\\Models\\MedicalRecord',
+    'auditable_id'   => 5,
+    'action'         => 'view',
+    'description'    => 'GET /api/medical-records/5',
+    'metadata'       => ['route' => 'medical-records.show', 'method' => 'GET', 'status' => 200],
+    'ip_address'     => '192.168.1.1',
+    'user_agent'     => 'Mozilla/5.0...',
+    'created_at'     => '2026-02-11 10:30:45',
+    // No updated_at — audit records are immutable
 ]
 ```
 
@@ -699,4 +714,4 @@ public function update(Request $request, Camper $camper)
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** February 2026
+**Last Updated:** April 2026 (2026-04-09) — Full System Forensic Audit; removed dead provider-access references; corrected MFA enforcement model; corrected audit record field names

@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Diagnosis;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * DiagnosisObserver — triggers automatic risk re-assessment when a camper's diagnoses change.
@@ -31,8 +32,15 @@ class DiagnosisObserver
         $camper = $diagnosis->camper;
 
         if ($camper) {
-            // Re-score the camper — the new or changed diagnosis may alter their risk level
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('DiagnosisObserver: failed to re-assess risk after diagnosis saved', [
+                    'diagnosis_id' => $diagnosis->id,
+                    'camper_id'    => $camper->id,
+                    'error'        => $e->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -50,8 +58,15 @@ class DiagnosisObserver
         $camper = $diagnosis->camper;
 
         if ($camper) {
-            // Re-score after deletion — the removed diagnosis may have been contributing to a higher score
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('DiagnosisObserver: failed to re-assess risk after diagnosis deleted', [
+                    'diagnosis_id' => $diagnosis->id,
+                    'camper_id'    => $camper->id,
+                    'error'        => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

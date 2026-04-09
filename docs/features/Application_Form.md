@@ -1,7 +1,7 @@
 # Application Form
 
 **Version:** 1.0
-**Last Updated:** March 2026
+**Last Updated:** April 2026 (2026-04-09)
 **Scope:** Applicant portal — the digital CYSHCN camper application and its related start flow, official forms page, and admin review surface.
 
 ---
@@ -146,11 +146,11 @@ The signature block supports two modes selected via `signature_type`:
 
 ### Mechanism
 
-`ApplicationFormPage` mirrors the full `FormState` object to `localStorage` on every state change. The write is debounced with a 3-second delay (`AUTOSAVE_DELAY = 3000` ms) to avoid excessive writes during rapid typing.
+`ApplicationFormPage` mirrors the full `FormState` object to `sessionStorage` on every state change. The write is debounced with a 3-second delay (`AUTOSAVE_DELAY = 3000` ms) to avoid excessive writes during rapid typing. A separate auto-save timer (30-second interval) persists the draft to the server via `PUT /api/application-drafts/{id}`.
 
 ### Storage Key
 
-`cbg_app_draft`
+`cbg_app_draft` (stored in `sessionStorage`, not `localStorage`)
 
 ### What is Persisted
 
@@ -160,7 +160,7 @@ File objects (`File` instances) attached in Section 9 cannot be serialized to JS
 
 ### Draft Recovery
 
-On mount, `ApplicationFormPage` attempts to parse `localStorage.getItem('cbg_app_draft')`. If a valid object is found, form state is initialized from it. The `activeSection` stored in `meta` restores the user to the section they last had open.
+On mount, `ApplicationFormPage` attempts to parse `sessionStorage.getItem('cbg_app_draft')`. If a valid object is found, form state is initialized from it. The `activeSection` stored in `meta` restores the user to the section they last had open.
 
 ### Draft Display in Start Page
 
@@ -168,11 +168,26 @@ On mount, `ApplicationFormPage` attempts to parse `localStorage.getItem('cbg_app
 
 ### Draft Scope
 
-The draft is client-side only. It is not synchronized to the server. It is stored in the browser's `localStorage` and is therefore:
+The client-side draft is tab-scoped (stored in `sessionStorage`) and therefore:
 
-- Persistent across browser sessions on the same device
-- Not accessible from other devices or browsers
-- Lost if the user clears browser storage
+- Cleared automatically when the browser tab is closed
+- Not accessible from other tabs, devices, or browsers
+- Not persistent across sessions — resuming a draft requires the same tab to remain open
+
+The server-side draft (`application_drafts` table) provides cross-session persistence. When the applicant returns via the "Continue Draft" card, the form is populated from the server record.
+
+### Server-Side Draft and Concurrency Guard
+
+The 30-second auto-save timer and the manual "Save Draft" button both call `saveDraft()` in `applicant.api.ts`, which issues `PUT /api/application-drafts/{id}`.
+
+To prevent a race condition when the same draft is open in two browser tabs simultaneously, the request optionally includes a `last_known_updated_at` timestamp reflecting the server's `updated_at` at the time the draft was last successfully saved. The server compares this value against the current database record:
+
+- If they match, the update proceeds and the response includes the new `updated_at` value.
+- If they differ (stale write), the server returns `HTTP 409 Conflict` with `{ conflict: true, server_updated_at: "..." }`.
+
+On a 409 response, the frontend displays a `draft_conflict` toast notifying the user to reload the page to retrieve the latest version. The local draft is not overwritten.
+
+The `last_known_updated_at` field is optional for backward compatibility. If omitted, the server applies the update unconditionally.
 
 ---
 

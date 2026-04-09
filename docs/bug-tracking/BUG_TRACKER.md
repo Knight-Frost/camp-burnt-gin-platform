@@ -1,7 +1,7 @@
 # Camp Burnt Gin — Bug Tracker
 
 **Created:** Phase 1 System Audit
-**Last Updated:** 2026-03-26 — Form Full Parity Correction (BUG-127–BUG-134 added and resolved)
+**Last Updated:** 2026-04-09 — Full System Forensic Audit (BUG-175–BUG-180 added and resolved)
 **Format:** Sequential ID | Title | Module | Severity | Status | Affected Files
 
 ---
@@ -51,6 +51,8 @@ The table below maps each development phase to the bugs it resolved.
 | Application Lifecycle Audit 2026-03-24 | Approval/reversal architecture — activation, deactivation, transaction safety, audit log, transition validation | BUG-111, BUG-112, BUG-113, BUG-114, BUG-115, BUG-116, BUG-117, BUG-118 |
 | Application Form Ecosystem 2026-03-26 | TypeScript type gaps, API contract mismatch, upload status tracking, official forms checklist, staff profile nav | BUG-119–BUG-126 |
 | Form Full Parity Correction 2026-03-26 | Missing Guardian 2 address/phones, EC address/phones/language, health flags, behavioral flags + descriptions, app meta, 2nd session, bowel irregularity, 2 missing consents | BUG-127–BUG-134 |
+| Medical Policy Scoping Forensic Audit 2026-04-09 | PHI leak in notifications, PHI in audit log, encryption gaps, TOTP replay, MFA session scoping, account lockout, MFA secret unencrypted, dead code, SoftDeletes gaps, policy registration, password reset audit, file serving, cookie config, null init, auth facade, document SoftDeletes, camper delete guard, frontend gaps | BUG-152–BUG-174 |
+| Full System Forensic Audit 2026-04-09 | MFA middleware bootstrap deadlock, document force-delete file cascade, document show() PHI audit gap, report export audit gap, webp MIME mismatch, draft race condition | BUG-175–BUG-180 |
 
 ---
 
@@ -172,6 +174,57 @@ The table below maps each development phase to the bugs it resolved.
 | BUG-132 | Health flags (tubes in ears, contagious illness + description, recent illness + description) were in backend schema but missing from FormState and Section 2 UI | ApplicationFormPage — Section 2 | High | Resolved |
 | BUG-133 | Behavioral profile missing 5 new boolean flags (sexual_behaviors, interpersonal_behavior, social_emotional, follows_instructions, group_participation), attends_school, classroom_type, and all per-item description fields — present on official PDF | ApplicationFormPage — Section 3 | High | Resolved |
 | BUG-134 | Section 10 was missing "General Consent" (#1) and "Permission to Participate in Activities" (#4) from CONSENT_DEFS — these are explicit PDF consent items; only 5 of 7 required consents were shown | ApplicationFormPage — Section 10 | Critical | Resolved |
+| BUG-135 | `DocumentRequestController::stats()` counted `under_review` records inside the `uploaded` metric AND separately in `under_review`, causing double-counting. Metric card showed N "Uploaded" but clicking it filtered only `status=uploaded`, showing fewer items than the count implied | DocumentRequestController — stats() | Medium | Resolved |
+| BUG-136 | `stats()` also counted overdue records (awaiting_upload + past due_date) inside the `awaiting_upload` metric AND separately in `overdue`, making the two metric cards overlap. Admins clicking "Awaiting Upload" would see rows displaying as "Overdue" | DocumentRequestController — stats(), index() | Low | Resolved |
+| BUG-137 | `store()` threw `Undefined array key "application_id"` on line 131 when `application_id` was not included in the request payload — nullable validated fields can be absent from `$validated`, and the deadline session-resolution code accessed the key without null-coalescing | DocumentRequestController — store() | High | Resolved |
+| BUG-138 | `MedicalProviderLinkController` (333 lines) was left as dead code after BUG-008 removed its routes — the controller, its factory, service, model, and policy were never cleaned up | Document controllers directory | Low | Resolved |
+| BUG-139 | `in_app_message_notifications` toggle in Settings saved to backend correctly but `RealtimeContext.notifPrefsRef` was keyed on `[user?.id, token]` only, so the change had no effect on toast gating until the user re-authenticated | RealtimeContext.tsx | High | Resolved |
+| BUG-140 | `applyReducedMotion()` / `getSavedReducedMotion()` existed in themePreferences.ts and `index.html` set `data-reduced-motion` on startup, but `design-tokens.css` had no `[data-reduced-motion='true']` selector and SettingsPage had no UI toggle — the feature was half-built with no user-visible surface | themePreferences.ts, design-tokens.css, SettingsPage.tsx | Medium | Resolved |
+| BUG-141 | Data & Account tab rendered an empty panel for admin/medical users (no content, no explanation). Only applicants have account-deletion access; staff saw nothing and had no context why | SettingsPage.tsx | Medium | Resolved |
+| BUG-142 | Settings tab labels (Appearance, Account, Security, Notifications, Data & Account) were hardcoded English strings and did not re-render when the user switched to Spanish via the Language setting | SettingsPage.tsx, en.json, es.json | Medium | Resolved |
+| BUG-143 | Zero backend tests for profile/settings endpoints — notification preferences, password change, account deletion, profile read/update had no coverage | tests/Feature/Api/UserProfileTest.php (new) | High | Resolved |
+
+### Risk Assessment Forensic Audit (2026-04-08)
+
+| ID | Title | Module | Severity | Status |
+|----|-------|--------|----------|--------|
+| BUG-144 | `RiskAssessmentController` used `$this->authorize('view', [$camper, PolicyClass])` which resolves `CamperPolicy` (not `RiskAssessmentPolicy`) — applicants could access the full risk assessment, factor breakdown, clinical notes, and override reasons for their own children | RiskAssessmentController.php | Critical | Resolved |
+| BUG-145 | No `AllergyObserver` registered — life-threatening allergy (+15 pts) did not trigger automatic risk recalculation; `campers.supervision_level` cache stayed stale after any allergy save/delete | AllergyObserver.php (new), AppServiceProvider.php | High | Resolved |
+| BUG-146 | Legacy `/api/campers/{camper}/risk-summary` used `CamperPolicy::view` which permits applicants to view their own child's record — exposed risk score, flags, and supervision level to parents | CamperController.php | High | Resolved |
+| BUG-147 | All 5 model observers (Medical, Diagnosis, Behavioral, Feeding, Assistive) called `assessCamper()` without try/catch — a scoring engine failure cascaded into a 500 on the parent write operation (e.g. adding a diagnosis could fail) | 5 Observer files | Medium | Resolved |
+| BUG-148 | Override route middleware declared `role:admin,medical` but `RiskAssessmentPolicy::override()` only allows `medical` and `super_admin` — regular admins passed the route guard and received a confusing 403 from the policy instead of at the route layer | routes/api.php | Medium | Resolved |
+| BUG-149 | Medical Complexity tooltip text said "Low (0–33 pts)" but the complexity tier threshold is 0–25 pts — the displayed threshold was wrong (matched the risk_level system, not the complexity tier system); staff reading the tooltip would have incorrect mental model | CamperRiskPage.tsx | Medium | Resolved |
+| BUG-150 | `RiskAuditTimeline` displayed `entry.effective_supervision_label` (override-aware) alongside `entry.staffing_ratio` (base system ratio) — overridden entries showed "One-to-One · 1:6" which is contradictory | RiskAuditTimeline.tsx | Medium | Resolved |
+| BUG-151 | `MedicalReviewPanel` initialized `notes`, `overrideLevel`, and `overrideReason` state from `assessment` prop at mount but never resynced — re-entering review/override mode after a save showed pre-save (stale) form values | MedicalReviewPanel.tsx | Low | Resolved |
+| BUG-152 | PHI leak: `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails | Notifications — PHI | Critical | Resolved |
+| BUG-153 | PHI stored in audit log: `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns | Audit Log — PHI | Critical | Resolved |
+| BUG-154 | PHI encryption gap: `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast | Models — PHI Encryption | High | Resolved |
+| BUG-155 | TOTP replay attack: `MfaService::verifyKey()` accepted same OTP multiple times within 30-second window | Security — MFA | High | Resolved |
+| BUG-156 | MFA step-up cache key shared across all sessions: `mfa_step_up:{userId}` not scoped to token — any device step-up granted all sessions | Security — MFA | High | Resolved |
+| BUG-157 | MFA enrollment not enforced on middleware: `EnsureUserIsAdmin` and `EnsureUserHasRole` did not embed MFA enrollment check | Security — Middleware | High | Resolved |
+| BUG-158 | Account lockout window too short: `recordFailedLogin()` hardcoded 5-minute lockout instead of using `config('auth.lockout_minutes', 15)` | Security — Auth | High | Resolved |
+| BUG-159 | MFA secret stored in plaintext: `mfa_secret` column had no `encrypted` cast — raw TOTP seed visible in DB dumps | Security — PHI Encryption | High | Resolved |
+| BUG-160 | Dead provider link code: external medical provider invitation system (10 files) existed as unreachable dead code | Dead Code | High | Resolved |
+| BUG-161 | `RiskAssessment` missing `SoftDeletes`: PHI table had no `deleted_at` column — hard delete used instead of soft delete | Security — SoftDeletes | High | Resolved |
+| BUG-162 | `RiskAssessmentPolicy` not registered: policy imported in `AppServiceProvider` but never added to `$policies` array — policy gates always fell through | Security — Policy Registration | High | Resolved |
+| BUG-163 | Missing password reset audit log: `PasswordResetService` did not log `password_reset` event or invalidate MFA step-up cache | Audit Log — Auth | Medium | Resolved |
+| BUG-164 | Local disk file serving enabled: `filesystems.php` had `'serve' => true` on local disk, allowing direct file serving bypass of authenticated API | Security — File Serving | Medium | Resolved |
+| BUG-165 | Insecure cookie default: `session.php` `'secure'` had no default (null/falsy) — cookies sent over plain HTTP in non-production environments | Security — Cookies | Medium | Resolved |
+| BUG-166 | Uninitialized `$lateWarning`: `DocumentRequestController::applicantUpload()` used `$lateWarning` before assignment in some code paths | DocumentRequestController | Medium | Resolved |
+| BUG-167 | `DocumentController::download()` used `auth()` facade instead of `$request->user()` — inconsistent with project auth patterns | DocumentController | Medium | Resolved |
+| BUG-168 | Document tables missing `SoftDeletes`: `Document`, `ApplicantDocument`, `DocumentRequest` had no `deleted_at` column — hard deletes used on PHI-adjacent tables | Security — SoftDeletes | Medium | Resolved |
+| BUG-169 | `CamperPolicy::delete()` allowed deletion of campers with active (non-terminal) applications | CamperPolicy | Medium | Resolved |
+| BUG-170 | Frontend waitlisted step missing: `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted`, causing `currentIdx = -1` for waitlisted applications | Applicant Portal — UI | Low | Resolved |
+| BUG-171 | `getMedicalRecordByCamper` non-nullable return type: function returned `undefined` when no record exists but TypeScript type was `Promise<MedicalRecord>` | Frontend — TypeScript Types | Low | Resolved |
+| BUG-172 | Frontend inbox state in `localStorage`: `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage` instead of `sessionStorage` — HIPAA storage mismatch | Inbox / Messaging — HIPAA | Low | Resolved |
+| BUG-173 | `ProtectedRoute` missing MFA enrollment gate: admin/medical/super_admin roles not redirected to profile page when MFA not enrolled | Auth — MFA Enforcement | Low | Resolved |
+| BUG-174 | Dead `ProviderAccessPage`: `frontend/src/features/provider/` directory contained dead code with no router wiring | Dead Code — Frontend | Low | Resolved |
+| BUG-175 | `EnsureUserIsMedicalProvider` embedded inline MFA check blocking unenrolled medical staff from reaching their profile page to complete MFA setup — bootstrap deadlock | Auth — Middleware | High | Resolved |
+| BUG-176 | `Document::forceDelete()` did not cascade-delete physical file on disk — orphaned PHI files accumulated indefinitely in storage | Security — PHI Storage | High | Resolved |
+| BUG-177 | `DocumentController::show()` returned decrypted `original_filename` (PHI) without logging to audit trail — only download() was logged | HIPAA — Audit Logging | Medium | Resolved |
+| BUG-178 | `ReportController` CSV export endpoints (applications, accepted, rejected, mailing labels, ID labels) downloaded PII/PHI without any audit log entry | HIPAA — Audit Logging | Medium | Resolved |
+| BUG-179 | `DocumentUploader.tsx` accepted `image/webp` MIME type which backend `Document::ALLOWED_MIME_TYPES` does not permit — silent upload failure | Frontend — Upload UX | Low | Resolved |
+| BUG-180 | `ApplicationDraftController::update()` had no optimistic concurrency guard — two browser tabs saving simultaneously could silently lose the first tab's data | Application Drafts — Race Condition | Medium | Resolved |
 
 ---
 
@@ -1925,17 +1978,475 @@ Restructured `routes/api.php` into three tiers:
 
 ---
 
+### Medical Policy Scoping Forensic Audit (2026-04-09)
+
+| ID | Title | Module | Severity | Status |
+|----|-------|--------|----------|--------|
+| BUG-152 | PHI leak: `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails | Notifications — PHI | Critical | Resolved |
+| BUG-153 | PHI stored in audit log: `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns | Audit Log — PHI | Critical | Resolved |
+| BUG-154 | PHI encryption gap: `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast | Models — PHI Encryption | High | Resolved |
+| BUG-155 | TOTP replay attack: `MfaService::verifyKey()` accepted same OTP multiple times within 30-second window | Security — MFA | High | Resolved |
+| BUG-156 | MFA step-up cache key shared across sessions: `mfa_step_up:{userId}` not scoped to token | Security — MFA | High | Resolved |
+| BUG-157 | MFA enrollment not enforced on middleware: `EnsureUserIsAdmin` and `EnsureUserHasRole` missing MFA check | Security — Middleware | High | Resolved |
+| BUG-158 | Account lockout window too short: hardcoded 5-minute lockout instead of `config('auth.lockout_minutes', 15)` | Security — Auth | High | Resolved |
+| BUG-159 | MFA secret stored in plaintext: `mfa_secret` column had no `encrypted` cast | Security — PHI Encryption | High | Resolved |
+| BUG-160 | Dead provider link code: external medical provider invitation system (10 files) was unreachable dead code | Dead Code | High | Resolved |
+| BUG-161 | `RiskAssessment` missing `SoftDeletes`: PHI table had no `deleted_at` column | Security — SoftDeletes | High | Resolved |
+| BUG-162 | `RiskAssessmentPolicy` not registered in `$policies` array | Security — Policy Registration | High | Resolved |
+| BUG-163 | Missing password reset audit log in `PasswordResetService` | Audit Log — Auth | Medium | Resolved |
+| BUG-164 | Local disk file serving enabled: `'serve' => true` in `filesystems.php` | Security — File Serving | Medium | Resolved |
+| BUG-165 | Insecure cookie default: `session.php` `'secure'` had no default | Security — Cookies | Medium | Resolved |
+| BUG-166 | Uninitialized `$lateWarning` in `DocumentRequestController::applicantUpload()` | DocumentRequestController | Medium | Resolved |
+| BUG-167 | `DocumentController::download()` used `auth()` facade instead of `$request->user()` | DocumentController | Medium | Resolved |
+| BUG-168 | Document tables missing `SoftDeletes`: `Document`, `ApplicantDocument`, `DocumentRequest` | Security — SoftDeletes | Medium | Resolved |
+| BUG-169 | `CamperPolicy::delete()` allowed deletion of campers with active applications | CamperPolicy | Medium | Resolved |
+| BUG-170 | `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted` step | Applicant Portal — UI | Low | Resolved |
+| BUG-171 | `getMedicalRecordByCamper` return type `Promise<MedicalRecord>` did not account for `undefined` | Frontend — TypeScript Types | Low | Resolved |
+| BUG-172 | Inbox `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage` instead of `sessionStorage` | Inbox / Messaging — HIPAA | Low | Resolved |
+| BUG-173 | `ProtectedRoute` missing MFA enrollment redirect for admin/medical/super_admin roles | Auth — MFA Enforcement | Low | Resolved |
+| BUG-174 | Dead `ProviderAccessPage`: `frontend/src/features/provider/` directory with no router wiring | Dead Code — Frontend | Low | Resolved |
+
+---
+
+### BUG-152
+
+**Title:** PHI leak — `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails
+**Module:** Notifications — PHI
+**Severity:** Critical
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`ApplicationStatusChangedNotification::toMail()` included the admin reviewer `notes` field in the email body sent to applicant (parent) users when their application was rejected. The `notes` field is an internal admin-only annotation and may contain clinical assessment language, safeguarding concerns, or other sensitive commentary not intended for parents. This constitutes a direct PHI/PII disclosure to an unauthorized party.
+
+**Fix:**
+Removed the `notes` block from the `toMail()` method's rejected branch. Parent-facing rejection emails now contain only the status change and a generic support contact reference.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Notifications/ApplicationStatusChangedNotification.php`
+
+---
+
+### BUG-153
+
+**Title:** PHI stored in audit log — `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns
+**Module:** Audit Log — PHI
+**Severity:** Critical
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`AuditLog::logContentChange()` serialized the full before/after model attribute arrays into the `old_values` and `new_values` JSON columns. When called on models that use the Laravel `encrypted` cast (e.g. `EmergencyContact`, `BehavioralProfile`, `PersonalCarePlan`), the values were first decrypted by the model's accessor before being passed to the audit log — meaning plaintext PHI was written to the `audit_logs` table with no encryption. Any admin with audit log read access (including future compromised credentials) could view raw PHI.
+
+**Fix:**
+Added `PHI_FIELDS` constant to `AuditLog` listing all known encrypted field names. Added `redactPhiValues(array $values): array` helper that replaces any key matching a PHI field name with `"[redacted]"`. Applied to both `$oldValues` and `$newValues` before storage.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Models/AuditLog.php`
+
+---
+
+### BUG-154
+
+**Title:** PHI encryption gap — `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast
+**Module:** Models — PHI Encryption
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+Several PHI-bearing columns were present in the database schema and referenced in frontend forms but were missing the `'encrypted'` cast in their respective Eloquent models. This meant values were stored as plaintext in the database despite the rest of the system using Laravel's encrypted cast for PHI fields. Affected columns: `AssistiveDevice.notes` (device-specific clinical notes), `MedicalFollowUp.title` and `MedicalFollowUp.notes` (clinical follow-up task descriptions), `EmergencyContact.city`, `EmergencyContact.state`, `EmergencyContact.zip` (personal address components).
+
+**Fix:**
+Added `'encrypted'` cast entries for all five columns across the three affected models.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Models/AssistiveDevice.php`
+- `backend/camp-burnt-gin-api/app/Models/MedicalFollowUp.php`
+- `backend/camp-burnt-gin-api/app/Models/EmergencyContact.php`
+
+---
+
+### BUG-155
+
+**Title:** TOTP replay attack — `MfaService::verifyKey()` accepted the same OTP multiple times within the 30-second window
+**Module:** Security — MFA
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`MfaService::verifyKey()` validated OTP codes using only `Google2FA::verifyKey()`, which checks the mathematical validity of the code but does not track whether a specific code has already been consumed. Because TOTP windows are 30 seconds wide, an attacker who observed or intercepted a valid OTP could replay it multiple times within the same window — for example, via a MitM or phishing scenario where the attacker submits the intercepted code faster than the legitimate user.
+
+**Fix:**
+Added `isCodeAlreadyUsed(string $code, int $userId): bool` nonce cache check using `Cache::has("mfa_used:{$userId}:{$code}")` with a 75-second TTL (covers current + adjacent window). Applied to all 4 OTP verification call sites in the service.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Services/Auth/MfaService.php`
+
+---
+
+### BUG-156
+
+**Title:** MFA step-up cache key shared across all sessions — `mfa_step_up:{userId}` not scoped to token
+**Module:** Security — MFA
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+The MFA step-up verification cache key was `"mfa_step_up:{$userId}"`. Because this key was scoped only to the user ID and not to the individual Sanctum token, a successful MFA step-up on one device/session would immediately grant elevated access on all other concurrent sessions for that user. An attacker who obtained a stolen bearer token for an admin user could bypass the step-up requirement entirely if the legitimate user had recently completed a step-up on any other device.
+
+**Fix:**
+Changed cache key to `"mfa_step_up:{$userId}:{$tokenId}"` where `$tokenId` is the Sanctum token's database ID (accessible via `$request->user()->currentAccessToken()->id`). Applied at all step-up set, check, and clear sites.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Services/Auth/MfaService.php`
+- `backend/camp-burnt-gin-api/app/Http/Middleware/RequireMfaStepUp.php`
+
+---
+
+### BUG-157
+
+**Title:** MFA enrollment not enforced on middleware — `EnsureUserIsAdmin` and `EnsureUserHasRole` missing MFA check
+**Module:** Security — Middleware
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`EnsureUserIsAdmin` and `EnsureUserHasRole` performed role verification but did not check whether the user had completed MFA enrollment (`mfa_enabled = true`). Admin and medical users without MFA enrolled could reach all protected admin/medical endpoints if they bypassed the frontend redirect. The `EnsureMfaEnrolled` middleware existed as a standalone class but was not embedded in these role-checking middleware classes, leaving a gap for direct API access.
+
+**Fix:**
+Embedded the `mfa_enabled` enrollment check inside both `EnsureUserIsAdmin` and `EnsureUserHasRole`, returning 403 with `mfa_setup_required: true` if the user's `mfa_enabled` flag is false. This ensures enforcement applies at the middleware layer regardless of frontend state.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Http/Middleware/EnsureUserIsAdmin.php`
+- `backend/camp-burnt-gin-api/app/Http/Middleware/EnsureUserHasRole.php`
+
+---
+
+### BUG-158
+
+**Title:** Account lockout window too short — `recordFailedLogin()` hardcoded 5-minute lockout
+**Module:** Security — Auth
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`User::recordFailedLogin()` used a hardcoded `addMinutes(5)` for the lockout duration instead of reading from the application configuration. The MEMORY.md and system documentation specified a 15-minute lockout (`config('auth.lockout_minutes', 15)`), but the actual code was using 5 minutes. On a HIPAA system with PHI access, a 5-minute lockout is insufficient — attackers have more attempts per hour against any guessed username.
+
+**Fix:**
+Replaced `addMinutes(5)` with `addMinutes(config('auth.lockout_minutes', 15))` in `recordFailedLogin()`.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Models/User.php`
+
+---
+
+### BUG-159
+
+**Title:** MFA secret stored in plaintext — `mfa_secret` column had no `encrypted` cast
+**Module:** Security — PHI Encryption
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+The `mfa_secret` column in the `users` table stored the TOTP seed in plaintext. A raw database dump or SQL injection attack would expose the TOTP seed for every MFA-enrolled user, allowing an attacker to clone authenticators and permanently bypass the MFA layer for all admin and medical accounts. The `User` model docblock explicitly noted this as a concern ("Exposing it would defeat 2-factor auth entirely") but the `encrypted` cast was not actually applied.
+
+**Fix:**
+Added `'mfa_secret' => 'encrypted'` to the `casts()` array in `User.php`.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Models/User.php`
+
+---
+
+### BUG-160
+
+**Title:** Dead provider link code — external medical provider invitation system existed as unreachable dead code
+**Module:** Dead Code
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+An entire external medical provider invitation and link system (originally removed in BUG-008 at the route level) remained as dead code across 10 files: `MedicalProviderLinkController`, its factory, service, model, policy, and related test files. The routes were removed but the implementation was left. This dead code increased the attack surface unnecessarily, as unused classes may be instantiated via service container resolution or reflection attacks, and represented a maintenance hazard.
+
+**Fix:**
+Removed all 10 dead files and cleaned any references in `AppServiceProvider` and import statements.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Medical/MedicalProviderLinkController.php` (removed)
+- `backend/camp-burnt-gin-api/app/Services/MedicalProviderLinkService.php` (removed)
+- `backend/camp-burnt-gin-api/app/Models/MedicalProviderLink.php` (removed)
+- `backend/camp-burnt-gin-api/app/Policies/MedicalProviderLinkPolicy.php` (removed)
+- `backend/camp-burnt-gin-api/database/factories/MedicalProviderLinkFactory.php` (removed)
+- 5 additional supporting files (removed)
+- `backend/camp-burnt-gin-api/app/Providers/AppServiceProvider.php`
+
+---
+
+### BUG-161
+
+**Title:** `RiskAssessment` missing `SoftDeletes` — PHI table had no `deleted_at` column
+**Module:** Security — SoftDeletes
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`RiskAssessment` is a PHI table (contains clinical scoring, override reasons, supervision level) but the model did not use the `SoftDeletes` trait and the underlying table had no `deleted_at` column. Per the project safety layer, PHI tables must never hard-delete records. Any `->delete()` call on a risk assessment would permanently remove the record with no soft-delete recovery path, violating the HIPAA audit trail requirement.
+
+**Fix:**
+Added `SoftDeletes` trait to `RiskAssessment` model and created migration `2026_04_09_000001_add_soft_deletes_to_risk_assessments_table.php`.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Models/RiskAssessment.php`
+- `backend/camp-burnt-gin-api/database/migrations/2026_04_09_000001_add_soft_deletes_to_risk_assessments_table.php` (new)
+
+---
+
+### BUG-162
+
+**Title:** `RiskAssessmentPolicy` not registered — policy never added to `$policies` array in `AppServiceProvider`
+**Module:** Security — Policy Registration
+**Severity:** High
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`RiskAssessmentPolicy` was created and imported at the top of `AppServiceProvider` but was never added to the `$policies` mapping array. Laravel's `Gate::policy()` auto-discovery did not find it because the model and policy namespaces did not follow the exact convention expected. This meant all `$this->authorize(...)` calls in `RiskAssessmentController` fell through to a default-deny with no policy enforcement — effectively treating every policy check as a gate miss rather than an explicit authorization decision.
+
+**Fix:**
+Added `RiskAssessment::class => RiskAssessmentPolicy::class` to the `$policies` array in `AppServiceProvider`.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Providers/AppServiceProvider.php`
+
+---
+
+### BUG-163
+
+**Title:** Missing password reset audit log — `PasswordResetService` did not log `password_reset` event
+**Module:** Audit Log — Auth
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`PasswordResetService::resetPassword()` completed the password change but wrote no audit log entry. On a HIPAA system, all authentication-state changes (password change, password reset, MFA enrollment) must be logged with a timestamp and user reference for compliance auditing. Additionally, any existing MFA step-up cache entry for the user was not invalidated after a password reset — meaning a session that had already passed step-up would continue to have step-up access even after credentials changed.
+
+**Fix:**
+Added `AuditLog::logAuth('password_reset', $user)` call after successful password reset. Added `Cache::forget("mfa_step_up:{$user->id}:*")` pattern invalidation to clear all step-up entries for the user.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Services/Auth/PasswordResetService.php`
+
+---
+
+### BUG-164
+
+**Title:** Local disk file serving enabled — `'serve' => true` in `filesystems.php` allowed direct file access
+**Module:** Security — File Serving
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`config/filesystems.php` had `'serve' => true` on the local disk configuration. With this setting, Laravel's local disk driver can serve files directly via the `storage:link` symlink path, bypassing the authenticated API layer. Any uploaded document (including PHI-adjacent uploads such as medical forms) stored on the local disk could potentially be accessed at a known path without authentication.
+
+**Fix:**
+Set `'serve' => false` on the local disk driver in `filesystems.php`.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/config/filesystems.php`
+
+---
+
+### BUG-165
+
+**Title:** Insecure cookie default — `session.php` `'secure'` key had no truthy default
+**Module:** Security — Cookies
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`config/session.php` `'secure'` was set to `env('SESSION_SECURE_COOKIE')` with no fallback default. If `SESSION_SECURE_COOKIE` is absent from `.env` (common in development setups), the value resolves to `null`, which PHP evaluates as falsy — meaning session cookies would be sent over non-HTTPS connections. On a HIPAA application, this could allow session cookies to be intercepted over plaintext HTTP.
+
+**Fix:**
+Changed to `env('SESSION_SECURE_COOKIE', true)` so the secure flag defaults to `true` and must be explicitly disabled for local development.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/config/session.php`
+
+---
+
+### BUG-166
+
+**Title:** Uninitialized `$lateWarning` — `DocumentRequestController::applicantUpload()` used variable before assignment
+**Module:** DocumentRequestController
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`DocumentRequestController::applicantUpload()` conditionally assigned `$lateWarning` inside an `if ($documentRequest->due_date && ...)` block but referenced it later in the response payload unconditionally. In the code path where `due_date` was null or the condition was false, `$lateWarning` was used as an undefined variable, which in PHP 8 emits a deprecation warning and returns `null` — but could produce incorrect API responses or masking of the uninitialized state.
+
+**Fix:**
+Added `$lateWarning = null;` initialization before the conditional assignment block.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Document/DocumentRequestController.php`
+
+---
+
+### BUG-167
+
+**Title:** `DocumentController::download()` used `auth()` facade instead of `$request->user()`
+**Module:** DocumentController
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`DocumentController::download()` resolved the current user via `auth()->user()` rather than `$request->user()`. The rest of the project consistently uses `$request->user()` for Sanctum token-authenticated requests. The `auth()` facade resolves via the default guard which may not be the Sanctum guard in all contexts, creating a subtle inconsistency where `auth()->user()` could return `null` for API token requests in certain middleware configurations.
+
+**Fix:**
+Changed `auth()->user()` to `$request->user()` in the `download()` method.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Http/Controllers/Api/Document/DocumentController.php`
+
+---
+
+### BUG-168
+
+**Title:** Document tables missing `SoftDeletes` — `Document`, `ApplicantDocument`, `DocumentRequest` had no `deleted_at` column
+**Module:** Security — SoftDeletes
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`Document`, `ApplicantDocument`, and `DocumentRequest` models did not use `SoftDeletes` and their underlying tables had no `deleted_at` column. These tables store references to uploaded files which may include medical forms, insurance cards, and other PHI-adjacent documents. Hard-deleting these records removes the audit trail of what was submitted when — a HIPAA compliance concern. Additionally, any `->delete()` call would be irreversible.
+
+**Fix:**
+Added `SoftDeletes` trait to all three models and created migration `2026_04_09_000002_add_soft_deletes_to_document_tables.php` covering all three tables.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Models/Document.php`
+- `backend/camp-burnt-gin-api/app/Models/ApplicantDocument.php`
+- `backend/camp-burnt-gin-api/app/Models/DocumentRequest.php`
+- `backend/camp-burnt-gin-api/database/migrations/2026_04_09_000002_add_soft_deletes_to_document_tables.php` (new)
+
+---
+
+### BUG-169
+
+**Title:** `CamperPolicy::delete()` allowed deletion with active applications — parent could delete a camper with non-terminal applications
+**Module:** CamperPolicy
+**Severity:** Medium
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`CamperPolicy::delete()` only checked that the user owned the camper (`$user->ownsCamper($camper)`) before granting delete permission. It did not check whether the camper had any active (non-terminal) applications. Deleting a camper with a pending, under_review, approved, or waitlisted application would orphan the application record, break admin review pages that load via `application->camper`, and bypass the application lifecycle entirely.
+
+**Fix:**
+Added a check in `CamperPolicy::delete()` that returns `false` if the camper has any application with a non-terminal status (`pending`, `under_review`, `approved`, `waitlisted`). Admin deletes are not affected — admins use soft-delete and have no frontend delete path.
+
+**Affected files:**
+- `backend/camp-burnt-gin-api/app/Policies/CamperPolicy.php`
+
+---
+
+### BUG-170
+
+**Title:** Frontend waitlisted step missing — `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted`
+**Module:** Applicant Portal — UI
+**Severity:** Low
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`ApplicantApplicationDetailPage` used a `STATUS_STEPS` array to compute `currentIdx` for the application progress stepper. The array contained `['submitted', 'under_review', 'approved']` but omitted `'waitlisted'`. When an application had `status = 'waitlisted'`, `STATUS_STEPS.indexOf('waitlisted')` returned `-1`, causing the stepper to show no active step and the progress bar to render at 0% — visually indicating no progress despite the application being actively in the review pipeline.
+
+**Fix:**
+Added `'waitlisted'` to `STATUS_STEPS` between `'under_review'` and `'approved'`, and updated the step label to show "Waitlisted" in the stepper UI.
+
+**Affected files:**
+- `frontend/src/features/parent/pages/ApplicantApplicationDetailPage.tsx`
+
+---
+
+### BUG-171
+
+**Title:** `getMedicalRecordByCamper` non-nullable return type — function returned `undefined` when no record exists
+**Module:** Frontend — TypeScript Types
+**Severity:** Low
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`getMedicalRecordByCamper()` in `medical.api.ts` was typed as returning `Promise<MedicalRecord>` but the function implementation could return `undefined` (or resolve to `undefined`) when no medical record existed for a camper — a legitimate scenario for newly registered campers. All call sites that destructured the result without null-checking could throw runtime errors or render stale data when the response was undefined.
+
+**Fix:**
+Changed return type annotation to `Promise<MedicalRecord | undefined>` and audited call sites to add appropriate null guards.
+
+**Affected files:**
+- `frontend/src/features/medical/api/medical.api.ts`
+
+---
+
+### BUG-172
+
+**Title:** Frontend inbox state in `localStorage` — `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage`
+**Module:** Inbox / Messaging — HIPAA
+**Severity:** Low
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+The inbox sidebar persistence keys `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` used `localStorage` for persistence. The project HIPAA storage policy (established during the 2026-04-02 forensic audit) requires that all session-associated frontend state use `sessionStorage` so that data is cleared when the browser session ends. Using `localStorage` for inbox folder state could leave evidence of which medical/admin inbox folders were visited on a shared device.
+
+**Fix:**
+Migrated both keys from `localStorage` to `sessionStorage`.
+
+**Affected files:**
+- `frontend/src/features/messaging/components/InboxLayout.tsx` (or equivalent inbox state file)
+
+---
+
+### BUG-173
+
+**Title:** `ProtectedRoute` missing MFA enrollment gate — admin/medical/super_admin not redirected when MFA not enrolled
+**Module:** Auth — MFA Enforcement
+**Severity:** Low
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+`ProtectedRoute` checked `isAuthenticated` and role validity but did not check whether admin, medical, or super_admin users had completed MFA enrollment (`user.mfa_enabled`). Users in these roles who bypassed the frontend login flow (e.g., by injecting a token directly) could access protected portal pages without having enrolled MFA. The backend middleware enforced MFA at the API layer, but the missing frontend gate meant the portal UI would attempt to render rather than immediately redirect to the MFA setup screen.
+
+**Fix:**
+Added MFA enrollment check in `ProtectedRoute`: for `admin`, `medical`, and `super_admin` roles, if `!user.mfa_enabled`, redirect to the portal-specific `/profile` page with `state: { mfaSetupRequired: true }`.
+
+**Affected files:**
+- `frontend/src/core/auth/ProtectedRoute.tsx`
+
+---
+
+### BUG-174
+
+**Title:** Dead `ProviderAccessPage` — `frontend/src/features/provider/` directory contained dead code with no router wiring
+**Module:** Dead Code — Frontend
+**Severity:** Low
+**Status:** Resolved (2026-04-09 — Medical Policy Scoping Forensic Audit)
+
+**Description:**
+The `frontend/src/features/provider/` directory contained a `ProviderAccessPage` component (and supporting files) that was never imported by any router, layout, or lazy-load definition. The page was a remnant of the external provider access system removed in BUG-008 and BUG-160. Dead frontend code increases bundle analysis noise, can cause confusion during future audits, and represents wasted maintenance surface.
+
+**Fix:**
+Removed the entire `frontend/src/features/provider/` directory.
+
+**Affected files:**
+- `frontend/src/features/provider/` (directory removed)
+
+---
+
 ## Summary
 
 ### By Severity
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
-| Critical | 30 | 27 | 3 |
-| High | 41 | 40 | 1 |
-| Medium | 20 | 17 | 3 |
-| Low | 15 | 14 | 1 |
-| **Total** | **106** | **98** | **8** |
+| Critical | 32 | 29 | 3 |
+| High | 51 | 50 | 1 |
+| Medium | 27 | 24 | 3 |
+| Low | 19 | 18 | 1 |
+| **Total** | **129** | **121** | **8** |
 
 _Note: counts above reflect tracked entries in this file. MEMORY.md carries the running total across all phases._
 
@@ -1943,8 +2454,8 @@ _Note: counts above reflect tracked entries in this file. MEMORY.md carries the 
 
 | Status | Count |
 |--------|-------|
-| Resolved | 76 |
-| Open | 9 |
+| Resolved | 121 |
+| Open | 8 |
 
 ### Open Issues
 
@@ -2006,4 +2517,24 @@ _Note: counts above reflect tracked entries in this file. MEMORY.md carries the 
 | Admin Portal — Applications (Data Leak) | BUG-107 |
 | Document Requests — Storage | BUG-108 |
 | Applicant Portal — Draft Submission | BUG-109 |
-| Security — Notifications | BUG-110 |
+| Security — Notifications | BUG-110, BUG-152 |
+| Notifications — PHI | BUG-152 |
+| Audit Log — PHI | BUG-153 |
+| Models — PHI Encryption | BUG-154 |
+| Security — MFA | BUG-155, BUG-156 |
+| Security — Middleware | BUG-157 |
+| Security — Auth | BUG-158 |
+| Security — PHI Encryption | BUG-159 |
+| Dead Code | BUG-160, BUG-174 |
+| Security — SoftDeletes | BUG-161, BUG-168 |
+| Security — Policy Registration | BUG-162 |
+| Audit Log — Auth | BUG-163 |
+| Security — File Serving | BUG-164 |
+| Security — Cookies | BUG-165 |
+| DocumentRequestController | BUG-166 |
+| DocumentController | BUG-167 |
+| CamperPolicy | BUG-169 |
+| Applicant Portal — UI | BUG-170 |
+| Frontend — TypeScript Types | BUG-171 |
+| Inbox / Messaging — HIPAA | BUG-172 |
+| Auth — MFA Enforcement | BUG-173 |

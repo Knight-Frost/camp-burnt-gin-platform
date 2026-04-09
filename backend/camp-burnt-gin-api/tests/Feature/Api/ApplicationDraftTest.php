@@ -191,6 +191,67 @@ class ApplicationDraftTest extends TestCase
             ->assertStatus(403);
     }
 
+    // ─── Optimistic Concurrency Guard ─────────────────────────────────────────
+
+    public function test_save_without_last_known_updated_at_succeeds(): void
+    {
+        // When the client does not send last_known_updated_at, the guard is
+        // skipped and the update succeeds regardless of concurrent modifications.
+        $parent = $this->createParent();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+
+        $this->actingAs($parent)
+            ->putJson("/api/application-drafts/{$draft->id}", [
+                'draft_data' => ['camper' => ['first_name' => 'Alice']],
+            ])
+            ->assertStatus(200);
+    }
+
+    public function test_save_with_correct_last_known_updated_at_succeeds(): void
+    {
+        $parent = $this->createParent();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+        $serverTs = $draft->fresh()->updated_at->toISOString();
+
+        $response = $this->actingAs($parent)
+            ->putJson("/api/application-drafts/{$draft->id}", [
+                'draft_data' => ['camper' => ['first_name' => 'Alice']],
+                'last_known_updated_at' => $serverTs,
+            ]);
+
+        $response->assertStatus(200);
+        // Response must include a refreshed updated_at so the client can track the new value.
+        $this->assertNotNull($response->json('data.updated_at'));
+    }
+
+    public function test_save_with_stale_last_known_updated_at_returns_409(): void
+    {
+        // Simulate a lost-update race: another tab already wrote a newer version.
+        // The client sends an old timestamp → server must reject with 409 Conflict.
+        $parent = $this->createParent();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+
+        // Advance the draft's updated_at by directly touching it in the DB.
+        $staleTs = $draft->updated_at->toISOString();
+        $draft->forceFill(['updated_at' => now()->addSeconds(5)])->save();
+
+        $response = $this->actingAs($parent)
+            ->putJson("/api/application-drafts/{$draft->id}", [
+                'draft_data' => ['camper' => ['first_name' => 'Bob']],
+                'last_known_updated_at' => $staleTs,
+            ]);
+
+        $response->assertStatus(409)
+            ->assertJsonFragment(['conflict' => true])
+            ->assertJsonPath('server_updated_at', $draft->fresh()->updated_at->toISOString());
+
+        // The DB must still hold the newer data, not the rejected payload.
+        $this->assertDatabaseMissing('application_drafts', [
+            'id' => $draft->id,
+            'label' => 'Bob',
+        ]);
+    }
+
     // ─── Delete ────────────────────────────────────────────────────────────────
 
     public function test_owner_can_delete_their_draft(): void

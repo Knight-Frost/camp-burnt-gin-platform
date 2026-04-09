@@ -43,9 +43,18 @@ class MedicalIncidentPolicy
      *
      * All medical staff and admins may view any incident.
      * Parents are excluded — incidents are internal clinical records.
+     *
+     * Medical staff are additionally restricted to active (enrolled) campers only.
+     * Accessing records for inactive/unenrolled campers is blocked to prevent PHI
+     * exposure for applicants who have not been accepted to camp.
      */
     public function view(User $user, MedicalIncident $medicalIncident): bool
     {
+        // Only allow access to records for active (enrolled) campers.
+        if (!$medicalIncident->camper?->is_active) {
+            return false;
+        }
+
         return $user->isAdmin() || $user->isMedicalProvider();
     }
 

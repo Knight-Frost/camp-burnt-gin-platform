@@ -204,9 +204,10 @@ class ValidationTest extends TestCase
 
     public function test_medical_record_requires_camper_id(): void
     {
-        $parent = $this->createParent();
+        // POST /api/medical-records requires role:admin,medical — parent cannot reach validation.
+        $admin = $this->createAdmin();
 
-        $response = $this->actingAs($parent)->postJson('/api/medical-records', [
+        $response = $this->actingAs($admin)->postJson('/api/medical-records', [
             'physician_name' => 'Dr. Test',
         ]);
 
@@ -216,9 +217,9 @@ class ValidationTest extends TestCase
 
     public function test_medical_record_camper_must_exist(): void
     {
-        $parent = $this->createParent();
+        $admin = $this->createAdmin();
 
-        $response = $this->actingAs($parent)->postJson('/api/medical-records', [
+        $response = $this->actingAs($admin)->postJson('/api/medical-records', [
             'camper_id' => 99999,
             'physician_name' => 'Dr. Test',
         ]);
@@ -229,11 +230,12 @@ class ValidationTest extends TestCase
 
     public function test_duplicate_medical_record_rejected(): void
     {
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
         MedicalRecord::factory()->forCamper($camper)->create();
 
-        $response = $this->actingAs($parent)->postJson('/api/medical-records', [
+        $response = $this->actingAs($admin)->postJson('/api/medical-records', [
             'camper_id' => $camper->id,
             'physician_name' => 'Dr. Test',
         ]);

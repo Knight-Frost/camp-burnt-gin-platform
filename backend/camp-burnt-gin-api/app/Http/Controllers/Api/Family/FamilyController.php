@@ -54,7 +54,8 @@ class FamilyController extends Controller
         // Used for both the paginated list query and the aggregate summary queries,
         // so the summary stats always reflect the full filtered dataset — not just the current page.
         $applyFilters = function ($q) use ($request) {
-            $q->whereHas('role', fn ($r) => $r->where('name', 'applicant'));
+            $q->whereHas('role', fn ($r) => $r->where('name', 'applicant'))
+              ->where('is_active', true);
 
             // Full-text search across guardian identity and child names.
             if ($request->filled('search')) {

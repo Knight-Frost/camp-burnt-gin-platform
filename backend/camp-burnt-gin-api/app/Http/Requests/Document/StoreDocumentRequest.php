@@ -35,6 +35,23 @@ class StoreDocumentRequest extends FormRequest
             return $user->isAdmin() || $user->isMedicalProvider() || $user->ownsCamper($camper);
         }
 
+        if ($this->documentable_type === 'App\\Models\\Application') {
+            $application = \App\Models\Application::find($this->documentable_id);
+            if (! $application) {
+                return false;
+            }
+
+            $user = $this->user();
+
+            // Admins can upload to any application.
+            if ($user->isAdmin()) {
+                return true;
+            }
+
+            // Applicants can only upload to their own camper's applications.
+            return $application->camper?->user_id === $user->id;
+        }
+
         return true;
     }
 

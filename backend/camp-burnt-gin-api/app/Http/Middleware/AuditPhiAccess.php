@@ -41,10 +41,10 @@ class AuditPhiAccess
         'medications.*',
         'emergency-contacts.*',
         'documents.*',
-        'provider-access.*',
         'applications.show',
         'applications.store',
         'applications.review',
+        'campers.index',
         'campers.show',
         'campers.risk-summary',
         'campers.compliance-status',
@@ -87,15 +87,13 @@ class AuditPhiAccess
     /**
      * Decide whether this request should be recorded in the audit log.
      *
-     * Unauthenticated requests are only audited for provider-access routes
-     * (where a guest might be using a shared provider link token).
-     * All other requests must match a PHI route pattern AND succeed (2xx).
+     * All requests must match a PHI route pattern AND succeed (2xx).
      */
     protected function shouldAudit(Request $request, Response $response): bool
     {
-        // Unauthenticated requests: only audit provider-access link routes.
+        // Unauthenticated requests have no PHI access to audit.
         if (! $request->user()) {
-            return $request->routeIs('provider-access.*');
+            return false;
         }
 
         // If no route was matched (e.g., 404), there is nothing to audit.
@@ -139,7 +137,10 @@ class AuditPhiAccess
 
             AuditLog::create([
                 // X-Request-ID ties this log entry back to a specific request trace.
-                'request_id' => $request->header('X-Request-ID'),
+                // Fall back to a fresh UUID if the client did not send the header — the
+                // column is NOT NULL, so a null would cause a silent DB exception and
+                // the PHI access would go unlogged, violating HIPAA §164.312(b).
+                'request_id' => $request->header('X-Request-ID', \Illuminate\Support\Str::uuid()->toString()),
                 'user_id' => $request->user()?->id,
                 'event_type' => AuditLog::EVENT_TYPE_PHI_ACCESS,
                 'action' => $action,

@@ -40,7 +40,7 @@ export async function getMedicalRecord(id: number): Promise<MedicalRecord> {
   return data.data;
 }
 
-export async function getMedicalRecordByCamper(camperId: number): Promise<MedicalRecord> {
+export async function getMedicalRecordByCamper(camperId: number): Promise<MedicalRecord | undefined> {
   const { data } = await axiosInstance.get<PaginatedResponse<MedicalRecord>>('/medical-records', {
     params: { camper_id: camperId },
   });

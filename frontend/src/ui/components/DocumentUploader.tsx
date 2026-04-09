@@ -5,7 +5,7 @@
  * status indicators.
  *
  * Responsibilities:
- *   - Accepts PDF, JPEG, PNG, and WebP files up to 10 MB each.
+ *   - Accepts PDF, JPEG, and PNG files up to 10 MB each.
  *   - Validates file type and size before uploading; silently rejects invalid files.
  *   - Uploads each valid file immediately via POST /api/documents (multipart/form-data).
  *   - Tracks per-file upload progress using Axios's onUploadProgress callback.
@@ -23,8 +23,9 @@ import axiosInstance from '@/api/axios.config';
 import type { Document } from '@/shared/types';
 import { cn } from '@/shared/utils/cn';
 
-// MIME types the component accepts — matched against File.type from the browser.
-const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+// MIME types the component accepts — must match Document::ALLOWED_MIME_TYPES on the backend.
+// webp is intentionally excluded: the backend does not accept it (no entry in ALLOWED_MIME_TYPES).
+const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_SIZE_MB = 10;
 
 /** Tracks the state of a single file from selection through upload completion. */

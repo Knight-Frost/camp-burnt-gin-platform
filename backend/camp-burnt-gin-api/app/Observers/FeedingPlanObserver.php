@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\FeedingPlan;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * FeedingPlanObserver — triggers automatic risk re-assessment when a camper's feeding plan changes.
@@ -35,8 +36,15 @@ class FeedingPlanObserver
         $camper = $feedingPlan->camper;
 
         if ($camper) {
-            // Re-score the camper — feeding plan changes significantly affect care complexity
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('FeedingPlanObserver: failed to re-assess risk after feeding plan saved', [
+                    'feeding_plan_id' => $feedingPlan->id,
+                    'camper_id'       => $camper->id,
+                    'error'           => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

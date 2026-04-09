@@ -337,7 +337,9 @@ export interface Document {
   name?: string;
   document_type: string | null;
   mime_type: string;
-  size: number;
+  /** Mapped to "size" by DocumentController.transformDocument(); raw eager-loads return file_size. */
+  size?: number;
+  file_size?: number;
   created_at: string;
   url: string;
 }
@@ -535,4 +537,83 @@ export interface SessionDashboardStats {
   }>;
   age_distribution: Record<string, number>;
   gender_distribution: Record<string, number>;
+}
+
+// ── Risk Assessment (Phase 16) ───────────────────────────────────────────────
+
+export type RiskLevelColor = 'low' | 'moderate' | 'high';
+export type RiskReviewStatus = 'system_calculated' | 'reviewed' | 'overridden';
+export type SupervisionLevelValue = 'standard' | 'enhanced' | 'one_to_one';
+
+export interface RiskFactor {
+  key: string;
+  label: string;
+  category: 'medical' | 'behavioral' | 'physical' | 'feeding' | 'allergy';
+  points: number;
+  present: boolean;
+  count?: number;
+  per_item?: boolean;
+  source: string;
+  tooltip: string;
+}
+
+export interface RiskRecommendation {
+  flag: string;
+  priority: 'critical' | 'high' | 'standard';
+  text: string;
+}
+
+export interface RiskAssessmentReviewer {
+  id: number;
+  name: string;
+}
+
+export interface RiskAssessment {
+  id: number;
+  camper_id: number;
+  calculated_at: string;
+
+  // Score
+  risk_score: number;
+  risk_level: string;
+  risk_level_color: RiskLevelColor;
+
+  // System-calculated supervision
+  supervision_level: SupervisionLevelValue;
+  supervision_label: string;
+  staffing_ratio: string;
+
+  // Effective supervision (may differ if overridden)
+  effective_supervision_level: SupervisionLevelValue;
+  effective_supervision_label: string;
+  effective_staffing_ratio: string;
+  is_overridden: boolean;
+
+  // Complexity tier
+  medical_complexity_tier: 'low' | 'moderate' | 'high';
+  complexity_label: string;
+
+  // Factor breakdown and flags
+  flags: string[];
+  factor_breakdown: RiskFactor[];
+
+  // Review state
+  review_status: RiskReviewStatus;
+  review_status_label: string;
+  is_reviewed_by_staff: boolean;
+  reviewed_by: RiskAssessmentReviewer | null;
+  reviewed_at: string | null;
+  clinical_notes: string | null;
+
+  // Override
+  override_supervision_level: SupervisionLevelValue | null;
+  override_supervision_label: string | null;
+  override_reason: string | null;
+  overridden_by: RiskAssessmentReviewer | null;
+  overridden_at: string | null;
+
+  // Recommendations
+  recommendations?: RiskRecommendation[];
+
+  is_current: boolean;
 }

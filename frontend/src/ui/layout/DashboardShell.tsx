@@ -39,6 +39,7 @@ import {
 } from '@/ui/context/BackgroundBrightnessContext';
 import { MfaWarningBanner } from '@/ui/components/MfaWarningBanner';
 import { MfaRequiredModal } from '@/ui/components/MfaRequiredModal';
+import { MfaStepUpModal } from '@/ui/components/MfaStepUpModal';
 // MessagingCountProvider is now mounted at the AppProviders level (providers.tsx)
 // so it covers ALL portals including applicant and medical. No longer needed here.
 
@@ -143,9 +144,13 @@ function ShellInner({
         )}
       </div>
 
-      {/* Modal shown when a sensitive action is blocked due to missing MFA.
-          Event-driven — listens for auth:mfa-setup-required from axios interceptor. */}
+      {/* Shown when a sensitive action is blocked due to missing MFA enrollment.
+          Directs the user to their profile to set up MFA. */}
       <MfaRequiredModal />
+
+      {/* Shown when MFA is enrolled but step-up verification is required.
+          Prompts for a TOTP code and retries the blocked request on success. */}
+      <MfaStepUpModal />
     </div>
   );
 }

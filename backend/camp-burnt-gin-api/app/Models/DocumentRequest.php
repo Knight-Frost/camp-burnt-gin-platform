@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Enums\DocumentRequestStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * DocumentRequest — tracks admin-initiated document request lifecycle.
@@ -18,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DocumentRequest extends Model
 {
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
         'applicant_id',
         'application_id',

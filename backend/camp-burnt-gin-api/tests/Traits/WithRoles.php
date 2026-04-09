@@ -50,31 +50,49 @@ trait WithRoles
     /**
      * Create a super admin user.
      *
-     * Defaults to mfa_enabled = true because super_admin accounts must have MFA
-     * enrolled before they can access any protected endpoint (EnsureUserIsAdmin).
-     * Pass ['mfa_enabled' => false] explicitly to test the unenrolled state.
+     * Defaults to mfa_enabled = true. When MFA is enabled, a step-up grant is
+     * automatically seeded so tests that call mfa.step_up-protected routes do not
+     * need to manually call grantMfaStepUp(). Pass ['mfa_enabled' => false] to
+     * create a user without MFA for enrollment/step-up negative-path tests.
      */
     protected function createSuperAdmin(array $attributes = []): User
     {
-        return User::factory()->create(array_merge([
+        $user = User::factory()->create(array_merge([
             'role_id' => $this->superAdminRole->id,
             'mfa_enabled' => true,
         ], $attributes));
+
+        // Auto-grant step-up so tests exercising sensitive routes pass by default.
+        // Only granted when MFA is actually enabled — there is nothing to step up to otherwise.
+        if ($user->mfa_enabled) {
+            $this->grantMfaStepUp($user);
+        }
+
+        return $user;
     }
 
     /**
      * Create an admin user.
      *
-     * Defaults to mfa_enabled = true because admin accounts must have MFA enrolled
-     * before they can access any protected endpoint (EnsureUserIsAdmin).
-     * Pass ['mfa_enabled' => false] explicitly to test the unenrolled state.
+     * Defaults to mfa_enabled = true. When MFA is enabled, a step-up grant is
+     * automatically seeded so tests that call mfa.step_up-protected routes do not
+     * need to manually call grantMfaStepUp(). Pass ['mfa_enabled' => false] to
+     * create a user without MFA for enrollment/step-up negative-path tests.
      */
     protected function createAdmin(array $attributes = []): User
     {
-        return User::factory()->create(array_merge([
+        $user = User::factory()->create(array_merge([
             'role_id' => $this->adminRole->id,
             'mfa_enabled' => true,
         ], $attributes));
+
+        // Auto-grant step-up so tests exercising sensitive routes pass by default.
+        // Only granted when MFA is actually enabled — there is nothing to step up to otherwise.
+        if ($user->mfa_enabled) {
+            $this->grantMfaStepUp($user);
+        }
+
+        return $user;
     }
 
     /**

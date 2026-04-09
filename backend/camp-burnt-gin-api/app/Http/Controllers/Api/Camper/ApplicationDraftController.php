@@ -79,7 +79,14 @@ class ApplicationDraftController extends Controller
      * Save (overwrite) the draft data. Called on every auto-save.
      *
      * PUT /api/application-drafts/{draft}
-     * Body: { label?: string, draft_data: object }
+     * Body: { label?: string, draft_data: object, last_known_updated_at?: string }
+     *
+     * Optimistic concurrency guard: if the caller supplies last_known_updated_at
+     * and it does not match the server's current updated_at, the request is
+     * rejected with 409 Conflict. This prevents the "two-tab lost-update" race
+     * condition where a second browser tab overwrites progress from the first.
+     * Callers should pass the updated_at value they received from the last
+     * successful fetch or save and refresh their local copy on 409.
      */
     public function update(Request $request, ApplicationDraft $draft): JsonResponse
     {
@@ -88,7 +95,22 @@ class ApplicationDraftController extends Controller
         $validated = $request->validate([
             'label' => ['sometimes', 'string', 'max:255'],
             'draft_data' => ['required', 'array'],
+            'last_known_updated_at' => ['sometimes', 'nullable', 'string'],
         ]);
+
+        // Optimistic locking: reject if the client's last-known timestamp doesn't
+        // match the server's current updated_at, indicating a concurrent save won.
+        if (! empty($validated['last_known_updated_at'])) {
+            $clientTs = $validated['last_known_updated_at'];
+            $serverTs = $draft->updated_at?->toISOString();
+            if ($clientTs !== $serverTs) {
+                return response()->json([
+                    'message' => 'Draft was modified in another tab or session. Please reload to see the latest version.',
+                    'conflict' => true,
+                    'server_updated_at' => $serverTs,
+                ], Response::HTTP_CONFLICT);
+            }
+        }
 
         $draft->update([
             'label' => $validated['label'] ?? $draft->label,

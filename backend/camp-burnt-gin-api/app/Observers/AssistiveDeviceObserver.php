@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\AssistiveDevice;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * AssistiveDeviceObserver — triggers automatic risk re-assessment when a camper's assistive devices change.
@@ -33,8 +34,15 @@ class AssistiveDeviceObserver
         $camper = $assistiveDevice->camper;
 
         if ($camper) {
-            // Re-score the camper — device changes may affect transfer assistance burden
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('AssistiveDeviceObserver: failed to re-assess risk after device saved', [
+                    'device_id' => $assistiveDevice->id,
+                    'camper_id' => $camper->id,
+                    'error'     => $e->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -51,8 +59,15 @@ class AssistiveDeviceObserver
         $camper = $assistiveDevice->camper;
 
         if ($camper) {
-            // Re-score after deletion — removing a high-burden device may lower the risk level
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('AssistiveDeviceObserver: failed to re-assess risk after device deleted', [
+                    'device_id' => $assistiveDevice->id,
+                    'camper_id' => $camper->id,
+                    'error'     => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

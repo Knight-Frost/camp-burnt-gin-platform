@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { getCampers } from '@/features/admin/api/admin.api';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
+import { Tooltip } from '@/ui/components/Tooltip';
 import type { Camper } from '@/features/admin/types/admin.types';
 import type { PaginatedResponse } from '@/shared/types/api.types';
 import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
@@ -161,8 +162,15 @@ export function AdminCampersPage() {
             >
               <div className="col-span-3">{t('admin.campers.col_name')}</div>
               <div className="col-span-2">{t('admin.campers.col_dob')}</div>
-              <div className="col-span-4">Parent / Guardian</div>
-              <div className="col-span-1">Status</div>
+              <div className="col-span-3">Parent / Guardian</div>
+              <div className="col-span-2">
+                <Tooltip
+                  placement="top"
+                  content="Active — camper has an approved application for the current session. Inactive — no approved application on file."
+                >
+                  <span className="cursor-default underline decoration-dotted">Status</span>
+                </Tooltip>
+              </div>
               <div className="col-span-1">{t('admin.campers.col_risk')}</div>
               <div className="col-span-1" />
             </div>
@@ -191,7 +199,7 @@ export function AdminCampersPage() {
                 </div>
 
                 {/* Parent — plain column value, not a structural grouper */}
-                <div className="col-span-4 min-w-0">
+                <div className="col-span-3 min-w-0">
                   {camper.user ? (
                     <div className="min-w-0">
                       <Link
@@ -213,7 +221,7 @@ export function AdminCampersPage() {
                 </div>
 
                 {/* Active status — reflects whether camper has an approved application */}
-                <div className="col-span-1">
+                <div className="col-span-2">
                   {camper.is_active != null && (
                     <span
                       className="text-xs font-medium px-2 py-0.5 rounded-full"
@@ -226,10 +234,10 @@ export function AdminCampersPage() {
                   )}
                 </div>
 
-                {/* Risk / detail link */}
+                {/* Risk link — goes directly to the dedicated risk assessment page */}
                 <div className="col-span-1">
                   <Link
-                    to={`${camperBase}/${camper.id}`}
+                    to={`${camperBase}/${camper.id}/risk`}
                     className="inline-flex items-center gap-1 text-xs"
                     style={{ color: 'var(--night-sky-blue)' }}
                   >
@@ -245,7 +253,7 @@ export function AdminCampersPage() {
                     className="text-xs px-2.5 py-1 rounded border transition-colors"
                     style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
                   >
-                    {t('common.view')}
+                    {t('admin.campers.view_profile')}
                   </Link>
                 </div>
               </div>

@@ -27,7 +27,12 @@ class EnsureUserIsAdmin
      * Steps:
      *  1. Confirm the user is authenticated.
      *  2. Confirm the user is an admin (or super_admin).
-     *  3. Pass the request through if both checks pass.
+     *  3. Pass the request through.
+     *
+     * MFA is NOT enforced here — that is handled by the separate mfa.enrolled
+     * and mfa.step_up middleware layers applied to individual routes that need them.
+     * Admins must be able to reach their profile page to complete MFA enrollment
+     * before they can access PHI or sensitive action routes.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
@@ -48,17 +53,6 @@ class EnsureUserIsAdmin
         if (! $user->isAdmin()) {
             return response()->json([
                 'message' => 'Access denied. Administrator privileges required.',
-            ], Response::HTTP_FORBIDDEN);
-        }
-
-        // Admin and super_admin roles require MFA enrollment before accessing
-        // protected routes. This closes the gap between "MFA set up" (enforced
-        // at login) and "MFA enrolled" (enforced here for elevated privileges).
-        if (! $user->mfa_enabled) {
-            return response()->json([
-                'message' => 'Multi-factor authentication is required for your account type. '
-                    .'Please enable MFA in your security settings before accessing this area.',
-                'mfa_setup_required' => true,
             ], Response::HTTP_FORBIDDEN);
         }
 

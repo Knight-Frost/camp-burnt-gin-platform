@@ -2,7 +2,7 @@
 ## Camp Burnt Gin — Camp Management System
 
 **Document Version:** 1.0  
-**Report Date:** 2026-04-06  
+**Report Date:** 2026-04-09  
 **Classification:** Internal Compliance Document — Restricted Distribution  
 **Regulatory Framework:** Health Insurance Portability and Accountability Act (HIPAA), 45 CFR Parts 160 and 164  
 **Prepared By:** Security Engineering Team  
@@ -38,7 +38,7 @@ This report does not cover physical datacenter controls (a deployment infrastruc
 
 ### Status
 
-Following a two-phase forensic security audit and hardening cycle completed 2026-04-06, the application is in **substantial compliance** with applicable HIPAA technical and administrative safeguards. All critical and high-severity findings have been remediated. Identified gaps are documented in Section 8 with remediation plans.
+Following a three-phase forensic security audit and hardening cycle completed 2026-04-09, the application is in **substantial compliance** with applicable HIPAA technical and administrative safeguards. All critical and high-severity findings have been remediated. Identified gaps are documented in Section 8 with remediation plans.
 
 ---
 
@@ -53,7 +53,7 @@ The system enforces role-based access control (RBAC) across four roles: `applica
 Access to PHI is further restricted by:
 
 - **Laravel Policies:** 18 policy classes define resource-level access rules based on role, ownership, and relationship
-- **Middleware enforcement:** `EnsureUserIsAdmin`, `EnsureUserIsMedicalProvider`, and `EnsureUserHasRole` validate role membership and MFA enrollment before any controller logic is reached
+- **Middleware enforcement:** `EnsureUserIsAdmin`, `EnsureUserIsMedicalProvider`, and `EnsureUserHasRole` validate role membership before any controller logic is reached. MFA enrollment is enforced separately via the `mfa.enrolled` route middleware alias on all protected route groups; the role middleware does not duplicate this check
 - **Controller-level authorization:** `$this->authorize()` is called at the entry point of every protected controller method, ensuring policy enforcement cannot be bypassed via middleware configuration changes
 - **Frontend RoleGuard:** Elevated-role routes on the React SPA are wrapped in a `RoleGuard` component that prevents rendering if the user's role does not meet the requirement
 
@@ -116,7 +116,7 @@ The `AuditLog` Eloquent model records:
 - **Administrative action events:** Application status transitions, user account creation, role changes
 - **Authentication events:** Login, logout, MFA enrollment, password reset
 
-Each audit record includes: `user_id`, `editor_role`, `action`, `entity_type`, `entity_id`, `description`, `metadata` (structured JSON), `ip_address`, `user_agent`, `created_at`.
+Each audit record includes: `request_id`, `user_id`, `event_type`, `auditable_type`, `auditable_id`, `action`, `description`, `old_values`, `new_values`, `metadata` (structured JSON), `ip_address`, `user_agent`, `created_at`. There is no `updated_at` column; audit records are immutable by design.
 
 The audit log is accessible only to `super_admin` users via a rate-limited export endpoint (5 exports per hour), preventing bulk extraction.
 
@@ -251,25 +251,28 @@ The `AuditLog` model records four event categories:
 Every audit record captures:
 
 - `user_id` — foreign key to `users` table (authenticated user performing the action)
-- `editor_role` — role string at time of action (e.g., `"admin"`, `"medical"`, `"super_admin"`)
 - `ip_address` — request IP address
 - `user_agent` — client user agent string
+- `request_id` — correlation ID from the `X-Request-ID` header for distributed tracing
 
 ### What Fields Are Stored
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | UUID | Unique audit record identifier |
-| `user_id` | FK | Performing user |
-| `editor_role` | string | Role at time of action |
-| `action` | string | Action type (e.g., `phi_access`, `content_change`, `status_transition`) |
-| `entity_type` | string | Model class name (e.g., `App\Models\MedicalRecord`) |
-| `entity_id` | string | Primary key of affected record |
-| `description` | string | Human-readable description of the event |
-| `metadata` | JSON | Structured data (e.g., before/after snapshot for content changes) |
-| `ip_address` | string | Request originator IP |
-| `user_agent` | string | Client browser/user agent |
-| `created_at` | timestamp | Event timestamp (UTC) |
+| `id` | BIGINT | Auto-increment primary key |
+| `request_id` | VARCHAR(255) | Unique request identifier for correlation |
+| `user_id` | FK | Performing user (FK to users, SET NULL on delete) |
+| `event_type` | VARCHAR(50) | Category: `phi_access`, `admin_action`, `auth`, `security`, `data_change`, `file_access` |
+| `auditable_type` | VARCHAR(255) | Model class name (e.g., `App\Models\MedicalRecord`) |
+| `auditable_id` | BIGINT | Primary key of affected record |
+| `action` | VARCHAR(50) | Action type (e.g., `view`, `create`, `update`, `delete`, `document_view`) |
+| `description` | TEXT | Human-readable description of the event |
+| `old_values` | JSON | State before change (content change events only) |
+| `new_values` | JSON | State after change (content change events only) |
+| `metadata` | JSON | Structured request or action details |
+| `ip_address` | VARCHAR(45) | Request originator IP (IPv4 or IPv6) |
+| `user_agent` | TEXT | Client browser/user agent |
+| `created_at` | TIMESTAMP | Event timestamp (UTC) |
 
 ### Traceability and Export
 
@@ -378,4 +381,4 @@ The following gaps were identified and are tracked for remediation. None represe
 
 *End of HIPAA Compliance Alignment Report*
 
-*This document reflects the state of the system as of 2026-04-06 and should be reviewed following any significant architectural change, regulatory update, or security incident. The next scheduled review is 2026-10-06.*
+*This document reflects the state of the system as of 2026-04-09 following a third-phase forensic audit that remediated BUG-175 (MFA middleware bootstrap deadlock in EnsureUserIsMedicalProvider), BUG-177 (document metadata view not audit-logged), and BUG-178 (all five CSV report exports not audit-logged). It should be reviewed following any significant architectural change, regulatory update, or security incident. The next scheduled review is 2026-10-09.*

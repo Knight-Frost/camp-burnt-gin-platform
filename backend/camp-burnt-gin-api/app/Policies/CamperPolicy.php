@@ -105,9 +105,24 @@ class CamperPolicy
      *
      * Deletion is a serious action that removes a child from the system.
      * The same ownership rules as update apply — admins or the child's parent only.
+     *
+     * Guard: deletion is blocked for any camper who has applications in a non-terminal
+     * status (draft, submitted, under_review, waitlisted, approved). Deleting a camper
+     * with active applications would leave those application records referencing a
+     * non-existent camper, corrupting the application workflow and audit trail.
+     * Terminal statuses (rejected, withdrawn, cancelled) do not block deletion.
      */
     public function delete(User $user, Camper $camper): bool
     {
+        // Prevent deletion if camper has any non-terminal applications.
+        $hasActiveApplications = $camper->applications()
+            ->whereNotIn('status', ['rejected', 'withdrawn', 'cancelled'])
+            ->exists();
+
+        if ($hasActiveApplications) {
+            return false;
+        }
+
         // Admins always get through.
         if ($user->isAdmin()) {
             return true;
@@ -121,25 +136,4 @@ class CamperPolicy
         return false;
     }
 
-    /**
-     * Can the user create a medical provider link for this camper?
-     *
-     * A "provider link" associates a medical provider account with a specific
-     * camper so they can access that child's medical data. Only admins and
-     * the child's own parent may authorise this connection (FR-19).
-     */
-    public function createProviderLink(User $user, Camper $camper): bool
-    {
-        // Admins always get through.
-        if ($user->isAdmin()) {
-            return true;
-        }
-
-        // Only the parent who owns this camper can create a provider link.
-        if ($user->isApplicant() && $user->ownsCamper($camper)) {
-            return true;
-        }
-
-        return false;
-    }
 }

@@ -65,6 +65,7 @@ The document management system provides secure file upload, storage, and retriev
 | is_scanned | BOOLEAN | Security scan completed |
 | scan_passed | BOOLEAN | Scan result (null = pending) |
 | scanned_at | TIMESTAMP | Scan completion timestamp |
+| deleted_at | TIMESTAMP | Soft-delete timestamp (null = active) |
 
 ### Relationships
 
@@ -108,6 +109,19 @@ public const ALLOWED_MIME_TYPES = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 ```
+
+### Frontend MIME Type Restriction
+
+The `DocumentUploader.tsx` React component enforces a client-side subset of the backend's allowed types. The `accept` attribute and the `ACCEPTED_TYPES` constant are intentionally more restrictive to match the most common use cases and avoid user-facing errors from uploading file types that the backend permits but that are rarely needed:
+
+```typescript
+// DocumentUploader.tsx — ACCEPTED_TYPES
+const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+```
+
+WebP images are explicitly excluded. Although WebP is a valid image format, the backend `Document::ALLOWED_MIME_TYPES` does not include `image/webp`. Allowing WebP on the frontend would result in files that pass client-side validation and then fail silently on the server.
+
+The backend is the authoritative validation layer. The frontend restriction is a usability safeguard only.
 
 ### File Size Limit
 
@@ -373,6 +387,34 @@ DELETE /api/documents/{id}
 
 **Response:** 204 No Content
 
+### Document Deletion Lifecycle
+
+The `Document` model uses Laravel's `SoftDeletes` trait. Deletion behavior differs depending on the type of delete operation:
+
+| Operation | Database record | Physical file |
+|---|---|---|
+| `$document->delete()` (soft delete) | Sets `deleted_at`; row remains | **Preserved** — file stays on disk |
+| `$document->forceDelete()` (hard delete) | Row removed permanently | **Deleted** — file removed from disk |
+
+Soft-delete intentionally preserves the physical file so that the document can be fully restored (including its binary content) if `restore()` is called on the record. Restoring a soft-deleted record without the underlying file would result in a broken reference.
+
+The physical file deletion on `forceDelete()` is handled by a model observer registered in `Document::booted()`:
+
+```php
+protected static function booted(): void
+{
+    static::forceDeleting(function (Document $document): void {
+        if ($document->disk && $document->path) {
+            Storage::disk($document->disk)->delete($document->path);
+        }
+    });
+}
+```
+
+If the file cannot be deleted (e.g., already missing), the failure is logged as a warning and does not block the database row deletion. This prevents orphaned rows from accumulating when storage-side inconsistencies occur.
+
+**HIPAA implication:** `forceDelete()` is the only approved mechanism for permanent PHI removal. It must not be called on active documents and should be part of a formal data disposal process documented separately.
+
 ---
 
 ## Polymorphic Associations
@@ -417,7 +459,7 @@ GET /api/medical-records/10
 
 | Action | Rule |
 |--------|------|
-| View | User owns parent OR admin OR medical provider (via link) |
+| View | User owns parent OR admin OR medical role |
 | Upload | User owns parent OR admin |
 | Download | Can view AND scan passed (OR admin) |
 | Delete | Uploader OR admin |
@@ -468,5 +510,5 @@ For related documentation, see:
 ---
 
 **Document Status:** Authoritative
-**Last Updated:** February 2026
-**Version:** 1.0.0
+**Last Updated:** April 2026 (2026-04-09) — Full System Forensic Audit; added soft-delete/forceDelete file lifecycle section; added frontend MIME type restriction note; removed stale provider-link reference; added deleted_at to schema
+**Version:** 1.1.0

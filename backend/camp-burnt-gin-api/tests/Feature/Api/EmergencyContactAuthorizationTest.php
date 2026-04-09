@@ -125,13 +125,6 @@ class EmergencyContactAuthorizationTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $contact = EmergencyContact::factory()->forCamper($camper)->create();
 
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-            'revoked_at' => null,
-            'expires_at' => now()->addDays(1),
-        ]);
-
         $response = $this->actingAs($medical)->getJson("/api/emergency-contacts/{$contact->id}");
 
         $response->assertStatus(200);

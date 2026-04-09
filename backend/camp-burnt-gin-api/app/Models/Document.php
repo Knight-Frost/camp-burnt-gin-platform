@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Document model — represents an uploaded file attached to any entity in the system.
@@ -29,7 +31,36 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class Document extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    /**
+     * Bootstrap model events.
+     *
+     * forceDeleting fires when a record is permanently removed (via forceDelete()
+     * or pruning soft-deleted rows). This ensures the physical file on disk is
+     * always removed alongside the database row, preventing orphaned file
+     * accumulation in storage. Soft-delete alone does NOT touch the file — the
+     * file must remain available if the record is later restored.
+     *
+     * If Storage::delete() fails (e.g. file already removed), we log the error
+     * rather than aborting — the DB row should still be cleaned up.
+     */
+    protected static function booted(): void
+    {
+        static::forceDeleting(function (Document $document): void {
+            if ($document->disk && $document->path) {
+                try {
+                    Storage::disk($document->disk)->delete($document->path);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Document file could not be deleted during force-delete', [
+                        'document_id' => $document->id,
+                        'disk' => $document->disk,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.

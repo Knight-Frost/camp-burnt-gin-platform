@@ -61,10 +61,6 @@ class ApplicationStatusChangedNotification extends Notification
                 ->line('Camper: '.$this->application->camper->full_name)
                 ->line('Camp Session: '.$this->application->campSession->name);
 
-            if ($this->application->notes) {
-                $message->line('Notes: '.$this->application->notes);
-            }
-
             $message->line('If you have any questions, please contact us.');
         } else {
             $message->subject('Application Status Update - Camp Burnt Gin')

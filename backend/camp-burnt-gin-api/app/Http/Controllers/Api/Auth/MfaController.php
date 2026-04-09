@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Services\Auth\MfaService;
 use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
@@ -98,6 +99,9 @@ class MfaController extends Controller
             ], Response::HTTP_UNAUTHORIZED);
         }
 
+        // Audit: MFA enable is a security-critical event — always record it.
+        AuditLog::logAuth('mfa_enabled', $user);
+
         // Notify the user via the system inbox that MFA was enabled on their account.
         $this->systemNotifications->mfaEnabled($user);
 
@@ -107,6 +111,50 @@ class MfaController extends Controller
                 // Recovery codes let the user bypass MFA if they lose their authenticator app.
                 'recovery_codes' => $result['recovery_codes'] ?? [],
             ],
+        ]);
+    }
+
+    /**
+     * Complete a step-up authentication challenge.
+     *
+     * POST /api/mfa/step-up
+     *
+     * Called immediately before a sensitive or destructive action. The user
+     * submits a current TOTP code to prove they still have possession of their
+     * second factor. On success, MfaService records a short-lived cache entry
+     * that EnsureMfaStepUp middleware will accept for the next N minutes.
+     *
+     * Step-by-step:
+     *   1. Validate that a 6-digit code was submitted.
+     *   2. Delegate to MfaService which checks the code and records the grant.
+     *   3. Return 200 on success so the frontend can retry the blocked action.
+     *
+     * Rate limited: 5 attempts per 10 minutes (via throttle:mfa on the route).
+     */
+    public function stepUp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = $request->user();
+
+        if (! $user->mfa_enabled) {
+            return response()->json([
+                'message' => 'MFA is not enabled on this account. Enable MFA before performing step-up.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $result = $this->mfaService->verifyStepUp($user, $request->code);
+
+        if (! $result['success']) {
+            return response()->json([
+                'message' => $result['message'],
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        return response()->json([
+            'message' => 'Step-up verification successful.',
         ]);
     }
 
@@ -142,6 +190,9 @@ class MfaController extends Controller
                 'message' => $result['message'],
             ], Response::HTTP_BAD_REQUEST);
         }
+
+        // Audit: MFA disable is a security-critical event — always record it.
+        AuditLog::logAuth('mfa_disabled', $user);
 
         // Alert the user via inbox that MFA was disabled — important security transparency.
         $this->systemNotifications->mfaDisabled($user);

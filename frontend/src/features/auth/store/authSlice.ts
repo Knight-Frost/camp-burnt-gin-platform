@@ -41,6 +41,11 @@ interface AuthState {
   sessionId: string | null;
   // Unix timestamp (ms) of the last recorded user activity (for timeout tracking)
   lastActivity: number | null;
+  // Unix timestamp (ms) when a step-up MFA challenge was last completed.
+  // null means no step-up has been verified in this session.
+  // The backend cache (TTL 15 min) is authoritative — this mirrors it locally
+  // so the UI can show "verified" state without an extra round-trip.
+  mfaStepUpVerifiedAt: number | null;
 }
 
 const initialState: AuthState = {
@@ -54,6 +59,7 @@ const initialState: AuthState = {
   mfaVerified: false,
   sessionId: null,
   lastActivity: null,
+  mfaStepUpVerifiedAt: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -91,6 +97,14 @@ const authSlice = createSlice({
     /** Signal that the user has completed MFA verification */
     setMfaVerified(state, action: PayloadAction<boolean>) {
       state.mfaVerified = action.payload;
+    },
+
+    /**
+     * Record that a step-up MFA challenge was completed successfully.
+     * Pass Date.now() on success; pass null to clear (e.g. on MFA disable).
+     */
+    setMfaStepUpVerifiedAt(state, action: PayloadAction<number | null>) {
+      state.mfaStepUpVerifiedAt = action.payload;
     },
 
     /** Store the current session identifier */
@@ -150,6 +164,7 @@ export const {
   setToken,
   setMfaRequired,
   setMfaVerified,
+  setMfaStepUpVerifiedAt,
   setSessionId,
   updateLastActivity,
   setLoading,

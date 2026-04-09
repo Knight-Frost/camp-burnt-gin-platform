@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\BehavioralProfile;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * BehavioralProfileObserver — triggers automatic risk re-assessment when behavioral profile data changes.
@@ -33,8 +34,15 @@ class BehavioralProfileObserver
         $camper = $behavioralProfile->camper;
 
         if ($camper) {
-            // Re-score the camper — behavioral changes may require different supervision arrangements
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('BehavioralProfileObserver: failed to re-assess risk after profile saved', [
+                    'profile_id' => $behavioralProfile->id,
+                    'camper_id'  => $camper->id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

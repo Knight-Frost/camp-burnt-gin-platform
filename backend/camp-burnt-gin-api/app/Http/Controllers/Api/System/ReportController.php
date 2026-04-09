@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\System;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\AuditLog;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Services\System\ReportService;
@@ -143,6 +144,15 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', Application::class);
 
+        // Audit-log the bulk export. CSV downloads containing PII/PHI must be
+        // traceable under HIPAA §164.312(b) — who exported what and when.
+        AuditLog::logAdminAction(
+            'report_export_applications',
+            $request->user(),
+            null,
+            ['filters' => $request->only(['status', 'camp_session_id', 'date_from', 'date_to'])]
+        );
+
         // Pass only the relevant keys to the service — never forward the full request.
         $filters = $request->only(['status', 'camp_session_id', 'date_from', 'date_to']);
         $report = $this->reportService->generateApplicationsReport($filters);
@@ -178,6 +188,13 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', Application::class);
 
+        AuditLog::logAdminAction(
+            'report_export_accepted_applicants',
+            $request->user(),
+            null,
+            ['filters' => $request->only(['camp_session_id'])]
+        );
+
         $filters = $request->only(['camp_session_id']);
         $report = $this->reportService->generateAcceptedApplicantsReport($filters);
 
@@ -209,6 +226,13 @@ class ReportController extends Controller
     public function rejectedApplicants(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Application::class);
+
+        AuditLog::logAdminAction(
+            'report_export_rejected_applicants',
+            $request->user(),
+            null,
+            ['filters' => $request->only(['camp_session_id'])]
+        );
 
         $filters = $request->only(['camp_session_id']);
         $report = $this->reportService->generateRejectedApplicantsReport($filters);
@@ -250,6 +274,13 @@ class ReportController extends Controller
             'camp_session_id' => ['nullable', 'exists:camp_sessions,id'],
         ]);
 
+        AuditLog::logAdminAction(
+            'report_export_mailing_labels',
+            $request->user(),
+            null,
+            ['filters' => $request->only(['status', 'camp_session_id'])]
+        );
+
         $labels = $this->reportService->generateMailingLabels($request->only(['status', 'camp_session_id']));
 
         $headers = ['Recipient Name', 'Camper Name', 'Email'];
@@ -279,6 +310,15 @@ class ReportController extends Controller
 
         // Convert 0 (when no session selected) to null so the service returns all sessions.
         $campSessionId = $request->integer('camp_session_id') ?: null;
+
+        // ID labels include severe allergy information — this is PHI. Audit-log it.
+        AuditLog::logAdminAction(
+            'report_export_id_labels',
+            $request->user(),
+            null,
+            ['camp_session_id' => $campSessionId]
+        );
+
         $labels = $this->reportService->generateIdLabels($campSessionId);
 
         $headers = ['Camper Name', 'Date of Birth', 'Age', 'Session Name', 'Has Severe Allergies', 'Severe Allergies'];

@@ -52,6 +52,8 @@ export const ROUTES = {
   ADMIN_CAMPERS: '/admin/campers',
   // Function: returns /admin/campers/123 when called with id=123
   ADMIN_CAMPER_DETAIL: (id: number | string) => `/admin/campers/${id}`,
+  // Full risk assessment page for a camper
+  ADMIN_CAMPER_RISK: (id: number | string) => `/admin/campers/${id}/risk`,
   ADMIN_APPLICATIONS: '/admin/applications',
   ADMIN_APPLICATION_DETAIL: (id: number | string) =>
     `/admin/applications/${id}`,
@@ -88,6 +90,8 @@ export const ROUTES = {
   MEDICAL_RECORD_TREATMENT: '/medical/record-treatment',
   // Phase 12: Camp Medical Directory (dedicated page)
   MEDICAL_DIRECTORY: '/medical/directory',
+  // Risk assessment view in the medical portal
+  MEDICAL_CAMPER_RISK: (id: number | string) => `/medical/records/${id}/risk`,
 
   // ─── Super Admin portal ─────────────────────────────────────────────────────
   SUPER_ADMIN_APPLICATION_EDIT: (id: number | string) =>
@@ -113,6 +117,10 @@ export const ROUTES = {
   // ─── Shared authenticated pages ─────────────────────────────────────────────
   // Each portal mounts these under its own prefix (e.g. /admin/inbox, /medical/inbox)
   INBOX: '/inbox',
+  SUPER_ADMIN_INBOX: '/super-admin/inbox',
+  ADMIN_INBOX: '/admin/inbox',
+  MEDICAL_INBOX: '/medical/inbox',
+  APPLICANT_INBOX: '/applicant/inbox',
   PROFILE: '/profile',
 
   // ─── Error pages ────────────────────────────────────────────────────────────

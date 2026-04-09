@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\MedicalRecord;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * MedicalRecordObserver — triggers automatic risk re-assessment when a camper's medical record changes.
@@ -35,8 +36,15 @@ class MedicalRecordObserver
         $camper = $medicalRecord->camper;
 
         if ($camper) {
-            // Re-score the camper's overall risk level based on all current medical data
-            app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            try {
+                app(SpecialNeedsRiskAssessmentService::class)->assessCamper($camper);
+            } catch (\Throwable $e) {
+                Log::error('MedicalRecordObserver: failed to re-assess risk after medical record saved', [
+                    'medical_record_id' => $medicalRecord->id,
+                    'camper_id'         => $camper->id,
+                    'error'             => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ApplicantDocumentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * ApplicantDocument — tracks documents sent by admins to applicants.
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ApplicantDocument extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'applicant_id',
         'uploaded_by_admin_id',

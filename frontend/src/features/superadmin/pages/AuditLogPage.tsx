@@ -72,10 +72,10 @@ const CATEGORIES: Record<string, CategoryDef> = {
 // Maps CATEGORIES keys to audit_extra translation keys
 const CATEGORY_LABEL_KEYS: Record<string, string> = {
   Authentication: 'audit_extra.category_auth',
-  Messaging:      'audit_extra.category_auth',
+  Messaging:      'audit_extra.category_messaging',
   Applications:   'audit_extra.category_applications',
   Notifications:  'audit_extra.category_system',
-  Security:       'audit_extra.category_auth',
+  Security:       'audit_extra.category_security',
   Medical:        'audit_extra.category_medical',
   Administrative: 'audit_extra.category_system',
   Documents:      'audit_extra.category_documents',
@@ -535,11 +535,9 @@ export function getLogActions(entry: AuditLogEntry): LogAction[] {
     });
   }
   if (atype.includes('message') || atype.includes('conversation')) {
-    // ROUTES.INBOX = '/inbox' does not exist — inbox is portal-scoped.
-    // This page is super-admin only, so the correct path is /super-admin/inbox.
     actions.push({
-      label: 'Open inbox',
-      href:  '/super-admin/inbox',
+      label: 'View inbox',
+      href:  ROUTES.SUPER_ADMIN_INBOX,
       icon:  MessageSquare,
     });
   }
@@ -1300,11 +1298,11 @@ export function AuditLogPage() {
     { value: '',               label: t('audit_extra.all_categories') },
     { value: 'authentication', label: t('audit_extra.category_auth')  },
     { value: 'auth',           label: t('audit_extra.category_auth')  },
-    { value: 'message',        label: t('audit_extra.category_auth')  },
-    { value: 'conversation',   label: t('audit_extra.category_auth')  },
+    { value: 'message',        label: t('audit_extra.category_messaging') },
+    { value: 'conversation',   label: t('audit_extra.category_messaging') },
     { value: 'application',    label: t('audit_extra.category_applications') },
     { value: 'notification',   label: t('audit_extra.category_system') },
-    { value: 'security',       label: t('audit_extra.category_auth')  },
+    { value: 'security',       label: t('audit_extra.category_security') },
     { value: 'phi_access',     label: t('audit_extra.category_medical') },
     { value: 'admin_action',   label: t('audit_extra.category_system') },
     { value: 'document',       label: t('audit_extra.category_documents') },
@@ -1318,8 +1316,8 @@ export function AuditLogPage() {
     { value: 'Application',   label: t('audit_extra.category_applications') },
     { value: 'Document',      label: t('audit_extra.category_documents') },
     { value: 'User',          label: t('audit_extra.category_users')   },
-    { value: 'Message',       label: t('audit_extra.category_auth')    },
-    { value: 'Conversation',  label: t('audit_extra.category_auth')    },
+    { value: 'Message',       label: t('audit_extra.category_messaging') },
+    { value: 'Conversation',  label: t('audit_extra.category_messaging') },
     { value: 'MedicalRecord', label: t('audit_extra.category_medical') },
     { value: 'CampSession',   label: t('audit_extra.category_sessions') },
   ];

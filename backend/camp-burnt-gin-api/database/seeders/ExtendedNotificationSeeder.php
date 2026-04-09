@@ -95,36 +95,6 @@ class ExtendedNotificationSeeder extends Seeder
 
         $this->notify(
             notifiable: $admin,
-            type: 'App\\Notifications\\ProviderLink\\ProviderLinkSubmittedNotification',
-            data: [
-                'type' => 'provider_link_submitted',
-                'title' => 'Provider link submitted — Dr. Kim completed Noah Thompson\'s form',
-                'message' => 'Dr. Rachel Kim has submitted the medical information for Noah Thompson. Review the medical record for updated details.',
-                'camper_name' => 'Noah Thompson',
-                'provider_name' => 'Dr. Rachel Kim',
-                'submitted_at' => now()->subDays(2)->toIso8601String(),
-            ],
-            readAt: now()->subDays(1),
-            createdAt: now()->subDays(2)
-        );
-
-        $this->notify(
-            notifiable: $admin,
-            type: 'App\\Notifications\\ProviderLink\\ProviderLinkExpiredNotification',
-            data: [
-                'type' => 'provider_link_expired',
-                'title' => 'Provider link expired — Lucas Williams',
-                'message' => 'The medical provider link sent to Dr. Maria Gonzalez for Lucas Williams expired without submission. A new link should be sent.',
-                'camper_name' => 'Lucas Williams',
-                'provider_name' => 'Dr. Maria Gonzalez',
-                'expired_at' => now()->subDays(2)->toIso8601String(),
-            ],
-            readAt: null,  // UNREAD — action required
-            createdAt: now()->subDays(2)
-        );
-
-        $this->notify(
-            notifiable: $admin,
             type: 'App\\Notifications\\NewMessageNotification',
             data: [
                 'type' => 'new_message',

@@ -127,8 +127,10 @@ class DocumentRequestController extends Controller
             // DeadlineObserver fires after create() and syncs the CalendarEvent automatically.
             if (! empty($validated['due_date'])) {
                 // Resolve the session: explicit > from linked application
-                $sessionId = $validated['camp_session_id']
-                    ?? ($validated['application_id']
+                // Use null-coalescing on both keys — they are nullable validated fields
+                // that may be absent from the validated array when not submitted.
+                $sessionId = ($validated['camp_session_id'] ?? null)
+                    ?? (! empty($validated['application_id'] ?? null)
                         ? Application::find($validated['application_id'])?->camp_session_id
                         : null);
 
@@ -177,11 +179,18 @@ class DocumentRequestController extends Controller
 
         if ($request->filled('status')) {
             $status = $request->input('status');
-            // Special filter: overdue (awaiting_upload past due_date)
             if ($status === 'overdue') {
+                // Overdue = awaiting_upload with a past due_date (virtual/computed state).
                 $query->where('status', 'awaiting_upload')
                     ->whereNotNull('due_date')
                     ->whereDate('due_date', '<', now());
+            } elseif ($status === 'awaiting_upload') {
+                // Awaiting Upload = pending but NOT overdue; consistent with the metric card count.
+                $query->where('status', 'awaiting_upload')
+                    ->where(function ($q) {
+                        $q->whereNull('due_date')
+                          ->orWhereDate('due_date', '>=', now());
+                    });
             } else {
                 $query->where('status', $status);
             }
@@ -221,15 +230,28 @@ class DocumentRequestController extends Controller
         $this->authorize('viewAny', DocumentRequest::class);
 
         $total = DocumentRequest::count();
-        $awaitingUpload = DocumentRequest::where('status', 'awaiting_upload')->count();
-        $underReview = DocumentRequest::where('status', 'under_review')->count();
-        $approved = DocumentRequest::where('status', 'approved')->count();
-        $rejected = DocumentRequest::where('status', 'rejected')->count();
+
+        // Overdue = awaiting_upload with a past due_date (computed status, never stored as 'overdue').
         $overdue = DocumentRequest::where('status', 'awaiting_upload')
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<', now())
             ->count();
-        $uploaded = DocumentRequest::whereIn('status', ['uploaded', 'scanning', 'under_review'])->count();
+
+        // Awaiting Upload = genuinely pending (excludes overdue so metric cards are mutually exclusive).
+        $awaitingUpload = DocumentRequest::where('status', 'awaiting_upload')
+            ->where(function ($q) {
+                $q->whereNull('due_date')
+                  ->orWhereDate('due_date', '>=', now());
+            })
+            ->count();
+
+        // Uploaded / Pending Review = file received, not yet under active review.
+        // Excludes 'under_review' so the count matches the 'uploaded' filter on the index endpoint.
+        $uploaded = DocumentRequest::whereIn('status', ['uploaded', 'scanning'])->count();
+
+        $underReview = DocumentRequest::where('status', 'under_review')->count();
+        $approved = DocumentRequest::where('status', 'approved')->count();
+        $rejected = DocumentRequest::where('status', 'rejected')->count();
 
         return response()->json([
             'total' => $total,
@@ -557,6 +579,9 @@ class DocumentRequestController extends Controller
         abort_unless($documentRequest->canUpload(), 403, 'This request cannot accept uploads in its current status.');
 
         // ── Deadline Enforcement ───────────────────────────────────────────────
+        // Initialize to null — only set if the deadline is in soft-enforcement and overdue.
+        $lateWarning = null;
+
         // Resolve the session from the linked application (if present).
         $sessionId = $documentRequest->application?->camp_session_id;
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -49,6 +50,11 @@ class AuthController extends Controller
         // AuthService handles hashing the password and setting the default role.
         $user = $this->authService->register($request->validated());
 
+        // Audit: record account creation so the trail shows when each account was created.
+        AuditLog::logAuth('register', $user, [
+            'role' => $user->role?->name ?? 'applicant',
+        ]);
+
         // Trigger email verification notification.
         // Wrapped in try-catch so an SMTP failure does not roll back a successful registration.
         try {
@@ -89,6 +95,12 @@ class AuthController extends Controller
         $result = $this->authService->login($request->validated());
 
         if (! $result['success']) {
+            // Audit: record the failed attempt. User is null for unknown-email attempts.
+            AuditLog::logAuth('login_failed', $result['user'] ?? null, [
+                'reason' => $result['message'] ?? 'invalid_credentials',
+                'lockout' => $result['lockout'] ?? false,
+            ]);
+
             $response = [
                 'success' => false,
                 'message' => $result['message'],
@@ -112,12 +124,22 @@ class AuthController extends Controller
 
         // If MFA is required, don't issue a token yet — the client must call the MFA verify endpoint.
         if ($result['mfa_required'] ?? false) {
+            // Audit: password was correct but MFA step is still pending.
+            // AuthService does not include 'user' in the mfa_required response, so look up by email.
+            $mfaUser = User::where('email', $request->input('email'))->first();
+            AuditLog::logAuth('login_mfa_required', $mfaUser);
+
             return response()->json([
                 'success' => true,
                 'message' => 'MFA verification required.',
                 'mfa_required' => true,
             ], Response::HTTP_OK);
         }
+
+        // Audit: full login success.
+        AuditLog::logAuth('login', $result['user'], [
+            'role' => $result['user']?->role?->name,
+        ]);
 
         // Full success — return user profile and the new API token.
         return response()->json([
@@ -140,8 +162,13 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        // Audit: record the logout before revoking the token (user object is still available here).
+        AuditLog::logAuth('logout', $user);
+
         // currentAccessToken() refers to the Sanctum token attached to this HTTP request.
-        $request->user()->currentAccessToken()->delete();
+        $user->currentAccessToken()->delete();
 
         return response()->json([
             'message' => 'Logged out successfully.',

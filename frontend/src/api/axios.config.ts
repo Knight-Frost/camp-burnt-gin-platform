@@ -132,12 +132,44 @@ axiosInstance.interceptors.response.use(
   }
 );
 
+// ---------------------------------------------------------------------------
+// Step-up promise queue
+// ---------------------------------------------------------------------------
+//
+// When a request fails with mfa_step_up_required, we must pause it until the
+// user completes the step-up challenge. All concurrent requests that hit the
+// same gate attach to ONE shared promise rather than each opening their own
+// modal. The MfaStepUpModal calls resolveStepUp() on success or
+// rejectStepUp() on cancel, which unblocks (or discards) all queued requests.
+
+let stepUpPromise: Promise<void> | null = null;
+let resolveStepUp: (() => void) | null = null;
+let rejectStepUp: (() => void) | null = null;
+
+/** Called by MfaStepUpModal after the user successfully verifies. */
+export function completeStepUp(): void {
+  resolveStepUp?.();
+  stepUpPromise = null;
+  resolveStepUp = null;
+  rejectStepUp = null;
+}
+
+/** Called by MfaStepUpModal if the user cancels the challenge. */
+export function cancelStepUp(): void {
+  rejectStepUp?.();
+  stepUpPromise = null;
+  resolveStepUp = null;
+  rejectStepUp = null;
+}
+
 // Extracted so the cancel guard above can call it without nesting.
 function errorInterceptor(error: AxiosError<{
     message?: string;
     errors?: Record<string, string[]>;
     lockout?: boolean;
     mfa_setup_required?: boolean;
+    mfa_step_up_required?: boolean;
+    mfa_not_enrolled?: boolean;
     retry_after?: number;
     attempts_remaining?: number;
     status?: number;
@@ -189,10 +221,8 @@ function errorInterceptor(error: AxiosError<{
           retryAfter: responseData.retry_after ?? 60,
         });
       }
-      // MFA enrollment required — the user's role mandates MFA but they haven't
-      // set it up yet. Dispatch a global event so portal layouts can redirect to
-      // the security settings page. The mfaSetupRequired flag lets callers surface
-      // a targeted message instead of the generic "no permission" text.
+      // MFA enrollment required — the user tried a sensitive route without MFA
+      // enrolled. Direct them to their profile to enable MFA first.
       if (responseData?.mfa_setup_required) {
         window.dispatchEvent(new CustomEvent('auth:mfa-setup-required'));
         return Promise.reject({
@@ -200,6 +230,40 @@ function errorInterceptor(error: AxiosError<{
           mfaSetupRequired: true,
         });
       }
+
+      // Step-up MFA required — the user has MFA enrolled but has not completed
+      // a step-up challenge recently (or MFA is not enrolled and must be set up
+      // first before step-up is possible).
+      if (responseData?.mfa_step_up_required) {
+        if (responseData.mfa_not_enrolled) {
+          // User has no MFA — redirect to enrollment first, same as mfa_setup_required
+          window.dispatchEvent(new CustomEvent('auth:mfa-setup-required'));
+          return Promise.reject({
+            message: responseData.message ?? 'MFA enrollment is required before performing this action.',
+            mfaSetupRequired: true,
+          });
+        }
+
+        // User has MFA but needs to re-verify. Queue this request behind a
+        // shared step-up promise so only one modal opens for concurrent failures.
+        if (!stepUpPromise) {
+          stepUpPromise = new Promise<void>((resolve, reject) => {
+            resolveStepUp = resolve;
+            rejectStepUp = reject;
+          });
+          window.dispatchEvent(new CustomEvent('auth:mfa-step-up-required'));
+        }
+
+        // Retry the original request once step-up resolves, or reject on cancel.
+        return stepUpPromise.then(
+          () => axiosInstance(error.config!),
+          () => Promise.reject({
+            message: 'Step-up verification cancelled.',
+            mfaStepUpCancelled: true,
+          })
+        );
+      }
+
       return Promise.reject({ message: 'You do not have permission to perform this action.' });
     }
 

@@ -45,21 +45,22 @@ class SendIncompleteApplicationReminders extends Command
         $days = (int) $this->option('days');
 
         // Find all draft applications that are older than $days and have never been submitted.
-        $draftApplications = Application::where('is_draft', true)
+        // chunk(50) processes 50 records at a time to prevent memory exhaustion on large datasets.
+        $count = 0;
+        Application::where('is_draft', true)
             ->whereNull('submitted_at')
             ->where('created_at', '<=', now()->subDays($days))
             ->with(['camper.user', 'campSession'])
-            ->get();
-
-        $count = 0;
-        foreach ($draftApplications as $application) {
-            // Only send a reminder if registration is still open for this session.
-            // There is no point reminding someone if they can no longer submit.
-            if ($application->campSession->registration_closes_at?->isFuture()) {
-                $application->camper->user->notify(new IncompleteApplicationReminderNotification($application));
-                $count++;
-            }
-        }
+            ->chunk(50, function ($applications) use (&$count) {
+                foreach ($applications as $application) {
+                    // Only send a reminder if registration is still open for this session.
+                    // There is no point reminding someone if they can no longer submit.
+                    if ($application->campSession->registration_closes_at?->isFuture()) {
+                        $application->camper->user->notify(new IncompleteApplicationReminderNotification($application));
+                        $count++;
+                    }
+                }
+            });
 
         $this->info("Sent {$count} incomplete application reminders.");
 

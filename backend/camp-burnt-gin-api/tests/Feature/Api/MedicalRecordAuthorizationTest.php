@@ -136,12 +136,6 @@ class MedicalRecordAuthorizationTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $record = MedicalRecord::factory()->forCamper($camper)->create();
 
-        // Create provider link for this camper
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-        ]);
-
         $response = $this->actingAs($medical)->getJson("/api/medical-records/{$record->id}");
 
         $response->assertStatus(200);
@@ -167,12 +161,6 @@ class MedicalRecordAuthorizationTest extends TestCase
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $record = MedicalRecord::factory()->forCamper($camper)->create();
-
-        // Create provider link for this camper
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-        ]);
 
         $response = $this->actingAs($medical)->putJson("/api/medical-records/{$record->id}", [
             'special_needs' => 'Updated by medical staff',

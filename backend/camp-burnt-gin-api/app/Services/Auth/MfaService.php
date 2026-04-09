@@ -127,6 +127,16 @@ class MfaService
             ];
         }
 
+        // Replay attack prevention: reject the code if it was already used in this window
+        if ($this->isCodeAlreadyUsed($user->id, $code)) {
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+
+            return [
+                'success' => false,
+                'message' => 'Invalid verification code.',
+            ];
+        }
+
         // Code is valid — clear the rate-limit counter so it resets
         Cache::forget($rateLimitKey);
 
@@ -158,11 +168,116 @@ class MfaService
         }
 
         try {
-            return $this->google2fa->verifyKey($user->mfa_secret, $code);
+            if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
+                return false;
+            }
         } catch (\Exception $e) {
             // Malformed secret or library error — treat as failed verification
             return false;
         }
+
+        // Replay attack prevention: reject the code if it was already used in this window
+        if ($this->isCodeAlreadyUsed($user->id, $code)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Verify a TOTP code for a step-up authentication challenge.
+     *
+     * Step-up authentication re-proves identity before a sensitive or
+     * destructive action executes — even when the user already has a valid
+     * session. On success, a short-lived cache entry grants the user a
+     * temporary step-up window so they are not re-prompted on every click
+     * within the same working period.
+     *
+     * TTL: 15 minutes (configurable via auth.mfa_step_up_ttl_minutes).
+     * Rate limit: 5 failed attempts per 10 minutes.
+     *
+     * @return array<string, mixed> 'success' => bool, optional 'message'
+     */
+    public function verifyStepUp(User $user, string $code): array
+    {
+        $rateLimitKey = "mfa_step_up_attempts:{$user->id}";
+        $attempts = Cache::get($rateLimitKey, 0);
+
+        if ($attempts >= 5) {
+            return [
+                'success' => false,
+                'message' => 'Too many failed attempts. Please wait 10 minutes before trying again.',
+            ];
+        }
+
+        if (! $user->mfa_secret) {
+            return [
+                'success' => false,
+                'message' => 'MFA is not configured on this account.',
+            ];
+        }
+
+        try {
+            if (! $this->google2fa->verifyKey($user->mfa_secret, $code)) {
+                Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(10));
+
+                return [
+                    'success' => false,
+                    'message' => 'Invalid verification code.',
+                ];
+            }
+        } catch (\Exception $e) {
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(10));
+
+            return [
+                'success' => false,
+                'message' => 'Invalid verification code.',
+            ];
+        }
+
+        // Replay attack prevention: reject the code if it was already used in this window
+        if ($this->isCodeAlreadyUsed($user->id, $code)) {
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(10));
+
+            return [
+                'success' => false,
+                'message' => 'Invalid verification code.',
+            ];
+        }
+
+        Cache::forget($rateLimitKey);
+
+        // Record the successful step-up in the cache scoped to this specific token.
+        // The TTL controls how long the user can perform sensitive actions without re-verifying.
+        $ttlMinutes = config('auth.mfa_step_up_ttl_minutes', 15);
+        $tokenId = $user->currentAccessToken()?->id ?? 'unknown';
+        Cache::put("mfa_step_up:{$user->id}:{$tokenId}", true, now()->addMinutes($ttlMinutes));
+
+        return ['success' => true];
+    }
+
+    /**
+     * Check whether the user has a valid step-up verification in the cache.
+     *
+     * Used by EnsureMfaStepUp middleware to decide whether to gate the request.
+     */
+    public function hasValidStepUp(User $user): bool
+    {
+        $tokenId = $user->currentAccessToken()?->id ?? 'unknown';
+        return Cache::has("mfa_step_up:{$user->id}:{$tokenId}");
+    }
+
+    /**
+     * Invalidate an existing step-up token for a user.
+     *
+     * Called when MFA is disabled so a lingering step-up grant cannot be
+     * used to perform sensitive actions after the second factor is gone.
+     */
+    public function invalidateStepUp(User $user): void
+    {
+        Cache::forget("mfa_step_up:{$user->id}"); // legacy key (backward compatibility)
+        $tokenId = $user->currentAccessToken()?->id ?? 'unknown';
+        Cache::forget("mfa_step_up:{$user->id}:{$tokenId}");
     }
 
     /**
@@ -239,6 +354,17 @@ class MfaService
             ];
         }
 
+        // Replay attack prevention: reject the code if it was already used in this window
+        if ($this->isCodeAlreadyUsed($user->id, $code)) {
+            Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+            Cache::put("{$rateLimitKey}:ttl", 900, now()->addMinutes(15));
+
+            return [
+                'success' => false,
+                'message' => 'Invalid verification code.',
+            ];
+        }
+
         // Both proofs passed — clear the rate-limit cache so the counter resets
         Cache::forget($rateLimitKey);
         Cache::forget("{$rateLimitKey}:ttl");
@@ -250,6 +376,34 @@ class MfaService
             'mfa_verified_at' => null,
         ]);
 
+        // Invalidate any active step-up grant so a lingering cache entry
+        // cannot be used to reach sensitive routes after MFA is turned off.
+        $this->invalidateStepUp($user);
+
         return ['success' => true];
+    }
+
+    /**
+     * Check whether a TOTP code has already been consumed for this user.
+     * If it has not, record it as consumed and return false (not used yet).
+     * If it has, return true (already used — replay detected).
+     *
+     * The nonce is tied to the 30-second TOTP counter window so that a code
+     * verified at the end of one window cannot be replayed at the start of
+     * the next (the 75-second TTL covers the current plus one adjacent window).
+     */
+    private function isCodeAlreadyUsed(int $userId, string $code): bool
+    {
+        // The time counter changes every 30 seconds — ties the nonce to its window
+        $counter = (int) floor(time() / 30);
+        $nonce = "mfa_used:{$userId}:{$code}:{$counter}";
+
+        if (Cache::has($nonce)) {
+            return true; // code was already used in this window
+        }
+
+        // Mark as used with 75-second TTL (covers current + adjacent window)
+        Cache::put($nonce, true, 75);
+        return false;
     }
 }

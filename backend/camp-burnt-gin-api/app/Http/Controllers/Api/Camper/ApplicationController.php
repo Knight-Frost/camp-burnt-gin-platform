@@ -297,6 +297,7 @@ class ApplicationController extends Controller
             'camper.feedingPlan',
             'camper.assistiveDevices',
             'camper.activityPermissions',
+            'camper.documents',
             'campSession.camp',
             'reviewer',
             'documents',
@@ -306,6 +307,17 @@ class ApplicationController extends Controller
         // Append queue_position only here (single-record fetch) to avoid the N+1 problem
         // that would occur if it were in $appends and fired on every list row.
         $application->append('queue_position');
+
+        // Documents uploaded by the applicant form are attached to the Camper (so
+        // DocumentEnforcementService can run compliance checks by camper). The admin
+        // review page reads application.documents, so we merge the two collections
+        // here. Application-level docs (uploaded by admins on behalf of applicants)
+        // are already in application.documents; camper-level docs from the form
+        // submission are in camper.documents. The merge deduplicates by id.
+        $camperDocs = $application->camper->documents ?? collect();
+        $appDocs    = $application->documents ?? collect();
+        $merged = $appDocs->merge($camperDocs)->unique('id')->values();
+        $application->setRelation('documents', $merged);
 
         return response()->json([
             'data' => $application,

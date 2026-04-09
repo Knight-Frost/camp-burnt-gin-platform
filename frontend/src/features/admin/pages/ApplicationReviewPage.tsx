@@ -26,7 +26,7 @@ import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   ArrowLeft, User, FileText, Heart, Pill, AlertTriangle,
-  CheckCircle, XCircle, Clock, Download,
+  CheckCircle, XCircle, Clock, Download, Eye,
   Phone, Brain, Utensils, Wrench, Activity,
   Users, PenLine, Stethoscope, ListOrdered, Pencil, Save, X as XIcon, ShieldCheck,
   Plus, Trash2, Upload,
@@ -1177,6 +1177,28 @@ export function ApplicationReviewPage() {
       .catch(() => toast.error(t('common.download_error')));
   }
 
+  // ── Inline view helper ─────────────────────────────────────────────────────
+  // Opens a document in a new browser tab without forcing a download.
+  // Fetches the blob and creates an object URL so the browser renders it inline
+  // regardless of the server's Content-Disposition header.
+  function handleView(documentId: number) {
+    axiosInstance
+      .get(`/documents/${documentId}/download`, { responseType: 'blob' })
+      .then((res) => {
+        const blob = res.data as Blob;
+        const url = URL.createObjectURL(blob);
+        const tab = window.open(url, '_blank');
+        // Revoke the object URL once the new tab has loaded to free memory.
+        if (tab) {
+          tab.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+        } else {
+          // Pop-up blocked fallback: revoke after a short delay.
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
+        }
+      })
+      .catch(() => toast.error(t('common.download_error')));
+  }
+
   // ── Loading / error states ─────────────────────────────────────────────────
 
   if (loading) {
@@ -1760,19 +1782,32 @@ export function ApplicationReviewPage() {
                       <div className="min-w-0">
                         <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>{doc.name ?? doc.file_name}</p>
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          {(doc.size / 1024).toFixed(1)} KB
+                          {(() => {
+                            const bytes = doc.file_size ?? doc.size;
+                            return bytes != null ? `${(bytes / 1024).toFixed(1)} KB` : null;
+                          })()}
                           {doc.document_type && <> · {doc.document_type.replace(/_/g, ' ')}</>}
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
-                      style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                    >
-                      <Download className="h-3 w-3" />
-                      {t('common.download')}
-                    </button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleView(doc.id)}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                      >
+                        <Eye className="h-3 w-3" />
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                      >
+                        <Download className="h-3 w-3" />
+                        {t('common.download')}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

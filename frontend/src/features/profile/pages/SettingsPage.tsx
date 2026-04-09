@@ -6,18 +6,20 @@
 
 import { useState, useEffect, type ReactNode, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle, Languages, Check, X } from 'lucide-react';
+import { Sun, Type, Contrast, Shield, Bell, User, Eye, EyeOff, Database, AlertTriangle, Languages, Check, X, Zap } from 'lucide-react';
 import { usePasswordValidation, type PasswordRequirement } from '@/features/profile/hooks/usePasswordValidation';
 import {
   applyFontScale,
   applyHighContrast,
+  applyReducedMotion,
   getSavedFontScale,
   getSavedHighContrast,
+  getSavedReducedMotion,
   type FontScale,
 } from '@/theme/themePreferences';
 import {
@@ -25,13 +27,14 @@ import {
   updateNotificationPreference,
   type NotificationPreferences,
 } from '@/features/admin/api/notifications.api';
-import { getProfileRoute, getPrimaryRole, ADMIN_ROLES } from '@/shared/constants/roles';
-import { useAppSelector } from '@/store/hooks';
+import { getProfileRoute, getPrimaryRole, ADMIN_ROLES, ROLES } from '@/shared/constants/roles';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { Button } from '@/ui/components/Button';
 import axiosInstance from '@/api/axios.config';
 import { deleteAccount } from '@/features/profile/api/profile.api';
 import { clearAuth } from '@/features/auth/store/authSlice';
-import { useAppDispatch } from '@/store/hooks';
+import { ROUTES } from '@/shared/constants/routes';
+import { useRealtime } from '@/features/realtime/RealtimeContext';
 
 // ─── Types & schemas ──────────────────────────────────────────────────────────
 
@@ -55,14 +58,6 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 type Tab = 'appearance' | 'account' | 'security' | 'notifications' | 'data';
 
-const TABS: { id: Tab; label: string; icon: ComponentType<{ className?: string }> }[] = [
-  { id: 'appearance',    label: 'Appearance',    icon: Sun },
-  { id: 'account',       label: 'Account',       icon: User },
-  { id: 'security',      label: 'Security',      icon: Shield },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'data',          label: 'Data & Account', icon: Database },
-];
-
 const FONT_SCALES: { id: FontScale; label: string; size: string }[] = [
   { id: 'small',   label: 'Small',      size: '14px' },
   { id: 'default', label: 'Default',    size: '16px' },
@@ -83,10 +78,26 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
 export function SettingsPage() {
   const user = useAppSelector((state) => state.auth.user);
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { refreshNotificationPrefs } = useRealtime();
+  const primaryRole = getPrimaryRole(user?.roles ?? []);
+  const isStaffRole = ADMIN_ROLES.includes(primaryRole!);
+  const isMedicalRole = primaryRole === ROLES.MEDICAL;
+  const canSelfDelete = primaryRole === ROLES.APPLICANT;
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [fontScale, setFontScaleState] = useState<FontScale>(getSavedFontScale);
   const [highContrast, setHighContrastState] = useState(getSavedHighContrast);
+  const [reducedMotion, setReducedMotionState] = useState(getSavedReducedMotion);
+
+  // Build tabs inside the component so labels re-render when language changes.
+  const tabs: { id: Tab; label: string; icon: ComponentType<{ className?: string }> }[] = [
+    { id: 'appearance',    label: t('settings_page.tab_appearance'),    icon: Sun },
+    { id: 'account',       label: t('settings_page.tab_account'),       icon: User },
+    { id: 'security',      label: t('settings_page.tab_security'),      icon: Shield },
+    { id: 'notifications', label: t('settings_page.tab_notifications'), icon: Bell },
+    { id: 'data',          label: t('settings_page.tab_data'),          icon: Database },
+  ];
   // Derive current language from the hook — reactive, re-renders when language changes.
   const currentLanguage = i18n.language?.slice(0, 2) || 'en';
   // All registered languages, derived from the i18n config (same source as LanguageToggle).
@@ -127,6 +138,12 @@ export function SettingsPage() {
     toast.success(val ? 'High contrast enabled.' : 'High contrast disabled.');
   };
 
+  const handleReducedMotion = (val: boolean) => {
+    setReducedMotionState(val);
+    applyReducedMotion(val);
+    toast.success(val ? 'Reduced motion enabled.' : 'Reduced motion disabled.');
+  };
+
   const handleLanguageChange = (lang: string) => {
     void i18n.changeLanguage(lang);
     localStorage.setItem('language', lang);
@@ -164,6 +181,9 @@ export function SettingsPage() {
     try {
       const updated = await updateNotificationPreference(key, value);
       setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...updated });
+      // Sync the RealtimeContext ref immediately so the in-app toast gate
+      // reflects the new preference without requiring a page reload.
+      refreshNotificationPrefs();
       toast.success('Preference saved.');
     } catch {
       setNotifPrefs(prev); // revert on error
@@ -193,9 +213,16 @@ export function SettingsPage() {
     }
     setDeletingAccount(true);
     try {
-      const { message } = await deleteAccount(deletePassword);
-      toast.success(message);
+      await deleteAccount(deletePassword);
+      // Clear sessionStorage token explicitly before clearing Redux state.
+      // The backend already revoked all tokens; this prevents a stale token
+      // from lingering in storage even though it would be rejected by the API.
+      sessionStorage.removeItem('auth_token');
       dispatch(clearAuth());
+      // Navigate explicitly rather than relying on ProtectedRoute's redirect,
+      // so the user lands on the login page immediately with a clean URL.
+      navigate(ROUTES.LOGIN, { replace: true });
+      toast.success('Your account has been permanently deleted.');
     } catch (err) {
       toast.error((err as { message?: string })?.message ?? 'Failed to delete account. Please try again.');
     } finally {
@@ -222,7 +249,7 @@ export function SettingsPage() {
       <div className="flex flex-col sm:flex-row gap-6">
         {/* Tab list */}
         <nav className="flex sm:flex-col gap-1 sm:w-44 flex-shrink-0">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -286,6 +313,19 @@ export function SettingsPage() {
                   checked={highContrast}
                   onChange={handleHighContrast}
                   label="Enable high contrast mode"
+                />
+              </SettingsCard>
+
+              {/* Reduced motion */}
+              <SettingsCard
+                icon={Zap}
+                title="Reduce Motion"
+                description="Minimize animations and transitions throughout the app."
+              >
+                <ToggleSwitch
+                  checked={reducedMotion}
+                  onChange={handleReducedMotion}
+                  label="Enable reduced motion"
                 />
               </SettingsCard>
 
@@ -483,8 +523,40 @@ export function SettingsPage() {
           {activeTab === 'data' && (
             <div className="flex flex-col gap-6">
 
-              {/* Account deletion — only available to applicants (parent role) */}
-              {!ADMIN_ROLES.includes(getPrimaryRole(user?.roles ?? [])!) && (
+              {/* Admin/super-admin accounts cannot self-delete. */}
+              {isStaffRole && (
+                <div
+                  className="rounded-2xl border p-6"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                >
+                  <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
+                    Data &amp; Account
+                  </h3>
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    Account management for staff accounts is handled by a super-admin.
+                    Contact your system administrator if you need to make changes to your account.
+                  </p>
+                </div>
+              )}
+
+              {/* Medical provider accounts cannot self-delete. */}
+              {isMedicalRole && (
+                <div
+                  className="rounded-2xl border p-6"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                >
+                  <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
+                    Data &amp; Account
+                  </h3>
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    Medical provider account deletion must be handled by a system administrator.
+                    Contact your administrator for assistance.
+                  </p>
+                </div>
+              )}
+
+              {/* Account deletion — only available to applicants (parent/guardian role). */}
+              {canSelfDelete && (
               <div className="rounded-2xl border p-6" style={{ background: 'var(--card)', borderColor: 'rgba(239,68,68,0.25)' }}>
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.10)', color: 'var(--destructive)' }}>
@@ -493,7 +565,9 @@ export function SettingsPage() {
                   <div>
                     <h3 className="text-sm font-semibold" style={{ color: 'var(--destructive)' }}>Delete Account</h3>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      Permanently deactivate your account. All sessions will be revoked immediately. This action cannot be undone.
+                      Permanently delete your account and erase your personal information. Your application history and your
+                      children&apos;s records are retained for camp compliance purposes. All active sessions are revoked
+                      immediately. This action is permanent and cannot be undone.
                     </p>
                   </div>
                 </div>
@@ -509,7 +583,7 @@ export function SettingsPage() {
                 ) : (
                   <div className="flex flex-col gap-3 pt-1">
                     <p className="text-xs font-medium" style={{ color: 'var(--destructive)' }}>
-                      Enter your password to confirm account deletion:
+                      Enter your password to permanently delete your account:
                     </p>
                     <div className="relative w-64">
                       <input
@@ -519,12 +593,14 @@ export function SettingsPage() {
                         placeholder="Your password"
                         className="w-full rounded-lg px-3 py-2.5 pr-10 text-sm border outline-none"
                         style={{ background: 'var(--input)', borderColor: 'rgba(239,68,68,0.4)', color: 'var(--foreground)' }}
+                        autoComplete="current-password"
                       />
                       <button
                         type="button"
                         className="absolute right-3 top-1/2 -translate-y-1/2"
                         style={{ color: 'var(--muted-foreground)' }}
                         onClick={() => setShowDeletePw((v) => !v)}
+                        aria-label={showDeletePw ? 'Hide password' : 'Show password'}
                       >
                         {showDeletePw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
@@ -537,7 +613,7 @@ export function SettingsPage() {
                         disabled={!deletePassword || deletingAccount}
                         onClick={handleDeleteAccount}
                       >
-                        Confirm delete
+                        Permanently delete account
                       </Button>
                       <Button
                         variant="ghost"

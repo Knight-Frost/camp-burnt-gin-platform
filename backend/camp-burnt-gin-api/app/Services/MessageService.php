@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Models\MessageRecipient;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
+use App\Services\Document\DocumentService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -683,8 +684,14 @@ class MessageService
             'auditable_id' => $message->id,
             'action' => 'soft_deleted',
             'description' => 'Message soft deleted by admin',
-            // Capture the message content in old_values for the audit trail
-            'old_values' => $message->toArray(),
+            // Safe projection — never write message body (PHI) to the audit log
+            'old_values' => [
+                'message_id'      => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'sender_id'       => $message->sender_id,
+                'body_length'     => mb_strlen($message->body ?? ''),
+                'created_at'      => $message->created_at?->toISOString(),
+            ],
             'metadata' => [
                 'conversation_id' => $message->conversation_id,
             ],

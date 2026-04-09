@@ -43,9 +43,18 @@ class MedicalVisitPolicy
      *
      * All medical staff and admins may view any visit record.
      * Parents are excluded — visit records are internal clinical documents.
+     *
+     * Medical staff are additionally restricted to active (enrolled) campers only.
+     * Accessing records for inactive/unenrolled campers is blocked to prevent PHI
+     * exposure for applicants who have not been accepted to camp.
      */
     public function view(User $user, MedicalVisit $medicalVisit): bool
     {
+        // Only allow access to records for active (enrolled) campers.
+        if (!$medicalVisit->camper?->is_active) {
+            return false;
+        }
+
         return $user->isAdmin() || $user->isMedicalProvider();
     }
 

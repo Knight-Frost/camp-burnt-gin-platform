@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\Camper;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\User;
 use App\Models\UserEmergencyContact;
 use App\Services\SystemNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 /**
@@ -348,7 +352,7 @@ class UserProfileController extends Controller
     /**
      * Change the current user's password.
      *
-     * POST /api/profile/change-password
+     * PUT /api/profile/password
      *
      * Requires the user to know their current password before they can set a
      * new one — this prevents someone who grabbed an unlocked device from
@@ -458,37 +462,43 @@ class UserProfileController extends Controller
     // -------------------------------------------------------------------------
 
     /**
-     * Request account deletion for the current user.
+     * Permanently delete the authenticated user's own account.
      *
-     * POST /api/profile/delete-account
+     * DELETE /api/profile/account
      *
-     * Requires password confirmation. Marks the account as inactive
-     * and schedules it for deletion by an administrator.
+     * Only applicant (parent/guardian) accounts may self-delete. Admin and medical
+     * accounts require a super_admin to perform deletion to prevent accidental removal
+     * of critical operational accounts.
      *
-     * Only applicant (parent) accounts can self-request deletion — admin
-     * accounts must be managed by a super_admin to prevent accidental
-     * removal of critical operational accounts.
+     * Deletion strategy: soft-delete + PII anonymization.
+     *   - The user row is soft-deleted (deleted_at is set) so it is invisible to all
+     *     Eloquent queries but the record is retained for audit and referential integrity.
+     *   - All personally-identifying fields (name, email, phone, address) are overwritten
+     *     with anonymous sentinel values before the soft-delete, ensuring that even a
+     *     direct DB query or backup restoration cannot expose the person's identity.
+     *   - The avatar file is deleted from storage immediately.
+     *   - All Sanctum tokens are revoked so every active session is terminated.
+     *   - A structured audit log entry is written to the audit_logs table so the event
+     *     is visible in the admin audit panel and survives log rotation.
      *
-     * The account is deactivated immediately and all tokens are revoked so
-     * the user is logged out everywhere right away.
+     * This approach satisfies HIPAA 45 CFR § 164.530(j) (record retention) while also
+     * honouring a user's right to erasure of their personal data.
      */
     public function deleteAccount(Request $request): JsonResponse
     {
-        // Require the password to confirm the user actually wants to delete their account.
         $request->validate([
             'password' => ['required', 'string'],
         ]);
 
         $user = $request->user();
 
-        // Admin and medical accounts cannot self-delete — they require super_admin action.
+        // Only applicant accounts may self-delete.
         if (! $user->isApplicant()) {
             return response()->json([
-                'message' => 'Account deletion is not available for administrative accounts.',
+                'message' => 'Self-service account deletion is only available to applicant accounts. Contact your system administrator for assistance.',
             ], 403);
         }
 
-        // Hash::check() verifies the supplied password matches the stored hash.
         if (! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'The password you entered is incorrect.',
@@ -496,21 +506,73 @@ class UserProfileController extends Controller
             ], 422);
         }
 
-        // Deactivate the account and revoke all tokens
-        // Setting is_active = false prevents login immediately, before an admin finalizes deletion.
-        $user->update(['is_active' => false]);
-        // Revoke all Sanctum tokens so the user is signed out on every device instantly.
-        $user->tokens()->delete();
+        // Capture the ID before the transaction so we can reference it in the audit log
+        // after the user record has been anonymised and soft-deleted.
+        $userId = $user->id;
 
-        // Write a structured audit log entry for GDPR and operational records.
-        // Only log user_id and IP — never log email or other PII in log files.
-        \Log::info('Account deletion requested', [
-            'user_id' => $user->id,
-            'ip' => $request->ip(),
-        ]);
+        DB::transaction(function () use ($user, $request, $userId) {
+            // Step 1 — Delete the avatar file from disk. Must happen before we clear
+            // avatar_path, otherwise we would lose the path reference needed to find the file.
+            if ($user->avatar_path && Storage::disk('public')->exists($user->avatar_path)) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+
+            // Step 2 — Anonymise all PII fields. This overwrites personal data in-place
+            // so that even if the soft-deleted row is later exported or inspected, no
+            // real personal information is present. The sentinel email preserves the
+            // unique constraint on the email column.
+            $user->update([
+                'name'                   => 'Deleted User',
+                'email'                  => "deleted_{$userId}@deleted.invalid",
+                'preferred_name'         => null,
+                'phone'                  => null,
+                'avatar_path'            => null,
+                'address_line_1'         => null,
+                'address_line_2'         => null,
+                'city'                   => null,
+                'state'                  => null,
+                'postal_code'            => null,
+                'country'                => null,
+                'notification_preferences' => null,
+                'mfa_secret'             => null,
+                'is_active'              => false,
+            ]);
+
+            // Step 3 — Revoke all Sanctum API tokens. This invalidates every active session
+            // across all devices immediately, without waiting for token expiry.
+            $user->tokens()->delete();
+
+            // Step 4 — Soft-delete the user record. SoftDeletes sets deleted_at to now()
+            // and the model's global scope automatically excludes the row from all future
+            // Eloquent queries. The record is NOT hard-deleted so referential integrity
+            // and compliance audit trails are preserved.
+            $user->delete();
+
+            // Step 5 — Write a structured audit log entry to the database audit log.
+            // user_id is set to null because the user record has just been deleted;
+            // the original ID is captured in metadata for forensic traceability.
+            // This entry will be visible in the admin audit log panel and is not
+            // subject to log-file rotation.
+            AuditLog::create([
+                'request_id'     => $request->header('X-Request-ID', (string) Str::uuid()),
+                'user_id'        => null,
+                'event_type'     => AuditLog::EVENT_TYPE_DATA_CHANGE,
+                'auditable_type' => User::class,
+                'auditable_id'   => $userId,
+                'action'         => 'account.deleted',
+                'description'    => "User account #{$userId} permanently deleted at user request. PII anonymised. Record retained for compliance.",
+                'metadata'       => [
+                    'original_user_id' => $userId,
+                    'deletion_type'    => 'self_requested',
+                ],
+                'ip_address'     => $request->ip(),
+                'user_agent'     => $request->userAgent(),
+                'created_at'     => now(),
+            ]);
+        });
 
         return response()->json([
-            'message' => 'Your account has been deactivated and is scheduled for deletion. All sessions have been terminated.',
+            'message' => 'Your account has been permanently deleted and all sessions have been terminated.',
         ]);
     }
 }

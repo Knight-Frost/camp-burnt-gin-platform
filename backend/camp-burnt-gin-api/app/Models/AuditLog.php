@@ -111,6 +111,29 @@ class AuditLog extends Model
     /** Create / update / delete events on any data model. */
     public const EVENT_TYPE_DATA_CHANGE = 'data_change';
 
+    /**
+     * PHI field names whose values must never be stored in plaintext in the audit log.
+     *
+     * When logContentChange() records a before/after snapshot, any key present in
+     * this list has its value replaced with "[redacted]". Auditors can still see
+     * WHICH fields changed; they cannot read the decrypted PHI values.
+     *
+     * @var list<string>
+     */
+    private const PHI_FIELDS = [
+        'clinical_notes', 'override_reason', 'notes', 'description',
+        'triggers', 'de_escalation_strategies', 'communication_style',
+        'bathing_notes', 'dressing_notes', 'toileting_notes', 'oral_hygiene_notes',
+        'sleep_notes', 'irregular_bowel_notes', 'special_instructions',
+        'address', 'city', 'state', 'zip', 'phone', 'phone_mobile', 'phone_work',
+        'mfa_secret', 'password', 'remember_token',
+        'first_name', 'last_name', 'date_of_birth', 'health_insurance_policy_number',
+        'physician_name', 'physician_phone', 'physician_address',
+        'hospital_preference', 'health_history', 'immunization_notes',
+        'emergency_contact_name', 'emergency_contact_phone',
+        'title',
+    ];
+
     /** File upload, download, scan, and verification events. */
     public const EVENT_TYPE_FILE_ACCESS = 'file_access';
 
@@ -214,8 +237,8 @@ class AuditLog extends Model
             'auditable_id' => $auditable->getKey(),
             'action' => 'content.edited',
             'description' => 'Application content fields edited by '.($editor->role?->name ?? 'unknown').' (user #'.$editor->id.').',
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
+            'old_values' => static::redactPhiValues($oldValues),
+            'new_values' => static::redactPhiValues($newValues),
             'metadata' => [
                 'editor_role' => $editor->role?->name ?? 'unknown',
                 'changed_fields' => $changedFields,
@@ -225,5 +248,25 @@ class AuditLog extends Model
             'user_agent' => request()->userAgent(),
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * Replace the values of any PHI fields with "[redacted]".
+     *
+     * Keys are preserved so auditors can see which fields were involved in a
+     * change without being able to read the decrypted PHI content.
+     *
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    private static function redactPhiValues(array $values): array
+    {
+        foreach ($values as $key => $value) {
+            if (in_array($key, static::PHI_FIELDS, true)) {
+                $values[$key] = '[redacted]';
+            }
+        }
+
+        return $values;
     }
 }

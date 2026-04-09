@@ -22,7 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
  * Security highlights:
  *  - Passwords are always stored hashed (never plain-text).
  *  - mfa_secret is hidden from API responses to prevent token exposure.
- *  - After 5 bad login attempts the account is locked for 5 minutes.
+ *  - After 5 bad login attempts the account is locked for 15 minutes (configurable).
  *  - The last super_admin cannot be deleted, preventing full system lockout.
  */
 class User extends Authenticatable implements MustVerifyEmail
@@ -101,6 +101,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             // JSON column decoded to a PHP array automatically on read.
             'notification_preferences' => 'array',
+            // Encrypt the TOTP seed at rest so a raw DB dump cannot be used to clone authenticators.
+            'mfa_secret' => 'encrypted',
         ];
     }
 
@@ -281,12 +283,12 @@ class User extends Authenticatable implements MustVerifyEmail
      * Increment the failed login counter and lock the account when the threshold is reached.
      *
      * Called by LoginController on every authentication failure for this user.
-     * After 5 failures, the account is locked for 5 minutes.
+     * After 5 failures, the account is locked for the configured duration (default 15 minutes).
      */
     public function recordFailedLogin(): void
     {
         $attempts = $this->failed_login_attempts + 1;
-        $lockoutMinutes = 5;
+        $lockoutMinutes = config('auth.lockout_minutes', 15);
 
         $data = [
             'failed_login_attempts' => $attempts,

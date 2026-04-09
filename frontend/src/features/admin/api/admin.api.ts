@@ -7,7 +7,7 @@ import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 import type {
   Application, ApplicationCompleteness, ApplicationReviewPayload, AuditLogEntry,
   BehavioralProfile, Camp, Camper, CampSession, Document, EmergencyContact,
-  FamilyWorkspace, ProviderLink, User,
+  FamilyWorkspace, ProviderLink, RiskAssessment, User,
 } from '@/features/admin/types/admin.types';
 
 export async function getApplications(params?: { page?: number; per_page?: number; status?: string; search?: string; camp_session_id?: number; drafts_only?: boolean; sort?: string; direction?: 'asc' | 'desc' }): Promise<PaginatedResponse<Application>> {
@@ -202,6 +202,39 @@ export async function getCamper(id: number): Promise<Camper> {
 }
 export async function getCamperRiskSummary(id: number): Promise<unknown> {
   const { data } = await axiosInstance.get(`/campers/${id}/risk-summary`); return data.data;
+}
+
+// ── Full risk assessment (Phase 16) ─────────────────────────────────────────
+
+export async function getRiskAssessment(camperId: number): Promise<RiskAssessment> {
+  const { data } = await axiosInstance.get<ApiResponse<RiskAssessment>>(`/campers/${camperId}/risk-assessment`);
+  return data.data;
+}
+
+export async function submitMedicalReview(camperId: number, payload: { clinical_notes?: string }): Promise<RiskAssessment> {
+  const { data } = await axiosInstance.post<ApiResponse<RiskAssessment>>(
+    `/campers/${camperId}/risk-assessment/review`,
+    payload
+  );
+  return data.data;
+}
+
+export async function overrideRiskSupervision(
+  camperId: number,
+  payload: { override_supervision_level: string; override_reason: string; clinical_notes?: string }
+): Promise<RiskAssessment> {
+  const { data } = await axiosInstance.post<ApiResponse<RiskAssessment>>(
+    `/campers/${camperId}/risk-assessment/override`,
+    payload
+  );
+  return data.data;
+}
+
+export async function getRiskAssessmentHistory(camperId: number): Promise<RiskAssessment[]> {
+  const { data } = await axiosInstance.get<ApiResponse<RiskAssessment[]>>(
+    `/campers/${camperId}/risk-assessment/history`
+  );
+  return data.data;
 }
 export async function getCamps(): Promise<Camp[]> {
   const { data } = await axiosInstance.get<ApiResponse<Camp[]>>('/camps'); return data.data;

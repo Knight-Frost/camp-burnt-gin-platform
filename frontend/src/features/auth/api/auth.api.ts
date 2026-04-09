@@ -201,6 +201,18 @@ export async function disableMfa(): Promise<ApiResponse<null>> {
   return data;
 }
 
+/**
+ * POST /api/mfa/step-up — Verify identity before a sensitive action.
+ *
+ * Submits a current TOTP code. On success the backend records a 15-minute
+ * cache grant that EnsureMfaStepUp middleware accepts. The frontend should
+ * retry the originally blocked request after this call resolves.
+ */
+export async function verifyMfaStepUp(code: string): Promise<ApiResponse<null>> {
+  const { data } = await axiosInstance.post<ApiResponse<null>>('/mfa/step-up', { code });
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Email verification endpoints
 // ---------------------------------------------------------------------------

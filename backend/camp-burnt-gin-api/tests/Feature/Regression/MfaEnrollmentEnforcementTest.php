@@ -2,22 +2,36 @@
 
 namespace Tests\Feature\Regression;
 
+use App\Models\Application;
+use App\Models\Camper;
 use App\Models\CampSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;
 
 /**
- * MFA enrollment enforcement regression tests.
+ * MFA enforcement regression tests.
  *
- * Verifies that:
- *  - Admin users without MFA enrolled are blocked from admin endpoints (403).
- *  - The 403 response carries `mfa_setup_required: true` so the frontend can redirect.
- *  - Admin users with MFA enabled are allowed through.
- *  - Medical providers without MFA are blocked from PHI endpoints.
- *  - Medical providers with MFA enabled are allowed through.
- *  - Applicant (parent) users are never subject to the MFA enrollment requirement.
- *  - Super-admin without MFA is blocked (the early-return refactor closes this gap).
+ * Verifies the step-up MFA architecture introduced in the 2026-04-07 redesign:
+ *
+ *  LAYER 1 — Role middleware (EnsureUserIsAdmin / EnsureUserHasRole):
+ *    - MUST NOT enforce MFA; role checks only.
+ *    - Admin/super_admin without MFA can reach dashboards and read-only routes.
+ *
+ *  LAYER 2 — PHI enrollment gate (mfa.enrolled / EnsureMfaEnrolled):
+ *    - Users without MFA enrolled cannot access PHI endpoints.
+ *    - Response: 403 { mfa_setup_required: true }.
+ *    - Users with MFA enrolled pass through.
+ *
+ *  LAYER 3 — Step-up gate (mfa.step_up / EnsureMfaStepUp):
+ *    - Users without MFA enrolled cannot reach sensitive/destructive routes.
+ *    - Response: 403 { mfa_step_up_required: true, mfa_not_enrolled: true }.
+ *    - Users with MFA enrolled but no recent step-up cannot reach sensitive routes.
+ *    - Response: 403 { mfa_step_up_required: true, mfa_not_enrolled: false }.
+ *    - Users with MFA enrolled AND a valid step-up grant pass through.
+ *
+ *  APPLICANT:
+ *    - MFA is optional; no enrollment or step-up gates apply to their routes.
  */
 class MfaEnrollmentEnforcementTest extends TestCase
 {
@@ -29,30 +43,31 @@ class MfaEnrollmentEnforcementTest extends TestCase
         $this->setUpRoles();
     }
 
-    // ── Admin without MFA ────────────────────────────────────────────────────
+    // ── Layer 1: Role middleware no longer enforces MFA ──────────────────────
 
-    public function test_admin_without_mfa_is_blocked_from_admin_routes(): void
+    public function test_admin_without_mfa_can_access_admin_dashboard_routes(): void
     {
         $admin = $this->createAdmin(['mfa_enabled' => false]);
 
+        // /api/families is an admin-only route behind EnsureUserIsAdmin.
+        // It must NOT block admin users who have MFA disabled.
         $response = $this->actingAs($admin)->getJson('/api/families');
 
-        $response->assertStatus(403);
-        $response->assertJsonPath('mfa_setup_required', true);
+        $response->assertJsonMissing(['mfa_setup_required' => true]);
+        $response->assertJsonMissing(['mfa_step_up_required' => true]);
+        // 200 or 403-from-policy are both acceptable; 403 from MFA gate is not.
+        $this->assertNotEquals(403, $response->status(), 'Role middleware must not block on MFA state');
     }
 
-    public function test_admin_without_mfa_receives_descriptive_message(): void
+    public function test_super_admin_without_mfa_can_access_admin_routes(): void
     {
-        $admin = $this->createAdmin(['mfa_enabled' => false]);
+        $superAdmin = $this->createSuperAdmin(['mfa_enabled' => false]);
 
-        $response = $this->actingAs($admin)->getJson('/api/families');
+        $response = $this->actingAs($superAdmin)->getJson('/api/families');
 
-        $response->assertStatus(403);
-        $response->assertJsonStructure(['message', 'mfa_setup_required']);
-        $this->assertStringContainsString('Multi-factor authentication', $response->json('message'));
+        $response->assertJsonMissing(['mfa_setup_required' => true]);
+        $this->assertNotEquals(403, $response->status(), 'Role middleware must not block super_admin on MFA state');
     }
-
-    // ── Admin with MFA ───────────────────────────────────────────────────────
 
     public function test_admin_with_mfa_enabled_can_access_admin_routes(): void
     {
@@ -60,84 +75,150 @@ class MfaEnrollmentEnforcementTest extends TestCase
 
         $response = $this->actingAs($admin)->getJson('/api/families');
 
-        // May return 200 (empty list) or 403 from a policy — what matters is
-        // that the MFA gate does not fire (no mfa_setup_required key).
         $this->assertNotEquals(403, $response->status());
         $response->assertJsonMissing(['mfa_setup_required' => true]);
     }
 
-    // ── Super-admin without MFA ──────────────────────────────────────────────
+    // ── Layer 2: PHI enrollment gate (mfa.enrolled) ──────────────────────────
 
-    public function test_super_admin_without_mfa_is_blocked_from_admin_routes(): void
-    {
-        $superAdmin = $this->createSuperAdmin(['mfa_enabled' => false]);
-
-        // Use an endpoint that accepts super_admin via EnsureUserIsAdmin (isAdmin() = true)
-        $response = $this->actingAs($superAdmin)->getJson('/api/families');
-
-        $response->assertStatus(403);
-        $response->assertJsonPath('mfa_setup_required', true);
-    }
-
-    public function test_super_admin_with_mfa_enabled_can_access_admin_routes(): void
-    {
-        $superAdmin = $this->createSuperAdmin(['mfa_enabled' => true]);
-
-        $response = $this->actingAs($superAdmin)->getJson('/api/families');
-
-        $this->assertNotEquals(403, $response->status());
-        $response->assertJsonMissing(['mfa_setup_required' => true]);
-    }
-
-    // ── Medical provider ─────────────────────────────────────────────────────
-
-    public function test_medical_provider_without_mfa_is_blocked_from_phi_endpoints(): void
+    public function test_medical_provider_without_mfa_is_blocked_from_phi_record_view(): void
     {
         $medical = $this->createMedicalProvider(['mfa_enabled' => false]);
+        $admin   = $this->createAdmin();
+        $parent  = $this->createParent();
+        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
+        $record  = $camper->medicalRecord()->create([]);
 
-        // GET /api/medical-records uses role:admin,medical middleware → EnsureUserHasRole
-        $response = $this->actingAs($medical)->getJson('/api/medical-records');
+        // GET /api/medical-records/{id} carries mfa.enrolled middleware.
+        $response = $this->actingAs($medical)->getJson("/api/medical-records/{$record->id}");
 
         $response->assertStatus(403);
         $response->assertJsonPath('mfa_setup_required', true);
     }
 
-    public function test_medical_provider_with_mfa_enabled_can_access_phi_endpoints(): void
+    public function test_medical_provider_with_mfa_can_access_phi_record_view(): void
     {
         $medical = $this->createMedicalProvider(['mfa_enabled' => true]);
+        $parent  = $this->createParent();
+        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
+        $record  = $camper->medicalRecord()->create([]);
 
-        $response = $this->actingAs($medical)->getJson('/api/medical-records');
+        $response = $this->actingAs($medical)->getJson("/api/medical-records/{$record->id}");
 
-        $this->assertNotEquals(403, $response->status());
+        // 200 or policy-403 accepted; the MFA gate must not fire.
         $response->assertJsonMissing(['mfa_setup_required' => true]);
     }
 
-    // ── Applicant (parent) — exempt from MFA enrollment requirement ──────────
+    public function test_admin_without_mfa_is_blocked_from_phi_record_view(): void
+    {
+        $admin  = $this->createAdmin(['mfa_enabled' => false]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $record = $camper->medicalRecord()->create([]);
+
+        $response = $this->actingAs($admin)->getJson("/api/medical-records/{$record->id}");
+
+        $response->assertStatus(403);
+        $response->assertJsonPath('mfa_setup_required', true);
+    }
+
+    // ── Layer 3: Step-up gate (mfa.step_up) ──────────────────────────────────
+
+    public function test_admin_without_mfa_is_blocked_from_application_review_with_not_enrolled_flag(): void
+    {
+        $admin  = $this->createAdmin(['mfa_enabled' => false]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $session = CampSession::factory()->create();
+        $application = Application::factory()->create([
+            'camper_id'       => $camper->id,
+            'camp_session_id' => $session->id,
+            'status'          => 'submitted',
+            'is_draft'        => false,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
+            'status' => 'approved',
+        ]);
+
+        $response->assertStatus(403);
+        $response->assertJsonPath('mfa_step_up_required', true);
+        $response->assertJsonPath('mfa_not_enrolled', true);
+    }
+
+    public function test_admin_with_mfa_but_no_step_up_is_blocked_from_application_review(): void
+    {
+        // Create admin with MFA enabled but do NOT call grantMfaStepUp()
+        $admin  = $this->createAdmin(['mfa_enabled' => true]);
+        // Clear the auto-granted step-up from WithRoles so we can test the "no step-up" path.
+        // Must clear both the legacy key and the null-tokenId key used in test context.
+        $this->revokeMfaStepUp($admin);
+
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $session = CampSession::factory()->create();
+        $application = Application::factory()->create([
+            'camper_id'       => $camper->id,
+            'camp_session_id' => $session->id,
+            'status'          => 'submitted',
+            'is_draft'        => false,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
+            'status' => 'approved',
+        ]);
+
+        $response->assertStatus(403);
+        $response->assertJsonPath('mfa_step_up_required', true);
+        $response->assertJsonPath('mfa_not_enrolled', false);
+    }
+
+    public function test_admin_with_mfa_and_valid_step_up_can_review_application(): void
+    {
+        $admin  = $this->createAdmin(); // auto-grants step-up via WithRoles
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $session = CampSession::factory()->create(['capacity' => 10]);
+        $application = Application::factory()->create([
+            'camper_id'       => $camper->id,
+            'camp_session_id' => $session->id,
+            'status'          => 'submitted',
+            'is_draft'        => false,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
+            'status'            => 'approved',
+            'override_incomplete' => true,
+        ]);
+
+        // 200 = step-up passed, business logic ran
+        $response->assertStatus(200);
+        $response->assertJsonMissing(['mfa_step_up_required' => true]);
+    }
+
+    // ── Applicant — exempt from all MFA gates ────────────────────────────────
 
     public function test_applicant_without_mfa_can_access_applicant_routes(): void
     {
-        $parent = $this->createParent(['mfa_enabled' => false]);
-        $session = CampSession::factory()->create(['portal_open' => true]);
+        $parent  = $this->createParent(['mfa_enabled' => false]);
+        CampSession::factory()->create(['portal_open' => true]);
 
-        // GET /api/applications is accessible to applicants (parent viewing own apps)
         $response = $this->actingAs($parent)->getJson('/api/applications');
 
         $response->assertStatus(200);
         $response->assertJsonMissing(['mfa_setup_required' => true]);
     }
 
-    // ── MFA setup endpoint itself remains accessible without enrollment ───────
+    // ── MFA setup endpoint accessible without enrollment ─────────────────────
 
-    public function test_admin_without_mfa_can_still_reach_mfa_setup_endpoint(): void
+    public function test_admin_without_mfa_can_reach_mfa_setup_endpoint(): void
     {
         $admin = $this->createAdmin(['mfa_enabled' => false]);
 
-        // POST /api/mfa/setup is under auth:sanctum only (no role or MFA middleware)
         $response = $this->actingAs($admin)->postJson('/api/mfa/setup');
 
-        // Should not be blocked by MFA enrollment gate (may fail for other reasons,
-        // but must not return 403 mfa_setup_required).
-        $this->assertNotEquals(403, $response->status());
+        // Must not be blocked by any MFA gate (may 400 if already enabled; never 403 mfa_*)
         $response->assertJsonMissing(['mfa_setup_required' => true]);
+        $response->assertJsonMissing(['mfa_step_up_required' => true]);
     }
 }

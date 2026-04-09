@@ -487,6 +487,39 @@ export function UserManagementPage() {
                 {createErrors.password && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.password}</p>}
               </div>
 
+              {/* Password criteria — only shown once the user starts typing */}
+              {createForm.password.length > 0 && (() => {
+                const pw = createForm.password;
+                const criteria = [
+                  { label: 'At least 8 characters',         met: pw.length >= 8 },
+                  { label: 'One uppercase letter (A–Z)',     met: /[A-Z]/.test(pw) },
+                  { label: 'One lowercase letter (a–z)',     met: /[a-z]/.test(pw) },
+                  { label: 'One number (0–9)',               met: /[0-9]/.test(pw) },
+                  { label: 'One special character (!@#…)',   met: /[^A-Za-z0-9]/.test(pw) },
+                ];
+                return (
+                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1 px-1">
+                    {criteria.map(({ label, met }) => (
+                      <li key={label} className="flex items-center gap-1.5 text-xs">
+                        <span
+                          className="flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                          style={{ background: met ? 'var(--ember-orange)' : 'var(--muted)', transition: 'background 0.2s' }}
+                        >
+                          {met && (
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                              <path d="M1.5 4L3.2 5.8L6.5 2" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </span>
+                        <span style={{ color: met ? 'var(--ember-orange)' : 'var(--muted-foreground)', transition: 'color 0.2s' }}>
+                          {label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
+
               {/* Confirm Password */}
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
@@ -499,7 +532,15 @@ export function UserManagementPage() {
                     value={createForm.password_confirmation}
                     onChange={(e) => setCreateForm((f) => ({ ...f, password_confirmation: e.target.value }))}
                     className="w-full rounded-lg px-3 py-2 pr-10 text-sm border outline-none"
-                    style={{ background: 'var(--input)', borderColor: createErrors.password_confirmation ? 'var(--destructive)' : 'var(--border)', color: 'var(--foreground)' }}
+                    style={{
+                      background: 'var(--input)',
+                      borderColor: createErrors.password_confirmation
+                        ? 'var(--destructive)'
+                        : createForm.password_confirmation.length > 0
+                          ? createForm.password_confirmation === createForm.password ? 'var(--ember-orange)' : 'var(--destructive)'
+                          : 'var(--border)',
+                      color: 'var(--foreground)',
+                    }}
                   />
                   <button
                     type="button"
@@ -511,6 +552,11 @@ export function UserManagementPage() {
                     {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {createForm.password_confirmation.length > 0 && !createErrors.password_confirmation && (
+                  <p className="text-xs mt-1" style={{ color: createForm.password_confirmation === createForm.password ? 'var(--ember-orange)' : 'var(--destructive)' }}>
+                    {createForm.password_confirmation === createForm.password ? 'Passwords match' : 'Passwords do not match'}
+                  </p>
+                )}
                 {createErrors.password_confirmation && <p className="text-xs mt-1" style={{ color: 'var(--destructive)' }}>{createErrors.password_confirmation}</p>}
               </div>
 

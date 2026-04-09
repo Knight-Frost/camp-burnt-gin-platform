@@ -290,42 +290,6 @@ class ExtendedAuditLogSeeder extends Seeder
                 'created_at' => now()->subDays(8),
             ],
 
-            // ── Provider link events ──────────────────────────────────────────
-            [
-                'user_id' => $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'provider_link.created',
-                'description' => 'Created medical provider link for Sofia Martinez → Dr. James Owens',
-                'auditable_type' => 'App\\Models\\MedicalProviderLink',
-                'auditable_id' => 1,
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Macintosh) Chrome/120',
-                'created_at' => now()->subDays(2),
-            ],
-            [
-                'user_id' => $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'provider_link.revoked',
-                'description' => 'Revoked provider link for Mia Davis → Dr. Kevin Patel (provider requested fax instead)',
-                'auditable_type' => 'App\\Models\\MedicalProviderLink',
-                'auditable_id' => 5,
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Macintosh) Chrome/120',
-                'new_values' => ['revoked_at' => now()->subDays(1)->toIso8601String()],
-                'created_at' => now()->subDays(1),
-            ],
-            [
-                'user_id' => $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'provider_link.submitted',
-                'description' => 'Provider link submitted by Dr. Rachel Kim for Noah Thompson',
-                'auditable_type' => 'App\\Models\\MedicalProviderLink',
-                'auditable_id' => 3,
-                'ip_address' => '203.0.113.42',  // provider's IP (external)
-                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0) Edge/120',
-                'created_at' => now()->subDays(2),
-            ],
-
             // ── Medical events ────────────────────────────────────────────────
             [
                 'user_id' => $medical->id,

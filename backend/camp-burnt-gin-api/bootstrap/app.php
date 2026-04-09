@@ -3,6 +3,7 @@
 use App\Http\Middleware\AddRequestId;
 use App\Http\Middleware\AuditPhiAccess;
 use App\Http\Middleware\EnsureMfaEnrolled;
+use App\Http\Middleware\EnsureMfaStepUp;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsMedicalProvider;
@@ -32,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
              *
              * Implements tiered rate limiting to prevent brute force attacks and abuse:
              * - Authentication endpoints: Strict limits to prevent credential stuffing
-             * - Sensitive operations: Moderate limits for MFA, provider links, uploads
+             * - Sensitive operations: Moderate limits for MFA and uploads
              * - General API: Standard limits for normal operations
              */
             RateLimiter::for('api', function (Request $request) {
@@ -56,13 +57,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 return [
                     Limit::perMinute(3)->by($request->user()?->id ?: $request->ip()),
                     Limit::perHour(10)->by($request->user()?->id ?: $request->ip()),
-                ];
-            });
-
-            RateLimiter::for('provider-link', function (Request $request) {
-                return [
-                    Limit::perMinute(2)->by($request->ip()),
-                    Limit::perHour(10)->by($request->ip()),
                 ];
             });
 
@@ -95,6 +89,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureUserIsAdmin::class,
             'medical' => EnsureUserIsMedicalProvider::class,
             'mfa.enrolled' => EnsureMfaEnrolled::class,
+            'mfa.step_up'  => EnsureMfaStepUp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -35,6 +35,15 @@ class UpdateEmergencyContactRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'is_primary' => ['boolean'],
             'is_authorized_pickup' => ['boolean'],
+            // Form parity fields — added to match StoreEmergencyContactRequest (2026_03_26_000003)
+            // Uses 'sometimes' for PATCH semantics: only validated when present in the request
+            'phone_work' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'primary_language' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'interpreter_needed' => ['sometimes', 'nullable', 'boolean'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'zip' => ['sometimes', 'nullable', 'string', 'max:20'],
         ];
     }
 }

@@ -26,7 +26,7 @@ import {
   ArrowLeft, AlertTriangle, Pill, Brain, Coffee,
   Clipboard, Wrench, Activity, Phone, ChevronDown, ChevronUp,
   Plus, ClipboardList, FileText, Edit2, X, Save, Loader2,
-  AlertOctagon, Stethoscope,
+  AlertOctagon, Stethoscope, TrendingUp,
 } from 'lucide-react';
 
 import {
@@ -416,7 +416,7 @@ export function MedicalRecordPage() {
 
       setState({
         camper:          ok(rCamper,      null),
-        record:          ok(rRecord,      null),
+        record:          ok(rRecord,      undefined) ?? null,
         allergies:       ok(rAllergies,   []),
         medications:     ok(rMedications, []),
         diagnoses:       ok(rDiagnoses,   []),
@@ -792,6 +792,14 @@ export function MedicalRecordPage() {
             >
               <Stethoscope className="h-3.5 w-3.5" />
               {t('medical.record.visits')}
+            </Link>
+            <Link
+              to={`/medical/records/${id}/risk`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
+              style={{ borderColor: 'rgba(22,101,52,0.3)', color: '#166534', background: 'rgba(22,101,52,0.07)' }}
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              {t('medical.record.risk_assessment', 'Risk Assessment')}
             </Link>
           </div>
         </div>

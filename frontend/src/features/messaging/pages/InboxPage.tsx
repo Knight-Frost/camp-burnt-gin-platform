@@ -8,7 +8,7 @@
  *
  * Folder nav:
  *   Inbox · Starred · Important | Sent · Archive · Trash | System · Announcements
- *   Collapses to icon-only strip (52px). State persisted in localStorage.
+ *   Collapses to icon-only strip (52px). State persisted in sessionStorage.
  *
  * Conversation list:
  *   Search bar · Compose button · Bulk actions toolbar · Paginated rows
@@ -231,11 +231,11 @@ export function InboxPage() {
 
   // ── Persisted UI state
   const [leftCollapsed, setLeftCollapsed] = useState<boolean>(() => {
-    try { return localStorage.getItem(LEFT_COLLAPSE_KEY) === 'true'; } catch { return false; }
+    try { return sessionStorage.getItem(LEFT_COLLAPSE_KEY) === 'true'; } catch { return false; }
   });
   const [folder, setFolder] = useState<InboxFolder>(() => {
     try {
-      const saved = localStorage.getItem(LEFT_FOLDER_KEY) as InboxFolder | null;
+      const saved = sessionStorage.getItem(LEFT_FOLDER_KEY) as InboxFolder | null;
       return saved ?? 'inbox';
     } catch { return 'inbox'; }
   });
@@ -354,7 +354,7 @@ export function InboxPage() {
   function toggleLeftCollapse() {
     setLeftCollapsed((v) => {
       const next = !v;
-      try { localStorage.setItem(LEFT_COLLAPSE_KEY, String(next)); } catch { /**/ }
+      try { sessionStorage.setItem(LEFT_COLLAPSE_KEY, String(next)); } catch { /**/ }
       return next;
     });
   }
@@ -375,7 +375,7 @@ export function InboxPage() {
     setSelected(new Set());
     setSelectedConv(null);
     setSearch('');
-    try { localStorage.setItem(LEFT_FOLDER_KEY, f); } catch { /**/ }
+    try { sessionStorage.setItem(LEFT_FOLDER_KEY, f); } catch { /**/ }
   }
 
   // ─── Data loading ─────────────────────────────────────────────────────────

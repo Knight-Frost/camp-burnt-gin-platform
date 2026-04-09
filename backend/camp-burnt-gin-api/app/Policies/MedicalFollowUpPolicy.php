@@ -43,9 +43,18 @@ class MedicalFollowUpPolicy
      * Can the user view a specific follow-up record?
      *
      * All medical staff and admins may view any follow-up.
+     *
+     * Medical staff are additionally restricted to active (enrolled) campers only.
+     * Accessing records for inactive/unenrolled campers is blocked to prevent PHI
+     * exposure for applicants who have not been accepted to camp.
      */
     public function view(User $user, MedicalFollowUp $medicalFollowUp): bool
     {
+        // Only allow access to records for active (enrolled) campers.
+        if (!$medicalFollowUp->camper?->is_active) {
+            return false;
+        }
+
         return $user->isAdmin() || $user->isMedicalProvider();
     }
 

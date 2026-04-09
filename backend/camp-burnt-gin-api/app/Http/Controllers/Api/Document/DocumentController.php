@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Document;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Document\StoreDocumentRequest;
+use App\Models\AuditLog;
 use App\Models\Document;
 use App\Services\Document\DocumentService;
 use Illuminate\Http\JsonResponse;
@@ -218,10 +219,20 @@ class DocumentController extends Controller
      *
      * Does not return the file itself — use the /download endpoint for that.
      */
-    public function show(Document $document): JsonResponse
+    public function show(Request $request, Document $document): JsonResponse
     {
         // DocumentPolicy::view checks the user is authorized to see this document
         $this->authorize('view', $document);
+
+        // Log metadata access — viewing document metadata (including the decrypted
+        // original_filename which can contain PHI) counts as a PHI access event
+        // under HIPAA §164.312(b). This is separate from the download audit log.
+        AuditLog::logPhiAccess(
+            'document_view',
+            $request->user(),
+            $document,
+            ['document_type' => $document->document_type]
+        );
 
         return response()->json([
             'data' => $document->load('documentable', 'uploader'),
@@ -241,7 +252,7 @@ class DocumentController extends Controller
      *   - Pending review files (scan_passed = null): Admin only
      *   - Approved files (scan_passed = true): All authorized users
      */
-    public function download(Document $document): StreamedResponse|JsonResponse
+    public function download(Request $request, Document $document): StreamedResponse|JsonResponse
     {
         // First check: does this user have general access to this document?
         $this->authorize('view', $document);
@@ -254,11 +265,19 @@ class DocumentController extends Controller
         }
 
         // Third check: file is still pending scan review — only admins may access it early
-        if (! $document->isSecure() && ! auth()->user()->isAdmin()) {
+        if (! $document->isSecure() && ! $request->user()->isAdmin()) {
             return response()->json([
                 'message' => 'Document is pending security review. Contact an administrator.',
             ], Response::HTTP_FORBIDDEN);
         }
+
+        // Log PHI access before streaming — satisfies HIPAA §164.312(b) Audit Controls.
+        AuditLog::logPhiAccess(
+            'document_download',
+            $request->user(),
+            $document,
+            ["document_type" => $document->document_type]
+        );
 
         // All checks passed — stream the file to the client via DocumentService
         return $this->documentService->download($document);

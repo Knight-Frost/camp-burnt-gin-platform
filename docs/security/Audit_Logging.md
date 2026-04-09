@@ -75,7 +75,6 @@ The following PHI-related activities are logged:
 - Medication information access (view, create, update, delete)
 - Emergency contact access (view, create, update, delete)
 - Document access (upload, view, download, delete)
-- Medical provider link access (unauthenticated PHI submission)
 - Application review (contains PHI references)
 - Treatment log access (view, create, update, delete)
 - Medical incident creation, update, and deletion (all PHI fields encrypted at rest)
@@ -235,7 +234,6 @@ protected array $phiRoutePatterns = [
     'medications.*',
     'emergency-contacts.*',
     'documents.*',
-    'provider-access.*',
     'applications.show',
     'applications.store',
     'applications.review',
@@ -253,7 +251,7 @@ protected array $phiRoutePatterns = [
 | Field | Description | Example |
 |-------|-------------|---------|
 | request_id | Unique request identifier | `req_abc123xyz...` |
-| user_id | Authenticated user (null for provider access) | `5` |
+| user_id | Authenticated user performing the request | `5` |
 | event_type | Always `phi_access` | `phi_access` |
 | action | HTTP method mapped to action | `view`, `create`, `update`, `delete` |
 | description | Human-readable description | `GET /api/medical-records/10` |
@@ -311,15 +309,15 @@ IP Address: 192.168.1.100
 Timestamp: 2026-02-11 14:35:12
 ```
 
-**Example 3: Provider Access (Unauthenticated)**
+**Example 3: Document Metadata View**
 ```
 Event Type: phi_access
-Action: create
-User ID: null
-Description: POST /api/provider-access/abc123token/submit
-Metadata: {"route":"provider-access.submit","method":"POST","status":200}
-IP Address: 10.0.5.23
-Timestamp: 2026-02-11 15:00:00
+Action: document_view
+User ID: 5
+Description: GET /api/documents/12
+Metadata: {"document_type":"official_medical_form","route":"documents.show","method":"GET","status":200}
+IP Address: 192.168.1.100
+Timestamp: 2026-04-09 09:14:22
 ```
 
 ---
@@ -386,7 +384,7 @@ Administrative actions represent privileged operations performed by system admin
 | Account Disable | Admin deactivates account | User ID, reason |
 | Bulk Operation | Admin performs bulk action | Record count, operation type |
 | Configuration Change | Admin modifies system settings | Setting name, old value, new value |
-| Report Generation | Admin generates report | Report type, filters, record count |
+| Report Export | Admin exports PII/PHI data as CSV | Report type (applications, accepted, rejected, mailing labels, ID labels) |
 
 ### Administrative Action Examples
 
@@ -410,6 +408,27 @@ AuditLog::logAdminAction('role_change', $admin,
     'new_role' => $newRole,
 ]);
 ```
+
+**Report Export:**
+```php
+// ReportController — one call per export method
+AuditLog::logAdminAction('report_export_applications', $request->user(),
+    'Exported applications report');
+
+AuditLog::logAdminAction('report_export_accepted_applicants', $request->user(),
+    'Exported accepted applicants report');
+
+AuditLog::logAdminAction('report_export_rejected_applicants', $request->user(),
+    'Exported rejected applicants report');
+
+AuditLog::logAdminAction('report_export_mailing_labels', $request->user(),
+    'Exported mailing labels report');
+
+AuditLog::logAdminAction('report_export_id_labels', $request->user(),
+    'Exported ID labels report');
+```
+
+These calls satisfy HIPAA §164.312(b) audit requirements for bulk data extractions. All five export methods in `ReportController` include this call as their first action before streaming the response.
 
 ---
 
@@ -522,7 +541,7 @@ PHI access is logged when:
 
 1. Route matches PHI route patterns
 2. Response is successful (2xx status code)
-3. User is authenticated OR route is provider-access (unauthenticated PHI submission)
+3. User is authenticated
 
 **Non-Logged Scenarios:**
 - Failed requests (4xx, 5xx status codes)
@@ -801,6 +820,6 @@ Authorization: Bearer <super_admin_token>
 ---
 
 **Document Status:** Authoritative
-**Last Updated:** March 2026 (Phase 10 — Documentation; Phase 9 additions); Phase 11 — Medical Portal Expansion (2026-03-07)
-**Version:** 1.1.0
+**Last Updated:** April 2026 (2026-04-09) — Full System Forensic Audit; removed dead provider-access references; added document_view and report_export audit coverage
+**Version:** 1.2.0
 **HIPAA Compliance:** Reviewed and approved for §164.312(b) requirements

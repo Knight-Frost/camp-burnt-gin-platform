@@ -96,7 +96,12 @@ class MessageTest extends TestCase
     {
         Sanctum::actingAs($this->parent);
 
-        $file = UploadedFile::fake()->create('document.pdf', 1024, 'application/pdf');
+        // Use a minimal valid PDF so the DocumentService magic-byte MIME check passes.
+        // UploadedFile::fake()->create() generates random bytes which finfo detects
+        // as application/octet-stream, not application/pdf.
+        $tempPath = tempnam(sys_get_temp_dir(), 'test_pdf_');
+        file_put_contents($tempPath, "%PDF-1.4\n1 0 obj\n<< >>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 1 >>\nstartxref\n20\n%%EOF\n");
+        $file = new \Illuminate\Http\UploadedFile($tempPath, 'document.pdf', 'application/pdf', null, true);
 
         $response = $this->postJson(
             "/api/inbox/conversations/{$this->conversation->id}/messages",

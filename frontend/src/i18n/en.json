@@ -574,6 +574,7 @@
       "compliant": "Compliant",
       "non_compliant": "Non-Compliant",
       "view_risk": "View Risk",
+      "view_profile": "View Profile",
       "empty_title": "No campers found",
       "empty_desc": "Registered campers will appear here."
     },
@@ -1265,6 +1266,7 @@
       "notes": "Notes",
       "optional": "optional",
       "draft_saved": "Draft saved.",
+      "draft_conflict": "This draft was saved in another tab. Reload the page to get the latest version.",
 
       "s1_application_type_heading": "Application type",
       "s1_first_application_label": "First application — this applicant has never applied to Camp Burnt Gin before",
@@ -1519,8 +1521,9 @@
 
       "s6_instructions": "For each area, select the level of assistance your camper requires. Add notes for any specific care protocols staff should follow.",
       "s6_level_independent": "Independent",
-      "s6_level_assisted": "Needs assistance",
-      "s6_level_dependent": "Fully dependent on staff",
+      "s6_level_verbal_cue": "Verbal Cue",
+      "s6_level_physical_assist": "Physical Assist",
+      "s6_level_full_assist": "Full Assist",
       "s6_notes_staff_placeholder": "Any specific notes for staff (optional)",
       "s6_bathing_label": "Bathing / showering",
       "s6_bathing_placeholder": "e.g. Needs seat, uses handheld shower, max temp 100°F",
@@ -1587,6 +1590,7 @@
       "sn_additional_info_placeholder": "Is there any additional information about your camper that camp staff should know that has not been covered elsewhere?",
       "sn_emergency_protocols_label": "Special emergency protocols",
       "sn_emergency_protocols_placeholder": "Are there any special emergency procedures or protocols specific to your camper's condition that staff must follow?",
+      "sn_section_reviewed_label": "I have reviewed this section — I have nothing additional to add, or I have provided all relevant information above",
 
       "s9_docs_required_title": "Documents are required before submission",
       "s9_docs_required_desc": "Upload all required documents. Conditional documents are shown based on your earlier responses. Accepted formats: PDF, JPG, PNG. Max 10 MB per file.",
@@ -1868,6 +1872,7 @@
     "withdrawn_notice": "Application was withdrawn.",
     "step_submitted": "Submitted",
     "step_under_review": "Under review",
+    "step_waitlisted": "Waitlisted",
     "step_approved": "Approved",
     "withdraw_confirm": "Are you sure you want to withdraw this application? This cannot be undone.",
     "withdraw_success": "Application withdrawn successfully.",
@@ -1978,6 +1983,8 @@
     "all_resources": "All Resources",
     "no_critical": "No critical items on this page",
     "category_auth": "Authentication",
+    "category_messaging": "Messaging",
+    "category_security": "Security",
     "category_applications": "Applications",
     "category_campers": "Campers",
     "category_medical": "Medical",
@@ -2162,5 +2169,12 @@
     "action_complete": "Complete",
     "sort_newest": "Newest first",
     "sort_oldest": "Oldest first"
+  },
+  "settings_page": {
+    "tab_appearance": "Appearance",
+    "tab_account": "Account",
+    "tab_security": "Security",
+    "tab_notifications": "Notifications",
+    "tab_data": "Data & Account"
   }
 }

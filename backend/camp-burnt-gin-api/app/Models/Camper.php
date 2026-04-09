@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -182,17 +183,6 @@ class Camper extends Model
     }
 
     /**
-     * Get all medical provider links for this camper.
-     *
-     * MedicalProviderLink rows grant specific medical-role users access
-     * to this camper's PHI (protected health information).
-     */
-    public function medicalProviderLinks(): HasMany
-    {
-        return $this->hasMany(MedicalProviderLink::class);
-    }
-
-    /**
      * Get all medical diagnoses for this camper.
      */
     public function diagnoses(): HasMany
@@ -230,6 +220,18 @@ class Camper extends Model
     public function personalCarePlan(): HasOne
     {
         return $this->hasOne(PersonalCarePlan::class);
+    }
+
+    /**
+     * Get all documents uploaded for this camper (immunization records, physical exam, etc.).
+     *
+     * Documents are uploaded via the polymorphic documentable relationship during
+     * the application form submission. They are attached to the Camper (not the Application)
+     * so that DocumentEnforcementService can find them for compliance checking.
+     */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
     /**

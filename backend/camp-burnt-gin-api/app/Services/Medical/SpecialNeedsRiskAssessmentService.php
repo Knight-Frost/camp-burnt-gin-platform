@@ -2,17 +2,20 @@
 
 namespace App\Services\Medical;
 
+use App\Enums\AllergySeverity;
 use App\Enums\DiagnosisSeverity;
 use App\Enums\MedicalComplexityTier;
+use App\Enums\RiskReviewStatus;
 use App\Enums\SupervisionLevel;
 use App\Models\Camper;
+use App\Models\RiskAssessment;
+use Illuminate\Support\Facades\DB;
 
 /**
  * SpecialNeedsRiskAssessmentService — Medical Risk Scoring and Supervision Planning
  *
- * This service calculates a numeric risk score (0–100) for each camper based
- * on their medical conditions, behavioral profile, and physical support needs.
- * The score drives two important decisions:
+ * This service calculates a numeric risk score (0–100) for each camper based on their
+ * medical conditions, behavioral profile, and physical support needs. The score drives:
  *
  *  1. SupervisionLevel — determines the staff-to-camper ratio:
  *       Standard  (score  0–20): 1 staff to 6 campers (typical camp ratio)
@@ -24,32 +27,37 @@ use App\Models\Camper;
  *       Moderate  (score 26–50): Regular monitoring and medical support
  *       High      (score   51+): Intensive care and specialised staffing
  *
- * Risk factors and their point values are defined as class constants so
- * they can be reviewed and adjusted without changing the algorithm itself.
+ * What changed in this version (Phase 16):
+ *  - Returns a full factor_breakdown array showing each factor's contribution
+ *  - Life-threatening allergies now contribute to the score (+15)
+ *  - Assessments are persisted to the risk_assessments table for audit trail
+ *  - Medical review state (clinical notes, overrides) is preserved across
+ *    recalculations when the score change is within the threshold
  *
- * The calculated supervision level is persisted back to the camper record
- * (quietly, to avoid triggering observer loops). Scores above 100 are capped.
- *
- * Called by: CamperController -> riskSummary() endpoint
- *            DocumentEnforcementService for compliance checking
+ * Called by:
+ *   CamperController → riskSummary() endpoint
+ *   RiskAssessmentController → show(), plus indirectly by model observers
+ *   DocumentEnforcementService for compliance checking
+ *   Model observers (MedicalRecordObserver, DiagnosisObserver, etc.)
  */
 class SpecialNeedsRiskAssessmentService
 {
     // ── Risk score point values ──────────────────────────────────────────────
-    // Each constant represents how many risk points a specific condition adds.
-    // Higher numbers = more complex support need.
 
-    /** Seizure history — high risk requiring an action plan */
+    /** Seizure history — requires an action plan and trained staff nearby */
     protected const RISK_SEIZURES = 20;
 
-    /** G-tube (gastrostomy tube) feeding — requires trained staff */
+    /** G-tube (gastrostomy tube) feeding — requires trained staff for every meal */
     protected const RISK_G_TUBE = 20;
 
-    /** Wandering risk — requires constant physical proximity */
+    /** Wandering risk — requires constant physical proximity to prevent elopement */
     protected const RISK_WANDERING = 15;
 
-    /** History of aggression — requires intervention-trained staff */
+    /** History of aggression — requires de-escalation-trained staff */
     protected const RISK_AGGRESSION = 15;
+
+    /** Life-threatening allergy (anaphylaxis risk) — requires epinephrine on hand at all times */
+    protected const RISK_LIFE_THREATENING_ALLERGY = 15;
 
     /** Behavioural profile explicitly requires one-to-one supervision */
     protected const RISK_ONE_TO_ONE = 30;
@@ -57,52 +65,38 @@ class SpecialNeedsRiskAssessmentService
     /** Physical transfer assistance required for mobility devices */
     protected const RISK_TRANSFER_ASSISTANCE = 10;
 
-    /** Developmental delay — requires adapted programming */
+    /** Developmental delay — requires adapted programming and monitoring */
     protected const RISK_DEVELOPMENTAL_DELAY = 10;
 
-    /** Severe diagnosis on file */
+    /** Each severe diagnosis on file */
     protected const RISK_DIAGNOSIS_SEVERE = 5;
 
-    /** Moderate diagnosis on file */
+    /** Each moderate diagnosis on file */
     protected const RISK_DIAGNOSIS_MODERATE = 3;
 
     // ── Score ceiling ────────────────────────────────────────────────────────
-    /** Scores are capped at 100 regardless of how many conditions are present */
     protected const RISK_SCORE_CAP = 100;
 
     // ── Supervision thresholds ───────────────────────────────────────────────
-    /** Scores at or below this value → Standard supervision */
     protected const SUPERVISION_STANDARD_MAX = 20;
-
-    /** Scores at or below this value (but above STANDARD_MAX) → Enhanced supervision */
     protected const SUPERVISION_ENHANCED_MAX = 40;
 
     // ── Complexity tier thresholds ───────────────────────────────────────────
-    /** Scores at or below this value → Low complexity tier */
-    protected const COMPLEXITY_LOW_MAX = 25;
-
-    /** Scores at or below this value (but above LOW_MAX) → Moderate complexity tier */
+    protected const COMPLEXITY_LOW_MAX    = 25;
     protected const COMPLEXITY_MODERATE_MAX = 50;
 
     /**
      * Run the full risk assessment for a camper and return a structured result.
      *
-     * This is the public entry point. It:
-     *  1. Eagerly loads all relationships to avoid N+1 queries
-     *  2. Calculates the numeric risk score
-     *  3. Determines the supervision level and complexity tier from the score
-     *  4. Extracts a plain-English list of active risk flags
-     *  5. Persists the supervision level to the camper record (only if changed)
-     *
-     * PERFORMANCE: All required relationships are loaded in one loadMissing() call
-     * to prevent multiple database round-trips.
+     * This is the single public entry point. It eagerly loads all needed
+     * relationships, scores the camper, builds a factor breakdown, persists the
+     * result to the risk_assessments table, and returns everything the API needs.
      *
      * @param  Camper  $camper  The camper to assess
-     * @return array<string, mixed> risk_score, supervision_level, medical_complexity_tier, flags
+     * @return array<string, mixed>
      */
     public function assessCamper(Camper $camper): array
     {
-        // Load all relationships needed for assessment in a single call to prevent N+1 queries
         $camper->loadMissing([
             'medicalRecord',
             'feedingPlan',
@@ -113,112 +107,262 @@ class SpecialNeedsRiskAssessmentService
             'activityPermissions',
         ]);
 
-        $riskScore = $this->calculateRiskScore($camper);
+        $factorBreakdown  = $this->buildFactorBreakdown($camper);
+        $riskScore        = $this->scoreFromBreakdown($factorBreakdown);
         $supervisionLevel = $this->determineSupervisionLevel($riskScore);
-        $complexityTier = $this->determineComplexityTier($riskScore);
-        $flags = $this->extractFlags($camper);
+        $complexityTier   = $this->determineComplexityTier($riskScore);
+        $flags            = $this->extractFlags($camper);
 
-        // Write supervision level back to the database if it has changed
         $this->persistSupervisionLevel($camper, $supervisionLevel);
+        $assessment = $this->persistRiskAssessment(
+            $camper,
+            $riskScore,
+            $supervisionLevel,
+            $complexityTier,
+            $flags,
+            $factorBreakdown
+        );
 
         return [
-            'risk_score' => $riskScore,
-            'supervision_level' => $supervisionLevel,
+            'risk_score'              => $riskScore,
+            'supervision_level'       => $supervisionLevel,
             'medical_complexity_tier' => $complexityTier,
-            'flags' => $flags,
+            'flags'                   => $flags,
+            'factor_breakdown'        => $factorBreakdown,
+            'assessment'              => $assessment,
         ];
     }
 
     /**
-     * Calculate the total numeric risk score for a camper (0–100).
+     * Build the factor breakdown array.
      *
-     * Works through each medical data category, adding points for each
-     * positive risk factor found. The result is capped at RISK_SCORE_CAP (100)
-     * so a camper with many conditions doesn't go past the maximum tier boundary.
+     * Each element describes one scoreable condition:
+     *   key      — machine-readable identifier (matches flag names where possible)
+     *   label    — human-readable name for UI display
+     *   category — groups factors: medical | behavioral | physical | feeding | allergy
+     *   points   — how many points this factor adds if present
+     *   present  — whether the factor was found in the camper's data
+     *   source   — which data section it came from (for tooltip / drill-down)
      *
-     * Scoring categories:
-     *  - Medical record: seizure history
-     *  - Feeding plan: G-tube dependency
-     *  - Behavioral profile: wandering, aggression, one-to-one need, developmental delay
-     *  - Assistive devices: transfer assistance requirement
-     *  - Diagnoses: severity level (severe or moderate)
-     *
-     * @param  Camper  $camper  Camper with all relationships pre-loaded
-     * @return int Risk score from 0 to 100
+     * @return array<int, array<string, mixed>>
      */
-    public function calculateRiskScore(Camper $camper): int
+    protected function buildFactorBreakdown(Camper $camper): array
+    {
+        $factors = [];
+
+        // ── Medical record factors ───────────────────────────────────────────
+        $mr = $camper->medicalRecord;
+        $factors[] = [
+            'key'      => 'seizures',
+            'label'    => 'Seizure History',
+            'category' => 'medical',
+            'points'   => self::RISK_SEIZURES,
+            'present'  => (bool) ($mr && $mr->has_seizures),
+            'source'   => 'Medical Record',
+            'tooltip'  => 'Documented seizure history on file (+' . self::RISK_SEIZURES . ' pts). Camp policy requires an active Seizure Action Plan signed by the physician. All cabin staff must complete seizure response training and know where emergency medication (e.g. rectal diazepam) is stored.',
+        ];
+
+        $factors[] = [
+            'key'      => 'neurostimulator',
+            'label'    => 'Neurostimulator (VNS/DBS)',
+            'category' => 'medical',
+            'points'   => 0,
+            'present'  => (bool) ($mr && $mr->has_neurostimulator),
+            'source'   => 'Medical Record',
+            'tooltip'  => 'Implanted neurostimulator (VNS or DBS) on file. No score impact — flagged for staff awareness. MRI is contraindicated. Staff must not place magnets near the device. Notify medical staff before any emergency imaging is ordered.',
+        ];
+
+        // ── Allergy factors ──────────────────────────────────────────────────
+        $hasLifeThreatening = $camper->allergies->contains(
+            fn ($a) => $a->severity === AllergySeverity::LifeThreatening
+        );
+        $factors[] = [
+            'key'      => 'life_threatening_allergy',
+            'label'    => 'Life-Threatening Allergy (Anaphylaxis Risk)',
+            'category' => 'allergy',
+            'points'   => self::RISK_LIFE_THREATENING_ALLERGY,
+            'present'  => $hasLifeThreatening,
+            'source'   => 'Allergies',
+            'tooltip'  => 'One or more allergies are classified as life-threatening (anaphylaxis risk, +' . self::RISK_LIFE_THREATENING_ALLERGY . ' pts). An epinephrine auto-injector (EpiPen) must be accessible within 30 seconds at all times. Kitchen staff must be briefed before each meal. All cabin staff must know the anaphylaxis response protocol.',
+        ];
+
+        // ── Feeding plan factors ─────────────────────────────────────────────
+        $fp = $camper->feedingPlan;
+        $factors[] = [
+            'key'      => 'g_tube',
+            'label'    => 'G-Tube Feeding',
+            'category' => 'feeding',
+            'points'   => self::RISK_G_TUBE,
+            'present'  => (bool) ($fp && $fp->g_tube),
+            'source'   => 'Feeding Plan',
+            'tooltip'  => 'Gastrostomy tube (G-tube) present (+' . self::RISK_G_TUBE . ' pts). A staff member trained in tube-feeding procedures must be present at every meal or feeding time. Tube site must be inspected daily for irritation or infection. The medical director must sign off on the feeding protocol before session start.',
+        ];
+
+        $factors[] = [
+            'key'      => 'special_diet',
+            'label'    => 'Special Dietary Requirements',
+            'category' => 'feeding',
+            'points'   => 0,
+            'present'  => (bool) ($fp && $fp->special_diet),
+            'source'   => 'Feeding Plan',
+            'tooltip'  => 'Special dietary requirements documented (texture-modified, allergen-restricted, etc.). No score impact — flagged for kitchen coordination. Dietary needs must be reviewed with food service before the camper\'s first meal. See feeding plan for full details.',
+        ];
+
+        // ── Behavioral profile factors ───────────────────────────────────────
+        $bp = $camper->behavioralProfile;
+
+        $factors[] = [
+            'key'      => 'one_to_one_required',
+            'label'    => 'Requires One-to-One Supervision',
+            'category' => 'behavioral',
+            'points'   => self::RISK_ONE_TO_ONE,
+            'present'  => (bool) ($bp && $bp->one_to_one_supervision),
+            'source'   => 'Behavioral Profile',
+            'tooltip'  => 'Behavioral profile requires a dedicated 1:1 staff member at all times (+' . self::RISK_ONE_TO_ONE . ' pts — highest single factor). The assigned staff member has no other camper responsibilities. Session staffing plans must account for this before the camper\'s arrival.',
+        ];
+
+        $factors[] = [
+            'key'      => 'wandering_risk',
+            'label'    => 'Wandering / Elopement Risk',
+            'category' => 'behavioral',
+            'points'   => self::RISK_WANDERING,
+            'present'  => (bool) ($bp && $bp->wandering_risk),
+            'source'   => 'Behavioral Profile',
+            'tooltip'  => 'Documented wandering or elopement risk (+' . self::RISK_WANDERING . ' pts). Visual contact is required during all transitions (meals, activities, bathroom). A systematic search must begin within 3 minutes if the camper cannot be located. Confirm perimeter security before sessions.',
+        ];
+
+        $factors[] = [
+            'key'      => 'aggression',
+            'label'    => 'History of Aggression',
+            'category' => 'behavioral',
+            'points'   => self::RISK_AGGRESSION,
+            'present'  => (bool) ($bp && $bp->aggression),
+            'source'   => 'Behavioral Profile',
+            'tooltip'  => 'Documented history of aggressive behavior (+' . self::RISK_AGGRESSION . ' pts). Counselors must review this camper\'s specific de-escalation strategies from the behavioral profile before the session. Document any aggressive episode with time, trigger, and response. Do not isolate — maintain safe proximity and involve senior staff if escalation continues.',
+        ];
+
+        $factors[] = [
+            'key'      => 'self_abuse',
+            'label'    => 'Self-Injurious Behaviour',
+            'category' => 'behavioral',
+            'points'   => 0,
+            'present'  => (bool) ($bp && $bp->self_abuse),
+            'source'   => 'Behavioral Profile',
+            'tooltip'  => 'Documented self-injurious behavior (head-banging, biting, scratching, etc.). No score impact — flagged for counselor awareness. Triggers and calming strategies are in the behavioral profile. Avoid physical restraint unless there is an immediate safety risk; use environment and calming protocol instead.',
+        ];
+
+        $factors[] = [
+            'key'      => 'developmental_delay',
+            'label'    => 'Developmental Delay',
+            'category' => 'behavioral',
+            'points'   => self::RISK_DEVELOPMENTAL_DELAY,
+            'present'  => (bool) ($bp && $bp->developmental_delay),
+            'source'   => 'Behavioral Profile',
+            'tooltip'  => 'Developmental delay diagnosed (+' . self::RISK_DEVELOPMENTAL_DELAY . ' pts). All activities and communications should be adapted to the camper\'s functional (not chronological) age. Allow additional processing time, use simplified instructions, and provide visual schedules where possible. Review the behavioral profile for specific communication accommodations.',
+        ];
+
+        // ── Assistive device factors ─────────────────────────────────────────
+        $devices = $camper->assistiveDevices;
+        $needsTransfer = $devices->contains('requires_transfer_assistance', true);
+        $hasCpap       = $devices->contains(fn ($d) => stripos((string) $d->device_type, 'cpap') !== false)
+                      || $devices->contains(fn ($d) => stripos((string) $d->device_type, 'bipap') !== false);
+
+        $factors[] = [
+            'key'      => 'transfer_assistance',
+            'label'    => 'Transfer Assistance Required',
+            'category' => 'physical',
+            'points'   => self::RISK_TRANSFER_ASSISTANCE,
+            'present'  => $needsTransfer,
+            'source'   => 'Assistive Devices',
+            'tooltip'  => 'Assistive devices on file that require staff-assisted transfers (wheelchair, Hoyer lift, specialised seating, +' . self::RISK_TRANSFER_ASSISTANCE . ' pts). Staff must complete transfer training before the session. Incorrect technique risks injury to both the camper and staff. Review device-specific handling notes in the assistive devices section.',
+        ];
+
+        $factors[] = [
+            'key'      => 'cpap_bipap',
+            'label'    => 'CPAP / BiPAP Device',
+            'category' => 'physical',
+            'points'   => 0,
+            'present'  => $hasCpap,
+            'source'   => 'Assistive Devices',
+            'tooltip'  => 'CPAP or BiPAP required for overnight respiratory support. No score impact — flagged for cabin staff. Overnight staff must complete device setup training before the camper\'s first night. If the device fails or is not tolerated, notify medical staff immediately. Do not allow sleep without the device unless cleared by a physician.',
+        ];
+
+        // ── Diagnosis severity factors ───────────────────────────────────────
+        $diagnoses    = $camper->diagnoses;
+        $severeCount  = $diagnoses->filter(fn ($d) => $d->severity_level === DiagnosisSeverity::Severe)->count();
+        $moderateCount = $diagnoses->filter(fn ($d) => $d->severity_level === DiagnosisSeverity::Moderate)->count();
+
+        $factors[] = [
+            'key'      => 'severe_diagnosis',
+            'label'    => 'Severe Diagnosis (' . $severeCount . ' on file)',
+            'category' => 'medical',
+            'points'   => self::RISK_DIAGNOSIS_SEVERE,
+            'present'  => $severeCount > 0,
+            'count'    => $severeCount,
+            'per_item' => true,   // each instance adds points
+            'source'   => 'Diagnoses',
+            'tooltip'  => 'Each severe diagnosis (e.g. uncontrolled epilepsy, complex cardiac condition, active oncology) adds +' . self::RISK_DIAGNOSIS_SEVERE . ' pts to the risk score. Severe diagnoses require pre-session review with the medical director, current emergency contacts, and accessible condition-specific protocols.',
+        ];
+
+        $factors[] = [
+            'key'      => 'moderate_diagnosis',
+            'label'    => 'Moderate Diagnosis (' . $moderateCount . ' on file)',
+            'category' => 'medical',
+            'points'   => self::RISK_DIAGNOSIS_MODERATE,
+            'present'  => $moderateCount > 0,
+            'count'    => $moderateCount,
+            'per_item' => true,
+            'source'   => 'Diagnoses',
+            'tooltip'  => 'Each moderate diagnosis (e.g. controlled asthma, type 1 diabetes, anxiety disorder) adds +' . self::RISK_DIAGNOSIS_MODERATE . ' pts. Requires staff familiarity with the camper\'s medication schedule, activity restrictions, and emergency protocol for each condition listed in the diagnoses section.',
+        ];
+
+        return $factors;
+    }
+
+    /**
+     * Sum points from a pre-built factor breakdown, capped at RISK_SCORE_CAP.
+     */
+    public function scoreFromBreakdown(array $factors): int
     {
         $score = 0;
 
-        // ── Medical record risk factors ──────────────────────────────────────
-        $medicalRecord = $camper->medicalRecord;
-        if ($medicalRecord) {
-            if ($medicalRecord->has_seizures) {
-                $score += self::RISK_SEIZURES;
+        foreach ($factors as $factor) {
+            if (! $factor['present']) {
+                continue;
             }
+
+            $points = $factor['points'] ?? 0;
+            $count  = $factor['per_item'] ?? false ? ($factor['count'] ?? 1) : 1;
+            $score += $points * $count;
         }
 
-        // ── Feeding plan risk factors ────────────────────────────────────────
-        $feedingPlan = $camper->feedingPlan;
-        if ($feedingPlan && $feedingPlan->g_tube) {
-            $score += self::RISK_G_TUBE;
-        }
-
-        // ── Behavioral profile risk factors ──────────────────────────────────
-        $behavioralProfile = $camper->behavioralProfile;
-        if ($behavioralProfile) {
-            if ($behavioralProfile->wandering_risk) {
-                $score += self::RISK_WANDERING;
-            }
-
-            if ($behavioralProfile->aggression) {
-                $score += self::RISK_AGGRESSION;
-            }
-
-            if ($behavioralProfile->one_to_one_supervision) {
-                $score += self::RISK_ONE_TO_ONE;
-            }
-
-            if ($behavioralProfile->developmental_delay) {
-                $score += self::RISK_DEVELOPMENTAL_DELAY;
-            }
-        }
-
-        // ── Assistive device risk factors ────────────────────────────────────
-        $assistiveDevices = $camper->assistiveDevices;
-        foreach ($assistiveDevices as $device) {
-            if ($device->requires_transfer_assistance) {
-                $score += self::RISK_TRANSFER_ASSISTANCE;
-                // Count transfer assistance only once even if multiple devices require it
-                break;
-            }
-        }
-
-        // ── Diagnosis severity risk factors ──────────────────────────────────
-        $diagnoses = $camper->diagnoses;
-        foreach ($diagnoses as $diagnosis) {
-            if ($diagnosis->severity_level === DiagnosisSeverity::Severe) {
-                $score += self::RISK_DIAGNOSIS_SEVERE;
-            } elseif ($diagnosis->severity_level === DiagnosisSeverity::Moderate) {
-                $score += self::RISK_DIAGNOSIS_MODERATE;
-            }
-        }
-
-        // Cap the score at the maximum so it never exceeds the defined ceiling
         return min($score, self::RISK_SCORE_CAP);
     }
 
     /**
-     * Map a numeric risk score to the appropriate supervision level.
+     * Legacy entry point: calculate numeric score directly from camper data.
      *
-     * Supervision levels affect staffing ratios at camp:
-     *  Standard  (≤20): 1:6 ratio — typical for campers with minimal needs
-     *  Enhanced  (≤40): 1:3 ratio — increased supervision for moderate needs
-     *  OneToOne    (>40): 1:1 ratio — a dedicated staff member per camper
-     *
-     * @param  int  $score  Risk score from 0 to 100
+     * Kept for backward compatibility with DocumentEnforcementService and tests
+     * that call calculateRiskScore() directly. New code should call assessCamper().
      */
-    protected function determineSupervisionLevel(int $score): SupervisionLevel
+    public function calculateRiskScore(Camper $camper): int
+    {
+        $camper->loadMissing([
+            'medicalRecord',
+            'feedingPlan',
+            'behavioralProfile',
+            'assistiveDevices',
+            'diagnoses',
+            'allergies',
+        ]);
+
+        return $this->scoreFromBreakdown($this->buildFactorBreakdown($camper));
+    }
+
+    /**
+     * Map a numeric risk score to the appropriate supervision level.
+     */
+    public function determineSupervisionLevel(int $score): SupervisionLevel
     {
         if ($score <= self::SUPERVISION_STANDARD_MAX) {
             return SupervisionLevel::Standard;
@@ -228,21 +372,13 @@ class SpecialNeedsRiskAssessmentService
             return SupervisionLevel::Enhanced;
         }
 
-        // Anything above Enhanced threshold requires dedicated one-to-one support
         return SupervisionLevel::OneToOne;
     }
 
     /**
      * Map a numeric risk score to the appropriate medical complexity tier.
-     *
-     * Complexity tiers inform medical staffing levels and care plan complexity:
-     *  Low      (≤25): Standard health monitoring; no specialist staffing needed
-     *  Moderate (≤50): Regular medical check-ins; nurse on call at all times
-     *  High      (>50): Continuous medical oversight; specialist staff required
-     *
-     * @param  int  $score  Risk score from 0 to 100
      */
-    protected function determineComplexityTier(int $score): MedicalComplexityTier
+    public function determineComplexityTier(int $score): MedicalComplexityTier
     {
         if ($score <= self::COMPLEXITY_LOW_MAX) {
             return MedicalComplexityTier::Low;
@@ -256,120 +392,164 @@ class SpecialNeedsRiskAssessmentService
     }
 
     /**
-     * Build a plain-English list of active risk flags from all medical data sections.
+     * Build a plain list of active risk flag identifiers.
      *
-     * Flags are short string identifiers (e.g. 'seizures', 'wandering_risk') that
-     * give staff a quick checklist of what to watch for with this camper, without
-     * needing to open every sub-section of the medical record.
-     *
-     * These flags are also used by DocumentEnforcementService to determine which
-     * condition-specific documents are required for approval.
-     *
-     * @param  Camper  $camper  Camper with all relationships pre-loaded
-     * @return array<string> List of active risk flag identifiers
+     * These are short string keys used by DocumentEnforcementService to check
+     * which condition-specific documents are required, and by the UI to render
+     * flag pills.
      */
-    protected function extractFlags(Camper $camper): array
+    public function extractFlags(Camper $camper): array
     {
         $flags = [];
 
-        // ── Medical record flags ─────────────────────────────────────────────
-        $medicalRecord = $camper->medicalRecord;
-        if ($medicalRecord) {
-            if ($medicalRecord->has_seizures) {
-                $flags[] = 'seizures';
-            }
-
-            if ($medicalRecord->has_neurostimulator) {
-                $flags[] = 'neurostimulator';
-            }
+        $mr = $camper->medicalRecord;
+        if ($mr) {
+            if ($mr->has_seizures)        { $flags[] = 'seizures'; }
+            if ($mr->has_neurostimulator) { $flags[] = 'neurostimulator'; }
         }
 
-        // ── Feeding plan flags ───────────────────────────────────────────────
-        $feedingPlan = $camper->feedingPlan;
-        if ($feedingPlan) {
-            if ($feedingPlan->g_tube) {
-                $flags[] = 'g_tube';
-            }
-
-            if ($feedingPlan->special_diet) {
-                $flags[] = 'special_diet';
-            }
+        if ($camper->allergies->contains(fn ($a) => $a->severity === AllergySeverity::LifeThreatening)) {
+            $flags[] = 'life_threatening_allergy';
         }
 
-        // ── Behavioral profile flags ─────────────────────────────────────────
-        $behavioralProfile = $camper->behavioralProfile;
-        if ($behavioralProfile) {
-            if ($behavioralProfile->wandering_risk) {
-                $flags[] = 'wandering_risk';
-            }
-
-            if ($behavioralProfile->aggression) {
-                $flags[] = 'aggression';
-            }
-
-            if ($behavioralProfile->self_abuse) {
-                $flags[] = 'self_abuse';
-            }
-
-            if ($behavioralProfile->one_to_one_supervision) {
-                $flags[] = 'one_to_one_required';
-            }
-
-            if ($behavioralProfile->developmental_delay) {
-                $flags[] = 'developmental_delay';
-            }
+        $fp = $camper->feedingPlan;
+        if ($fp) {
+            if ($fp->g_tube)       { $flags[] = 'g_tube'; }
+            if ($fp->special_diet) { $flags[] = 'special_diet'; }
         }
 
-        // ── Assistive device flags ───────────────────────────────────────────
-        $assistiveDevices = $camper->assistiveDevices;
-        if ($assistiveDevices->isNotEmpty()) {
-            // Flag that the camper uses at least one assistive device
+        $bp = $camper->behavioralProfile;
+        if ($bp) {
+            if ($bp->wandering_risk)        { $flags[] = 'wandering_risk'; }
+            if ($bp->aggression)            { $flags[] = 'aggression'; }
+            if ($bp->self_abuse)            { $flags[] = 'self_abuse'; }
+            if ($bp->one_to_one_supervision) { $flags[] = 'one_to_one_required'; }
+            if ($bp->developmental_delay)   { $flags[] = 'developmental_delay'; }
+        }
+
+        $devices = $camper->assistiveDevices;
+        if ($devices->isNotEmpty()) {
             $flags[] = 'assistive_devices';
 
-            if ($assistiveDevices->contains('requires_transfer_assistance', true)) {
+            if ($devices->contains('requires_transfer_assistance', true)) {
                 $flags[] = 'transfer_assistance';
             }
 
-            // CPAP / BiPAP — requires physician waiver for overnight camp use
-            $hasCpap = $assistiveDevices->contains(function ($device) {
-                return stripos((string) $device->device_type, 'cpap') !== false;
-            });
-            if ($hasCpap) {
-                $flags[] = 'cpap';
-            }
+            $hasCpap = $devices->contains(fn ($d) => stripos((string) $d->device_type, 'cpap') !== false)
+                    || $devices->contains(fn ($d) => stripos((string) $d->device_type, 'bipap') !== false);
+            if ($hasCpap) { $flags[] = 'cpap'; }
         }
 
-        // ── Diagnosis severity flag ──────────────────────────────────────────
-        $diagnoses = $camper->diagnoses;
-        // Check if any diagnosis has a "Severe" severity level
-        $hasSevereDiagnosis = $diagnoses->contains(function ($diagnosis) {
-            return $diagnosis->severity_level === DiagnosisSeverity::Severe;
-        });
-
-        if ($hasSevereDiagnosis) {
-            $flags[] = 'severe_diagnosis';
-        }
+        $hasSevere = $camper->diagnoses->contains(fn ($d) => $d->severity_level === DiagnosisSeverity::Severe);
+        if ($hasSevere) { $flags[] = 'severe_diagnosis'; }
 
         return $flags;
     }
 
+    // ── Persistence ──────────────────────────────────────────────────────────
+
     /**
-     * Persist the computed supervision level to the camper's database record.
+     * Persist the supervision level to the camper record (for quick access by other services).
      *
-     * Only writes to the database if the level has actually changed, avoiding
-     * unnecessary writes and preventing infinite observer loops (observers watch
-     * camper saves and call this service again — saveQuietly() skips observers).
-     *
-     * @param  Camper  $camper  The camper being updated
-     * @param  SupervisionLevel  $level  The freshly computed supervision level
+     * Uses saveQuietly() to avoid re-triggering model observers and causing loops.
+     * This is a denormalised copy; the authoritative value lives in risk_assessments.
      */
-    protected function persistSupervisionLevel(Camper $camper, SupervisionLevel $level): void
+    public function persistSupervisionLevel(Camper $camper, SupervisionLevel $level): void
     {
-        // Skip the database write entirely if the level hasn't changed
         if ($camper->supervision_level !== $level) {
             $camper->supervision_level = $level;
-            // saveQuietly() saves without firing model events (prevents observer re-entry)
             $camper->saveQuietly();
         }
+    }
+
+    /**
+     * Persist the full risk assessment to the risk_assessments table.
+     *
+     * Logic:
+     *  1. Find the existing current assessment (is_current = true) for this camper.
+     *  2. If none exists: create a new record, mark it current.
+     *  3. If one exists with the same score: update calculated_at only (preserve review state).
+     *  4. If the score changed by ≤ SCORE_CHANGE_THRESHOLD: update the record, preserve review state.
+     *  5. If the score changed by > SCORE_CHANGE_THRESHOLD: demote the old record, create a new one.
+     *     Copy clinical_notes to the new record but reset review_status to system_calculated
+     *     so medical staff are prompted to re-review given the changed risk picture.
+     *
+     * All operations run inside a transaction to prevent partial-write inconsistencies.
+     *
+     * @return RiskAssessment The saved (current) assessment record
+     */
+    protected function persistRiskAssessment(
+        Camper $camper,
+        int $riskScore,
+        SupervisionLevel $supervisionLevel,
+        MedicalComplexityTier $complexityTier,
+        array $flags,
+        array $factorBreakdown
+    ): RiskAssessment {
+        return DB::transaction(function () use (
+            $camper, $riskScore, $supervisionLevel, $complexityTier, $flags, $factorBreakdown
+        ) {
+            $current = RiskAssessment::where('camper_id', $camper->id)
+                ->where('is_current', true)
+                ->first();
+
+            $now = now();
+
+            // Case 1: No existing assessment — create fresh.
+            if (! $current) {
+                return RiskAssessment::create([
+                    'camper_id'              => $camper->id,
+                    'calculated_at'          => $now,
+                    'risk_score'             => $riskScore,
+                    'supervision_level'      => $supervisionLevel,
+                    'medical_complexity_tier' => $complexityTier,
+                    'flags'                  => $flags,
+                    'factor_breakdown'       => $factorBreakdown,
+                    'is_current'             => true,
+                    'review_status'          => RiskReviewStatus::SystemCalculated,
+                ]);
+            }
+
+            $scoreDelta = abs($current->risk_score - $riskScore);
+
+            // Case 2: Score unchanged — just refresh the timestamp.
+            if ($scoreDelta === 0) {
+                $current->calculated_at = $now;
+                $current->factor_breakdown = $factorBreakdown; // update breakdown even if score same (label counts change)
+                $current->save();
+                return $current;
+            }
+
+            // Case 3: Minor score change (≤ threshold) — update in place, preserve review.
+            if ($scoreDelta <= RiskAssessment::SCORE_CHANGE_THRESHOLD) {
+                $current->calculated_at          = $now;
+                $current->risk_score             = $riskScore;
+                $current->supervision_level      = $supervisionLevel;
+                $current->medical_complexity_tier = $complexityTier;
+                $current->flags                  = $flags;
+                $current->factor_breakdown       = $factorBreakdown;
+                $current->save();
+                return $current;
+            }
+
+            // Case 4: Significant score change — demote old, create new.
+            // Preserve clinical_notes for continuity; reset review_status.
+            $current->is_current = false;
+            $current->save();
+
+            return RiskAssessment::create([
+                'camper_id'              => $camper->id,
+                'calculated_at'          => $now,
+                'risk_score'             => $riskScore,
+                'supervision_level'      => $supervisionLevel,
+                'medical_complexity_tier' => $complexityTier,
+                'flags'                  => $flags,
+                'factor_breakdown'       => $factorBreakdown,
+                'is_current'             => true,
+                'review_status'          => RiskReviewStatus::SystemCalculated,
+                // Carry forward clinical notes so context is not lost
+                'clinical_notes'         => $current->clinical_notes,
+            ]);
+        });
     }
 }

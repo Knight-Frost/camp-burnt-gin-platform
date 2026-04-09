@@ -125,13 +125,6 @@ class MedicationAuthorizationTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $medication = Medication::factory()->forCamper($camper)->create();
 
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-            'revoked_at' => null,
-            'expires_at' => now()->addDays(1),
-        ]);
-
         $response = $this->actingAs($medical)->getJson("/api/medications/{$medication->id}");
 
         $response->assertStatus(200);
@@ -159,13 +152,6 @@ class MedicationAuthorizationTest extends TestCase
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $medication = Medication::factory()->forCamper($camper)->create();
-
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-            'revoked_at' => null,
-            'expires_at' => now()->addDays(1),
-        ]);
 
         $response = $this->actingAs($medical)->putJson("/api/medications/{$medication->id}", [
             'notes' => 'Updated by medical staff',

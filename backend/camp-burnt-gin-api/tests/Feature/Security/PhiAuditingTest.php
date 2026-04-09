@@ -194,6 +194,66 @@ class PhiAuditingTest extends TestCase
         $this->assertEquals($initialAuditCount, AuditLog::count());
     }
 
+    public function test_document_metadata_view_is_audited(): void
+    {
+        // Accessing document metadata (including the decrypted original_filename
+        // which can contain PHI) must be logged even without downloading the file.
+        $admin = $this->createAdmin();
+        $camper = Camper::factory()->create();
+
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $document = \App\Models\Document::factory()->create([
+            'uploaded_by' => $admin->id,
+            'documentable_type' => Camper::class,
+            'documentable_id' => $camper->id,
+            'disk' => 'local',
+            'path' => 'private/documents/test.pdf',
+            'stored_filename' => 'test.pdf',
+            'original_filename' => 'camper_medical.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 1024,
+            'is_scanned' => true,
+            'scan_passed' => true,
+            'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
+        ]);
+
+        $initialCount = \App\Models\AuditLog::count();
+
+        $response = $this->actingAs($admin)->getJson("/api/documents/{$document->id}");
+
+        $response->assertStatus(200);
+
+        // A PHI access audit entry must be created for the metadata view.
+        $this->assertGreaterThan($initialCount, \App\Models\AuditLog::count());
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'event_type' => AuditLog::EVENT_TYPE_PHI_ACCESS,
+            'action' => 'document_view',
+        ]);
+    }
+
+    public function test_report_export_is_audited(): void
+    {
+        // CSV exports of PII/PHI data must be audit-logged so administrators
+        // can trace bulk data extractions under HIPAA §164.312(b).
+        $admin = $this->createAdmin();
+
+        $initialCount = \App\Models\AuditLog::count();
+
+        $response = $this->actingAs($admin)->getJson('/api/reports/applications');
+
+        $response->assertStatus(200);
+
+        // An admin action audit entry must be created for the export.
+        $this->assertGreaterThan($initialCount, \App\Models\AuditLog::count());
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'event_type' => AuditLog::EVENT_TYPE_ADMIN_ACTION,
+            'action' => 'report_export_applications',
+        ]);
+    }
+
     public function test_audit_logs_are_immutable(): void
     {
         $admin = $this->createAdmin();

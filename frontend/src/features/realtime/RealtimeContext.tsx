@@ -75,12 +75,21 @@ interface RealtimeContextValue {
   /** Call with the currently open conversation ID to suppress toast notifications
    *  for that conversation. Pass null when the thread is closed. */
   setActiveConversationId: (id: number | null) => void;
+  /**
+   * Re-fetches the user's notification preferences from the server and updates
+   * the internal ref used by the WebSocket/polling toast gate.
+   *
+   * Call this after the user changes `in_app_message_notifications` in Settings
+   * so the change takes effect immediately without requiring a page reload.
+   */
+  refreshNotificationPrefs: () => void;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue>({
   lastMessage: null,
   isConnected: false,
   setActiveConversationId: () => undefined,
+  refreshNotificationPrefs: () => undefined,
 });
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -119,6 +128,16 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 
   function setActiveConversationId(id: number | null) {
     activeConvIdRef.current = id;
+  }
+
+  // Exposed so Settings can trigger an immediate re-fetch after the user
+  // toggles `in_app_message_notifications` — without this the ref stays stale
+  // until the next login because its effect only depends on user?.id / token.
+  function refreshNotificationPrefs() {
+    if (!user?.id || !token) return;
+    getNotificationPreferences()
+      .then((prefs) => { notifPrefsRef.current = prefs; })
+      .catch(() => { /* keep existing ref on failure */ });
   }
 
   // Fetch notification preferences once when the user authenticates.
@@ -348,7 +367,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
   }, [user?.id, token]);
 
   return (
-    <RealtimeContext.Provider value={{ lastMessage, isConnected, setActiveConversationId }}>
+    <RealtimeContext.Provider value={{ lastMessage, isConnected, setActiveConversationId, refreshNotificationPrefs }}>
       {children}
     </RealtimeContext.Provider>
   );

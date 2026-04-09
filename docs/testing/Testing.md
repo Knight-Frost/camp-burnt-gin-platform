@@ -1,6 +1,6 @@
 # Camp Burnt Gin API - Testing Guide
 
-**Test Suite Status:** 334 passing (100%) | **Runtime:** < 3 seconds | **Assertions:** 600+
+**Test Suite Status:** 549 passing (100%) | **Runtime:** < 3 seconds | **Assertions:** 1358
 
 ---
 
@@ -31,7 +31,7 @@ php artisan test
 
 **Expected output:**
 ```
-Tests:    334 passed (600+ assertions)
+Tests:    549 passed (1358 assertions)
 Duration: < 3 seconds
 ```
 
@@ -98,14 +98,14 @@ The test environment is configured for fast, deterministic testing:
 
 | Category | Tests | Location | Purpose |
 |----------|-------|----------|---------|
-| Security | 39 | `tests/Feature/Security/` | Account lockout, rate limiting, IDOR, PHI auditing, token expiration |
+| Security | 41 | `tests/Feature/Security/` | Account lockout, rate limiting, IDOR, PHI auditing, file upload security, token expiration |
 | Regression | 48 | `tests/Feature/Regression/` | Queue reliability, audit resilience, performance indexes, compliance enforcement |
 | Authorization | 90+ | `tests/Feature/Api/*AuthorizationTest.php` | Policy enforcement, role-based access control |
 | Inbox Messaging | 32 | `tests/Feature/Inbox/` | HIPAA-compliant messaging system |
 | Validation | 26 | `tests/Feature/Api/ValidationTest.php` | Input validation rules |
 | Integration | 30+ | `tests/Feature/Api/` | Complete API workflows |
 
-**Total:** 334 tests, 600+ assertions
+**Total:** 549 tests, 1358 assertions
 
 ---
 
@@ -807,20 +807,21 @@ use App\Http\Controllers\Api\Medical\MedicalRecordController;
 | Category | Tests | Status |
 |----------|-------|--------|
 | Authorization | 90+ | Complete |
-| Security | 39 | Complete |
+| Security | 41 | Complete |
 | Regression | 48 | Complete |
 | Inbox Messaging | 32 | Complete |
 | Validation | 26 | Complete |
 | Integration | 30+ | Complete |
-| **Total** | **334** | **100% Pass** |
+| **Total** | **549** | **100% Pass** |
 
 ### Key Testing Features
 
-1. **Security tests** (5 test files, 39 tests)
+1. **Security tests** (5 test files, 41 tests — 2 added in 2026-04-09 forensic audit)
    - Account lockout protection
    - Multi-tier rate limiting
    - IDOR prevention with authorization-before-validation
-   - Comprehensive PHI audit logging
+   - Comprehensive PHI audit logging (including document metadata view and report exports)
+   - File upload security (soft-delete file preservation, forceDelete cascade)
    - Token expiration enforcement
 
 2. **Regression tests** (6 test files, 48 tests)
@@ -890,9 +891,9 @@ php artisan test --filter AuthorizationTest
 ---
 
 **Status:** Production-Ready
-**Test Coverage:** 100% pass rate (334/334 tests)
+**Test Coverage:** 100% pass rate (549/549 tests)
 **Maintenance:** All tests deterministic and maintainable
-**Last Updated:** February 2026
+**Last Updated:** April 2026 (2026-04-09) — Full System Forensic Audit; updated counts from 334 to 549 tests; added new security test coverage notes
 
 ---
 

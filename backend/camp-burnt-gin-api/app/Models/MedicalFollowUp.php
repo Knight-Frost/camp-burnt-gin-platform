@@ -57,6 +57,8 @@ class MedicalFollowUp extends Model
             // 'Y-m-d' ensures consistent date serialisation in API responses.
             'due_date' => 'date:Y-m-d',
             'completed_at' => 'datetime',
+            'title' => 'encrypted',
+            'notes' => 'encrypted',
         ];
     }
 

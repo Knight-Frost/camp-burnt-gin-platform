@@ -84,6 +84,9 @@ class DocumentService
         $document = Document::create([
             'documentable_type' => $data['documentable_type'] ?? null,
             'documentable_id' => $data['documentable_id'] ?? null,
+            // Optional direct FK to Message — used when a document is a message attachment.
+            // This powers Message::hasAttachments() / Message::attachments() relationship.
+            'message_id' => $data['message_id'] ?? null,
             'uploaded_by' => $user->id,
             'original_filename' => $file->getClientOriginalName(),
             'stored_filename' => $storedFilename,

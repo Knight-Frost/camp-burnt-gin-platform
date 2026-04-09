@@ -285,8 +285,20 @@ class CamperController extends Controller
     {
         $this->authorize('view', $camper);
 
+        // Risk assessment data is operational/clinical information for staff only.
+        // Applicants (parents) can view their own child's camper profile via CamperPolicy::view,
+        // but they must not access risk scores, supervision assignments, or medical flags —
+        // those are internal staffing decisions, not parent-facing data.
+        if (auth()->user()->isApplicant()) {
+            abort(403, 'Risk assessment data is not accessible to applicants.');
+        }
+
         // The service scores the camper's medical record and returns a structured assessment.
         $assessment = $riskService->assessCamper($camper);
+
+        // Determine effective supervision level (may differ if a clinical override is in place)
+        $storedAssessment  = $assessment['assessment'];
+        $effectiveLevel    = $storedAssessment->effectiveSupervisionLevel();
 
         return response()->json([
             'data' => [
@@ -298,10 +310,18 @@ class CamperController extends Controller
                 'supervision_label' => $assessment['supervision_level']->label(),
                 // Staff-to-camper ratio string (e.g., "1:2") for scheduling.
                 'staffing_ratio' => $assessment['supervision_level']->getStaffingRatio(),
+                // Effective level (respects clinical override if one is set)
+                'effective_supervision_level' => $effectiveLevel->value,
+                'effective_supervision_label' => $effectiveLevel->label(),
+                'effective_staffing_ratio'    => $effectiveLevel->getStaffingRatio(),
                 'medical_complexity_tier' => $assessment['medical_complexity_tier']->value,
                 'complexity_label' => $assessment['medical_complexity_tier']->label(),
                 // Individual flags (e.g., "seizure_history") that contributed to the score.
                 'flags' => $assessment['flags'],
+                // Review state — lets the compact card show the review badge
+                'review_status'       => $storedAssessment->review_status->value,
+                'review_status_label' => $storedAssessment->review_status->label(),
+                'is_overridden'       => $storedAssessment->isOverridden(),
             ],
         ]);
     }

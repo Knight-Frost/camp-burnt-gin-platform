@@ -54,10 +54,8 @@ class EnsureUserHasRole
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // Resolve whether this user holds an acceptable role before any further
-        // checks. Consolidating this here (rather than returning early on each
-        // match) ensures the MFA gate below runs for every role, including
-        // super_admin, which would otherwise bypass it via an early return.
+        // Resolve whether this user holds an acceptable role.
+        // super_admin inherits all role privileges so it short-circuits first.
         $roleAllowed = false;
 
         // super_admin inherits all role privileges.
@@ -78,17 +76,11 @@ class EnsureUserHasRole
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // Admin, super_admin, and medical roles require MFA enrollment before
-        // accessing protected routes. Applicants are exempt (no PHI write access).
-        if ($user->isAdmin() || $user->isMedicalProvider()) {
-            if (! $user->mfa_enabled) {
-                return response()->json([
-                    'message' => 'Multi-factor authentication is required for your account type. '
-                        .'Please enable MFA in your security settings before accessing this area.',
-                    'mfa_setup_required' => true,
-                ], Response::HTTP_FORBIDDEN);
-            }
-        }
+        // MFA is NOT enforced here — that is the responsibility of the separate
+        // mfa.enrolled (EnsureMfaEnrolled) and mfa.step_up (EnsureMfaStepUp)
+        // middleware layers applied to individual routes that require it.
+        // Role middleware must remain a pure role check to allow unenrolled admins
+        // to reach their profile page and complete MFA setup.
 
         return $next($request);
     }

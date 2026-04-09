@@ -76,6 +76,7 @@ const AdminFamiliesPage          = withSuspense(lazy(() => import('@/features/ad
 const AdminFamilyWorkspacePage   = withSuspense(lazy(() => import('@/features/admin/pages/AdminFamilyWorkspacePage').then(m => ({ default: m.AdminFamilyWorkspacePage }))));
 const AdminCampersPage           = withSuspense(lazy(() => import('@/features/admin/pages/AdminCampersPage').then(m => ({ default: m.AdminCampersPage }))));
 const CamperDetailPage           = withSuspense(lazy(() => import('@/features/admin/pages/CamperDetailPage').then(m => ({ default: m.CamperDetailPage }))));
+const CamperRiskPage             = withSuspense(lazy(() => import('@/features/admin/pages/CamperRiskPage').then(m => ({ default: m.CamperRiskPage }))));
 const AdminSessionsPage          = withSuspense(lazy(() => import('@/features/admin/pages/AdminSessionsPage').then(m => ({ default: m.AdminSessionsPage }))));
 const ArchivedSessionsPage       = withSuspense(lazy(() => import('@/features/admin/pages/ArchivedSessionsPage').then(m => ({ default: m.ArchivedSessionsPage }))));
 const AdminApplicationEditPage   = withSuspense(lazy(() => import('@/features/admin/pages/AdminApplicationEditPage').then(m => ({ default: m.AdminApplicationEditPage }))));
@@ -97,7 +98,8 @@ const MedicalDocumentsPage     = withSuspense(lazy(() => import('@/features/medi
 const MedicalIncidentsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalIncidentsPage').then(m => ({ default: m.MedicalIncidentsPage }))));
 const MedicalFollowUpsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalFollowUpsPage').then(m => ({ default: m.MedicalFollowUpsPage }))));
 const MedicalVisitsPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalVisitsPage').then(m => ({ default: m.MedicalVisitsPage }))));
-const MedicalEmergencyViewPage = withSuspense(lazy(() => import('@/features/medical/pages/MedicalEmergencyViewPage').then(m => ({ default: m.MedicalEmergencyViewPage }))));
+const MedicalEmergencyViewPage  = withSuspense(lazy(() => import('@/features/medical/pages/MedicalEmergencyViewPage').then(m => ({ default: m.MedicalEmergencyViewPage }))));
+// MedicalCamperRiskPage replaced by CamperRiskPage — medical portal now uses the full risk UI
 
 // ─── Super admin pages ────────────────────────────────────────────────────────
 // Super admins get all admin pages plus user management, audit logs, and form builder
@@ -217,6 +219,7 @@ export const router = createBrowserRouter([
           { path: '/admin/families/:userId',    element: <AdminFamilyWorkspacePage /> },
           { path: '/admin/campers',             element: <AdminCampersPage /> },
           { path: '/admin/campers/:id',         element: <CamperDetailPage /> },
+          { path: '/admin/campers/:id/risk',    element: <CamperRiskPage /> },
           { path: '/admin/sessions',            element: <AdminSessionsPage /> },
           { path: '/admin/sessions/archived',   element: <ArchivedSessionsPage /> },
           { path: '/admin/sessions/:id',        element: <SessionDetailPage /> },
@@ -266,6 +269,7 @@ export const router = createBrowserRouter([
           { path: '/medical/records/:camperId/visits',           element: <MedicalVisitsPage /> },
           // Emergency view shows critical info for a specific camper at a glance
           { path: '/medical/records/:camperId/emergency',        element: <MedicalEmergencyViewPage /> },
+          { path: '/medical/records/:id/risk',                  element: <CamperRiskPage /> },
           { path: '/medical/announcements',                      element: <ParentAnnouncementsPage /> },
           { path: '/medical/inbox',                              element: <InboxPage /> },
           { path: '/medical/profile',                            element: <ProfilePage /> },
@@ -301,6 +305,7 @@ export const router = createBrowserRouter([
           { path: '/super-admin/families/:userId',     element: <AdminFamilyWorkspacePage /> },
           { path: '/super-admin/campers',              element: <AdminCampersPage /> },
           { path: '/super-admin/campers/:id',          element: <CamperDetailPage /> },
+          { path: '/super-admin/campers/:id/risk',     element: <CamperRiskPage /> },
           { path: '/super-admin/sessions',             element: <AdminSessionsPage /> },
           { path: '/super-admin/sessions/archived',    element: <ArchivedSessionsPage /> },
           { path: '/super-admin/sessions/:id',         element: <SessionDetailPage /> },

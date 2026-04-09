@@ -196,4 +196,60 @@ class FileUploadSecurityTest extends TestCase
 
         $this->assertSoftDeleted('user_emergency_contacts', ['id' => $id]);
     }
+
+    // ── Document forceDelete file cascade ────────────────────────────────────
+
+    public function test_document_soft_delete_does_not_remove_physical_file(): void
+    {
+        // Soft-delete should keep the file on disk so the record can be restored.
+        $admin = $this->createAdmin();
+        $filePath = 'private/documents/keepme.pdf';
+        Storage::disk('local')->put($filePath, 'fake content');
+
+        $document = \App\Models\Document::factory()->create([
+            'uploaded_by' => $admin->id,
+            'disk' => 'local',
+            'path' => $filePath,
+            'stored_filename' => 'keepme.pdf',
+            'original_filename' => 'keepme.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 12,
+            'is_scanned' => true,
+            'scan_passed' => true,
+        ]);
+
+        $document->delete(); // soft delete only
+
+        $this->assertSoftDeleted('documents', ['id' => $document->id]);
+        // Physical file must still exist after soft delete.
+        Storage::disk('local')->assertExists($filePath);
+    }
+
+    public function test_document_force_delete_removes_physical_file(): void
+    {
+        // forceDelete() must cascade to the physical file on disk — otherwise
+        // orphaned files accumulate and deleted PHI remains recoverable.
+        $admin = $this->createAdmin();
+        $filePath = 'private/documents/deleteme.pdf';
+        Storage::disk('local')->put($filePath, 'fake content');
+
+        $document = \App\Models\Document::factory()->create([
+            'uploaded_by' => $admin->id,
+            'disk' => 'local',
+            'path' => $filePath,
+            'stored_filename' => 'deleteme.pdf',
+            'original_filename' => 'deleteme.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 12,
+            'is_scanned' => true,
+            'scan_passed' => true,
+        ]);
+
+        $document->forceDelete();
+
+        // DB row must be gone entirely (hard delete).
+        $this->assertDatabaseMissing('documents', ['id' => $document->id]);
+        // Physical file must also be gone — no orphaned PHI on disk.
+        Storage::disk('local')->assertMissing($filePath);
+    }
 }

@@ -24,15 +24,16 @@ use App\Models\FormField;
 use App\Models\FormSection;
 use App\Models\MedicalFollowUp;
 use App\Models\MedicalIncident;
-use App\Models\MedicalProviderLink;
 use App\Models\MedicalRecord;
 use App\Models\MedicalRestriction;
 use App\Models\MedicalVisit;
+use App\Models\RiskAssessment;
 use App\Models\Medication;
 use App\Models\Message;
 use App\Models\Role;
 use App\Models\TreatmentLog;
 use App\Models\UserEmergencyContact;
+use App\Observers\AllergyObserver;
 use App\Observers\AssistiveDeviceObserver;
 use App\Observers\BehavioralProfileObserver;
 use App\Observers\CamperObserver;
@@ -63,12 +64,12 @@ use App\Policies\FormFieldPolicy;
 use App\Policies\FormSectionPolicy;
 use App\Policies\MedicalFollowUpPolicy;
 use App\Policies\MedicalIncidentPolicy;
-use App\Policies\MedicalProviderLinkPolicy;
 use App\Policies\MedicalRecordPolicy;
 use App\Policies\MedicalRestrictionPolicy;
 use App\Policies\MedicalVisitPolicy;
 use App\Policies\MedicationPolicy;
 use App\Policies\MessagePolicy;
+use App\Policies\RiskAssessmentPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\TreatmentLogPolicy;
 use App\Policies\UserEmergencyContactPolicy;
@@ -129,8 +130,6 @@ class AppServiceProvider extends ServiceProvider
         Allergy::class => AllergyPolicy::class,
         Medication::class => MedicationPolicy::class,
         Document::class => DocumentPolicy::class,
-        MedicalProviderLink::class => MedicalProviderLinkPolicy::class,
-
         // Special health care needs (CYSHCN) clinical data
         ActivityPermission::class => ActivityPermissionPolicy::class,
         AssistiveDevice::class => AssistiveDevicePolicy::class,
@@ -160,6 +159,9 @@ class AppServiceProvider extends ServiceProvider
         MedicalFollowUp::class => MedicalFollowUpPolicy::class,
         MedicalVisit::class => MedicalVisitPolicy::class,
         MedicalRestriction::class => MedicalRestrictionPolicy::class,
+
+        // Risk assessment — system-calculated camper risk scores (PHI)
+        RiskAssessment::class => RiskAssessmentPolicy::class,
 
         // Applicant Documents — admin-to-applicant document workflow
         ApplicantDocument::class => ApplicantDocumentPolicy::class,
@@ -250,6 +252,7 @@ class AppServiceProvider extends ServiceProvider
      *  - Camper:           recalculates when base camper data changes
      *  - MedicalRecord:    recalculates when seizure history or neurostimulator changes
      *  - Diagnosis:        recalculates when a diagnosis is added/updated/removed
+     *  - Allergy:          recalculates when a life-threatening allergy is added/changed/removed
      *  - BehavioralProfile: recalculates when behavioural risk flags change
      *  - FeedingPlan:      recalculates when G-tube or feeding needs change
      *  - AssistiveDevice:  recalculates when transfer-assistance needs change
@@ -259,6 +262,7 @@ class AppServiceProvider extends ServiceProvider
         Camper::observe(CamperObserver::class);
         MedicalRecord::observe(MedicalRecordObserver::class);
         Diagnosis::observe(DiagnosisObserver::class);
+        Allergy::observe(AllergyObserver::class);
         BehavioralProfile::observe(BehavioralProfileObserver::class);
         FeedingPlan::observe(FeedingPlanObserver::class);
         AssistiveDevice::observe(AssistiveDeviceObserver::class);
@@ -279,7 +283,6 @@ class AppServiceProvider extends ServiceProvider
      * Rules and their limits:
      *  - api:            60 req/min  — general API rate limit for all authenticated routes
      *  - auth:            5 req/min  — login/register (strict, prevents brute-force)
-     *  - provider-link:  10 req/5min — medical provider link creation (HIPAA protection)
      *  - mfa:             5 req/min  — MFA verification (prevents code guessing)
      *  - uploads:        10 req/hour — file uploads (prevents storage abuse)
      *  - sensitive:      30 req/hour — sensitive operations (password change, account deletion)
@@ -304,16 +307,6 @@ class AppServiceProvider extends ServiceProvider
                 ->response(function () {
                     return response()->json([
                         'message' => 'Too many authentication attempts. Please try again later.',
-                    ], 429);
-                });
-        });
-
-        // Provider link limit: 10 per 5 minutes per IP — prevents token farming
-        RateLimiter::for('provider-link', function (Request $request) {
-            return Limit::perMinutes(5, 10)->by($request->ip())
-                ->response(function () {
-                    return response()->json([
-                        'message' => 'Too many provider link attempts. Please try again later.',
                     ], 429);
                 });
         });

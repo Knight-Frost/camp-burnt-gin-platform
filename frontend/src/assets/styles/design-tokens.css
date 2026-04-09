@@ -550,7 +550,10 @@
 }
 
 /* ─── Reduced Motion ────────────────────────────────────────────────────── */
-/* Framer Motion: handled by MotionConfig reducedMotion="user" in providers  */
+/* Two sources of truth:                                                       */
+/*   1. OS preference via @media (prefers-reduced-motion: reduce)              */
+/*   2. App-level opt-in via data-reduced-motion="true" on <html> (Settings)  */
+/* Framer Motion: handled by MotionConfig reducedMotion="user" in providers   */
 /* CSS transitions: scoped to [data-cbg-app] only — avoids nuking third-party */
 @media (prefers-reduced-motion: reduce) {
   [data-cbg-app] *,
@@ -561,4 +564,14 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* App-level reduced motion — applied when user enables it in Settings even if
+   the OS preference is not set. Uses the same property values as the media
+   query above so they are consistent. */
+[data-reduced-motion='true'] * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

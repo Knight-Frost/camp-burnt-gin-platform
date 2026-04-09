@@ -88,10 +88,13 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 function StatusTimeline({ status }: { status: string }) {
   const { t } = useTranslation();
 
-  // Defines the three main forward-progress steps for a typical application
+  // Defines the forward-progress steps for a typical application.
+  // waitlisted sits between under_review and approved — applications can be promoted
+  // from the waitlist when capacity opens.
   const STATUS_STEPS: { status: string; label: string; icon: ReactNode }[] = [
     { status: 'submitted',    label: t('applicant_detail.step_submitted'),    icon: <FileText className="h-3.5 w-3.5" /> },
     { status: 'under_review', label: t('applicant_detail.step_under_review'), icon: <Clock className="h-3.5 w-3.5" /> },
+    { status: 'waitlisted',   label: t('applicant_detail.step_waitlisted'),   icon: <AlertTriangle className="h-3.5 w-3.5" /> },
     { status: 'approved',     label: t('applicant_detail.step_approved'),     icon: <CheckCircle className="h-3.5 w-3.5" /> },
   ];
 
@@ -118,7 +121,7 @@ function StatusTimeline({ status }: { status: string }) {
     );
   }
 
-  const stepOrder = ['submitted', 'under_review', 'approved'];
+  const stepOrder = ['submitted', 'under_review', 'waitlisted', 'approved'];
   // Find where the current status sits in the ordered list
   const currentIdx = stepOrder.indexOf(status);
 
@@ -432,7 +435,7 @@ export function ApplicantApplicationDetailPage() {
                         </p>
                         {/* Convert bytes to KB for a friendlier size display */}
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          {(doc.size / 1024).toFixed(1)} KB
+                          {(() => { const b = doc.file_size ?? doc.size; return b != null ? `${(b / 1024).toFixed(1)} KB` : null; })()}
                         </p>
                       </div>
                     </div>

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Document\ApplicantDocumentController;
 use App\Http\Controllers\Api\Document\DocumentController;
 use App\Http\Controllers\Api\Document\DocumentRequestController;
 use App\Http\Controllers\Api\Family\FamilyController;
+use App\Http\Controllers\Api\Risk\RiskAssessmentController;
 use App\Http\Controllers\Api\Form\FormDefinitionController;
 use App\Http\Controllers\Api\Form\FormFieldController;
 use App\Http\Controllers\Api\Form\FormFieldOptionController;
@@ -163,6 +164,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/verify', [MfaController::class, 'verify'])->name('mfa.verify');
         // Disable MFA after verifying password + current TOTP code
         Route::post('/disable', [MfaController::class, 'disable'])->name('mfa.disable');
+        // Step-up authentication: re-verify identity before a sensitive action.
+        // On success, a short-lived cache grant lets EnsureMfaStepUp pass through.
+        Route::post('/step-up', [MfaController::class, 'stepUp'])->name('mfa.step-up');
     });
 });
 
@@ -390,12 +394,13 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     Route::middleware('admin')->prefix('reports')->group(function () {
         // Summary is aggregate/non-PHI data — no MFA enforcement needed.
         Route::get('/summary', [ReportController::class, 'summary'])->name('reports.summary');
-        // CSV exports contain individual camper PHI — require MFA enrollment.
-        Route::get('/applications', [ReportController::class, 'applications'])->middleware('mfa.enrolled')->name('reports.applications');
-        Route::get('/accepted', [ReportController::class, 'acceptedApplicants'])->middleware('mfa.enrolled')->name('reports.accepted');
-        Route::get('/rejected', [ReportController::class, 'rejectedApplicants'])->middleware('mfa.enrolled')->name('reports.rejected');
-        Route::get('/mailing-labels', [ReportController::class, 'mailingLabels'])->middleware('mfa.enrolled')->name('reports.mailing-labels');
-        Route::get('/id-labels', [ReportController::class, 'idLabels'])->middleware('mfa.enrolled')->name('reports.id-labels');
+        // CSV exports contain individual camper PHI (names, DOBs, addresses) — require MFA
+        // enrollment and apply the phi-export rate limiter (same as audit-log.export).
+        Route::get('/applications', [ReportController::class, 'applications'])->middleware(['throttle:phi-export', 'mfa.enrolled'])->name('reports.applications');
+        Route::get('/accepted', [ReportController::class, 'acceptedApplicants'])->middleware(['throttle:phi-export', 'mfa.enrolled'])->name('reports.accepted');
+        Route::get('/rejected', [ReportController::class, 'rejectedApplicants'])->middleware(['throttle:phi-export', 'mfa.enrolled'])->name('reports.rejected');
+        Route::get('/mailing-labels', [ReportController::class, 'mailingLabels'])->middleware(['throttle:phi-export', 'mfa.enrolled'])->name('reports.mailing-labels');
+        Route::get('/id-labels', [ReportController::class, 'idLabels'])->middleware(['throttle:phi-export', 'mfa.enrolled'])->name('reports.id-labels');
     });
 
     /*
@@ -419,8 +424,22 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/{camper}', [CamperController::class, 'show'])->name('campers.show');
         Route::put('/{camper}', [CamperController::class, 'update'])->name('campers.update');
         Route::delete('/{camper}', [CamperController::class, 'destroy'])->name('campers.destroy');
-        // Runs SpecialNeedsRiskAssessmentService and returns the scored results
+        // Runs SpecialNeedsRiskAssessmentService and returns the scored results (legacy endpoint, kept for BC)
         Route::get('/{camper}/risk-summary', [CamperController::class, 'riskSummary'])->name('campers.risk-summary');
+        // Full risk assessment with factor breakdown, medical review state, and recommendations
+        Route::get('/{camper}/risk-assessment', [RiskAssessmentController::class, 'show'])->name('campers.risk-assessment.show');
+        // Medical staff: validate the assessment and add clinical notes (role: admin, medical)
+        Route::post('/{camper}/risk-assessment/review', [RiskAssessmentController::class, 'review'])
+            ->middleware('role:admin,medical')
+            ->name('campers.risk-assessment.review');
+        // Clinical override: change the supervision level with a documented reason (role: medical, super_admin)
+        Route::post('/{camper}/risk-assessment/override', [RiskAssessmentController::class, 'override'])
+            ->middleware('role:medical,super_admin')
+            ->name('campers.risk-assessment.override');
+        // History of all past assessments for this camper (role: admin, medical)
+        Route::get('/{camper}/risk-assessment/history', [RiskAssessmentController::class, 'history'])
+            ->middleware('role:admin,medical')
+            ->name('campers.risk-assessment.history');
         // Runs DocumentEnforcementService and returns compliance gaps
         Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
         // Runs MedicalAlertService and returns sorted alert list
@@ -473,17 +492,18 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::post('/{application}/consents', [ApplicationController::class, 'storeConsents'])->name('applications.consents.store');
         // Clone an application into a new reapplication draft (same camper, new session).
         Route::post('/{application}/clone', [ApplicationController::class, 'clone'])->name('applications.clone');
-        // Hard delete — admin only
+        // Hard delete — admin only; step-up required (irreversible action)
         Route::delete('/{application}', [ApplicationController::class, 'destroy'])
-            ->middleware('admin')
+            ->middleware(['admin', 'mfa.step_up'])
             ->name('applications.destroy');
         // Pre-approval completeness check — read-only; returns structured missing-data report.
         Route::get('/{application}/completeness', [ApplicationController::class, 'completeness'])
             ->middleware('admin')
             ->name('applications.completeness');
-        // Approve/reject an application — calls ApplicationService::reviewApplication()
+        // Approve/reject an application — step-up required (status change triggers notifications,
+        // activates camper record, and may send acceptance/rejection letters)
         Route::post('/{application}/review', [ApplicationController::class, 'review'])
-            ->middleware('admin')
+            ->middleware(['admin', 'mfa.step_up'])
             ->name('applications.review');
     });
 
@@ -502,9 +522,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/', [MedicalRecordController::class, 'index'])
             ->middleware('role:admin,medical')
             ->name('medical-records.index');
-        Route::post('/', [MedicalRecordController::class, 'store'])->name('medical-records.store');
+        // Write access requires role guard — same restriction as index but write is higher risk.
+        Route::post('/', [MedicalRecordController::class, 'store'])->middleware('role:admin,medical')->name('medical-records.store');
         Route::get('/{medicalRecord}', [MedicalRecordController::class, 'show'])->middleware('mfa.enrolled')->name('medical-records.show');
-        Route::put('/{medicalRecord}', [MedicalRecordController::class, 'update'])->name('medical-records.update');
+        // Write (PUT) requires MFA enrollment — read already required it; write must match or exceed that bar.
+        Route::put('/{medicalRecord}', [MedicalRecordController::class, 'update'])->middleware('mfa.enrolled')->name('medical-records.update');
         // Hard delete — admin only
         Route::delete('/{medicalRecord}', [MedicalRecordController::class, 'destroy'])
             ->middleware('admin')
@@ -776,9 +798,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     // Full audit history and CSV/JSON export of all system actions
     Route::middleware('role:super_admin')->prefix('audit-log')->group(function () {
         Route::get('/', [AuditLogController::class, 'index'])->name('audit-log.index');
-        // Export up to 5,000 audit log rows — rate-limited + MFA required to prevent bulk PHI exfiltration
+        // Export up to 5,000 audit log rows — rate-limited + step-up required.
+        // mfa.enrolled ensures the caller has MFA configured; mfa.step_up ensures
+        // they re-verified recently. Both gates apply to prevent bulk data exfiltration.
         Route::get('/export', [AuditLogController::class, 'export'])
-            ->middleware(['throttle:phi-export', 'mfa.enrolled'])
+            ->middleware(['throttle:phi-export', 'mfa.enrolled', 'mfa.step_up'])
             ->name('audit-log.export');
     });
 
@@ -787,10 +811,13 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     Route::middleware('role:super_admin')->prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('users.index');
         // Super-admin direct account creation for staff (admin/medical/super_admin roles only)
-        Route::post('/', [UserController::class, 'store'])->name('users.store');
-        Route::put('/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
-        Route::post('/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
-        Route::post('/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
+        // mfa.step_up: account creation is irreversible — require recent MFA re-verification.
+        Route::post('/', [UserController::class, 'store'])->middleware('mfa.step_up')->name('users.store');
+        // Role changes and account status changes are irreversible high-privilege actions —
+        // require both super_admin role and a recent MFA step-up challenge.
+        Route::put('/{user}/role', [UserController::class, 'updateRole'])->middleware(['role:super_admin', 'mfa.step_up'])->name('users.update-role');
+        Route::post('/{user}/deactivate', [UserController::class, 'deactivate'])->middleware(['role:super_admin', 'mfa.step_up'])->name('users.deactivate');
+        Route::post('/{user}/reactivate', [UserController::class, 'reactivate'])->middleware(['role:super_admin', 'mfa.step_up'])->name('users.reactivate');
     });
 
     // ── Deadline Management ────────────────────────────────────────────────────

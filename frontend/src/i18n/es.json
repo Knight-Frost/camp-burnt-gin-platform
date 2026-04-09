@@ -574,6 +574,7 @@
       "compliant": "Cumple",
       "non_compliant": "No Cumple",
       "view_risk": "Ver Riesgo",
+      "view_profile": "Ver Perfil",
       "empty_title": "No se encontraron campistas",
       "empty_desc": "Los campistas registrados aparecerán aquí."
     },
@@ -1265,6 +1266,7 @@
       "notes": "Notas",
       "optional": "opcional",
       "draft_saved": "Borrador guardado.",
+      "draft_conflict": "Este borrador fue guardado en otra pestaña. Recargue la página para obtener la versión más reciente.",
 
       "s1_application_type_heading": "Tipo de solicitud",
       "s1_first_application_label": "Primera solicitud — este solicitante nunca ha aplicado al Camp Burnt Gin antes",
@@ -1519,8 +1521,9 @@
 
       "s6_instructions": "Para cada área, seleccione el nivel de asistencia que requiere su campista. Agregue notas sobre protocolos específicos de cuidado que el personal deba seguir.",
       "s6_level_independent": "Independiente",
-      "s6_level_assisted": "Necesita asistencia",
-      "s6_level_dependent": "Totalmente dependiente del personal",
+      "s6_level_verbal_cue": "Indicación verbal",
+      "s6_level_physical_assist": "Asistencia física",
+      "s6_level_full_assist": "Asistencia total",
       "s6_notes_staff_placeholder": "Cualquier nota específica para el personal (opcional)",
       "s6_bathing_label": "Baño / ducha",
       "s6_bathing_placeholder": "Ej. Necesita asiento, usa ducha de mano, temperatura máx 38°C",
@@ -1587,6 +1590,7 @@
       "sn_additional_info_placeholder": "¿Hay alguna información adicional sobre su campista que el personal del campamento deba saber y que no se haya cubierto en otro lugar?",
       "sn_emergency_protocols_label": "Protocolos especiales de emergencia",
       "sn_emergency_protocols_placeholder": "¿Hay algún procedimiento o protocolo de emergencia especial específico de la condición de su campista que el personal deba seguir?",
+      "sn_section_reviewed_label": "He revisado esta sección — no tengo nada adicional que agregar, o he proporcionado toda la información relevante anteriormente",
 
       "s9_docs_required_title": "Se requieren documentos antes del envío",
       "s9_docs_required_desc": "Suba todos los documentos requeridos. Los documentos condicionales se muestran según sus respuestas anteriores. Formatos aceptados: PDF, JPG, PNG. Máx 10 MB por archivo.",
@@ -1868,6 +1872,7 @@
     "withdrawn_notice": "La solicitud fue retirada.",
     "step_submitted": "Enviada",
     "step_under_review": "En revisión",
+    "step_waitlisted": "En lista de espera",
     "step_approved": "Aprobada",
     "withdraw_confirm": "¿Está seguro de que desea retirar esta solicitud? Esta acción no se puede deshacer.",
     "withdraw_success": "Solicitud retirada con éxito.",
@@ -1978,6 +1983,8 @@
     "all_resources": "Todos los Recursos",
     "no_critical": "No hay elementos críticos en esta página",
     "category_auth": "Autenticación",
+    "category_messaging": "Mensajería",
+    "category_security": "Seguridad",
     "category_applications": "Solicitudes",
     "category_campers": "Campistas",
     "category_medical": "Médico",
@@ -2162,5 +2169,12 @@
     "action_complete": "Completar",
     "sort_newest": "Más reciente primero",
     "sort_oldest": "Más antiguo primero"
+  },
+  "settings_page": {
+    "tab_appearance": "Apariencia",
+    "tab_account": "Cuenta",
+    "tab_security": "Seguridad",
+    "tab_notifications": "Notificaciones",
+    "tab_data": "Datos y cuenta"
   }
 }

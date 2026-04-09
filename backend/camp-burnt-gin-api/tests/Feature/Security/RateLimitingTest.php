@@ -73,13 +73,6 @@ class RateLimitingTest extends TestCase
         $response->assertStatus(429);
     }
 
-    public function test_provider_link_endpoint_rate_limited_after_two_attempts(): void
-    {
-        // Phase 6: the provider-access/token-submit route was removed when provider link gates
-        // were replaced with direct medical provider access to all records. This test is skipped.
-        $this->markTestSkipped('Provider link endpoint was removed in Phase 6.');
-    }
-
     public function test_upload_endpoint_rate_limited_after_five_attempts(): void
     {
         $user = User::factory()->create();

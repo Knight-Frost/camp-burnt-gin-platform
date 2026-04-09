@@ -39,6 +39,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
         // Create users with roles
         $this->admin = User::factory()->create(['role_id' => $adminRole->id, 'mfa_enabled' => true]);
+        $this->grantMfaStepUp($this->admin);
         $parent = User::factory()->create(['role_id' => $parentRole->id]);
 
         $this->camper = Camper::factory()->for($parent)->create();

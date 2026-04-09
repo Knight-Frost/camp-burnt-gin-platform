@@ -124,13 +124,6 @@ class AllergyAuthorizationTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $allergy = Allergy::factory()->forCamper($camper)->create();
 
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-            'revoked_at' => null,
-            'expires_at' => now()->addDays(1),
-        ]);
-
         $response = $this->actingAs($medical)->getJson("/api/allergies/{$allergy->id}");
 
         $response->assertStatus(200);
@@ -158,13 +151,6 @@ class AllergyAuthorizationTest extends TestCase
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create(['is_active' => true]);
         $allergy = Allergy::factory()->forCamper($camper)->create();
-
-        \App\Models\MedicalProviderLink::factory()->create([
-            'camper_id' => $camper->id,
-            'is_used' => true,
-            'revoked_at' => null,
-            'expires_at' => now()->addDays(1),
-        ]);
 
         $response = $this->actingAs($medical)->putJson("/api/allergies/{$allergy->id}", [
             'treatment' => 'Updated treatment protocol',

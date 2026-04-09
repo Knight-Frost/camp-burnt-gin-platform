@@ -113,7 +113,9 @@ class UserController extends Controller
         ]);
 
         // Start from newest accounts first — most recent signups appear at the top.
-        $query = User::with('role')->orderBy('created_at', 'desc');
+        // Exclude deactivated/deleted accounts — is_active=false means the user has
+        // requested deletion or been deactivated; they should not appear in this list.
+        $query = User::with('role')->where('is_active', true)->orderBy('created_at', 'desc');
 
         if ($request->filled('search')) {
             $term = $request->string('search');
@@ -167,9 +169,20 @@ class UserController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
+        $role = Role::where('name', $request->string('role'))->firstOrFail();
+
+        // Guard: cannot demote the last super_admin (would permanently lock out all admins).
+        // The route middleware already ensures only super_admins reach this point, so we
+        // only need to check the "last super_admin" edge case here.
+        if ($user->isSuperAdmin() && $role->name !== 'super_admin') {
+            $superAdminCount = User::whereHas('role', fn ($q) => $q->where('name', 'super_admin'))->count();
+            if ($superAdminCount <= 1) {
+                return response()->json(['message' => 'Cannot demote the last super administrator.'], 403);
+            }
+        }
+
         // Capture the old role name before changing it — used in the notification message.
         $oldRoleName = $user->role?->name ?? 'applicant';
-        $role = Role::where('name', $request->string('role'))->firstOrFail();
         $user->role_id = $role->id;
         $user->save();
         // Reload the role relationship so formatUser() returns the updated role name.
