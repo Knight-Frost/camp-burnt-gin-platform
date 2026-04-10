@@ -144,12 +144,12 @@ class InboxService
                 'description' => "Conversation {$conversation->id} created",
                 // Safe projection — never write subject (potential PHI) to the audit log
                 'new_values' => [
-                    'conversation_id'   => $conversation->id,
-                    'subject_length'    => mb_strlen($conversation->subject ?? ''),
+                    'conversation_id' => $conversation->id,
+                    'subject_length' => mb_strlen($conversation->subject ?? ''),
                     'participant_count' => count($participantIds) + 1, // +1 for creator
-                    'category'          => $conversation->category,
-                    'application_id'    => $conversation->application_id,
-                    'camper_id'         => $conversation->camper_id,
+                    'category' => $conversation->category,
+                    'application_id' => $conversation->application_id,
+                    'camper_id' => $conversation->camper_id,
                 ],
                 'metadata' => [
                     'participant_ids' => $participantIds,
@@ -598,13 +598,13 @@ class InboxService
             'description' => "Conversation {$conversation->id} soft deleted",
             // Safe projection — never write subject (potential PHI) to the audit log
             'old_values' => [
-                'conversation_id'   => $conversation->id,
-                'subject_length'    => mb_strlen($conversation->subject ?? ''),
+                'conversation_id' => $conversation->id,
+                'subject_length' => mb_strlen($conversation->subject ?? ''),
                 'participant_count' => $conversation->participants()->count(),
-                'category'          => $conversation->category,
-                'application_id'    => $conversation->application_id,
-                'camper_id'         => $conversation->camper_id,
-                'created_at'        => $conversation->created_at?->toISOString(),
+                'category' => $conversation->category,
+                'application_id' => $conversation->application_id,
+                'camper_id' => $conversation->camper_id,
+                'created_at' => $conversation->created_at?->toISOString(),
             ],
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),

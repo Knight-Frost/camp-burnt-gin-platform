@@ -276,7 +276,7 @@ class DocumentController extends Controller
             'document_download',
             $request->user(),
             $document,
-            ["document_type" => $document->document_type]
+            ['document_type' => $document->document_type]
         );
 
         // All checks passed — stream the file to the client via DocumentService

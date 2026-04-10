@@ -295,6 +295,7 @@ class ApplicationController extends Controller
             'camper.emergencyContacts',
             'camper.behavioralProfile',
             'camper.feedingPlan',
+            'camper.personalCarePlan',
             'camper.assistiveDevices',
             'camper.activityPermissions',
             'camper.documents',
@@ -315,7 +316,7 @@ class ApplicationController extends Controller
         // are already in application.documents; camper-level docs from the form
         // submission are in camper.documents. The merge deduplicates by id.
         $camperDocs = $application->camper->documents ?? collect();
-        $appDocs    = $application->documents ?? collect();
+        $appDocs = $application->documents ?? collect();
         $merged = $appDocs->merge($camperDocs)->unique('id')->values();
         $application->setRelation('documents', $merged);
 

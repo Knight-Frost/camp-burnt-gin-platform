@@ -43,7 +43,7 @@ class RiskAssessmentTest extends TestCase
 
     public function test_admin_can_view_risk_assessment(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
         MedicalRecord::factory()->for($camper)->create();
@@ -69,8 +69,8 @@ class RiskAssessmentTest extends TestCase
     public function test_medical_staff_can_view_risk_assessment_for_active_camper(): void
     {
         $medical = $this->createMedicalProvider();
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         $response = $this->actingAs($medical)
             ->getJson("/api/campers/{$camper->id}/risk-assessment");
@@ -101,7 +101,7 @@ class RiskAssessmentTest extends TestCase
 
     public function test_risk_assessment_includes_factor_breakdown(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
@@ -125,7 +125,7 @@ class RiskAssessmentTest extends TestCase
 
     public function test_risk_score_includes_life_threatening_allergy(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
         Allergy::factory()->for($camper)->create(['severity' => 'life_threatening']);
@@ -140,7 +140,7 @@ class RiskAssessmentTest extends TestCase
 
     public function test_assessment_persists_to_database(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
@@ -152,7 +152,7 @@ class RiskAssessmentTest extends TestCase
 
         $this->assertDatabaseCount('risk_assessments', 1);
         $this->assertDatabaseHas('risk_assessments', [
-            'camper_id'  => $camper->id,
+            'camper_id' => $camper->id,
             'is_current' => true,
         ]);
     }
@@ -162,12 +162,12 @@ class RiskAssessmentTest extends TestCase
     public function test_medical_staff_can_review_assessment(): void
     {
         $medical = $this->createMedicalProvider();
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         // Create an assessment to review
         RiskAssessment::factory()->for($camper)->create([
-            'is_current'    => true,
+            'is_current' => true,
             'review_status' => RiskReviewStatus::SystemCalculated,
         ]);
 
@@ -181,19 +181,19 @@ class RiskAssessmentTest extends TestCase
             ->assertJsonPath('data.is_reviewed_by_staff', true);
 
         $this->assertDatabaseHas('risk_assessments', [
-            'camper_id'    => $camper->id,
+            'camper_id' => $camper->id,
             'review_status' => 'reviewed',
         ]);
     }
 
     public function test_admin_can_review_assessment(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         RiskAssessment::factory()->for($camper)->create([
-            'is_current'    => true,
+            'is_current' => true,
             'review_status' => RiskReviewStatus::SystemCalculated,
         ]);
 
@@ -219,20 +219,20 @@ class RiskAssessmentTest extends TestCase
     public function test_medical_staff_can_override_supervision_level(): void
     {
         $medical = $this->createMedicalProvider();
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         RiskAssessment::factory()->for($camper)->create([
-            'is_current'       => true,
+            'is_current' => true,
             'supervision_level' => SupervisionLevel::Standard,
-            'review_status'    => RiskReviewStatus::SystemCalculated,
+            'review_status' => RiskReviewStatus::SystemCalculated,
         ]);
 
         $response = $this->actingAs($medical)->postJson(
             "/api/campers/{$camper->id}/risk-assessment/override",
             [
                 'override_supervision_level' => 'enhanced',
-                'override_reason'            => 'Camper has newly identified anxiety-related behaviours not yet reflected in profile. Enhanced supervision warranted pending profile update.',
+                'override_reason' => 'Camper has newly identified anxiety-related behaviours not yet reflected in profile. Enhanced supervision warranted pending profile update.',
             ]
         );
 
@@ -246,20 +246,20 @@ class RiskAssessmentTest extends TestCase
     public function test_super_admin_can_override_supervision_level(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $parent     = $this->createParent();
-        $camper     = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         RiskAssessment::factory()->for($camper)->create([
-            'is_current'       => true,
+            'is_current' => true,
             'supervision_level' => SupervisionLevel::Standard,
-            'review_status'    => RiskReviewStatus::SystemCalculated,
+            'review_status' => RiskReviewStatus::SystemCalculated,
         ]);
 
         $this->actingAs($superAdmin)->postJson(
             "/api/campers/{$camper->id}/risk-assessment/override",
             [
                 'override_supervision_level' => 'one_to_one',
-                'override_reason'            => 'Operational concern: short-staffed this session, upgrading to 1:1 as precaution per director request.',
+                'override_reason' => 'Operational concern: short-staffed this session, upgrading to 1:1 as precaution per director request.',
             ]
         )->assertStatus(200);
     }
@@ -267,8 +267,8 @@ class RiskAssessmentTest extends TestCase
     public function test_override_requires_reason_of_at_least_20_characters(): void
     {
         $medical = $this->createMedicalProvider();
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         RiskAssessment::factory()->for($camper)->create([
             'is_current' => true,
@@ -278,28 +278,28 @@ class RiskAssessmentTest extends TestCase
             "/api/campers/{$camper->id}/risk-assessment/override",
             [
                 'override_supervision_level' => 'enhanced',
-                'override_reason'            => 'Too short',
+                'override_reason' => 'Too short',
             ]
         )->assertStatus(422)
-         ->assertJsonValidationErrors(['override_reason']);
+            ->assertJsonValidationErrors(['override_reason']);
     }
 
     public function test_effective_supervision_level_reflects_override(): void
     {
         $medical = $this->createMedicalProvider();
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         // System calculates standard — medical overrides to one_to_one
         RiskAssessment::factory()->for($camper)->create([
-            'is_current'                  => true,
-            'supervision_level'           => SupervisionLevel::Standard,
-            'review_status'               => RiskReviewStatus::Overridden,
-            'override_supervision_level'  => SupervisionLevel::OneToOne,
-            'override_reason'             => 'Clinical justification on file from attending physician.',
+            'is_current' => true,
+            'supervision_level' => SupervisionLevel::Standard,
+            'review_status' => RiskReviewStatus::Overridden,
+            'override_supervision_level' => SupervisionLevel::OneToOne,
+            'override_reason' => 'Clinical justification on file from attending physician.',
         ]);
 
-        $admin    = $this->createAdmin();
+        $admin = $this->createAdmin();
         $response = $this->actingAs($admin)
             ->getJson("/api/campers/{$camper->id}/risk-assessment/history");
 
@@ -313,7 +313,7 @@ class RiskAssessmentTest extends TestCase
 
     public function test_admin_can_view_assessment_history(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
@@ -341,7 +341,7 @@ class RiskAssessmentTest extends TestCase
 
     public function test_legacy_risk_summary_still_works(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
@@ -367,12 +367,12 @@ class RiskAssessmentTest extends TestCase
         // allowed regular admins past the route guard only to receive a 403 from the
         // policy. Middleware is now `role:medical,super_admin` so admins are blocked
         // before the controller is reached.
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
 
         RiskAssessment::factory()->for($camper)->create([
-            'is_current'       => true,
+            'is_current' => true,
             'supervision_level' => SupervisionLevel::Standard,
         ]);
 
@@ -380,7 +380,7 @@ class RiskAssessmentTest extends TestCase
             "/api/campers/{$camper->id}/risk-assessment/override",
             [
                 'override_supervision_level' => 'enhanced',
-                'override_reason'            => 'This should be blocked for regular admins.',
+                'override_reason' => 'This should be blocked for regular admins.',
             ]
         )->assertStatus(403);
     }
@@ -414,7 +414,7 @@ class RiskAssessmentTest extends TestCase
 
         // Observer fires synchronously on Allergy::saved → a risk_assessments row must exist
         $this->assertDatabaseHas('risk_assessments', [
-            'camper_id'  => $camper->id,
+            'camper_id' => $camper->id,
             'is_current' => true,
         ]);
 
@@ -437,15 +437,15 @@ class RiskAssessmentTest extends TestCase
     {
         // one_to_one_supervision = 30 pts + wandering_risk = 15 pts = 45 pts → OneToOne (41+).
         // All other boolean flags are explicitly false to give a deterministic score.
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
         BehavioralProfile::factory()->for($camper)->create([
             'one_to_one_supervision' => true,
-            'wandering_risk'         => true,
-            'aggression'             => false,
-            'self_abuse'             => false,
-            'developmental_delay'    => false,
+            'wandering_risk' => true,
+            'aggression' => false,
+            'self_abuse' => false,
+            'developmental_delay' => false,
         ]);
 
         $response = $this->actingAs($admin)

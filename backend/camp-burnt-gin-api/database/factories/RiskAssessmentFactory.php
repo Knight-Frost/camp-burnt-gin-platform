@@ -25,25 +25,25 @@ class RiskAssessmentFactory extends Factory
         $supervisionLevel = match (true) {
             $score > 40 => SupervisionLevel::OneToOne,
             $score > 20 => SupervisionLevel::Enhanced,
-            default     => SupervisionLevel::Standard,
+            default => SupervisionLevel::Standard,
         };
 
         $complexityTier = match (true) {
             $score > 50 => MedicalComplexityTier::High,
             $score > 25 => MedicalComplexityTier::Moderate,
-            default     => MedicalComplexityTier::Low,
+            default => MedicalComplexityTier::Low,
         };
 
         return [
-            'camper_id'              => Camper::factory(),
-            'calculated_at'          => now(),
-            'risk_score'             => $score,
-            'supervision_level'      => $supervisionLevel,
+            'camper_id' => Camper::factory(),
+            'calculated_at' => now(),
+            'risk_score' => $score,
+            'supervision_level' => $supervisionLevel,
             'medical_complexity_tier' => $complexityTier,
-            'flags'                  => [],
-            'factor_breakdown'       => [],
-            'is_current'             => true,
-            'review_status'          => RiskReviewStatus::SystemCalculated,
+            'flags' => [],
+            'factor_breakdown' => [],
+            'is_current' => true,
+            'review_status' => RiskReviewStatus::SystemCalculated,
         ];
     }
 }

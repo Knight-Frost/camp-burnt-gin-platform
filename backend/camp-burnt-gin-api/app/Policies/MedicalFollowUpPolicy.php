@@ -51,7 +51,7 @@ class MedicalFollowUpPolicy
     public function view(User $user, MedicalFollowUp $medicalFollowUp): bool
     {
         // Only allow access to records for active (enrolled) campers.
-        if (!$medicalFollowUp->camper?->is_active) {
+        if (! $medicalFollowUp->camper?->is_active) {
             return false;
         }
 

@@ -81,27 +81,25 @@ class MfaEnrollmentEnforcementTest extends TestCase
 
     // ── Layer 2: PHI enrollment gate (mfa.enrolled) ──────────────────────────
 
-    public function test_medical_provider_without_mfa_is_blocked_from_phi_record_view(): void
+    public function test_medical_provider_without_mfa_can_access_phi_record_view(): void
     {
         $medical = $this->createMedicalProvider(['mfa_enabled' => false]);
-        $admin   = $this->createAdmin();
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
-        $record  = $camper->medicalRecord()->create([]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $record = $camper->medicalRecord()->create([]);
 
-        // GET /api/medical-records/{id} carries mfa.enrolled middleware.
+        // MFA is optional — disabling MFA must not block access to any route.
         $response = $this->actingAs($medical)->getJson("/api/medical-records/{$record->id}");
 
-        $response->assertStatus(403);
-        $response->assertJsonPath('mfa_setup_required', true);
+        $response->assertJsonMissing(['mfa_setup_required' => true]);
     }
 
     public function test_medical_provider_with_mfa_can_access_phi_record_view(): void
     {
         $medical = $this->createMedicalProvider(['mfa_enabled' => true]);
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
-        $record  = $camper->medicalRecord()->create([]);
+        $parent = $this->createParent();
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $record = $camper->medicalRecord()->create([]);
 
         $response = $this->actingAs($medical)->getJson("/api/medical-records/{$record->id}");
 
@@ -109,17 +107,17 @@ class MfaEnrollmentEnforcementTest extends TestCase
         $response->assertJsonMissing(['mfa_setup_required' => true]);
     }
 
-    public function test_admin_without_mfa_is_blocked_from_phi_record_view(): void
+    public function test_admin_without_mfa_can_access_phi_record_view(): void
     {
-        $admin  = $this->createAdmin(['mfa_enabled' => false]);
+        $admin = $this->createAdmin(['mfa_enabled' => false]);
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $record = $camper->medicalRecord()->create([]);
 
+        // MFA is optional — disabling MFA must not block access to any route.
         $response = $this->actingAs($admin)->getJson("/api/medical-records/{$record->id}");
 
-        $response->assertStatus(403);
-        $response->assertJsonPath('mfa_setup_required', true);
+        $response->assertJsonMissing(['mfa_setup_required' => true]);
     }
 
     // ── Layer 3: Step-up gate (mfa.step_up) ──────────────────────────────────
@@ -130,19 +128,19 @@ class MfaEnrollmentEnforcementTest extends TestCase
     public function test_admin_without_mfa_can_review_application_without_step_up(): void
     {
         // Review no longer requires step-up, so an enrolled admin proceeds normally.
-        $admin  = $this->createAdmin(['mfa_enabled' => true]);
+        $admin = $this->createAdmin(['mfa_enabled' => true]);
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $session = CampSession::factory()->create(['capacity' => 10]);
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status'          => 'submitted',
-            'is_draft'        => false,
+            'status' => 'submitted',
+            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
-            'status'              => 'approved',
+            'status' => 'approved',
             'override_incomplete' => true,
         ]);
 
@@ -153,21 +151,21 @@ class MfaEnrollmentEnforcementTest extends TestCase
     public function test_admin_with_mfa_but_no_step_up_can_still_review_application(): void
     {
         // Step-up no longer gates review. Revoking it must not block the request.
-        $admin  = $this->createAdmin(['mfa_enabled' => true]);
+        $admin = $this->createAdmin(['mfa_enabled' => true]);
         $this->revokeMfaStepUp($admin);
 
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $session = CampSession::factory()->create(['capacity' => 10]);
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status'          => 'submitted',
-            'is_draft'        => false,
+            'status' => 'submitted',
+            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
-            'status'              => 'approved',
+            'status' => 'approved',
             'override_incomplete' => true,
         ]);
 
@@ -177,19 +175,19 @@ class MfaEnrollmentEnforcementTest extends TestCase
 
     public function test_admin_with_mfa_and_valid_step_up_can_review_application(): void
     {
-        $admin  = $this->createAdmin(); // auto-grants step-up via WithRoles
+        $admin = $this->createAdmin(); // auto-grants step-up via WithRoles
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $session = CampSession::factory()->create(['capacity' => 10]);
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status'          => 'submitted',
-            'is_draft'        => false,
+            'status' => 'submitted',
+            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
-            'status'            => 'approved',
+            'status' => 'approved',
             'override_incomplete' => true,
         ]);
 
@@ -202,7 +200,7 @@ class MfaEnrollmentEnforcementTest extends TestCase
 
     public function test_applicant_without_mfa_can_access_applicant_routes(): void
     {
-        $parent  = $this->createParent(['mfa_enabled' => false]);
+        $parent = $this->createParent(['mfa_enabled' => false]);
         CampSession::factory()->create(['portal_open' => true]);
 
         $response = $this->actingAs($parent)->getJson('/api/applications');

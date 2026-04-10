@@ -51,7 +51,7 @@ class MedicalVisitPolicy
     public function view(User $user, MedicalVisit $medicalVisit): bool
     {
         // Only allow access to records for active (enrolled) campers.
-        if (!$medicalVisit->camper?->is_active) {
+        if (! $medicalVisit->camper?->is_active) {
             return false;
         }
 

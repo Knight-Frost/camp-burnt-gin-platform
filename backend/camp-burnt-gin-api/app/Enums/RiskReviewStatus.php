@@ -32,8 +32,8 @@ enum RiskReviewStatus: string
     {
         return match ($this) {
             self::SystemCalculated => 'System Calculated',
-            self::Reviewed         => 'Clinically Reviewed',
-            self::Overridden       => 'Clinician Override',
+            self::Reviewed => 'Clinically Reviewed',
+            self::Overridden => 'Clinician Override',
         };
     }
 
@@ -44,8 +44,8 @@ enum RiskReviewStatus: string
     {
         return match ($this) {
             self::SystemCalculated => 'Auto',
-            self::Reviewed         => 'Reviewed',
-            self::Overridden       => 'Override',
+            self::Reviewed => 'Reviewed',
+            self::Overridden => 'Override',
         };
     }
 

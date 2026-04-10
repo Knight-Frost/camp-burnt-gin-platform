@@ -522,20 +522,20 @@ class UserProfileController extends Controller
             // real personal information is present. The sentinel email preserves the
             // unique constraint on the email column.
             $user->update([
-                'name'                   => 'Deleted User',
-                'email'                  => "deleted_{$userId}@deleted.invalid",
-                'preferred_name'         => null,
-                'phone'                  => null,
-                'avatar_path'            => null,
-                'address_line_1'         => null,
-                'address_line_2'         => null,
-                'city'                   => null,
-                'state'                  => null,
-                'postal_code'            => null,
-                'country'                => null,
+                'name' => 'Deleted User',
+                'email' => "deleted_{$userId}@deleted.invalid",
+                'preferred_name' => null,
+                'phone' => null,
+                'avatar_path' => null,
+                'address_line_1' => null,
+                'address_line_2' => null,
+                'city' => null,
+                'state' => null,
+                'postal_code' => null,
+                'country' => null,
                 'notification_preferences' => null,
-                'mfa_secret'             => null,
-                'is_active'              => false,
+                'mfa_secret' => null,
+                'is_active' => false,
             ]);
 
             // Step 3 — Revoke all Sanctum API tokens. This invalidates every active session
@@ -554,20 +554,20 @@ class UserProfileController extends Controller
             // This entry will be visible in the admin audit log panel and is not
             // subject to log-file rotation.
             AuditLog::create([
-                'request_id'     => $request->header('X-Request-ID', (string) Str::uuid()),
-                'user_id'        => null,
-                'event_type'     => AuditLog::EVENT_TYPE_DATA_CHANGE,
+                'request_id' => $request->header('X-Request-ID', (string) Str::uuid()),
+                'user_id' => null,
+                'event_type' => AuditLog::EVENT_TYPE_DATA_CHANGE,
                 'auditable_type' => User::class,
-                'auditable_id'   => $userId,
-                'action'         => 'account.deleted',
-                'description'    => "User account #{$userId} permanently deleted at user request. PII anonymised. Record retained for compliance.",
-                'metadata'       => [
+                'auditable_id' => $userId,
+                'action' => 'account.deleted',
+                'description' => "User account #{$userId} permanently deleted at user request. PII anonymised. Record retained for compliance.",
+                'metadata' => [
                     'original_user_id' => $userId,
-                    'deletion_type'    => 'self_requested',
+                    'deletion_type' => 'self_requested',
                 ],
-                'ip_address'     => $request->ip(),
-                'user_agent'     => $request->userAgent(),
-                'created_at'     => now(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
             ]);
         });
 

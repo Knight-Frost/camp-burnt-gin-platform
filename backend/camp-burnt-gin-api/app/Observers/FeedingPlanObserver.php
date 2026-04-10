@@ -41,8 +41,8 @@ class FeedingPlanObserver
             } catch (\Throwable $e) {
                 Log::error('FeedingPlanObserver: failed to re-assess risk after feeding plan saved', [
                     'feeding_plan_id' => $feedingPlan->id,
-                    'camper_id'       => $camper->id,
-                    'error'           => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

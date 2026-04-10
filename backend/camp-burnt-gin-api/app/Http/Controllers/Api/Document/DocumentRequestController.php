@@ -189,7 +189,7 @@ class DocumentRequestController extends Controller
                 $query->where('status', 'awaiting_upload')
                     ->where(function ($q) {
                         $q->whereNull('due_date')
-                          ->orWhereDate('due_date', '>=', now());
+                            ->orWhereDate('due_date', '>=', now());
                     });
             } else {
                 $query->where('status', $status);
@@ -241,7 +241,7 @@ class DocumentRequestController extends Controller
         $awaitingUpload = DocumentRequest::where('status', 'awaiting_upload')
             ->where(function ($q) {
                 $q->whereNull('due_date')
-                  ->orWhereDate('due_date', '>=', now());
+                    ->orWhereDate('due_date', '>=', now());
             })
             ->count();
 

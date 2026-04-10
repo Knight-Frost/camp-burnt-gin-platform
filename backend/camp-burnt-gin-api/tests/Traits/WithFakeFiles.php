@@ -29,11 +29,11 @@ trait WithFakeFiles
         file_put_contents(
             $tmp,
             "%PDF-1.4\n1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n"
-            . "2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n"
-            . "3 0 obj\n<</Type/Page/MediaBox[0 0 612 792]>>\nendobj\n"
-            . "xref\n0 4\n0000000000 65535 f\n"
-            . "trailer\n<</Size 4/Root 1 0 R>>\nstartxref\n9\n%%EOF\n"
-            . str_repeat('x', max(0, $sizeKb * 1024 - 200))
+            ."2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n"
+            ."3 0 obj\n<</Type/Page/MediaBox[0 0 612 792]>>\nendobj\n"
+            ."xref\n0 4\n0000000000 65535 f\n"
+            ."trailer\n<</Size 4/Root 1 0 R>>\nstartxref\n9\n%%EOF\n"
+            .str_repeat('x', max(0, $sizeKb * 1024 - 200))
         );
 
         return new UploadedFile($tmp, $name, 'application/pdf', null, true);
@@ -50,7 +50,7 @@ trait WithFakeFiles
         file_put_contents(
             $tmp,
             "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
-            . str_repeat("\x00", max(0, $sizeKb * 1024 - 18))
+            .str_repeat("\x00", max(0, $sizeKb * 1024 - 18))
         );
 
         return new UploadedFile($tmp, $name, 'image/jpeg', null, true);

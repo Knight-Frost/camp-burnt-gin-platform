@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -71,7 +70,7 @@ class UserProfileTest extends TestCase
     public function test_profile_update_cannot_use_another_users_email(): void
     {
         $existing = $this->createParent(['email' => 'taken@example.com']);
-        $user     = $this->createParent(['email' => 'mine@example.com']);
+        $user = $this->createParent(['email' => 'mine@example.com']);
 
         $response = $this->actingAs($user)->putJson('/api/profile', [
             'email' => 'taken@example.com',
@@ -133,9 +132,9 @@ class UserProfileTest extends TestCase
         $user = $this->createParent([
             'notification_preferences' => [
                 'application_updates' => false,
-                'announcements'       => false,
-                'messages'            => true,
-                'deadlines'           => true,
+                'announcements' => false,
+                'messages' => true,
+                'deadlines' => true,
                 'in_app_message_notifications' => false,
             ],
         ]);
@@ -211,8 +210,8 @@ class UserProfileTest extends TestCase
         $user = $this->createParent(['password' => Hash::make('OldPassword123!')]);
 
         $response = $this->actingAs($user)->putJson('/api/profile/password', [
-            'current_password'      => 'OldPassword123!',
-            'password'              => 'NewPassword456@',
+            'current_password' => 'OldPassword123!',
+            'password' => 'NewPassword456@',
             'password_confirmation' => 'NewPassword456@',
         ]);
 
@@ -227,8 +226,8 @@ class UserProfileTest extends TestCase
         $user = $this->createParent(['password' => Hash::make('RealPassword1!')]);
 
         $response = $this->actingAs($user)->putJson('/api/profile/password', [
-            'current_password'      => 'WrongPassword1!',
-            'password'              => 'NewPassword456@',
+            'current_password' => 'WrongPassword1!',
+            'password' => 'NewPassword456@',
             'password_confirmation' => 'NewPassword456@',
         ]);
 
@@ -241,8 +240,8 @@ class UserProfileTest extends TestCase
         $user = $this->createParent(['password' => Hash::make('OldPassword123!')]);
 
         $response = $this->actingAs($user)->putJson('/api/profile/password', [
-            'current_password'      => 'OldPassword123!',
-            'password'              => 'Short1!',
+            'current_password' => 'OldPassword123!',
+            'password' => 'Short1!',
             'password_confirmation' => 'Short1!',
         ]);
 
@@ -255,8 +254,8 @@ class UserProfileTest extends TestCase
         $user = $this->createParent(['password' => Hash::make('OldPassword123!')]);
 
         $response = $this->actingAs($user)->putJson('/api/profile/password', [
-            'current_password'      => 'OldPassword123!',
-            'password'              => 'NewPassword456@',
+            'current_password' => 'OldPassword123!',
+            'password' => 'NewPassword456@',
             'password_confirmation' => 'DifferentPassword456@',
         ]);
 
@@ -267,8 +266,8 @@ class UserProfileTest extends TestCase
     public function test_unauthenticated_cannot_change_password(): void
     {
         $this->putJson('/api/profile/password', [
-            'current_password'      => 'whatever',
-            'password'              => 'NewPassword456@',
+            'current_password' => 'whatever',
+            'password' => 'NewPassword456@',
             'password_confirmation' => 'NewPassword456@',
         ])->assertUnauthorized();
     }
@@ -294,22 +293,22 @@ class UserProfileTest extends TestCase
 
         // PII fields are anonymised — no trace of the original name or email remains.
         $this->assertDatabaseHas('users', [
-            'id'    => $userId,
-            'name'  => 'Deleted User',
+            'id' => $userId,
+            'name' => 'Deleted User',
             'email' => "deleted_{$userId}@deleted.invalid",
         ]);
 
         // All tokens are revoked.
         $this->assertDatabaseMissing('personal_access_tokens', [
-            'tokenable_id'   => $userId,
+            'tokenable_id' => $userId,
             'tokenable_type' => User::class,
         ]);
 
         // An audit log entry is written and visible in the DB.
         $this->assertDatabaseHas('audit_logs', [
             'auditable_type' => User::class,
-            'auditable_id'   => $userId,
-            'action'         => 'account.deleted',
+            'auditable_id' => $userId,
+            'action' => 'account.deleted',
         ]);
     }
 

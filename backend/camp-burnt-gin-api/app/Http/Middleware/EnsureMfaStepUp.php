@@ -55,25 +55,21 @@ class EnsureMfaStepUp
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Stage 1: The user must have MFA enrolled to be capable of step-up.
-        // Without a secret on file there is nothing to verify against.
+        // MFA is optional. If the user has not enrolled or has disabled MFA,
+        // skip the step-up gate entirely — there is no secret to verify against
+        // and we respect the user's choice to operate without MFA.
         if (! $user->mfa_enabled) {
-            return response()->json([
-                'message' => 'This action requires multi-factor authentication. '
-                    .'Please enable MFA in your security settings, then try again.',
-                'mfa_step_up_required' => true,
-                'mfa_not_enrolled'     => true,
-            ], Response::HTTP_FORBIDDEN);
+            return $next($request);
         }
 
-        // Stage 2: The user must have completed a step-up challenge recently.
+        // For users who have MFA enabled, enforce recent step-up verification.
         // The MfaService checks for a short-lived cache key set by /api/mfa/step-up.
         if (! $this->mfaService->hasValidStepUp($user)) {
             return response()->json([
                 'message' => 'This action requires recent MFA verification. '
                     .'Please re-verify your identity to continue.',
                 'mfa_step_up_required' => true,
-                'mfa_not_enrolled'     => false,
+                'mfa_not_enrolled' => false,
             ], Response::HTTP_FORBIDDEN);
         }
 

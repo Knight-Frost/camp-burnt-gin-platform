@@ -264,6 +264,7 @@ class MfaService
     public function hasValidStepUp(User $user): bool
     {
         $tokenId = $user->currentAccessToken()?->id ?? 'unknown';
+
         return Cache::has("mfa_step_up:{$user->id}:{$tokenId}");
     }
 
@@ -404,6 +405,7 @@ class MfaService
 
         // Mark as used with 75-second TTL (covers current + adjacent window)
         Cache::put($nonce, true, 75);
+
         return false;
     }
 }

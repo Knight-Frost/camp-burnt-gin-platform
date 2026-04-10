@@ -39,8 +39,8 @@ class BehavioralProfileObserver
             } catch (\Throwable $e) {
                 Log::error('BehavioralProfileObserver: failed to re-assess risk after profile saved', [
                     'profile_id' => $behavioralProfile->id,
-                    'camper_id'  => $camper->id,
-                    'error'      => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

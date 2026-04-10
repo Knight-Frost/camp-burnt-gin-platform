@@ -135,5 +135,4 @@ class CamperPolicy
 
         return false;
     }
-
 }

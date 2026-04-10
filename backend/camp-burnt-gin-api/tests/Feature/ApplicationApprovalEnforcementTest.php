@@ -232,6 +232,155 @@ class ApplicationApprovalEnforcementTest extends TestCase
         $this->assertEquals(ApplicationStatus::Rejected, $this->application->status);
     }
 
+    /**
+     * Regression: physical_examination uploaded to Camper must NOT appear as
+     * official_medical_form missing in the completeness check. The old code
+     * checked for a stale key ('official_medical_form') in the wrong collection
+     * ($application->documents instead of $camper->documents).
+     */
+    public function test_completeness_check_recognises_physical_examination_on_camper(): void
+    {
+        // Upload physical_examination attached to the Camper (matching what ApplicationFormPage does).
+        Document::create([
+            'documentable_type' => Camper::class,
+            'documentable_id' => $this->camper->id,
+            'uploaded_by' => $this->camper->user_id,
+            'original_filename' => 'physical.pdf',
+            'stored_filename' => 'stored_physical.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 1024,
+            'disk' => 'local',
+            'path' => '/test/path',
+            'document_type' => 'physical_examination',
+            'is_scanned' => true,
+            'scan_passed' => true,
+            'verification_status' => DocumentVerificationStatus::Pending,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->getJson("/api/applications/{$this->application->id}/completeness");
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        // The medical form check must NOT appear in missing_documents.
+        // (It will appear in unverified_documents since verification_status is Pending.)
+        $missingDocKeys = collect($data['missing_documents'])->pluck('key')->all();
+        $this->assertNotContains('medical_form', $missingDocKeys, 'physical_examination uploaded to Camper must not be reported as medical_form missing');
+
+        // The uploaded-but-unverified document IS expected in unverified_documents.
+        $this->assertArrayHasKey('unverified_documents', $data);
+    }
+
+    /**
+     * Regression: unverified_documents must be returned as a separate field from
+     * missing_documents. Uploaded files that have not been verified by an admin are
+     * a different state than files that were never submitted.
+     */
+    public function test_completeness_check_separates_unverified_from_missing(): void
+    {
+        // Upload both required universal documents, both pending verification.
+        foreach (['physical_examination', 'immunization_record'] as $type) {
+            Document::create([
+                'documentable_type' => Camper::class,
+                'documentable_id' => $this->camper->id,
+                'uploaded_by' => $this->camper->user_id,
+                'original_filename' => "{$type}.pdf",
+                'stored_filename' => "stored_{$type}.pdf",
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'disk' => 'local',
+                'path' => '/test/path',
+                'document_type' => $type,
+                'is_scanned' => true,
+                'scan_passed' => true,
+                'verification_status' => DocumentVerificationStatus::Pending,
+            ]);
+        }
+
+        $response = $this->actingAs($this->admin)
+            ->getJson("/api/applications/{$this->application->id}/completeness");
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+
+        // Both fields must be present in the response.
+        $this->assertArrayHasKey('missing_documents', $data);
+        $this->assertArrayHasKey('unverified_documents', $data);
+
+        // Universal documents were uploaded — must NOT appear as missing.
+        $missingDocKeys = collect($data['missing_documents'])->pluck('key')->all();
+        $this->assertNotContains('doc_physical_examination', $missingDocKeys);
+        $this->assertNotContains('doc_immunization_record', $missingDocKeys);
+
+        // Unverified documents should list the two pending uploads.
+        $unverifiedKeys = collect($data['unverified_documents'])->pluck('key')->all();
+        $this->assertNotEmpty($unverifiedKeys, 'Pending documents must appear in unverified_documents');
+    }
+
+    /**
+     * Confirms that a fully complete application (fields, consents, docs all present
+     * and verified) returns is_complete = true with empty unverified_documents.
+     */
+    public function test_completeness_check_is_true_when_all_documents_verified(): void
+    {
+        // Add required camper fields and consents.
+        $this->camper->update([
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+            'date_of_birth' => '2010-06-15',
+            'gender' => 'Female',
+            'tshirt_size' => 'M',
+            'county' => 'Richland',
+        ]);
+        $this->application->update([
+            'signed_at' => now(),
+            'signature_name' => 'Parent Name',
+        ]);
+        $this->camper->emergencyContacts()->create([
+            'name' => 'Guardian', 'relationship' => 'Parent', 'phone_primary' => '555-0100',
+        ]);
+        foreach (['general', 'photos', 'liability', 'activity', 'authorization'] as $type) {
+            $this->application->consents()->create([
+                'consent_type' => $type,
+                'guardian_name' => 'Parent Name',
+                'guardian_relationship' => 'Parent',
+                'guardian_signature' => 'signature',
+                'signed_at' => now(),
+            ]);
+        }
+
+        // Upload and verify both universal documents.
+        foreach (['physical_examination', 'immunization_record'] as $type) {
+            Document::create([
+                'documentable_type' => Camper::class,
+                'documentable_id' => $this->camper->id,
+                'uploaded_by' => $this->camper->user_id,
+                'original_filename' => "{$type}.pdf",
+                'stored_filename' => "stored_{$type}.pdf",
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'disk' => 'local',
+                'path' => '/test/path',
+                'document_type' => $type,
+                'is_scanned' => true,
+                'scan_passed' => true,
+                'verification_status' => DocumentVerificationStatus::Approved,
+            ]);
+        }
+
+        $response = $this->actingAs($this->admin)
+            ->getJson("/api/applications/{$this->application->id}/completeness");
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+
+        $this->assertTrue($data['is_complete'], 'Application with all required data and verified docs must be complete');
+        $this->assertEmpty($data['missing_documents']);
+        $this->assertEmpty($data['unverified_documents']);
+    }
+
     public function test_high_complexity_camper_requires_additional_documents(): void
     {
         // Create high complexity camper

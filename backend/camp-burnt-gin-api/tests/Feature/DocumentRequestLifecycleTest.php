@@ -7,12 +7,11 @@ use App\Models\Camper;
 use App\Models\DocumentRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
-use Tests\Traits\WithRoles;
 use Tests\Traits\WithFakeFiles;
+use Tests\Traits\WithRoles;
 
 /**
  * DocumentRequestLifecycleTest — end-to-end tests for the document request
@@ -29,7 +28,7 @@ use Tests\Traits\WithFakeFiles;
  */
 class DocumentRequestLifecycleTest extends TestCase
 {
-    use RefreshDatabase, WithRoles, WithFakeFiles;
+    use RefreshDatabase, WithFakeFiles, WithRoles;
 
     protected User $admin;
     protected User $applicant;
@@ -43,10 +42,10 @@ class DocumentRequestLifecycleTest extends TestCase
 
         $this->setUpRoles();
 
-        $this->admin          = $this->createAdmin();
-        $this->applicant      = $this->createParent();
+        $this->admin = $this->createAdmin();
+        $this->applicant = $this->createParent();
         $this->otherApplicant = $this->createParent();
-        $this->camper         = Camper::factory()->for($this->applicant)->create();
+        $this->camper = Camper::factory()->for($this->applicant)->create();
     }
 
     // ── Admin: Create ─────────────────────────────────────────────────────────
@@ -56,11 +55,11 @@ class DocumentRequestLifecycleTest extends TestCase
         Sanctum::actingAs($this->admin);
 
         $response = $this->postJson('/api/document-requests', [
-            'applicant_id'  => $this->applicant->id,
-            'camper_id'     => $this->camper->id,
+            'applicant_id' => $this->applicant->id,
+            'camper_id' => $this->camper->id,
             'document_type' => 'Immunization Record',
-            'instructions'  => 'Please upload a current copy.',
-            'due_date'      => now()->addDays(7)->toDateString(),
+            'instructions' => 'Please upload a current copy.',
+            'due_date' => now()->addDays(7)->toDateString(),
         ]);
 
         $response->assertCreated()
@@ -69,9 +68,9 @@ class DocumentRequestLifecycleTest extends TestCase
             ->assertJsonPath('applicant_id', $this->applicant->id);
 
         $this->assertDatabaseHas('document_requests', [
-            'applicant_id'  => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'document_type' => 'Immunization Record',
-            'status'        => 'awaiting_upload',
+            'status' => 'awaiting_upload',
         ]);
     }
 
@@ -80,7 +79,7 @@ class DocumentRequestLifecycleTest extends TestCase
         Sanctum::actingAs($this->applicant);
 
         $this->postJson('/api/document-requests', [
-            'applicant_id'  => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'document_type' => 'Immunization Record',
         ])->assertForbidden();
     }
@@ -88,7 +87,7 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_unauthenticated_user_cannot_create_document_request(): void
     {
         $this->postJson('/api/document-requests', [
-            'applicant_id'  => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'document_type' => 'Immunization Record',
         ])->assertUnauthorized();
     }
@@ -98,11 +97,11 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_can_list_document_requests(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
-            'camper_id'             => $this->camper->id,
+            'applicant_id' => $this->applicant->id,
+            'camper_id' => $this->camper->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Allergy Action Plan',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'Allergy Action Plan',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -117,46 +116,46 @@ class DocumentRequestLifecycleTest extends TestCase
 
         // 2 genuinely awaiting (not overdue)
         DocumentRequest::factory()->count(2)->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'awaiting_upload',
-            'due_date'              => $now->copy()->addDays(10),
+            'status' => 'awaiting_upload',
+            'due_date' => $now->copy()->addDays(10),
         ]);
 
         // 1 overdue (awaiting_upload + past due_date)
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'awaiting_upload',
-            'due_date'              => $now->copy()->subDay(),
+            'status' => 'awaiting_upload',
+            'due_date' => $now->copy()->subDay(),
         ]);
 
         // 1 uploaded (file received, not yet reviewed)
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'uploaded',
+            'status' => 'uploaded',
         ]);
 
         // 1 under_review
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'under_review',
+            'status' => 'under_review',
         ]);
 
         // 1 approved
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'approved',
+            'status' => 'approved',
         ]);
 
         // 1 rejected
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'rejected',
+            'status' => 'rejected',
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -185,18 +184,18 @@ class DocumentRequestLifecycleTest extends TestCase
     {
         // Non-overdue awaiting
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'awaiting_upload',
-            'due_date'              => now()->addDays(5),
+            'status' => 'awaiting_upload',
+            'due_date' => now()->addDays(5),
         ]);
 
         // Overdue awaiting (should NOT appear in awaiting_upload filter)
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'awaiting_upload',
-            'due_date'              => now()->subDay(),
+            'status' => 'awaiting_upload',
+            'due_date' => now()->subDay(),
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -212,18 +211,18 @@ class DocumentRequestLifecycleTest extends TestCase
     {
         // Non-overdue
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'awaiting_upload',
-            'due_date'              => now()->addDays(5),
+            'status' => 'awaiting_upload',
+            'due_date' => now()->addDays(5),
         ]);
 
         // Overdue
         DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => 'awaiting_upload',
-            'due_date'              => now()->subDay(),
+            'status' => 'awaiting_upload',
+            'due_date' => now()->subDay(),
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -240,10 +239,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_applicant_can_list_own_document_requests(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Medical Waiver',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'Medical Waiver',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->applicant);
@@ -258,10 +257,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_applicant_cannot_see_other_applicants_requests(): void
     {
         DocumentRequest::create([
-            'applicant_id'          => $this->otherApplicant->id,
+            'applicant_id' => $this->otherApplicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Other Family Doc',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'Other Family Doc',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->applicant);
@@ -275,10 +274,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_applicant_can_upload_document_for_own_request(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'IEP',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'IEP',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->applicant);
@@ -291,7 +290,7 @@ class DocumentRequestLifecycleTest extends TestCase
             ->assertJsonPath('status', 'uploaded');
 
         $this->assertDatabaseHas('document_requests', [
-            'id'     => $req->id,
+            'id' => $req->id,
             'status' => 'uploaded',
         ]);
     }
@@ -299,10 +298,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_applicant_cannot_upload_for_another_applicants_request(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->otherApplicant->id,
+            'applicant_id' => $this->otherApplicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'IEP',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'IEP',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->applicant);
@@ -318,14 +317,14 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_can_approve_uploaded_document(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'              => $this->applicant->id,
-            'requested_by_admin_id'     => $this->admin->id,
-            'document_type'             => 'Physician Letter',
-            'status'                    => DocumentRequestStatus::Uploaded,
-            'uploaded_document_path'    => 'document-requests/uploads/fake.pdf',
-            'uploaded_file_name'        => 'physician-letter.pdf',
-            'uploaded_mime_type'        => 'application/pdf',
-            'uploaded_at'               => now(),
+            'applicant_id' => $this->applicant->id,
+            'requested_by_admin_id' => $this->admin->id,
+            'document_type' => 'Physician Letter',
+            'status' => DocumentRequestStatus::Uploaded,
+            'uploaded_document_path' => 'document-requests/uploads/fake.pdf',
+            'uploaded_file_name' => 'physician-letter.pdf',
+            'uploaded_mime_type' => 'application/pdf',
+            'uploaded_at' => now(),
         ]);
 
         Storage::disk('local')->put('document-requests/uploads/fake.pdf', 'contents');
@@ -336,7 +335,7 @@ class DocumentRequestLifecycleTest extends TestCase
             ->assertJsonPath('status', 'approved');
 
         $this->assertDatabaseHas('document_requests', [
-            'id'     => $req->id,
+            'id' => $req->id,
             'status' => 'approved',
         ]);
     }
@@ -344,10 +343,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_cannot_approve_awaiting_upload_document(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Physician Letter',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'Physician Letter',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -362,14 +361,14 @@ class DocumentRequestLifecycleTest extends TestCase
         Storage::disk('local')->put('document-requests/uploads/fake.pdf', 'contents');
 
         $req = DocumentRequest::create([
-            'applicant_id'           => $this->applicant->id,
-            'requested_by_admin_id'  => $this->admin->id,
-            'document_type'          => 'Allergy Plan',
-            'status'                 => DocumentRequestStatus::Uploaded,
+            'applicant_id' => $this->applicant->id,
+            'requested_by_admin_id' => $this->admin->id,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Uploaded,
             'uploaded_document_path' => 'document-requests/uploads/fake.pdf',
-            'uploaded_file_name'     => 'allergy.pdf',
-            'uploaded_mime_type'     => 'application/pdf',
-            'uploaded_at'            => now(),
+            'uploaded_file_name' => 'allergy.pdf',
+            'uploaded_mime_type' => 'application/pdf',
+            'uploaded_at' => now(),
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -384,8 +383,8 @@ class DocumentRequestLifecycleTest extends TestCase
 
         // DB should clear the uploaded file fields
         $this->assertDatabaseHas('document_requests', [
-            'id'                     => $req->id,
-            'status'                 => 'rejected',
+            'id' => $req->id,
+            'status' => 'rejected',
             'uploaded_document_path' => null,
         ]);
     }
@@ -393,10 +392,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_applicant_can_reupload_after_rejection(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Allergy Plan',
-            'status'                => DocumentRequestStatus::Rejected,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Rejected,
         ]);
 
         Sanctum::actingAs($this->applicant);
@@ -412,10 +411,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_can_cancel_awaiting_upload_request(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Photo ID',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'Photo ID',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -430,10 +429,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_cannot_cancel_approved_request(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Photo ID',
-            'status'                => DocumentRequestStatus::Approved,
+            'document_type' => 'Photo ID',
+            'status' => DocumentRequestStatus::Approved,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -446,11 +445,11 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_can_extend_deadline(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Photo ID',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
-            'due_date'              => now()->subDay()->toDateString(),
+            'document_type' => 'Photo ID',
+            'status' => DocumentRequestStatus::AwaitingUpload,
+            'due_date' => now()->subDay()->toDateString(),
         ]);
 
         $newDate = now()->addDays(14)->toDateString();
@@ -471,10 +470,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_can_send_reminder_for_awaiting_upload_request(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Allergy Plan',
-            'status'                => DocumentRequestStatus::AwaitingUpload,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -486,10 +485,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_cannot_send_reminder_for_approved_request(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Allergy Plan',
-            'status'                => DocumentRequestStatus::Approved,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Approved,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -502,11 +501,11 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_can_request_reupload_of_rejected_document(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Allergy Plan',
-            'status'                => DocumentRequestStatus::Rejected,
-            'rejection_reason'      => 'Illegible.',
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Rejected,
+            'rejection_reason' => 'Illegible.',
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -515,8 +514,8 @@ class DocumentRequestLifecycleTest extends TestCase
             ->assertJsonPath('status', 'awaiting_upload');
 
         $this->assertDatabaseHas('document_requests', [
-            'id'               => $req->id,
-            'status'           => 'awaiting_upload',
+            'id' => $req->id,
+            'status' => 'awaiting_upload',
             'rejection_reason' => null,
         ]);
     }
@@ -524,10 +523,10 @@ class DocumentRequestLifecycleTest extends TestCase
     public function test_admin_cannot_request_reupload_of_non_rejected_document(): void
     {
         $req = DocumentRequest::create([
-            'applicant_id'          => $this->applicant->id,
+            'applicant_id' => $this->applicant->id,
             'requested_by_admin_id' => $this->admin->id,
-            'document_type'         => 'Allergy Plan',
-            'status'                => DocumentRequestStatus::Approved,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Approved,
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -542,14 +541,14 @@ class DocumentRequestLifecycleTest extends TestCase
         Storage::disk('local')->put('document-requests/uploads/test.pdf', 'file-contents');
 
         $req = DocumentRequest::create([
-            'applicant_id'           => $this->applicant->id,
-            'requested_by_admin_id'  => $this->admin->id,
-            'document_type'          => 'Allergy Plan',
-            'status'                 => DocumentRequestStatus::Uploaded,
+            'applicant_id' => $this->applicant->id,
+            'requested_by_admin_id' => $this->admin->id,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Uploaded,
             'uploaded_document_path' => 'document-requests/uploads/test.pdf',
-            'uploaded_file_name'     => 'allergy.pdf',
-            'uploaded_mime_type'     => 'application/pdf',
-            'uploaded_at'            => now(),
+            'uploaded_file_name' => 'allergy.pdf',
+            'uploaded_mime_type' => 'application/pdf',
+            'uploaded_at' => now(),
         ]);
 
         Sanctum::actingAs($this->admin);
@@ -562,14 +561,14 @@ class DocumentRequestLifecycleTest extends TestCase
         Storage::disk('local')->put('document-requests/uploads/own.pdf', 'file-contents');
 
         $req = DocumentRequest::create([
-            'applicant_id'           => $this->applicant->id,
-            'requested_by_admin_id'  => $this->admin->id,
-            'document_type'          => 'Allergy Plan',
-            'status'                 => DocumentRequestStatus::Uploaded,
+            'applicant_id' => $this->applicant->id,
+            'requested_by_admin_id' => $this->admin->id,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Uploaded,
             'uploaded_document_path' => 'document-requests/uploads/own.pdf',
-            'uploaded_file_name'     => 'allergy.pdf',
-            'uploaded_mime_type'     => 'application/pdf',
-            'uploaded_at'            => now(),
+            'uploaded_file_name' => 'allergy.pdf',
+            'uploaded_mime_type' => 'application/pdf',
+            'uploaded_at' => now(),
         ]);
 
         Sanctum::actingAs($this->applicant);
@@ -582,14 +581,14 @@ class DocumentRequestLifecycleTest extends TestCase
         Storage::disk('local')->put('document-requests/uploads/other.pdf', 'file-contents');
 
         $req = DocumentRequest::create([
-            'applicant_id'           => $this->otherApplicant->id,
-            'requested_by_admin_id'  => $this->admin->id,
-            'document_type'          => 'Allergy Plan',
-            'status'                 => DocumentRequestStatus::Uploaded,
+            'applicant_id' => $this->otherApplicant->id,
+            'requested_by_admin_id' => $this->admin->id,
+            'document_type' => 'Allergy Plan',
+            'status' => DocumentRequestStatus::Uploaded,
             'uploaded_document_path' => 'document-requests/uploads/other.pdf',
-            'uploaded_file_name'     => 'allergy.pdf',
-            'uploaded_mime_type'     => 'application/pdf',
-            'uploaded_at'            => now(),
+            'uploaded_file_name' => 'allergy.pdf',
+            'uploaded_mime_type' => 'application/pdf',
+            'uploaded_at' => now(),
         ]);
 
         Sanctum::actingAs($this->applicant);

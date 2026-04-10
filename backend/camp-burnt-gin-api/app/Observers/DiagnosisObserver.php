@@ -37,8 +37,8 @@ class DiagnosisObserver
             } catch (\Throwable $e) {
                 Log::error('DiagnosisObserver: failed to re-assess risk after diagnosis saved', [
                     'diagnosis_id' => $diagnosis->id,
-                    'camper_id'    => $camper->id,
-                    'error'        => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -63,8 +63,8 @@ class DiagnosisObserver
             } catch (\Throwable $e) {
                 Log::error('DiagnosisObserver: failed to re-assess risk after diagnosis deleted', [
                     'diagnosis_id' => $diagnosis->id,
-                    'camper_id'    => $camper->id,
-                    'error'        => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

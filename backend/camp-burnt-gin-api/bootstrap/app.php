@@ -89,7 +89,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureUserIsAdmin::class,
             'medical' => EnsureUserIsMedicalProvider::class,
             'mfa.enrolled' => EnsureMfaEnrolled::class,
-            'mfa.step_up'  => EnsureMfaStepUp::class,
+            'mfa.step_up' => EnsureMfaStepUp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

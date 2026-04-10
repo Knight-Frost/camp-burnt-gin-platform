@@ -38,8 +38,8 @@ class AllergyObserver
             } catch (\Throwable $e) {
                 Log::error('AllergyObserver: failed to re-assess risk after allergy saved', [
                     'allergy_id' => $allergy->id,
-                    'camper_id'  => $camper->id,
-                    'error'      => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -61,8 +61,8 @@ class AllergyObserver
             } catch (\Throwable $e) {
                 Log::error('AllergyObserver: failed to re-assess risk after allergy deleted', [
                     'allergy_id' => $allergy->id,
-                    'camper_id'  => $camper->id,
-                    'error'      => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

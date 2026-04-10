@@ -297,8 +297,8 @@ class CamperController extends Controller
         $assessment = $riskService->assessCamper($camper);
 
         // Determine effective supervision level (may differ if a clinical override is in place)
-        $storedAssessment  = $assessment['assessment'];
-        $effectiveLevel    = $storedAssessment->effectiveSupervisionLevel();
+        $storedAssessment = $assessment['assessment'];
+        $effectiveLevel = $storedAssessment->effectiveSupervisionLevel();
 
         return response()->json([
             'data' => [
@@ -313,15 +313,15 @@ class CamperController extends Controller
                 // Effective level (respects clinical override if one is set)
                 'effective_supervision_level' => $effectiveLevel->value,
                 'effective_supervision_label' => $effectiveLevel->label(),
-                'effective_staffing_ratio'    => $effectiveLevel->getStaffingRatio(),
+                'effective_staffing_ratio' => $effectiveLevel->getStaffingRatio(),
                 'medical_complexity_tier' => $assessment['medical_complexity_tier']->value,
                 'complexity_label' => $assessment['medical_complexity_tier']->label(),
                 // Individual flags (e.g., "seizure_history") that contributed to the score.
                 'flags' => $assessment['flags'],
                 // Review state — lets the compact card show the review badge
-                'review_status'       => $storedAssessment->review_status->value,
+                'review_status' => $storedAssessment->review_status->value,
                 'review_status_label' => $storedAssessment->review_status->label(),
-                'is_overridden'       => $storedAssessment->isOverridden(),
+                'is_overridden' => $storedAssessment->isOverridden(),
             ],
         ]);
     }

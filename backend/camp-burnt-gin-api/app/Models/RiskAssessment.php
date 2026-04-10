@@ -60,19 +60,19 @@ class RiskAssessment extends Model
     ];
 
     protected $casts = [
-        'calculated_at'              => 'datetime',
-        'reviewed_at'                => 'datetime',
-        'overridden_at'              => 'datetime',
-        'risk_score'                 => 'integer',
-        'is_current'                 => 'boolean',
-        'flags'                      => 'array',
-        'factor_breakdown'           => 'array',
-        'supervision_level'          => SupervisionLevel::class,
-        'medical_complexity_tier'    => MedicalComplexityTier::class,
-        'review_status'              => RiskReviewStatus::class,
+        'calculated_at' => 'datetime',
+        'reviewed_at' => 'datetime',
+        'overridden_at' => 'datetime',
+        'risk_score' => 'integer',
+        'is_current' => 'boolean',
+        'flags' => 'array',
+        'factor_breakdown' => 'array',
+        'supervision_level' => SupervisionLevel::class,
+        'medical_complexity_tier' => MedicalComplexityTier::class,
+        'review_status' => RiskReviewStatus::class,
         'override_supervision_level' => SupervisionLevel::class,
-        'clinical_notes'             => 'encrypted',
-        'override_reason'            => 'encrypted',
+        'clinical_notes' => 'encrypted',
+        'override_reason' => 'encrypted',
     ];
 
     // ── Relationships ────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ class RiskAssessment extends Model
         return match (true) {
             $this->risk_score >= 67 => 'High',
             $this->risk_score >= 34 => 'Moderate',
-            default                 => 'Low',
+            default => 'Low',
         };
     }
 
@@ -151,7 +151,7 @@ class RiskAssessment extends Model
         return match (true) {
             $this->risk_score >= 67 => 'high',
             $this->risk_score >= 34 => 'moderate',
-            default                 => 'low',
+            default => 'low',
         };
     }
 }

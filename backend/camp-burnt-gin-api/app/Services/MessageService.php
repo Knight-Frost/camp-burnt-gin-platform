@@ -686,11 +686,11 @@ class MessageService
             'description' => 'Message soft deleted by admin',
             // Safe projection — never write message body (PHI) to the audit log
             'old_values' => [
-                'message_id'      => $message->id,
+                'message_id' => $message->id,
                 'conversation_id' => $message->conversation_id,
-                'sender_id'       => $message->sender_id,
-                'body_length'     => mb_strlen($message->body ?? ''),
-                'created_at'      => $message->created_at?->toISOString(),
+                'sender_id' => $message->sender_id,
+                'body_length' => mb_strlen($message->body ?? ''),
+                'created_at' => $message->created_at?->toISOString(),
             ],
             'metadata' => [
                 'conversation_id' => $message->conversation_id,

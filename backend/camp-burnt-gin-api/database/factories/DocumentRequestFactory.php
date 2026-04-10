@@ -17,18 +17,18 @@ class DocumentRequestFactory extends Factory
     public function definition(): array
     {
         return [
-            'applicant_id'          => User::factory()->applicant(),
+            'applicant_id' => User::factory()->applicant(),
             'requested_by_admin_id' => User::factory()->admin(),
-            'document_type'         => $this->faker->randomElement([
+            'document_type' => $this->faker->randomElement([
                 'Immunization Record',
                 'Physician Letter',
                 'Allergy Action Plan',
                 'IEP / Special Education Plan',
                 'Insurance Card',
             ]),
-            'instructions'          => $this->faker->optional(0.5)->sentence(),
-            'status'                => DocumentRequestStatus::AwaitingUpload,
-            'due_date'              => null,
+            'instructions' => $this->faker->optional(0.5)->sentence(),
+            'status' => DocumentRequestStatus::AwaitingUpload,
+            'due_date' => null,
         ];
     }
 }

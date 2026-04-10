@@ -315,6 +315,8 @@ export function MedicalReviewPanel({
             {SUPERVISION_OPTIONS.map(opt => (
               <label
                 key={opt.value}
+                htmlFor={`override_level_${opt.value}`}
+                aria-label={opt.label}
                 className={[
                   'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors',
                   overrideLevel === opt.value
@@ -323,6 +325,7 @@ export function MedicalReviewPanel({
                 ].join(' ')}
               >
                 <input
+                  id={`override_level_${opt.value}`}
                   type="radio"
                   name="override_level"
                   value={opt.value}
@@ -347,10 +350,11 @@ export function MedicalReviewPanel({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-[var(--foreground)]">
+            <label htmlFor="override_reason" className="text-xs font-semibold text-[var(--foreground)]">
               Clinical Justification <span style={{ color: '#dc2626' }}>*</span>
             </label>
             <textarea
+              id="override_reason"
               value={overrideReason}
               onChange={e => setOverrideReason(e.target.value)}
               placeholder="Document the clinical reason for this override. Minimum 20 characters required. (e.g., 'Newly identified anxiety behaviours not yet in profile; physician recommendation pending update.')"
@@ -364,8 +368,9 @@ export function MedicalReviewPanel({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-[var(--foreground)]">Additional Clinical Notes (optional)</label>
+            <label htmlFor="override_notes" className="text-xs font-semibold text-[var(--foreground)]">Additional Clinical Notes (optional)</label>
             <textarea
+              id="override_notes"
               value={overrideNotes}
               onChange={e => setOverrideNotes(e.target.value)}
               placeholder="Optional additional context…"

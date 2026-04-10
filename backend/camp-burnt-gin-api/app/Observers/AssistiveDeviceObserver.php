@@ -40,7 +40,7 @@ class AssistiveDeviceObserver
                 Log::error('AssistiveDeviceObserver: failed to re-assess risk after device saved', [
                     'device_id' => $assistiveDevice->id,
                     'camper_id' => $camper->id,
-                    'error'     => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -65,7 +65,7 @@ class AssistiveDeviceObserver
                 Log::error('AssistiveDeviceObserver: failed to re-assess risk after device deleted', [
                     'device_id' => $assistiveDevice->id,
                     'camper_id' => $camper->id,
-                    'error'     => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

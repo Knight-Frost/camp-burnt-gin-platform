@@ -3765,7 +3765,7 @@ export function ApplicationFormPage() {
     return () => {
       if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
     };
-  }, [form, serverDraftId]);
+  }, [form, serverDraftId, t]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 

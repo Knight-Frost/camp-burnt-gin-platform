@@ -93,9 +93,9 @@ class RiskAssessmentController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($assessment, $validated, $camper) {
-            $assessment->review_status  = RiskReviewStatus::Reviewed;
-            $assessment->reviewed_by    = auth()->id();
-            $assessment->reviewed_at    = now();
+            $assessment->review_status = RiskReviewStatus::Reviewed;
+            $assessment->reviewed_by = auth()->id();
+            $assessment->reviewed_at = now();
             $assessment->clinical_notes = $validated['clinical_notes'] ?? $assessment->clinical_notes;
             $assessment->save();
 
@@ -108,7 +108,7 @@ class RiskAssessmentController extends Controller
         });
 
         return response()->json([
-            'data'    => $this->formatStoredAssessment($assessment->fresh(['reviewer', 'overriddenByUser'])),
+            'data' => $this->formatStoredAssessment($assessment->fresh(['reviewer', 'overriddenByUser'])),
             'message' => 'Assessment marked as clinically reviewed.',
         ]);
     }
@@ -133,8 +133,8 @@ class RiskAssessmentController extends Controller
 
         $validated = $request->validate([
             'override_supervision_level' => ['required', new Enum(SupervisionLevel::class)],
-            'override_reason'            => ['required', 'string', 'min:20', 'max:4000'],
-            'clinical_notes'             => ['nullable', 'string', 'max:4000'],
+            'override_reason' => ['required', 'string', 'min:20', 'max:4000'],
+            'clinical_notes' => ['nullable', 'string', 'max:4000'],
         ]);
 
         $assessment = RiskAssessment::where('camper_id', $camper->id)
@@ -142,11 +142,11 @@ class RiskAssessmentController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($assessment, $validated, $camper) {
-            $assessment->review_status              = RiskReviewStatus::Overridden;
+            $assessment->review_status = RiskReviewStatus::Overridden;
             $assessment->override_supervision_level = SupervisionLevel::from($validated['override_supervision_level']);
-            $assessment->override_reason            = $validated['override_reason'];
-            $assessment->overridden_by              = auth()->id();
-            $assessment->overridden_at              = now();
+            $assessment->override_reason = $validated['override_reason'];
+            $assessment->overridden_by = auth()->id();
+            $assessment->overridden_at = now();
 
             // Optionally update or preserve clinical notes
             if (isset($validated['clinical_notes'])) {
@@ -170,16 +170,16 @@ class RiskAssessmentController extends Controller
                 auth()->user(),
                 "Supervision level overridden for camper #{$camper->id}: {$assessment->supervision_level->value} → {$assessment->override_supervision_level->value}",
                 [
-                    'camper_id'            => $camper->id,
-                    'assessment_id'        => $assessment->id,
-                    'original_level'       => $assessment->supervision_level->value,
-                    'override_level'       => $assessment->override_supervision_level->value,
+                    'camper_id' => $camper->id,
+                    'assessment_id' => $assessment->id,
+                    'original_level' => $assessment->supervision_level->value,
+                    'override_level' => $assessment->override_supervision_level->value,
                 ]
             );
         });
 
         return response()->json([
-            'data'    => $this->formatStoredAssessment($assessment->fresh(['reviewer', 'overriddenByUser'])),
+            'data' => $this->formatStoredAssessment($assessment->fresh(['reviewer', 'overriddenByUser'])),
             'message' => 'Supervision level override applied.',
         ]);
     }
@@ -222,57 +222,57 @@ class RiskAssessmentController extends Controller
         $effectiveLevel = $assessment->effectiveSupervisionLevel();
 
         return [
-            'id'                      => $assessment->id,
-            'camper_id'               => $assessment->camper_id,
-            'calculated_at'           => $assessment->calculated_at?->toIso8601String(),
+            'id' => $assessment->id,
+            'camper_id' => $assessment->camper_id,
+            'calculated_at' => $assessment->calculated_at?->toIso8601String(),
 
             // ── Score and tier ──────────────────────────────────────────────
-            'risk_score'              => $assessment->risk_score,
-            'risk_level'              => $assessment->riskLevelLabel(),
-            'risk_level_color'        => $assessment->riskLevelColor(),
+            'risk_score' => $assessment->risk_score,
+            'risk_level' => $assessment->riskLevelLabel(),
+            'risk_level_color' => $assessment->riskLevelColor(),
 
             // ── Supervision (system-calculated) ─────────────────────────────
-            'supervision_level'       => $assessment->supervision_level->value,
-            'supervision_label'       => $assessment->supervision_level->label(),
-            'staffing_ratio'          => $assessment->supervision_level->getStaffingRatio(),
+            'supervision_level' => $assessment->supervision_level->value,
+            'supervision_label' => $assessment->supervision_level->label(),
+            'staffing_ratio' => $assessment->supervision_level->getStaffingRatio(),
 
             // ── Effective supervision (may differ if overridden) ─────────────
-            'effective_supervision_level'  => $effectiveLevel->value,
-            'effective_supervision_label'  => $effectiveLevel->label(),
-            'effective_staffing_ratio'     => $effectiveLevel->getStaffingRatio(),
-            'is_overridden'                => $assessment->isOverridden(),
+            'effective_supervision_level' => $effectiveLevel->value,
+            'effective_supervision_label' => $effectiveLevel->label(),
+            'effective_staffing_ratio' => $effectiveLevel->getStaffingRatio(),
+            'is_overridden' => $assessment->isOverridden(),
 
             // ── Complexity ──────────────────────────────────────────────────
             'medical_complexity_tier' => $assessment->medical_complexity_tier->value,
-            'complexity_label'        => $assessment->medical_complexity_tier->label(),
+            'complexity_label' => $assessment->medical_complexity_tier->label(),
 
             // ── Flags and factor breakdown ───────────────────────────────────
-            'flags'                   => $assessment->flags ?? [],
-            'factor_breakdown'        => $assessment->factor_breakdown ?? [],
+            'flags' => $assessment->flags ?? [],
+            'factor_breakdown' => $assessment->factor_breakdown ?? [],
 
             // ── Medical review state ────────────────────────────────────────
-            'review_status'           => $assessment->review_status->value,
-            'review_status_label'     => $assessment->review_status->label(),
-            'is_reviewed_by_staff'    => $assessment->review_status->isReviewedByStaff(),
-            'reviewed_by'             => $assessment->reviewer
+            'review_status' => $assessment->review_status->value,
+            'review_status_label' => $assessment->review_status->label(),
+            'is_reviewed_by_staff' => $assessment->review_status->isReviewedByStaff(),
+            'reviewed_by' => $assessment->reviewer
                 ? ['id' => $assessment->reviewer->id, 'name' => $assessment->reviewer->name]
                 : null,
-            'reviewed_at'             => $assessment->reviewed_at?->toIso8601String(),
-            'clinical_notes'          => $assessment->clinical_notes,
+            'reviewed_at' => $assessment->reviewed_at?->toIso8601String(),
+            'clinical_notes' => $assessment->clinical_notes,
 
             // ── Override ────────────────────────────────────────────────────
-            'override_supervision_level'  => $assessment->override_supervision_level?->value,
-            'override_supervision_label'  => $assessment->override_supervision_level?->label(),
-            'override_reason'             => $assessment->override_reason,
-            'overridden_by'               => $assessment->overriddenByUser
+            'override_supervision_level' => $assessment->override_supervision_level?->value,
+            'override_supervision_label' => $assessment->override_supervision_level?->label(),
+            'override_reason' => $assessment->override_reason,
+            'overridden_by' => $assessment->overriddenByUser
                 ? ['id' => $assessment->overriddenByUser->id, 'name' => $assessment->overriddenByUser->name]
                 : null,
-            'overridden_at'               => $assessment->overridden_at?->toIso8601String(),
+            'overridden_at' => $assessment->overridden_at?->toIso8601String(),
 
             // ── Recommendations ────────────────────────────────────────────
-            'recommendations'         => $this->buildRecommendations($assessment->flags ?? []),
+            'recommendations' => $this->buildRecommendations($assessment->flags ?? []),
 
-            'is_current'              => $assessment->is_current,
+            'is_current' => $assessment->is_current,
         ];
     }
 
@@ -284,38 +284,38 @@ class RiskAssessmentController extends Controller
         $effectiveLevel = $assessment->effectiveSupervisionLevel();
 
         return [
-            'id'                          => $assessment->id,
-            'calculated_at'               => $assessment->calculated_at?->toIso8601String(),
-            'risk_score'                  => $assessment->risk_score,
-            'risk_level'                  => $assessment->riskLevelLabel(),
-            'risk_level_color'            => $assessment->riskLevelColor(),
-            'supervision_level'           => $assessment->supervision_level->value,
-            'supervision_label'           => $assessment->supervision_level->label(),
-            'staffing_ratio'              => $assessment->supervision_level->getStaffingRatio(),
+            'id' => $assessment->id,
+            'calculated_at' => $assessment->calculated_at?->toIso8601String(),
+            'risk_score' => $assessment->risk_score,
+            'risk_level' => $assessment->riskLevelLabel(),
+            'risk_level_color' => $assessment->riskLevelColor(),
+            'supervision_level' => $assessment->supervision_level->value,
+            'supervision_label' => $assessment->supervision_level->label(),
+            'staffing_ratio' => $assessment->supervision_level->getStaffingRatio(),
             'effective_supervision_level' => $effectiveLevel->value,
             'effective_supervision_label' => $effectiveLevel->label(),
-            'effective_staffing_ratio'    => $effectiveLevel->getStaffingRatio(),
-            'is_overridden'               => $assessment->isOverridden(),
-            'medical_complexity_tier'     => $assessment->medical_complexity_tier->value,
-            'complexity_label'            => $assessment->medical_complexity_tier->label(),
-            'flags'                       => $assessment->flags ?? [],
-            'factor_breakdown'            => $assessment->factor_breakdown ?? [],
-            'review_status'               => $assessment->review_status->value,
-            'review_status_label'         => $assessment->review_status->label(),
-            'is_reviewed_by_staff'        => $assessment->review_status->isReviewedByStaff(),
-            'reviewed_by'                 => $assessment->reviewer
+            'effective_staffing_ratio' => $effectiveLevel->getStaffingRatio(),
+            'is_overridden' => $assessment->isOverridden(),
+            'medical_complexity_tier' => $assessment->medical_complexity_tier->value,
+            'complexity_label' => $assessment->medical_complexity_tier->label(),
+            'flags' => $assessment->flags ?? [],
+            'factor_breakdown' => $assessment->factor_breakdown ?? [],
+            'review_status' => $assessment->review_status->value,
+            'review_status_label' => $assessment->review_status->label(),
+            'is_reviewed_by_staff' => $assessment->review_status->isReviewedByStaff(),
+            'reviewed_by' => $assessment->reviewer
                 ? ['id' => $assessment->reviewer->id, 'name' => $assessment->reviewer->name]
                 : null,
-            'reviewed_at'                 => $assessment->reviewed_at?->toIso8601String(),
-            'clinical_notes'              => $assessment->clinical_notes,
-            'override_supervision_level'  => $assessment->override_supervision_level?->value,
-            'override_supervision_label'  => $assessment->override_supervision_level?->label(),
-            'override_reason'             => $assessment->override_reason,
-            'overridden_by'               => $assessment->overriddenByUser
+            'reviewed_at' => $assessment->reviewed_at?->toIso8601String(),
+            'clinical_notes' => $assessment->clinical_notes,
+            'override_supervision_level' => $assessment->override_supervision_level?->value,
+            'override_supervision_label' => $assessment->override_supervision_level?->label(),
+            'override_reason' => $assessment->override_reason,
+            'overridden_by' => $assessment->overriddenByUser
                 ? ['id' => $assessment->overriddenByUser->id, 'name' => $assessment->overriddenByUser->name]
                 : null,
-            'overridden_at'               => $assessment->overridden_at?->toIso8601String(),
-            'is_current'                  => $assessment->is_current,
+            'overridden_at' => $assessment->overridden_at?->toIso8601String(),
+            'is_current' => $assessment->is_current,
         ];
     }
 
@@ -332,60 +332,60 @@ class RiskAssessmentController extends Controller
         $rules = [
             'seizures' => [
                 'priority' => 'critical',
-                'text'     => 'Ensure a signed seizure action plan is on file. Brief all cabin counselors on recognition and emergency response before the session begins.',
+                'text' => 'Ensure a signed seizure action plan is on file. Brief all cabin counselors on recognition and emergency response before the session begins.',
             ],
             'life_threatening_allergy' => [
                 'priority' => 'critical',
-                'text'     => 'Life-threatening allergy on file. Epinephrine auto-injector must be accessible at all times. Notify kitchen staff and all activity leaders.',
+                'text' => 'Life-threatening allergy on file. Epinephrine auto-injector must be accessible at all times. Notify kitchen staff and all activity leaders.',
             ],
             'g_tube' => [
                 'priority' => 'critical',
-                'text'     => 'G-tube feeding required. A staff member trained in tube-feeding procedures must be present at every meal and feeding time.',
+                'text' => 'G-tube feeding required. A staff member trained in tube-feeding procedures must be present at every meal and feeding time.',
             ],
             'one_to_one_required' => [
                 'priority' => 'critical',
-                'text'     => 'Dedicated one-to-one staff member required at all times. Do not include this camper in standard group supervision counts.',
+                'text' => 'Dedicated one-to-one staff member required at all times. Do not include this camper in standard group supervision counts.',
             ],
             'wandering_risk' => [
                 'priority' => 'high',
-                'text'     => 'Documented wandering/elopement risk. Implement buddy system. Verify secure perimeter awareness during activity transitions and overnight.',
+                'text' => 'Documented wandering/elopement risk. Implement buddy system. Verify secure perimeter awareness during activity transitions and overnight.',
             ],
             'aggression' => [
                 'priority' => 'high',
-                'text'     => 'History of aggressive behaviour. Assign counselors trained in de-escalation. Review behavioural profile and de-escalation strategies before first contact.',
+                'text' => 'History of aggressive behaviour. Assign counselors trained in de-escalation. Review behavioural profile and de-escalation strategies before first contact.',
             ],
             'transfer_assistance' => [
                 'priority' => 'high',
-                'text'     => 'Physical transfer assistance required. Assign staff trained in safe transfer techniques. Coordinate transport plan for all activities and excursions.',
+                'text' => 'Physical transfer assistance required. Assign staff trained in safe transfer techniques. Coordinate transport plan for all activities and excursions.',
             ],
             'cpap' => [
                 'priority' => 'high',
-                'text'     => 'CPAP/BiPAP device required overnight. Ensure cabin staff know device setup, troubleshooting, and emergency response if the device is unavailable.',
+                'text' => 'CPAP/BiPAP device required overnight. Ensure cabin staff know device setup, troubleshooting, and emergency response if the device is unavailable.',
             ],
             'neurostimulator' => [
                 'priority' => 'standard',
-                'text'     => 'Implanted neurostimulator on file. Inform medical station. Avoid MRI environments and keep device card accessible in case of emergency transfer.',
+                'text' => 'Implanted neurostimulator on file. Inform medical station. Avoid MRI environments and keep device card accessible in case of emergency transfer.',
             ],
             'developmental_delay' => [
                 'priority' => 'standard',
-                'text'     => 'Developmental delay identified. Adapt activity instructions to functional age level. Allow additional processing time and provide visual cues where possible.',
+                'text' => 'Developmental delay identified. Adapt activity instructions to functional age level. Allow additional processing time and provide visual cues where possible.',
             ],
             'self_abuse' => [
                 'priority' => 'standard',
-                'text'     => 'Self-injurious behaviour documented. Identify known triggers and de-escalation strategies. Ensure counselors are briefed before activities.',
+                'text' => 'Self-injurious behaviour documented. Identify known triggers and de-escalation strategies. Ensure counselors are briefed before activities.',
             ],
             'severe_diagnosis' => [
                 'priority' => 'standard',
-                'text'     => 'One or more severe diagnoses on file. Review full medical record with nursing staff before session start. Ensure condition-specific protocols are in place.',
+                'text' => 'One or more severe diagnoses on file. Review full medical record with nursing staff before session start. Ensure condition-specific protocols are in place.',
             ],
             'special_diet' => [
                 'priority' => 'standard',
-                'text'     => 'Special dietary requirements on file. Confirm menu accommodations with kitchen staff and communicate requirements to all meal supervisors.',
+                'text' => 'Special dietary requirements on file. Confirm menu accommodations with kitchen staff and communicate requirements to all meal supervisors.',
             ],
         ];
 
         $recommendations = [];
-        $priorityOrder   = ['critical' => 0, 'high' => 1, 'standard' => 2];
+        $priorityOrder = ['critical' => 0, 'high' => 1, 'standard' => 2];
 
         foreach ($flags as $flag) {
             if (isset($rules[$flag])) {
@@ -394,8 +394,7 @@ class RiskAssessmentController extends Controller
         }
 
         // Sort: critical first, then high, then standard
-        usort($recommendations, fn ($a, $b) =>
-            ($priorityOrder[$a['priority']] ?? 3) <=> ($priorityOrder[$b['priority']] ?? 3)
+        usort($recommendations, fn ($a, $b) => ($priorityOrder[$a['priority']] ?? 3) <=> ($priorityOrder[$b['priority']] ?? 3)
         );
 
         return $recommendations;

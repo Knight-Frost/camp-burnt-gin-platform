@@ -41,8 +41,8 @@ class MedicalRecordObserver
             } catch (\Throwable $e) {
                 Log::error('MedicalRecordObserver: failed to re-assess risk after medical record saved', [
                     'medical_record_id' => $medicalRecord->id,
-                    'camper_id'         => $camper->id,
-                    'error'             => $e->getMessage(),
+                    'camper_id' => $camper->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
