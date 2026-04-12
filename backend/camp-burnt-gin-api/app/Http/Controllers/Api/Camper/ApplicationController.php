@@ -300,6 +300,7 @@ class ApplicationController extends Controller
             'camper.activityPermissions',
             'camper.documents',
             'campSession.camp',
+            'secondSession',
             'reviewer',
             'documents',
             'consents',
@@ -309,15 +310,43 @@ class ApplicationController extends Controller
         // that would occur if it were in $appends and fired on every list row.
         $application->append('queue_position');
 
-        // Documents uploaded by the applicant form are attached to the Camper (so
-        // DocumentEnforcementService can run compliance checks by camper). The admin
-        // review page reads application.documents, so we merge the two collections
-        // here. Application-level docs (uploaded by admins on behalf of applicants)
-        // are already in application.documents; camper-level docs from the form
-        // submission are in camper.documents. The merge deduplicates by id.
+        // Build the document collection visible on the application review page.
+        //
+        // Three sources are merged and deduplicated:
+        //
+        //   1. application.documents — Application-polymorphic docs (the canonical home
+        //      after the paper-packet linkage fix; also covers admin-uploaded-on-behalf docs).
+        //
+        //   2. camper.documents — Camper-polymorphic docs uploaded by admins using the
+        //      original "attach to camper" path (uploadDocumentOnBehalf in admin.api.ts).
+        //      DocumentEnforcementService still resolves compliance by camper, so these
+        //      remain valid on the Camper relation.
+        //
+        //   3. Orphaned docs — paper_application_packet records where documentable_type IS
+        //      NULL, uploaded by this application's parent user.  These exist for rows that
+        //      pre-date the backfill migration (2026_04_10_000002) or were uploaded while the
+        //      migration was still pending.  Once the migration has run this set will normally
+        //      be empty; the fallback ensures nothing disappears for reviewers in the interim.
         $camperDocs = $application->camper->documents ?? collect();
         $appDocs = $application->documents ?? collect();
-        $merged = $appDocs->merge($camperDocs)->unique('id')->values();
+        $applicantUserId = $application->camper?->user_id;
+        $orphanedDocs = $applicantUserId
+            ? \App\Models\Document::whereNull('documentable_type')
+                ->whereNull('documentable_id')
+                ->where('uploaded_by', $applicantUserId)
+                ->whereNull('deleted_at')
+                ->get()
+            : collect();
+
+        $merged = $appDocs->merge($camperDocs)->merge($orphanedDocs)->unique('id')->values();
+
+        // Submission gate: admins only see submitted documents (submitted_at IS NOT NULL).
+        // Applicants see all their own documents — including drafts — so they can review
+        // staged uploads and know which ones still need to be submitted to staff.
+        if (request()->user()?->isAdmin()) {
+            $merged = $merged->filter(fn ($doc) => $doc->submitted_at !== null)->values();
+        }
+
         $application->setRelation('documents', $merged);
 
         return response()->json([
@@ -350,6 +379,7 @@ class ApplicationController extends Controller
         // allows through are included — other fillable columns are not tracked here.
         $contentFields = [
             'notes',
+            'submission_source',
             'narrative_rustic_environment',
             'narrative_staff_suggestions',
             'narrative_participation_concerns',
@@ -639,14 +669,13 @@ class ApplicationController extends Controller
      * and equipment data is already on file and does not need to be re-entered.
      *
      * Only the application owner (parent) can clone their own applications.
-     * Only final applications (approved/rejected/withdrawn) should be cloned —
-     * cloning an active pending/under_review application makes no sense operationally,
-     * but this is enforced by the frontend, not the backend.
+     * Only terminal applications (approved/rejected/cancelled/withdrawn) can be
+     * cloned — this is enforced at both the policy layer and here.
      */
     public function clone(Request $request, Application $application): JsonResponse
     {
-        // Applicant must own this application (same policy as view).
-        $this->authorize('view', $application);
+        // Uses the dedicated clone policy gate which enforces terminal-status requirement.
+        $this->authorize('clone', $application);
 
         $newApplication = $this->applicationService->cloneApplication(
             source: $application,

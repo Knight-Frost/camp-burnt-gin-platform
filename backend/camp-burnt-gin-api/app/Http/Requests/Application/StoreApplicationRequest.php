@@ -97,6 +97,12 @@ class StoreApplicationRequest extends FormRequest
             // camp_session_id_second is the canonical column name (mapped from session_id_second via prepareForValidation).
             // The 'different' rule ensures the second choice cannot duplicate the first choice.
             'camp_session_id_second' => ['nullable', 'integer', 'exists:camp_sessions,id', 'different:camp_session_id'],
+            // When submitting a new application that originates from a previous one
+            // (reapplication flow), the frontend passes this to preserve the audit trail.
+            // Must reference an existing application — the application ID is validated but
+            // ownership is not re-checked here because the store endpoint's policy gate
+            // already ensures the parent owns the camper being registered.
+            'reapplied_from_id' => ['nullable', 'integer', 'exists:applications,id'],
         ];
     }
 

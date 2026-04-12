@@ -69,7 +69,6 @@ export function SuperAdminLayout() {
   const gPrimary = t('portal_nav.group_primary');
   const gComm    = t('portal_nav.group_communication');
   const gOps     = t('portal_nav.group_operations');
-  const gSystem  = t('portal_nav.group_system');
   const navItems: NavItem[] = [
     // PRIMARY — core operational pages
     { group: gPrimary, label: t('portal_nav.dashboard'),          to: ROUTES.SUPER_ADMIN_DASHBOARD,    icon: LayoutDashboard },
@@ -85,15 +84,21 @@ export function SuperAdminLayout() {
     { group: gOps,    label: t('portal_nav.calendar'),           to: '/super-admin/calendar',         icon: CalendarDays },
     { group: gOps,    label: t('portal_nav.deadlines'),          to: '/admin/deadlines',              icon: Clock },
     { group: gOps,    label: t('portal_nav.reports'),            to: '/super-admin/reports',          icon: BarChart3 },
-    // SYSTEM — governance & configuration (super_admin exclusive)
-    { group: gSystem, label: t('portal_nav.users_permissions'),  to: ROUTES.SUPER_ADMIN_USERS,        icon: Users },
-    { group: gSystem, label: t('portal_nav.audit_log'),          to: ROUTES.SUPER_ADMIN_AUDIT,        icon: ScrollText },
-    { group: gSystem, label: t('portal_nav.form_builder'),       to: ROUTES.SUPER_ADMIN_FORM_BUILDER, icon: Layout },
-    { group: gSystem, label: t('portal_nav.my_profile'),         to: '/super-admin/profile',          icon: User },
-    { group: gSystem, label: t('portal_nav.settings'),           to: '/super-admin/settings',         icon: Settings },
+    // SYSTEM items are intentionally absent here — they live in systemNavItems below,
+    // pinned permanently at the bottom of the sidebar so they can never scroll out of view.
   ];
 
-  const systemNavItems: NavItem[] = [];
+  // Pinned at the bottom of the sidebar outside the scroll container — always visible.
+  // DashboardSidebar renders these via pinnedBottomItems with a hard "SYSTEM" header.
+  // CRITICAL: These must NEVER be moved back into navItems. User Management and Audit
+  // Log are HIPAA-required governance features; they must be accessible at all times.
+  const systemNavItems: NavItem[] = [
+    { label: t('portal_nav.users_permissions'),  to: ROUTES.SUPER_ADMIN_USERS,        icon: Users },
+    { label: t('portal_nav.audit_log'),          to: ROUTES.SUPER_ADMIN_AUDIT,        icon: ScrollText },
+    { label: t('portal_nav.form_builder'),       to: ROUTES.SUPER_ADMIN_FORM_BUILDER, icon: Layout },
+    { label: t('portal_nav.my_profile'),         to: '/super-admin/profile',          icon: User },
+    { label: t('portal_nav.settings'),           to: '/super-admin/settings',         icon: Settings },
+  ];
 
   return (
     <SessionWorkspaceProvider>

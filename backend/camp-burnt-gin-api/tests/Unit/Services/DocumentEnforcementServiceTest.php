@@ -40,10 +40,11 @@ class DocumentEnforcementServiceTest extends TestCase
         $this->assertFalse($compliance['is_compliant']);
         $this->assertNotEmpty($compliance['required_documents']);
 
-        // Should require universal documents: physical exam and immunization
+        // Should require all three universal documents: medical exam form, immunization, insurance
         $requiredTypes = collect($compliance['required_documents'])->pluck('document_type');
-        $this->assertContains('physical_examination', $requiredTypes);
+        $this->assertContains('official_medical_form', $requiredTypes);
         $this->assertContains('immunization_record', $requiredTypes);
+        $this->assertContains('insurance_card', $requiredTypes);
     }
 
     public function test_camper_with_seizures_requires_seizure_documents(): void
@@ -149,7 +150,7 @@ class DocumentEnforcementServiceTest extends TestCase
         $compliance = $this->service->checkCompliance($camper);
         $requiredTypes = collect($compliance['required_documents'])->pluck('document_type');
 
-        // Upload and verify all required documents
+        // Upload and verify all required documents; submitted_at required so enforcement sees them
         foreach ($requiredTypes as $docType) {
             Document::create([
                 'documentable_type' => Camper::class,
@@ -165,6 +166,7 @@ class DocumentEnforcementServiceTest extends TestCase
                 'is_scanned' => true,
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Approved,
+                'submitted_at' => now(),
             ]);
         }
 
@@ -180,7 +182,7 @@ class DocumentEnforcementServiceTest extends TestCase
     {
         $camper = Camper::factory()->create();
 
-        // Upload document but leave it unverified
+        // Upload document but leave it unverified; submitted_at required so enforcement sees it
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $camper->id,
@@ -191,10 +193,11 @@ class DocumentEnforcementServiceTest extends TestCase
             'file_size' => 1024,
             'disk' => 'local',
             'path' => '/test/path',
-            'document_type' => 'physical_examination',
+            'document_type' => 'official_medical_form',
             'is_scanned' => true,
             'scan_passed' => true,
             'verification_status' => DocumentVerificationStatus::Pending,
+            'submitted_at' => now(),
         ]);
 
         $compliance = $this->service->checkCompliance($camper);
@@ -207,7 +210,7 @@ class DocumentEnforcementServiceTest extends TestCase
     {
         $camper = Camper::factory()->create();
 
-        // Upload expired document
+        // Upload expired document; submitted_at required so enforcement service sees it
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $camper->id,
@@ -218,11 +221,12 @@ class DocumentEnforcementServiceTest extends TestCase
             'file_size' => 1024,
             'disk' => 'local',
             'path' => '/test/path',
-            'document_type' => 'physical_examination',
+            'document_type' => 'official_medical_form',
             'is_scanned' => true,
             'scan_passed' => true,
             'verification_status' => DocumentVerificationStatus::Approved,
             'expiration_date' => now()->subDay(),
+            'submitted_at' => now(),
         ]);
 
         $compliance = $this->service->checkCompliance($camper);

@@ -899,7 +899,7 @@ export function AdminApplicationEditPage() {
           {/* Session display (read-only) */}
           <div style={{ marginBottom: 20, padding: '12px 16px', background: 'var(--muted)', borderRadius: 8 }}>
             <p style={{ margin: 0, fontSize: 13 }}>
-              <strong>Session:</strong> {session ? `${session.name} (${session.start_date} – ${session.end_date})` : `ID ${application.camp_session_id}`}
+              <strong>Session:</strong> {session ? `${session.name} (${new Date(session.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} – ${new Date(session.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })})` : `ID ${application.camp_session_id}`}
               &nbsp;&nbsp;
               <strong>Application ID:</strong> #{application.id}
               &nbsp;&nbsp;

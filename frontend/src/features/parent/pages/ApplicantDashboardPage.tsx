@@ -26,6 +26,7 @@ import { getCampers, getApplications, getDrafts, getRequiredDocuments, getDocume
 import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application } from '@/shared/types';
+import { NewSessionModal, findBestSourceApp } from '@/features/parent/components/NewSessionModal';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { StatCard } from '@/ui/components/StatCard';
@@ -54,6 +55,14 @@ export function ApplicantDashboardPage() {
   const [loading, setLoading]                   = useState(true);
   const [error, setError]                       = useState(false);
   const [retryKey, setRetryKey]                 = useState(0);
+
+  // "Apply for a New Session" modal — camper-centric entry point.
+  // Stores the target camper and (when available) the best prior application
+  // ID for audit-trail linking. Set to null to close the modal.
+  const [newSessionTarget, setNewSessionTarget] = useState<{
+    camper: Camper;
+    reappliedFromId?: number;
+  } | null>(null);
 
   // Re-fetch conversations whenever a realtime message arrives so the
   // activity feed reflects new messages without a full page reload.
@@ -130,6 +139,7 @@ export function ApplicantDashboardPage() {
   if (error) return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
 
   return (
+    <>
     <div className="flex flex-col gap-6 max-w-5xl">
 
       {/* ── Liquid glass hero ────────────────────────────────── */}
@@ -309,6 +319,15 @@ export function ApplicantDashboardPage() {
               const latestApp  = camperApps[0];
               // Find the session name from the most recent application
               const sessionName = latestApp?.session?.name ?? null;
+              // Best prior application to use as reapplication audit source
+              const sourceApp = findBestSourceApp(applications, camper.id);
+
+              function openNewSessionModal() {
+                setNewSessionTarget({
+                  camper,
+                  reappliedFromId: sourceApp?.id,
+                });
+              }
 
               return (
                 <li key={camper.id}>
@@ -333,6 +352,34 @@ export function ApplicantDashboardPage() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {latestApp && <StatusBadge status={latestApp.status} />}
+
+                      {/* ── Primary reapplication entry point ──────────────────
+                          Visible on every registered camper card. The modal
+                          handles the case where no prior application exists
+                          (reappliedFromId will be undefined → blank new app
+                          with just camper info prefilled).
+                          ──────────────────────────────────────────────────── */}
+                      <button
+                        type="button"
+                        onClick={openNewSessionModal}
+                        className="hidden sm:flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)] whitespace-nowrap"
+                        style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)' }}
+                        aria-label={`Apply for a new session for ${camper.full_name}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                        New Session
+                      </button>
+                      {/* Mobile: icon-only variant */}
+                      <button
+                        type="button"
+                        onClick={openNewSessionModal}
+                        className="sm:hidden p-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                        style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)' }}
+                        aria-label={`Apply for a new session for ${camper.full_name}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+
                       <Link
                         to={ROUTES.PARENT_APPLICATIONS}
                         className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
@@ -426,6 +473,17 @@ export function ApplicantDashboardPage() {
       </div>
 
     </div>
+
+    {/* ── "Apply for a New Session" modal — camper-centric primary entry ── */}
+    {newSessionTarget && (
+      <NewSessionModal
+        camper={newSessionTarget.camper}
+        reappliedFromId={newSessionTarget.reappliedFromId}
+        existingApplications={applications}
+        onClose={() => setNewSessionTarget(null)}
+      />
+    )}
+  </>
   );
 }
 

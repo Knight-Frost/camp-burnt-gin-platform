@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\SubmissionSource;
 use App\Models\Application;
 use App\Models\Camper;
 use App\Models\CampSession;
@@ -22,6 +23,7 @@ class ApplicationFactory extends Factory
             'camper_id' => Camper::factory(),
             'camp_session_id' => CampSession::factory(),
             'status' => ApplicationStatus::Submitted,
+            'submission_source' => SubmissionSource::Digital,
             'is_draft' => false,
             'submitted_at' => now(),
             'reviewed_at' => null,

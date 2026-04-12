@@ -19,7 +19,7 @@ class ApplicationDraftPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('applicant') || $user->isAdmin();
+        return $user->hasRole('applicant');
     }
 
     public function view(User $user, ApplicationDraft $draft): bool

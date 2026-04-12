@@ -43,6 +43,7 @@ class ReviewApplicationRequest extends FormRequest
             'missing_summary' => ['nullable', 'array'],
             'missing_summary.missing_fields' => ['nullable', 'array'],
             'missing_summary.missing_documents' => ['nullable', 'array'],
+            'missing_summary.unverified_documents' => ['nullable', 'array'],
             'missing_summary.missing_consents' => ['nullable', 'array'],
         ];
     }

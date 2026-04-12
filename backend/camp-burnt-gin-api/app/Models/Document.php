@@ -86,6 +86,8 @@ class Document extends Model
         'verified_by',         // FK to the admin User who approved or rejected the doc.
         'verified_at',         // Timestamp of the verification decision.
         'expiration_date',     // Date after which the document is considered expired.
+        'archived_at',         // Null = active; timestamp = archived (soft-remove from workflow view).
+        'submitted_at',        // Null = draft (visible only to uploader); timestamp = submitted to staff.
     ];
 
     /**
@@ -121,6 +123,8 @@ class Document extends Model
             'verification_status' => DocumentVerificationStatus::class,
             'verified_at' => 'datetime',
             'expiration_date' => 'date',
+            'archived_at' => 'datetime',
+            'submitted_at' => 'datetime',
         ];
     }
 
@@ -228,6 +232,36 @@ class Document extends Model
     public function isVerified(): bool
     {
         return $this->verification_status?->isApproved() ?? false;
+    }
+
+    /**
+     * Check whether this document has been submitted to staff.
+     *
+     * Submitted documents are visible to admins. Draft documents (submitted_at = null)
+     * are only visible to the uploader until they explicitly submit.
+     */
+    public function isSubmitted(): bool
+    {
+        return $this->submitted_at !== null;
+    }
+
+    /**
+     * Check whether this document is still a draft (not yet submitted to staff).
+     */
+    public function isDraft(): bool
+    {
+        return $this->submitted_at === null;
+    }
+
+    /**
+     * Check whether this document has been archived by an admin.
+     *
+     * Archived documents are hidden from the default admin workflow view but
+     * can be recovered with the restore action.
+     */
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     /**

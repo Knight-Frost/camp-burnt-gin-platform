@@ -45,6 +45,10 @@ import {
   Trash2,
   RotateCcw,
   MoreVertical,
+  Archive,
+  ArchiveRestore,
+  Shield,
+  ZoomIn,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -62,6 +66,9 @@ import {
   getAdminDocuments,
   verifyDocument,
   downloadAdminDocument,
+  deleteDocument,
+  archiveDocument,
+  restoreDocument,
   type AdminDocument,
   type DocumentRequest,
   type DocumentRequestStats,
@@ -71,6 +78,7 @@ import { axiosInstance } from '@/api/axios.config';
 import { Button } from '@/ui/components/Button';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
+import { getDocumentLabel } from '@/shared/constants/documentRequirements';
 
 // ── Status badge helpers ───────────────────────────────────────────────────────
 
@@ -140,6 +148,20 @@ function MetricCard({
       </span>
     </button>
   );
+}
+
+// ── Document type → human-readable label ──────────────────────────────────────
+//
+// Maps the raw backend document_type values (snake_case strings) to clean,
+// human-readable labels shown in the admin UI.  Unknown types fall back to a
+// simple title-case transformation so new values never surface as raw snake_case.
+
+// All document type labels now derive from the shared canonical module so admin
+// and applicant views never drift apart. Admin-facing labels (e.g. "SC Immunization
+// Certificate") are returned automatically when role='admin'.
+function formatDocumentType(raw: string | null): string {
+  if (!raw) return '—';
+  return getDocumentLabel(raw, 'admin');
 }
 
 // ── ParentCombobox — searchable typeahead for parent/guardian selection ────────
@@ -960,6 +982,18 @@ export function AdminDocumentsPage() {
   const [uploadsDebouncedSearch, setUploadsDebouncedSearch] = useState('');
   const [uploadsStatusFilter, setUploadsStatusFilter] = useState('');
   const [verifyingId, setVerifyingId]         = useState<number | null>(null);
+  // Whether the uploads tab is showing the archived view
+  const [showArchived, setShowArchived]       = useState(false);
+  // Per-row action loading for archive/restore/delete
+  const [archivingId, setArchivingId]         = useState<number | null>(null);
+  const [restoringId, setRestoringId]         = useState<number | null>(null);
+  const [deletingId, setDeletingId]           = useState<number | null>(null);
+  // Delete confirmation modal target
+  const [deleteTarget, setDeleteTarget]       = useState<AdminDocument | null>(null);
+  // Preview modal target + authenticated blob URL
+  const [previewDoc, setPreviewDoc]           = useState<AdminDocument | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl]   = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading]   = useState(false);
   const uploadsSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal state
@@ -1037,6 +1071,7 @@ export function AdminDocumentsPage() {
       page: uploadsPage,
       search: uploadsDebouncedSearch || undefined,
       verification_status: uploadsStatusFilter || undefined,
+      include_archived: showArchived || undefined,
     })
       .then((r) => {
         setUploads(r.data);
@@ -1045,9 +1080,40 @@ export function AdminDocumentsPage() {
       })
       .catch(() => setUploadsError(true))
       .finally(() => setUploadsLoading(false));
-  }, [tab, uploadsPage, uploadsDebouncedSearch, uploadsStatusFilter]);
+  }, [tab, uploadsPage, uploadsDebouncedSearch, uploadsStatusFilter, showArchived]);
 
   useEffect(() => { loadUploads(); }, [loadUploads]);
+
+  // Fetch the file as an authenticated blob whenever the preview modal opens.
+  // Iframes and <img> tags make bare browser requests with no Authorization header,
+  // so we can't use the raw API URL directly — it would be rejected with 401/403.
+  // Instead we fetch via axios (which carries the Sanctum Bearer token) and create
+  // a local object URL the browser can load without needing server auth.
+  useEffect(() => {
+    if (!previewDoc) {
+      // Modal closing — revoke the previous blob URL to free memory
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+        setPreviewBlobUrl(null);
+      }
+      return;
+    }
+    let cancelled = false;
+    setPreviewLoading(true);
+    downloadAdminDocument(previewDoc.id)
+      .then((blob) => {
+        if (cancelled) return;
+        setPreviewBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewBlobUrl(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewDoc]);
 
   async function handleVerifyDocument(doc: AdminDocument, status: 'approved' | 'rejected') {
     setVerifyingId(doc.id);
@@ -1073,6 +1139,53 @@ export function AdminDocumentsPage() {
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Download failed.');
+    }
+  }
+
+  async function handleArchiveDoc(doc: AdminDocument) {
+    setArchivingId(doc.id);
+    try {
+      await archiveDocument(doc.id);
+      // Remove from active list; it now lives in the archived view
+      setUploads((prev) => prev.filter((d) => d.id !== doc.id));
+      setUploadsTotal((t) => t - 1);
+      toast.success('Document archived.');
+    } catch {
+      toast.error('Archive failed.');
+    } finally {
+      setArchivingId(null);
+    }
+  }
+
+  async function handleRestoreDoc(doc: AdminDocument) {
+    setRestoringId(doc.id);
+    try {
+      await restoreDocument(doc.id);
+      // Remove from archived list; it's now active again
+      setUploads((prev) => prev.filter((d) => d.id !== doc.id));
+      setUploadsTotal((t) => t - 1);
+      toast.success('Document restored to active view.');
+    } catch {
+      toast.error('Restore failed.');
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeletingId(id);
+    setDeleteTarget(null);
+    try {
+      await deleteDocument(id);
+      setUploads((prev) => prev.filter((d) => d.id !== id));
+      setUploadsTotal((t) => t - 1);
+      toast.success('Document permanently deleted.');
+    } catch {
+      toast.error('Delete failed.');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -1211,6 +1324,138 @@ export function AdminDocumentsPage() {
         />
       )}
 
+      {/* ── Delete confirmation modal ──────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5" style={{ background: 'var(--card)', boxShadow: 'var(--shadow-lg)' }}>
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full" style={{ background: 'rgba(239,68,68,0.10)' }}>
+                <Trash2 className="h-5 w-5" style={{ color: '#dc2626' }} />
+              </span>
+              <div>
+                <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+                  Delete document?
+                </h3>
+                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                  <strong className="font-medium" style={{ color: 'var(--foreground)' }}>{deleteTarget.file_name}</strong>
+                  {' '}will be permanently removed. This action cannot be undone.
+                </p>
+                <p className="text-xs mt-2 px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.10)', color: '#b45309' }}>
+                  Tip: Use Archive instead to hide the document without deleting it.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDelete()}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors"
+                style={{ background: '#dc2626' }}
+              >
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Document preview modal ─────────────────────────────────────────── */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="w-full max-w-3xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--card)', boxShadow: 'var(--shadow-lg)', maxHeight: '90vh' }}>
+            {/* Preview header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 overflow-hidden">
+                <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                  {previewDoc.file_name}
+                </span>
+                {previewDoc.documentable_name && (
+                  <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    — {previewDoc.documentable_name}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  title="Download"
+                  onClick={() => void handleDownloadUpload(previewDoc)}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {/* Preview body */}
+            <div className="flex-1 overflow-hidden" style={{ minHeight: 400 }}>
+              {previewLoading ? (
+                <div className="flex items-center justify-center h-full p-8" style={{ color: 'var(--muted-foreground)' }}>
+                  <RefreshCw className="h-6 w-6 animate-spin opacity-50" />
+                </div>
+              ) : !previewBlobUrl ? (
+                <div className="flex flex-col items-center justify-center gap-3 p-8" style={{ color: 'var(--muted-foreground)' }}>
+                  <AlertCircle className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">Could not load preview.</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadUpload(previewDoc)}
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl border font-medium"
+                    style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download instead
+                  </button>
+                </div>
+              ) : previewDoc.mime_type === 'application/pdf' ? (
+                <iframe
+                  src={previewBlobUrl}
+                  title={previewDoc.file_name}
+                  className="w-full"
+                  style={{ border: 'none', height: '70vh' }}
+                />
+              ) : previewDoc.mime_type.startsWith('image/') ? (
+                <div className="flex items-center justify-center p-4 h-full" style={{ background: 'var(--dash-bg)' }}>
+                  <img
+                    src={previewBlobUrl}
+                    alt={previewDoc.file_name}
+                    className="max-w-full max-h-full object-contain rounded-lg"
+                    style={{ maxHeight: '65vh' }}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 p-8" style={{ color: 'var(--muted-foreground)' }}>
+                  <FileText className="h-12 w-12 opacity-40" />
+                  <p className="text-sm">Preview not available for this file type ({previewDoc.mime_type}).</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadUpload(previewDoc)}
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl border font-medium"
+                    style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download to view
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-6 max-w-6xl">
 
         {/* ── Header ──────────────────────────────────────────────── */}
@@ -1256,8 +1501,44 @@ export function AdminDocumentsPage() {
 
         {tab === 'uploads' && (
           <>
-            {/* ── Uploads search bar ──────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* ── Uploads: archive toggle + search bar ────────────── */}
+            <div className="flex flex-col gap-3">
+              {/* Archive mode toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowArchived(false); setUploadsPage(1); }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+                  style={{
+                    background: !showArchived ? 'var(--ember-orange)' : 'var(--card)',
+                    borderColor: !showArchived ? 'var(--ember-orange)' : 'var(--border)',
+                    color: !showArchived ? '#fff' : 'var(--muted-foreground)',
+                  }}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Active
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowArchived(true); setUploadsPage(1); }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+                  style={{
+                    background: showArchived ? 'var(--ember-orange)' : 'var(--card)',
+                    borderColor: showArchived ? 'var(--ember-orange)' : 'var(--border)',
+                    color: showArchived ? '#fff' : 'var(--muted-foreground)',
+                  }}
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  Archived
+                </button>
+                {showArchived && (
+                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    Archived documents are hidden from the active workflow. Use Restore to bring them back.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
                 <input
@@ -1292,13 +1573,14 @@ export function AdminDocumentsPage() {
                 ))}
               </div>
             </div>
+            </div>{/* end outer flex column (search + archive toggle) */}
 
             {/* ── Uploads table ───────────────────────────────────── */}
             <div className="glass-data rounded-2xl overflow-hidden">
               <div
                 className="hidden md:grid gap-x-3 px-6 py-3 border-b text-xs font-semibold uppercase tracking-wide"
                 style={{
-                  gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 110px 90px 110px',
+                  gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 120px 90px 140px',
                   borderColor: 'var(--border)',
                   color: 'var(--muted-foreground)',
                   background: 'var(--dash-bg)',
@@ -1307,7 +1589,7 @@ export function AdminDocumentsPage() {
                 <span>{t('admin_extra.doc_col_file', 'File')}</span>
                 <span>{t('admin_extra.doc_col_uploaded_by', 'Uploaded By')}</span>
                 <span>{t('admin_extra.doc_col_type', 'Document Type')}</span>
-                <span>{t('admin_extra.doc_col_scan', 'Scan')}</span>
+                <span title="Real-time antivirus scan result for this file">{t('admin_extra.doc_col_security', 'Security')}</span>
                 <span>{t('admin_extra.doc_col_status', 'Status')}</span>
                 <span className="text-right">{t('admin_extra.doc_col_actions', 'Actions')}</span>
               </div>
@@ -1326,32 +1608,49 @@ export function AdminDocumentsPage() {
                 <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
                   {uploads.map((doc) => (
                     <li key={doc.id} className="hidden md:grid gap-x-3 px-6 py-3 items-center"
-                      style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 110px 90px 110px' }}>
-                      {/* File name */}
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
-                        <span className="text-sm font-medium truncate" title={doc.file_name} style={{ color: 'var(--foreground)' }}>
-                          {doc.file_name}
-                        </span>
+                      style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 120px 90px 140px' }}>
+
+                      {/* File name + linked entity */}
+                      <div className="flex flex-col gap-0.5 overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                          <span className="text-sm font-medium truncate" title={doc.file_name} style={{ color: 'var(--foreground)' }}>
+                            {doc.file_name}
+                          </span>
+                        </div>
+                        {doc.documentable_name && (
+                          <span className="text-xs pl-5 truncate" style={{ color: 'var(--muted-foreground)' }}>
+                            {doc.documentable_name}
+                          </span>
+                        )}
                       </div>
+
                       {/* Uploaded by */}
                       <span className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>
                         {doc.uploaded_by_name ?? '—'}
                       </span>
-                      {/* Document type */}
-                      <span className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>
-                        {doc.document_type ?? '—'}
+
+                      {/* Document type — human-readable label */}
+                      <span className="text-sm truncate" title={doc.document_type ?? undefined} style={{ color: 'var(--muted-foreground)' }}>
+                        {formatDocumentType(doc.document_type)}
                       </span>
-                      {/* Scan status */}
+
+                      {/* Security scan (real antivirus result) */}
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
+                        title={doc.scan_passed === true ? 'Antivirus scan passed — no threats detected' : doc.scan_passed === false ? 'Antivirus scan failed — file blocked for download' : 'Antivirus scan pending'}
                         style={{
                           background: doc.scan_passed === true ? 'rgba(5,150,105,0.10)' : doc.scan_passed === false ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
                           color: doc.scan_passed === true ? 'var(--forest-green)' : doc.scan_passed === false ? '#dc2626' : '#b45309',
                         }}>
-                        {doc.scan_passed === true ? <CheckCircle className="h-3 w-3" /> : doc.scan_passed === false ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                        {doc.scan_passed === true ? t('admin_extra.scan_passed', 'Passed') : doc.scan_passed === false ? t('admin_extra.scan_failed', 'Failed') : t('admin_extra.scan_pending', 'Pending')}
+                        {doc.scan_passed === true
+                          ? <><Shield className="h-3 w-3" />{t('admin_extra.scan_passed', 'Clean')}</>
+                          : doc.scan_passed === false
+                          ? <><XCircle className="h-3 w-3" />{t('admin_extra.scan_failed', 'Threat')}</>
+                          : <><Clock className="h-3 w-3" />{t('admin_extra.scan_pending', 'Scanning')}</>
+                        }
                       </span>
-                      {/* Verification status */}
+
+                      {/* Verification / review status */}
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
                         style={{
                           background: doc.verification_status === 'approved' ? 'rgba(5,150,105,0.10)' : doc.verification_status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
@@ -1360,8 +1659,20 @@ export function AdminDocumentsPage() {
                         {doc.verification_status === 'approved' ? <CheckCircle className="h-3 w-3" /> : doc.verification_status === 'rejected' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
                         {doc.verification_status === 'approved' ? t('admin_extra.status_approved', 'Approved') : doc.verification_status === 'rejected' ? t('admin_extra.status_rejected', 'Rejected') : t('admin_extra.status_pending', 'Pending')}
                       </span>
+
                       {/* Actions */}
                       <div className="flex items-center justify-end gap-0.5">
+                        {/* Preview (PDF or image) */}
+                        <button
+                          type="button"
+                          title="Preview"
+                          onClick={() => setPreviewDoc(doc)}
+                          className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                          style={{ color: 'var(--muted-foreground)' }}
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </button>
+                        {/* Download */}
                         <button
                           type="button"
                           title="Download"
@@ -1371,6 +1682,7 @@ export function AdminDocumentsPage() {
                         >
                           <Download className="h-4 w-4" />
                         </button>
+                        {/* Approve / Reject (only while pending review) */}
                         {doc.verification_status === 'pending' && (
                           <>
                             <button
@@ -1395,6 +1707,41 @@ export function AdminDocumentsPage() {
                             </button>
                           </>
                         )}
+                        {/* Archive or Restore */}
+                        {!showArchived ? (
+                          <button
+                            type="button"
+                            title="Archive — removes from active view without deleting"
+                            disabled={archivingId === doc.id}
+                            onClick={() => void handleArchiveDoc(doc)}
+                            className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
+                            style={{ color: 'var(--muted-foreground)' }}
+                          >
+                            <Archive className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            title="Restore to active view"
+                            disabled={restoringId === doc.id}
+                            onClick={() => void handleRestoreDoc(doc)}
+                            className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
+                            style={{ color: 'var(--forest-green)' }}
+                          >
+                            <ArchiveRestore className="h-4 w-4" />
+                          </button>
+                        )}
+                        {/* Delete — requires confirmation */}
+                        <button
+                          type="button"
+                          title="Delete permanently"
+                          disabled={deletingId === doc.id}
+                          onClick={() => setDeleteTarget(doc)}
+                          className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
+                          style={{ color: '#dc2626' }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </li>
                   ))}

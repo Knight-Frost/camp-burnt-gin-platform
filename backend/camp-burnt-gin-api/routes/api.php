@@ -288,6 +288,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/{document}/download', [DocumentController::class, 'download'])->middleware('throttle:sensitive')->name('documents.download');
         // Only admins can verify (approve/reject) documents — enforced by DocumentPolicy
         Route::patch('/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');
+        // Archive/restore: non-destructive alternative to delete (admin only)
+        Route::patch('/{document}/archive', [DocumentController::class, 'archive'])->name('documents.archive');
+        Route::patch('/{document}/restore', [DocumentController::class, 'restore'])->name('documents.restore');
+        // Submit: applicant promotes a draft upload to submitted state (visible to admins)
+        Route::patch('/{document}/submit', [DocumentController::class, 'submit'])->name('documents.submit');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     });
 

@@ -75,6 +75,32 @@ class ApplicationDraftTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_applicant_cannot_exceed_draft_limit(): void
+    {
+        $parent = $this->createParent();
+
+        // Create exactly 10 drafts (the limit)
+        ApplicationDraft::factory()->count(10)->create(['user_id' => $parent->id]);
+
+        // 11th creation must be rejected
+        $this->actingAs($parent)
+            ->postJson('/api/application-drafts', ['label' => 'One Too Many'])
+            ->assertStatus(429)
+            ->assertJsonPath('message', 'Draft limit reached. Please delete an existing draft before creating a new one.');
+    }
+
+    public function test_applicant_can_create_draft_at_limit_boundary(): void
+    {
+        $parent = $this->createParent();
+
+        // 9 existing drafts → 10th should succeed
+        ApplicationDraft::factory()->count(9)->create(['user_id' => $parent->id]);
+
+        $this->actingAs($parent)
+            ->postJson('/api/application-drafts', ['label' => 'Tenth Draft'])
+            ->assertStatus(201);
+    }
+
     // ─── List ──────────────────────────────────────────────────────────────────
 
     public function test_applicant_only_sees_their_own_drafts(): void
@@ -189,6 +215,34 @@ class ApplicationDraftTest extends TestCase
         $this->actingAs($other)
             ->putJson("/api/application-drafts/{$draft->id}", ['draft_data' => []])
             ->assertStatus(403);
+    }
+
+    public function test_draft_data_within_size_limit_is_accepted(): void
+    {
+        $parent = $this->createParent();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+
+        // A realistic full form payload is well under 64 KB.
+        $smallPayload = ['s1' => ['camper_first_name' => str_repeat('A', 100)]];
+
+        $this->actingAs($parent)
+            ->putJson("/api/application-drafts/{$draft->id}", ['draft_data' => $smallPayload])
+            ->assertStatus(200);
+    }
+
+    public function test_oversized_draft_data_is_rejected(): void
+    {
+        $parent = $this->createParent();
+        $draft = ApplicationDraft::factory()->create(['user_id' => $parent->id]);
+
+        // Build a payload that clearly exceeds 512 KB when JSON-encoded.
+        // A string value of 600,000 chars in an object encodes to ~600 KB.
+        $oversizedPayload = ['data' => str_repeat('X', 600_000)];
+
+        $this->actingAs($parent)
+            ->putJson("/api/application-drafts/{$draft->id}", ['draft_data' => $oversizedPayload])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Draft data exceeds the maximum allowed size of 512 KB.');
     }
 
     // ─── Optimistic Concurrency Guard ─────────────────────────────────────────

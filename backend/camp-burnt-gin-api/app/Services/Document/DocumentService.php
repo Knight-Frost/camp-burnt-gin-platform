@@ -73,12 +73,23 @@ class DocumentService
         // Store the file in the private local disk (not publicly accessible)
         Storage::disk('local')->putFileAs($path, $file, $storedFilename);
 
-        // Physical examination documents expire 12 months after the exam date.
+        // Medical examination forms expire 12 months after the exam date.
         // This enforces the CYSHCN requirement that Form 4523 must be current.
+        // Handles both 'official_medical_form' (primary upload type from Official Forms page)
+        // and the legacy 'physical_examination' type for backward compatibility.
         $expirationDate = null;
-        if (($data['document_type'] ?? null) === 'physical_examination' && ! empty($data['exam_date'])) {
+        $examFormTypes = ['official_medical_form', 'physical_examination'];
+        if (in_array($data['document_type'] ?? null, $examFormTypes, true) && ! empty($data['exam_date'])) {
             $expirationDate = \Carbon\Carbon::parse($data['exam_date'])->addYear()->toDateString();
         }
+
+        // Determine submission state at upload time.
+        //
+        // Only admin uploads are auto-submitted (submitted_at = now()).
+        // ALL applicant uploads start as drafts (submitted_at = null) regardless
+        // of document type. No exceptions. Applicants must explicitly submit via
+        // PATCH /documents/{id}/submit before any document becomes visible to admins.
+        $submittedAt = $user->isAdmin() ? now() : null;
 
         // Create the database record for this document
         $document = Document::create([
@@ -98,12 +109,14 @@ class DocumentService
             'expiration_date' => $expirationDate,
             // Mark as not yet scanned — the security scan runs in the background
             'is_scanned' => false,
+            'submitted_at' => $submittedAt,
         ]);
 
-        // For physical_examination documents attached to a Camper, persist the exam date
+        // For medical examination form documents attached to a Camper, persist the exam date
         // back to the camper's MedicalRecord so the date is available outside the document system.
+        // Handles both 'official_medical_form' (primary type) and legacy 'physical_examination'.
         if (
-            ($data['document_type'] ?? null) === 'physical_examination'
+            in_array($data['document_type'] ?? null, $examFormTypes, true)
             && ! empty($data['exam_date'])
             && ($data['documentable_type'] ?? null) === 'App\Models\Camper'
             && ! empty($data['documentable_id'])
@@ -354,37 +367,55 @@ class DocumentService
     }
 
     /**
-     * Delete a document record and its associated physical file atomically.
+     * Delete a document record and its associated physical file.
      *
-     * Wrapped in a database transaction so that if the physical file deletion fails,
-     * the database record is rolled back and no orphaned records are left behind.
-     * If the database deletion were left in place without the file, the system would
-     * hold references to a file that no longer exists.
+     * The DB soft-delete always proceeds. Physical file removal is best-effort:
+     *   - If the file is missing (already cleaned up, storage migration, etc.),
+     *     log a warning and continue — the record should still be removable.
+     *   - If the file EXISTS but cannot be deleted (permissions, I/O error),
+     *     log an error and re-throw so the caller knows something is wrong.
+     *
+     * This approach avoids "delete failed" errors when the file simply isn't
+     * there anymore, which is a recoverable state not worth blocking admins over.
      */
     public function delete(Document $document): void
     {
         DB::transaction(function () use ($document) {
-            // Capture file location before deleting the record (we'll need it after)
+            // Capture file location before soft-deleting the record
             $filePath = $document->path;
             $disk = $document->disk;
 
-            // Delete the database record first (can be rolled back if file deletion fails)
+            // Soft-delete the database record
             $document->delete();
 
-            // Then delete the physical file — throw on failure to trigger rollback
+            // Physical file removal — skip gracefully if the file is already gone
+            if (! $disk || ! $filePath) {
+                return; // No storage info on this record; nothing to clean up
+            }
+
             try {
+                if (! Storage::disk($disk)->exists($filePath)) {
+                    // File is already absent — log and move on; don't block the delete
+                    Log::warning('Document file not found during delete (already removed or never stored)', [
+                        'document_id' => $document->id,
+                        'path' => $filePath,
+                    ]);
+
+                    return;
+                }
+
                 if (! Storage::disk($disk)->delete($filePath)) {
                     throw new \RuntimeException('File deletion failed');
                 }
-            } catch (\Exception $e) {
-                // Log the failure so it can be investigated
+            } catch (\RuntimeException $e) {
+                // File exists but couldn't be deleted — this is a real failure worth rolling back
                 Log::error('File deletion failed, rolling back database deletion', [
                     'document_id' => $document->id,
                     'path' => $filePath,
                     'error' => $e->getMessage(),
                 ]);
 
-                // Re-throw so the transaction rolls back the database record deletion
+                // Re-throw so the transaction rolls back the soft-delete
                 throw $e;
             }
         });

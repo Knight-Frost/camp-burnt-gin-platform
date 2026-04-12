@@ -139,6 +139,7 @@ class ApplicationWorkflowTest extends TestCase
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
             'status' => 'approved',
             'notes' => 'Application approved',
+            'override_incomplete' => true, // workflow test — not testing compliance enforcement
         ]);
 
         // Verify response

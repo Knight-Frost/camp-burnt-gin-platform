@@ -22,9 +22,10 @@ interface Props {
 }
 
 export function IncompleteApprovalModal({ completeness, submitting, onClose, onApprove }: Props) {
-  const hasFields    = completeness.missing_fields.length > 0;
-  const hasDocs      = completeness.missing_documents.length > 0;
-  const hasConsents  = completeness.missing_consents.length > 0;
+  const hasFields      = completeness.missing_fields.length > 0;
+  const hasDocs        = completeness.missing_documents.length > 0;
+  const hasUnverified  = (completeness.unverified_documents ?? []).length > 0;
+  const hasConsents    = completeness.missing_consents.length > 0;
 
   return (
     /* Backdrop */
@@ -58,8 +59,9 @@ export function IncompleteApprovalModal({ completeness, submitting, onClose, onA
               Application Incomplete — Approval Warning
             </h2>
             <p className="mt-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              The following information is missing or incomplete. You can still approve
-              this application, but your decision and these gaps will be recorded.
+              The following issues were found. Items in <strong>Missing Documents</strong> were never
+              uploaded. Items in <strong>Awaiting Verification</strong> are on file but not yet reviewed.
+              You can still approve — your decision and these gaps will be recorded.
             </p>
           </div>
           <button
@@ -85,6 +87,14 @@ export function IncompleteApprovalModal({ completeness, submitting, onClose, onA
             <MissingSection
               title="Missing Documents"
               items={completeness.missing_documents}
+            />
+          )}
+
+          {hasUnverified && (
+            <MissingSection
+              title="Uploaded — Awaiting Reviewer Verification"
+              items={completeness.unverified_documents ?? []}
+              note="These documents were submitted by the applicant and are on file, but have not yet been reviewed and verified by a staff member. They are NOT missing — they are received and pending your review."
             />
           )}
 
@@ -123,12 +133,17 @@ export function IncompleteApprovalModal({ completeness, submitting, onClose, onA
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function MissingSection({ title, items }: { title: string; items: CompletenessItem[] }) {
+function MissingSection({ title, items, note }: { title: string; items: CompletenessItem[]; note?: string }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-foreground)' }}>
         {title}
       </p>
+      {note && (
+        <p className="text-xs mb-2 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+          {note}
+        </p>
+      )}
       <ul className="space-y-1.5">
         {items.map((item) => (
           <li

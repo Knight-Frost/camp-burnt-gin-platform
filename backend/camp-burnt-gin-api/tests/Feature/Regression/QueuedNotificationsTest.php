@@ -104,6 +104,7 @@ class QueuedNotificationsTest extends TestCase
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
             'status' => 'approved',
             'notes' => 'Approved',
+            'override_incomplete' => true, // notification test — not testing compliance enforcement
         ]);
 
         $response->assertStatus(200);

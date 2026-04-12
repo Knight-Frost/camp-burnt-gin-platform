@@ -94,6 +94,7 @@ class ApplicationAuthorizationTest extends TestCase
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
             'status' => 'approved',
             'notes' => 'Approved by admin',
+            'override_incomplete' => true, // auth test — not testing compliance enforcement
         ]);
 
         $response->assertStatus(200);

@@ -55,7 +55,7 @@ class DocumentSeeder extends Seeder
 
         // Ethan — approved, full verified set
         if ($appEthan && ! Document::where('documentable_id', $appEthan->id)->where('documentable_type', Application::class)->exists()) {
-            $this->makeDoc($appEthan, 'medical_exam', 'Ethan_Johnson_Medical_Exam_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(15), now()->addYear());
+            $this->makeDoc($appEthan, 'official_medical_form', 'Ethan_Johnson_Medical_Exam_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(15), now()->addYear());
             $this->makeDoc($appEthan, 'insurance_card', 'Ethan_Johnson_BCBS_Insurance_Card.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(15));
             $this->makeDoc($appEthan, 'physician_clearance', 'Ethan_Johnson_Dr_Hill_Clearance_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(12), now()->addYear());
         }
@@ -68,17 +68,17 @@ class DocumentSeeder extends Seeder
 
         // Noah — rejected, documents were on file before rejection
         if ($appNoah && ! Document::where('documentable_id', $appNoah->id)->where('documentable_type', Application::class)->exists()) {
-            $this->makeDoc($appNoah, 'medical_exam', 'Noah_Thompson_Medical_Exam_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(25), now()->addYear());
+            $this->makeDoc($appNoah, 'official_medical_form', 'Noah_Thompson_Medical_Exam_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(25), now()->addYear());
             $this->makeDoc($appNoah, 'insurance_card', 'Noah_Thompson_UHC_Insurance_Card.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(25));
             $this->makeDoc($appNoah, 'physician_clearance', 'Noah_Thompson_Dr_Kim_Clearance_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(20), now()->addYear());
         }
 
         // Ava — approved, full set including pump care plan uploaded by medical staff
         if ($appAva && ! Document::where('documentable_id', $appAva->id)->where('documentable_type', Application::class)->exists()) {
-            $this->makeDoc($appAva, 'medical_exam', 'Ava_Williams_Medical_Exam_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(18), now()->addYear());
+            $this->makeDoc($appAva, 'official_medical_form', 'Ava_Williams_Medical_Exam_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(18), now()->addYear());
             $this->makeDoc($appAva, 'insurance_card', 'Ava_Williams_Cigna_Insurance_Card.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(18));
             $this->makeDoc($appAva, 'physician_clearance', 'Ava_Williams_Dr_Gonzalez_Clearance_2026.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(15), now()->addYear());
-            $this->makeDoc($appAva, 'care_plan', 'Ava_Williams_OmniPod_Insulin_Protocol.pdf', $medical, DocumentVerificationStatus::Approved, now()->subDays(8));
+            $this->makeDoc($appAva, 'medical_care_plan', 'Ava_Williams_OmniPod_Insulin_Protocol.pdf', $medical, DocumentVerificationStatus::Approved, now()->subDays(8));
         }
 
         // Lucas — pending, only insurance card uploaded so far
@@ -88,7 +88,7 @@ class DocumentSeeder extends Seeder
 
         // Mia — past session, older approved documents
         if ($appMia && ! Document::where('documentable_id', $appMia->id)->where('documentable_type', Application::class)->exists()) {
-            $this->makeDoc($appMia, 'medical_exam', 'Mia_Davis_Medical_Exam_2025.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(340), now()->subDays(5));
+            $this->makeDoc($appMia, 'official_medical_form', 'Mia_Davis_Medical_Exam_2025.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(340), now()->subDays(5));
             $this->makeDoc($appMia, 'insurance_card', 'Mia_Davis_Medicaid_Card_2025.pdf', $admin, DocumentVerificationStatus::Approved, now()->subDays(340));
         }
 
@@ -103,24 +103,24 @@ class DocumentSeeder extends Seeder
 
         // Sarah → Ethan: immunization record (pending) + photo ID (approved)
         if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $ethan->id)->where('uploaded_by', $sarah->id)->exists()) {
-            $this->makeCamperDoc($ethan, 'Immunization Record', 'Ethan_Johnson_Immunization_Record.pdf', $sarah, DocumentVerificationStatus::Pending, now()->subDays(4));
-            $this->makeCamperDoc($ethan, 'Photo ID', 'Ethan_Johnson_State_ID.pdf', $sarah, DocumentVerificationStatus::Approved, now()->subDays(10));
+            $this->makeCamperDoc($ethan, 'immunization_record', 'Ethan_Johnson_Immunization_Record.pdf', $sarah, DocumentVerificationStatus::Pending, now()->subDays(4));
+            $this->makeCamperDoc($ethan, 'photo_id', 'Ethan_Johnson_State_ID.pdf', $sarah, DocumentVerificationStatus::Approved, now()->subDays(10));
         }
 
         // Sarah → Lily: medical waiver (pending)
         if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $lily->id)->where('uploaded_by', $sarah->id)->exists()) {
-            $this->makeCamperDoc($lily, 'Medical Waiver', 'Lily_Johnson_Medical_Waiver.pdf', $sarah, DocumentVerificationStatus::Pending, now()->subDays(2));
+            $this->makeCamperDoc($lily, 'medical_waiver', 'Lily_Johnson_Medical_Waiver.pdf', $sarah, DocumentVerificationStatus::Pending, now()->subDays(2));
         }
 
         // David → Sofia: allergy action plan (pending)
         if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $sofia->id)->where('uploaded_by', $david->id)->exists()) {
-            $this->makeCamperDoc($sofia, 'Allergy Action Plan', 'Sofia_Martinez_Allergy_Plan.pdf', $david, DocumentVerificationStatus::Pending, now()->subDays(6));
+            $this->makeCamperDoc($sofia, 'allergy_action_plan', 'Sofia_Martinez_Allergy_Plan.pdf', $david, DocumentVerificationStatus::Pending, now()->subDays(6));
         }
 
         // Michael → Ava: insulin protocol (approved) + emergency contacts form (approved)
         if (! Document::where('documentable_type', Camper::class)->where('documentable_id', $ava->id)->where('uploaded_by', $michael->id)->exists()) {
-            $this->makeCamperDoc($ava, 'Insulin Protocol', 'Ava_Williams_Insulin_Protocol.pdf', $michael, DocumentVerificationStatus::Approved, now()->subDays(14));
-            $this->makeCamperDoc($ava, 'Emergency Contacts', 'Ava_Williams_Emergency_Contacts.pdf', $michael, DocumentVerificationStatus::Approved, now()->subDays(14));
+            $this->makeCamperDoc($ava, 'insulin_protocol', 'Ava_Williams_Insulin_Protocol.pdf', $michael, DocumentVerificationStatus::Approved, now()->subDays(14));
+            $this->makeCamperDoc($ava, 'emergency_contacts', 'Ava_Williams_Emergency_Contacts.pdf', $michael, DocumentVerificationStatus::Approved, now()->subDays(14));
         }
     }
 
@@ -154,6 +154,7 @@ class DocumentSeeder extends Seeder
             'verified_by' => $isApproved ? 2 : null, // admin id=2
             'verified_at' => $isApproved ? $uploadedAt : null,
             'expiration_date' => null,
+            'submitted_at' => $uploadedAt,
             'created_at' => $uploadedAt,
             'updated_at' => $uploadedAt,
         ]);
@@ -190,6 +191,7 @@ class DocumentSeeder extends Seeder
             'verified_by' => $isApproved ? $uploader->id : null,
             'verified_at' => $isApproved ? $uploadedAt : null,
             'expiration_date' => $expirationDate,
+            'submitted_at' => $uploadedAt,
             'created_at' => $uploadedAt,
             'updated_at' => $uploadedAt,
         ]);

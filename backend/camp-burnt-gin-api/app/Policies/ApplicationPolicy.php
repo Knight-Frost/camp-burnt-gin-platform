@@ -137,6 +137,37 @@ class ApplicationPolicy
     }
 
     /**
+     * Can the user start a new application using this one as the source?
+     *
+     * Cloning is only permitted for applications that have reached a terminal
+     * state — it makes no sense to fork an application that is still in review.
+     * Admins may clone any terminal application for operational purposes.
+     * Parents may only clone their own child's application, and only after
+     * a final decision has been made (Approved, Rejected, Cancelled, or Withdrawn).
+     */
+    public function clone(User $user, Application $application): bool
+    {
+        $terminalStatuses = [
+            ApplicationStatus::Approved,
+            ApplicationStatus::Rejected,
+            ApplicationStatus::Cancelled,
+            ApplicationStatus::Withdrawn,
+        ];
+
+        if ($user->isAdmin()) {
+            return ! $application->is_draft
+                && in_array($application->status, $terminalStatuses);
+        }
+
+        if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
+            return ! $application->is_draft
+                && in_array($application->status, $terminalStatuses);
+        }
+
+        return false;
+    }
+
+    /**
      * Can the user withdraw an application?
      *
      * Withdrawal is a parent-initiated action that sets the application to

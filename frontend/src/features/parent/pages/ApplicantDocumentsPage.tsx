@@ -40,17 +40,21 @@ import {
   getDocuments,
   deleteDocument,
   uploadDocument,
+  submitDocument,
   getRequiredDocuments,
   submitCompletedDocument,
   getDocumentRequests,
   uploadDocumentRequest,
-  getFormTemplates,
-  downloadFormTemplate,
+  getApplications,
   type Document,
   type RequiredDocument,
   type DocumentRequestRecord,
 } from '@/features/parent/api/applicant.api';
-import type { OfficialFormTemplate } from '@/shared/types';
+import {
+  getDocumentLabel,
+  getDocumentNote,
+  UNIVERSAL_REQUIRED_DOC_TYPES,
+} from '@/shared/constants/documentRequirements';
 import {
   searchInboxUsers,
   createConversation,
@@ -465,7 +469,7 @@ function fromDocRequest(req: DocumentRequestRecord, documents: Document[]): Unif
 
   return {
     key: `req-${req.id}`,
-    title: req.document_type,
+    title: getDocumentLabel(req.document_type, 'applicant'),
     description: req.instructions,
     status,
     isRequired: true,
@@ -853,12 +857,17 @@ export function ApplicantDocumentsPage() {
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState(false);
 
-  // ── Official form templates (Reference Forms section) ────────────────────
-  const [templates,           setTemplates]           = useState<OfficialFormTemplate[]>([]);
-  const [templatesLoading,    setTemplatesLoading]    = useState(true);
-  // Tracks which template is currently being downloaded or viewed (by id)
-  const [downloadingTemplate, setDownloadingTemplate] = useState<string | null>(null);
-  const [viewingTemplate,     setViewingTemplate]     = useState<string | null>(null);
+  // ── Active application — required docs are linked to this application ─────
+  // We prefer a submitted (non-draft) application; fall back to any draft.
+  // Without an applicationId, required doc uploads would be orphaned (no
+  // documentable association) and admin queries would not find them.
+  const [activeApplicationId, setActiveApplicationId] = useState<number | null>(null);
+
+  // ── Required doc upload state (per-type) ─────────────────────────────────
+  // Each key is a document type string from UNIVERSAL_REQUIRED_DOC_TYPES.
+  const [requiredDocUploading, setRequiredDocUploading] = useState<string | null>(null);
+  // Per-type file input refs so each card triggers its own hidden <input>.
+  const requiredDocInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // ── General upload state (UploadArea — supplementary docs) ───────────────
   const [uploading, setUploading] = useState(false);
@@ -894,19 +903,50 @@ export function ApplicantDocumentsPage() {
       .finally(() => setLoading(false));
   };
 
-  // Official form templates load independently — a failure here should not
-  // block the task / document sections from rendering.
-  const loadTemplates = () => {
-    setTemplatesLoading(true);
-    getFormTemplates()
-      .then(setTemplates)
-      .catch(() => { /* silently leave templates empty; section shows unavailable state */ })
-      .finally(() => setTemplatesLoading(false));
-  };
-
-  useEffect(() => { load(); loadTemplates(); }, []);
+  useEffect(() => {
+    load();
+    // Load the active application ID so required doc uploads can be associated
+    // with the correct application record (not orphaned with null documentable).
+    getApplications()
+      .then((apps) => {
+        const submitted = apps.find((a) => !a.is_draft && a.submitted_at);
+        const draft = apps.find((a) => a.is_draft);
+        setActiveApplicationId((submitted ?? draft)?.id ?? null);
+      })
+      .catch(() => { /* non-critical — page still works, uploads fall back to orphaned */ });
+  }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+
+  // Required document upload — canonical type enforced, linked to the active
+  // application, immediately submitted so admin can see it without a second step.
+  async function handleRequiredDocUpload(file: File, docType: string) {
+    setRequiredDocUploading(docType);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('document_type', docType);
+      // Association: link to the application record, not orphaned.
+      // Both ApplicationController::show() and DocumentEnforcementService query
+      // Application-polymorphic docs, so this ensures admin can see the doc.
+      if (activeApplicationId !== null) {
+        fd.append('documentable_type', 'App\\Models\\Application');
+        fd.append('documentable_id', String(activeApplicationId));
+      }
+      const uploaded = await uploadDocument(fd);
+      // Submit immediately — applicant uploads start as drafts (submitted_at = null)
+      // and are invisible to admin until submitted. Required docs must be visible
+      // to staff as soon as they are uploaded; there is no reason to stage them.
+      await submitDocument(uploaded.id);
+      toast.success(`${getDocumentLabel(docType, 'applicant')} submitted to staff.`);
+      load();
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ? `Upload failed: ${msg}` : 'Upload failed. Please try again.');
+    } finally {
+      setRequiredDocUploading(null);
+    }
+  }
 
   // Supplementary upload (UploadArea — not linked to a specific task)
   async function handleUpload(file: File, documentType: string) {
@@ -1026,56 +1066,6 @@ export function ApplicantDocumentsPage() {
     }
   }
 
-  // Download an official form template using the authenticated Axios client.
-  // Plain <a href> would bypass the auth token and return a 401 HTML page.
-  async function handleDownloadTemplate(template: OfficialFormTemplate) {
-    if (!template.available) {
-      toast.error('This form is temporarily unavailable. Please try again later.');
-      return;
-    }
-    setDownloadingTemplate(template.id);
-    try {
-      const blob = await downloadFormTemplate(template.id);
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = template.download_filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Download failed. Please try again.');
-    } finally {
-      setDownloadingTemplate(null);
-    }
-  }
-
-  // Preview an official form template in the existing PreviewModal.
-  // Fetches the real PDF bytes from the backend and renders via blob URL.
-  async function handleViewTemplate(template: OfficialFormTemplate) {
-    if (!template.available) {
-      toast.error('This form is temporarily unavailable.');
-      return;
-    }
-    setViewingTemplate(template.id);
-    try {
-      const blob      = await downloadFormTemplate(template.id);
-      const objectUrl = URL.createObjectURL(blob);
-      setPreview({
-        id:            0,
-        file_name:     template.download_filename,
-        mime_type:     'application/pdf',
-        url:           objectUrl,
-        size:          blob.size,
-        document_type: template.document_type,
-        created_at:    '',
-      } as Document);
-    } catch {
-      toast.error('Could not load preview. Please try again.');
-    } finally {
-      setViewingTemplate(null);
-    }
-  }
-
   async function handleDelete(doc: Document) {
     if (!window.confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return;
     setDeletingId(doc.id);
@@ -1120,6 +1110,160 @@ export function ApplicantDocumentsPage() {
             Complete the tasks below, then upload any additional documents required for your application.
           </p>
         </div>
+
+        {/* ── Universal Required Documents ─────────────────────────────── */}
+        {/* Immunization Record and Insurance Card are required for every applicant.
+            This section provides a dedicated, typed upload path so the canonical
+            document_type key is always stored correctly and the document is linked
+            to the active application (not orphaned) and submitted to staff immediately.
+            Without this section, applicants would use the free-text supplementary
+            upload area, which risks type mismatches and orphaned draft records that
+            are invisible to admin due to the submitted_at IS NOT NULL filter. */}
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+            <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+              Required Documents
+            </h3>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--muted-foreground)' }}>
+            These documents are required for all applicants. Upload each one — they will be submitted to staff automatically.
+          </p>
+
+          <div className="flex flex-col gap-3">
+            {UNIVERSAL_REQUIRED_DOC_TYPES.map((docType) => {
+              // Find the best match: prefer submitted, then draft (most recent first).
+              const submittedDoc = documents
+                .filter((d) => d.document_type === docType && d.submitted_at)
+                .sort((a, b) => new Date(b.submitted_at!).getTime() - new Date(a.submitted_at!).getTime())[0] ?? null;
+              const draftDoc = !submittedDoc
+                ? documents
+                    .filter((d) => d.document_type === docType && !d.submitted_at)
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null
+                : null;
+              const existingDoc = submittedDoc ?? draftDoc;
+              const isSubmitted = !!submittedDoc;
+              const isDraft = !!draftDoc && !submittedDoc;
+              const isUploading = requiredDocUploading === docType;
+              const label = getDocumentLabel(docType, 'applicant');
+              const note = getDocumentNote(docType);
+
+              return (
+                <div
+                  key={docType}
+                  className="rounded-2xl border px-5 py-4 flex items-center justify-between gap-4"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: isSubmitted
+                          ? 'rgba(22,163,74,0.10)'
+                          : 'rgba(234,88,12,0.08)',
+                      }}
+                    >
+                      {isSubmitted ? (
+                        <CheckCircle className="h-4 w-4" style={{ color: '#16a34a' }} />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4" style={{ color: '#ca8a04' }} />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{label}</p>
+                      {note && (
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                          {note}
+                        </p>
+                      )}
+                      {existingDoc && (
+                        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
+                          {existingDoc.file_name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {isSubmitted ? (
+                      <>
+                        <span className="text-xs font-medium" style={{ color: '#16a34a' }}>Submitted to staff</span>
+                        {/* Allow re-upload if needed (e.g. document expired) */}
+                        <label className="cursor-pointer">
+                          <input
+                            ref={(el) => { requiredDocInputRefs.current[docType] = el; }}
+                            type="file"
+                            className="sr-only"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) void handleRequiredDocUpload(f, docType);
+                              e.target.value = '';
+                            }}
+                          />
+                          <span
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors cursor-pointer"
+                            style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'transparent' }}
+                          >
+                            Replace
+                          </span>
+                        </label>
+                      </>
+                    ) : isDraft ? (
+                      <>
+                        <span className="text-xs" style={{ color: '#ca8a04' }}>Draft — not visible to staff</span>
+                        <button
+                          type="button"
+                          disabled={isUploading}
+                          onClick={async () => {
+                            if (draftDoc) {
+                              setRequiredDocUploading(docType);
+                              try {
+                                await submitDocument(draftDoc.id);
+                                toast.success(`${label} submitted to staff.`);
+                                load();
+                              } catch {
+                                toast.error('Submit failed. Please try again.');
+                              } finally {
+                                setRequiredDocUploading(null);
+                              }
+                            }
+                          }}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50"
+                          style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
+                        >
+                          {isUploading ? 'Submitting…' : 'Submit to Staff'}
+                        </button>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer">
+                        <input
+                          ref={(el) => { requiredDocInputRefs.current[docType] = el; }}
+                          type="file"
+                          className="sr-only"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          disabled={isUploading}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void handleRequiredDocUpload(f, docType);
+                            e.target.value = '';
+                          }}
+                        />
+                        <span
+                          className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          style={{ background: 'var(--ember-orange)', color: '#fff' }}
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          {isUploading ? 'Uploading…' : 'Upload'}
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* ── Task panel — Documents Requested From You ─────────────────── */}
         {/* Always rendered — admins can create requests at any time and users
@@ -1251,112 +1395,6 @@ export function ApplicantDocumentsPage() {
             )}
         </section>
 
-        {/* ── Official Forms — dynamic, authenticated, all 4 forms ─────── */}
-        <div>
-          <h3 className="font-headline font-semibold text-sm mb-1" style={{ color: 'var(--foreground)' }}>
-            Official Forms
-          </h3>
-          <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
-            Download the official forms below. Use View to inspect each document before saving it.
-          </p>
-          <div
-            className="rounded-2xl border overflow-hidden"
-            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-          >
-            {templatesLoading ? (
-              <div className="p-4"><SkeletonTable rows={4} /></div>
-            ) : templates.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Official forms are temporarily unavailable. Please try again later.
-                </p>
-              </div>
-            ) : (
-              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {templates.map((tmpl, idx) => (
-                  <li key={tmpl.id}>
-                    <div
-                      className="flex items-center justify-between gap-4 px-5 py-4"
-                      style={idx < templates.length - 1 ? {} : {}}
-                    >
-                      {/* Icon + title + description */}
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{
-                            background: tmpl.available
-                              ? 'rgba(239,68,68,0.10)'
-                              : 'var(--border)',
-                          }}
-                        >
-                          <FileText
-                            className="h-4 w-4"
-                            style={{ color: tmpl.available ? '#ef4444' : 'var(--muted-foreground)' }}
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                              {tmpl.label}
-                            </p>
-                            {tmpl.requires_medical_signature && (
-                              <span
-                                className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide"
-                                style={{ background: 'rgba(59,130,246,0.10)', color: '#1d4ed8' }}
-                              >
-                                Physician signature required
-                              </span>
-                            )}
-                            {!tmpl.available && (
-                              <span
-                                className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide"
-                                style={{ background: 'rgba(239,68,68,0.10)', color: '#dc2626' }}
-                              >
-                                Unavailable
-                              </span>
-                            )}
-                          </div>
-                          {tmpl.description && (
-                            <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                              {tmpl.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* View + Download buttons */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!tmpl.available || viewingTemplate === tmpl.id}
-                          loading={viewingTemplate === tmpl.id}
-                          onClick={() => void handleViewTemplate(tmpl)}
-                          className="flex items-center gap-1.5"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!tmpl.available || downloadingTemplate === tmpl.id}
-                          loading={downloadingTemplate === tmpl.id}
-                          onClick={() => void handleDownloadTemplate(tmpl)}
-                          className="flex items-center gap-1.5"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
         {/* ── Supplementary upload ─────────────────────────────────────── */}
         <UploadArea onUpload={handleUpload} uploading={uploading} />
 
@@ -1391,7 +1429,7 @@ export function ApplicantDocumentsPage() {
                             {doc.file_name}
                           </p>
                           <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                            <span>{doc.document_type}</span>
+                            <span>{getDocumentLabel(doc.document_type, 'applicant')}</span>
                             <span aria-hidden="true">&middot;</span>
                             <span>{formatBytes(doc.size)}</span>
                             <span aria-hidden="true">&middot;</span>

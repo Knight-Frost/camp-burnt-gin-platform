@@ -82,18 +82,18 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
     public function test_approval_blocked_when_documents_unverified(): void
     {
-        // Upload required documents but don't verify them
+        // Upload required document but don't verify it
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $this->camper->id,
             'uploaded_by' => $this->camper->user_id,
-            'original_filename' => 'physical.pdf',
-            'stored_filename' => 'stored_physical.pdf',
+            'original_filename' => 'medical_form.pdf',
+            'stored_filename' => 'stored_medical_form.pdf',
             'mime_type' => 'application/pdf',
             'file_size' => 1024,
             'disk' => 'local',
             'path' => '/test/path',
-            'document_type' => 'physical_examination',
+            'document_type' => 'official_medical_form',
             'is_scanned' => true,
             'scan_passed' => true,
             'verification_status' => DocumentVerificationStatus::Pending,
@@ -132,22 +132,23 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
     public function test_approval_blocked_when_documents_expired(): void
     {
-        // Upload expired documents
+        // Upload expired document; submitted_at required so enforcement service sees it
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $this->camper->id,
             'uploaded_by' => $this->camper->user_id,
-            'original_filename' => 'physical.pdf',
-            'stored_filename' => 'stored_physical.pdf',
+            'original_filename' => 'medical_form.pdf',
+            'stored_filename' => 'stored_medical_form.pdf',
             'mime_type' => 'application/pdf',
             'file_size' => 1024,
             'disk' => 'local',
             'path' => '/test/path',
-            'document_type' => 'physical_examination',
+            'document_type' => 'official_medical_form',
             'is_scanned' => true,
             'scan_passed' => true,
             'verification_status' => DocumentVerificationStatus::Approved,
             'expiration_date' => now()->subDay(),
+            'submitted_at' => now(),
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -167,38 +168,29 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
     public function test_approval_succeeds_when_all_documents_valid(): void
     {
-        // Upload and verify all required documents
-        Document::create([
-            'documentable_type' => Camper::class,
-            'documentable_id' => $this->camper->id,
-            'uploaded_by' => $this->camper->user_id,
-            'original_filename' => 'physical.pdf',
-            'stored_filename' => 'stored_physical.pdf',
-            'mime_type' => 'application/pdf',
-            'file_size' => 1024,
-            'disk' => 'local',
-            'path' => '/test/path',
-            'document_type' => 'physical_examination',
-            'is_scanned' => true,
-            'scan_passed' => true,
-            'verification_status' => DocumentVerificationStatus::Approved,
-        ]);
-
-        Document::create([
-            'documentable_type' => Camper::class,
-            'documentable_id' => $this->camper->id,
-            'uploaded_by' => $this->camper->user_id,
-            'original_filename' => 'immunization.pdf',
-            'stored_filename' => 'stored_immunization.pdf',
-            'mime_type' => 'application/pdf',
-            'file_size' => 1024,
-            'disk' => 'local',
-            'path' => '/test/path',
-            'document_type' => 'immunization_record',
-            'is_scanned' => true,
-            'scan_passed' => true,
-            'verification_status' => DocumentVerificationStatus::Approved,
-        ]);
+        // Upload and verify all three universal required documents; submitted_at required so enforcement sees them
+        foreach ([
+            ['official_medical_form', 'medical_form.pdf', 'stored_medical_form.pdf'],
+            ['immunization_record',   'immunization.pdf', 'stored_immunization.pdf'],
+            ['insurance_card',        'insurance.pdf',    'stored_insurance.pdf'],
+        ] as [$type, $orig, $stored]) {
+            Document::create([
+                'documentable_type' => Camper::class,
+                'documentable_id' => $this->camper->id,
+                'uploaded_by' => $this->camper->user_id,
+                'original_filename' => $orig,
+                'stored_filename' => $stored,
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'disk' => 'local',
+                'path' => '/test/path',
+                'document_type' => $type,
+                'is_scanned' => true,
+                'scan_passed' => true,
+                'verification_status' => DocumentVerificationStatus::Approved,
+                'submitted_at' => now(),
+            ]);
+        }
 
         $response = $this->actingAs($this->admin)
             ->postJson("/api/applications/{$this->application->id}/review", [
@@ -233,28 +225,30 @@ class ApplicationApprovalEnforcementTest extends TestCase
     }
 
     /**
-     * Regression: physical_examination uploaded to Camper must NOT appear as
-     * official_medical_form missing in the completeness check. The old code
-     * checked for a stale key ('official_medical_form') in the wrong collection
-     * ($application->documents instead of $camper->documents).
+     * Regression: official_medical_form uploaded to Camper must NOT appear in missing_documents.
+     * It will appear in unverified_documents (pending review) but must not be "missing".
+     * This guards against the DocumentEnforcementService using a stale document_type key
+     * that doesn't match what the Official Forms page actually stores.
      */
-    public function test_completeness_check_recognises_physical_examination_on_camper(): void
+    public function test_completeness_check_recognises_official_medical_form_on_camper(): void
     {
-        // Upload physical_examination attached to the Camper (matching what ApplicationFormPage does).
+        // Upload official_medical_form attached to the Camper (matching what the Official Forms page does).
+        // submitted_at required so enforcement service sees it.
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $this->camper->id,
             'uploaded_by' => $this->camper->user_id,
-            'original_filename' => 'physical.pdf',
-            'stored_filename' => 'stored_physical.pdf',
+            'original_filename' => 'medical_form.pdf',
+            'stored_filename' => 'stored_medical_form.pdf',
             'mime_type' => 'application/pdf',
             'file_size' => 1024,
             'disk' => 'local',
             'path' => '/test/path',
-            'document_type' => 'physical_examination',
+            'document_type' => 'official_medical_form',
             'is_scanned' => true,
             'scan_passed' => true,
             'verification_status' => DocumentVerificationStatus::Pending,
+            'submitted_at' => now(),
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -264,10 +258,10 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
         $data = $response->json('data');
 
-        // The medical form check must NOT appear in missing_documents.
+        // The medical form must NOT appear in missing_documents — it was uploaded.
         // (It will appear in unverified_documents since verification_status is Pending.)
         $missingDocKeys = collect($data['missing_documents'])->pluck('key')->all();
-        $this->assertNotContains('medical_form', $missingDocKeys, 'physical_examination uploaded to Camper must not be reported as medical_form missing');
+        $this->assertNotContains('doc_official_medical_form', $missingDocKeys, 'official_medical_form uploaded to Camper must not appear in missing_documents');
 
         // The uploaded-but-unverified document IS expected in unverified_documents.
         $this->assertArrayHasKey('unverified_documents', $data);
@@ -280,8 +274,9 @@ class ApplicationApprovalEnforcementTest extends TestCase
      */
     public function test_completeness_check_separates_unverified_from_missing(): void
     {
-        // Upload both required universal documents, both pending verification.
-        foreach (['physical_examination', 'immunization_record'] as $type) {
+        // Upload all three universal required documents, all pending verification.
+        // submitted_at required so enforcement service sees them.
+        foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
             Document::create([
                 'documentable_type' => Camper::class,
                 'documentable_id' => $this->camper->id,
@@ -296,6 +291,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
                 'is_scanned' => true,
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Pending,
+                'submitted_at' => now(),
             ]);
         }
 
@@ -311,8 +307,9 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
         // Universal documents were uploaded — must NOT appear as missing.
         $missingDocKeys = collect($data['missing_documents'])->pluck('key')->all();
-        $this->assertNotContains('doc_physical_examination', $missingDocKeys);
+        $this->assertNotContains('doc_official_medical_form', $missingDocKeys);
         $this->assertNotContains('doc_immunization_record', $missingDocKeys);
+        $this->assertNotContains('doc_insurance_card', $missingDocKeys);
 
         // Unverified documents should list the two pending uploads.
         $unverifiedKeys = collect($data['unverified_documents'])->pluck('key')->all();
@@ -351,8 +348,9 @@ class ApplicationApprovalEnforcementTest extends TestCase
             ]);
         }
 
-        // Upload and verify both universal documents.
-        foreach (['physical_examination', 'immunization_record'] as $type) {
+        // Upload and verify all three universal required documents.
+        // submitted_at required so enforcement service sees them.
+        foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
             Document::create([
                 'documentable_type' => Camper::class,
                 'documentable_id' => $this->camper->id,
@@ -367,6 +365,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
                 'is_scanned' => true,
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Approved,
+                'submitted_at' => now(),
             ]);
         }
 
@@ -398,22 +397,28 @@ class ApplicationApprovalEnforcementTest extends TestCase
             'one_to_one_supervision' => true,
         ]);
 
-        // Upload only universal documents
-        Document::create([
-            'documentable_type' => Camper::class,
-            'documentable_id' => $this->camper->id,
-            'uploaded_by' => $this->camper->user_id,
-            'original_filename' => 'physical.pdf',
-            'stored_filename' => 'stored_physical.pdf',
-            'mime_type' => 'application/pdf',
-            'file_size' => 1024,
-            'disk' => 'local',
-            'path' => '/test/path',
-            'document_type' => 'physical_examination',
-            'is_scanned' => true,
-            'scan_passed' => true,
-            'verification_status' => DocumentVerificationStatus::Approved,
-        ]);
+        // Upload only the universal documents (missing condition-specific required docs)
+        foreach ([
+            ['official_medical_form', 'medical_form.pdf', 'stored_medical_form.pdf'],
+            ['immunization_record',   'immunization.pdf', 'stored_immunization.pdf'],
+            ['insurance_card',        'insurance.pdf',    'stored_insurance.pdf'],
+        ] as [$type, $orig, $stored]) {
+            Document::create([
+                'documentable_type' => Camper::class,
+                'documentable_id' => $this->camper->id,
+                'uploaded_by' => $this->camper->user_id,
+                'original_filename' => $orig,
+                'stored_filename' => $stored,
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'disk' => 'local',
+                'path' => '/test/path',
+                'document_type' => $type,
+                'is_scanned' => true,
+                'scan_passed' => true,
+                'verification_status' => DocumentVerificationStatus::Approved,
+            ]);
+        }
 
         $response = $this->actingAs($this->admin)
             ->postJson("/api/applications/{$this->application->id}/review", [

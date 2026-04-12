@@ -35,8 +35,9 @@ import {
 import {
   getApplication, reviewApplication, checkApplicationCompleteness, updateApplication,
   updateCamper, updateEmergencyContact, createEmergencyContact, deleteEmergencyContact,
-  updateBehavioralProfile, uploadDocumentOnBehalf,
+  updateBehavioralProfile, uploadDocumentOnBehalf, verifyDocument, getCamperComplianceStatus,
 } from '@/features/admin/api/admin.api';
+import type { ComplianceRequiredDoc } from '@/features/admin/api/admin.api';
 import type {
   UpdateApplicationPayload, UpdateCamperPayload, UpdateEmergencyContactPayload,
   CreateEmergencyContactPayload, UpdateBehavioralProfilePayload,
@@ -49,6 +50,11 @@ import { axiosInstance } from '@/api/axios.config';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Application, ApplicationCompleteness, BehavioralProfile, Camper, EmergencyContact } from '@/features/admin/types/admin.types';
 import { IncompleteApprovalModal } from '@/features/admin/components/IncompleteApprovalModal';
+import {
+  getDocumentLabel,
+  isRequiredDocumentType,
+  UNIVERSAL_REQUIRED_DOC_TYPES,
+} from '@/shared/constants/documentRequirements';
 
 // ---------------------------------------------------------------------------
 // Section card wrapper
@@ -178,10 +184,14 @@ interface CamperEditSectionProps {
   camper: Camper;
   appStatus: Application['status'];
   session?: Application['session'];
+  /** Second-choice session; shown read-only so reviewer sees the full applicant preference. */
+  sessionSecond?: Application['second_session'];
+  firstApplication?: boolean;
+  attendedBefore?: boolean;
   onCamperSaved: (updated: Camper) => void;
 }
 
-function CamperEditSection({ camper, appStatus, session, onCamperSaved }: CamperEditSectionProps) {
+function CamperEditSection({ camper, appStatus, session, sessionSecond, firstApplication, attendedBefore, onCamperSaved }: CamperEditSectionProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -219,13 +229,25 @@ function CamperEditSection({ camper, appStatus, session, onCamperSaved }: Camper
     }
   }
 
+  // Build location string from non-encrypted address parts (street address is PHI-hidden by backend)
+  const camperLocation = [camper.applicant_city, camper.applicant_state, camper.applicant_zip]
+    .filter(Boolean).join(', ');
+
   const viewRows: [string, string | undefined][] = [
     [t('admin.review.field_name'),    camper.full_name],
+    ...(camper.preferred_name ? [['Preferred Name', camper.preferred_name] as [string, string]] : []),
     [t('admin.review.field_dob'),     camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : undefined],
     [t('admin.review.field_gender'),  camper.gender],
     [t('admin.review.field_shirt'),   camper.tshirt_size],
+    ['County',                        camper.county],
+    ...(camperLocation ? [['City / State / Zip', camperLocation] as [string, string]] : []),
+    ...(camper.needs_interpreter ? [['Interpreter Needed', `Yes — ${camper.preferred_language ?? 'language not specified'}`] as [string, string]] : []),
     [t('admin.review.field_session'), session?.name],
     [t('admin.review.field_camp'),    session?.camp?.name],
+    ...(sessionSecond ? [['2nd Choice Session', sessionSecond.name] as [string, string]] : []),
+    // Application history flags — shown so reviewer knows whether this is a new vs returning applicant
+    ...(firstApplication != null ? [['First Application', firstApplication ? 'Yes — first-time applicant' : 'No'] as [string, string]] : []),
+    ...(attendedBefore != null ? [['Previously Attended', attendedBefore ? 'Yes — has attended before' : 'No'] as [string, string]] : []),
   ];
 
   return (
@@ -447,6 +469,27 @@ function EmergencyContactsSection({ contacts, camperId, appStatus, onContactsCha
           ) : (
             // View mode for this contact
             <div key={ec.id} className="glass-card rounded-lg p-3 group relative">
+              {/* Role badges — guardian contacts are distinguished from emergency-only contacts */}
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                {ec.is_guardian && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    style={{ background: 'rgba(99,102,241,0.12)', color: 'rgb(99,102,241)' }}>
+                    Guardian
+                  </span>
+                )}
+                {ec.is_primary && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    style={{ background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}>
+                    Primary
+                  </span>
+                )}
+                {ec.is_authorized_pickup && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    style={{ background: 'rgba(202,138,4,0.12)', color: '#ca8a04' }}>
+                    Authorized Pickup
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Name</p>
@@ -457,13 +500,39 @@ function EmergencyContactsSection({ contacts, camperId, appStatus, onContactsCha
                   <p style={{ color: 'var(--foreground)' }}>{ec.relationship}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Phone</p>
+                  <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Primary Phone</p>
                   <p style={{ color: 'var(--foreground)' }}>{ec.phone_primary}</p>
                 </div>
+                {ec.phone_secondary && (
+                  <div>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Secondary Phone</p>
+                    <p style={{ color: 'var(--foreground)' }}>{ec.phone_secondary}</p>
+                  </div>
+                )}
+                {ec.phone_work && (
+                  <div>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Work Phone</p>
+                    <p style={{ color: 'var(--foreground)' }}>{ec.phone_work}</p>
+                  </div>
+                )}
                 {ec.email && (
                   <div>
                     <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Email</p>
                     <p style={{ color: 'var(--foreground)' }}>{ec.email}</p>
+                  </div>
+                )}
+                {(ec.city || ec.state) && (
+                  <div>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>City / State</p>
+                    <p style={{ color: 'var(--foreground)' }}>{[ec.city, ec.state].filter(Boolean).join(', ')}</p>
+                  </div>
+                )}
+                {ec.primary_language && ec.primary_language !== 'English' && (
+                  <div>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Language</p>
+                    <p style={{ color: 'var(--foreground)' }}>
+                      {ec.primary_language}{ec.interpreter_needed ? ' — interpreter needed' : ''}
+                    </p>
                   </div>
                 )}
               </div>
@@ -552,7 +621,7 @@ function BehavioralProfileEditSection({ profile, appStatus, onProfileSaved }: Be
 
   return (
     <SectionCard
-      title="Behavioral Profile"
+      title="Development & Behavior"
       icon={<Brain className="h-4 w-4" />}
       headerAction={!editing ? <EditBtn onClick={startEdit} /> : undefined}
     >
@@ -576,6 +645,113 @@ function BehavioralProfileEditSection({ profile, appStatus, onProfileSaved }: Be
         </div>
       ) : (
         <div className="space-y-3 text-sm">
+          {/* Safety-critical flags — shown prominently at the top */}
+          {(() => {
+            const criticalFlags: [string, boolean | undefined, string | undefined][] = [
+              ['Aggression',             profile.aggression,             profile.aggression_description],
+              ['Self-Harm Behaviors',    profile.self_abuse,             profile.self_abuse_description],
+              ['Wandering / Elopement Risk', profile.wandering_risk,     profile.wandering_description],
+              ['One-to-One Supervision Required', profile.one_to_one_supervision, profile.one_to_one_description],
+              ['Sexual Behaviors',       profile.sexual_behaviors,       profile.sexual_behaviors_description],
+            ].filter(([, val]) => val) as [string, boolean, string | undefined][];
+
+            if (criticalFlags.length === 0) return null;
+            return (
+              <div
+                className="rounded-lg p-3 border mb-1"
+                style={{ background: 'rgba(220,38,38,0.05)', borderColor: 'rgba(220,38,38,0.18)' }}
+              >
+                <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: 'var(--destructive)' }}>
+                  Safety Flags
+                </p>
+                <div className="space-y-1.5">
+                  {criticalFlags.map(([label, , desc]) => (
+                    <div key={label} className="flex items-start gap-2">
+                      <span className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: 'var(--destructive)', marginTop: 5 }} />
+                      <div>
+                        <span className="font-medium text-xs" style={{ color: 'var(--destructive)' }}>{label}</span>
+                        {desc && <span className="text-xs ml-2" style={{ color: 'var(--foreground)' }}>{desc}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Functional status flags */}
+          {(() => {
+            const functionalItems: [string, boolean | undefined][] = [
+              ['One-to-One Supervision',  profile.one_to_one_supervision],
+              ['Behavior Support Plan',   profile.behavior_plan],
+              ['Developmental Delay',     profile.developmental_delay],
+              ['Verbal Communication',    profile.verbal_communication],
+              ['Independent Mobility',    profile.independent_mobility],
+              ['Functional Reading',      profile.functional_reading],
+              ['Functional Writing',      profile.functional_writing],
+              ['Social Skills',           profile.social_skills],
+              ['Attends School',          profile.attends_school],
+              ['Interpersonal Behaviors', profile.interpersonal_behavior],
+              ['Social-Emotional Needs',  profile.social_emotional],
+              ['Follows Instructions',    profile.follows_instructions],
+              ['Group Participation',     profile.group_participation],
+            ].filter(([, v]) => v != null) as [string, boolean][];
+
+            const presentFlags = functionalItems.filter(([, v]) => v);
+            if (presentFlags.length === 0) return null;
+            return (
+              <div>
+                <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>Functional Status</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {presentFlags.map(([label]) => (
+                    <span
+                      key={label}
+                      className="text-xs px-2 py-0.5 rounded-full border"
+                      style={{ background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.25)', color: 'var(--warm-amber)' }}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Functioning age level */}
+          {profile.functioning_age_level && (
+            <div>
+              <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Functioning Age Level</p>
+              <p style={{ color: 'var(--foreground)' }}>{profile.functioning_age_level}</p>
+            </div>
+          )}
+
+          {/* Communication methods */}
+          {profile.communication_methods && profile.communication_methods.length > 0 && (
+            <div>
+              <p className="text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Communication Methods</p>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.communication_methods.map((m) => (
+                  <span
+                    key={m}
+                    className="text-xs px-2 py-0.5 rounded-full border"
+                    style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+                  >
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Classroom type */}
+          {profile.attends_school && profile.classroom_type && (
+            <div>
+              <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Classroom Type</p>
+              <p style={{ color: 'var(--foreground)' }}>{profile.classroom_type}</p>
+            </div>
+          )}
+
+          {/* Narrative text fields */}
           {([
             ['Triggers',                  profile.triggers],
             ['De-escalation Strategies',  profile.de_escalation_strategies],
@@ -587,7 +763,10 @@ function BehavioralProfileEditSection({ profile, appStatus, onProfileSaved }: Be
               <p className="whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{value}</p>
             </div>
           ))}
-          {!profile.triggers && !profile.de_escalation_strategies && !profile.communication_style && !profile.notes && (
+
+          {!profile.triggers && !profile.de_escalation_strategies && !profile.communication_style && !profile.notes
+            && !profile.aggression && !profile.self_abuse && !profile.wandering_risk && !profile.one_to_one_supervision
+            && !profile.developmental_delay && !profile.behavior_plan && (
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No behavioral profile data on file.</p>
           )}
         </div>
@@ -600,15 +779,49 @@ function BehavioralProfileEditSection({ profile, appStatus, onProfileSaved }: Be
 // NarrativesSection — inline narratives editor (replaces EditNarrativesPanel)
 // ---------------------------------------------------------------------------
 
-const NARRATIVE_FIELDS: { key: keyof UpdateApplicationPayload; label: string }[] = [
-  { key: 'narrative_rustic_environment',     label: 'Rustic Environment' },
-  { key: 'narrative_staff_suggestions',      label: 'Staff Suggestions' },
-  { key: 'narrative_participation_concerns', label: 'Participation Concerns' },
-  { key: 'narrative_camp_benefit',           label: 'Camp Benefit' },
-  { key: 'narrative_heat_tolerance',         label: 'Heat Tolerance' },
-  { key: 'narrative_transportation',         label: 'Transportation' },
-  { key: 'narrative_additional_info',        label: 'Additional Info' },
-  { key: 'narrative_emergency_protocols',    label: 'Emergency Protocols' },
+// Each narrative field preserves the exact question the applicant was asked so the reviewer
+// sees both what was asked and what was answered — no information loss through abbreviation.
+const NARRATIVE_FIELDS: { key: keyof UpdateApplicationPayload; label: string; question: string }[] = [
+  {
+    key: 'narrative_rustic_environment',
+    label: 'Rustic Environment',
+    question: 'Is a rustic outdoor environment (heat, bugs, uneven terrain, limited AC) suitable for your camper? Please explain any concerns.',
+  },
+  {
+    key: 'narrative_staff_suggestions',
+    label: 'Staff Suggestions',
+    question: 'What suggestions do you have for camp staff to best support your camper\'s unique needs during activities and daily routines?',
+  },
+  {
+    key: 'narrative_participation_concerns',
+    label: 'Participation Concerns',
+    question: 'Are there any specific activities or situations that concern you regarding your camper\'s participation?',
+  },
+  {
+    key: 'narrative_camp_benefit',
+    label: 'Camp Benefit',
+    question: 'How do you believe attending camp will benefit your camper? What goals or outcomes are you hoping for?',
+  },
+  {
+    key: 'narrative_heat_tolerance',
+    label: 'Heat Tolerance',
+    question: 'Please describe your camper\'s tolerance for heat and sun exposure, and any precautions staff should take.',
+  },
+  {
+    key: 'narrative_transportation',
+    label: 'Transportation',
+    question: 'Are there any concerns or special accommodations needed regarding transportation to and from camp?',
+  },
+  {
+    key: 'narrative_additional_info',
+    label: 'Additional Information',
+    question: 'Is there any additional information about your camper that camp staff should know that has not been covered elsewhere?',
+  },
+  {
+    key: 'narrative_emergency_protocols',
+    label: 'Emergency Protocols',
+    question: 'Are there any special emergency procedures or protocols specific to your camper\'s condition that staff must follow?',
+  },
 ];
 
 interface NarrativesSectionProps {
@@ -682,7 +895,7 @@ function NarrativesSection({ application, onSaved }: NarrativesSectionProps) {
 
   return (
     <SectionCard
-      title="Narrative Responses"
+      title="About Your Camper"
       icon={<PenLine className="h-4 w-4" />}
       headerAction={
         !editing ? (
@@ -724,9 +937,9 @@ function NarrativesSection({ application, onSaved }: NarrativesSectionProps) {
           {/* Narrative response fields */}
           <p className="text-xs font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>Narrative Responses</p>
           <div className="space-y-3">
-            {NARRATIVE_FIELDS.map(({ key, label }) => (
+            {NARRATIVE_FIELDS.map(({ key, label, question }) => (
               <div key={key}>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                <label className="block text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>
                   {label}
                   {hasChanges && values[key] !== saved[key] && (
                     <span
@@ -735,6 +948,7 @@ function NarrativesSection({ application, onSaved }: NarrativesSectionProps) {
                     />
                   )}
                 </label>
+                <p className="text-xs italic mb-1" style={{ color: 'var(--muted-foreground)', opacity: 0.7 }}>{question}</p>
                 <textarea
                   value={values[key] ?? ''}
                   onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
@@ -760,10 +974,12 @@ function NarrativesSection({ application, onSaved }: NarrativesSectionProps) {
             </div>
           )}
           {hasAnyContent ? (
-            NARRATIVE_FIELDS.filter((f) => application[f.key]).map(({ key, label }) => (
+            NARRATIVE_FIELDS.filter((f) => application[f.key]).map(({ key, label, question }) => (
               <div key={key}>
-                <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                <p className="whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{application[key]}</p>
+                <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                {/* Show the exact question the applicant was asked — the reviewer sees what was asked, not just an abbreviated label */}
+                <p className="text-xs italic mb-1.5" style={{ color: 'var(--muted-foreground)', opacity: 0.75 }}>{question}</p>
+                <p className="whitespace-pre-wrap text-sm" style={{ color: 'var(--foreground)' }}>{application[key]}</p>
               </div>
             ))
           ) : !application.notes ? (
@@ -835,9 +1051,10 @@ function ReviewPanel({ applicationId, currentStatus, onReviewed }: ReviewPanelPr
         notes,
         override_incomplete: true,
         missing_summary: {
-          missing_fields:    completenessReport.missing_fields,
-          missing_documents: completenessReport.missing_documents,
-          missing_consents:  completenessReport.missing_consents,
+          missing_fields:       completenessReport.missing_fields,
+          missing_documents:    completenessReport.missing_documents,
+          unverified_documents: completenessReport.unverified_documents ?? [],
+          missing_consents:     completenessReport.missing_consents,
         },
       });
       setCompletenessReport(null);
@@ -1102,14 +1319,34 @@ export function ApplicationReviewPage() {
   const [error, setError] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const docInputRef = useRef<HTMLInputElement>(null);
+  // Track which document is currently being verified (approved/rejected) to show per-doc loading state.
+  const [verifyingDocId, setVerifyingDocId] = useState<number | null>(null);
 
-  // ── Fetch the application on mount (or when the id param changes) ──────────
+  // Backend-computed required document types for this specific camper.
+  // Null = not yet loaded (fallback to local conditions); populated after application loads.
+  // This is the canonical list used in the Required Documents section — it comes from the same
+  // SpecialNeedsRiskAssessmentService + DocumentEnforcementService that gates approval on the backend,
+  // so the admin review display and backend enforcement logic are always in sync.
+  const [backendRequiredDocs, setBackendRequiredDocs] = useState<ComplianceRequiredDoc[] | null>(null);
+
+  // ── Fetch the application on mount, then load compliance data ──────────────
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError(false);
+    setBackendRequiredDocs(null);
     getApplication(Number(id))
-      .then(setApplication)
+      .then((app) => {
+        setApplication(app);
+        // After loading the application, fetch the backend-computed compliance status to
+        // know exactly which documents are required for this camper's medical profile.
+        // Non-critical: if this fails the page falls back to the local condition checks.
+        if (app.camper?.id) {
+          getCamperComplianceStatus(app.camper.id)
+            .then((compliance) => setBackendRequiredDocs(compliance.required_documents))
+            .catch(() => { /* non-critical; fallback to local conditions */ });
+        }
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
@@ -1140,11 +1377,14 @@ export function ApplicationReviewPage() {
   }
 
   // ── Document upload helper ─────────────────────────────────────────────────
+  // Files are attached to the Camper record so that DocumentEnforcementService can
+  // find them during compliance checks. The show() endpoint merges camper-level
+  // documents into application.documents, so we append to documents locally here.
   async function handleDocumentUpload(file: File) {
-    if (!application) return;
+    if (!application || !application.camper) return;
     setUploadingDoc(true);
     try {
-      const doc = await uploadDocumentOnBehalf(application.id, file);
+      const doc = await uploadDocumentOnBehalf(application.camper.id, file);
       setApplication((prev) => prev
         ? { ...prev, documents: [...(prev.documents ?? []), doc] }
         : prev
@@ -1197,6 +1437,32 @@ export function ApplicationReviewPage() {
         }
       })
       .catch(() => toast.error(t('common.download_error')));
+  }
+
+  // ── Inline document verification ──────────────────────────────────────────
+  // Allows admins to approve or reject a document directly on the review page
+  // without navigating to the global Documents page. This is the core workflow
+  // improvement: the review page becomes self-contained for required doc decisions.
+  async function handleVerifyDocument(docId: number, status: 'approved' | 'rejected') {
+    setVerifyingDocId(docId);
+    try {
+      const updated = await verifyDocument(docId, status);
+      setApplication((prev) =>
+        prev
+          ? {
+              ...prev,
+              documents: prev.documents?.map((d) =>
+                d.id === docId ? { ...d, verification_status: updated.verification_status } : d,
+              ) ?? [],
+            }
+          : prev,
+      );
+      toast.success(status === 'approved' ? 'Document verified.' : 'Document rejected.');
+    } catch {
+      toast.error('Failed to update document status. Please try again.');
+    } finally {
+      setVerifyingDocId(null);
+    }
   }
 
   // ── Loading / error states ─────────────────────────────────────────────────
@@ -1394,6 +1660,9 @@ export function ApplicationReviewPage() {
               camper={camper}
               appStatus={application.status}
               session={application.session}
+              sessionSecond={application.second_session}
+              firstApplication={application.first_application}
+              attendedBefore={application.attended_before}
               onCamperSaved={handleCamperSaved}
             />
           )}
@@ -1520,8 +1789,14 @@ export function ApplicationReviewPage() {
                   {[
                     ['Physician', medical.physician_name],
                     ['Physician Phone', medical.physician_phone],
+                    ['Physician Address', medical.physician_address],
                     ['Insurance Provider', medical.insurance_provider],
                     ['Policy Number', medical.insurance_policy_number],
+                    ['Insurance Group', medical.insurance_group],
+                    // date_of_medical_exam drives the 12-month Form 4523 validity window
+                    ['Medical Exam Date', medical.date_of_medical_exam
+                      ? format(new Date(medical.date_of_medical_exam), 'MMM d, yyyy')
+                      : undefined],
                   ].filter(([, v]) => v).map(([label, value]) => (
                     <div key={label as string}>
                       <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
@@ -1536,6 +1811,56 @@ export function ApplicationReviewPage() {
                     <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.notes}</p>
                   </div>
                 )}
+
+                {/* Extended health status fields */}
+                {(() => {
+                  const healthFlags: [string, boolean | undefined][] = [
+                    ['Immunizations Current',   medical.immunizations_current],
+                    ['Tubes in Ears',           medical.tubes_in_ears],
+                    ['Contagious Illness',       medical.has_contagious_illness],
+                    ['Recent Illness',          medical.has_recent_illness],
+                  ];
+                  const presentFlags = healthFlags.filter(([, v]) => v === true);
+                  const absentFlags  = healthFlags.filter(([, v]) => v === false);
+                  if (presentFlags.length === 0 && absentFlags.length === 0) return null;
+                  return (
+                    <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>Health Status</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {healthFlags.filter(([, v]) => v != null).map(([label, val]) => (
+                          <div key={label} className="flex items-center gap-1.5">
+                            <span
+                              className="h-2 w-2 rounded-full flex-shrink-0"
+                              style={{ background: val ? '#16a34a' : '#dc2626' }}
+                            />
+                            <span style={{ color: 'var(--foreground)' }}>{label}: <strong>{val ? 'Yes' : 'No'}</strong></span>
+                          </div>
+                        ))}
+                      </div>
+                      {medical.contagious_illness_description && (
+                        <p className="text-xs mt-1.5" style={{ color: 'var(--foreground)' }}>
+                          Contagious illness: {medical.contagious_illness_description}
+                        </p>
+                      )}
+                      {medical.recent_illness_description && (
+                        <p className="text-xs mt-1" style={{ color: 'var(--foreground)' }}>
+                          Recent illness: {medical.recent_illness_description}
+                        </p>
+                      )}
+                      {medical.mobility_notes && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Mobility Notes</p>
+                          <p className="text-xs whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{medical.mobility_notes}</p>
+                        </div>
+                      )}
+                      {medical.tetanus_date && (
+                        <p className="text-xs mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
+                          Tetanus date: {format(new Date(medical.tetanus_date), 'MMM d, yyyy')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
             </SectionCard>
           )}
 
@@ -1566,8 +1891,62 @@ export function ApplicationReviewPage() {
 
           {/* Feeding plan */}
           {camper?.feeding_plan && (
-            <SectionCard title="Feeding Plan" icon={<Utensils className="h-4 w-4" />}>
+            <SectionCard title="Diet & Feeding" icon={<Utensils className="h-4 w-4" />}>
                 <div className="space-y-3 text-sm">
+                  {/* G-tube alert — shown prominently if present */}
+                  {camper.feeding_plan.g_tube && (
+                    <div
+                      className="rounded-lg px-3 py-2 border"
+                      style={{ background: 'rgba(234,88,12,0.07)', borderColor: 'rgba(234,88,12,0.25)' }}
+                    >
+                      <p className="text-xs font-semibold" style={{ color: 'var(--ember-orange)' }}>G-Tube / Enteral Feeding</p>
+                      <div className="grid grid-cols-2 gap-2 mt-1.5 text-xs">
+                        {[
+                          ['Formula', camper.feeding_plan.formula],
+                          ['Amount per Feeding', camper.feeding_plan.amount_per_feeding],
+                          ['Feedings per Day', camper.feeding_plan.feedings_per_day?.toString()],
+                          ['Bolus Only', camper.feeding_plan.bolus_only ? 'Yes' : undefined],
+                        ].filter(([, v]) => v).map(([label, value]) => (
+                          <div key={label as string}>
+                            <span style={{ color: 'var(--muted-foreground)' }}>{label}: </span>
+                            <span style={{ color: 'var(--foreground)' }}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {camper.feeding_plan.feeding_times && camper.feeding_plan.feeding_times.length > 0 && (
+                        <p className="text-xs mt-1">
+                          <span style={{ color: 'var(--muted-foreground)' }}>Feeding times: </span>
+                          <span style={{ color: 'var(--foreground)' }}>{camper.feeding_plan.feeding_times.join(', ')}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Diet and texture */}
+                  {(camper.feeding_plan.special_diet || camper.feeding_plan.texture_modified || camper.feeding_plan.fluid_restriction) && (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {camper.feeding_plan.special_diet && (
+                        <div>
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Special Diet</p>
+                          <p style={{ color: 'var(--foreground)' }}>{camper.feeding_plan.diet_description ?? 'Yes'}</p>
+                        </div>
+                      )}
+                      {camper.feeding_plan.texture_modified && (
+                        <div>
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Texture Modified</p>
+                          <p style={{ color: 'var(--foreground)' }}>{camper.feeding_plan.texture_level ?? 'Yes'}</p>
+                        </div>
+                      )}
+                      {camper.feeding_plan.fluid_restriction && (
+                        <div>
+                          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>Fluid Restriction</p>
+                          <p style={{ color: 'var(--foreground)' }}>{camper.feeding_plan.fluid_details ?? 'Yes'}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Text fields */}
                   {[
                     ['Method', camper.feeding_plan.method],
                     ['Restrictions', camper.feeding_plan.restrictions],
@@ -1582,9 +1961,96 @@ export function ApplicationReviewPage() {
             </SectionCard>
           )}
 
+          {/* Personal care plan — fully read-only; not inline-editable from this page */}
+          {camper?.personal_care_plan && (
+            <SectionCard title="Personal Care" icon={<Heart className="h-4 w-4" />}>
+              <div className="space-y-3 text-sm">
+                {/* Care level grid */}
+                {(() => {
+                  const levels: [string, string | undefined][] = [
+                    ['Bathing',      camper.personal_care_plan.bathing_level],
+                    ['Toileting',    camper.personal_care_plan.toileting_level],
+                    ['Dressing',     camper.personal_care_plan.dressing_level],
+                    ['Oral Hygiene', camper.personal_care_plan.oral_hygiene_level],
+                  ].filter(([, v]) => v) as [string, string][];
+                  if (levels.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>Assistance Levels</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {levels.map(([label, value]) => (
+                          <div key={label}>
+                            <span style={{ color: 'var(--muted-foreground)' }}>{label}: </span>
+                            <span className="font-medium" style={{ color: 'var(--foreground)' }}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Care notes */}
+                {[
+                  ['Bathing Notes',      camper.personal_care_plan.bathing_notes],
+                  ['Toileting Notes',    camper.personal_care_plan.toileting_notes],
+                  ['Dressing Notes',     camper.personal_care_plan.dressing_notes],
+                  ['Oral Hygiene Notes', camper.personal_care_plan.oral_hygiene_notes],
+                  ['Positioning Notes',  camper.personal_care_plan.positioning_notes],
+                  ['Sleep Notes',        camper.personal_care_plan.sleep_notes],
+                  ['Bowel / Bladder',    camper.personal_care_plan.bowel_control_notes],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <div key={label as string}>
+                    <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                    <p className="whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>{value}</p>
+                  </div>
+                ))}
+
+                {/* Flags */}
+                {(() => {
+                  const flags: [string, boolean | undefined][] = [
+                    ['Nighttime Toileting',   camper.personal_care_plan.nighttime_toileting],
+                    ['Irregular Bowel',       camper.personal_care_plan.irregular_bowel],
+                    ['Urinary Catheter',      camper.personal_care_plan.urinary_catheter],
+                    ['Menstruation Support',  camper.personal_care_plan.menstruation_support],
+                    ['Falling Asleep Issues', camper.personal_care_plan.falling_asleep_issues],
+                    ['Sleep Walking',         camper.personal_care_plan.sleep_walking],
+                    ['Night Wandering',       camper.personal_care_plan.night_wandering],
+                  ].filter(([, v]) => v === true) as [string, boolean][];
+                  if (flags.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>Care Flags</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {flags.map(([label]) => (
+                          <span
+                            key={label}
+                            className="text-xs px-2 py-0.5 rounded-full border"
+                            style={{ background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.25)', color: 'var(--warm-amber)' }}
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      {camper.personal_care_plan.nighttime_notes && (
+                        <p className="text-xs mt-1.5" style={{ color: 'var(--foreground)' }}>
+                          Nighttime notes: {camper.personal_care_plan.nighttime_notes}
+                        </p>
+                      )}
+                      {camper.personal_care_plan.irregular_bowel_notes && (
+                        <p className="text-xs mt-1" style={{ color: 'var(--foreground)' }}>
+                          Bowel notes: {camper.personal_care_plan.irregular_bowel_notes}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </SectionCard>
+          )}
+
           {/* Assistive devices */}
           {camper?.assistive_devices && camper.assistive_devices.length > 0 && (
-            <SectionCard title="Assistive Devices" icon={<Wrench className="h-4 w-4" />}>
+            <SectionCard title="Equipment & Mobility" icon={<Wrench className="h-4 w-4" />}>
                 <div className="space-y-2">
                   {camper.assistive_devices.map((d) => (
                     <div key={d.id} className="text-sm">
@@ -1600,7 +2066,7 @@ export function ApplicationReviewPage() {
 
           {/* Activity permissions — circles colored by permission level (green/amber/red). */}
           {camper?.activity_permissions && camper.activity_permissions.length > 0 && (
-            <SectionCard title="Activity Permissions" icon={<Activity className="h-4 w-4" />}>
+            <SectionCard title="Activities & Permissions" icon={<Activity className="h-4 w-4" />}>
                 <div className="space-y-2">
                   {camper.activity_permissions.map((p) => (
                     <div key={p.id} className="flex items-start gap-2 text-sm">
@@ -1620,70 +2086,312 @@ export function ApplicationReviewPage() {
             </SectionCard>
           )}
 
-          {/* Official Forms Checklist — at-a-glance status of the required forms */}
-          <SectionCard title="Application Components" icon={<CheckCircle className="h-4 w-4" />}>
-            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-              {/* Digital application form — complete when submitted (is_draft=false) */}
-              <div className="flex items-center justify-between gap-4 py-2.5">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {application.submitted_at && !application.is_draft ? (
-                    <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-                  ) : (
-                    <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
-                  )}
-                  <div className="min-w-0">
-                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>Application Form</span>
-                    <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>(digital)</span>
-                  </div>
-                </div>
-                <span
-                  className="text-xs font-medium"
-                  style={{
-                    color: application.submitted_at && !application.is_draft ? '#16a34a' : '#ca8a04',
-                  }}
-                >
-                  {application.submitted_at && !application.is_draft ? 'Submitted' : 'Not submitted'}
-                </span>
-              </div>
+          {/*
+           * Required Documents — the application review control center for document decisions.
+           *
+           * Each document shows one of five distinct states (never ambiguous):
+           *   • Not uploaded        — file was never submitted
+           *   • Uploaded — awaiting review — file received, verification pending (verification_status=pending)
+           *   • Verified            — admin confirmed the document is valid (verification_status=approved)
+           *   • Rejected            — admin rejected; applicant must re-submit (verification_status=rejected)
+           *   • Expired             — document has a past expiration_date regardless of verification state
+           *
+           * Inline Verify / Reject buttons allow the reviewer to handle required documents
+           * entirely within this page — no detour to the global Documents page required.
+           *
+           * Conditional document rows appear only when the camper's data triggers the requirement,
+           * matching exactly the conditions checked in applicant form Section 9.
+           */}
+          <SectionCard
+            title="Required Documents"
+            icon={<CheckCircle className="h-4 w-4" />}
+          >
+            {(() => {
+              // Resolve a document's display state from persisted data, not frontend guesses.
+              // When multiple documents of the same type exist, prefer: approved > pending > rejected,
+              // so a reviewer sees the best available state rather than whichever arrived first.
+              // Accepts multiple types so the medical exam row can match both 'official_medical_form'
+              // (current canonical key) and 'physical_examination' (legacy key, pre-000005 migration).
+              function docState(...docTypes: string[]) {
+                const candidates = (application?.documents ?? []).filter((d) => d.document_type != null && docTypes.includes(d.document_type));
+                if (candidates.length === 0) {
+                  return { icon: 'missing' as const, color: '#ca8a04', label: 'Not uploaded', doc: null };
+                }
+                // Pick the best candidate: approved first, then pending, then rejected
+                const best =
+                  candidates.find((d) => d.verification_status === 'approved') ??
+                  candidates.find((d) => !d.verification_status || d.verification_status === 'pending') ??
+                  candidates[0];
+                const doc = best;
+                const isExpired = doc.expiration_date && new Date(doc.expiration_date) < new Date();
+                if (isExpired) {
+                  return { icon: 'expired' as const, color: '#dc2626', label: 'Expired — re-submission required', doc };
+                }
+                switch (doc.verification_status) {
+                  case 'approved':
+                    return { icon: 'verified' as const, color: '#16a34a', label: 'Verified', doc };
+                  case 'rejected':
+                    return { icon: 'rejected' as const, color: '#dc2626', label: 'Rejected — replacement required', doc };
+                  default:
+                    // 'pending' or undefined (legacy documents without a status value default to pending)
+                    return { icon: 'pending' as const, color: '#ca8a04', label: 'Uploaded — awaiting review', doc };
+                }
+              }
 
-              {/* Medical Exam Form — must be uploaded as official_medical_form document */}
-              {(() => {
-                const medicalDoc = application.documents?.find(
-                  (d) => d.document_type === 'official_medical_form'
-                );
-                return (
+              // Required document list — built from the backend compliance API (backendRequiredDocs) when
+              // available, falling back to a locally-computed list while the async call is in flight or if
+              // it fails.  Using the backend list ensures the admin review display and the backend approval
+              // enforcement gate always agree on which documents are required for this specific camper.
+              //
+              // 'official_medical_form' is intentionally excluded from allDocs because it is rendered as
+              // a dedicated hardcoded row (with inline Verify/Reject) in the section above this map.
+
+              type DocEntry = { type: string; label: string };
+
+              let allDocs: DocEntry[];
+
+              // Document types rendered as dedicated hardcoded rows above this map.
+              // Filtering them here prevents duplicate rows in the allDocs section.
+              // 'physical_examination' is the legacy key that was in required_document_rules
+              // before migration 000005 renamed the rule to 'official_medical_form'.
+              // 'medical_exam' is a seeder-era type present in databases seeded before
+              // the DocumentSeeder was corrected — included so those records don't produce
+              // phantom required-doc rows in the generic allDocs section.
+              // All three must be excluded here; the dedicated row handles display for all.
+              const DEDICATED_ROW_TYPES = new Set(['official_medical_form', 'physical_examination', 'medical_exam']);
+
+              if (backendRequiredDocs !== null) {
+                // Backend-authoritative path: use the full backend-computed list.
+                allDocs = backendRequiredDocs
+                  .filter((d) => !DEDICATED_ROW_TYPES.has(d.document_type))
+                  .map((d) => ({
+                    type: d.document_type,
+                    label: getDocumentLabel(d.document_type, 'admin'),
+                  }));
+              } else {
+                // Fallback path (backend call still in-flight or failed): derive from loaded camper data.
+                // This mirrors the RequiredDocumentRuleSeeder conditions and serves as a degraded-mode display.
+                const universalDocs: DocEntry[] = UNIVERSAL_REQUIRED_DOC_TYPES.map((type) => ({
+                  type,
+                  label: getDocumentLabel(type, 'admin'),
+                }));
+
+                const conditionalDocs: DocEntry[] = [];
+
+                if (medical?.has_seizures) {
+                  conditionalDocs.push({ type: 'seizure_action_plan', label: getDocumentLabel('seizure_action_plan', 'admin') });
+                  conditionalDocs.push({ type: 'seizure_medication_authorization', label: getDocumentLabel('seizure_medication_authorization', 'admin') });
+                }
+                if (camper?.feeding_plan?.g_tube) {
+                  conditionalDocs.push({ type: 'feeding_action_plan', label: getDocumentLabel('feeding_action_plan', 'admin') });
+                  conditionalDocs.push({ type: 'feeding_equipment_list', label: getDocumentLabel('feeding_equipment_list', 'admin') });
+                }
+                if (camper?.behavioral_profile?.one_to_one_supervision) {
+                  conditionalDocs.push({ type: 'behavioral_support_plan', label: getDocumentLabel('behavioral_support_plan', 'admin') });
+                  conditionalDocs.push({ type: 'staffing_accommodation_request', label: getDocumentLabel('staffing_accommodation_request', 'admin') });
+                }
+                if (camper?.behavioral_profile?.wandering_risk) {
+                  conditionalDocs.push({ type: 'elopement_prevention_plan', label: getDocumentLabel('elopement_prevention_plan', 'admin') });
+                }
+                if (camper?.behavioral_profile?.aggression) {
+                  conditionalDocs.push({ type: 'crisis_intervention_plan', label: getDocumentLabel('crisis_intervention_plan', 'admin') });
+                }
+                if (camper?.assistive_devices?.some((d) => d.device_type?.toLowerCase().includes('cpap'))) {
+                  conditionalDocs.push({ type: 'cpap_waiver', label: getDocumentLabel('cpap_waiver', 'admin') });
+                }
+                if (camper?.assistive_devices?.some((d) => d.device_type?.toLowerCase().includes('neurostimulator'))) {
+                  conditionalDocs.push({ type: 'device_management_plan', label: getDocumentLabel('device_management_plan', 'admin') });
+                }
+
+                allDocs = [...universalDocs, ...conditionalDocs];
+              }
+
+              return (
+                <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+                  {/* Application form row */}
                   <div className="flex items-center justify-between gap-4 py-2.5">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {medicalDoc ? (
+                      {application.submitted_at && !application.is_draft ? (
                         <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
                       ) : (
                         <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
                       )}
                       <div className="min-w-0">
-                        <span className="text-sm" style={{ color: 'var(--foreground)' }}>Medical Exam Form</span>
-                        <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>(upload required)</span>
+                        <span className="text-sm" style={{ color: 'var(--foreground)' }}>Application Form</span>
                       </div>
                     </div>
-                    {medicalDoc ? (
-                      <button
-                        onClick={() => handleDownload(medicalDoc.id, medicalDoc.name ?? medicalDoc.file_name)}
-                        className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
-                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                      >
-                        <Download className="h-3 w-3" />
-                        Download
-                      </button>
-                    ) : (
-                      <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>Not uploaded</span>
-                    )}
+                    <span
+                      className="text-xs font-medium"
+                      style={{ color: application.submitted_at && !application.is_draft ? '#16a34a' : '#ca8a04' }}
+                    >
+                      {application.submitted_at && !application.is_draft ? 'Submitted' : 'Not submitted'}
+                    </span>
                   </div>
-                );
-              })()}
-            </div>
+
+                  {/* Medical Examination Form row — always required; physician-completed Form 4523-ENG-DPH.
+                      Shown here (not via allDocs map) because it is an uploaded file that needs verify/reject,
+                      unlike the application form row above which reflects digital-form completion status.
+                      'official_medical_form' (current), 'physical_examination' (legacy pre-000005),
+                      and 'medical_exam' (seeder-era key corrected by 2026_04_11_000001 migration)
+                      are all searched so historical data renders correctly in all database states. */}
+                  {(() => {
+                    const state = docState('official_medical_form', 'physical_examination', 'medical_exam');
+                    const isVerifying = verifyingDocId === state.doc?.id;
+                    return (
+                      <div className="flex items-start justify-between gap-4 py-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {state.icon === 'verified' ? (
+                            <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          ) : state.icon === 'rejected' || state.icon === 'expired' ? (
+                            <XCircle className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          ) : state.icon === 'pending' ? (
+                            <Clock className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          )}
+                          <div className="min-w-0">
+                            <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+                              {getDocumentLabel('official_medical_form', 'admin')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                          <span className="text-xs font-medium" style={{ color: state.color }}>{state.label}</span>
+                          {state.doc && (
+                            <>
+                              <button
+                                onClick={() => handleView(state.doc!.id)}
+                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                              >
+                                <Eye className="h-3 w-3" />
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDownload(state.doc!.id, state.doc!.name ?? state.doc!.file_name)}
+                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                              >
+                                <Download className="h-3 w-3" />
+                                Download
+                              </button>
+                              {state.icon === 'pending' && (
+                                <>
+                                  <button
+                                    disabled={isVerifying}
+                                    onClick={() => handleVerifyDocument(state.doc!.id, 'approved')}
+                                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors"
+                                    style={{ borderColor: 'rgba(22,163,74,0.4)', color: '#16a34a', background: 'rgba(22,163,74,0.07)', opacity: isVerifying ? 0.6 : 1 }}
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                    {isVerifying ? '…' : 'Verify'}
+                                  </button>
+                                  <button
+                                    disabled={isVerifying}
+                                    onClick={() => handleVerifyDocument(state.doc!.id, 'rejected')}
+                                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors"
+                                    style={{ borderColor: 'rgba(220,38,38,0.35)', color: '#dc2626', background: 'rgba(220,38,38,0.07)', opacity: isVerifying ? 0.6 : 1 }}
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Document rows — one per required type, with deterministic state and inline verify/reject */}
+                  {allDocs.map(({ type, label }) => {
+                    const state = docState(type);
+                    const isVerifying = verifyingDocId === state.doc?.id;
+                    return (
+                      <div key={type} className="flex items-start justify-between gap-4 py-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {state.icon === 'verified' ? (
+                            <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          ) : state.icon === 'rejected' || state.icon === 'expired' ? (
+                            <XCircle className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          ) : state.icon === 'pending' ? (
+                            <Clock className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: state.color }} />
+                          )}
+                          <div className="min-w-0">
+                            <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                          <span className="text-xs font-medium" style={{ color: state.color }}>{state.label}</span>
+                          {state.doc && (
+                            <>
+                              <button
+                                onClick={() => handleView(state.doc!.id)}
+                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                              >
+                                <Eye className="h-3 w-3" />
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDownload(state.doc!.id, state.doc!.name ?? state.doc!.file_name)}
+                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                              >
+                                <Download className="h-3 w-3" />
+                                Download
+                              </button>
+                              {/* Inline verify/reject — only shown for documents awaiting review.
+                                  This is the core workflow improvement: the reviewer never needs to leave
+                                  this page to complete required document verification. */}
+                              {state.icon === 'pending' && (
+                                <>
+                                  <button
+                                    disabled={isVerifying}
+                                    onClick={() => handleVerifyDocument(state.doc!.id, 'approved')}
+                                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors"
+                                    style={{
+                                      borderColor: 'rgba(22,163,74,0.4)',
+                                      color: '#16a34a',
+                                      background: 'rgba(22,163,74,0.07)',
+                                      opacity: isVerifying ? 0.6 : 1,
+                                    }}
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                    {isVerifying ? '…' : 'Verify'}
+                                  </button>
+                                  <button
+                                    disabled={isVerifying}
+                                    onClick={() => handleVerifyDocument(state.doc!.id, 'rejected')}
+                                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors"
+                                    style={{
+                                      borderColor: 'rgba(220,38,38,0.35)',
+                                      color: '#dc2626',
+                                      background: 'rgba(220,38,38,0.07)',
+                                      opacity: isVerifying ? 0.6 : 1,
+                                    }}
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </SectionCard>
 
           {/* Guardian consents — compliance checklist showing all 7 required consent types */}
-          <SectionCard title="Guardian Consents" icon={<ShieldCheck className="h-4 w-4" />}>
+          <SectionCard title="Consents & Signatures" icon={<ShieldCheck className="h-4 w-4" />}>
             {(() => {
               const CONSENT_LABELS: Record<string, string> = {
                 general:       'General Camp Participation',
@@ -1736,9 +2444,12 @@ export function ApplicationReviewPage() {
             })()}
           </SectionCard>
 
-          {/* Documents — view, download, and upload on behalf of applicant */}
+          {/* Supplementary Documents — additional files uploaded beyond the required checklist.
+               Required document types (official_medical_form, immunization_record, insurance_card,
+               and any condition-specific docs) are already shown in the Required Documents section
+               above and are excluded here to prevent duplication and contradictory empty states. */}
           <SectionCard
-            title={t('admin.review.documents')}
+            title="Supplementary Documents"
             icon={<FileText className="h-4 w-4" />}
             headerAction={
               <button
@@ -1765,13 +2476,20 @@ export function ApplicationReviewPage() {
               }}
             />
 
-            {!application.documents || application.documents.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                {t('admin.review.no_documents')}
-              </p>
-            ) : (
+            {(() => {
+              const supplementaryDocs = (application.documents ?? []).filter(
+                (d) => !isRequiredDocumentType(d.document_type),
+              );
+              if (supplementaryDocs.length === 0) {
+                return (
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    No supplementary documents attached.
+                  </p>
+                );
+              }
+              return (
               <div className="space-y-2">
-                {application.documents.map((doc) => (
+                {supplementaryDocs.map((doc) => (
                   <div
                     key={doc.id}
                     className="flex items-center justify-between p-3 rounded-lg border"
@@ -1786,11 +2504,35 @@ export function ApplicationReviewPage() {
                             const bytes = doc.file_size ?? doc.size;
                             return bytes != null ? `${(bytes / 1024).toFixed(1)} KB` : null;
                           })()}
-                          {doc.document_type && <> · {doc.document_type.replace(/_/g, ' ')}</>}
+                          {doc.document_type && <> · {getDocumentLabel(doc.document_type, 'admin')}</>}
                         </p>
+                        {/* Verification state badge — shows staff the current review status of each document */}
+                        {doc.verification_status && (
+                          <span
+                            className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded font-medium"
+                            style={{
+                              background: doc.verification_status === 'approved'
+                                ? 'rgba(22,163,74,0.1)'
+                                : doc.verification_status === 'rejected'
+                                  ? 'rgba(220,38,38,0.1)'
+                                  : 'rgba(202,138,4,0.1)',
+                              color: doc.verification_status === 'approved'
+                                ? '#16a34a'
+                                : doc.verification_status === 'rejected'
+                                  ? '#dc2626'
+                                  : '#ca8a04',
+                            }}
+                          >
+                            {doc.verification_status === 'approved'
+                              ? 'Verified'
+                              : doc.verification_status === 'rejected'
+                                ? 'Rejected'
+                                : 'Awaiting Review'}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                       <button
                         onClick={() => handleView(doc.id)}
                         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
@@ -1807,11 +2549,49 @@ export function ApplicationReviewPage() {
                         <Download className="h-3 w-3" />
                         {t('common.download')}
                       </button>
+                      {/* Inline verify/reject for pending documents — reviewers can action
+                          all uploaded files without leaving the application review page. */}
+                      {(!doc.verification_status || doc.verification_status === 'pending') && (() => {
+                        const isVerifying = verifyingDocId === doc.id;
+                        return (
+                          <>
+                            <button
+                              disabled={isVerifying}
+                              onClick={() => handleVerifyDocument(doc.id, 'approved')}
+                              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                              style={{
+                                borderColor: 'rgba(22,163,74,0.4)',
+                                color: '#16a34a',
+                                background: 'rgba(22,163,74,0.07)',
+                                opacity: isVerifying ? 0.6 : 1,
+                              }}
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                              {isVerifying ? '…' : 'Verify'}
+                            </button>
+                            <button
+                              disabled={isVerifying}
+                              onClick={() => handleVerifyDocument(doc.id, 'rejected')}
+                              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                              style={{
+                                borderColor: 'rgba(220,38,38,0.35)',
+                                color: '#dc2626',
+                                background: 'rgba(220,38,38,0.07)',
+                                opacity: isVerifying ? 0.6 : 1,
+                              }}
+                            >
+                              <XCircle className="h-3 w-3" />
+                              Reject
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+              );
+            })()}
           </SectionCard>
 
           {/* Digital signature — only shown if the application was signed. */}

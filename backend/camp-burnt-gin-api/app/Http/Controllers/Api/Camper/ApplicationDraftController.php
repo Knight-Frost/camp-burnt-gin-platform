@@ -45,10 +45,22 @@ class ApplicationDraftController extends Controller
      *
      * POST /api/application-drafts
      * Body: { label?: string }
+     *
+     * Rate-limited to 10 drafts per user. Parents rarely need more than a
+     * handful of concurrent in-progress applications; exceeding this limit
+     * almost always indicates a frontend bug (e.g. rapid navigation looping).
      */
     public function store(Request $request): JsonResponse
     {
         $this->authorize('create', ApplicationDraft::class);
+
+        // Guard against runaway draft creation (buggy clients, automated abuse).
+        $existingCount = ApplicationDraft::where('user_id', $request->user()->id)->count();
+        if ($existingCount >= 10) {
+            return response()->json([
+                'message' => 'Draft limit reached. Please delete an existing draft before creating a new one.',
+            ], Response::HTTP_TOO_MANY_REQUESTS);
+        }
 
         $validated = $request->validate([
             'label' => ['sometimes', 'string', 'max:255'],
@@ -97,6 +109,17 @@ class ApplicationDraftController extends Controller
             'draft_data' => ['required', 'array'],
             'last_known_updated_at' => ['sometimes', 'nullable', 'string'],
         ]);
+
+        // Guard against pathologically large payloads. A fully-completed application
+        // form with all narratives, medications, and device notes is well under 64 KB.
+        // 512 KB is a generous ceiling that catches unbounded growth without impacting
+        // any legitimate use.
+        $payloadSize = strlen((string) json_encode($validated['draft_data']));
+        if ($payloadSize > 524288) { // 512 KB
+            return response()->json([
+                'message' => 'Draft data exceeds the maximum allowed size of 512 KB.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         // Optimistic locking: reject if the client's last-known timestamp doesn't
         // match the server's current updated_at, indicating a concurrent save won.

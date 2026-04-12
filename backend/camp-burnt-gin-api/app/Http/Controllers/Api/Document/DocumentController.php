@@ -65,10 +65,26 @@ class DocumentController extends Controller
         $documentableId = $request->input('documentable_id');
         $verificationStatus = $request->input('verification_status');
         $search = $request->input('search');
+        // When true, show only archived documents; when false (default), hide them.
+        $includeArchived = filter_var($request->input('include_archived', false), FILTER_VALIDATE_BOOLEAN);
 
         if ($user->isAdmin()) {
             // Admins see everything; apply optional admin-specific filters
             $query = Document::with('documentable', 'uploader')->latest();
+
+            // Archive filter: by default exclude archived documents from the active workflow view.
+            // Pass ?include_archived=true to see only archived documents (the Archived tab).
+            if ($includeArchived) {
+                $query->whereNotNull('archived_at');
+            } else {
+                $query->whereNull('archived_at');
+            }
+
+            // Submission gate: admins only see submitted documents (submitted_at IS NOT NULL).
+            // Draft documents (submitted_at = null) belong to applicants who haven't
+            // finished staging their upload — exposing them to admins before submission
+            // breaks the "upload ≠ submission" privacy model.
+            $query->whereNotNull('submitted_at');
 
             // Optional filter: restrict to a specific entity type (e.g., "App\Models\Camper")
             if ($documentableType) {
@@ -114,6 +130,10 @@ class DocumentController extends Controller
             if ($documentableId) {
                 $query->where('documentable_id', (int) $documentableId);
             }
+
+            // Medical providers only see submitted documents — drafts are still private
+            // staging uploads by the applicant and have not been formally sent to staff.
+            $query->whereNotNull('submitted_at');
 
             $documents = $query->latest()->paginate(15);
         } elseif ($user->isApplicant()) {
@@ -323,6 +343,8 @@ class DocumentController extends Controller
             // Human-readable name of the entity this document is attached to (e.g., camper name)
             'documentable_name' => $this->resolveDocumentableName($document),
             'created_at' => $document->created_at,
+            'archived_at' => $document->archived_at,
+            'submitted_at' => $document->submitted_at,
             // Authenticated download URL — the frontend uses this to trigger the download
             'url' => url("/api/documents/{$document->id}/download"),
         ];
@@ -331,17 +353,110 @@ class DocumentController extends Controller
     /**
      * Resolve a human-readable name for the entity this document is attached to.
      *
-     * Currently only handles Camper entities; returns null for all other documentable types.
-     * This is used in the admin document list to show "attached to: John Doe" instead of an ID.
+     * Used in the admin document list to show "attached to: John Doe" instead of a raw ID.
+     * Returns null for standalone documents (no documentable) or unrecognised types.
      */
     private function resolveDocumentableName(Document $document): ?string
     {
-        if ($document->documentable_type === 'App\\Models\\Camper') {
+        return match ($document->documentable_type) {
             // full_name is a computed accessor on the Camper model (first_name + last_name)
-            return $document->documentable?->full_name;
+            'App\\Models\\Camper' => $document->documentable?->full_name,
+            // For application and medical record documents, show the associated camper's name
+            'App\\Models\\Application' => $document->documentable?->camper?->full_name,
+            'App\\Models\\MedicalRecord' => $document->documentable?->camper?->full_name,
+            default => null,
+        };
+    }
+
+    /**
+     * Submit a draft document to staff (applicant action).
+     *
+     * Sets submitted_at = now(), making the document visible to admins for the first time.
+     * This enforces the "upload ≠ submission" privacy model — applicants can upload and
+     * review files before committing to send them to staff.
+     *
+     * Authorization: only the uploader (or an admin) may submit a document.
+     */
+    public function submit(Request $request, Document $document): JsonResponse
+    {
+        $this->authorize('view', $document);
+
+        // Guard: already submitted — idempotent, not an error
+        if ($document->submitted_at !== null) {
+            return response()->json([
+                'message' => 'Document already submitted.',
+                'data' => $this->transformDocument($document),
+            ]);
         }
 
-        return null;
+        // Only the uploader or an admin may submit
+        $user = $request->user();
+        if (! $user->isAdmin() && $document->uploaded_by !== $user->id) {
+            return response()->json([
+                'message' => 'You do not have permission to submit this document.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $document->update(['submitted_at' => now()]);
+
+        AuditLog::logPhiAccess(
+            'document_submit',
+            $user,
+            $document,
+            ['document_type' => $document->document_type]
+        );
+
+        return response()->json([
+            'message' => 'Document submitted to staff.',
+            'data' => $this->transformDocument($document->fresh()),
+        ]);
+    }
+
+    /**
+     * Archive a document — hide it from the active workflow view without deleting it.
+     *
+     * Archived documents remain in the database and can be restored at any time.
+     * This is the preferred non-destructive cleanup action for admins.
+     */
+    public function archive(Document $document): JsonResponse
+    {
+        $this->authorize('delete', $document);
+
+        $document->update(['archived_at' => now()]);
+
+        AuditLog::logPhiAccess(
+            'document_archive',
+            request()->user(),
+            $document,
+            ['document_type' => $document->document_type]
+        );
+
+        return response()->json([
+            'message' => 'Document archived.',
+            'data' => $this->transformDocument($document->fresh()),
+        ]);
+    }
+
+    /**
+     * Restore a previously archived document back to the active workflow view.
+     */
+    public function restore(Document $document): JsonResponse
+    {
+        $this->authorize('delete', $document);
+
+        $document->update(['archived_at' => null]);
+
+        AuditLog::logPhiAccess(
+            'document_restore',
+            request()->user(),
+            $document,
+            ['document_type' => $document->document_type]
+        );
+
+        return response()->json([
+            'message' => 'Document restored.',
+            'data' => $this->transformDocument($document->fresh()),
+        ]);
     }
 
     /**

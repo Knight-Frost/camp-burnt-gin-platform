@@ -57,10 +57,16 @@ class ApplicationCompletenessService
      * Loads required relationships before checking; safe to call with an already-
      * loaded application (loadMissing is idempotent).
      *
+     * unverified_documents is returned separately from missing_documents so that
+     * the approval warning modal can display "uploaded but not yet verified" as a
+     * distinct state from "never uploaded." Conflating the two misleads admins into
+     * thinking documents are absent when they have in fact been submitted.
+     *
      * @return array{
      *   is_complete: bool,
      *   missing_fields: list<array{key: string, label: string, severity: string}>,
      *   missing_documents: list<array{key: string, label: string, severity: string}>,
+     *   unverified_documents: list<array{key: string, label: string, severity: string}>,
      *   missing_consents: list<array{key: string, label: string, severity: string}>,
      * }
      */
@@ -70,17 +76,20 @@ class ApplicationCompletenessService
             'camper.emergencyContacts',
             'camper.medicalRecord',
             'consents',
-            'documents',
         ]);
 
         $missingFields = $this->checkCamperFields($application);
-        $missingDocuments = $this->checkDocuments($application);
+        [$missingDocuments, $unverifiedDocuments] = $this->checkDocuments($application);
         $missingConsents = $this->checkConsents($application);
 
         return [
-            'is_complete' => empty($missingFields) && empty($missingDocuments) && empty($missingConsents),
+            'is_complete' => empty($missingFields)
+                && empty($missingDocuments)
+                && empty($unverifiedDocuments)
+                && empty($missingConsents),
             'missing_fields' => $missingFields,
             'missing_documents' => $missingDocuments,
+            'unverified_documents' => $unverifiedDocuments,
             'missing_consents' => $missingConsents,
         ];
     }
@@ -138,54 +147,62 @@ class ApplicationCompletenessService
         return $missing;
     }
 
+    /**
+     * Check document completeness for the application's camper.
+     *
+     * Returns a two-element array: [missingDocuments, unverifiedDocuments].
+     *
+     * All document requirement evaluation is delegated to DocumentEnforcementService,
+     * which uses RequiredDocumentRule records seeded by RequiredDocumentRuleSeeder.
+     * Universal rules (official_medical_form, immunization_record, insurance_card) apply to every camper;
+     * condition-specific rules apply based on the camper's risk assessment.
+     *
+     * Documents are queried from the camper record (documentable_type = Camper), which
+     * is where the applicant form stores uploaded files. The show() endpoint merges
+     * camper-level and application-level documents for the UI, but compliance logic
+     * always operates against camper-level documents directly.
+     *
+     * Expired documents are included in missingDocuments because an expired document
+     * has the same effect as no document for compliance purposes.
+     *
+     * Unverified documents are returned separately — "uploaded but pending admin review"
+     * is a different state from "never submitted." Distinguishing them prevents the
+     * approval modal from falsely labelling existing files as missing.
+     *
+     * @return array{0: list<array{key: string, label: string, severity: string}>, 1: list<array{key: string, label: string, severity: string}>}
+     */
     private function checkDocuments(Application $application): array
     {
         $missing = [];
+        $unverified = [];
 
-        // The physician-completed medical form must have been uploaded.
-        $hasMedicalForm = $application->documents
-            ->where('document_type', 'official_medical_form')
-            ->isNotEmpty();
+        $compliance = $this->documentEnforcement->checkCompliance($application->camper);
 
-        if (! $hasMedicalForm) {
+        foreach ($compliance['missing_documents'] as $doc) {
             $missing[] = [
-                'key' => 'medical_form',
-                'label' => 'Medical Form (physician-completed) has not been uploaded',
+                'key' => 'doc_'.$doc['document_type'],
+                'label' => $doc['description'] ?? ucwords(str_replace('_', ' ', $doc['document_type'])),
                 'severity' => 'high',
             ];
         }
 
-        // Delegate dynamic document requirement evaluation to DocumentEnforcementService.
-        // This covers risk-based rules (seizure action plans, G-tube protocols, etc.).
-        if ($application->camper->medicalRecord) {
-            $compliance = $this->documentEnforcement->checkCompliance($application->camper);
-
-            foreach ($compliance['missing_documents'] as $doc) {
-                $missing[] = [
-                    'key' => 'doc_'.$doc['document_type'],
-                    'label' => $doc['description'] ?? ucwords(str_replace('_', ' ', $doc['document_type'])),
-                    'severity' => 'high',
-                ];
-            }
-
-            foreach ($compliance['expired_documents'] as $doc) {
-                $missing[] = [
-                    'key' => 'expired_'.($doc['document_id'] ?? $doc['document_type']),
-                    'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' has expired',
-                    'severity' => 'medium',
-                ];
-            }
-
-            foreach ($compliance['unverified_documents'] as $doc) {
-                $missing[] = [
-                    'key' => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
-                    'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' has not been verified by admin',
-                    'severity' => 'medium',
-                ];
-            }
+        foreach ($compliance['expired_documents'] as $doc) {
+            $missing[] = [
+                'key' => 'expired_'.($doc['document_id'] ?? $doc['document_type']),
+                'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' has expired',
+                'severity' => 'medium',
+            ];
         }
 
-        return $missing;
+        foreach ($compliance['unverified_documents'] as $doc) {
+            $unverified[] = [
+                'key' => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
+                'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' — uploaded, pending admin verification',
+                'severity' => 'medium',
+            ];
+        }
+
+        return [$missing, $unverified];
     }
 
     private function checkConsents(Application $application): array

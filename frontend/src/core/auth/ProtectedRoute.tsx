@@ -24,16 +24,6 @@ import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { FullPageLoader } from '@/ui/components/FullPageLoader';
 
-/** Roles that must have MFA enrolled before accessing any protected page. */
-const MFA_REQUIRED_ROLES = ['admin', 'super_admin', 'medical'] as const;
-
-/** Returns the portal-specific profile path for a given role name. */
-function getProfileRouteForRole(roleName: string): string {
-  if (roleName === 'super_admin') return '/super-admin/profile';
-  if (roleName === 'medical')     return '/medical/profile';
-  if (roleName === 'admin')       return '/admin/profile';
-  return ROUTES.PROFILE;
-}
 
 export function ProtectedRoute() {
   // Read auth state from Redux — this is the single source of truth for login status
@@ -64,29 +54,7 @@ export function ProtectedRoute() {
     return <Navigate to={ROUTES.MFA_VERIFY} replace />;
   }
 
-  // Check 4: MFA enrollment gate for privileged roles.
-  // admin/super_admin/medical users must have MFA enrolled before accessing the app.
-  // Only redirect when mfa_enabled is explicitly false — undefined/null means the user
-  // record hasn't loaded fully yet, so we let it through rather than flashing a redirect.
-  if (user && user.mfa_enabled === false) {
-    const primaryRole = user.role ?? user.roles?.[0]?.name ?? '';
-    const requiresMfa = (MFA_REQUIRED_ROLES as readonly string[]).includes(primaryRole);
-    if (requiresMfa) {
-      const profileRoute = getProfileRouteForRole(primaryRole);
-      // Don't redirect if they're already on their profile page — avoids a redirect loop
-      if (location.pathname !== profileRoute) {
-        return (
-          <Navigate
-            to={profileRoute}
-            state={{ mfaSetupRequired: true }}
-            replace
-          />
-        );
-      }
-    }
-  }
-
-  // Check 5: Email not yet verified — all protected API routes require a verified email.
+  // Check 4: Email not yet verified — all protected API routes require a verified email.
   // Redirect to the pending-verification screen rather than letting dashboard calls fail.
   if (user && !user.email_verified_at) {
     return <Navigate to="/verify-email?pending=true" replace />;

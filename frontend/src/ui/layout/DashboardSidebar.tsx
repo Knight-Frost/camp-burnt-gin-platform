@@ -372,7 +372,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
         }}
         aria-label="Sidebar"
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-hidden">
           {brandHeader}
           {navList}
           {pinnedNav}
@@ -429,7 +429,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
               <X className="h-4 w-4" />
             </button>
             {/* Same content as the desktop sidebar — reuses the shared fragments */}
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full overflow-hidden">
               {brandHeader}
               {navList}
               {pinnedNav}

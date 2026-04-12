@@ -86,6 +86,9 @@ export interface CreateApplicationPayload {
   first_application?: boolean;
   attended_before?: boolean;
   session_id_second?: number;
+  // Reapplication audit trail — set when this application originates from a
+  // previous one. Links the new record to the original for admin visibility.
+  reapplied_from_id?: number;
 }
 
 export async function createApplication(
@@ -147,10 +150,12 @@ export async function storeConsents(
 }
 
 /**
- * Clone an application into a new draft for reapplication.
- * The clone shares the same camper_id but has no session, status=pending,
- * is_draft=true, and reapplied_from_id pointing to the source application.
- * The parent must then select a new session before submitting.
+ * Clone an existing terminal application into a new draft.
+ * The clone shares the same camper_id, is_draft=true, and reapplied_from_id
+ * pointing to the source application. Only terminal applications can be cloned.
+ * NOTE: This endpoint is kept for administrative use. The applicant-facing
+ * "Apply for a New Session" flow does not call this — it passes reapplied_from_id
+ * through the standard createApplication() call instead.
  */
 export async function cloneApplication(id: number): Promise<Application> {
   const { data } = await axiosInstance.post<ApiResponse<Application>>(
@@ -474,10 +479,11 @@ export async function createActivityPermission(
   await axiosInstance.post('/activity-permissions', payload);
 }
 
-export async function uploadDocument(formData: FormData): Promise<void> {
-  await axiosInstance.post('/documents', formData, {
+export async function uploadDocument(formData: FormData): Promise<Document> {
+  const { data } = await axiosInstance.post<ApiResponse<Document>>('/documents', formData, {
     headers: { 'Content-Type': undefined },
   });
+  return data.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -487,11 +493,15 @@ export async function uploadDocument(formData: FormData): Promise<void> {
 export interface Document {
   id: number;
   file_name: string;
+  /** Raw model field name — present when document comes from eager-loaded relation (not API transform). */
+  original_filename?: string;
   document_type: string;
   mime_type: string;
   size: number;
   created_at: string;
   url: string;
+  /** Null = draft (not yet submitted to staff). Set = submitted and visible to admins. */
+  submitted_at: string | null;
 }
 
 export async function getDocuments(): Promise<Document[]> {
@@ -501,6 +511,12 @@ export async function getDocuments(): Promise<Document[]> {
 
 export async function deleteDocument(id: number): Promise<void> {
   await axiosInstance.delete(`/documents/${id}`);
+}
+
+/** Promote a draft document to submitted state, making it visible to admins. */
+export async function submitDocument(id: number): Promise<Document> {
+  const { data } = await axiosInstance.patch<{ data: Document }>(`/documents/${id}/submit`);
+  return data.data;
 }
 
 // ─── Required Documents (sent by admin) ──────────────────────────────────────

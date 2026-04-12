@@ -8,7 +8,6 @@
  *   - Allow filtering by view mode (all / active / past) and by specific status
  *   - Sort the filtered list newest-first or oldest-first
  *   - Render applications in grouped sections: Drafts, Active, Past
- *   - Offer a "Re-apply" button on resolved applications that pre-fills camper info
  *
  * Plain-English: This is the parent's filing cabinet — every application they've
  * ever started or submitted lives here, organized so the ones that still need
@@ -22,7 +21,6 @@ import {
   FileText,
   ArrowRight,
   Calendar,
-  RefreshCw,
   ChevronDown,
   SlidersHorizontal,
   Trash2,
@@ -39,8 +37,8 @@ import {
   deleteApplication as apiDeleteApplication,
   type ApplicationDraft,
 } from '@/features/parent/api/applicant.api';
-import type { Application, ApplicationStatus } from '@/shared/types';
-import type { CamperInfoValues } from '@/features/parent/schemas/application.schema';
+import type { Application, ApplicationStatus, Camper } from '@/shared/types';
+import { NewSessionModal } from '@/features/parent/components/NewSessionModal';
 import { ROUTES } from '@/shared/constants/routes';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { EmptyState } from '@/ui/components/EmptyState';
@@ -104,6 +102,7 @@ function DeleteDraftModal({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby="delete-draft-dialog-title"
         className="w-full max-w-sm rounded-2xl p-6 shadow-xl flex flex-col gap-4"
         style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
@@ -116,7 +115,7 @@ function DeleteDraftModal({
             <AlertTriangle className="h-5 w-5 text-red-600" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+            <h3 id="delete-draft-dialog-title" className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
               Delete Draft Application
             </h3>
             <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -152,16 +151,24 @@ function DeleteDraftModal({
   );
 }
 
+// Terminal application statuses — these allow initiating a new session application
+// directly from the list row without navigating into the detail page.
+const TERMINAL_STATUSES_SET = new Set(['approved', 'rejected', 'withdrawn', 'cancelled']);
+
 // Single application row — a card that links to the detail page
 function AppCard({
   app,
   onDeleteDraft,
+  onNewSession,
 }: {
   app: Application;
   onDeleteDraft?: (app: Application) => void;
+  /** Called when the user clicks "New Session" on a terminal application row. */
+  onNewSession?: (app: Application) => void;
 }) {
   const navigate = useNavigate();
   const isDraft = app.is_draft === true;
+  const isTerminal = !isDraft && TERMINAL_STATUSES_SET.has(app.status);
 
   return (
     <li>
@@ -228,31 +235,21 @@ function AppCard({
               )}
             </>
           ) : (
-            // Submitted/reviewed: show status badge and actions
+            // Submitted/reviewed: show status badge, optional "New Session" for terminal, and link to detail
             <>
               <StatusBadge status={app.status} />
-              {/* Re-apply button shown when the application has reached a terminal state */}
-              {(app.status === 'approved' || app.status === 'rejected' || app.status === 'cancelled' || app.status === 'withdrawn') && app.camper && (
+              {/* "New Session" shortcut on terminal rows — lets the user start a
+                  reapplication directly from the list without opening the detail page. */}
+              {isTerminal && onNewSession && (
                 <button
-                  onClick={() =>
-                    navigate(ROUTES.PARENT_APPLICATION_NEW, {
-                      state: {
-                        prefill: {
-                          first_name:    app.camper!.first_name,
-                          last_name:     app.camper!.last_name,
-                          date_of_birth: app.camper!.date_of_birth,
-                          gender:        app.camper!.gender as CamperInfoValues['gender'],
-                          tshirt_size:   app.camper!.tshirt_size as CamperInfoValues['tshirt_size'],
-                        } satisfies Partial<CamperInfoValues>,
-                      },
-                    })
-                  }
-                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                  title="Re-apply with same camper info"
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); onNewSession(app); }}
+                  className="hidden sm:flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)] whitespace-nowrap"
+                  style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)' }}
+                  title={`Apply for a new session for ${app.camper?.full_name ?? 'this camper'}`}
                 >
-                  <RefreshCw className="h-3 w-3" />
-                  Re-apply
+                  <Plus className="h-3 w-3" />
+                  New Session
                 </button>
               )}
               <Link to={ROUTES.PARENT_APPLICATION_DETAIL(app.id)}>
@@ -271,10 +268,12 @@ function AppGroup({
   title,
   apps,
   onDeleteDraft,
+  onNewSession,
 }: {
   title: string;
   apps: Application[];
   onDeleteDraft?: (app: Application) => void;
+  onNewSession?: (app: Application) => void;
 }) {
   // Render nothing when there are no apps in this group — avoids empty section headers
   if (apps.length === 0) return null;
@@ -300,7 +299,7 @@ function AppGroup({
         style={{ borderColor: 'var(--border)' }}
       >
         {apps.map((app) => (
-          <AppCard key={app.id} app={app} onDeleteDraft={onDeleteDraft} />
+          <AppCard key={app.id} app={app} onDeleteDraft={onDeleteDraft} onNewSession={onNewSession} />
         ))}
       </ul>
     </div>
@@ -308,7 +307,7 @@ function AppGroup({
 }
 
 // Special card shown when a sessionStorage draft is detected (not yet submitted to the server)
-function LocalDraftCard({ camperName }: { camperName: string | null }) {
+function LocalDraftCard({ camperName, onDelete }: { camperName: string | null; onDelete: () => void }) {
   const navigate = useNavigate();
   return (
     // Ember-orange border draws the eye to this unfinished draft
@@ -333,10 +332,21 @@ function LocalDraftCard({ camperName }: { camperName: string | null }) {
           </p>
         </div>
       </div>
-      {/* "Continue" navigates back to the form, which re-hydrates from sessionStorage */}
-      <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW)}>
-        Continue
-      </Button>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* "Continue" navigates back to the form, which re-hydrates from sessionStorage */}
+        <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW)}>
+          Continue
+        </Button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
+          style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+          title="Delete draft"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -433,8 +443,30 @@ export function ApplicantApplicationsPage() {
   // Holds camper name parsed from sessionStorage draft if one exists
   const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
   // Delete-draft confirmation modal state
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'draft'; id: number; camperName: string | null } | { type: 'application'; app: Application } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    | { type: 'localDraft'; camperName: string | null }
+    | { type: 'draft'; id: number; camperName: string | null }
+    | { type: 'application'; app: Application }
+    | null
+  >(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // "Apply for a New Session" modal — opened from a terminal application row.
+  // Stores: the camper for the modal header, and the source application ID for audit trail.
+  const [newSessionTarget, setNewSessionTarget] = useState<{
+    camper: Camper;
+    reappliedFromId: number;
+  } | null>(null);
+
+  /**
+   * Called when the user clicks "New Session" on a terminal application row.
+   * Uses the clicked application as the audit-trail source for the new application.
+   * The camper object must be present on the application (eager-loaded by the API).
+   */
+  function handleNewSessionFromApp(app: Application) {
+    if (!app.camper) return;
+    setNewSessionTarget({ camper: app.camper as Camper, reappliedFromId: app.id });
+  }
 
   // On mount, try to read the local draft key and extract the camper's name
   useEffect(() => {
@@ -475,11 +507,13 @@ export function ApplicantApplicationsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      if (deleteTarget.type === 'draft') {
-        await apiDeleteDraft(deleteTarget.id);
-        setServerDrafts((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      if (deleteTarget.type === 'localDraft') {
+        // Local-only draft — no server record, just clear sessionStorage
         sessionStorage.removeItem(localDraftKey);
         setLocalDraft(null);
+      } else if (deleteTarget.type === 'draft') {
+        await apiDeleteDraft(deleteTarget.id);
+        setServerDrafts((prev) => prev.filter((d) => d.id !== deleteTarget.id));
       } else {
         await apiDeleteApplication(deleteTarget.app.id);
         setApplications((prev) => prev.filter((a) => a.id !== deleteTarget.app.id));
@@ -526,11 +560,11 @@ export function ApplicantApplicationsPage() {
   );
 
   // Resolve the camper name for the delete modal based on target type
-  const deleteModalCamperName = deleteTarget?.type === 'draft'
-    ? deleteTarget.camperName
-    : deleteTarget?.type === 'application'
-      ? (deleteTarget.app.camper?.full_name ?? null)
-      : null;
+  const deleteModalCamperName =
+    deleteTarget?.type === 'localDraft' ? deleteTarget.camperName
+    : deleteTarget?.type === 'draft'    ? deleteTarget.camperName
+    : deleteTarget?.type === 'application' ? (deleteTarget.app.camper?.full_name ?? null)
+    : null;
 
   return (
     <>
@@ -694,7 +728,10 @@ export function ApplicantApplicationsPage() {
                     ))}
                     {/* LocalDraftCard is a fallback for pre-server-draft sessionStorage drafts */}
                     {localDraft && serverDrafts.length === 0 && (
-                      <LocalDraftCard camperName={localDraft.camperName} />
+                      <LocalDraftCard
+                        camperName={localDraft.camperName}
+                        onDelete={() => setDeleteTarget({ type: 'localDraft', camperName: localDraft.camperName })}
+                      />
                     )}
                     {draftApps.length > 0 && (
                       <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
@@ -711,7 +748,11 @@ export function ApplicantApplicationsPage() {
                   </div>
                 )}
                 <AppGroup title="Active Applications" apps={activeApps} />
-                <AppGroup title="Past Applications" apps={pastApps} />
+                <AppGroup
+                  title="Past Applications"
+                  apps={pastApps}
+                  onNewSession={handleNewSessionFromApp}
+                />
               </>
             ) : statusFilter === 'draft' ? (
               // When "Draft" is selected in the status filter, show server drafts + local draft
@@ -724,7 +765,10 @@ export function ApplicantApplicationsPage() {
                   />
                 ))}
                 {localDraft && serverDrafts.length === 0 && (
-                  <LocalDraftCard camperName={localDraft.camperName} />
+                  <LocalDraftCard
+                    camperName={localDraft.camperName}
+                    onDelete={() => setDeleteTarget({ type: 'localDraft', camperName: localDraft.camperName })}
+                  />
                 )}
                 {filtered.length > 0 && (
                   <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
@@ -747,7 +791,12 @@ export function ApplicantApplicationsPage() {
                   style={{ borderColor: 'var(--border)' }}
                 >
                   {filtered.map((app) => (
-                    <AppCard key={app.id} app={app} onDeleteDraft={requestDeleteApplication} />
+                    <AppCard
+                      key={app.id}
+                      app={app}
+                      onDeleteDraft={requestDeleteApplication}
+                      onNewSession={handleNewSessionFromApp}
+                    />
                   ))}
                 </ul>
               </div>
@@ -755,6 +804,17 @@ export function ApplicantApplicationsPage() {
           </div>
       )}
     </div>
+
+    {/* "Apply for a New Session" modal — opened from a terminal application row.
+        The camper and source application are determined by the row the user clicked. */}
+    {newSessionTarget && (
+      <NewSessionModal
+        camper={newSessionTarget.camper}
+        reappliedFromId={newSessionTarget.reappliedFromId}
+        existingApplications={applications}
+        onClose={() => setNewSessionTarget(null)}
+      />
+    )}
     </>
   );
 }

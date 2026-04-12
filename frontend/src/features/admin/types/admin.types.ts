@@ -17,6 +17,7 @@ export interface ApplicationReviewPayload {
   missing_summary?: {
     missing_fields: CompletenessItem[];
     missing_documents: CompletenessItem[];
+    unverified_documents: CompletenessItem[];
     missing_consents: CompletenessItem[];
   };
 }
@@ -30,7 +31,10 @@ export interface CompletenessItem {
 export interface ApplicationCompleteness {
   is_complete: boolean;
   missing_fields: CompletenessItem[];
+  /** Documents that have not been uploaded at all, or have expired. */
   missing_documents: CompletenessItem[];
+  /** Documents that have been uploaded but not yet verified by an admin. Distinct from missing. */
+  unverified_documents: CompletenessItem[];
   missing_consents: CompletenessItem[];
 }
 
@@ -106,6 +110,8 @@ export interface Application {
   updated_at?: string;
   camper?: Camper;
   session?: CampSession;
+  /** Second-choice session, loaded by the show() endpoint (from secondSession relationship → snake_case: second_session). Null when no second choice was given. */
+  second_session?: CampSession | null;
   documents?: Document[];
   consents?: ApplicationConsent[];
 }
@@ -135,6 +141,10 @@ export interface Camper {
   county?: string;
   needs_interpreter?: boolean;
   preferred_language?: string;
+  // Applicant mailing address (street address is hidden PHI; city/state/zip are returned by API)
+  applicant_city?: string;
+  applicant_state?: string;
+  applicant_zip?: string;
   created_at: string;
   user?: { id: number; name: string; email: string };
   medical_record?: MedicalRecord;
@@ -333,14 +343,30 @@ export interface EmergencyContact {
 
 export interface Document {
   id: number;
+  /** Returned by DocumentController.transformDocument() (document list / verify endpoints). */
   file_name: string;
+  /** Raw model field name present when documents are eager-loaded inside an application response. */
+  original_filename?: string;
   name?: string;
   document_type: string | null;
   mime_type: string;
   /** Mapped to "size" by DocumentController.transformDocument(); raw eager-loads return file_size. */
   size?: number;
   file_size?: number;
+  /**
+   * Admin verification state for this document.
+   * 'pending'  — uploaded but not yet reviewed by staff (default for new uploads).
+   * 'approved' — reviewed and verified by an admin; satisfies the requirement.
+   * 'rejected' — reviewed and rejected; applicant must replace the file.
+   */
+  verification_status?: 'pending' | 'approved' | 'rejected';
+  /** ISO date string after which the document is considered expired and must be re-submitted. */
+  expiration_date?: string | null;
   created_at: string;
+  /** Null = draft (not yet submitted to staff); set = submitted and visible to admins. */
+  submitted_at?: string | null;
+  /** Set when the document has been archived; null when active. */
+  archived_at?: string | null;
   url: string;
 }
 

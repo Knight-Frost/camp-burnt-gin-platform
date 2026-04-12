@@ -46,18 +46,10 @@ class EnsureMfaEnrolled
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Only admin, super_admin, and medical roles are required to have MFA.
-        // Applicants (parents/guardians) are not subject to this requirement.
-        if ($user->isAdmin() || $user->isMedicalProvider()) {
-            if (! $user->mfa_enabled) {
-                return response()->json([
-                    'message' => 'Multi-factor authentication is required for your account type. '
-                        .'Please enable MFA in your security settings before accessing this area.',
-                    'mfa_setup_required' => true,
-                ], Response::HTTP_FORBIDDEN);
-            }
-        }
-
+        // MFA is optional for all users. Enrollment is never forced — users who
+        // have disabled or never set up MFA pass through freely. The step-up gate
+        // (EnsureMfaStepUp) separately handles re-verification for sensitive actions
+        // when MFA is actively enabled.
         return $next($request);
     }
 }

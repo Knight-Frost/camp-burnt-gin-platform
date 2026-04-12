@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\SubmissionSource;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,6 +63,8 @@ class Application extends Model
         'first_application',
         'attended_before',
         'camp_session_id_second',
+        // Submission provenance (2026_04_10_000001)
+        'submission_source',    // SubmissionSource enum: digital | paper_self | paper_admin
     ];
 
     /**
@@ -74,6 +77,7 @@ class Application extends Model
         return [
             // Automatically resolves the stored string to an ApplicationStatus enum value.
             'status' => ApplicationStatus::class,
+            'submission_source' => SubmissionSource::class,
             'is_draft' => 'boolean',
             'is_incomplete_at_approval' => 'boolean',
             'first_application' => 'boolean',

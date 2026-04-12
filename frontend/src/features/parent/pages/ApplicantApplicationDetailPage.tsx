@@ -20,17 +20,29 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   ArrowLeft, User, FileText, Calendar, Download,
-  CheckCircle, Clock, AlertTriangle, XCircle, Info, RefreshCw,
+  CheckCircle, Clock, AlertTriangle, XCircle, Info, Plus, Eye, X, RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplication, withdrawApplication, cloneApplication } from '@/features/parent/api/applicant.api';
+import { getApplication, withdrawApplication, submitDocument } from '@/features/parent/api/applicant.api';
+import { NewSessionModal } from '@/features/parent/components/NewSessionModal';
+import type { Camper } from '@/shared/types/camp.types';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { ROUTES } from '@/shared/constants/routes';
 import axiosInstance from '@/api/axios.config';
 import type { Application } from '@/features/admin/types/admin.types';
+import {
+  getDocumentLabel,
+  isRequiredDocumentType,
+  UNIVERSAL_REQUIRED_DOC_TYPES,
+} from '@/shared/constants/documentRequirements';
+
+// Thin wrapper so call sites remain concise — applicant-facing labels only.
+function formatDocType(raw: string | null | undefined): string {
+  return getDocumentLabel(raw, 'applicant');
+}
 
 // ─── Section card — reusable titled card with an icon ─────────────────────────
 
@@ -182,9 +194,20 @@ export function ApplicantApplicationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
-  const [reapplying, setReapplying] = useState(false);
   // Increment to re-trigger the fetch after an error
   const [retryKey, setRetryKey] = useState(0);
+
+  // "Apply for a New Session" modal — true = modal is open; false = closed.
+  // Session loading, selection, and navigation are handled inside NewSessionModal.
+  const [showNewAppModal, setShowNewAppModal] = useState(false);
+
+  // Preview modal — fetch blob via axios so the Bearer token is included
+  const [previewDoc, setPreviewDoc]         = useState<{ id: number; name: string; mime: string } | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Track which document is currently being submitted
+  const [submittingDocId, setSubmittingDocId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -214,23 +237,52 @@ export function ApplicantApplicationDetailPage() {
     }
   }
 
-  // Clone the application into a new draft for reapplication and navigate to it.
-  async function handleReapply() {
+  // Open the "Apply for a New Session" modal.
+  // Session loading, selection, and navigation are handled inside NewSessionModal.
+  function handleOpenNewAppModal() {
     if (!application) return;
-    const confirmed = window.confirm(t('applicant_detail.reapply_confirm'));
-    if (!confirmed) return;
+    setShowNewAppModal(true);
+  }
 
-    setReapplying(true);
+  async function handleSubmitDocument(docId: number) {
+    if (!application) return;
+    setSubmittingDocId(docId);
     try {
-      const newApp = await cloneApplication(application.id);
-      toast.success(t('applicant_detail.reapply_success'));
-      navigate(ROUTES.PARENT_APPLICATION_DETAIL(newApp.id));
+      const updated = await submitDocument(docId);
+      // Update the doc in-place inside application.documents
+      setApplication((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          documents: (prev.documents ?? []).map((d) =>
+            d.id === docId ? { ...d, submitted_at: updated.submitted_at } : d
+          ),
+        };
+      });
+      toast.success('Document submitted to staff.');
     } catch {
-      toast.error(t('applicant_detail.reapply_error'));
+      toast.error('Could not submit document. Please try again.');
     } finally {
-      setReapplying(false);
+      setSubmittingDocId(null);
     }
   }
+
+  // Fetch preview blob whenever the preview modal opens (auth-gated download URL)
+  useEffect(() => {
+    if (!previewDoc) {
+      if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); setPreviewBlobUrl(null); }
+      return;
+    }
+    let cancelled = false;
+    setPreviewLoading(true);
+    axiosInstance
+      .get(`/documents/${previewDoc.id}/download`, { responseType: 'blob' })
+      .then((res) => { if (!cancelled) setPreviewBlobUrl(URL.createObjectURL(res.data as Blob)); })
+      .catch(() => { if (!cancelled) setPreviewBlobUrl(null); })
+      .finally(() => { if (!cancelled) setPreviewLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewDoc]);
 
   // Download a document by fetching it as a blob and triggering a browser save
   function handleDownload(docId: number, name: string) {
@@ -272,6 +324,52 @@ export function ApplicantApplicationDetailPage() {
   const session = application.session;
 
   return (
+    <>
+    {/* ── Document preview modal ─────────────────────────────────────────── */}
+    {previewDoc && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+        <div className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--card)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh' }}>
+          <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+              <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{previewDoc.name}</span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => handleDownload(previewDoc.id, previewDoc.name)}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium"
+                style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+              >
+                <Download className="h-3.5 w-3.5" /> Download
+              </button>
+              <button type="button" onClick={() => setPreviewDoc(null)} className="p-1 rounded-lg" style={{ color: 'var(--muted-foreground)' }}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1" style={{ minHeight: 380 }}>
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-full p-8" style={{ color: 'var(--muted-foreground)' }}>
+                <RefreshCw className="h-5 w-5 animate-spin opacity-50" />
+              </div>
+            ) : !previewBlobUrl ? (
+              <div className="flex flex-col items-center justify-center gap-3 p-8" style={{ color: 'var(--muted-foreground)' }}>
+                <FileText className="h-10 w-10 opacity-30" />
+                <p className="text-sm">Could not load preview.</p>
+              </div>
+            ) : previewDoc.mime.startsWith('image/') ? (
+              <div className="flex items-center justify-center p-4" style={{ background: 'var(--dash-bg)' }}>
+                <img src={previewBlobUrl} alt={previewDoc.name} className="max-w-full object-contain rounded-lg" style={{ maxHeight: '65vh' }} />
+              </div>
+            ) : (
+              <iframe src={previewBlobUrl} title={previewDoc.name} className="w-full" style={{ border: 'none', height: '65vh' }} />
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="flex flex-col gap-6 max-w-3xl">
       {/* Back navigation link */}
       <Link
@@ -337,7 +435,7 @@ export function ApplicantApplicationDetailPage() {
             <SectionCard title={t('applicant_detail.camper_info')} icon={<User className="h-4 w-4" />}>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <Field label={t('applicant_detail.field_full_name')} value={camper.full_name} />
-                <Field label={t('applicant_detail.field_dob')}       value={camper.date_of_birth} />
+                <Field label={t('applicant_detail.field_dob')}       value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
                 <Field label={t('applicant_detail.field_gender')}    value={camper.gender} />
                 {/* Handle both t_shirt_size and tshirt_size field name variants from the API */}
                 <Field label={t('applicant_detail.field_tshirt')}    value={(camper as { t_shirt_size?: string }).t_shirt_size ?? (camper as { tshirt_size?: string }).tshirt_size} />
@@ -360,31 +458,51 @@ export function ApplicantApplicationDetailPage() {
           </div>
         )}
 
-        {/* Application completeness — digital form + medical form upload status */}
+        {/* Application completeness — form submission status + required uploads */}
         <div>
           <SectionCard title={t('applicant_detail.checklist_title')} icon={<CheckCircle className="h-4 w-4" />}>
             <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-              {/* Digital form */}
-              <div className="flex items-center justify-between gap-4 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-                  <div>
-                    <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant_detail.application_form_label')}</span>
-                    <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.digital_label')}</span>
+              {/* Application form row */}
+              {(() => {
+                const isComplete = !!(application.submitted_at && !application.is_draft);
+                return (
+                  <div className="flex items-center justify-between gap-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      {isComplete ? (
+                        <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
+                      )}
+                      <div>
+                        <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant_detail.application_form_label')}</span>
+                        <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.digital_label')}</span>
+                      </div>
+                    </div>
+                    {isComplete ? (
+                      <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.submitted_label')}</span>
+                    ) : (
+                      <Link to={ROUTES.PARENT_FORMS} className="text-xs font-medium hover:underline" style={{ color: '#ca8a04' }}>
+                        {t('applicant_detail.upload_link')}
+                      </Link>
+                    )}
                   </div>
-                </div>
-                <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.submitted_label')}</span>
-              </div>
+                );
+              })()}
 
-              {/* Medical form upload */}
+              {/* Medical form upload — always required regardless of digital/paper source.
+                  A draft (submitted_at = null) means the file is staged but not yet sent to staff.
+                  We show a distinct "Draft" state so the applicant knows to hit Submit. */}
               {(() => {
                 const medicalDoc = application.documents?.find(
                   (d) => d.document_type === 'official_medical_form'
                 );
+                // Only count as complete when the document has been submitted to staff
+                const isSubmitted = !!(medicalDoc && medicalDoc.submitted_at);
+                const isDraft = !!(medicalDoc && !medicalDoc.submitted_at);
                 return (
                   <div className="flex items-center justify-between gap-4 py-2.5">
                     <div className="flex items-center gap-2.5">
-                      {medicalDoc ? (
+                      {isSubmitted ? (
                         <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
                       ) : (
                         <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
@@ -394,8 +512,10 @@ export function ApplicantApplicationDetailPage() {
                         <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.doctor_complete')}</span>
                       </div>
                     </div>
-                    {medicalDoc ? (
+                    {isSubmitted ? (
                       <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.uploaded_label')}</span>
+                    ) : isDraft ? (
+                      <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>Draft — not yet visible to staff</span>
                     ) : (
                       <Link
                         to={ROUTES.PARENT_FORMS}
@@ -408,52 +528,222 @@ export function ApplicantApplicationDetailPage() {
                   </div>
                 );
               })()}
+
+              {/* Universal required documents — immunization record and insurance card.
+                  These are always required and must be uploaded AND submitted to staff
+                  before the application can be approved. A draft (submitted_at = null)
+                  means the file was staged locally but admin cannot see it yet — the
+                  checklist shows orange in that state to avoid a false "complete" signal.
+                  Labels come from the shared canonical module to stay in sync with admin. */}
+              {UNIVERSAL_REQUIRED_DOC_TYPES.map((docType) => {
+                const doc = application.documents?.find((d) => d.document_type === docType);
+                const label = getDocumentLabel(docType, 'applicant');
+                // A document is only truly "complete" when it has been submitted to staff.
+                // Draft docs (submitted_at = null) are invisible to admin and must not
+                // show a green checkmark — that creates a false sense of completion.
+                const isSubmitted = !!(doc && doc.submitted_at);
+                const isDraft = !!(doc && !doc.submitted_at);
+                return (
+                  <div key={docType} className="flex items-center justify-between gap-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      {isSubmitted ? (
+                        <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
+                      )}
+                      <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
+                    </div>
+                    {isSubmitted ? (
+                      <span className="text-xs font-medium" style={{ color: '#16a34a' }}>
+                        {t('applicant_detail.uploaded_label')}
+                      </span>
+                    ) : isDraft ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>
+                          Draft — not yet visible to staff
+                        </span>
+                        <button
+                          onClick={() => doc && void handleSubmitDocument(doc.id)}
+                          disabled={submittingDocId === doc?.id}
+                          className="text-xs font-medium px-2 py-0.5 rounded border transition-colors disabled:opacity-50"
+                          style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
+                        >
+                          {submittingDocId === doc?.id ? 'Submitting…' : 'Submit to Staff'}
+                        </button>
+                      </div>
+                    ) : (
+                      <Link
+                        to={ROUTES.PARENT_DOCUMENTS}
+                        className="text-xs font-medium hover:underline"
+                        style={{ color: '#ca8a04' }}
+                      >
+                        {t('applicant_detail.upload_link')}
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Conditional required documents — derived from the camper's medical and behavioral profile.
+                  These rows only appear when the camper's submitted data triggers the requirement,
+                  so parents are informed exactly what extra documentation is needed for their child. */}
+              {(() => {
+                const camper = application.camper;
+                const medical = camper?.medical_record;
+                const conditionalTypes: string[] = [];
+
+                if (medical?.has_seizures) {
+                  conditionalTypes.push('seizure_action_plan', 'seizure_medication_authorization');
+                }
+                if (camper?.feeding_plan?.g_tube) {
+                  conditionalTypes.push('feeding_action_plan', 'feeding_equipment_list');
+                }
+                if (camper?.behavioral_profile?.one_to_one_supervision) {
+                  conditionalTypes.push('behavioral_support_plan', 'staffing_accommodation_request');
+                }
+                if (camper?.behavioral_profile?.wandering_risk) {
+                  conditionalTypes.push('elopement_prevention_plan');
+                }
+                if (camper?.behavioral_profile?.aggression) {
+                  conditionalTypes.push('crisis_intervention_plan');
+                }
+                if (camper?.assistive_devices?.some((d) => d.device_type?.toLowerCase().includes('cpap'))) {
+                  conditionalTypes.push('cpap_waiver');
+                }
+                if (camper?.assistive_devices?.some((d) => d.device_type?.toLowerCase().includes('neurostimulator'))) {
+                  conditionalTypes.push('device_management_plan');
+                }
+
+                if (conditionalTypes.length === 0) return null;
+
+                return conditionalTypes.map((docType) => {
+                  const doc = application.documents?.find((d) => d.document_type === docType);
+                  const label = getDocumentLabel(docType, 'applicant');
+                  const isSubmitted = !!(doc && doc.submitted_at);
+                  const isDraft = !!(doc && !doc.submitted_at);
+                  return (
+                    <div key={docType} className="flex items-center justify-between gap-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        {isSubmitted ? (
+                          <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
+                        )}
+                        <div>
+                          <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
+                        </div>
+                      </div>
+                      {isSubmitted ? (
+                        <span className="text-xs font-medium" style={{ color: '#16a34a' }}>
+                          {t('applicant_detail.uploaded_label')}
+                        </span>
+                      ) : isDraft ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>
+                            Draft — not yet visible to staff
+                          </span>
+                          <button
+                            onClick={() => doc && void handleSubmitDocument(doc.id)}
+                            disabled={submittingDocId === doc?.id}
+                            className="text-xs font-medium px-2 py-0.5 rounded border transition-colors disabled:opacity-50"
+                            style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
+                          >
+                            {submittingDocId === doc?.id ? 'Submitting…' : 'Submit to Staff'}
+                          </button>
+                        </div>
+                      ) : (
+                        <Link
+                          to={ROUTES.PARENT_DOCUMENTS}
+                          className="text-xs font-medium hover:underline"
+                          style={{ color: '#ca8a04' }}
+                        >
+                          {t('applicant_detail.upload_link')}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </SectionCard>
         </div>
 
-        {/* Documents — list all uploaded files with view and download buttons */}
+        {/* Supplementary Documents — additional files beyond the required checklist.
+            Required document types are shown in the checklist above; this section
+            shows any remaining uploads so the applicant has a complete file inventory. */}
         <div>
-          <SectionCard title={t('applicant_detail.documents_title')} icon={<FileText className="h-4 w-4" />}>
-            {!application.documents || application.documents.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                No documents uploaded for this application.
-              </p>
-            ) : (
+          <SectionCard title="Supplementary Documents" icon={<FileText className="h-4 w-4" />}>
+            {(() => {
+              const supplementaryDocs = (application.documents ?? []).filter(
+                (d) => !isRequiredDocumentType(d.document_type),
+              );
+              if (supplementaryDocs.length === 0) {
+                return (
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    No supplementary documents uploaded.
+                  </p>
+                );
+              }
+              return (
               <div className="flex flex-col gap-2">
-                {application.documents.map((doc) => (
+                {supplementaryDocs.map((doc) => {
+                  const isDraft = !doc.submitted_at;
+                  return (
                   <div
                     key={doc.id}
                     className="flex items-center justify-between p-3 rounded-xl border"
-                    style={{ borderColor: 'var(--border)', background: 'transparent' }}
+                    style={{
+                      borderColor: isDraft ? 'rgba(234,88,12,0.4)' : 'var(--border)',
+                      background: isDraft ? 'rgba(234,88,12,0.04)' : 'transparent',
+                    }}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                      <FileText className="h-4 w-4 flex-shrink-0" style={{ color: isDraft ? 'var(--ember-orange)' : 'var(--muted-foreground)' }} />
                       <div className="min-w-0">
-                        <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>
-                          {doc.name ?? doc.file_name}
-                        </p>
-                        {/* Convert bytes to KB for a friendlier size display */}
+                        {/* original_filename = raw model field (embedded relation); file_name = transformed API field */}
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                            {doc.original_filename ?? doc.file_name ?? doc.name ?? 'Document'}
+                          </p>
+                          {isDraft && (
+                            <span
+                              className="text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: 'rgba(234,88,12,0.12)', color: 'var(--ember-orange)' }}
+                            >
+                              Draft
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          {(() => { const b = doc.file_size ?? doc.size; return b != null ? `${(b / 1024).toFixed(1)} KB` : null; })()}
+                          {formatDocType(doc.document_type)}
+                          {(() => { const b = doc.file_size ?? doc.size; return b != null ? ` · ${(b / 1024).toFixed(1)} KB` : ''; })()}
+                          {isDraft && ' · Not yet visible to staff'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* View button — opens the file in a new tab if a URL is available */}
-                      {doc.url && (
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
-                          style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                      {/* Submit to Staff — only for draft documents */}
+                      {isDraft && (
+                        <button
+                          onClick={() => handleSubmitDocument(doc.id)}
+                          disabled={submittingDocId === doc.id}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors disabled:opacity-50"
+                          style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
                         >
-                          View
-                        </a>
+                          {submittingDocId === doc.id ? 'Submitting…' : 'Submit to Staff'}
+                        </button>
                       )}
+                      {/* View — opens preview modal using an authenticated blob fetch */}
                       <button
-                        onClick={() => handleDownload(doc.id, doc.name ?? doc.file_name)}
+                        onClick={() => setPreviewDoc({ id: doc.id, name: doc.original_filename ?? doc.file_name ?? 'Document', mime: doc.mime_type })}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                      >
+                        <Eye className="h-3 w-3" />
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDownload(doc.id, doc.original_filename ?? doc.file_name ?? doc.name ?? 'document')}
                         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
                         style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
                       >
@@ -462,9 +752,11 @@ export function ApplicantApplicationDetailPage() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
-            )}
+              );
+            })()}
           </SectionCard>
         </div>
       </div>
@@ -567,16 +859,17 @@ export function ApplicantApplicationDetailPage() {
         </button>
 
         <div className="flex items-center gap-3">
-          {/* Reapply button — visible for terminal states where reapplication is appropriate. */}
-          {application && ['rejected', 'withdrawn', 'cancelled'].includes(application.status) && (
+          {/* "Apply for a New Session" — visible for all terminal states. Opens a
+              modal that explains the feature, lets the parent choose a future session,
+              and then navigates to the application form with prefilled camper data. */}
+          {application && ['approved', 'rejected', 'withdrawn', 'cancelled'].includes(application.status) && (
             <button
-              onClick={handleReapply}
-              disabled={reapplying}
-              className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors disabled:opacity-50"
+              onClick={handleOpenNewAppModal}
+              className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors"
               style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)' }}
             >
-              <RefreshCw className="h-4 w-4" />
-              {reapplying ? 'Creating draft…' : 'Reapply'}
+              <Plus className="h-4 w-4" />
+              {t('applicant_detail.new_app_button')}
             </button>
           )}
 
@@ -595,5 +888,18 @@ export function ApplicantApplicationDetailPage() {
         </div>
       </div>
     </div>
+
+      {/* ── "Apply for a New Session" modal ──────────────────────────────────────
+          Opened when the parent clicks the footer button on a terminal application.
+          Session loading, selection, and navigation are handled inside NewSessionModal.
+          This application is used as the audit-trail source (reappliedFromId). */}
+      {showNewAppModal && application?.camper && (
+        <NewSessionModal
+          camper={application.camper as Camper}
+          reappliedFromId={application.id}
+          onClose={() => setShowNewAppModal(false)}
+        />
+      )}
+    </>
   );
 }

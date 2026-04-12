@@ -232,18 +232,9 @@ function errorInterceptor(error: AxiosError<{
       }
 
       // Step-up MFA required — the user has MFA enrolled but has not completed
-      // a step-up challenge recently (or MFA is not enrolled and must be set up
-      // first before step-up is possible).
+      // a step-up challenge recently. Only fires for users who have MFA enabled;
+      // users without MFA pass the step-up gate freely.
       if (responseData?.mfa_step_up_required) {
-        if (responseData.mfa_not_enrolled) {
-          // User has no MFA — redirect to enrollment first, same as mfa_setup_required
-          window.dispatchEvent(new CustomEvent('auth:mfa-setup-required'));
-          return Promise.reject({
-            message: responseData.message ?? 'MFA enrollment is required before performing this action.',
-            mfaSetupRequired: true,
-          });
-        }
-
         // User has MFA but needs to re-verify. Queue this request behind a
         // shared step-up promise so only one modal opens for concurrent failures.
         if (!stepUpPromise) {

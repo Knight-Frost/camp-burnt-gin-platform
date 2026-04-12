@@ -2,6 +2,7 @@
 
 namespace App\Services\Document;
 
+use App\Models\Application;
 use App\Models\Camper;
 use App\Models\Document;
 use App\Models\RequiredDocumentRule;
@@ -145,14 +146,36 @@ class DocumentEnforcementService
     }
 
     /**
-     * Retrieve all documents uploaded for this camper from the database.
+     * Retrieve all submitted documents uploaded for this camper from the database.
+     *
+     * Searches both storage paths:
+     *  1. Camper-polymorphic (legacy path — documentable = App\Models\Camper)
+     *  2. Application-polymorphic (primary path post-linkage fix — documentable = App\Models\Application)
+     *
+     * Only submitted documents (submitted_at IS NOT NULL) are considered for compliance.
+     * Draft documents are still in the applicant's staging area and have not been sent to staff.
+     *
+     * Deduplication via unique('id') prevents double-counting if a row somehow appears
+     * in both result sets (should not happen, but is a safety guard).
      */
     protected function getUploadedDocuments(Camper $camper): Collection
     {
-        // Use the polymorphic relationship to find documents owned by this camper
-        return Document::where('documentable_type', Camper::class)
+        // Path 1: documents directly attached to the camper record
+        $camperDocs = Document::where('documentable_type', \App\Models\Camper::class)
             ->where('documentable_id', $camper->id)
+            ->whereNotNull('submitted_at')
             ->get();
+
+        // Path 2: documents attached to any of this camper's applications
+        $applicationIds = $camper->applications()->pluck('id');
+        $appDocs = $applicationIds->isNotEmpty()
+            ? Document::where('documentable_type', \App\Models\Application::class)
+                ->whereIn('documentable_id', $applicationIds)
+                ->whereNotNull('submitted_at')
+                ->get()
+            : collect();
+
+        return $camperDocs->merge($appDocs)->unique('id')->values();
     }
 
     /**

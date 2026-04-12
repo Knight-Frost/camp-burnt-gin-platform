@@ -29,6 +29,45 @@ export async function checkApplicationCompleteness(id: number): Promise<Applicat
   return data.data;
 }
 
+/** One required-document entry as returned by the backend compliance service. */
+export interface ComplianceRequiredDoc {
+  document_type: string;
+  description: string;
+  is_mandatory: boolean;
+}
+
+/**
+ * Backend-computed compliance status for a camper.
+ *
+ * The `required_documents` array is the authoritative list of which document types
+ * are required for this specific camper based on their medical profile and risk
+ * assessment. Use this in the admin Application Review to drive the Required Documents
+ * section instead of recomputing conditions client-side.
+ *
+ * Route: GET /api/campers/{camperId}/compliance-status
+ */
+export interface CamperComplianceStatus {
+  is_compliant: boolean;
+  required_documents: ComplianceRequiredDoc[];
+  missing_documents: { document_type: string; description: string }[];
+  expired_documents: { document_id: number; document_type: string; expiration_date: string }[];
+  unverified_documents: { document_id: number; document_type: string; verification_status: string }[];
+}
+
+/**
+ * Fetch the backend-computed compliance status for a camper.
+ * Returns the full list of required document types for this camper's medical profile,
+ * plus compliance gaps (missing, expired, unverified).
+ *
+ * This is the canonical source of truth for which documents are required —
+ * it runs the same SpecialNeedsRiskAssessmentService + DocumentEnforcementService
+ * logic that gates application approval on the backend.
+ */
+export async function getCamperComplianceStatus(camperId: number): Promise<CamperComplianceStatus> {
+  const { data } = await axiosInstance.get<ApiResponse<CamperComplianceStatus>>(`/campers/${camperId}/compliance-status`);
+  return data.data;
+}
+
 /** Update application content fields (narratives, notes). Admin/super_admin only after submission. */
 export interface UpdateApplicationPayload {
   notes?: string;
@@ -145,16 +184,23 @@ export async function updateBehavioralProfile(id: number, payload: UpdateBehavio
   return data.data;
 }
 
-/** Upload a file on behalf of an applicant, attached to a specific application. */
+/**
+ * Upload a file on behalf of an applicant, attached to the camper's document record.
+ *
+ * Documents must be attached to the Camper (documentable_type = Camper) so that
+ * DocumentEnforcementService can locate them during compliance checks at approval time.
+ * The show() endpoint merges camper-level documents into application.documents for the UI,
+ * so callers should add the returned document to application.documents locally.
+ */
 export async function uploadDocumentOnBehalf(
-  applicationId: number,
+  camperId: number,
   file: File,
   documentType?: string,
 ): Promise<Document> {
   const fd = new FormData();
   fd.append('file', file);
-  fd.append('documentable_type', 'App\\Models\\Application');
-  fd.append('documentable_id', String(applicationId));
+  fd.append('documentable_type', 'App\\Models\\Camper');
+  fd.append('documentable_id', String(camperId));
   if (documentType) fd.append('document_type', documentType);
   const { data } = await axiosInstance.post('/documents', fd, {
     headers: { 'Content-Type': undefined },
@@ -381,6 +427,9 @@ export interface AdminDocument {
   uploaded_by_name: string | null;
   documentable_name: string | null;
   created_at: string;
+  archived_at: string | null;
+  /** Null = draft (not yet submitted by applicant); set = submitted to staff. */
+  submitted_at: string | null;
   url: string;
 }
 
@@ -389,9 +438,20 @@ export async function getAdminDocuments(params?: {
   search?: string;
   verification_status?: string;
   documentable_type?: string;
+  include_archived?: boolean;
 }): Promise<PaginatedResponse<AdminDocument>> {
   const { data } = await axiosInstance.get<PaginatedResponse<AdminDocument>>('/documents', { params });
   return data;
+}
+
+export async function archiveDocument(id: number): Promise<AdminDocument> {
+  const { data } = await axiosInstance.patch<{ data: AdminDocument }>(`/documents/${id}/archive`);
+  return data.data;
+}
+
+export async function restoreDocument(id: number): Promise<AdminDocument> {
+  const { data } = await axiosInstance.patch<{ data: AdminDocument }>(`/documents/${id}/restore`);
+  return data.data;
 }
 
 export async function verifyDocument(id: number, status: 'approved' | 'rejected'): Promise<AdminDocument> {

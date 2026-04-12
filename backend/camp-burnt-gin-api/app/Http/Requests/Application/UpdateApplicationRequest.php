@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Application;
 
+use App\Enums\SubmissionSource;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Form request for updating an existing application.
@@ -58,6 +60,8 @@ class UpdateApplicationRequest extends FormRequest
         if ($isAdmin) {
             // Internal admin/staff notes — never exposed to or settable by applicants.
             $rules['notes'] = ['nullable', 'string', 'max:1000'];
+            // Submission provenance — admins can correct or set the submission source.
+            $rules['submission_source'] = ['sometimes', 'nullable', Rule::enum(SubmissionSource::class)];
         }
 
         if (! $isAdmin) {

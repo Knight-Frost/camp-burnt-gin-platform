@@ -27,8 +27,8 @@ class RequiredDocumentRuleSeeder extends Seeder
                 'medical_complexity_tier' => null,
                 'supervision_level' => null,
                 'condition_flag' => null,
-                'document_type' => 'physical_examination',
-                'description' => 'Current physical examination form completed by licensed physician within 12 months',
+                'document_type' => 'official_medical_form',
+                'description' => 'Medical Examination Form (Form 4523-ENG-DPH) completed and signed by a licensed physician within the past 12 months',
                 'is_mandatory' => true,
             ],
             [
@@ -37,6 +37,14 @@ class RequiredDocumentRuleSeeder extends Seeder
                 'condition_flag' => null,
                 'document_type' => 'immunization_record',
                 'description' => 'Current immunization records showing required vaccinations',
+                'is_mandatory' => true,
+            ],
+            [
+                'medical_complexity_tier' => null,
+                'supervision_level' => null,
+                'condition_flag' => null,
+                'document_type' => 'insurance_card',
+                'description' => 'Current insurance card (or Medicaid/CHIP card) showing active health coverage',
                 'is_mandatory' => true,
             ],
 

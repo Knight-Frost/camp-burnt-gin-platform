@@ -69,6 +69,7 @@ import {
   createMedication,
   createActivityPermission,
   uploadDocument,
+  submitDocument,
   signApplication,
   storeConsents,
   getDraft,
@@ -3607,16 +3608,24 @@ export function ApplicationFormPage() {
     language?: string;
     prefill?: Partial<Record<string, string>>;
     draftId?: number;
+    // Pre-selected session ID — used with prefill to skip session selection in s1.
     sessionId?: number;
+    // When the user clicked "Apply for a New Session" from a terminal application,
+    // this holds the source application ID so it can be stored as reapplied_from_id
+    // on the newly-created application for audit trail purposes.
+    reappliedFromId?: number;
   } | null;
   const stateLanguage = navState?.language;
   // Server draft ID — present when user clicked "Start New" or "Continue" on the start page
   const serverDraftId = navState?.draftId;
+  // Reapplication source ID — carried through to createApplication() as reapplied_from_id.
+  const reappliedFromId = navState?.reappliedFromId;
 
   const [form, setForm] = useState<FormState>(() => {
-    // Re-apply flow: when navigated here with prefill state, start a fresh form
-    // with the camper's basic info pre-populated. Any existing sessionStorage draft
-    // is intentionally ignored — the user is starting a brand-new application.
+    // Reapplication / prefill flow: when navigated here from the "Apply for a New Session"
+    // modal (or any other prefill source), start a fresh form with the camper's stable
+    // info pre-populated. The chosen session is also pre-selected. Any existing
+    // sessionStorage draft is intentionally ignored — this is a brand-new application.
     if (navState?.prefill) {
       const prefill = navState.prefill;
       return {
@@ -3628,14 +3637,26 @@ export function ApplicationFormPage() {
           camper_dob:        prefill.date_of_birth ?? '',
           camper_gender:     prefill.gender        ?? '',
           tshirt_size:       prefill.tshirt_size   ?? '',
+          // Pre-select the session chosen in the modal, if provided.
+          ...(navState.sessionId ? { session_id: navState.sessionId } : {}),
         },
       };
     }
 
-    // Server-draft continue flow: when draftId is present, the server copy is
-    // authoritative. We start from INITIAL_STATE here (sync); a useEffect below
-    // fetches the server draft and overwrites the form state asynchronously.
-    // We still check sessionStorage as a fast-path in case the page was refreshed.
+    // Server-draft continue flow: when draftId is present the server copy is
+    // authoritative. Always start from INITIAL_STATE here — DO NOT use the
+    // sessionStorage fast-path. sessionStorage is user-scoped (not draft-scoped),
+    // so it always holds the LAST-EDITED draft regardless of which draft the user
+    // clicked "Continue" on. Loading a different draft's sessionStorage data would
+    // flash wrong content on screen until the async fetch completes, and any edits
+    // the user made in that window would be silently overwritten. Starting from
+    // INITIAL_STATE + a loading gate (isHydrating) is the safe approach.
+    if (navState?.draftId) {
+      return INITIAL_STATE;
+    }
+
+    // Fresh form (no prefill, no server draft): restore from sessionStorage if the
+    // user was mid-edit and refreshed the page, otherwise start blank.
     try {
       const raw = sessionStorage.getItem(draftKey);
       if (raw) {
@@ -3663,6 +3684,18 @@ export function ApplicationFormPage() {
   const [isSaving, setIsSaving]         = useState(false);
   const [lastSavedAt, setLastSavedAt]   = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /**
+   * True while the server draft is being fetched on initial mount.
+   * Blocks auto-save (prevents persisting blank INITIAL_STATE) and renders a
+   * loading skeleton in place of the form so the user cannot edit stale content
+   * before the authoritative server copy arrives.
+   */
+  const [isHydrating, setIsHydrating]   = useState(!!serverDraftId);
+  /**
+   * True while an async server draft deletion is in flight (Clear Draft action).
+   * Used to disable Save/Clear buttons during the operation.
+   */
+  const [isClearing, setIsClearing]     = useState(false);
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Separate timer for debounced server-side draft saves (30 s cadence). */
@@ -3713,11 +3746,31 @@ export function ApplicationFormPage() {
       .then((draft) => {
         // Capture the server's updated_at so subsequent saves can detect concurrent edits.
         serverDraftUpdatedAt.current = draft.updated_at;
-        if (!draft.draft_data) return;
-        const saved = draft.draft_data as unknown as FormState;
-        setForm((prev) => ({ ...mergeDraft(saved), meta: { ...INITIAL_STATE.meta, ...(saved.meta ?? {}), activeSection: prev.meta.activeSection } }));
+        if (draft.draft_data) {
+          const saved = draft.draft_data as unknown as FormState;
+          setForm((prev) => ({
+            ...mergeDraft(saved),
+            meta: { ...INITIAL_STATE.meta, ...(saved.meta ?? {}), activeSection: prev.meta.activeSection },
+          }));
+        }
       })
-      .catch(() => { /* fall back to whatever sessionStorage/INITIAL_STATE loaded */ });
+      .catch(() => {
+        // Fetch failed — fall back to sessionStorage if present, otherwise stay on INITIAL_STATE.
+        // The user will see an empty form and can start over, or they can navigate back and retry.
+        try {
+          const raw = sessionStorage.getItem(draftKey);
+          if (raw) {
+            const parsed = JSON.parse(raw) as FormState;
+            setForm(mergeDraft(parsed));
+          }
+        } catch {
+          /* ignore — INITIAL_STATE remains */
+        }
+      })
+      .finally(() => {
+        // Hydration is complete (success or failure). Unblock the form and auto-save.
+        setIsHydrating(false);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -3733,6 +3786,11 @@ export function ApplicationFormPage() {
   }, [draftKey]);
 
   useEffect(() => {
+    // Skip auto-save while the server draft is being fetched. Without this guard,
+    // the blank INITIAL_STATE that the form starts in (for the serverDraftId flow)
+    // would be persisted to sessionStorage — overwriting any older local draft data
+    // and then being overwritten again by the server fetch — creating needless churn.
+    if (isHydrating) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       setIsSaving(true);
@@ -3742,7 +3800,7 @@ export function ApplicationFormPage() {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
-  }, [form, persistDraft]);
+  }, [form, persistDraft, isHydrating]);
 
   // ── Auto-save to server (debounced 30 s, only when serverDraftId is set) ──
 
@@ -3781,14 +3839,33 @@ export function ApplicationFormPage() {
     setForm((prev) => ({ ...prev, meta: { ...prev.meta, activeSection: step } }));
   }
 
-  function handleClearDraft() {
+  async function handleClearDraft() {
+    // Step 1: Clear local state immediately — HIPAA requires PHI is removed from
+    // the browser as soon as the user requests it, regardless of server outcome.
     sessionStorage.removeItem(draftKey);
     sessionStorage.removeItem(pendingCamperKey);
     pendingCamperIdRef.current = null;
-    if (serverDraftId) apiDeleteDraft(serverDraftId).catch(() => {});
     setForm(INITIAL_STATE);
     setCurrentStep(0);
-    toast.success(t('applicant.form.draft_cleared'));
+
+    // Step 2: Delete the server draft (if one exists) and wait for confirmation
+    // before showing the success toast. This prevents a misleading "Draft cleared"
+    // message when the server copy still exists and would reload on next visit.
+    if (serverDraftId) {
+      setIsClearing(true);
+      try {
+        await apiDeleteDraft(serverDraftId);
+        toast.success(t('applicant.form.draft_cleared'));
+      } catch {
+        // Local state is already cleared (PHI safe). The server copy could not be
+        // deleted — notify the user so they can delete it manually from the draft list.
+        toast.error(t('applicant.form.draft_cleared_server_error'));
+      } finally {
+        setIsClearing(false);
+      }
+    } else {
+      toast.success(t('applicant.form.draft_cleared'));
+    }
   }
 
   function handleSaveDraft() {
@@ -4123,16 +4200,19 @@ export function ApplicationFormPage() {
         narrative_transportation:         form.sn.narrative_transportation || undefined,
         narrative_additional_info:        form.sn.narrative_additional_info || undefined,
         narrative_emergency_protocols:    form.sn.narrative_emergency_protocols || undefined,
+        // Preserve the audit trail when this is a reapplication.
+        ...(reappliedFromId ? { reapplied_from_id: reappliedFromId } : {}),
       });
       const applicationId = application.id;
 
       // ── Step 11: Upload documents ─────────────────────────────────────────
       // document_type slugs must match RequiredDocumentRuleSeeder values so
       // DocumentEnforcementService can match uploaded docs against required rules.
-      // documentable_type is Camper (not Application) so enforcement service finds them.
+      // documentable_type is Application so both ApplicationController::show() and
+      // DocumentEnforcementService resolve them correctly when the admin reviews.
       const docTypeSlugs: Record<string, string> = {
         immunization:   'immunization_record',
-        medical_exam:   'physical_examination',
+        medical_exam:   'official_medical_form', // must match RequiredDocumentRuleSeeder + ApplicantOfficialFormsPage
         insurance_card: 'insurance_card',
         cpap_waiver:    'cpap_waiver',
         seizure_plan:   'seizure_action_plan',
@@ -4154,14 +4234,19 @@ export function ApplicationFormPage() {
         if (!file) continue;
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('documentable_type', 'App\\Models\\Camper');
-        fd.append('documentable_id', String(camperId));
+        fd.append('documentable_type', 'App\\Models\\Application');
+        fd.append('documentable_id', String(applicationId));
         fd.append('document_type', docTypeSlugs[key] ?? key);
-        // P0c: pass exam date for physical_examination so backend can set expiration_date
+        // pass exam date for official_medical_form so backend can set expiration_date
         if (key === 'medical_exam' && form.s2.date_of_medical_exam) {
           fd.append('exam_date', form.s2.date_of_medical_exam);
         }
-        await uploadDocument(fd);
+        // Upload and immediately submit so the document is visible to staff.
+        // Applicant uploads start as drafts (submitted_at = null); without this call
+        // the admin's submitted_at IS NOT NULL filter removes every document from
+        // the review page, making the application appear to have no required docs.
+        const uploaded = await uploadDocument(fd);
+        await submitDocument(uploaded.id);
       }
 
       // ── Step 12: Sign application ─────────────────────────────────────────
@@ -4222,6 +4307,9 @@ export function ApplicationFormPage() {
 
   const missing = countMissing(form);
   const canSubmit = missing === 0;
+  // True when all content sections are done but the documents section (s9) is still empty.
+  // Used to surface a more actionable status message than the generic "1 section remaining".
+  const docsOnlyPending = missing === 1 && getSectionStatus(9, form) === 'empty';
 
   const hasCpap = form.s4.devices.some((d) => d.device_type.includes('CPAP'));
 
@@ -4271,6 +4359,7 @@ export function ApplicationFormPage() {
               onClick={handleSaveDraft}
               variant="secondary"
               size="sm"
+              disabled={isSubmitting || isClearing || isHydrating}
               className="flex items-center gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
@@ -4278,10 +4367,12 @@ export function ApplicationFormPage() {
             </Button>
             <button
               type="button"
-              onClick={handleClearDraft}
-              className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+              onClick={() => { void handleClearDraft(); }}
+              disabled={isSubmitting || isClearing || isHydrating}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
             >
+              {isClearing && <RefreshCw className="h-3 w-3 animate-spin" />}
               {t('applicant.form.clear_draft')}
             </button>
             <Button
@@ -4294,6 +4385,21 @@ export function ApplicationFormPage() {
           </div>
         </div>
 
+        {/* ── Reapplication notice ─────────────────────── */}
+        {reappliedFromId && (
+          <div
+            className="rounded-xl px-5 py-4 mb-8 text-sm"
+            style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.20)', color: 'var(--foreground)' }}
+          >
+            <p className="font-semibold mb-0.5" style={{ color: 'var(--ember-orange)' }}>
+              {t('applicant.form.reapplication_notice_title')}
+            </p>
+            <p style={{ color: 'var(--muted-foreground)' }}>
+              {t('applicant.form.reapplication_notice_body')}
+            </p>
+          </div>
+        )}
+
         {/* ── Progress summary ──────────────────────────── */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -4303,6 +4409,8 @@ export function ApplicationFormPage() {
             <span className="text-sm" style={{ color: missing === 0 ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}>
               {missing === 0
                 ? t('applicant.form.submit')
+                : docsOnlyPending
+                ? t('applicant.form.docs_only_pending')
                 : t(missing === 1 ? 'applicant.form.sections_remaining' : 'applicant.form.sections_remaining_plural', { count: missing })}
             </span>
           </div>
@@ -4316,6 +4424,40 @@ export function ApplicationFormPage() {
             />
           </div>
         </div>
+
+        {/* ── Hydration loading state ───────────────────── */}
+        {isHydrating ? (
+          <div className="mt-4 animate-pulse" aria-busy="true" aria-label={t('applicant.form.loading_draft')}>
+            {/* Fake step indicator pills */}
+            <div className="flex gap-2 flex-wrap mb-12">
+              {Array.from({ length: 11 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-8 rounded-full"
+                  style={{ width: i === 0 ? '6rem' : '2.5rem', background: 'var(--border)' }}
+                />
+              ))}
+            </div>
+            {/* Fake section header */}
+            <div className="mb-8 space-y-3">
+              <div className="h-3 w-24 rounded" style={{ background: 'var(--border)' }} />
+              <div className="h-7 w-56 rounded" style={{ background: 'var(--border)' }} />
+            </div>
+            {/* Fake form fields */}
+            <div className="space-y-5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-32 rounded" style={{ background: 'var(--border)' }} />
+                  <div className="h-10 rounded-lg" style={{ background: 'var(--border)' }} />
+                </div>
+              ))}
+            </div>
+            <p className="mt-8 text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
+              {t('applicant.form.loading_draft')}
+            </p>
+          </div>
+        ) : (
+        <>
 
         {/* ── Step indicator ────────────────────────────── */}
         <StepIndicator currentStep={currentStep} form={form} onJump={goToStep} sections={sections} />
@@ -4522,6 +4664,9 @@ export function ApplicationFormPage() {
               {t('applicant.form.all_complete_submit')}
             </button>
           </div>
+        )}
+
+        </>
         )}
 
         <p className="text-xs text-center mt-10 pb-4" style={{ color: 'var(--muted-foreground)' }}>
