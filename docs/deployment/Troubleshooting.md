@@ -325,6 +325,105 @@ php artisan optimize:clear     # Clear all caches
 
 ---
 
+## EC2 and HTTP Deployment Issues
+
+This section covers issues specific to deployments on AWS EC2 t2.micro instances running Amazon Linux 2023 over plain HTTP. For the full EC2 deployment guide, see [EC2_Deployment_Guide.md](EC2_Deployment_Guide.md).
+
+### Blank or black screen after frontend loads
+
+The browser received `index.html` but the JavaScript application crashed before rendering.
+
+The most common cause is that the Vite production build was compiled without `VITE_API_BASE_URL` set. The application contains a guard that throws a JavaScript error at startup when this variable is missing in a production build. The error occurs at module load time and is not visible without opening browser developer tools.
+
+To fix this, create `frontend/.env.production.local` with the following content:
+
+```
+VITE_API_BASE_URL=http://YOUR_EC2_IP
+VITE_ALLOW_HTTP=true
+```
+
+Then rebuild locally and transfer the output to the server:
+
+```bash
+cd frontend
+npm run build
+rsync -az --delete -e "ssh -i ~/Downloads/cbg-key.pem" \
+  dist/ ec2-user@YOUR_EC2_IP:/var/www/camp-burnt-gin/frontend/dist/
+```
+
+### Login fails with "Network error" on an HTTP deployment
+
+The browser blocked the API request before it reached the server. This is always a CORS or cookie configuration issue, not a Laravel error.
+
+Step 1: Verify the CORS allowed origin on the server.
+
+```bash
+grep CORS_ALLOWED_ORIGINS /var/www/camp-burnt-gin/backend/.env
+```
+
+The value must be `http://YOUR_EC2_IP` exactly, with no trailing slash. Update it if it is missing or incorrect:
+
+```bash
+sed -i 's|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://YOUR_EC2_IP|' \
+  /var/www/camp-burnt-gin/backend/.env
+cd /var/www/camp-burnt-gin/backend && php artisan config:clear && php artisan config:cache
+```
+
+Step 2: Verify SESSION_SECURE_COOKIE is false.
+
+```bash
+grep SESSION_SECURE_COOKIE /var/www/camp-burnt-gin/backend/.env
+```
+
+If the value is `true`, change it to `false`. A value of `true` instructs the browser to only send the session cookie over HTTPS. On an HTTP server, the browser withholds the cookie entirely, which causes all authenticated requests to fail.
+
+```bash
+sed -i 's|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=false|' \
+  /var/www/camp-burnt-gin/backend/.env
+cd /var/www/camp-burnt-gin/backend && php artisan config:clear && php artisan config:cache
+```
+
+Step 3: Confirm the preflight response includes the Allow-Origin header.
+
+```bash
+curl -s -I -X OPTIONS http://localhost/api/auth/login \
+  -H "Origin: http://YOUR_EC2_IP" \
+  -H "Access-Control-Request-Method: POST" | grep -i access-control
+```
+
+The response must include `Access-Control-Allow-Origin: http://YOUR_EC2_IP`.
+
+### Permission denied when running php artisan config:cache
+
+The `bootstrap/cache/` directory is not writable by the process running the artisan command.
+
+```bash
+sudo chown -R ec2-user:nginx /var/www/camp-burnt-gin/backend/bootstrap/cache
+sudo chmod -R 775 /var/www/camp-burnt-gin/backend/bootstrap/cache
+```
+
+### PHP extensions missing on Amazon Linux 2023
+
+The dnf package names on Amazon Linux 2023 differ from Ubuntu. Install the required extensions using the `php8.2-` prefix:
+
+```bash
+sudo dnf install -y php8.2-fpm php8.2-mysqlnd php8.2-xml php8.2-mbstring \
+  php8.2-zip php8.2-bcmath php8.2-intl php8.2-gd php8.2-opcache
+```
+
+The `curl` and `json` extensions are included in `php8.2-common` and do not require a separate package.
+
+### MySQL not available in dnf on Amazon Linux 2023
+
+Amazon Linux 2023 does not include MySQL in its default repositories. Add the MySQL Community repository before installing:
+
+```bash
+sudo dnf install -y https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm --nogpgcheck
+sudo dnf install -y mysql-community-server --nogpgcheck
+```
+
+---
+
 ## Getting Help
 
 If you cannot resolve an issue using this guide:

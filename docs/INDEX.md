@@ -18,7 +18,8 @@ This documentation set covers the full Camp Burnt Gin registration and medical m
 | Trace the application state machine | Application Workflows | `workflows/Application_Workflows.md` |
 | Understand auth and token lifecycle | Authentication | `auth/Authentication.md` |
 | Set up CI/CD | CI/CD Pipeline | `deployment/CI_CD.md` |
-| Deploy to production | Deployment Procedures | `deployment/Deployment.md` |
+| Deploy to AWS EC2 (t2.micro, Amazon Linux 2023) | EC2 Deployment Guide | `deployment/EC2_Deployment_Guide.md` |
+| Deploy to a full production server | Deployment Procedures | `deployment/Deployment.md` |
 | Review security controls | Security | `security/Security.md` |
 | Understand PHI audit logging | Audit Logging | `security/Audit_Logging.md` |
 | Understand HIPAA compliance posture | Security | `security/Security.md` |
@@ -154,9 +155,10 @@ This documentation set covers the full Camp Burnt Gin registration and medical m
 |---|---|---|
 | `Setup.md` | Local development environment setup: prerequisites, clone steps, `.env` configuration, database seeding, and frontend dev server | All engineers, onboarding |
 | `Configuration.md` | Complete environment variable reference with descriptions, required vs. optional, and example values | Backend engineers, DevOps |
-| `Deployment.md` | Production deployment procedures: server requirements, release steps, migration process, storage linking | DevOps, senior engineers |
+| `EC2_Deployment_Guide.md` | Complete end-to-end deployment guide for AWS EC2 t2.micro with Amazon Linux 2023 — validated against the live deployment. Covers swap, PHP 8.2, MySQL Community, Nginx, the local-build-then-rsync pattern, CORS, and HTTP-specific configuration. Start here for school or AWS student account deployments. | All engineers |
+| `Deployment.md` | Production deployment procedures for a full-spec Linux server (Ubuntu 22.04, 4+ cores, 8 GB RAM): server requirements, release steps, migration process, storage linking | DevOps, senior engineers |
 | `CI_CD.md` | CI/CD pipeline configuration, automated test execution, deployment pipeline stages, environment promotion | DevOps, senior engineers |
-| `Troubleshooting.md` | Common issues and their solutions, diagnostic commands, log file locations, known edge cases | All engineers, DevOps |
+| `Troubleshooting.md` | Common issues and their solutions, including EC2 and HTTP-specific fixes for blank screen, network errors, CORS, SESSION_SECURE_COOKIE, and Amazon Linux 2023 package names | All engineers, DevOps |
 
 ---
 

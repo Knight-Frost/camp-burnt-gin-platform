@@ -1,6 +1,6 @@
 # Deployment
 
-This document provides comprehensive procedures for deploying the Camp Burnt Gin API to production environments. It covers server requirements, deployment steps, configuration, and post-deployment verification.
+This document covers production deployment procedures for the Camp Burnt Gin application on a well-resourced Linux server (4+ CPU cores, 8 GB+ RAM). For deployment on an AWS EC2 t2.micro instance using Amazon Linux 2023, see [EC2_Deployment_Guide.md](EC2_Deployment_Guide.md) instead — that guide is validated against the live deployment and accounts for the resource constraints specific to that environment.
 
 ---
 
@@ -41,7 +41,7 @@ The Camp Burnt Gin API is a Laravel 12 application designed for deployment on mo
 
 | Component | Version | Purpose |
 |-----------|---------|---------|
-| Operating System | Ubuntu 22.04 LTS or equivalent | Server platform |
+| Operating System | Ubuntu 22.04 LTS or Amazon Linux 2023 | Server platform |
 | PHP | 8.2 or higher | Application runtime |
 | MySQL | 8.0 or higher | Primary database |
 | Nginx | 1.18+ or Apache 2.4+ | Web server |

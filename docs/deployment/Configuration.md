@@ -236,14 +236,44 @@ FILESYSTEM_DISK=local                 # local|s3|spaces
 | SESSION_DRIVER | String | database | database, redis, file, cookie | Database recommended |
 | SESSION_LIFETIME | Integer | 30 | Minutes | Aligns with token expiration (HIPAA) |
 | SESSION_ENCRYPT | Boolean | true | true, false | MUST be true for PHI |
+| SESSION_SECURE_COOKIE | Boolean | true | true, false | Set to false only when serving over HTTP |
 | SESSION_SAME_SITE | String | strict | strict, lax, none | strict=max CSRF protection |
 
-**SESSION_ENCRYPT:** MUST be `true` when handling PHI (HIPAA requirement)
+**SESSION_ENCRYPT:** MUST be `true` when handling PHI (HIPAA requirement).
+
+**SESSION_SECURE_COOKIE:** When `true`, the browser only sends the session cookie over HTTPS connections. Set this to `false` only when deploying over plain HTTP, such as on an internal development server or an EC2 instance without TLS configured. Setting it to `true` on an HTTP-only server causes all API calls to fail silently because the browser never transmits the cookie.
 
 **SESSION_SAME_SITE:**
 - strict: Maximum CSRF protection (recommended)
-- lax: Moderate protection
+- lax: Moderate protection; required when SESSION_SECURE_COOKIE=false
 - none: No protection (requires HTTPS)
+
+### CORS Configuration
+
+Cross-origin request handling is controlled via the `CORS_ALLOWED_ORIGINS` environment variable. When set, it overrides the default localhost-only allowed origins list in `config/cors.php`.
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| CORS_ALLOWED_ORIGINS | String | (localhost list) | Comma-separated list of allowed frontend origins |
+
+The value must exactly match the `Origin` header the browser sends. For a server accessible at `http://203.0.113.10` (example IP), the correct value is `http://203.0.113.10` with no trailing slash. For an HTTPS deployment at a domain, it would be `https://app.campburntgin.org`.
+
+After changing this value, the configuration cache must be cleared and rebuilt:
+
+```bash
+php artisan config:clear
+php artisan config:cache
+```
+
+To verify CORS is working, test the preflight response:
+
+```bash
+curl -s -I -X OPTIONS http://YOUR_SERVER/api/auth/login \
+  -H "Origin: http://YOUR_FRONTEND_ORIGIN" \
+  -H "Access-Control-Request-Method: POST" | grep -i access-control
+```
+
+The response must include `Access-Control-Allow-Origin: http://YOUR_FRONTEND_ORIGIN`. If that header is absent, the browser will block all API requests from the frontend.
 
 ---
 
