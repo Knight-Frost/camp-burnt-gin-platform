@@ -38,7 +38,14 @@ if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL && !DEMO_MODE) {
 
 // HIPAA guard: PHI must never be transmitted over plain HTTP in production.
 // If VITE_API_BASE_URL is set but uses http://, the build must fail loudly.
-if (import.meta.env.PROD && !DEMO_MODE && import.meta.env.VITE_API_BASE_URL?.startsWith('http://')) {
+// Set VITE_ALLOW_HTTP=true only for trusted internal/school deployments where
+// TLS is not yet configured. Never use in real production.
+if (
+  import.meta.env.PROD &&
+  !DEMO_MODE &&
+  import.meta.env.VITE_API_BASE_URL?.startsWith('http://') &&
+  import.meta.env.VITE_ALLOW_HTTP !== 'true'
+) {
   throw new Error(
     '[Security] VITE_API_BASE_URL must use HTTPS in production. ' +
     'Plain HTTP transmits auth tokens and PHI in cleartext.'
