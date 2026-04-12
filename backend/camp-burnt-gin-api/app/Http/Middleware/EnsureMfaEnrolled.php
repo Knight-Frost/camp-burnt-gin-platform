@@ -46,10 +46,17 @@ class EnsureMfaEnrolled
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // MFA is optional for all users. Enrollment is never forced — users who
-        // have disabled or never set up MFA pass through freely. The step-up gate
-        // (EnsureMfaStepUp) separately handles re-verification for sensitive actions
-        // when MFA is actively enabled.
+        // ── Enforcement scaffold (currently pass-through) ────────────────────
+        // When PHI enrollment enforcement is activated, isAdmin() and isMedicalProvider()
+        // roles with mfa_enabled === false will be denied with HTTP_FORBIDDEN and
+        // 'mfa_setup_required' => true in the response body, directing the user to
+        // complete MFA enrollment via their portal profile page.
+        //
+        // Current policy: MFA enrollment is strongly recommended but not yet forced.
+        // The step-up gate (EnsureMfaStepUp) enforces re-verification for users who
+        // already have MFA configured; this gate is reserved for future hard enforcement.
+        // ─────────────────────────────────────────────────────────────────────
+
         return $next($request);
     }
 }

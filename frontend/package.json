@@ -117,5 +117,10 @@
     "vite": "^6.4.2",
     "vite-plugin-compression": "^0.5.1",
     "vitest": "^3.2.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "basic-ftp": ">=5.2.2"
+    }
   }
 }

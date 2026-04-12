@@ -35,6 +35,7 @@ import { LanguageToggle } from '@/ui/components/LanguageToggle';
 import { Avatar } from '@/ui/components/Avatar';
 import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getProfileRoute } from '@/shared/constants/roles';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 
 interface DashboardHeaderProps {
   title: string;
@@ -61,8 +62,10 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   // System notification unread count — comes from server on mount; updated by NotificationPanel callbacks.
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  // Bell badge shows only system notifications — inbox messages have their own badge in the sidebar.
-  const unreadCount = unreadNotifications;
+  // Inbox message unread count from context — shared across all layouts via MessagingCountProvider.
+  const { unreadMessageCount } = useUnreadMessageCount();
+  // Bell badge combines both notification and message unread counts into a single indicator.
+  const unreadCount = unreadNotifications + unreadMessageCount;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Derive the correct profile and settings URLs for the logged-in user's role.

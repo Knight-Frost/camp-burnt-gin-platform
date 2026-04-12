@@ -160,25 +160,31 @@ export function ThreadView({ conversation, currentUserId, onBack, onArchive, ref
     messagesConvRef.current = conversation.id;
 
     // Step 1: Fetch page 1 to discover the total page count, then fetch the last page.
+    // Returns a chained Promise so .catch() covers both the initial fetch and the
+    // optional last-page fetch when multi-page conversations are loaded.
     getMessages(conversation.id, { page: 1 })
-      .then(async (res) => {
-        if (isCancelled) return;
+      .then((res) => {
+        if (isCancelled) return Promise.resolve();
         const last = res.meta.last_page;
         if (last <= 1) {
           // Only one page — we already have everything
           setMessages(res.data);
           setOldestPageLoaded(1);
-        } else {
-          // Fetch the last page to show the most recent messages
-          const lastRes = await getMessages(conversation.id, { page: last });
+          if (!silent && hadUnread) {
+            window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
+          }
+          return Promise.resolve();
+        }
+        // Fetch the last page to show the most recent messages
+        return getMessages(conversation.id, { page: last }).then((lastRes) => {
           if (!isCancelled) {
             setMessages(lastRes.data);
             setOldestPageLoaded(last);
+            if (!silent && hadUnread) {
+              window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
+            }
           }
-        }
-        if (!silent && hadUnread) {
-          window.dispatchEvent(new CustomEvent('messaging:unread-changed'));
-        }
+        });
       })
       .catch(() => {
         if (!isCancelled && !silent) toast.error('Could not load messages.');

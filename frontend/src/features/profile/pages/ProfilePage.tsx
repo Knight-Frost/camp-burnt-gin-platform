@@ -13,6 +13,7 @@ import {
   type FormEvent,
   type ChangeEvent,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -634,6 +635,9 @@ function MfaSection({
 export function ProfilePage() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const location = useLocation();
+  // Arrive here via ProtectedRoute MFA enrollment gate — show setup banner.
+  const mfaSetupRequired = (location.state as { mfaSetupRequired?: boolean } | null)?.mfaSetupRequired ?? false;
 
   const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -755,6 +759,18 @@ export function ProfilePage() {
 
   return (
     <div className="p-6 max-w-2xl">
+      {mfaSetupRequired && (
+        <div
+          className="mb-5 rounded-lg border px-4 py-3 text-sm"
+          style={{
+            background: 'rgba(234,88,12,0.08)',
+            borderColor: 'rgba(234,88,12,0.4)',
+            color: 'var(--foreground)',
+          }}
+        >
+          <strong>MFA setup required.</strong> Your role requires multi-factor authentication to be enabled before you can access protected resources. Please configure MFA in the Security section below.
+        </div>
+      )}
       <div className="mb-7">
         <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           {t('profile.title')}

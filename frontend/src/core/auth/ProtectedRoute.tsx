@@ -23,6 +23,8 @@ import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { FullPageLoader } from '@/ui/components/FullPageLoader';
+import { getUserRole, ROLES } from '@/shared/types/user.types';
+import { getProfileRoute } from '@/shared/constants/roles';
 
 
 export function ProtectedRoute() {
@@ -54,7 +56,29 @@ export function ProtectedRoute() {
     return <Navigate to={ROUTES.MFA_VERIFY} replace />;
   }
 
-  // Check 4: Email not yet verified — all protected API routes require a verified email.
+  // Check 4: MFA not enrolled — admin/medical/super_admin without MFA are redirected
+  // to their portal profile page to complete enrollment before accessing any resource.
+  // Guards against redirect loops by checking whether the user is already on profile.
+  const MFA_REQUIRED_ROLES = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.MEDICAL] as const;
+  const role = user ? getUserRole(user) : undefined;
+  const profilePath = getProfileRoute(role ?? null);
+  if (
+    user &&
+    role &&
+    (MFA_REQUIRED_ROLES as readonly string[]).includes(role) &&
+    user.mfa_enabled === false &&
+    !location.pathname.startsWith(profilePath)
+  ) {
+    return (
+      <Navigate
+        to={profilePath}
+        state={{ mfaSetupRequired: true }}
+        replace
+      />
+    );
+  }
+
+  // Check 5: Email not yet verified — all protected API routes require a verified email.
   // Redirect to the pending-verification screen rather than letting dashboard calls fail.
   if (user && !user.email_verified_at) {
     return <Navigate to="/verify-email?pending=true" replace />;
