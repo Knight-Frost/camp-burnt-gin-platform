@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Document;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Document\StoreDocumentRequest;
+use App\Models\Application;
 use App\Models\AuditLog;
 use App\Models\Document;
+use App\Models\MedicalRecord;
 use App\Services\Document\DocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -361,9 +363,14 @@ class DocumentController extends Controller
         return match ($document->documentable_type) {
             // full_name is a computed accessor on the Camper model (first_name + last_name)
             'App\\Models\\Camper' => $document->documentable?->full_name,
-            // For application and medical record documents, show the associated camper's name
-            'App\\Models\\Application' => $document->documentable?->camper?->full_name,
-            'App\\Models\\MedicalRecord' => $document->documentable?->camper?->full_name,
+            // For application and medical record documents, show the associated camper's name.
+            // instanceof check required for PHPStan to narrow the type from Model to Application/MedicalRecord.
+            'App\\Models\\Application' => $document->documentable instanceof Application
+                ? $document->documentable->camper?->full_name
+                : null,
+            'App\\Models\\MedicalRecord' => $document->documentable instanceof MedicalRecord
+                ? $document->documentable->camper?->full_name
+                : null,
             default => null,
         };
     }

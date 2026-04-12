@@ -464,7 +464,7 @@ class ApplicationController extends Controller
                 'application_id' => $application->id,
                 'camper_id' => $application->camper_id,
                 'session_id' => $application->camp_session_id,
-                'status' => $application->status?->value,
+                'status' => $application->status->value,
                 'is_draft' => $application->is_draft,
                 'deleted_by' => $user->id,
             ]

@@ -24,6 +24,10 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  *    polymorphic relationship so one Document model serves multiple owner types.
  *  - 'session' is exposed as a virtual attribute alias of campSession so the
  *    frontend can use application.session everywhere consistently.
+ *
+ * @property ApplicationStatus $status
+ * @property SubmissionSource|null $submission_source
+ * @property Camper|null $camper
  */
 class Application extends Model
 {

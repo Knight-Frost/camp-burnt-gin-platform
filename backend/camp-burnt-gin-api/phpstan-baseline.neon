@@ -31,8 +31,8 @@ parameters:
 			path: app/Console/Commands/SendIncompleteApplicationReminders.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notify\(\)\.$#'
+			identifier: method.notFound
 			count: 1
 			path: app/Console/Commands/SendIncompleteApplicationReminders.php
 
@@ -61,24 +61,6 @@ parameters:
 			path: app/Http/Controllers/Api/Auth/AuthController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$date_of_birth\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$last_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 1
@@ -87,12 +69,6 @@ parameters:
 		-
 			message: '#^Called ''count'' on Laravel collection, but could have been retrieved as a query\.$#'
 			identifier: larastan.noUnnecessaryCollectionCall
-			count: 1
-			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
 			count: 1
 			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
 
@@ -133,30 +109,6 @@ parameters:
 			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Api/Camper/ApplicationController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$last_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Api/Camper/ApplicationController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Api/Camper/ApplicationController.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Http/Controllers/Api/Camper/ApplicationController.php
-
-		-
 			message: '#^Offset ''capacity'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
 			identifier: offsetAccess.notFound
 			count: 1
@@ -175,9 +127,9 @@ parameters:
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
-			message: '#^Using nullsafe property access on non\-nullable type string\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
+			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationSubmitted\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 2
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
@@ -249,7 +201,7 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: app/Http/Controllers/Api/Document/DocumentController.php
 
 		-
@@ -703,12 +655,6 @@ parameters:
 			path: app/Http/Controllers/Api/System/UserController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Requests/Document/StoreDocumentRequest.php
-
-		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\ConversationResource\:\:\$activeParticipantRecords\.$#'
 			identifier: property.notFound
 			count: 2
@@ -827,18 +773,6 @@ parameters:
 			identifier: method.nonObject
 			count: 1
 			path: app/Models/Allergy.php
-
-		-
-			message: '#^Cannot call method isEditable\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Models/Application.php
-
-		-
-			message: '#^Cannot call method isFinal\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Models/Application.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
@@ -1051,18 +985,6 @@ parameters:
 			path: app/Notifications/Camper/AcceptanceLetterNotification.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/Camper/AcceptanceLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/Camper/AcceptanceLetterNotification.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1081,18 +1003,6 @@ parameters:
 			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 3
@@ -1103,36 +1013,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Cannot call method label\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\ApplicationStatus\:\:Approved will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\ApplicationStatus\:\:Rejected will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/Camper/ApplicationSubmittedNotification.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
@@ -1153,12 +1033,6 @@ parameters:
 			path: app/Notifications/Camper/ApplicationSubmittedNotification.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/Camper/IncompleteApplicationReminderNotification.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 2
@@ -1172,12 +1046,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/Camper/RejectionLetterNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Notifications/Camper/RejectionLetterNotification.php
@@ -1327,18 +1195,6 @@ parameters:
 			path: app/Policies/ApplicantDocumentPolicy.php
 
 		-
-			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ApplicationStatus\:\:Submitted, App\\Enums\\ApplicationStatus\:\:UnderReview, App\\Enums\\ApplicationStatus\:\:Approved, App\\Enums\\ApplicationStatus\:\:Waitlisted\} will always evaluate to false\.$#'
-			identifier: function.impossibleType
-			count: 1
-			path: app/Policies/ApplicationPolicy.php
-
-		-
-			message: '#^Parameter \#1 \$camper of method App\\Models\\User\:\:ownsCamper\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 4
-			path: app/Policies/ApplicationPolicy.php
-
-		-
 			message: '#^Parameter \#1 \$camper of method App\\Models\\User\:\:canAccessCamperAsMedical\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 2
@@ -1477,18 +1333,6 @@ parameters:
 			path: app/Services/Auth/MfaService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$emergencyContacts\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Camper/ApplicationCompletenessService.php
-
-		-
-			message: '#^Parameter \#1 \$camper of method App\\Services\\Document\\DocumentEnforcementService\:\:checkCompliance\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/Camper/ApplicationCompletenessService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$capacity\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1501,27 +1345,9 @@ parameters:
 			path: app/Services/Camper/ApplicationService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Camper/ApplicationService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$last_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Camper/ApplicationService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Services/Camper/ApplicationService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 2
 			path: app/Services/Camper/ApplicationService.php
 
 		-
@@ -1531,38 +1357,20 @@ parameters:
 			path: app/Services/Camper/ApplicationService.php
 
 		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 6
-			path: app/Services/Camper/ApplicationService.php
-
-		-
-			message: '#^Cannot call method canTransitionTo\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Services/Camper/ApplicationService.php
-
-		-
-			message: '#^If condition is always false\.$#'
-			identifier: if.alwaysFalse
-			count: 1
-			path: app/Services/Camper/ApplicationService.php
-
-		-
-			message: '#^Parameter \#1 \$camper of method App\\Services\\Document\\DocumentEnforcementService\:\:checkCompliance\(\) expects App\\Models\\Camper, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationApproved\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Services/Camper/ApplicationService.php
 
 		-
-			message: '#^Result of && is always false\.$#'
-			identifier: booleanAnd.alwaysFalse
+			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationRejected\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
 			count: 1
 			path: app/Services/Camper/ApplicationService.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\ApplicationStatus\:\:Approved will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
+			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationStatusChanged\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
 			count: 2
 			path: app/Services/Camper/ApplicationService.php
 
@@ -1879,15 +1687,9 @@ parameters:
 			path: app/Services/System/LetterService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/System/LetterService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
-			count: 2
+			count: 4
 			path: app/Services/System/LetterService.php
 
 		-
@@ -1897,16 +1699,10 @@ parameters:
 			path: app/Services/System/LetterService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 4
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notify\(\)\.$#'
+			identifier: method.notFound
+			count: 2
 			path: app/Services/System/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$allergies\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/System/ReportService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
@@ -1915,7 +1711,7 @@ parameters:
 			path: app/Services/System/ReportService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$date_of_birth\.$#'
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
 			identifier: property.notFound
 			count: 4
 			path: app/Services/System/ReportService.php
@@ -1927,15 +1723,9 @@ parameters:
 			path: app/Services/System/ReportService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$full_name\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Services/System/ReportService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
-			count: 5
+			count: 9
 			path: app/Services/System/ReportService.php
 
 		-
@@ -1945,21 +1735,21 @@ parameters:
 			path: app/Services/System/ReportService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
-			identifier: property.notFound
-			count: 8
-			path: app/Services/System/ReportService.php
-
-		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:requiresImmediateAttention\(\)\.$#'
 			identifier: method.notFound
 			count: 1
 			path: app/Services/System/ReportService.php
 
 		-
-			message: '#^Cannot access property \$value on string\.$#'
+			message: '#^Cannot access property \$age on string\.$#'
 			identifier: property.nonObject
-			count: 1
+			count: 2
+			path: app/Services/System/ReportService.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
 			path: app/Services/System/ReportService.php
 
 		-

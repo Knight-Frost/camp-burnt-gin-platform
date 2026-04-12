@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
+use App\Models\Camper;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -159,7 +160,8 @@ class ApplicationPolicy
                 && in_array($application->status, $terminalStatuses);
         }
 
-        if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
+        $camper = $application->camper;
+        if ($user->isApplicant() && $camper instanceof Camper && $user->ownsCamper($camper)) {
             return ! $application->is_draft
                 && in_array($application->status, $terminalStatuses);
         }
@@ -188,7 +190,8 @@ class ApplicationPolicy
             return false;
         }
 
-        if (! $user->ownsCamper($application->camper)) {
+        $camper = $application->camper;
+        if (! ($camper instanceof Camper) || ! $user->ownsCamper($camper)) {
             return false;
         }
 
