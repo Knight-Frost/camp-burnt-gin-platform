@@ -9,12 +9,11 @@
  * 2. Not logged in?        → Redirect to /login, preserving where the user was trying to go
  *                            so they can be sent there after a successful login.
  * 3. MFA incomplete?       → Redirect to /mfa-verify so the user completes two-factor auth.
- * 4. MFA not enrolled?     → Admin/medical/super_admin users who have mfa_enabled=false are
- *                            redirected to their portal profile page to set up MFA before
- *                            accessing any protected resource. Only fires when mfa_enabled is
- *                            explicitly false (not undefined/null — those mean "unknown").
- * 5. Email unverified?     → Redirect to /verify-email pending screen.
- * 6. All clear             → Render the matched child route via <Outlet />.
+ * 4. Email unverified?     → Redirect to /verify-email pending screen.
+ * 5. All clear             → Render the matched child route via <Outlet />.
+ *
+ * Note: MFA enrollment is optional. Users with mfa_enabled=false see a security notice
+ * banner on their profile page but are not blocked from navigating the portal.
  *
  * <Outlet /> is a React Router concept — it renders whatever child route matched the URL.
  */
@@ -23,8 +22,6 @@ import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { FullPageLoader } from '@/ui/components/FullPageLoader';
-import { getUserRole, ROLES } from '@/shared/types/user.types';
-import { getProfileRoute } from '@/shared/constants/roles';
 
 
 export function ProtectedRoute() {
@@ -56,27 +53,9 @@ export function ProtectedRoute() {
     return <Navigate to={ROUTES.MFA_VERIFY} replace />;
   }
 
-  // Check 4: MFA not enrolled — admin/medical/super_admin without MFA are redirected
-  // to their portal profile page to complete enrollment before accessing any resource.
-  // Guards against redirect loops by checking whether the user is already on profile.
-  const MFA_REQUIRED_ROLES = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.MEDICAL] as const;
-  const role = user ? getUserRole(user) : undefined;
-  const profilePath = getProfileRoute(role ?? null);
-  if (
-    user &&
-    role &&
-    (MFA_REQUIRED_ROLES as readonly string[]).includes(role) &&
-    user.mfa_enabled === false &&
-    !location.pathname.startsWith(profilePath)
-  ) {
-    return (
-      <Navigate
-        to={profilePath}
-        state={{ mfaSetupRequired: true }}
-        replace
-      />
-    );
-  }
+  // Check 4: (MFA enrollment enforcement removed — MFA is optional. The profile page
+  // shows a security notice banner when mfa_enabled is false, but users are free to
+  // navigate the portal without enrolling.)
 
   // Check 5: Email not yet verified — all protected API routes require a verified email.
   // Redirect to the pending-verification screen rather than letting dashboard calls fail.
