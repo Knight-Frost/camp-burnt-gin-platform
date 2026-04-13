@@ -29,7 +29,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-      target: development
+      # Use BUILD_TARGET=development locally; the deploy workflow sets BUILD_TARGET=production
+      # via the server .env so this compose file remains usable for both contexts.
+      target: ${BUILD_TARGET:-development}
     container_name: camp-burnt-gin-app
     restart: unless-stopped
     working_dir: /var/www/html

@@ -125,6 +125,7 @@ jobs:
         if: steps.check.outputs.configured == 'true'
         run: |
           install -m 0600 /dev/null /tmp/deploy_key
+          trap 'rm -f /tmp/deploy_key' EXIT
           printf '%s' "$SSH_KEY_CONTENTS" > /tmp/deploy_key
 
           ssh -i /tmp/deploy_key \
@@ -133,12 +134,10 @@ jobs:
             "${SSH_USER_VALUE}@${SSH_HOST_VALUE}" \
             "cd '${APP_DIR_VALUE}' && \
              git pull --ff-only origin develop && \
-             docker compose pull && \
-             docker compose up -d --build && \
+             BUILD_TARGET=production docker compose pull && \
+             BUILD_TARGET=production docker compose up -d --build && \
              docker compose exec -T app php artisan migrate --force && \
              docker compose exec -T app php artisan optimize"
-
-          rm -f /tmp/deploy_key
         env:
           SSH_HOST_VALUE: ${{ secrets.DEPLOY_SSH_HOST }}
           SSH_USER_VALUE: ${{ secrets.DEPLOY_SSH_USER }}
@@ -148,11 +147,16 @@ jobs:
       - name: Post-deploy health check
         if: steps.check.outputs.configured == 'true'
         run: |
+          if [[ -z "$API_URL_VALUE" ]]; then
+            echo "DEPLOY_API_URL not configured -- skipping health check."
+            exit 0
+          fi
+
           MAX_ATTEMPTS=15
           DELAY=4
           attempt=1
           while [ $attempt -le $MAX_ATTEMPTS ]; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL_VALUE}/api/health" || echo "000")
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL_VALUE}/api/ready" || echo "000")
             if [[ "$HTTP_STATUS" == "200" ]]; then
               echo "Health check passed after $attempt attempt(s) (HTTP $HTTP_STATUS)."
               break
@@ -292,6 +296,7 @@ jobs:
         if: steps.check.outputs.configured == 'true'
         run: |
           install -m 0600 /dev/null /tmp/deploy_key
+          trap 'rm -f /tmp/deploy_key' EXIT
           printf '%s' "$SSH_KEY_CONTENTS" > /tmp/deploy_key
 
           ssh -i /tmp/deploy_key \
@@ -300,12 +305,10 @@ jobs:
             "${SSH_USER_VALUE}@${SSH_HOST_VALUE}" \
             "cd '${APP_DIR_VALUE}' && \
              git pull --ff-only origin main && \
-             docker compose pull && \
-             docker compose up -d --build && \
+             BUILD_TARGET=production docker compose pull && \
+             BUILD_TARGET=production docker compose up -d --build && \
              docker compose exec -T app php artisan migrate --force && \
              docker compose exec -T app php artisan optimize"
-
-          rm -f /tmp/deploy_key
         env:
           SSH_HOST_VALUE: ${{ secrets.DEPLOY_SSH_HOST }}
           SSH_USER_VALUE: ${{ secrets.DEPLOY_SSH_USER }}
@@ -324,7 +327,7 @@ jobs:
           DELAY=4
           attempt=1
           while [ $attempt -le $MAX_ATTEMPTS ]; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL_VALUE}/api/health" || echo "000")
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL_VALUE}/api/ready" || echo "000")
             if [[ "$HTTP_STATUS" == "200" ]]; then
               echo "Health check passed after $attempt attempt(s) (HTTP $HTTP_STATUS)."
               break

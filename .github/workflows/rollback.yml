@@ -120,14 +120,22 @@ jobs:
       - name: Roll back via SSH
         if: steps.check.outputs.configured == 'true'
         run: |
-          install -m 0600 /dev/null /tmp/deploy_key
-          printf '%s' "$SSH_KEY_CONTENTS" > /tmp/deploy_key
-
+          # Validate TARGET_SHA if provided: must be a hex git SHA (7-40 chars).
+          # This prevents workflow_dispatch user input from injecting shell commands
+          # into the remote SSH execution context.
           if [[ -n "$TARGET_SHA" ]]; then
-            CHECKOUT_CMD="git fetch origin && git checkout $TARGET_SHA"
+            if ! [[ "$TARGET_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+              echo "FAIL: target_sha must be a valid git SHA (7-40 hex characters). Got: $TARGET_SHA"
+              exit 1
+            fi
+            CHECKOUT_CMD="git fetch origin && git checkout ${TARGET_SHA}"
           else
             CHECKOUT_CMD="git fetch origin && git checkout HEAD~1"
           fi
+
+          install -m 0600 /dev/null /tmp/deploy_key
+          trap 'rm -f /tmp/deploy_key' EXIT
+          printf '%s' "$SSH_KEY_CONTENTS" > /tmp/deploy_key
 
           ssh -i /tmp/deploy_key \
             -o StrictHostKeyChecking=accept-new \
@@ -135,12 +143,10 @@ jobs:
             "${SSH_USER_VALUE}@${SSH_HOST_VALUE}" \
             "cd '${APP_DIR_VALUE}' && \
              ${CHECKOUT_CMD} && \
-             docker compose pull && \
-             docker compose up -d --build && \
+             BUILD_TARGET=production docker compose pull && \
+             BUILD_TARGET=production docker compose up -d --build && \
              docker compose exec -T app php artisan migrate --force && \
              docker compose exec -T app php artisan optimize"
-
-          rm -f /tmp/deploy_key
         env:
           SSH_HOST_VALUE: ${{ secrets.DEPLOY_SSH_HOST }}
           SSH_USER_VALUE: ${{ secrets.DEPLOY_SSH_USER }}
@@ -160,7 +166,7 @@ jobs:
           DELAY=4
           attempt=1
           while [ $attempt -le $MAX_ATTEMPTS ]; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL_VALUE}/api/health" || echo "000")
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL_VALUE}/api/ready" || echo "000")
             if [[ "$HTTP_STATUS" == "200" ]]; then
               echo "Health check passed after $attempt attempt(s) (HTTP $HTTP_STATUS)."
               break
