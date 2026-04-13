@@ -67,9 +67,11 @@ return new class extends Migration
         // submitted_at = created_at for any such record currently NULL.
         // Scope: documentable_type IS NOT NULL (real application/camper documents,
         //        not orphaned records) and uploaded_by is an admin/medical user.
+        // Note: users.role_id → roles.name join required; 'role' is not a direct column.
         $adminAndMedicalUserIds = DB::table('users')
-            ->whereIn('role', ['admin', 'super_admin', 'medical'])
-            ->pluck('id');
+            ->join('roles', 'users.role_id', '=', 'roles.id')
+            ->whereIn('roles.name', ['admin', 'super_admin', 'medical'])
+            ->pluck('users.id');
 
         if ($adminAndMedicalUserIds->isNotEmpty()) {
             DB::table('documents')

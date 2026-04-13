@@ -21,37 +21,43 @@ function read(relPath: string): string {
   return readFileSync(resolve(SRC, relPath), 'utf-8');
 }
 
-describe('ProtectedRoute — MFA enrollment gate', () => {
+describe('ProtectedRoute — MFA step-up gate (enrollment is optional)', () => {
+  // MFA enrollment is no longer enforced at the frontend routing layer.
+  // The backend EnsureMfaEnrolled middleware is the sole enforcement point.
+  // ProtectedRoute only handles the MFA step-up check (re-verify session),
+  // not the enrollment gate (has the user ever set up MFA at all).
   const src = read('core/auth/ProtectedRoute.tsx');
 
-  test('imports getUserRole and ROLES from user.types', () => {
-    expect(src).toContain("getUserRole");
-    expect(src).toContain("ROLES");
+  test('enforces MFA step-up: redirects when mfaRequired && !mfaVerified', () => {
+    expect(src).toContain('mfaRequired');
+    expect(src).toContain('mfaVerified');
   });
 
-  test('checks mfa_enabled on the authenticated user', () => {
-    expect(src).toContain('mfa_enabled');
+  test('redirects unauthenticated users to login', () => {
+    expect(src).toContain('ROUTES.LOGIN');
   });
 
-  test('gates admin role on MFA enrollment', () => {
-    expect(src).toContain('ROLES.ADMIN');
+  test('redirects to MFA verify route when step-up is required', () => {
+    expect(src).toContain('ROUTES.MFA_VERIFY');
   });
 
-  test('gates super_admin role on MFA enrollment', () => {
-    expect(src).toContain('ROLES.SUPER_ADMIN');
+  test('does not gate on mfa_enabled — enrollment is optional at the frontend', () => {
+    // Enrollment enforcement is the backend's responsibility (EnsureMfaEnrolled middleware).
+    // The frontend only shows a security notice banner on the profile page.
+    expect(src).not.toContain('mfa_enabled === false');
   });
 
-  test('gates medical role on MFA enrollment', () => {
-    expect(src).toContain('ROLES.MEDICAL');
+  test('does not import getUserRole or getProfileRoute — enrollment gate removed', () => {
+    expect(src).not.toContain('getUserRole');
+    expect(src).not.toContain('getProfileRoute');
   });
 
-  test('redirects to profile page with mfaSetupRequired state', () => {
-    expect(src).toContain('mfaSetupRequired: true');
+  test('renders child routes via Outlet when all checks pass', () => {
+    expect(src).toContain('<Outlet />');
   });
 
-  test('avoids redirect loop — checks pathname before redirecting', () => {
-    // Guards against infinite redirect when the user is already on profile
-    expect(src).toContain('startsWith(profilePath)');
+  test('guards email verification — redirects unverified users', () => {
+    expect(src).toContain('email_verified_at');
   });
 });
 
