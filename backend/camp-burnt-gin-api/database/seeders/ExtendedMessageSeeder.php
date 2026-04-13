@@ -10,6 +10,12 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
+ * @deprecated Replaced by MessagingSeeder (2026-03-27).
+ *
+ * MessagingSeeder supersedes both MessageSeeder and ExtendedMessageSeeder with
+ * 16 human threads + 4 system threads covering all inbox feature states.
+ * Do not call this seeder directly.
+ *
  * Seeder — extended messaging scenarios.
  *
  * The base MessageSeeder creates 5 short conversations (all applicant ↔ admin).

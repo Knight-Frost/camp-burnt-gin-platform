@@ -49,14 +49,22 @@ class ApplicationFactory extends Factory
         ];
     }
 
-    /** Unsaved draft — not yet submitted; no signature. */
+    /**
+     * Unsaved draft — not yet submitted; no signature.
+     * is_draft=true is the authoritative draft flag. The status defaults to
+     * Submitted per the column default (it will be overwritten on actual submission),
+     * but signature and submission timestamps are blank since the parent hasn't signed.
+     */
     public function draft(): static
     {
         return $this->state(fn () => [
             'is_draft' => true,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
+            'signature_name' => null,
+            'signature_data' => null,
             'signed_at' => null,
+            'signed_ip_address' => null,
         ]);
     }
 

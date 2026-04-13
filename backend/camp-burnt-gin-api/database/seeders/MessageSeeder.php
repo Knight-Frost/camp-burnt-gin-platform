@@ -12,6 +12,12 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
+ * @deprecated Replaced by MessagingSeeder (2026-03-27).
+ *
+ * MessagingSeeder covers 16 human threads + 4 system threads with full
+ * TO/CC/BCC recipient rows, read receipts, starred/trashed/archived states,
+ * and system-generated notifications. Do not call this seeder directly.
+ *
  * Seeder — inbox conversations and messages.
  *
  * Creates five realistic conversation threads across categories:

@@ -21,12 +21,14 @@ class ConversationFactory extends Factory
         return [
             'created_by_id' => User::factory(),
             'subject' => fake()->sentence(),
-            'category' => fake()->randomElement(['General', 'Medical', 'Application']),
+            // Schema enforces lowercase: 'general', 'medical', 'application', 'other'
+            'category' => fake()->randomElement(['general', 'medical', 'application', 'other']),
             'application_id' => null,
             'camper_id' => null,
             'camp_session_id' => null,
             'last_message_at' => now(),
             'is_archived' => false,
+            'is_system_generated' => false,
         ];
     }
 
@@ -35,7 +37,7 @@ class ConversationFactory extends Factory
     {
         return $this->state(fn () => [
             'application_id' => $applicationId ?? Application::factory(),
-            'category' => 'Application',
+            'category' => 'application',
         ]);
     }
 
@@ -70,6 +72,14 @@ class ConversationFactory extends Factory
     /** Medical category conversation. */
     public function medical(): static
     {
-        return $this->state(fn () => ['category' => 'Medical']);
+        return $this->state(fn () => ['category' => 'medical']);
+    }
+
+    /** System-generated notification thread (not user-initiated). */
+    public function systemGenerated(): static
+    {
+        return $this->state(fn () => [
+            'is_system_generated' => true,
+        ]);
     }
 }

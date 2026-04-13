@@ -130,10 +130,17 @@ class DocumentSeeder extends Seeder
         string $originalFilename,
         User $uploader,
         DocumentVerificationStatus $verificationStatus,
-        \DateTimeInterface $uploadedAt
+        \DateTimeInterface $uploadedAt,
+        ?\DateTimeInterface $expirationDate = null
     ): void {
         $isApproved = $verificationStatus === DocumentVerificationStatus::Approved;
         $storedFilename = Str::uuid()->toString().'.pdf';
+
+        // Resolve admin verifier from the DB rather than hardcoding a user ID.
+        static $adminVerifier = null;
+        if ($isApproved && $adminVerifier === null) {
+            $adminVerifier = User::whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin']))->first();
+        }
 
         Document::create([
             'documentable_type' => Camper::class,
@@ -151,9 +158,9 @@ class DocumentSeeder extends Seeder
             'scan_passed' => true,
             'scanned_at' => $uploadedAt,
             'verification_status' => $verificationStatus,
-            'verified_by' => $isApproved ? 2 : null, // admin id=2
+            'verified_by' => $isApproved ? $adminVerifier?->id : null,
             'verified_at' => $isApproved ? $uploadedAt : null,
-            'expiration_date' => null,
+            'expiration_date' => $expirationDate,
             'submitted_at' => $uploadedAt,
             'created_at' => $uploadedAt,
             'updated_at' => $uploadedAt,

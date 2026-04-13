@@ -172,12 +172,17 @@ class FullSimulationSeeder extends Seeder
     {
         $superAdminRole = Role::where('name', 'super_admin')->firstOrFail();
 
+        // Use ADMIN_BOOTSTRAP_PASSWORD env var when set (recommended for CI/staging).
+        // Falls back to the hardcoded default for local development convenience.
+        // Change immediately after any non-local deploy.
+        $password = env('ADMIN_BOOTSTRAP_PASSWORD', 'ChangeThisPassword123!');
+
         User::firstOrCreate(
             ['email' => 'admin@campburntgin.org'],
             [
                 'name' => 'Super Administrator',
                 'role_id' => $superAdminRole->id,
-                'password' => Hash::make('ChangeThisPassword123!'),
+                'password' => Hash::make($password),
                 'email_verified_at' => now(),
                 'is_active' => true,
             ]

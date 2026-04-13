@@ -10,6 +10,12 @@ use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
 /**
+ * @deprecated Replaced by MessagingSeeder (2026-03-27).
+ *
+ * MessagingSeeder includes read receipts inline as part of each conversation
+ * thread. Do not call this seeder directly — it will conflict with MessagingSeeder
+ * data by creating duplicate MessageRead rows.
+ *
  * Seeder — message_reads read receipts for realistic inbox unread states.
  *
  * This seeder creates MessageRead records for existing messages so that the inbox
