@@ -350,7 +350,7 @@ export async function createProviderLink(payload: { camper_id: number }): Promis
 export async function revokeProviderLink(id: number): Promise<void> { await axiosInstance.post(`/provider-links/${id}/revoke`); }
 export async function resendProviderLink(id: number): Promise<void> { await axiosInstance.post(`/provider-links/${id}/resend`); }
 
-export async function getUsers(params?: { page?: number; search?: string; role?: string }): Promise<PaginatedResponse<User>> {
+export async function getUsers(params?: { page?: number; search?: string; role?: string; include_inactive?: boolean }): Promise<PaginatedResponse<User>> {
   const { data } = await axiosInstance.get<PaginatedResponse<User>>('/users', { params }); return data;
 }
 

@@ -13,9 +13,35 @@ class TestMail extends Command
     public function handle(): void
     {
         $email = $this->argument('email');
-        Mail::raw('This is a test email from Camp Burnt Gin. If you see this in your Mailtrap sandbox, mail is configured correctly!', function ($m) use ($email) {
-            $m->to($email)->subject('Camp Burnt Gin - Mail Config Test');
-        });
-        $this->info("Test email sent to {$email}");
+
+        $mailer = config('mail.default');
+        $host   = config('mail.mailers.smtp.host', 'N/A');
+        $port   = config('mail.mailers.smtp.port', 'N/A');
+        $from   = config('mail.from.address', 'N/A');
+
+        $this->info("Mailer   : {$mailer}");
+        $this->info("SMTP host: {$host}:{$port}");
+        $this->info("From     : {$from}");
+        $this->info("To       : {$email}");
+        $this->newLine();
+
+        try {
+            Mail::raw(
+                "This is a test email from Camp Burnt Gin.\n\n".
+                "Mailer : {$mailer}\n".
+                "Host   : {$host}:{$port}\n".
+                "From   : {$from}\n\n".
+                'If you received this, Gmail SMTP is configured correctly.',
+                function ($m) use ($email) {
+                    $m->to($email)->subject('Camp Burnt Gin — Mail Config Test');
+                }
+            );
+
+            $this->info('✓ Test email sent successfully.');
+        } catch (\Exception $e) {
+            $this->error('✗ Failed to send test email.');
+            $this->error($e->getMessage());
+            \Log::error('mail:test failed', ['to' => $email, 'error' => $e->getMessage()]);
+        }
     }
 }

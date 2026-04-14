@@ -641,7 +641,8 @@ export function ProfilePage() {
 
   const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Personal info form state
   const [name, setName]                   = useState('');
@@ -683,6 +684,7 @@ export function ProfilePage() {
 
   async function handleSavePersonal(e: FormEvent) {
     e.preventDefault();
+    setEmailError(null);
     setSaving(true);
     try {
       const updated = await updateProfile({
@@ -694,8 +696,15 @@ export function ProfilePage() {
       setProfile(updated);
       dispatch(patchUser({ name: updated.name, preferred_name: updated.preferred_name, email: updated.email, phone: updated.phone }));
       toast.success(t('profile.save_success'));
-    } catch {
-      toast.error(t('common.save_error'));
+    } catch (err) {
+      const apiErr = err as { message?: string; errors?: Record<string, string[]> };
+      // If the backend returned a field-level email error, pin it inline under
+      // the email input so the user sees exactly what the conflict is.
+      if (apiErr?.errors?.email?.[0]) {
+        setEmailError(apiErr.errors.email[0]);
+      } else {
+        toast.error(apiErr?.message ?? t('common.save_error'));
+      }
     } finally {
       setSaving(false);
     }
@@ -716,8 +725,9 @@ export function ProfilePage() {
       setProfile(updated);
       dispatch(patchUser({ address_line_1: updated.address_line_1, address_line_2: updated.address_line_2, city: updated.city, state: updated.state, postal_code: updated.postal_code, country: updated.country }));
       toast.success('Address saved.');
-    } catch {
-      toast.error(t('common.save_error'));
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ?? t('common.save_error'));
     } finally {
       setSavingAddress(false);
     }
@@ -839,7 +849,18 @@ export function ProfilePage() {
                     </div>
                   )}
                 </div>
-                <TextInput value={email} onChange={setEmail} type="email" icon={<Mail className="h-4 w-4" />} />
+                <TextInput
+                  value={email}
+                  onChange={(v) => { setEmail(v); if (emailError) setEmailError(null); }}
+                  type="email"
+                  icon={<Mail className="h-4 w-4" />}
+                />
+                {emailError && (
+                  <p className="mt-1.5 text-xs flex items-start gap-1.5" style={{ color: 'var(--destructive)' }}>
+                    <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                    {emailError}
+                  </p>
+                )}
               </div>
               <div className="flex justify-end pt-1">
                 <Button type="submit" variant="primary" size="sm" loading={saving}>

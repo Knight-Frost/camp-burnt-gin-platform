@@ -108,14 +108,20 @@ class UserController extends Controller
     {
         // Validate filter inputs to prevent injection and ensure sensible lengths.
         $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
-            'role' => ['nullable', 'string', 'max:50'],
+            'search'           => ['nullable', 'string', 'max:255'],
+            'role'             => ['nullable', 'string', 'max:50'],
+            'include_inactive' => ['nullable', 'in:0,1,true,false'],
         ]);
 
-        // Start from newest accounts first — most recent signups appear at the top.
-        // Exclude deactivated/deleted accounts — is_active=false means the user has
-        // requested deletion or been deactivated; they should not appear in this list.
-        $query = User::with('role')->where('is_active', true)->orderBy('created_at', 'desc');
+        // Start from newest accounts first.
+        // By default, exclude deactivated accounts. Super admins may pass
+        // include_inactive=true to surface deactivated users (e.g. to resolve
+        // email conflicts or reactivate accounts).
+        $query = User::with('role')->orderBy('created_at', 'desc');
+
+        if (! $request->boolean('include_inactive', false)) {
+            $query->where('is_active', true);
+        }
 
         if ($request->filled('search')) {
             $term = $request->string('search');

@@ -417,6 +417,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  is_active: boolean;
   email_verified_at?: string;
   mfa_enabled?: boolean;
   created_at: string;

@@ -215,7 +215,7 @@ class DocumentRequestSeeder extends Seeder
                 'application' => $appAva,
                 'document_type' => 'Continuous Glucose Monitor Calibration Log',
                 'instructions' => "Please provide a 2-week export from the Dexcom Clarity app showing Ava's CGM calibration history and Time in Range data. Our nursing staff use this to calibrate their monitoring plan and understand her typical glucose patterns. Export as PDF from the Dexcom Clarity app under Reports > Time in Range.",
-                'status' => DocumentRequestStatus::Overdue,
+                'status' => DocumentRequestStatus::AwaitingUpload, // overdue is computed: awaiting_upload + past due_date
                 'due_date' => Carbon::now()->subDays(3)->toDateString(),
                 'uploaded_at' => null,
                 'reviewed_by_id' => null,

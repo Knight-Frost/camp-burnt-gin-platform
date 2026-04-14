@@ -45,9 +45,10 @@ const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
 
 // Consolidated filter object — all in one state to avoid double-fetch race conditions
 interface UserFilters {
-  search:     string;
-  roleFilter: string;
-  page:       number;
+  search:          string;
+  roleFilter:      string;
+  page:            number;
+  includeInactive: boolean;
 }
 
 export function UserManagementPage() {
@@ -59,7 +60,7 @@ export function UserManagementPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   // Single state object for all filters + page to avoid double-fetch when multiple change
-  const [filters, setFilters]   = useState<UserFilters>({ search: '', roleFilter: '', page: 1 });
+  const [filters, setFilters]   = useState<UserFilters>({ search: '', roleFilter: '', page: 1, includeInactive: false });
   // Track which user ID is being updated for a per-row spinner
   const [updating, setUpdating]         = useState<number | null>(null);
   // The user awaiting confirm in the activate/deactivate dialog; null = dialog closed
@@ -88,8 +89,9 @@ export function UserManagementPage() {
       setFilters((f) => ({ ...f, search: value, page: 1 }));
     }, 300);
   }
-  const setRoleFilter = (roleFilter: string) => setFilters((f) => ({ ...f, roleFilter, page: 1 }));
-  const setPage       = (page: number)       => setFilters((f) => ({ ...f, page }));
+  const setRoleFilter      = (roleFilter: string)        => setFilters((f) => ({ ...f, roleFilter, page: 1 }));
+  const setPage            = (page: number)              => setFilters((f) => ({ ...f, page }));
+  const toggleInactive     = ()                          => setFilters((f) => ({ ...f, includeInactive: !f.includeInactive, page: 1 }));
 
   // Stable fetch function — recreated only when the filters object changes
   const fetchUsers = useCallback(async () => {
@@ -97,10 +99,10 @@ export function UserManagementPage() {
     setError(false);
     try {
       const data = await getUsers({
-        page:   filters.page,
-        // Only pass search/role to the API if they have a value — keeps URL clean
-        search: filters.search || undefined,
-        role:   filters.roleFilter || undefined,
+        page:             filters.page,
+        search:           filters.search || undefined,
+        role:             filters.roleFilter || undefined,
+        include_inactive: filters.includeInactive || undefined,
       });
       setResponse(data);
     } catch {
@@ -240,6 +242,23 @@ export function UserManagementPage() {
             </option>
           ))}
         </select>
+
+        {/* Inactive users toggle — shows deactivated accounts so admins can
+            resolve email conflicts and manage all accounts transparently */}
+        <button
+          type="button"
+          onClick={toggleInactive}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors"
+          style={{
+            background:   filters.includeInactive ? 'rgba(220,38,38,0.08)' : 'var(--input)',
+            borderColor:  filters.includeInactive ? 'var(--destructive)'   : 'var(--border)',
+            color:        filters.includeInactive ? 'var(--destructive)'   : 'var(--muted-foreground)',
+          }}
+          title="Show or hide deactivated accounts"
+        >
+          {filters.includeInactive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {filters.includeInactive ? 'Hide inactive' : 'Show inactive'}
+        </button>
       </div>
 
       {loading ? (
@@ -273,14 +292,27 @@ export function UserManagementPage() {
             {response.data.map((user) => {
               // Fall back to 'applicant' colors for any role not in the ROLE_COLORS map
               const roleStyle = ROLE_COLORS[user.role] ?? ROLE_COLORS['applicant'];
+              const isInactive = !user.is_active;
               return (
                 <div
                   key={user.id}
                   className="grid grid-cols-12 items-center px-4 py-3.5 border-b last:border-b-0"
-                  style={{ borderColor: 'var(--border)' }}
+                  style={{
+                    borderColor: 'var(--border)',
+                    opacity: isInactive ? 0.6 : 1,
+                    background: isInactive ? 'rgba(220,38,38,0.03)' : undefined,
+                  }}
                 >
-                  <div className="col-span-3">
+                  <div className="col-span-3 flex items-center gap-2">
                     <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{user.name}</p>
+                    {isInactive && (
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                        style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--destructive)' }}
+                      >
+                        Inactive
+                      </span>
+                    )}
                   </div>
                   <div className="col-span-3">
                     <p className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>{user.email}</p>
