@@ -185,12 +185,26 @@ class ApplicationController extends Controller
         // which is exactly what an admin needs ("which pending application came first?").
         //
         // Zero extra DB queries: we compute rank from the already-known page offset.
-        // Only submitted non-draft applications receive a rank; drafts get null.
+        //
+        // BUG-3 FIX: Previously assigned rank to ALL non-draft submitted applications,
+        // including approved, rejected, cancelled, and withdrawn records. This was misleading
+        // because queue position is meaningless for already-processed (final-state) applications.
+        // Now rank is ONLY assigned to active applications: submitted, under_review, waitlisted.
+        // Final-state applications show null (rendered as "—" in the UI).
+        $activeStatuses = [
+            ApplicationStatus::Submitted->value,
+            ApplicationStatus::UnderReview->value,
+            ApplicationStatus::Waitlisted->value,
+        ];
         $pageOffset = ($applications->currentPage() - 1) * $applications->perPage();
         $rankedItems = [];
         foreach ($applications->items() as $index => $app) {
             $arr = $app->toArray();  // triggers $appends (application_number, session) + casts
-            $arr['queue_rank'] = (! $app->is_draft && $app->submitted_at !== null)
+            $arr['queue_rank'] = (
+                ! $app->is_draft
+                && $app->submitted_at !== null
+                && in_array($app->status->value, $activeStatuses)
+            )
                 ? $pageOffset + $index + 1
                 : null;
             $rankedItems[] = $arr;

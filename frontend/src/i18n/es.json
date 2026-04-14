@@ -541,7 +541,7 @@
     },
     "applications": {
       "title": "Solicitudes",
-      "subtitle": "Revisar y gestionar solicitudes de campistas",
+      "subtitle": "{{total}} solicitudes",
       "search_placeholder": "Buscar solicitudes...",
       "col_camper": "Campista",
       "col_session": "Sesión",
@@ -558,7 +558,8 @@
       "filter_rejected": "Rechazada",
       "filter_cancelled": "Cancelada",
       "filter_waitlisted": "En lista de espera",
-      "pending_review": "en espera de revisión",
+      "filter_withdrawn": "Retirada",
+      "pending_review": "en progreso",
       "reapplication": "Nueva solicitud",
       "unknown_session": "Sesión desconocida"
     },

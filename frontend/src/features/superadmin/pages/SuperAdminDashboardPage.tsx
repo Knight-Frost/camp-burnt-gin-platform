@@ -371,70 +371,85 @@ export function SuperAdminDashboardPage() {
                 </div>
               </div>
             ) : (
-              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {priorityItems.map((item) => {
-                  const isDoc = item.id.startsWith('doc-');
+              /* Scroll wrapper — list scrolls, card border stays fixed */
+              <div className="relative">
+                <div
+                  className="scroll-thin overflow-y-auto"
+                  style={{ maxHeight: '340px' }}
+                >
+                  <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                    {priorityItems.map((item) => {
+                      const isDoc = item.id.startsWith('doc-');
 
-                  const timeRef = item.daysAgo === null
-                    ? ''
-                    : item.daysAgo === 0
-                    ? 'today'
-                    : item.daysAgo === 1
-                    ? '1 day ago'
-                    : `${item.daysAgo} days ago`;
+                      const timeRef = item.daysAgo === null
+                        ? ''
+                        : item.daysAgo === 0
+                        ? 'today'
+                        : item.daysAgo === 1
+                        ? '1 day ago'
+                        : `${item.daysAgo} days ago`;
 
-                  const eventSentence = isDoc
-                    ? `has not submitted the required document — ${item.sublabel}`
-                    : item.status === 'under_review'
-                      ? timeRef
-                        ? `submitted an application ${timeRef} — now under review`
-                        : 'submitted an application — now under review'
-                      : timeRef
-                      ? `submitted an application ${timeRef}`
-                      : 'submitted an application';
+                      const eventSentence = isDoc
+                        ? `has not submitted the required document — ${item.sublabel}`
+                        : item.status === 'under_review'
+                          ? timeRef
+                            ? `submitted an application ${timeRef} — now under review`
+                            : 'submitted an application — now under review'
+                          : timeRef
+                          ? `submitted an application ${timeRef}`
+                          : 'submitted an application';
 
-                  return (
-                    <li key={item.id}>
-                      <Link
-                        to={item.to}
-                        className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--dash-nav-hover-bg)] transition-colors group"
-                      >
-                        {/* Urgency dot */}
-                        <div
-                          className="flex-shrink-0 w-2.5 h-2.5 rounded-full mt-0.5"
-                          style={{ background: URGENCY_DOT[item.urgency] }}
-                        />
+                      return (
+                        <li key={item.id}>
+                          <Link
+                            to={item.to}
+                            className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--dash-nav-hover-bg)] transition-colors group"
+                          >
+                            {/* Urgency dot */}
+                            <div
+                              className="flex-shrink-0 w-2.5 h-2.5 rounded-full mt-0.5"
+                              style={{ background: URGENCY_DOT[item.urgency] }}
+                            />
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
-                            {item.label}
-                          </p>
-                          <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                            {!isDoc && item.sublabel ? `${item.sublabel} · ` : ''}{eventSentence}
-                          </p>
-                        </div>
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>
+                                {item.label}
+                              </p>
+                              <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+                                {!isDoc && item.sublabel ? `${item.sublabel} · ` : ''}{eventSentence}
+                              </p>
+                            </div>
 
-                        {/* Right — urgency label only for high/critical */}
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {item.urgency !== 'normal' && (
-                            <span
-                              className="text-xs font-medium px-2 py-0.5 rounded"
-                              style={isDoc
-                                ? URGENCY_BADGE.critical
-                                : { color: '#6d28d9', background: 'rgba(109,40,217,0.08)' }
-                              }
-                            >
-                              {isDoc ? 'Overdue' : 'Needs review'}
-                            </span>
-                          )}
-                          <ChevronRight className="h-4 w-4 opacity-30 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--foreground)' }} />
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+                            {/* Right — urgency label only for high/critical */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {item.urgency !== 'normal' && (
+                                <span
+                                  className="text-xs font-medium px-2 py-0.5 rounded"
+                                  style={isDoc
+                                    ? URGENCY_BADGE.critical
+                                    : { color: '#6d28d9', background: 'rgba(109,40,217,0.08)' }
+                                  }
+                                >
+                                  {isDoc ? 'Overdue' : 'Needs review'}
+                                </span>
+                              )}
+                              <ChevronRight className="h-4 w-4 opacity-30 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--foreground)' }} />
+                            </div>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                {/* Bottom fade — only shown when list is long enough to scroll */}
+                {priorityItems.length > 4 && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none rounded-b-2xl"
+                    style={{ background: 'linear-gradient(to bottom, transparent, var(--card))' }}
+                  />
+                )}
+              </div>
             )}
           </div>
         </section>
@@ -460,8 +475,8 @@ export function SuperAdminDashboardPage() {
           <div className="glass-panel rounded-2xl overflow-hidden">
             {loading ? (
               <div className="p-5"><SkeletonTable rows={5} /></div>
-            ) : (
-              <ActivityFeed inboxPath="/super-admin/inbox" items={(() => {
+            ) : (() => {
+              const activityItems = (() => {
                 const appItems: ActivityItem[] = recentApps.map((app) => ({
                   kind: 'application',
                   app,
@@ -474,9 +489,28 @@ export function SuperAdminDashboardPage() {
                 }));
                 return [...appItems, ...msgItems]
                   .sort((a, b) => b.ts - a.ts)
-                  .slice(0, 6);
-              })()} />
-            )}
+                  .slice(0, 10);
+              })();
+
+              return (
+                /* Scroll wrapper — feed scrolls, card border stays fixed */
+                <div className="relative">
+                  <div
+                    className="scroll-thin overflow-y-auto"
+                    style={{ maxHeight: '340px' }}
+                  >
+                    <ActivityFeed inboxPath="/super-admin/inbox" items={activityItems} />
+                  </div>
+                  {/* Bottom fade — only shown when feed is long enough to scroll */}
+                  {activityItems.length > 4 && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none rounded-b-2xl"
+                      style={{ background: 'linear-gradient(to bottom, transparent, var(--card))' }}
+                    />
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
         </section>

@@ -82,7 +82,7 @@ export function SuperAdminLayout() {
     { group: gComm,   label: t('portal_nav.documents'),          to: '/super-admin/documents',        icon: FolderOpen },
     // OPERATIONS
     { group: gOps,    label: t('portal_nav.calendar'),           to: '/super-admin/calendar',         icon: CalendarDays },
-    { group: gOps,    label: t('portal_nav.deadlines'),          to: '/admin/deadlines',              icon: Clock },
+    { group: gOps,    label: t('portal_nav.deadlines'),          to: '/super-admin/deadlines',        icon: Clock },
     { group: gOps,    label: t('portal_nav.reports'),            to: '/super-admin/reports',          icon: BarChart3 },
     // SYSTEM items are intentionally absent here — they live in systemNavItems below,
     // pinned permanently at the bottom of the sidebar so they can never scroll out of view.

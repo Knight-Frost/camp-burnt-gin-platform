@@ -541,7 +541,7 @@
     },
     "applications": {
       "title": "Applications",
-      "subtitle": "Review and manage camper applications",
+      "subtitle": "{{total}} applications",
       "search_placeholder": "Search applications...",
       "col_camper": "Camper",
       "col_session": "Session",
@@ -558,7 +558,8 @@
       "filter_rejected": "Rejected",
       "filter_cancelled": "Cancelled",
       "filter_waitlisted": "Waitlisted",
-      "pending_review": "awaiting review",
+      "filter_withdrawn": "Withdrawn",
+      "pending_review": "in progress",
       "reapplication": "Reapplication",
       "unknown_session": "Unknown session"
     },

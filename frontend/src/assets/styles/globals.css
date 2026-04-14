@@ -23,6 +23,16 @@
 .message-body pre             { background: rgba(0,0,0,0.07); padding: 0.5rem 0.75rem; border-radius: 6px; overflow-x: auto; }
 .message-body pre code        { background: none; padding: 0; }
 
+/* ── Thin scrollbar utility — applied to dashboard panel scroll containers ── */
+.scroll-thin {
+  scrollbar-width: thin;                          /* Firefox */
+  scrollbar-color: rgba(0,0,0,0.15) transparent;  /* Firefox: thumb track */
+}
+.scroll-thin::-webkit-scrollbar          { width: 4px; }
+.scroll-thin::-webkit-scrollbar-track   { background: transparent; }
+.scroll-thin::-webkit-scrollbar-thumb   { background: rgba(0,0,0,0.15); border-radius: 99px; }
+.scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
+
 /* ── Hide native browser password reveal buttons — we use custom ones ───── */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {

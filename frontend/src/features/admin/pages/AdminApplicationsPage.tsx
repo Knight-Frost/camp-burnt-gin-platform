@@ -11,8 +11,8 @@
  * Queue # = rank within the current sorted/filtered view. For drafts: "—".
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronLeft, ChevronRight, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -26,7 +26,9 @@ import type { PaginatedResponse } from '@/shared/types/api.types';
 import { useSessionWorkspace } from '@/features/sessions/context/SessionWorkspaceContext';
 import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBanner';
 
-const STATUS_FILTERS = ['all', 'draft', 'submitted', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled'] as const;
+// BUG-2 FIX: Added 'withdrawn' — parent-initiated terminal status was missing from filters,
+// making it impossible for admins to find withdrawn applications without searching.
+const STATUS_FILTERS = ['all', 'draft', 'submitted', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled', 'withdrawn'] as const;
 
 type SortKey = 'submitted_at' | 'status' | 'reviewed_at';
 
@@ -46,12 +48,91 @@ export function AdminApplicationsPage() {
     ? '/super-admin/applications'
     : '/admin/applications';
 
-  const sessionCtx = useSessionWorkspace();
-  const urlParams  = new URLSearchParams(location.search);
-  const urlSession = urlParams.get('camp_session_id');
-  const workspaceSessionId = urlSession
-    ? Number(urlSession)
-    : (sessionCtx?.currentSession?.id ?? undefined);
+  const sessionCtx      = useSessionWorkspace();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ── Source-of-truth: context ─────────────────────────────────────────────
+  //
+  // Context is the single runtime source of truth for the active session.
+  // The URL (?camp_session_id=X) is kept in sync as a derived, bookmarkable
+  // representation — it is NOT the read source for data requests.
+  //
+  // Two-way sync strategy:
+  //   Mount     : URL → context  (direct navigation / shared link wins at entry)
+  //   Post-mount: context → URL  (session selector always wins after that)
+  //
+  // This eliminates the previous conflict where URL camp_session_id=5 silently
+  // overrode a context switch to session 7, showing session 5 data under a
+  // session 7 banner — a silent mismatch invisible to the admin.
+  const workspaceSessionId = sessionCtx?.currentSession?.id ?? undefined;
+
+  // ── RISK-2 FIX (mount sync): URL → context ───────────────────────────────
+  //
+  // On first load, if the URL contains ?camp_session_id=N, apply it to context
+  // so direct links and page refreshes honour the URL-scoped session.
+  //
+  // Guarded by a ref so this fires exactly once — after sessions finish loading.
+  // If the URL param names a session that no longer exists, strip it from the URL
+  // rather than letting it silently produce wrong data.
+  const urlMountSynced = useRef(false);
+  useEffect(() => {
+    if (urlMountSynced.current || !sessionCtx || sessionCtx.sessionsLoading) return;
+    urlMountSynced.current = true;
+
+    const rawId = searchParams.get('camp_session_id');
+    if (!rawId) return;
+
+    const targetId = Number(rawId);
+    if (Number.isNaN(targetId)) {
+      // Malformed param — strip it
+      setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('camp_session_id'); return n; }, { replace: true });
+      return;
+    }
+
+    const target = sessionCtx.sessions.find((s) => s.id === targetId);
+    if (target && target.id !== sessionCtx.currentSession?.id) {
+      sessionCtx.setCurrentSession(target);  // context catches up to URL
+    } else if (!target) {
+      // Session in URL was deleted/archived — clean up stale param
+      setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('camp_session_id'); return n; }, { replace: true });
+    }
+  }, [sessionCtx?.sessionsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── RISK-2 FIX (ongoing sync): context → URL ─────────────────────────────
+  //
+  // After mount, any session selector action updates context. Mirror it to the URL
+  // so the address bar is always bookmarkable and page refreshes show the right session.
+  // Using { replace: true } so session switches don't pollute browser history.
+  //
+  // GUARD: only run after urlMountSynced is true. Without this guard, this effect fires on
+  // initial mount with contextId = null/stale-context, which would strip ?camp_session_id=N
+  // from the URL *before* the mount-sync effect (above) can read it to apply to context.
+  // The mount-sync effect always runs first in the same flush (effects fire in definition order),
+  // and it sets urlMountSynced.current = true synchronously, so by the time this effect runs
+  // in the same flush, the guard is already cleared — both effects co-operate correctly.
+  useEffect(() => {
+    if (!urlMountSynced.current) return;   // mount sync hasn't decided on context yet
+    const contextId = sessionCtx?.currentSession?.id ?? null;
+    setSearchParams((prev) => {
+      const urlRaw  = prev.get('camp_session_id');
+      const urlId   = urlRaw ? Number(urlRaw) : null;
+      if (contextId === urlId) return prev;          // already in sync — skip update
+      const next = new URLSearchParams(prev);
+      if (contextId !== null) {
+        next.set('camp_session_id', String(contextId));
+      } else {
+        next.delete('camp_session_id');
+      }
+      return next;
+    }, { replace: true });
+  }, [sessionCtx?.currentSession?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── RISK-1 FIX: explicit per_page constant ───────────────────────────────
+  //
+  // Previously relied on the backend default (15). If that default ever changed,
+  // the frontend pagination "from/to" arithmetic would silently diverge.
+  // Now the frontend declares its intent explicitly and passes it on every request.
+  const PER_PAGE = 15;
 
   const [response, setResponse] = useState<PaginatedResponse<Application> | null>(null);
   const [loading, setLoading]   = useState(true);
@@ -67,13 +148,26 @@ export function AdminApplicationsPage() {
   const [searchInput, setSearchInput] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function setSearch(value: string) {
+  // ── BUG-1 FIX (retained): reset page to 1 on session switch ─────────────
+  //
+  // When workspaceSessionId changes, the new session may have fewer pages.
+  // Without this reset, stale page=N causes the backend to return an empty
+  // collection while the subtitle still shows the correct total — a contradiction.
+  const prevSessionRef = useRef(workspaceSessionId);
+  useEffect(() => {
+    if (prevSessionRef.current !== workspaceSessionId) {
+      prevSessionRef.current = workspaceSessionId;
+      setFilters((f) => (f.page === 1 ? f : { ...f, page: 1 }));
+    }
+  }, [workspaceSessionId]);
+
+  const setSearch = useCallback((value: string) => {
     setSearchInput(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setFilters((f) => ({ ...f, search: value, page: 1 }));
     }, 300);
-  }
+  }, []);
   const setStatus = (s: string)    => setFilters((f) => ({ ...f, status: s, page: 1 }));
   const setPage   = (p: number)    => setFilters((f) => ({ ...f, page: p }));
   function toggleSort(col: SortKey) {
@@ -91,6 +185,7 @@ export function AdminApplicationsPage() {
         const isDraft = filters.status === 'draft';
         const data = await getApplications({
           page:            filters.page,
+          per_page:        PER_PAGE,       // RISK-1 FIX: explicit, not relying on backend default
           search:          filters.search || undefined,
           status:          !isDraft && filters.status !== 'all' ? filters.status : undefined,
           drafts_only:     isDraft || undefined,
@@ -135,7 +230,10 @@ export function AdminApplicationsPage() {
           {response?.meta.queue_total != null && (
             <span className="ml-2">
               &middot;{' '}
-              <span style={{ color: 'var(--ember-orange)' }}>
+              <span
+                style={{ color: 'var(--ember-orange)', cursor: 'help', textDecoration: 'underline dotted' }}
+                title="Submitted, under review, or waitlisted — applications that have not yet reached a final decision."
+              >
                 {response.meta.queue_total} {t('admin.applications.pending_review')}
               </span>
             </span>
@@ -204,7 +302,15 @@ export function AdminApplicationsPage() {
               style={{ background: 'var(--glass-medium)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
             >
               {/* Queue # — always 1 col, not sortable (it follows the sort) */}
-              <div className="col-span-1 text-center">#</div>
+              {/* RISK-3 FIX: tooltip explicitly states rank is filter-relative, not global.
+                  The cursor-help pointer gives admins a visual affordance that this cell
+                  has a tooltip — consistent with other titled elements in the table. */}
+              <div
+                className="col-span-1 text-center cursor-help"
+                title="Queue rank — relative to the current filters and sort order. #1 means first in the current view, not necessarily first across all sessions. Only in-progress applications (submitted / under review / waitlisted) receive a rank; approved, rejected, and other final-state applications show —."
+              >
+                #
+              </div>
 
               {/* Camper — 2 cols */}
               <div className="col-span-2">{t('admin.applications.col_camper')}</div>
@@ -321,7 +427,8 @@ export function AdminApplicationsPage() {
                     </>
                   ) : (
                     <p className="text-sm italic" style={{ color: 'var(--muted-foreground)' }}>
-                      {app.is_draft ? t('common.draft') : t('common.not_submitted')}
+                      {/* BUG-6 FIX: 'common.draft' key doesn't exist — 'draft' lives under status_labels */}
+                      {app.is_draft ? t('status_labels.draft') : t('common.not_submitted')}
                     </p>
                   )}
                 </div>
@@ -333,7 +440,8 @@ export function AdminApplicationsPage() {
                       className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full"
                       style={{ background: 'rgba(99,102,241,0.10)', color: 'rgb(99,102,241)' }}
                     >
-                      Draft
+                      {/* BUG-7 FIX: was hardcoded English "Draft" — now uses i18n */}
+                      {t('status_labels.draft')}
                     </span>
                   ) : (
                     <StatusBadge status={app.status} />
@@ -363,9 +471,12 @@ export function AdminApplicationsPage() {
           {response.meta.last_page > 1 && (
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                {/* RISK-1 FIX: use PER_PAGE constant (matches what was sent to backend)
+                    rather than response.meta.per_page so arithmetic is always consistent
+                    with the frontend's declared intent, not a server default that could change. */}
                 {t('common.pagination', {
-                  from: (response.meta.current_page - 1) * response.meta.per_page + 1,
-                  to: Math.min(response.meta.current_page * response.meta.per_page, response.meta.total),
+                  from: (response.meta.current_page - 1) * PER_PAGE + 1,
+                  to: Math.min(response.meta.current_page * PER_PAGE, response.meta.total),
                   total: response.meta.total,
                 })}
               </p>
