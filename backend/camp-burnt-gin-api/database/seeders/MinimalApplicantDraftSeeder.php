@@ -6,14 +6,19 @@ use App\Enums\AllergySeverity;
 use App\Enums\ApplicationStatus;
 use App\Enums\DiagnosisSeverity;
 use App\Enums\SubmissionSource;
+use App\Models\ActivityPermission;
 use App\Models\Allergy;
 use App\Models\Application;
+use App\Models\ApplicationConsent;
+use App\Models\BehavioralProfile;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\Diagnosis;
 use App\Models\EmergencyContact;
+use App\Models\FeedingPlan;
 use App\Models\MedicalRecord;
 use App\Models\Medication;
+use App\Models\PersonalCarePlan;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -92,12 +97,26 @@ class MinimalApplicantDraftSeeder extends Seeder
         $marcus = $this->seedMarcus($parent);
         $destiny = $this->seedDestiny($parent);
 
-        // Step 3 — Create a fully-filled draft application for each camper.
-        // is_draft=true means all data is present but the parent has not signed
-        // and submitted. The only missing piece is the document uploads.
-        $this->createMarcusDraft($marcus, $session);
-        $this->createDestinyDraft($destiny, $session);
+        // Step 3 — Seed supplementary camper profiles that the UI reads via
+        //   ApplicationController::show() eager-loads:
+        //     camper.behavioralProfile, camper.feedingPlan, camper.personalCarePlan,
+        //     camper.activityPermissions
+        //   Without these, those sections appear empty in both the applicant portal
+        //   and the admin review page.
+        $this->seedMarcusCamperProfiles($marcus);
+        $this->seedDestinyCamperProfiles($destiny);
 
+        // Step 4 — Create draft applications.
+        $marcusDraft = $this->createMarcusDraft($marcus, $session);
+        $destinyDraft = $this->createDestinyDraft($destiny, $session);
+
+        // Step 5 — Seed 7 consent records per application.
+        //   ApplicationController::show() also loads 'consents'; without these
+        //   the consent section appears empty and the form appears incomplete.
+        $this->createApplicationConsents($marcusDraft, 'Angela Thornton', 'Mother');
+        $this->createApplicationConsents($destinyDraft, 'Angela Thornton', 'Mother');
+
+        $this->printValidation();
         $this->printSummary();
     }
 
@@ -534,6 +553,270 @@ class MinimalApplicantDraftSeeder extends Seeder
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // SUPPLEMENTARY PROFILES — MARCUS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Seeds the four additional relational tables that ApplicationController::show()
+     * eager-loads for Marcus: behavioral_profiles, feeding_plans, personal_care_plans,
+     * and activity_permissions (7 rows, one per activity type).
+     *
+     * These tables were MISSING from the original seeder, which is why those sections
+     * appeared empty in the applicant portal and admin review page.
+     *
+     * All encrypted-at-rest fields (description fields, notes) MUST go through
+     * Eloquent — raw SQL writes plain text that Laravel cannot decrypt on read.
+     */
+    private function seedMarcusCamperProfiles(Camper $marcus): void
+    {
+        // ── Behavioral profile ─────────────────────────────────────────────────
+        if (! BehavioralProfile::where('camper_id', $marcus->id)->exists()) {
+            BehavioralProfile::create([
+                'camper_id' => $marcus->id,
+                'aggression' => false,
+                'self_abuse' => false,
+                'wandering_risk' => false,
+                'one_to_one_supervision' => false,
+                'developmental_delay' => true,
+                'functioning_age_level' => '8-10 (social-emotional maturity)',
+                'communication_methods' => ['verbal', 'visual_supports'],
+                'notes' => 'Marcus communicates verbally and clearly when calm. He benefits greatly from first/then language and visual schedules. One-step instructions delivered calmly are most effective. He may exhibit self-regulating behaviors (hand flapping, rocking) that should not be interrupted. A formal behavior support plan is in place through his school IEP.',
+                // Functional assessment (2026-03-25 migration)
+                'functional_reading' => true,
+                'functional_writing' => true,
+                'independent_mobility' => true,
+                'verbal_communication' => true,
+                'social_skills' => false,   // Social communication is a core ASD challenge
+                'behavior_plan' => true,    // Active IEP behavior support plan
+                // Form parity flags (2026-03-26 migration)
+                'sexual_behaviors' => false,
+                'interpersonal_behavior' => false,
+                'social_emotional' => true,    // Social-emotional needs related to ASD
+                'follows_instructions' => true,    // Follows ONE-step instructions; struggles with multi-step
+                'group_participation' => true,
+                'attends_school' => true,
+                'classroom_type' => 'General education with resource room support and 1:1 transition aide',
+                // Per-item descriptions (encrypted PHI)
+                'social_emotional_description' => 'Marcus experiences social-emotional challenges consistent with ASD Level 2. He can become dysregulated in loud, unpredictable, or socially demanding environments. Signs of dysregulation include increased stimming, withdrawal, or refusal to engage. Response: reduce demands, offer a quiet space, wait calmly. De-escalates best when adults stay calm and use minimal language.',
+                'group_participation_description' => 'Marcus participates enthusiastically in structured group activities where roles are clear. Small groups preferred (4 or fewer), assigned seating near a known adult, and advance notice of the activity goal helps him engage fully.',
+            ]);
+        }
+
+        // ── Feeding plan ───────────────────────────────────────────────────────
+        if (! FeedingPlan::where('camper_id', $marcus->id)->exists()) {
+            FeedingPlan::create([
+                'camper_id' => $marcus->id,
+                'special_diet' => true,
+                'diet_description' => 'Dairy-free diet required at all meals and snacks. Marcus has a moderate allergy to dairy (milk, cheese, butter, cream, ice cream). All meals must be verified dairy-free before serving. He manages his allergy well and will ask about ingredients — please take his questions seriously.',
+                'g_tube' => false,
+                'formula' => null,
+                'amount_per_feeding' => null,
+                'feedings_per_day' => null,
+                'feeding_times' => null,
+                'bolus_only' => false,
+                'notes' => 'Marcus has sensory sensitivities around food textures and strong odors. He may decline unfamiliar foods, especially with strong smells or unusual textures — this is a sensory preference, not defiance. Offering familiar foods alongside new ones is more effective than requiring him to try new foods. He eats well when the meal environment is calm and not overly loud.',
+                'texture_modified' => false,
+                'texture_level' => null,
+                'fluid_restriction' => false,
+                'fluid_details' => null,
+            ]);
+        }
+
+        // ── Personal care plan ─────────────────────────────────────────────────
+        if (! PersonalCarePlan::where('camper_id', $marcus->id)->exists()) {
+            PersonalCarePlan::create([
+                'camper_id' => $marcus->id,
+                'bathing_level' => 'independent',
+                'bathing_notes' => 'Marcus is fully independent with bathing. May need a verbal reminder to use shampoo and rinse thoroughly. He has mild sensory sensitivity to very hot water — allow him to set his own temperature.',
+                'toileting_level' => 'independent',
+                'toileting_notes' => null,
+                'nighttime_toileting' => false,
+                'nighttime_notes' => null,
+                'dressing_level' => 'verbal_cue',
+                'dressing_notes' => 'Marcus is independent with most dressing tasks but struggles with small buttons and zippers due to mildly below-average fine motor skills. Allow 2-3 extra minutes for dressing. A verbal prompt (e.g., "Don\'t forget to zip up") is sufficient. Velcro closures or elastic waistbands reduce frustration for daily wear.',
+                'oral_hygiene_level' => 'independent',
+                'oral_hygiene_notes' => null,
+                'positioning_notes' => null,
+                'sleep_notes' => 'Marcus can be slow to fall asleep and benefits from a predictable wind-down routine. Dim lighting, reduced noise, and 10-15 minutes of quiet activity (reading or drawing) before lights-out helps significantly. He may come to staff if he cannot sleep — allow a brief quiet check-in rather than requiring him to stay in bed without interaction.',
+                'falling_asleep_issues' => true,
+                'sleep_walking' => false,
+                'night_wandering' => false,
+                'bowel_control_notes' => null,
+                'urinary_catheter' => false,
+                'irregular_bowel' => false,
+                'irregular_bowel_notes' => null,
+                'menstruation_support' => false,
+            ]);
+        }
+
+        // ── Activity permissions (7 types, one per ACTIVITIES constant in form) ──
+        if (! ActivityPermission::where('camper_id', $marcus->id)->exists()) {
+            $activities = [
+                ['activity_name' => 'sports_games', 'permission_level' => 'yes', 'restriction_notes' => null],
+                ['activity_name' => 'arts_crafts',  'permission_level' => 'yes', 'restriction_notes' => null],
+                ['activity_name' => 'nature',        'permission_level' => 'yes', 'restriction_notes' => null],
+                ['activity_name' => 'fine_arts',     'permission_level' => 'yes', 'restriction_notes' => null],
+                ['activity_name' => 'swimming',      'permission_level' => 'yes', 'restriction_notes' => 'Marcus is a strong, confident swimmer — his favorite activity. No restrictions. Staff should proactively prompt him to reapply sunscreen before and after swimming, as he dislikes the application process but will comply with a calm request.'],
+                ['activity_name' => 'boating',       'permission_level' => 'yes', 'restriction_notes' => null],
+                ['activity_name' => 'camp_out',      'permission_level' => 'yes', 'restriction_notes' => 'A printed schedule of overnight activities reduces anxiety significantly. A familiar staff member nearby provides reassurance. Marcus attended a school outdoor ed program and managed well with pre-posted schedules.'],
+            ];
+
+            foreach ($activities as $activity) {
+                ActivityPermission::create(array_merge(['camper_id' => $marcus->id], $activity));
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPLEMENTARY PROFILES — DESTINY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Same purpose as seedMarcusCamperProfiles() but for Destiny.
+     * Destiny has no behavioral concerns; the notable profile items are
+     * the swimming temperature restriction and the mandatory hydration note.
+     */
+    private function seedDestinyCamperProfiles(Camper $destiny): void
+    {
+        // ── Behavioral profile ─────────────────────────────────────────────────
+        if (! BehavioralProfile::where('camper_id', $destiny->id)->exists()) {
+            BehavioralProfile::create([
+                'camper_id' => $destiny->id,
+                'aggression' => false,
+                'self_abuse' => false,
+                'wandering_risk' => false,
+                'one_to_one_supervision' => false,
+                'developmental_delay' => false,
+                'functioning_age_level' => null,
+                'communication_methods' => ['verbal'],
+                'notes' => 'No behavioral concerns. Destiny is a confident, socially skilled child who follows directions well, engages warmly with adults and peers, and demonstrates excellent self-advocacy — she has been coached to speak up clearly about pain or discomfort. No history of behavioral incidents at school or in extracurricular settings.',
+                // Functional assessment
+                'functional_reading' => true,
+                'functional_writing' => true,
+                'independent_mobility' => true,
+                'verbal_communication' => true,
+                'social_skills' => true,
+                'behavior_plan' => false,
+                // Form parity flags
+                'sexual_behaviors' => false,
+                'interpersonal_behavior' => false,
+                'social_emotional' => false,
+                'follows_instructions' => true,
+                'group_participation' => true,
+                'attends_school' => true,
+                'classroom_type' => 'General education',
+            ]);
+        }
+
+        // ── Feeding plan ───────────────────────────────────────────────────────
+        if (! FeedingPlan::where('camper_id', $destiny->id)->exists()) {
+            FeedingPlan::create([
+                'camper_id' => $destiny->id,
+                'special_diet' => false,
+                'diet_description' => null,
+                'g_tube' => false,
+                'formula' => null,
+                'amount_per_feeding' => null,
+                'feedings_per_day' => null,
+                'feeding_times' => null,
+                'bolus_only' => false,
+                'notes' => 'No dietary restrictions. Ensure high fluid intake throughout the day — minimum 8 oz of water every hour during outdoor activities per physician orders. Water and non-caffeinated beverages only (no soda, fruit punch, or sugary drinks as primary hydration). Destiny is self-aware about hydration and will remind staff, but staff should proactively offer water during all outdoor activities.',
+                'texture_modified' => false,
+                'texture_level' => null,
+                'fluid_restriction' => false,
+                'fluid_details' => null,
+            ]);
+        }
+
+        // ── Personal care plan ─────────────────────────────────────────────────
+        if (! PersonalCarePlan::where('camper_id', $destiny->id)->exists()) {
+            PersonalCarePlan::create([
+                'camper_id' => $destiny->id,
+                'bathing_level' => 'independent',
+                'bathing_notes' => null,
+                'toileting_level' => 'independent',
+                'toileting_notes' => null,
+                'nighttime_toileting' => false,
+                'nighttime_notes' => null,
+                'dressing_level' => 'independent',
+                'dressing_notes' => null,
+                'oral_hygiene_level' => 'independent',
+                'oral_hygiene_notes' => null,
+                'positioning_notes' => null,
+                'sleep_notes' => 'Destiny typically falls asleep without difficulty and is a sound sleeper. No sleep-related concerns or accommodations needed. If she wakes at night reporting pain, treat as a potential early pain crisis — see emergency protocols in the medical record.',
+                'falling_asleep_issues' => false,
+                'sleep_walking' => false,
+                'night_wandering' => false,
+                'bowel_control_notes' => null,
+                'urinary_catheter' => false,
+                'irregular_bowel' => false,
+                'irregular_bowel_notes' => null,
+                'menstruation_support' => false,
+            ]);
+        }
+
+        // ── Activity permissions ───────────────────────────────────────────────
+        if (! ActivityPermission::where('camper_id', $destiny->id)->exists()) {
+            $activities = [
+                ['activity_name' => 'sports_games', 'permission_level' => 'restricted', 'restriction_notes' => 'Permitted. Mandatory water break every 30 minutes during sports activities. If Destiny appears tired, unusually quiet, or reports pain at any level, allow rest immediately — do not encourage her to push through. Allow her to self-limit activity based on how she feels.'],
+                ['activity_name' => 'arts_crafts',  'permission_level' => 'yes',        'restriction_notes' => null],
+                ['activity_name' => 'nature',        'permission_level' => 'restricted', 'restriction_notes' => 'Permitted for nature walks and outdoor exploration. Mandatory water break every 30 minutes. Avoid scheduling during peak heat hours (1-3 PM). Ensure access to shade and air-conditioned rest areas. Sun-protective clothing and a wide-brim hat are required for all outdoor activities.'],
+                ['activity_name' => 'fine_arts',     'permission_level' => 'yes',        'restriction_notes' => null],
+                ['activity_name' => 'swimming',      'permission_level' => 'restricted', 'restriction_notes' => 'Permitted with conditions: pool water temperature must be confirmed above 78°F before each session — cold water can trigger a vaso-occlusive pain crisis. Have a warm towel available immediately when Destiny exits the pool. If she reports feeling cold in the water, she must exit immediately (she has been coached to do this). Limit outdoor swimming sessions if air temperature is below 72°F.'],
+                ['activity_name' => 'boating',       'permission_level' => 'restricted', 'restriction_notes' => 'Permitted in warm weather (air temperature above 72°F). Life jacket required at all times on the water. If weather is cool or windy, substitute an indoor activity — wind chill and cold water spray are vasospasm triggers for sickle cell. Water must be available on the boat at all times.'],
+                ['activity_name' => 'camp_out',      'permission_level' => 'yes',        'restriction_notes' => 'Permitted. Ensure warm clothing and a sleeping bag rated for the overnight temperature. Confirm with parent if overnight temperature is expected below 60°F. PRN ibuprofen must be accessible at the campsite. Warm beverages should be available if she wakes at night.'],
+            ];
+
+            foreach ($activities as $activity) {
+                ActivityPermission::create(array_merge(['camper_id' => $destiny->id], $activity));
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // APPLICATION CONSENTS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Seeds 7 consent records for a draft application.
+     *
+     * ApplicationController::show() eager-loads 'consents'; without these,
+     * the consents section appears empty and the application looks incomplete.
+     *
+     * Uses firstOrCreate so re-running the seeder is safe (idempotent).
+     * guardian_signature stores the typed name — this is the standard
+     * non-drawn signature format used in the form's sign & submit step.
+     */
+    private function createApplicationConsents(
+        Application $application,
+        string $guardianName,
+        string $guardianRelationship
+    ): void {
+        $consents = [
+            'general' => 'I consent to my child\'s participation in Camp Burnt Gin programs and activities as described in the application, subject to the activity permissions specified in Section 7.',
+            'photos' => 'I give permission for Camp Burnt Gin to photograph or record my child for program documentation, staff training, and camp communications. Images will not be shared publicly without my additional written consent.',
+            'liability' => 'I acknowledge that participation in camp activities involves inherent risks and agree to hold Camp Burnt Gin, its staff, and Winthrop University harmless from claims arising from ordinary negligence, except in cases of gross negligence or willful misconduct.',
+            'activity' => 'I give permission for my child to participate in all standard camp activities including swimming, boating, sports, nature exploration, and overnight camping, subject to the activity restrictions specified in Section 7 of this application.',
+            'authorization' => 'I authorize Camp Burnt Gin medical staff to administer medications listed in this application and to seek emergency medical treatment if I cannot be reached and a medical professional determines it is necessary to protect my child\'s health or safety.',
+            'medication' => 'I confirm that all medications listed in this application are accurate, current, and prescribed or approved by my child\'s physician. I give permission for trained camp staff to administer these medications per the dosing instructions provided.',
+            'hipaa' => 'I authorize Camp Burnt Gin to share my child\'s health information with medical staff, counselors, and other camp personnel on a need-to-know basis for the purpose of providing appropriate care during the camp program.',
+        ];
+
+        foreach ($consents as $type => $signature) {
+            ApplicationConsent::firstOrCreate(
+                ['application_id' => $application->id, 'consent_type' => $type],
+                [
+                    'guardian_name' => $guardianName,
+                    'guardian_relationship' => $guardianRelationship,
+                    'guardian_signature' => $guardianName,   // Typed-name signature
+                    'applicant_signature' => null,            // Camper under 18 — parent signs only
+                    'signed_at' => now()->subDays(rand(1, 7)),
+                ]
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // DRAFT APPLICATION — MARCUS
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -641,6 +924,99 @@ class MinimalApplicantDraftSeeder extends Seeder
                 'narrative_emergency_protocols' => 'PAIN CRISIS PROTOCOL: (1) Assess pain level 1–10 and location. (2) Move Destiny to a cool, shaded area immediately. (3) Give 16–32 oz water right away. (4) For pain rated 4–6 out of 10: administer ibuprofen per the dosing chart in the medical record (7 mL of 200 mg/5 mL suspension). (5) Call Angela at (803) 555-0247 immediately — keep her on the line while monitoring. (6) If pain is 7 or higher, does not improve within 45 minutes, or Destiny develops chest pain, shortness of breath, or unusual lethargy: CALL 911 and transport to Palmetto Health Richland. Do not attempt to manage a severe crisis at camp. FEVER PROTOCOL: Any fever over 101°F in a child with asplenia (non-functional spleen) is a MEDICAL EMERGENCY — call 911 and notify parent simultaneously. Do not wait to confirm with a second reading. Asplenic children can become septic extremely rapidly; there is no "let\'s watch it" option.',
             ]
         );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // VALIDATION OUTPUT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Queries the database immediately after seeding and prints a per-application
+     * report showing which fields are present and which are still missing.
+     * "Missing fields" should list ONLY the three required documents — any other
+     * entry here means the seeder did not write all expected data.
+     */
+    private function printValidation(): void
+    {
+        $this->command->newLine();
+        $this->command->line('  ── Post-Seed Validation ──────────────────────────────────────');
+
+        $apps = Application::with([
+            'camper.medicalRecord.allergies',
+            'camper.medicalRecord.medications',
+            'camper.medicalRecord.diagnoses',
+            'camper.emergencyContacts',
+            'camper.behavioralProfile',
+            'camper.feedingPlan',
+            'camper.personalCarePlan',
+            'camper.activityPermissions',
+            'consents',
+        ])->whereHas(
+            'camper',
+            fn ($q) => $q->whereIn('first_name', ['Marcus', 'Destiny'])->where('last_name', 'Thornton')
+        )->get();
+
+        foreach ($apps as $app) {
+            $camper = $app->camper;
+            $missing = [];
+
+            // State checks — these must be correct or the UI will show wrong status
+            if (! $app->is_draft) {
+                $missing[] = 'is_draft must be true';
+            }
+            if ($app->submitted_at) {
+                $missing[] = 'submitted_at must be null';
+            }
+            if ($app->signature_name) {
+                $missing[] = 'signature_name must be null (not signed yet)';
+            }
+
+            // Relational data — these sections appear empty if records are absent
+            if (! $camper?->medicalRecord) {
+                $missing[] = 'medical_record';
+            }
+            if (! $camper?->behavioralProfile) {
+                $missing[] = 'behavioral_profile';
+            }
+            if (! $camper?->feedingPlan) {
+                $missing[] = 'feeding_plan';
+            }
+            if (! $camper?->personalCarePlan) {
+                $missing[] = 'personal_care_plan';
+            }
+
+            $ecCount = $camper?->emergencyContacts?->count() ?? 0;
+            $actCount = $camper?->activityPermissions?->count() ?? 0;
+            $consentCount = $app->consents->count();
+
+            if ($ecCount < 3) {
+                $missing[] = "emergency_contacts (have {$ecCount}, expect 3)";
+            }
+            if ($actCount < 7) {
+                $missing[] = "activity_permissions (have {$actCount}, expect 7)";
+            }
+            if ($consentCount < 7) {
+                $missing[] = "consents (have {$consentCount}, expect 7)";
+            }
+
+            $status = empty($missing) ? '✓ ALL RELATIONAL DATA PRESENT' : '✗ MISSING: '.implode(', ', $missing);
+
+            $this->command->line("  {$camper->first_name} Thornton — App #{$app->id}:");
+            $this->command->line("    is_draft={$app->is_draft} | submitted_at=".($app->submitted_at ?? 'null')." | status={$app->status->value}");
+            $this->command->line('    Diagnoses:          '.($camper?->medicalRecord?->diagnoses?->count() ?? 0));
+            $this->command->line('    Medications:        '.($camper?->medicalRecord?->medications?->count() ?? 0));
+            $this->command->line('    Allergies:          '.($camper?->medicalRecord?->allergies?->count() ?? 0));
+            $this->command->line('    Emergency contacts: '.$ecCount);
+            $this->command->line('    Activity perms:     '.$actCount.' / 7');
+            $this->command->line('    Consents:           '.$consentCount.' / 7');
+            $this->command->line('    Behavioral profile: '.($camper?->behavioralProfile ? 'present' : 'MISSING'));
+            $this->command->line('    Feeding plan:       '.($camper?->feedingPlan ? 'present' : 'MISSING'));
+            $this->command->line('    Personal care plan: '.($camper?->personalCarePlan ? 'present' : 'MISSING'));
+            $this->command->line('    → '.$status);
+            $this->command->newLine();
+        }
+
+        $this->command->warn('  Only missing items: official_medical_form, immunization_record, insurance_card (documents — by design)');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
