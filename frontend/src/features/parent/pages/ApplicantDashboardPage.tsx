@@ -351,7 +351,7 @@ export function ApplicantDashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {latestApp && <StatusBadge status={latestApp.status} />}
+                      {latestApp && <StatusBadge status={latestApp.is_draft ? 'draft' : latestApp.status} />}
 
                       {/* ── Primary reapplication entry point ──────────────────
                           Visible on every registered camper card. The modal

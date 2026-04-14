@@ -399,7 +399,7 @@ export function ApplicantApplicationDetailPage() {
             )}
           </p>
         </div>
-        <StatusBadge status={application.status} />
+        <StatusBadge status={application.is_draft ? 'draft' : application.status} />
       </div>
 
       {/* Card sections */}
@@ -407,7 +407,7 @@ export function ApplicantApplicationDetailPage() {
         {/* Status timeline card — always shown */}
         <div>
           <SectionCard title={t('applicant_detail.status_title')} icon={<AlertTriangle className="h-4 w-4" />}>
-            <StatusTimeline status={application.status} />
+            <StatusTimeline status={application.is_draft ? 'draft' : application.status} />
             {/* Admin notes box appears only when the reviewer left a message */}
             {application.notes && (
               <div
