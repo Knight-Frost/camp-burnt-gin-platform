@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Hash;
  *   RequiredDocumentRuleSeeder → document rule definitions
  *   ActivityPermissionSeeder  → system activity permission defaults
  *   FormDefinitionSeeder      → Phase 14 dynamic form schema v1
- *   Super admin account       → admin@campburntgin.org
+ *   Super admin account       → email from ADMIN_BOOTSTRAP_EMAIL env var
  *
  * ─── WHAT IS NOT CREATED ────────────────────────────────────────────────────
  *
@@ -40,7 +40,7 @@ use Illuminate\Support\Facades\Hash;
  *
  * ─── CREDENTIALS ─────────────────────────────────────────────────────────────
  *
- *   Email:    admin@campburntgin.org
+ *   Email:    set via ADMIN_BOOTSTRAP_EMAIL env variable
  *   Password: set via ADMIN_BOOTSTRAP_PASSWORD env variable, or randomly
  *             generated and printed once to the console.
  *   Change this password immediately after first login.
@@ -75,8 +75,10 @@ class MinimalSeeder extends Seeder
         // Never hardcode a credential in source code — it lives in git history forever.
         $password = env('ADMIN_BOOTSTRAP_PASSWORD') ?: \Illuminate\Support\Str::random(20);
 
+        $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org');
+
         $created = User::firstOrCreate(
-            ['email' => 'admin@campburntgin.org'],
+            ['email' => $email],
             [
                 'name' => 'Super Administrator',
                 'role_id' => $superAdminRole->id,
@@ -101,7 +103,7 @@ class MinimalSeeder extends Seeder
         $this->command->info('✓ Minimal seed complete — clean system ready.');
         $this->command->newLine();
         $this->command->warn('SECURITY: Change the super admin password immediately after first login!');
-        $this->command->warn('  Email: admin@campburntgin.org');
+        $this->command->warn('  Email: '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org'));
         $this->command->newLine();
     }
 }

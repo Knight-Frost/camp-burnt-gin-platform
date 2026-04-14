@@ -176,9 +176,10 @@ class FullSimulationSeeder extends Seeder
         // Falls back to the hardcoded default for local development convenience.
         // Change immediately after any non-local deploy.
         $password = env('ADMIN_BOOTSTRAP_PASSWORD', 'ChangeThisPassword123!');
+        $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org');
 
         User::firstOrCreate(
-            ['email' => 'admin@campburntgin.org'],
+            ['email' => $email],
             [
                 'name' => 'Super Administrator',
                 'role_id' => $superAdminRole->id,
@@ -193,7 +194,7 @@ class FullSimulationSeeder extends Seeder
     {
         $this->command->newLine();
         $this->command->warn('SECURITY: Change the super admin password immediately!');
-        $this->command->warn('  Email:    admin@campburntgin.org');
+        $this->command->warn('  Email:    '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org'));
         $this->command->warn('  Password: ChangeThisPassword123!');
         $this->command->newLine();
     }
@@ -205,7 +206,7 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->warn('SECURITY: Change the super admin password immediately!');
-        $this->command->warn('  admin@campburntgin.org / ChangeThisPassword123!');
+        $this->command->warn('  '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org').' / ChangeThisPassword123!');
         $this->command->newLine();
 
         $this->command->line('<comment>Staff accounts</comment> (password: password):');
