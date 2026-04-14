@@ -344,8 +344,8 @@ class ApplicationSeeder extends Seeder
         // to ensure Henry's record exists before medical seeders run.
         $this->seedHenryMedicalRecord($henry);
 
-        $this->command->line('  Applications seeded: 10 submitted + 2 drafts + 1 cancelled draft = 13 total.');
-        $this->command->line('  Status coverage: pending(3), under_review(1), approved(4), rejected(1), cancelled(1), waitlisted(1), draft(2).');
+        $this->command->line('  Applications seeded: 11 non-draft submitted + 1 draft + 1 cancelled draft = 13 total.');
+        $this->command->line('  Status coverage: submitted(4), under_review(1), approved(4), rejected(1), cancelled(1), waitlisted(1), draft(1).');
 
         // Backfill is_active on campers and medical records to reflect approved applications.
         // ApplicationService sets these flags in production via reviewApplication(); the

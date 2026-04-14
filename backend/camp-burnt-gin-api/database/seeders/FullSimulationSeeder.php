@@ -209,7 +209,8 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->line('<comment>Staff accounts</comment> (password: password):');
-        $this->command->line('  Super Admin : admin@campburntgin.org         Jordan Blake (deputy)');
+        $this->command->line('  Super Admin : admin@campburntgin.org         Super Administrator (bootstrap account — see ADMIN_BOOTSTRAP_PASSWORD)');
+        $this->command->line('  Super Admin : admin2@campburntgin.org        Jordan Blake (deputy super admin)');
         $this->command->line('  Admin       : admin@example.com              Alex Rivera');
         $this->command->line('  Coordinator : admin3@campburntgin.org        Taylor Brooks');
         $this->command->line('  Medical Dir : medical@example.com            Dr. Morgan Chen');
@@ -218,7 +219,7 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->line('<comment>Applicant accounts</comment> (password: password):');
-        $this->command->line('  sarah.johnson@example.com        Ethan (approved S1) + Lily (pending S2)');
+        $this->command->line('  sarah.johnson@example.com        Ethan (approved S1) + Lily (pending S1)');
         $this->command->line('  david.martinez@example.com       Sofia (under review S1)');
         $this->command->line('  jennifer.thompson@example.com    Noah (rejected S1, pending S2)');
         $this->command->line('  michael.williams@example.com     Ava (approved S2) + Lucas (pending S1)');
