@@ -70,18 +70,18 @@ class UserProfileController extends Controller
     public function update(Request $request): JsonResponse
     {
         $request->validate([
-            'name'            => ['sometimes', 'string', 'max:255'],
-            'preferred_name'  => ['sometimes', 'nullable', 'string', 'max:100'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'preferred_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             // Format-only validation here — uniqueness is checked manually below
             // so we can return a descriptive message instead of Laravel's generic one.
-            'email'           => ['sometimes', 'email'],
-            'phone'           => ['sometimes', 'nullable', 'string', 'max:20'],
-            'address_line_1'  => ['sometimes', 'nullable', 'string', 'max:255'],
-            'address_line_2'  => ['sometimes', 'nullable', 'string', 'max:255'],
-            'city'            => ['sometimes', 'nullable', 'string', 'max:100'],
-            'state'           => ['sometimes', 'nullable', 'string', 'max:100'],
-            'postal_code'     => ['sometimes', 'nullable', 'string', 'max:20'],
-            'country'         => ['sometimes', 'nullable', 'string', 'max:100'],
+            'email' => ['sometimes', 'email'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'address_line_1' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'address_line_2' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'country' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
 
         $user = $request->user();
@@ -92,18 +92,18 @@ class UserProfileController extends Controller
             $conflict = User::withTrashed()
                 ->where('email', $request->email)
                 ->where('id', '!=', $user->id)
-                ->with('role')
                 ->first();
 
             if ($conflict) {
-                $roleLabel = ucwords(str_replace('_', ' ', $conflict->role?->name ?? 'unknown'));
+                $roleSlug = DB::table('roles')->where('id', $conflict->role_id)->value('name') ?? 'unknown';
+                $roleLabel = ucwords(str_replace('_', ' ', $roleSlug));
 
                 if ($conflict->trashed()) {
                     $detail = "It belongs to a deleted {$roleLabel} account.";
                 } elseif (! $conflict->is_active) {
                     $detail = "It belongs to an inactive {$roleLabel} account "
-                        . "that is hidden from the Users list by default. "
-                        . "Use \"Show inactive\" in User Management to view and manage it.";
+                        .'that is hidden from the Users list by default. '
+                        .'Use "Show inactive" in User Management to view and manage it.';
                 } else {
                     $detail = "It belongs to an active {$roleLabel} account.";
                 }
@@ -112,7 +112,7 @@ class UserProfileController extends Controller
 
                 return response()->json([
                     'message' => $message,
-                    'errors'  => ['email' => [$message]],
+                    'errors' => ['email' => [$message]],
                 ], 422);
             }
         }

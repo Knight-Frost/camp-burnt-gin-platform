@@ -15,9 +15,9 @@ class TestMail extends Command
         $email = $this->argument('email');
 
         $mailer = config('mail.default');
-        $host   = config('mail.mailers.smtp.host', 'N/A');
-        $port   = config('mail.mailers.smtp.port', 'N/A');
-        $from   = config('mail.from.address', 'N/A');
+        $host = config('mail.mailers.smtp.host', 'N/A');
+        $port = config('mail.mailers.smtp.port', 'N/A');
+        $from = config('mail.from.address', 'N/A');
 
         $this->info("Mailer   : {$mailer}");
         $this->info("SMTP host: {$host}:{$port}");

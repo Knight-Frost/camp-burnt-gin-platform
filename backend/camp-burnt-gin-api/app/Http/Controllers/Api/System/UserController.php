@@ -108,8 +108,8 @@ class UserController extends Controller
     {
         // Validate filter inputs to prevent injection and ensure sensible lengths.
         $request->validate([
-            'search'           => ['nullable', 'string', 'max:255'],
-            'role'             => ['nullable', 'string', 'max:50'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', 'string', 'max:50'],
             'include_inactive' => ['nullable', 'in:0,1,true,false'],
         ]);
 
