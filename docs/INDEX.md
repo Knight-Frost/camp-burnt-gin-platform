@@ -139,7 +139,8 @@ This documentation set covers the full Camp Burnt Gin registration and medical m
 | `Risk_Engine.md` | Database-driven medical risk scoring: factor detection, point rules, thresholds, supervision levels, clinical review and override workflow | Medical staff, backend engineers |
 | `Messaging.md` | Gmail-style threaded messaging, TO/CC/BCC recipient model, reply and reply-all server-side logic, BCC privacy enforcement | Backend and frontend engineers |
 | `File_Uploads.md` | Document upload security, MIME type validation, private disk storage, download authorization, document type conventions | Backend and frontend engineers |
-| `External_Mailing.md` | Email notification system, notification templates, queue-based delivery, scheduling and retry behavior | Backend engineers, DevOps |
+| `Email_Notifications.md` | Email notification types, inbox→email flow, application status emails, duplicate prevention, notification preferences, queueing, branding, HIPAA safety rules, recipient logic | Backend engineers, DevOps |
+| `External_Mailing.md` | Legacy email system doc (pre-2026-04-19); superseded by `Email_Notifications.md` for notification behaviour; SMTP/Mailtrap setup steps remain valid | Backend engineers, DevOps |
 
 ---
 
