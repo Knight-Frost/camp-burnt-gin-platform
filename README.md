@@ -1,500 +1,552 @@
 # Camp Burnt Gin
 
-Camp Burnt Gin is a full-stack, HIPAA-conscious camp management platform built for the Children and Youth with Special Health Care Needs (CYSHCN) program. It replaces paper and email-based workflows with a structured, auditable, role-based web application that covers the complete lifecycle of a camp enrollment: application submission, medical record management, application review and approval, document compliance, internal communications, and post-approval operations. Four distinct user portals serve applicants (parents and guardians), camp administrators, medical staff, and system owners.
+Camp Burnt Gin is a full-stack, HIPAA-conscious camp management platform built for the Children and Youth with Special Health Care Needs (CYSHCN) program in South Carolina. It replaces a paper-and-email enrollment process with a structured, auditable, role-based web application that covers the complete lifecycle of camp enrollment: application submission, medical record management, document compliance, application review and decision, internal communications, and post-approval operations.
+
+Four distinct portals serve applicants (parents and guardians), camp administrators, medical staff, and system owners. The backend is a Laravel 12 REST API. The frontend is a React 18 TypeScript single-page application.
 
 ---
 
 ## Table of Contents
 
-1. [Executive Overview](#1-executive-overview)
-2. [Core Capabilities](#2-core-capabilities)
-3. [User Roles and Access Model](#3-user-roles-and-access-model)
+1. [Project Overview](#1-project-overview)
+2. [Key Features](#2-key-features)
+3. [User Roles and Permissions](#3-user-roles-and-permissions)
 4. [System Architecture](#4-system-architecture)
-5. [Major Workflows](#5-major-workflows)
-6. [Data Model](#6-data-model)
-7. [Repository Structure](#7-repository-structure)
-8. [Technology Stack](#8-technology-stack)
-9. [Setup and Installation](#9-setup-and-installation)
-10. [Environment Configuration](#10-environment-configuration)
-11. [Running the System](#11-running-the-system)
-12. [Testing](#12-testing)
-13. [Implementation Notes](#13-implementation-notes)
-14. [Security and Compliance](#14-security-and-compliance)
+5. [Application Workflow](#5-application-workflow)
+6. [Email and Notification System](#6-email-and-notification-system)
+7. [API Overview](#7-api-overview)
+8. [Database Overview](#8-database-overview)
+9. [Security and Compliance](#9-security-and-compliance)
+10. [Technology Stack](#10-technology-stack)
+11. [Setup and Installation](#11-setup-and-installation)
+12. [Running the System](#12-running-the-system)
+13. [Testing and Validation](#13-testing-and-validation)
+14. [Known Limitations](#14-known-limitations)
 15. [Development Guidance](#15-development-guidance)
 16. [Reference Documentation](#16-reference-documentation)
 
 ---
 
-## 1. Executive Overview
+## 1. Project Overview
 
-Camp Burnt Gin serves families of children and youth with complex medical and developmental needs who wish to enroll in a structured therapeutic camp program. Before this system, enrollment was handled through paper forms mailed back and forth, medical records kept in file cabinets, and administrative review conducted over email. This platform centralizes and secures every step of that process.
+Before this platform, Camp Burnt Gin enrollment relied on paper forms mailed between families and staff, medical records in file cabinets, and administrative review conducted over email. This system centralizes and secures every step of that process.
 
-The system is built around three core concerns:
+The platform is built around three core concerns:
 
-- **Enrollment integrity:** Applications flow through a defined, enforced state machine. Approval requires capacity checks, document compliance verification, and an authorized reviewer. Every status change is recorded.
-- **Medical data protection:** Personally identifiable health information (PHI) is encrypted at rest using Laravel's encrypted cast, accessed only by authorized roles, and logged to a tamper-evident audit trail on every read.
-- **Operational clarity:** Administrators can manage camp sessions with capacity enforcement and waitlist promotion, issue and track document requests, generate mailing and ID-label reports, communicate through a threaded inbox, and publish announcements and deadlines to all users.
+- **Enrollment integrity.** Applications flow through a server-enforced state machine. Approval requires capacity checks, document compliance verification, and an authorized reviewer. Every transition is logged.
+- **Medical data protection.** Personally identifiable health information (PHI) is encrypted at rest using Laravel's `encrypted` cast, accessed only by authorized roles, and written to a tamper-evident audit trail on every read.
+- **Operational clarity.** Administrators manage sessions with capacity enforcement and waitlist promotion, issue and track document requests, generate reports, communicate through a threaded inbox, and publish announcements to all users.
 
-The platform is implemented as a Laravel 12 REST API consumed by a React 18 TypeScript single-page application. Both layers are fully operational across all four portals. The backend has 127 database migrations, 52 controllers, 44 models, and more than 560 passing integration and unit tests.
+The backend has 99 database migrations, 52 controllers, 44 models, and more than 560 passing integration and unit tests.
 
 ---
 
-## 2. Core Capabilities
+## 2. Key Features
 
 ### Application Management
 
-The applicant portal guides a parent or guardian through a multi-section digital application form. The form auto-saves as a draft, supports save-and-resume, and captures biographical information, emergency contacts, behavioral profile data, session preferences, narrative responses, and a digital signature. Applications are tied to a specific camp session and can be re-applied from across years with pre-populated biographical fields.
+Applicants complete a multi-section digital form covering biographical data, emergency contacts, session preference, behavioral profile, medical narrative, dietary needs, and seven consent acknowledgements. The form auto-saves server-side as a draft and supports save-and-resume across sessions.
 
-A second application path supports Spanish-speaking families through full i18n coverage. All user-facing strings are served via i18next; English and Spanish translations are kept in parity.
-
-Once submitted, applications pass through an enforced status machine managed by `ApplicationService`. Status transitions are validated by `ApplicationStatus::canTransitionTo()`. Approval activates the camper record and their medical record. Reversal deactivates them, with care taken to preserve activation if the camper has another approved application in a different session.
+Applications are linked to a specific camp session and may be re-applied in subsequent years using pre-populated biographical fields. A Spanish-language path provides full i18n coverage for Spanish-speaking families.
 
 ### Medical Records
 
-The medical portal provides read/write access to a comprehensive health profile for each enrolled camper. Medical data is organized across multiple related tables: allergies with severity tiers, current medications with dosage and frequency, diagnoses with ICD codes, behavioral risk assessments, feeding plans, assistive device records, activity permissions, and personal care plans covering toileting, dressing, feeding, mobility, and hygiene.
+Medical staff maintain a comprehensive health profile for each enrolled camper: allergies with severity tiers, medications with dosage and frequency, diagnoses with ICD codes, behavioral risk assessments, feeding plans, assistive device records, activity permissions, and personal care plans covering toileting, dressing, feeding, mobility, and hygiene.
 
-During camp operations, medical staff can log treatment interventions, record medical station visits with disposition, document incidents with severity classification, create follow-up tasks with priority and deadline, and place activity restrictions. Each of these actions is policy-gated and audit-logged.
+During camp operations, staff log treatment interventions, clinic visits with disposition, medical incidents with severity classification, and follow-up tasks with priority and due date. An emergency snapshot view presents critical information — allergies, behavioral risks, medications, emergency contacts — on a single screen for rapid reference.
 
-An emergency snapshot view (`MedicalEmergencyViewPage`) presents critical information (allergies, behavioral risks, medications, and emergency contacts) in a single-screen format designed for rapid reference during incidents.
-
-External medical providers (physicians, specialists) can be granted time-limited, token-based read access to a specific camper's health record without requiring a full system account.
+External medical providers (physicians, specialists) can be granted time-limited, token-based access to a specific camper's health record without a full system account.
 
 ### Document Management
 
-Documents are stored in a polymorphic system where any model (application, message) can own file attachments. Uploads are validated by MIME type and magic bytes before storage under `storage/app/documents/`.
+Documents are stored in a polymorphic system: any model (application, message) can own file attachments. Uploads are validated by MIME type and magic bytes before storage outside the public web root.
 
-Administrators can issue formal document requests to applicants with a deadline and reminder capability. Applicants see pending requests in their documents page and upload their submissions directly. Admins review and approve or reject each submission. A compliance engine (`DocumentEnforcementService`) checks required document rules against actual submission state and verification status before an application can be approved.
+Administrators issue formal document requests with a deadline. Applicants upload their responses directly. Admins approve or reject each submission. The `DocumentEnforcementService` checks required-document rules against actual submission and verification status before an application can be approved.
 
-All uploaded files carry a verification status (unverified, approved, rejected). Admin staff verify documents; only approved documents count toward compliance requirements.
+Documents have a two-stage lifecycle: draft (applicant-only visibility) and submitted (visible to admin staff for review).
 
 ### Inbox and Messaging
 
-The messaging system uses a threaded conversation model similar to Gmail. Conversations are containers; messages are immutable records within them. Each message supports TO, CC, and BCC recipients tracked individually in the `message_recipients` table.
+The messaging system uses a threaded conversation model. Each message supports TO, CC, and BCC recipients tracked per-message in the `message_recipients` table. Reply sends only to the original sender. Reply-all sends to TO and CC recipients while keeping BCC recipients invisible to non-senders. Server-side idempotency keys prevent duplicate messages on network retry.
 
-Reply and reply-all operations are handled server-side: reply sends only to the original sender; reply-all sends to TO and CC recipients, excluding BCC recipients (who remain invisible to non-senders). File attachments are supported on messages and stored via the document system.
-
-Per-user conversation state (starred, important, archived, trashed, read) is tracked separately from the conversation itself, enabling personal inbox organization without affecting other participants.
-
-### Form Builder
-
-Super administrators can create, version, and publish application form schemas via a visual form builder. Forms consist of sections, fields, and field options. Published schemas are consumed by the applicant portal to render the application form dynamically. Applications record which form version they were submitted against for historical fidelity.
+Per-user conversation state — starred, important, archived, trashed, read — is tracked separately from the conversation record itself.
 
 ### Session and Capacity Management
 
-Administrators manage camp sessions with configurable capacity limits, age constraints, and enrollment tracking. The `ApplicationService` enforces capacity at the moment of approval: attempting to approve an application into a full session returns an error. When a session reaches capacity, excess applications can be placed in a waitlisted state. Archived sessions are preserved for historical access but hidden from active workflows.
+Administrators create camp sessions with configurable capacity limits, age constraints, active/inactive status, and enrollment tracking. `ApplicationService` enforces capacity at approval time using a `SELECT ... FOR UPDATE` lock. Sessions can be archived and restored. An archived session is preserved for historical access but hidden from active workflows.
 
 ### Reporting and Exports
 
-The reports module generates several pre-defined outputs for administrative use: an application summary with status breakdown, accepted and rejected applicant lists, mailing labels formatted for printing on standard label stock, and ID labels that include allergy warnings and supervision level. The audit log can be exported up to 5,000 rows in CSV or JSON format, with filters for date range, user, action type, and PHI access flag.
+Pre-defined reports include: application summary with status breakdown, accepted applicant lists, rejected applicant lists, mailing labels formatted for standard label stock, and ID labels with allergy warnings and supervision level. All PHI export reports require MFA enrollment. The audit log is exportable up to 5,000 rows in CSV or JSON with filters for date range, user, action type, and PHI flag.
 
 ### Announcements and Calendar
 
-Administrators publish announcements visible to all roles. Announcements support pinning and archiving. A camp calendar displays events and application deadlines. Deadlines have an optional enforcement flag and auto-sync to calendar events. Session-specific bulk deadline creation is supported.
+Administrators publish announcements visible to all roles. Announcements support pinning and archiving. A camp calendar displays events and application deadlines. Deadlines support an enforcement flag and auto-sync to calendar events. Bulk deadline creation per session is supported.
 
-### User Management
+### Risk Engine
 
-Super administrators manage all non-applicant accounts: creating staff accounts (admin, medical, or additional super_admin), reassigning roles, and deactivating or reactivating users. The last active super_admin account cannot be deleted or demoted, preventing administrative lockout.
+Medical risk scoring is database-driven: `risk_factors`, `risk_rules`, and `risk_thresholds` define the scoring model. `SpecialNeedsRiskAssessmentService` computes a camper's risk score against the active rule set and maps it to a supervision level. Medical staff can add clinical recommendations and apply manual supervision-level overrides. Risk configuration is cached per-request (`risk_engine:factors`, `rules`, `thresholds` keys).
+
+### Form Builder
+
+Super administrators create, version, and publish application form schemas through a visual builder. Schemas consist of sections, fields, and field options. Published schemas are consumed by the applicant portal to render the form dynamically. Applications record the form version they were submitted against.
 
 ### Audit Logging
 
-Every PHI read and every administrative action is written to the `audit_logs` table with the acting user's ID, IP address, user agent, the model and record affected, a before/after change snapshot, and a PHI flag. The audit log is browsable and exportable by super administrators.
+Every PHI read and every administrative action writes a record to `audit_logs` with the acting user's ID, IP address, user agent, the model class and record ID affected, a before/after change snapshot, and a PHI access flag. The log is browsable and exportable only by super administrators, with MFA step-up required for CSV export.
 
 ---
 
-## 3. User Roles and Access Model
+## 3. User Roles and Permissions
 
-| Role | Slug | Primary Responsibilities | Key Permissions | Important Restrictions |
-|------|------|--------------------------|-----------------|------------------------|
-| Applicant | `applicant` | Submit applications for their children; upload required documents; communicate with admins | Own campers and applications; own documents; inbox participation | Cannot read own medical records; cannot access other applicants' data |
-| Administrator | `admin` | Review and process applications; manage sessions and campers; generate reports | All applications, campers, sessions, documents, reports, announcements, inbox | Cannot access user management, audit log, or form builder |
-| Medical Staff | `medical` | Maintain medical records during pre-camp and camp operations | Read/write all medical records, treatment logs, incidents, follow-ups, visits; inbox | No access to applications, administrative functions, or reports |
-| Super Administrator | `super_admin` | Govern the system; manage staff accounts; audit activity | All admin capabilities plus user management, audit log access, form builder | The last super_admin account cannot be deleted or demoted |
+Four roles are defined in the `roles` table. Access is enforced at three independent layers: route middleware, controller `$this->authorize()` calls, and policy class methods.
 
-**Role inheritance:** `super_admin` passes all admin authorization checks via an `isAdmin()` override, giving full access to every admin-level route, controller, and policy method without duplication. Access is enforced at three independent layers: route middleware, controller-level `$this->authorize()` calls, and policy class methods.
+| Role | Portal Prefix | Core Capabilities |
+|---|---|---|
+| `applicant` | `/applicant/...` | Own campers and applications; own documents and document requests; inbox participation; announcements and calendar |
+| `admin` | `/admin/...` | All application review and management; all sessions, campers, documents, reports, deadlines, announcements; inbox |
+| `medical` | `/medical/...` | All medical records, treatment logs, incidents, follow-ups, visits; inbox; no access to applications or admin tools |
+| `super_admin` | `/super-admin/...` | All admin capabilities plus user management, audit log, and form builder |
+
+**`super_admin` inheritance.** A single `isAdmin()` override propagates all `admin` authorization checks to `super_admin` without duplication. Super admins pass every admin-level policy and middleware gate automatically.
+
+**MFA requirements.** MFA enrollment is required for `admin`, `medical`, and `super_admin` roles (enforced by `EnsureMfaEnrolled` middleware). MFA step-up (re-verification) is additionally required for sensitive operations: PHI CSV exports, user management actions, and destructive admin operations. See [Section 14](#14-known-limitations) for a current enforcement note.
+
+**Last super_admin protection.** The last active super_admin account cannot be deleted or demoted. This is enforced server-side in `UserController` and `UserPolicy`.
 
 ---
 
 ## 4. System Architecture
 
-### Layer Overview
+### Component Overview
 
-```mermaid
-flowchart TD
-    subgraph Browser["Browser (SPA)"]
-        A[React 18 + TypeScript]
-        B[Redux Toolkit — Auth State]
-        C[Axios — HTTP Client]
-        D[i18next — EN / ES]
-    end
-
-    subgraph API["Laravel 12 API"]
-        E[Sanctum Middleware]
-        F[Role / Policy Gates]
-        G[Controllers]
-        H[Services]
-        I[Models + Encrypted Casts]
-    end
-
-    subgraph Storage["Persistence"]
-        J[(MySQL 8.0)]
-        K[Local Filesystem\nstorage/app/]
-        L[Database Queue\nJob Dispatch]
-        M[Database Cache]
-    end
-
-    subgraph Notifications["Outbound"]
-        N[SMTP Mail\nNotifications]
-    end
-
-    A --> C
-    C -->|Bearer Token| E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-    H --> K
-    H --> L
-    L --> N
-    I -.-> M
+```
+Browser (React 18 SPA)
+├── Redux Toolkit — auth state only
+├── Axios — HTTP client (bearer token injected per request)
+├── React Router 7 — lazy-loaded, role-gated pages
+├── i18next — EN / ES at runtime
+└── Laravel Echo + Pusher-JS — WebSocket (real-time inbox + bell)
+        │
+        │ HTTPS / WSS
+        ▼
+Laravel 12 API (backend/camp-burnt-gin-api/)
+├── Sanctum auth middleware
+├── Role and policy gates (EnsureUserHasRole, EnsureUserIsAdmin, EnsureMfaEnrolled, EnsureMfaStepUp)
+├── Controllers (thin — delegate all logic to services)
+├── Services (all business logic)
+├── Eloquent models with encrypted casts (PHI fields)
+├── SecurityHeaders middleware (HSTS, CSP, X-Frame-Options, X-Content-Type-Options)
+├── AuditPhiAccess middleware (automatic PHI access logging)
+└── AddRequestId middleware
+        │
+        ├── MySQL 8.0 (application data + jobs queue + cache + sessions)
+        ├── Local filesystem storage/app/ (uploaded documents)
+        └── Database queue → SendNotificationJob → Gmail SMTP
 ```
 
-### Backend Structure
+### Backend Request Lifecycle
 
-The Laravel API follows a layered architecture. Controllers are thin: they validate the authenticated user's authorization, delegate to a service class, and return a JSON resource. Business logic lives exclusively in service classes. Models handle relationships, attribute casting (including field-level encryption), and scopes.
-
-The `app/Http/Middleware` chain adds request ID generation, role enforcement, audit logging for PHI access, and security headers (HSTS, CSP, X-Frame-Options) to every response.
-
-Notifications dispatch via Laravel's database notification channel. Email is sent via SMTP using notification classes that respect per-user `notification_preferences` flags.
+```
+1. Axios sends request with Authorization: Bearer <token>
+2. auth:sanctum validates the token
+3. EnsureUserHasRole / EnsureUserIsAdmin checks the role
+4. Controller calls $this->authorize() against the resource policy
+5. AuditPhiAccess middleware logs the access if the route is PHI-flagged
+6. Controller delegates to a service class
+7. Service reads/writes models; PHI fields encrypted transparently by Eloquent
+8. Controller returns a JSON Resource
+9. Post-commit: queued jobs (email, inbox messages) are dispatched
+```
 
 ### Frontend Structure
 
-The React SPA is organized into domain feature modules under `src/features/`. Each feature module contains its own pages, components, API layer, Redux slice (if stateful), and TypeScript types. Shared UI primitives (tables, modals, form inputs, status badges, layout shells) live in `src/ui/`. Authentication state is the only globally shared Redux state; all other data is fetched and managed per-page.
+Pages are organized into domain feature modules under `src/features/`. Each module owns its pages, components, API layer, Redux slice (if stateful), and TypeScript types. Shared UI primitives live in `src/ui/`. Authentication state (token + user) is the only global Redux state; all other data is fetched per page.
 
-All pages are lazy-loaded via `React.lazy` and wrapped in `Suspense`. Route guards enforce role-based access before any page component renders. The Axios client injects the bearer token from Redux state on every request and handles 401 responses by dispatching a logout event.
-
-### Data Flow for a Protected Request
-
-```
-1. User action triggers an API call in a feature's *.api.ts module
-2. Axios request interceptor injects Authorization: Bearer <token>
-3. Laravel auth:sanctum middleware validates the token
-4. EnsureUserHasRole or 'admin' gate checks role access
-5. Controller calls $this->authorize() against the resource policy
-6. If authorized: controller calls service → service reads/writes models
-7. If PHI is accessed: AuditPhiAccess middleware writes audit_logs entry
-8. Controller returns JSON resource → Axios → component state update
-```
+All pages use `React.lazy()` + `Suspense`. Route protection: `ProtectedRoute` (auth check) wraps `RoleGuard` (role check) wraps the layout shell. Unauthenticated requests clear Redux state and redirect to `/login`.
 
 ---
 
-## 5. Major Workflows
+## 5. Application Workflow
 
-### Account Creation and Authentication
+### States
 
-1. New applicant registers via `POST /auth/register`. Account is created in an unverified state.
-2. A verification email is dispatched. All protected routes require `email_verified_at` to be set.
-3. Applicant clicks the verification link, which calls `POST /auth/email/verify`.
-4. On login (`POST /auth/login`), if MFA is not enabled, the API returns a Sanctum token. The frontend stores the token in `sessionStorage['auth_token']` and loads it into Redux.
-5. If MFA is enabled, the login response returns `{ mfa_required: true }` with no token. The login page transitions to a TOTP input step. The user submits the 6-digit code in a second POST request; the server validates via Google2FA and issues the token.
-6. On every page load, `useAuthInit` reads the token from `sessionStorage`, calls `GET /user`, and restores Redux auth state.
-7. A `useIdleTimeout` hook enforces a HIPAA-compliant inactivity logout after 60 minutes of no user interaction. Sanctum tokens have an absolute expiry of 8 hours.
-8. Account lockout activates after 5 consecutive failed login attempts; the account is locked for 15 minutes.
+Applications move through seven states defined in `App\Enums\ApplicationStatus`. State transitions are validated server-side by `ApplicationStatus::canTransitionTo()`. Invalid transitions return HTTP 422.
 
-### Application Creation and Submission
+| State | Value | Meaning |
+|---|---|---|
+| Submitted | `submitted` | Parent fully submitted; awaiting staff review |
+| Under Review | `under_review` | Staff is actively reviewing |
+| Approved | `approved` | Accepted; camper activation triggered |
+| Rejected | `rejected` | Not accepted |
+| Waitlisted | `waitlisted` | Session is full; queued for capacity |
+| Cancelled | `cancelled` | Admin-initiated termination |
+| Withdrawn | `withdrawn` | Parent-initiated; irreversible |
 
-1. Applicant navigates to `/applicant/applications/start` and selects a camper or is prompted to create one.
-2. The form page (`ApplicationFormPage`) creates a draft application via `POST /applications` on first load.
-3. Progress is auto-saved to `localStorage` as `cbg_app_draft`. The "Continue Draft" flow reads this key to restore state.
-4. The applicant completes all sections: camper biographical data, guardian and emergency contact information, session preference, behavioral profile, medical narrative, dietary needs, and seven consent acknowledgements.
-5. On submit, all sections are written to the API sequentially. The final `POST /applications/:id/sign` call captures the digital signature (name + base64 canvas data) and marks `is_draft = false` and `submitted_at`.
-6. The application enters `pending` status. The parent sees it listed in `/applicant/applications`.
-7. For reapplications, `/applicant/applications/start` offers a re-apply path that pre-fills biographical fields from a prior application via `location.state.prefill`.
+**Draft state.** Before submission, an application exists as `is_draft = true` with no `submitted_at`. Drafts are not in the state machine — they become `submitted` on finalization.
 
-### Application Review and Approval
+### State Transition Map
 
-1. Admin views the application on `ApplicationReviewPage`. The page shows all submitted sections, a completeness checklist, the document compliance summary, and the current status.
-2. Admin may edit sections inline (camper info, emergency contacts, behavioral profile, narrative responses) or upload documents on behalf of the applicant.
-3. Admin submits a review decision via `POST /applications/:id/review` with `{ status, notes, overrideIncomplete? }`.
-4. `ApplicationService::reviewApplication()` validates the transition via `ApplicationStatus::canTransitionTo()`. If approving:
-   - Checks session capacity (rejects if full).
-   - Checks document compliance (rejects unless `overrideIncomplete = true`).
-5. All mutations run inside a `DB::transaction()`:
-   - Application status, reviewed_at, reviewed_by, notes are updated.
-   - On approval: camper `is_active` set to `true`; medical record `is_active` set to `true`.
-   - On reversal of approval: camper and medical record deactivated, unless another active application exists.
-   - `AuditLog::logAdminAction()` writes the change record.
-6. After the transaction commits: status-change notification email is dispatched; a system inbox message is created for the applicant.
+```
+                   ┌──────────────────────────────┐
+                   │  (all transitions validated   │
+                   │   by canTransitionTo())        │
+                   └──────────────────────────────┘
 
-### Document Request Workflow
+  [draft]
+     │  finalize
+     ▼
+  submitted ──► under_review ──► approved
+      │               │               │
+      │               ▼               ▼
+      │           rejected       waitlisted ──► approved
+      │               │               │
+      └──► cancelled  └──► withdrawn  └──► rejected / cancelled
+```
 
-1. Admin creates a document request via `POST /document-requests` with document type, deadline, and applicant.
-2. Applicant sees the pending request on `/applicant/documents` with a due date indicator.
-3. Applicant uploads their document via `POST /applicant/document-requests/:id/upload`.
-4. Admin verifies the submission (`PATCH /documents/:id/verify`) with status `approved` or `rejected`.
-5. If rejected, the admin can re-open the request for resubmission via `PATCH /document-requests/:id/reupload`.
-6. Approved documents count toward the application's compliance requirements checked by `DocumentEnforcementService`.
+Withdrawn is a terminal state (no outbound transitions). A parent can withdraw any application that is not already in a final state.
 
-### Medical Record Workflow
+### Creation and Submission (Applicant)
 
-1. Medical record is created at application submission (or on approval activation if not already present).
-2. Medical staff access a camper's full record via `/medical/records/:camperId`.
-3. Staff can add or update allergies, medications, diagnoses, behavioral profiles, feeding plans, assistive devices, activity permissions, and the personal care plan.
-4. During camp operations, staff log treatment interventions, clinic visits, and medical incidents as they occur.
-5. Follow-up tasks created from incidents appear in the `/medical/follow-ups` queue with priority and due date.
-6. Every read of a medical record triggers the `AuditPhiAccess` middleware, writing a log entry with the reader's identity, IP, and timestamp.
+1. Applicant navigates to `/applicant/applications/start` and selects or creates a camper.
+2. `POST /applications` creates a draft. Server-side draft state is stored in the `application_drafts` table; the frontend mirrors current form state to `localStorage` key `cbg_app_draft` as a fast-restore fallback.
+3. Applicant completes all sections. Auto-save writes to the server draft on each step.
+4. On final submit, the applicant signs (`POST /applications/:id/sign`) and calls `POST /applications/:id/finalize`. The application transitions to `submitted`, `submitted_at` is set, and `is_draft` becomes `false`.
+5. An `ApplicationSubmittedNotification` email is queued to the parent.
 
-### Messaging Workflow
+### Review and Decision (Admin)
 
-1. Admin creates a conversation via `POST /inbox/conversations` with a participant list, title, and category.
-2. Participants receive a system inbox notification.
-3. Any participant sends a message via `POST /inbox/conversations/:id/messages`.
-4. Reply targets only the original sender; reply-all targets TO and CC recipients, with BCC participants hidden from recipients.
-5. An idempotency key on each message prevents duplicate sends on network retry.
-6. Per-user state (read, starred, archived, trashed) is managed independently without affecting other participants' views.
+1. Admin opens `ApplicationReviewPage`. The page shows all submitted sections, a completeness checklist, document compliance summary, and current status.
+2. Admin may edit sections inline or upload documents on behalf of the applicant.
+3. Admin submits `POST /applications/:id/review` with `{ status, notes, override_incomplete? }`.
+4. `ApplicationService::reviewApplication()` runs inside a `DB::transaction()`:
+   - Validates the transition.
+   - If approving: checks session capacity (lock), checks document compliance.
+   - Updates `status`, `reviewed_at`, `reviewed_by`, `notes`.
+   - On approval: sets `camper.is_active = true` and activates the medical record.
+   - On approval reversal: deactivates camper and medical record unless another approved application exists.
+   - Writes `AuditLog` entry.
+5. After commit: dispatches the appropriate email notification (see Section 6).
 
 ---
 
-## 6. Data Model
+## 6. Email and Notification System
 
-### Entity Relationship Summary
+### Architecture
 
-```mermaid
-erDiagram
-    User ||--o{ Camper : "has children"
-    Camper ||--o{ Application : "applies to sessions"
-    Application }o--|| CampSession : "assigned to"
-    CampSession }o--|| Camp : "belongs to"
-    Camper ||--|| MedicalRecord : "has one"
-    MedicalRecord ||--o{ Allergy : ""
-    MedicalRecord ||--o{ Medication : ""
-    MedicalRecord ||--o{ Diagnosis : ""
-    MedicalRecord ||--o{ BehavioralProfile : ""
-    Application ||--o{ Document : "uploads"
-    Application ||--o{ ApplicationConsent : "has consents"
-    Conversation ||--o{ Message : "contains"
-    Conversation ||--o{ ConversationParticipant : "has participants"
-    Message ||--o{ MessageRecipient : "TO/CC/BCC"
-    DocumentRequest ||--o{ ApplicantDocument : "tracks"
-    Deadline ||--o{ CalendarEvent : "creates"
-    User ||--o{ AuditLog : "generates"
+Two parallel dispatch tracks handle outbound email:
+
+**Track 1 — `SendNotificationJob`** (standard path for most notifications)
 ```
+Service class calls QueuesNotifications::queueNotification($user, $notification)
+  → dispatches SendNotificationJob to the 'notifications' queue
+    → job calls $user->notify($notification) when processed
+```
+
+**Track 2 — `ShouldQueue` direct** (formal decision letters only)
+```
+LetterService calls $user->notify(new AcceptanceLetterNotification($application))
+  → Laravel dispatches SendQueuedNotifications to the 'notifications' queue
+    (routed via $this->onQueue('notifications') in the notification constructor)
+```
+
+Both tracks use the same `notifications` queue. The queue worker must name it explicitly:
+```bash
+php artisan queue:work --queue=notifications,default
+```
+
+**`SendNotificationJob` retry configuration:**
+
+| Property | Value |
+|---|---|
+| Queue | `notifications` |
+| Max attempts | 3 |
+| Backoff schedule | 60s → 300s → 900s |
+| Max exceptions | 3 |
+| After commit | Yes — job enters queue only after the surrounding DB transaction commits |
+
+### Notification Inventory
+
+| Notification Class | Trigger | Channels | Preference Key |
+|---|---|---|---|
+| `ApplicationSubmittedNotification` | Application finalized | mail + database | `application_updates` |
+| `ApplicationStatusChangedNotification` | Status → under_review, cancelled, re-opened | mail + database | `application_updates` |
+| `ApplicationStatusChangedNotification::forDatabase()` | Status → approved or rejected (bell only) | database only | — |
+| `AcceptanceLetterNotification` | Application approved | mail only | always sent |
+| `RejectionLetterNotification` | Application rejected | mail only | always sent |
+| `WaitlistedNotification` | Application waitlisted | mail + database | `application_updates` |
+| `ApplicationRevertedToDraftNotification` | Admin reverts to draft | mail + database | `application_updates` |
+| `IncompleteApplicationReminderNotification` | Scheduled weekly reminder for stale drafts | mail + database | `deadlines` |
+| `DocumentRequiresCompletionNotification` | Admin sends document to applicant | mail + database | `documents` |
+| `NewMessageNotification` (forMail) | New inbox message | mail only | `messages` |
+| `NewMessageNotification` (forDatabase) | New inbox message | database only | — (synchronous) |
+| `NewConversationNotification` | Added to new conversation | mail + database | `messages` |
+| `CriticalIncidentLoggedNotification` | Critical medical incident | mail + database | `medical_alerts_email` |
+| `MedicalFollowUpDueNotification` | Medical follow-up due | database | `medical_alerts_email` |
+| `EmailVerificationNotification` | Account registration | mail only | — |
+| `PasswordResetNotification` | Password reset request | mail only | — |
+| `PasswordChangedConfirmationNotification` | Password changed | mail only | — |
+
+### Duplicate Email Prevention
+
+When an application is approved or rejected, two email paths would fire by default: `ApplicationStatusChangedNotification` (mail + database) and the formal letter. To prevent two emails reaching the parent, `ApplicationService` calls `$parentUser->notifyNow(ApplicationStatusChangedNotification::forDatabase(...))` for these two statuses. The `forDatabase()` factory overrides `via()` to return `['database']` only. The formal letter handles the single email.
+
+### Notification Preferences
+
+Preferences are stored in the `notification_preferences` JSON column on `users`. All keys default to `true` (email enabled) when absent. Managed by users at **Settings → Notifications**.
+
+| Key | What It Controls |
+|---|---|
+| `messages` | Inbox message and new conversation emails |
+| `application_updates` | Application status, revert-to-draft, waitlist emails |
+| `deadlines` | Incomplete application reminder emails |
+| `documents` | Document request emails |
+| `medical_alerts_email` | Medical alert emails |
+
+`AcceptanceLetterNotification` and `RejectionLetterNotification` are not preference-gated. They always send.
+
+### Email Templates and Branding
+
+Templates are published to `resources/views/vendor/mail/html/` and committed to source control. Customizations:
+
+| Element | Value |
+|---|---|
+| Primary button color | `#16a34a` (Camp Burnt Gin emerald) |
+| Header | `CAMP BURNT GIN` — uppercase, emerald `#15803d`, 20px bold |
+| Footer | `© {year} Camp Burnt Gin · 1628 Old Wire Rd, Gaston, SC 29053` + link to notification preferences |
+| Body background | `#f3f4f6` |
+
+All email bodies follow the HIPAA pattern: "you have a notification, log in to see details." No PHI fields appear in email content.
+
+### Scheduled Emails
+
+| Schedule | Command | Notification Sent |
+|---|---|---|
+| Mondays at 09:00 | `applications:send-reminders --days=7` | `IncompleteApplicationReminderNotification` to parents with drafts untouched for 7+ days |
+
+---
+
+## 7. API Overview
+
+All routes are prefixed with `/api`. The full route file is `backend/camp-burnt-gin-api/routes/api.php`.
+
+| Area | Auth Required | Key Endpoints |
+|---|---|---|
+| Health | None | `GET /health`, `GET /ready` |
+| Public form downloads | None (throttled) | `GET /forms`, `GET /forms/{type}` |
+| Auth | None (throttled) | `POST /auth/register`, `/login`, `/forgot-password`, `/reset-password`, `/email/verify` |
+| Session management | Token only | `POST /auth/email/resend`, `/logout`, `GET /user`, MFA setup/verify/disable/step-up |
+| User profile | Auth + verified | Profile read/update, password change, notification preferences, emergency contacts, avatar, account delete |
+| Camp sessions | Auth + verified | CRUD; activate/deactivate/archive/restore; session dashboard; session applications list |
+| Notifications (bell) | Auth + verified | List; mark read/all-read; clear-all |
+| Applications | Auth + verified | CRUD; initialize-draft; sign; finalize; clone; withdraw; completeness check; `POST /review` (admin) |
+| Application drafts | Auth + verified | CRUD `/application-drafts` |
+| Documents | Auth + verified | Upload; download; submit; archive/restore; verify (admin); send to applicant (admin) |
+| Document requests | Auth + role-scoped | Admin: CRUD + approve/reject/cancel/remind/extend/reopen. Applicant: list, upload, download |
+| Campers | Auth + verified | CRUD; risk summary/assessment; compliance status; medical alerts; health profile; personal care plan |
+| Medical records | Role-scoped | CRUD; all sub-records (allergies, medications, diagnoses, behavioral profiles, feeding plans, assistive devices, activity permissions, incidents, follow-ups, visits, restrictions, treatment logs) |
+| Risk engine config | Admin + medical | CRUD for risk factors, rules, thresholds; threshold impact preview |
+| Medical stats | Admin + medical | `GET /medical/stats` |
+| Family management | Admin | `GET /families`; `GET /families/{user}` (family workspace) |
+| Reports | Admin + MFA enrolled | Summary (no MFA gate); accepted/rejected/applications/mailing-labels/id-labels (MFA enrolled + rate-limited) |
+| Inbox | Auth + verified | Conversations CRUD + archive/trash/star/important/read/unread/participants/leave; Messages index/store/reply/reply-all |
+| Announcements | Auth + verified | CRUD (write: admin only); pin toggle |
+| Deadlines | Auth + verified | CRUD; bulk-session; extend; complete |
+| Calendar | Auth + verified | CRUD (write: admin only) |
+| Form templates | Auth + verified | `GET /form-templates`; `/{type}/download` |
+| Form schema | Auth + verified | `GET /form/active`; `/version/{form}` |
+| Form builder | Super admin | CRUD for definitions, sections, fields, field options; publish/duplicate; reorder; activate/deactivate |
+| User management | Super admin + step-up | CRUD; role assignment; activate/deactivate |
+| Audit log | Super admin + MFA step-up + throttled | `GET /audit-log`; `GET /audit-log/export` |
+
+---
+
+## 8. Database Overview
+
+99 migrations. All PHI tables use soft deletes. The queue, cache, and session all run on the same MySQL database (database driver for each).
 
 ### Core Tables
 
-| Table | Purpose | Notable Columns |
-|-------|---------|-----------------|
-| `users` | All accounts across all roles | `role_id`, `is_active`, `mfa_enabled`, `mfa_secret` (hidden), `failed_login_attempts`, `lockout_until` |
-| `roles` | Role definitions | `name` (slug: super_admin, admin, medical, applicant) |
-| `campers` | Children attending camp | `user_id`, `is_active`, soft-deletes |
-| `camps` | Camp programs | `name`, `description` |
-| `camp_sessions` | Individual session instances | `capacity`, `enrolled_count`, `start_date`, `end_date`, `min_age`, `max_age` |
-| `cabins` | Cabin assignments | `camp_session_id`, `capacity` |
-| `applications` | Enrollment applications | `status` (enum), `is_draft`, `is_incomplete_at_approval`, `submitted_at`, `signature_data` (hidden), `reapplied_from_id` |
-| `application_consents` | Consent records per application | `consent_type` (enum), `is_agreed`, `agreed_at` |
+| Table | Purpose |
+|---|---|
+| `users` | All accounts; role_id, is_active, mfa_enabled, failed_login_attempts, lockout_until |
+| `roles` | 4 rows: super_admin, admin, medical, applicant |
+| `campers` | Child profiles; is_active, cabin_id; soft-deleted |
+| `camps` | Camp organization entity |
+| `camp_sessions` | Session instances: capacity, enrolled_count, start/end dates, portal_open flag |
+| `cabins` | Cabin assignments (table and model exist; admin UI assignment workflow not yet built) |
+| `applications` | Enrollment applications: status (enum), is_draft, submitted_at, signed_at, signature_data (hidden), submission_source, sections_reviewed, reapplied_from_id |
+| `application_drafts` | Server-side JSON blob save slots for in-progress forms (capped at 10 per user, 512 KB per blob) |
+| `application_consents` | 7 guardian consent records per application |
 
-### Medical Tables (PHI, all sensitive fields encrypted)
+### Medical Tables (PHI — sensitive fields encrypted at rest)
 
 | Table | Purpose |
-|-------|---------|
-| `medical_records` | Root medical record per camper; physician, insurance, special needs |
+|---|---|
+| `medical_records` | Root record per camper: physician, insurance, special needs flags; is_active |
 | `allergies` | Substance, reaction, severity (mild → anaphylaxis) |
 | `medications` | Name, dosage, frequency, indication |
-| `diagnoses` | Diagnosis name, ICD code, severity |
+| `diagnoses` | Name, ICD code, severity |
 | `behavioral_profiles` | Wandering risk, aggression risk, supervision level |
-| `feeding_plans` | Feeding type, special diet, assistance level |
+| `feeding_plans` | G-tube and special diet plans |
 | `assistive_devices` | Device type, care instructions |
-| `activity_permissions` | Per-activity clearance level |
-| `emergency_contacts` | Per-camper emergency contact (separate from user-level) |
-| `personal_care_plans` | ADL assistance levels (toileting, dressing, feeding, mobility, hygiene, bowel, bladder) |
-| `treatment_logs` | Clinical interventions during camp; medication administration |
+| `activity_permissions` | Per-camper activity clearance levels |
+| `emergency_contacts` | Camper emergency contacts |
+| `personal_care_plans` | ADL assistance levels: toileting, dressing, feeding, mobility, hygiene, bowel, bladder |
+| `treatment_logs` | Clinical interventions and medication administration during camp |
 | `medical_visits` | Clinic visit records with disposition |
-| `medical_incidents` | Injury and health events with severity classification |
-| `medical_follow_ups` | Follow-up tasks from incidents with priority and status |
-| `medical_restrictions` | Activity restrictions with dates and reason |
+| `medical_incidents` | Injuries and health events with severity classification |
+| `medical_follow_ups` | Follow-up tasks from incidents with priority and due date |
+| `medical_restrictions` | Activity restrictions with start/end dates and reason |
+| `medical_provider_links` | Time-limited external provider access tokens |
 
-### Document and Messaging Tables
+### Document, Messaging, and System Tables
 
 | Table | Purpose |
-|-------|---------|
-| `documents` | Polymorphic file records (application, message attachments); verification status |
-| `document_requests` | Admin-issued upload requests to applicants |
+|---|---|
+| `documents` | Polymorphic file records (application and message attachments); verification status, submitted_at, archived_at |
+| `document_requests` | Admin-issued requests with deadline and status |
 | `applicant_documents` | Tracks original template + submitted document per request |
-| `required_document_rules` | Rule engine definitions for compliance checking |
+| `required_document_rules` | Compliance rule definitions consumed by DocumentEnforcementService |
 | `conversations` | Thread containers; category; per-user archive and pin state |
-| `conversation_participants` | User membership with per-user state (starred, important, trashed, read) |
-| `messages` | Immutable message records; parent_message_id for threading; soft-deletes |
-| `message_recipients` | TO/CC/BCC recipient rows per message |
-| `message_reads` | Read receipts (one per user per message) |
-
-### Application Status State Machine
-
-```
-                      ┌──────────────────────────────────────┐
-                      │                                      │
-        pending  ──►  under_review  ──►  approved            │
-           │               │               │                 │
-           │               ▼               ▼                 │
-           │           rejected       waitlisted             │
-           │               │               │                 │
-           └──► cancelled  └──► withdrawn  └──► approved     │
-                                                             │
-        All transitions validated by ApplicationStatus::canTransitionTo()
-```
-
-Valid transitions are enforced server-side. Invalid transition attempts return HTTP 422.
-
----
-
-## 7. Repository Structure
-
-```
-Camp_Burnt_Gin_Project/
-├── README.md                                    # This file
-├── Application_Forms/                           # Official blank form PDFs
-│   ├── CYSHCN Camper Application.pdf
-│   ├── Children and Youth with SHCN.pdf
-│   ├── Children and Youth with SHCN_Spanish.pdf
-│   └── Medical_form.pdf
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                               # Tests, linting, type checking
-│       ├── database.yml                         # Migration integrity checks
-│       ├── deploy.yml                           # Production deployment
-│       ├── rollback.yml                         # Deployment rollback
-│       └── security.yml                         # Dependency vulnerability scanning
-├── backend/
-│   └── camp-burnt-gin-api/
-│       ├── app/
-│       │   ├── Enums/                           # ApplicationStatus, AllergySeverity, etc.
-│       │   ├── Http/
-│       │   │   ├── Controllers/                 # 52 controllers (auth, camp, medical, inbox, risk, etc.)
-│       │   │   ├── Middleware/                  # Auth, role enforcement, PHI audit, security headers
-│       │   │   ├── Requests/                    # Form request validators (one per mutation)
-│       │   │   └── Resources/                   # JSON API resources
-│       │   ├── Models/                          # 44 Eloquent models
-│       │   ├── Policies/                        # 30+ policy classes (one per model)
-│       │   ├── Services/                        # Business logic (23 service classes)
-│       │   ├── Events/ Listeners/ Jobs/         # Async operations and notifications
-│       │   └── Notifications/                   # Email notification classes
-│       ├── database/
-│       │   ├── migrations/                      # 127 migration files (chronological)
-│       │   └── seeders/                         # 37 seeder classes
-│       ├── routes/
-│       │   └── api.php                          # All API routes (~1,000 lines)
-│       ├── tests/
-│       │   ├── Feature/                         # Integration tests (API, auth, security, inbox)
-│       │   └── Unit/                            # Service unit tests
-│       └── .env.example                         # Environment variable template
-├── frontend/
-│   ├── FRONTEND_GUIDE.md                        # Canonical frontend developer reference
-│   └── src/
-│       ├── app/                                 # App entry, error boundary
-│       ├── api/
-│       │   └── axios.config.ts                  # Axios instance, token injection, 401 handling
-│       ├── core/
-│       │   └── routing/index.tsx                # Complete React Router tree
-│       ├── features/
-│       │   ├── admin/                           # Admin portal pages, API, types
-│       │   ├── auth/                            # Login, register, MFA, password reset
-│       │   ├── medical/                         # Medical portal pages and API
-│       │   ├── messaging/                       # Inbox, conversations, compose
-│       │   ├── parent/                          # Applicant portal pages and API
-│       │   ├── profile/                         # Profile and settings pages
-│       │   └── superadmin/                      # User management, audit log, form builder
-│       ├── shared/
-│       │   ├── constants/routes.ts              # Typed route path constants
-│       │   ├── types/                           # Shared TypeScript interfaces
-│       │   ├── hooks/                           # useAuthInit, useIdleTimeout, etc.
-│       │   └── utils/                           # Date formatting, file helpers, etc.
-│       ├── ui/                                  # Layout shells, shared components, StatusBadge
-│       ├── assets/styles/
-│       │   └── design-tokens.css                # CSS custom properties (color, spacing, typography)
-│       └── i18n/
-│           ├── en.json                          # English translations
-│           └── es.json                          # Spanish translations (full parity)
-└── docs/
-    ├── INDEX.md                                 # Navigation index for all reference docs
-    ├── architecture/                            # System design and architecture decisions
-    ├── api/                                     # API endpoint reference
-    ├── auth/                                    # Authentication flows and token lifecycle
-    ├── roles-and-permissions/                   # RBAC design and permission matrix
-    ├── database/                                # Schema overview and data model
-    ├── backend/                                 # Backend implementation guides
-    ├── frontend/                                # Frontend architecture guides
-    ├── security/                                # Security controls and audit logging
-    ├── features/                                # Feature-specific implementation guides
-    ├── workflows/                               # Application lifecycle and business rules
-    ├── testing/                                 # Test strategy and execution guide
-    ├── deployment/                              # Setup, CI/CD, and production procedures
-    ├── ui-ux/                                   # Design system and component guide
-    ├── governance/                              # Contributing guidelines and code standards
-    ├── bug-tracking/                            # Active issue log (BUG_TRACKER.md)
-    └── reports/                                 # Forensic audit reports
-```
+| `conversation_participants` | User membership with per-user folder, read, starred, important, trashed state |
+| `messages` | Immutable message records; parent_message_id for threading; soft-deleted |
+| `message_recipients` | TO / CC / BCC recipient rows per message |
+| `message_reads` | Per-user per-message read receipts |
+| `notifications` | Laravel database notifications (in-app bell) |
+| `announcements` | System-wide announcements with pinned flag |
+| `calendar_events` | Camp calendar entries |
+| `deadlines` | Time-based enforcement deadlines linked to sessions |
+| `form_definitions` | Versioned application form schemas (draft/published) |
+| `form_sections` | Sections within a form definition |
+| `form_fields` | Fields within a section: type, placeholder, is_active, validation |
+| `form_field_options` | Options for select/radio/checkbox fields |
+| `risk_assessments` | Computed risk score snapshots per camper |
+| `risk_factors` | Configurable scoring factors |
+| `risk_rules` | Conditional rules for the risk engine |
+| `risk_thresholds` | Score thresholds mapped to supervision levels |
+| `audit_logs` | Full audit trail: user, IP, user agent, model, record ID, before/after snapshot, PHI flag |
+| `user_emergency_contacts` | Account-level emergency contacts (distinct from camper-level) |
+| `jobs` | Laravel database queue |
+| `cache` | Laravel database cache |
+| `personal_access_tokens` | Sanctum API tokens |
 
 ---
 
-## 8. Technology Stack
+## 9. Security and Compliance
+
+### Authentication
+
+Sanctum API tokens are used throughout. Tokens carry an absolute 8-hour expiry (`SANCTUM_EXPIRATION=480`). The frontend enforces a 60-minute inactivity logout via the `useIdleTimeout` hook. Account lockout (15 minutes) activates after 5 consecutive failed login attempts, enforced in `LoginService`.
+
+Tokens are stored in `sessionStorage` under the key `auth_token`. On every page load, `useAuthInit` reads the token, calls `GET /user`, and restores Redux auth state. On logout, the token is deleted from `sessionStorage` and Redux state is cleared.
+
+### Multi-Factor Authentication
+
+TOTP-based MFA is implemented using `pragmarx/google2fa` with QR code setup via `react-qr-code`. The setup flow covers enrollment, verification/confirmation, and disable. MFA step-up (re-verification for a specific action) is enforced via `EnsureMfaStepUp` middleware on PHI CSV exports, user management routes, and destructive admin operations.
+
+See [Section 14](#14-known-limitations) for the current state of `EnsureMfaEnrolled` enforcement.
+
+### Authorization
+
+Role-based access is enforced at three independent layers:
+
+1. **Route middleware.** `EnsureUserHasRole` and `EnsureUserIsAdmin` gate entire route groups before any controller code runs.
+2. **Controller policy calls.** Every mutation and sensitive read calls `$this->authorize()` against the resource's policy class before calling any service.
+3. **Policy classes.** One policy class per Eloquent model defines the precise conditions under which each action is permitted for each role.
+
+### PHI Protection
+
+All sensitive medical fields are stored using Laravel's `encrypted` cast, which applies AES-256-CBC encryption at the model layer before writing to the database. The `APP_KEY` is the encryption root.
+
+The `AuditPhiAccess` middleware intercepts every request that touches a flagged medical route and writes an `audit_logs` entry with the user's ID, IP, user agent, model class, record ID, and `is_phi_access = true`. Medical data is never included in list or index endpoint responses.
+
+### Data Integrity
+
+- PHI tables use soft deletes. No hard deletes occur at the application layer.
+- Messages are immutable. Users cannot edit sent messages; soft deletion is available only to administrators for moderation.
+- Application status transitions are enforced server-side. Invalid transitions return HTTP 422.
+- Message idempotency keys prevent duplicate records on network retry.
+- Application draft writes use an optimistic concurrency guard (409 Conflict) to prevent two-tab overwrite races.
+
+### Security Headers
+
+The `SecurityHeaders` middleware applies `Strict-Transport-Security`, `Content-Security-Policy`, `X-Frame-Options: DENY`, and `X-Content-Type-Options: nosniff` to all API responses.
+
+### File Security
+
+Uploads are validated by MIME type whitelist and magic bytes before storage. Files are stored at `storage/app/documents/` — outside the public web root — and served only through authenticated, policy-gated download endpoints.
+
+---
+
+## 10. Technology Stack
 
 ### Backend
 
 | Component | Technology |
-|-----------|-----------|
+|---|---|
 | Framework | Laravel 12 |
 | Language | PHP 8.2+ |
 | Database | MySQL 8.0 |
-| Authentication | Laravel Sanctum 4.2 (API tokens) |
+| Authentication | Laravel Sanctum 4.2 |
 | MFA | PragmaRx Google2FA 9.0 (TOTP) |
-| Queue | Database driver (Laravel jobs) |
+| Real-time | Laravel Reverb 1.9 (WebSocket server) |
+| Queue | Database driver — `notifications` and `default` queues |
+| Email | Gmail SMTP (configurable to Mailgun in production) |
+| Cache | Database driver |
 | Session | Database driver (30-minute lifetime, encrypted) |
 | Testing | PHPUnit 11.5 |
-| Static Analysis | Larastan 3.0 |
+| Static Analysis | Larastan 3.0 (PHPStan) |
 | Code Style | Laravel Pint |
 
 ### Frontend
 
 | Component | Technology |
-|-----------|-----------|
+|---|---|
 | Framework | React 18.3 |
-| Language | TypeScript 5 (strict mode) |
-| Build Tool | Vite 5 |
+| Language | TypeScript 5.9 (strict mode) |
+| Build Tool | Vite 6.4 |
 | Package Manager | pnpm |
 | Styling | Tailwind CSS 3.4 |
 | State Management | Redux Toolkit 2.11 + react-redux 9.2 |
-| HTTP Client | Axios 1.13 |
+| HTTP Client | Axios 1.15 |
 | Routing | React Router 7.13 |
 | Internationalization | i18next 25 + react-i18next 16 |
-| Form Validation | Zod 3.25 |
+| Forms and Validation | React Hook Form 7.71 + Zod 3.25 |
 | Animation | Framer Motion 12.35 |
 | Rich Text Editor | Tiptap 3.20 |
-| UI Primitives | Radix UI (accordion, dialog, select, dropdown) |
+| UI Primitives | Radix UI (accordion, dialog, dropdown-menu, select) |
+| Drag and Drop | @hello-pangea/dnd 18 |
 | Icons | Lucide React 0.487 |
 | Charts | Recharts 3.8 |
-| Testing | Vitest, React Testing Library, Playwright (E2E) |
+| Toasts | Sonner 2 |
+| QR Codes | react-qr-code 2 |
+| Real-time Client | Laravel Echo 2.3 + Pusher-JS 8.4 |
+| Testing | Vitest 3.2 + React Testing Library 16 + Playwright 1.58 |
 
-### Infrastructure
+### CI/CD
 
-| Component | Technology |
-|-----------|-----------|
-| CI/CD | GitHub Actions (5 workflows) |
-| Container Support | Docker (PHP, MySQL, Mailhog, nginx) |
-| Mail (development) | Mailhog (SMTP localhost:1025) |
-| File Storage | Local filesystem (`storage/app/`) |
+| Workflow | Trigger | Checks |
+|---|---|---|
+| `ci.yml` | Push / PR | Policy scan, PHPUnit (PHP 8.2/8.3/8.4 matrix), coverage gate (≥20%), Pint style, PHPStan/Larastan, TypeScript type-check, ESLint (zero warnings), Vitest, production build |
+| `security.yml` | Push / PR + daily cron | Composer audit, pnpm audit, env file scan, secret pattern scan, dangerous function scan |
+| `database.yml` | Push / PR (migrations changed) | `migrate:fresh`, rollback/re-migrate, full seeder run, duplicate timestamp check |
+| `deploy.yml` | CI success on `main` / `develop` | Deploy frontend (Vercel) + backend (SSH/Docker) + health check |
+| `rollback.yml` | Manual dispatch | Vercel rollback or SSH checkout + Docker rebuild |
 
 ---
 
-## 9. Setup and Installation
+## 11. Setup and Installation
 
 ### Prerequisites
 
-- PHP 8.2 or later
+- PHP 8.2 or later with extensions: `dom`, `curl`, `libxml`, `mbstring`, `zip`, `pcntl`, `pdo`, `pdo_mysql`, `bcmath`, `fileinfo`
 - Composer
 - MySQL 8.0
 - Node.js 20 or later
 - pnpm (`npm install -g pnpm`)
 
-### Clone the Repository
+### Clone
 
 ```bash
 git clone <repository-url>
@@ -509,8 +561,9 @@ cd backend/camp-burnt-gin-api
 # Install PHP dependencies
 composer install
 
-# Copy environment configuration
+# Copy and configure environment
 cp .env.example .env
+# Edit .env: set DB_USERNAME, DB_PASSWORD, MAIL_USERNAME, MAIL_PASSWORD, FRONTEND_URL
 
 # Generate application encryption key
 php artisan key:generate
@@ -518,81 +571,44 @@ php artisan key:generate
 # Create the database
 mysql -u root -p -e "CREATE DATABASE camp_burnt_gin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# Configure database credentials in .env
-# DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-
-# Run migrations
+# Run all migrations
 php artisan migrate
 
-# Seed the database with demo data
+# Seed demo data (creates seeded accounts for all four portals)
 php artisan db:seed
 
-# Create the storage symlink for public file access
+# Create the storage symlink (serves public files)
 php artisan storage:link
 ```
 
-> **Email verification in local development:** All protected routes require a verified email address. Set `MAIL_MAILER=log` in `.env` to capture verification emails in `storage/logs/laravel.log`. For Docker setups, Mailhog is available at `http://localhost:8025`.
+Or use the setup script, which runs all of the above:
 
-Full setup instructions: [docs/deployment/Setup.md](docs/deployment/Setup.md)
+```bash
+composer setup
+```
+
+> **Email in local development.** Set `MAIL_MAILER=log` in `.env` to write emails to `storage/logs/laravel.log` instead of sending via SMTP. This avoids needing Gmail credentials for development.
+
+> **Document compliance.** Set `APP_COMPLIANCE_CHECKS=false` in `.env` to bypass document compliance enforcement during development, allowing applications to be approved without uploaded documents.
 
 ### Frontend Setup
 
 ```bash
 cd frontend
 
-# Install JavaScript dependencies
+# Install dependencies
 pnpm install
 
-# Copy environment configuration
+# Copy environment
 cp .env.example .env.local
-# .env.example sets VITE_API_BASE_URL=http://localhost:8000
-# No edits required for the default local setup
+# Default: VITE_API_BASE_URL=http://localhost:8000 — no edits needed for local dev
 ```
 
-Full frontend reference: [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md)
-
 ---
 
-## 10. Environment Configuration
+## 12. Running the System
 
-### Backend (`.env`)
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `APP_KEY` | Application encryption key (generated via `php artisan key:generate`) | — |
-| `APP_ENV` | Environment context (`local`, `production`) | `local` |
-| `APP_DEBUG` | Enable debug output (must be `false` in production) | `false` |
-| `DB_CONNECTION` | Database driver | `mysql` |
-| `DB_HOST` | Database host | `127.0.0.1` |
-| `DB_DATABASE` | Database name | `camp_burnt_gin` |
-| `DB_USERNAME` | Database user | — |
-| `DB_PASSWORD` | Database password | — |
-| `BCRYPT_ROUNDS` | Password hashing cost factor | `14` |
-| `SANCTUM_EXPIRATION` | Token absolute lifetime in minutes | `480` (8 hours) |
-| `SANCTUM_STATEFUL_DOMAINS` | Domains permitted for Sanctum cookie auth | `localhost:5173` |
-| `SESSION_LIFETIME` | Server-side session lifetime in minutes | `30` |
-| `SESSION_ENCRYPT` | Encrypt session data at rest | `true` |
-| `SESSION_SECURE_COOKIE` | Require HTTPS for session cookie (set `true` in production) | `false` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins for CORS | `http://localhost:5173` |
-| `MAIL_MAILER` | Mail driver (`smtp`, `log`, `mailhog`) | `smtp` |
-| `MAIL_HOST` | SMTP host | `127.0.0.1` |
-| `MAIL_PORT` | SMTP port | `1025` |
-| `MAIL_FROM_ADDRESS` | From address for all outgoing email | `noreply@campburntgin.org` |
-| `QUEUE_CONNECTION` | Queue driver | `database` |
-| `CACHE_STORE` | Cache driver | `database` |
-| `FILESYSTEM_DISK` | File storage driver | `local` |
-
-### Frontend (`.env.local`)
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `VITE_API_BASE_URL` | Base URL for all API requests | `http://localhost:8000` |
-
----
-
-## 11. Running the System
-
-**All four processes must be running for full functionality.** Real-time messaging requires Reverb. Email delivery requires the queue worker.
+Three processes are required for full functionality. Real-time inbox updates (message toasts, unread badge) additionally require the Reverb WebSocket server.
 
 ### Start Backend API
 
@@ -600,115 +616,105 @@ Full frontend reference: [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md
 cd backend/camp-burnt-gin-api
 php artisan serve
 # API available at http://localhost:8000
-
-# To also serve the API on your LAN IP (for testing from other devices):
-php artisan serve --host=0.0.0.0
 ```
 
 ### Start Queue Worker
 
-The queue worker processes background jobs (email dispatch, notification delivery):
+Required for email delivery. Without this, jobs queue but no emails send.
 
 ```bash
+cd backend/camp-burnt-gin-api
 php artisan queue:work --queue=notifications,default
 ```
 
 ### Start Reverb WebSocket Server
 
-**Required for real-time messaging.** Without this, message toast notifications and inbox badge updates will not work. The first time you start Reverb, run `php artisan reverb:install` if the package is not yet installed.
+Required for real-time inbox notifications and message toasts.
 
 ```bash
 cd backend/camp-burnt-gin-api
 php artisan reverb:start
-# WebSocket server listening on 0.0.0.0:8080 (all interfaces)
-# Reachable at ws://localhost:8080 locally
-# Reachable at ws://<your-lan-ip>:8080 from other devices on the network
+# WebSocket server on 0.0.0.0:8080
 ```
+
+> **Broadcasting setup.** The `.env.example` default sets `BROADCAST_CONNECTION=log`. Change this to `BROADCAST_CONNECTION=reverb` and configure the `REVERB_*` variables to enable WebSocket broadcasting.
 
 ### Start Frontend Development Server
 
 ```bash
 cd frontend
-pnpm run dev
-# Application available at:
-#   http://localhost:5173       (local browser)
-#   http://<your-lan-ip>:5173  (other devices on the same network)
-#
-# The frontend is automatically reachable via LAN IP — no extra config needed.
-# WebSocket connections from LAN devices also work automatically because
-# echo.ts resolves wsHost from window.location.hostname at runtime.
+pnpm dev
+# Application at http://localhost:5173
 ```
 
-### Combined Development (via Composer script)
+### Combined Development (Composer Script)
 
 ```bash
 cd backend/camp-burnt-gin-api
 composer dev
-# Starts API server, queue worker, log tail, and Vite dev server concurrently
-# Note: add `php artisan reverb:start` to the Procfile if not already present
+# Starts concurrently: API server, queue listener, Pail log viewer, Vite dev server
 ```
-
-### ERR_ADDRESS_UNREACHABLE on a LAN IP?
-
-If the browser shows `ERR_ADDRESS_UNREACHABLE` when accessing `http://<lan-ip>:5173`:
-
-1. **Verify the Vite dev server is running** (`pnpm run dev` in `frontend/`).
-2. **Check macOS firewall** — System Settings → Network → Firewall → Options. If the firewall blocks incoming connections, add Node.js/Vite as an exception, or temporarily disable it for testing.
-3. **Verify the LAN IP** — run `ipconfig getifaddr en0` (Wi-Fi) or `ipconfig getifaddr en1` (Ethernet) to confirm the machine's current IP matches what you are accessing.
 
 ### Production Build (Frontend)
 
 ```bash
 cd frontend
-pnpm run build
-# Output written to frontend/dist/
+pnpm build
+# Output at frontend/dist/
 ```
 
 ### Useful Artisan Commands
 
 ```bash
-# Re-seed a clean database
+# Reset database and re-seed
 php artisan migrate:fresh --seed
 
-# Clear all application caches
+# Clear all caches
 php artisan optimize:clear
 
-# View the most recent Laravel log entries
+# Tail the Laravel log in real time
 php artisan pail
+
+# Process a single queued job and exit (useful for testing email)
+php artisan queue:work --queue=notifications,default --once
+
+# Run the incomplete application reminder manually
+php artisan applications:send-reminders --days=7
 ```
 
 ---
 
-## 12. Testing
+## 13. Testing and Validation
 
 ### Backend Tests
 
 ```bash
 cd backend/camp-burnt-gin-api
 
-# Run the full test suite
+# Full test suite
 php artisan test
 
-# Run a specific test class
-php artisan test --filter ApplicationApprovalEnforcementTest
+# Specific test class
+php artisan test --filter ApplicationWorkflowTest
 
-# Run with coverage report
+# With coverage report
 php artisan test --coverage
 ```
 
-The backend test suite contains more than 380 passing tests organized as follows:
+The backend test suite contains more than 560 passing tests across 65 test files:
 
-| Suite | Location | Scope |
-|-------|----------|-------|
-| API Authorization | `tests/Feature/Api/` | Role-based access enforcement per resource type |
-| Application Approval | `tests/Feature/ApplicationApprovalEnforcementTest.php` | State machine, capacity, document compliance |
-| Authentication | `tests/Feature/Auth/` | Super-admin authorization, privilege inheritance |
-| Inbox | `tests/Feature/Inbox/` | Conversations, messages, Gmail-style threading |
-| Security | `tests/Feature/Security/` | IDOR prevention, rate limiting, PHI auditing, account lockout, token expiration |
+| Area | Location | What Is Covered |
+|---|---|---|
+| API Authorization | `tests/Feature/Api/` | Role-based access enforcement per resource; rate limiting; file upload security |
+| Application Workflows | `tests/Feature/Regression/ApplicationWorkflowTest.php` | Complete submission, draft, review, approval, rejection flows |
+| Approval Enforcement | `tests/Feature/ApplicationApprovalEnforcementTest.php` | State machine, capacity gate, document compliance |
+| Security | `tests/Feature/Security/` | IDOR prevention, account lockout, PHI auditing, token expiration |
+| Inbox | `tests/Feature/Inbox/` | Conversations, Gmail-style threading, unread count, BCC privacy |
+| Queued Notifications | `tests/Feature/Regression/QueuedNotificationsTest.php` | Queue targets, notification types per status, retry config |
+| Regression | `tests/Feature/Regression/` | 25 files covering resolved bugs across capacity, compliance, drafts, identity, concurrency |
 | System | `tests/Feature/System/` | Audit log, form templates, user management |
-| Database | `tests/Feature/Database/` | Migration integrity |
-| Regression | `tests/Feature/Regression/` | Regression coverage for resolved bugs |
-| Unit | `tests/Unit/Services/` | Service-level unit tests |
+| Database | `tests/Feature/Database/` | Migration integrity, role seed |
+| Unit | `tests/Unit/Services/` | DocumentEnforcementService |
 
 ### Frontend Tests
 
@@ -716,100 +722,64 @@ The backend test suite contains more than 380 passing tests organized as follows
 cd frontend
 
 # Run unit and component tests
-pnpm run test
+pnpm test
 
-# Run with coverage
-pnpm run test:coverage
+# With coverage
+pnpm test:coverage
 
-# Run with Vitest UI
-pnpm run test:ui
+# With Vitest UI
+pnpm test:ui
+
+# End-to-end (requires running app)
+pnpm test:e2e
 ```
 
 ### Type Safety
 
 ```bash
 cd frontend
-pnpm run type-check    # TypeScript strict mode check, no output to dist
+pnpm type-check   # TypeScript strict mode; zero errors required
 ```
 
 ### Code Quality
 
 ```bash
 cd backend/camp-burnt-gin-api
-./vendor/bin/pint       # Laravel Pint code style enforcement
+./vendor/bin/pint         # Pint code style (CI runs --test mode; violations fail build)
+./vendor/bin/phpstan analyse --memory-limit=2G   # PHPStan level 5
 
 cd frontend
-pnpm run lint           # ESLint check
-pnpm run lint:fix       # ESLint auto-fix
+pnpm lint         # ESLint, zero warnings allowed
+pnpm lint:fix     # ESLint auto-fix
 ```
 
 ---
 
-## 13. Implementation Notes
+## 14. Known Limitations
 
-### Fully Implemented
+### MFA Enrollment Not Yet Enforced for Medical and Admin Routes
 
-All four portals are feature-complete and wired to the API:
+`EnsureMfaEnrolled` middleware is wired to medical record routes and PHI-adjacent admin routes, but its `handle()` method currently passes through all requests unconditionally. MFA step-up enforcement (`EnsureMfaStepUp`) is fully active for sensitive operations (PHI CSV exports, user management, destructive admin actions). The broader "must be enrolled to access any medical data" check is scaffolded but not enforced.
 
-- **Applicant portal:** Dashboard, multi-section application form with auto-save, save-and-resume, re-apply flow, document requests, official forms (download and upload), calendar, announcements, inbox, profile, settings.
-- **Admin portal:** Dashboard, application list with filters, full application review with inline editing, family workspace (3-level IA), camper directory, session management, archived sessions, session dashboard, reports, document management, document request management, deadlines, calendar, announcements, inbox, form builder access, profile, settings.
-- **Medical portal:** Dashboard with alert summary, camper medical directory, full medical record view, treatment log, incident log, follow-up task queue, clinic visit log, emergency snapshot view, inbox, profile, settings.
-- **Super admin portal:** Dashboard, user management (create staff, role assignment, deactivation), audit log browser with export, form builder (version management, section/field/option CRUD).
+### WebSocket Broadcasting Off by Default
 
-### Known Architectural Notes
+`.env.example` sets `BROADCAST_CONNECTION=log`. Real-time features (inbox message toasts, unread badge updates) require setting `BROADCAST_CONNECTION=reverb` and configuring `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, and the Echo client-side config. Everything is installed and wired; it is a configuration step, not missing code.
 
-- **Medical form upload:** The physician-completed medical form upload associates the document with the applicant's general document library rather than a specific application. Admin review works correctly because `application.documents` covers all applicant documents. Cross-application disambiguation if a camper submits multiple applications in the same session is a future concern.
-- **Gmail-style messaging migrations:** Two migrations (`2026_03_27_000001` and `2026_03_27_000002`) introduced message recipients and reply threading. Any deployment that was running before these migrations must apply them before the messaging features function correctly: `php artisan migrate`.
-- **Draft persistence:** Application draft state is persisted server-side via the `application_drafts` table and the `/application-drafts` REST endpoints. The frontend also mirrors the current form state to `localStorage` key `cbg_app_draft` as a fast-restore fallback. On returning to the form page, the server draft is the primary source; localStorage is used only if no server draft is found. Drafts are capped at 10 per user and 512 KB per blob. An optimistic concurrency guard (409 Conflict) prevents two-tab overwrite races.
-- **Cabin management:** The `cabins` table and migration exist. Cabin assignment is not yet surfaced in the admin UI as a manageable workflow.
-- **External provider links:** The backend fully implements token-based external provider access (`MedicalProviderLinkController`, `MedicalProviderLinkService`). A dedicated provider-facing frontend UI has not yet been built. The route `/provider-access/:token` is not present in the frontend routing tree.
+### Cabin Assignment Has No Admin UI Workflow
 
-### Frontend/Backend Alignment
+The `cabins` table and Eloquent model exist. `campers.cabin_id` is a foreign key. There is no admin interface to create cabins or assign campers to them.
 
-All backend endpoints have corresponding frontend API module calls. All frontend routes have matching backend routes. TypeScript strict mode passes with zero type errors. All user-facing strings use i18next keys; English and Spanish translations are in parity.
+### External Medical Provider Portal Not Built
 
----
+The backend fully implements token-based external provider access: `MedicalProviderLinkController`, `MedicalProviderLinkService`, and `medical_provider_links` table. A frontend portal for providers to access their patient's record has not been built. The route `/provider-access/:token` does not exist in the frontend routing tree.
 
-## 14. Security and Compliance
+### CI Coverage Threshold Is 20%, Not 50%
 
-### Authentication
+The `ci.yml` comment says "minimum 50%" but the enforced artisan flag is `--min=20`. The effective CI gate is 20% backend coverage.
 
-Sanctum API token authentication is used throughout. Tokens carry an absolute expiry of 8 hours. The frontend enforces a 60-minute inactivity logout via `useIdleTimeout`. Account lockout (15 minutes) activates after 5 consecutive failed login attempts. TOTP-based multi-factor authentication is available and enforced per-user when enabled.
+### Frontend Test Coverage Is Sparse
 
-Tokens are stored in `sessionStorage` under the key `auth_token`. They are loaded into Redux state on every page load by `useAuthInit` via a `GET /user` call, and cleared entirely on logout.
-
-### Authorization
-
-Role-based access is enforced at three independent layers:
-
-1. **Route middleware:** `EnsureUserHasRole` and `EnsureUserIsAdmin` gate entire route groups before any controller code runs.
-2. **Controller policy calls:** Every mutation and sensitive read calls `$this->authorize()` against the resource's policy class.
-3. **Policy classes:** One policy class per Eloquent model defines the precise conditions under which each action is permitted for each role.
-
-Super admin privilege inheritance is implemented in a single override (`isAdmin()`) rather than duplicating permissions. The last active super_admin account is protected against deletion and demotion.
-
-### PHI Protection
-
-All medical record fields that contain personally identifiable health information are stored using Laravel's `encrypted` cast, which applies AES-256-CBC encryption at the model layer before writing to the database. The application key (`APP_KEY`) is the encryption root.
-
-The `AuditPhiAccess` middleware intercepts every request that touches a medical model and writes an entry to `audit_logs` with the accessing user's ID, IP address, user agent, the model class, the record ID, and an `is_phi_access = true` flag. This log is immutable from the application layer and accessible only to super administrators.
-
-Medical data is never included in list or index endpoints. PHI is loaded only on detail views, after policy authorization passes.
-
-### Data Integrity
-
-- PHI tables use soft deletes; records are never hard-deleted from the application layer.
-- Messages are immutable by design. Users cannot edit sent messages; soft deletion is available only to administrators for moderation purposes.
-- Application status transitions are enforced server-side by a state machine; invalid transitions return HTTP 422 regardless of the payload.
-- Message idempotency keys prevent duplicate records on network retry.
-
-### Security Headers
-
-The `SecurityHeaders` middleware applies `Strict-Transport-Security`, `Content-Security-Policy`, `X-Frame-Options: DENY`, and `X-Content-Type-Options: nosniff` headers to all API responses.
-
-### File Security
-
-Uploaded files are validated by MIME type whitelist and magic bytes before storage. Files are stored outside the public web root (`storage/app/documents/`) and served only through authenticated, policy-gated download endpoints. The public storage symlink (`storage:link`) exposes only the `storage/app/public/` subdirectory, not the documents directory.
+The frontend testing framework (Vitest, React Testing Library, Playwright) is fully installed. The CI step runs with `--passWithNoTests`, meaning zero frontend tests will not fail the build. A small number of unit tests exist for auth, business rules, and status badges; full page-level component and E2E test coverage has not been written.
 
 ---
 
@@ -819,123 +789,122 @@ Uploaded files are validated by MIME type whitelist and magic bytes before stora
 
 1. **PHI fields must use the `encrypted` cast.** Never store medical data in plaintext columns.
 2. **Authorize before processing.** Call `$this->authorize()` in every controller method before calling any service or reading any model.
-3. **All user-facing strings use i18next.** No hardcoded English text in React components. Add keys to both [frontend/src/i18n/en.json](frontend/src/i18n/en.json) and [frontend/src/i18n/es.json](frontend/src/i18n/es.json).
-4. **All colors via CSS custom properties.** Use `var(--token-name)` from [frontend/src/assets/styles/design-tokens.css](frontend/src/assets/styles/design-tokens.css); never hardcode hex values.
+3. **All user-facing strings use i18next.** No hardcoded English text in React components. Add keys to both `frontend/src/i18n/en.json` and `frontend/src/i18n/es.json`.
+4. **All colors via CSS custom properties.** Use `var(--token-name)` from `frontend/src/assets/styles/design-tokens.css`. No hardcoded hex values in components.
 5. **No business logic in controllers.** Delegate all application logic to service classes.
 6. **New mutations require a policy method.** Add the authorization check to the corresponding policy class.
 7. **Run `php artisan test` before committing.** All tests must pass.
 
 ### Where Core Logic Lives
 
-| Concern | Location |
-|---------|---------|
-| Application status transitions | [backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php](backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php) |
-| Application approval orchestration | [backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php](backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php) |
-| Document compliance checking | [backend/camp-burnt-gin-api/app/Services/Document/DocumentEnforcementService.php](backend/camp-burnt-gin-api/app/Services/Document/DocumentEnforcementService.php) |
-| Medical alert computation | [backend/camp-burnt-gin-api/app/Services/Medical/MedicalAlertService.php](backend/camp-burnt-gin-api/app/Services/Medical/MedicalAlertService.php) |
-| Risk scoring | [backend/camp-burnt-gin-api/app/Services/Medical/SpecialNeedsRiskAssessmentService.php](backend/camp-burnt-gin-api/app/Services/Medical/SpecialNeedsRiskAssessmentService.php) |
-| Message sending with idempotency | [backend/camp-burnt-gin-api/app/Services/MessageService.php](backend/camp-burnt-gin-api/app/Services/MessageService.php) |
-| BCC-safe recipient resolution | [backend/camp-burnt-gin-api/app/Models/Message.php](backend/camp-burnt-gin-api/app/Models/Message.php) — `getRecipientsForUser()` |
-| Frontend route tree | [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx) |
-| Auth token lifecycle | [frontend/src/features/auth/store/authSlice.ts](frontend/src/features/auth/store/authSlice.ts) + [frontend/src/api/axios.config.ts](frontend/src/api/axios.config.ts) |
-| Design tokens | [frontend/src/assets/styles/design-tokens.css](frontend/src/assets/styles/design-tokens.css) |
+| Concern | File |
+|---|---|
+| Application status transitions | `app/Enums/ApplicationStatus.php` |
+| Application approval orchestration | `app/Services/Camper/ApplicationService.php` |
+| Document compliance checking | `app/Services/Document/DocumentEnforcementService.php` |
+| Email notification dispatch | `app/Services/Camper/ApplicationService.php` + `app/Services/MessageService.php` |
+| Letter service (acceptance/rejection) | `app/Services/System/LetterService.php` |
+| Medical alert computation | `app/Services/Medical/MedicalAlertService.php` |
+| Risk scoring | `app/Services/Medical/SpecialNeedsRiskAssessmentService.php` |
+| BCC-safe recipient resolution | `app/Models/Message.php` → `getRecipientsForUser()` |
+| Frontend route tree | `frontend/src/core/routing/index.tsx` |
+| Auth token lifecycle | `frontend/src/features/auth/store/authSlice.ts` + `frontend/src/api/axios.config.ts` |
+| Design tokens | `frontend/src/assets/styles/design-tokens.css` |
 
 ### Extending the System
 
-- **Adding a new API endpoint:** Create a FormRequest validator, add a policy method, add the route in [backend/camp-burnt-gin-api/routes/api.php](backend/camp-burnt-gin-api/routes/api.php) with appropriate middleware, implement the controller method, delegate to a service, and return a Resource. Write a Feature test.
-- **Adding a new frontend page:** Create a lazy-loaded page component in the appropriate feature module, add a route constant to [frontend/src/shared/constants/routes.ts](frontend/src/shared/constants/routes.ts), and add the lazy route entry in [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx). Add i18n keys to both translation files.
-- **Adding a new PHI field:** Use `'encrypted'` in the model's `casts()` method. Widen the database column to `TEXT` (encrypted values are longer than their plaintext). Never include the field in list resource responses.
-- **Modifying application status logic:** Only modify `ApplicationStatus::canTransitionTo()` in [backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php](backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php) and [backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php](backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php). Do not add transition checks elsewhere.
+**New API endpoint:** Create a `FormRequest` validator → add a policy method → add the route in `routes/api.php` with the correct middleware group → implement the controller method → delegate to a service → return a JSON Resource. Write a Feature test.
+
+**New frontend page:** Create a lazy-loaded page component in the appropriate feature module → add a route constant to `frontend/src/shared/constants/routes.ts` → add the lazy route entry in `frontend/src/core/routing/index.tsx`. Add i18n keys to both translation files.
+
+**New PHI field:** Use `'encrypted'` in the model's `casts()` method. Widen the database column to `TEXT` (encrypted values are longer). Never include the field in list resource responses.
+
+**New email notification:** Extend `Notification`, implement `via()` (check `notification_preferences` where appropriate), `toMail()`, and `toArray()`. Dispatch via `$this->queueNotification()` from the `QueuesNotifications` trait, or via `$user->notify()` if implementing `ShouldQueue` directly. Add `$this->onQueue('notifications')` in the constructor if using `ShouldQueue`.
 
 ### Common Diagnostic Reference
 
 | Symptom | Where to Look |
-|---------|---------------|
-| Page renders nothing at a route | [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx) — missing or misconfigured route |
-| API returns 401 | [frontend/src/api/axios.config.ts](frontend/src/api/axios.config.ts) (token injection), [frontend/src/features/auth/hooks/useAuthInit.ts](frontend/src/features/auth/hooks/useAuthInit.ts) (session restore), [backend/camp-burnt-gin-api/routes/api.php](backend/camp-burnt-gin-api/routes/api.php) (middleware) |
-| API returns 403 | Policy class for the resource; route middleware group in [backend/camp-burnt-gin-api/routes/api.php](backend/camp-burnt-gin-api/routes/api.php) |
-| API returns 422 | FormRequest `rules()` method for the controller action |
-| Field missing in API response | [backend/camp-burnt-gin-api/app/Http/Resources/](backend/camp-burnt-gin-api/app/Http/Resources/) — check `toArray()` output |
-| Notification not delivered | Notification class `via()` method; queue worker status; `notification_preferences` flags |
-| Status badge shows wrong color | [frontend/src/ui/components/StatusBadge.tsx](frontend/src/ui/components/StatusBadge.tsx) — `variantConfig` map |
-| Auth state lost on page refresh | [frontend/src/features/auth/hooks/useAuthInit.ts](frontend/src/features/auth/hooks/useAuthInit.ts) reads from `sessionStorage['auth_token']` — verify key spelling |
-| i18n key renders as literal string | Key missing from [frontend/src/i18n/en.json](frontend/src/i18n/en.json) and [frontend/src/i18n/es.json](frontend/src/i18n/es.json) |
+|---|---|
+| Page renders nothing at a route | `frontend/src/core/routing/index.tsx` — missing or misconfigured route entry |
+| API returns 401 | `frontend/src/api/axios.config.ts` (token injection), `useAuthInit.ts` (session restore), `routes/api.php` (middleware group) |
+| API returns 403 | Policy class for the resource; route middleware group in `routes/api.php` |
+| API returns 422 | `FormRequest::rules()` method for the controller action |
+| Field missing in API response | `app/Http/Resources/` — check `toArray()` output |
+| Emails not sending | Queue worker not running; check `MAIL_MAILER` is not `log`; run `php artisan queue:failed` |
+| Real-time inbox not updating | `BROADCAST_CONNECTION` set to `log` (not `reverb`); Reverb server not running |
+| Notification not delivered | Notification `via()` method; `notification_preferences` flags; queue worker status |
+| Status badge wrong color | `frontend/src/ui/components/StatusBadge.tsx` — `variantConfig` map |
+| Auth state lost on page refresh | `useAuthInit.ts` reads from `sessionStorage['auth_token']` — verify key spelling |
+| i18n key renders as literal string | Key missing from `en.json` and `es.json` |
+| DecryptException on a list endpoint | PHI field (encrypted cast) loaded in a list query — move to detail endpoint only |
 | Database column not found | Run `php artisan migrate` — pending migration not yet applied |
 
 ---
 
 ## 16. Reference Documentation
 
-All reference documentation is in `docs/`. The index file [docs/INDEX.md](docs/INDEX.md) provides navigation links for every common task.
+All reference documentation is in `docs/`. The index file `docs/INDEX.md` provides navigation links for every area.
 
 ### Architecture
 
 | Document | Path |
-|----------|------|
-| System overview | [docs/architecture/System_Overview.md](docs/architecture/System_Overview.md) |
-| System architecture overview | [docs/architecture/System_Architecture_Overview.md](docs/architecture/System_Architecture_Overview.md) |
-| Backend architecture | [docs/architecture/Backend_Architecture.md](docs/architecture/Backend_Architecture.md) |
-| Architecture decisions | [docs/architecture/Architecture_Decisions.md](docs/architecture/Architecture_Decisions.md) |
+|---|---|
+| System architecture overview | `docs/architecture/System_Architecture_Overview.md` |
+| Backend architecture | `docs/architecture/Backend_Architecture.md` |
+| Architecture decisions | `docs/architecture/Architecture_Decisions.md` |
 
 ### API and Data
 
 | Document | Path |
-|----------|------|
-| API endpoint reference | [docs/api/API_Reference.md](docs/api/API_Reference.md) |
-| Data model and schema | [docs/database/Data_Model.md](docs/database/Data_Model.md) |
-| Schema overview | [docs/database/Schema_Overview.md](docs/database/Schema_Overview.md) |
+|---|---|
+| API endpoint reference | `docs/api/API_Reference.md` |
+| Data model | `docs/database/Data_Model.md` |
+| Schema overview | `docs/database/Schema_Overview.md` |
 
 ### Security and Auth
 
 | Document | Path |
-|----------|------|
-| Authentication flows | [docs/auth/Authentication.md](docs/auth/Authentication.md) |
-| Roles and permissions | [docs/roles-and-permissions/Roles_and_Permissions.md](docs/roles-and-permissions/Roles_and_Permissions.md) |
-| Security controls | [docs/security/Security.md](docs/security/Security.md) |
-| Audit logging | [docs/security/Audit_Logging.md](docs/security/Audit_Logging.md) |
-| Rate limiting | [docs/security/Rate_Limiting.md](docs/security/Rate_Limiting.md) |
+|---|---|
+| Authentication flows | `docs/auth/Authentication.md` |
+| Roles and permissions | `docs/roles-and-permissions/Roles_and_Permissions.md` |
+| Security controls | `docs/security/Security.md` |
+| Audit logging | `docs/security/Audit_Logging.md` |
+| Rate limiting | `docs/security/Rate_Limiting.md` |
 
 ### Features and Workflows
 
 | Document | Path |
-|----------|------|
-| Application lifecycle (authoritative) | [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md) |
-| Application workflows | [docs/workflows/Application_Workflows.md](docs/workflows/Application_Workflows.md) |
-| Business rules | [docs/workflows/Business_Rules.md](docs/workflows/Business_Rules.md) |
-| Application form | [docs/features/Application_Form.md](docs/features/Application_Form.md) |
-| Medical records | [docs/features/Medical_Records.md](docs/features/Medical_Records.md) |
-| Messaging system | [docs/features/Messaging.md](docs/features/Messaging.md) |
-| File uploads | [docs/features/File_Uploads.md](docs/features/File_Uploads.md) |
-| Error handling | [docs/backend/ERROR_HANDLING.md](docs/backend/ERROR_HANDLING.md) |
+|---|---|
+| Application lifecycle (authoritative) | `docs/workflows/Application_Lifecycle.md` |
+| Application form | `docs/features/Application_Form.md` |
+| Application drafts | `docs/features/Application_Drafts.md` |
+| Email notifications | `docs/features/Email_Notifications.md` |
+| Medical records | `docs/features/Medical_Records.md` |
+| Messaging system | `docs/features/Messaging.md` |
+| File uploads | `docs/features/File_Uploads.md` |
 
 ### Frontend
 
 | Document | Path |
-|----------|------|
-| Frontend developer reference (canonical) | [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md) |
-| Portal overview | [docs/frontend/OVERVIEW.md](docs/frontend/OVERVIEW.md) |
-| Page structure | [docs/frontend/Page_Structure.md](docs/frontend/Page_Structure.md) |
-| Routing | [docs/frontend/Routing.md](docs/frontend/Routing.md) |
-| State management | [docs/frontend/State_Management.md](docs/frontend/State_Management.md) |
-| Design system | [docs/ui-ux/Design_System.md](docs/ui-ux/Design_System.md) |
-| Component guide | [docs/ui-ux/Component_Guide.md](docs/ui-ux/Component_Guide.md) |
+|---|---|
+| Frontend developer reference (canonical) | `frontend/FRONTEND_GUIDE.md` |
+| Portal overview | `docs/frontend/OVERVIEW.md` |
+| Routing | `docs/frontend/Routing.md` |
+| State management | `docs/frontend/State_Management.md` |
+| Design system | `docs/ui-ux/Design_System.md` |
 
 ### Operations
 
 | Document | Path |
-|----------|------|
-| Environment setup | [docs/deployment/Setup.md](docs/deployment/Setup.md) |
-| Configuration reference | [docs/deployment/Configuration.md](docs/deployment/Configuration.md) |
-| Deployment procedures | [docs/deployment/Deployment.md](docs/deployment/Deployment.md) |
-| CI/CD pipeline | [docs/deployment/CI_CD.md](docs/deployment/CI_CD.md) |
-| Troubleshooting | [docs/deployment/Troubleshooting.md](docs/deployment/Troubleshooting.md) |
-| Testing strategy | [docs/testing/Testing.md](docs/testing/Testing.md) |
-| Contributing guidelines | [docs/governance/Contributing.md](docs/governance/Contributing.md) |
+|---|---|
+| Environment setup | `docs/deployment/Setup.md` |
+| CI/CD pipeline | `docs/deployment/CI_CD.md` |
+| Deployment procedures | `docs/deployment/Deployment.md` |
+| Troubleshooting | `docs/deployment/Troubleshooting.md` |
+| Testing strategy | `docs/testing/Testing.md` |
+| Contributing guidelines | `docs/governance/Contributing.md` |
+| Active bug tracker | `docs/bug-tracking/BUG_TRACKER.md` |
 
 ---
 
-## Conclusion
-
-Camp Burnt Gin is a complete, production-grade camp management platform. All four portals (applicant, admin, medical, and super admin) are fully implemented and wired to the API. The backend enforces a HIPAA-conscious security model across 52 controllers, 44 models, and more than 560 passing tests. The frontend enforces the same model at the routing, state, and API layers.
-
-This README reflects the state of the implementation as of March 2026. For the authoritative workflow specification, consult [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md). For the complete API surface, consult [docs/api/API_Reference.md](docs/api/API_Reference.md). For local development setup, follow Section 9 of this document.
+*Last updated: April 2026. For the authoritative application workflow specification, see `docs/workflows/Application_Lifecycle.md`. For the full API surface, see `docs/api/API_Reference.md`.*
