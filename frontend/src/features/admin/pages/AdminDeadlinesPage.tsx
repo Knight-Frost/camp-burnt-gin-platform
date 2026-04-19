@@ -359,15 +359,9 @@ export function AdminDeadlinesPage() {
                   ))}
                 </select>
               ) : (
-                // Fallback — sessions endpoint failed; allow manual entry so
-                // the page never becomes uncreatable.
-                <input
-                  type="number"
-                  placeholder={t('deadlines.form_session_id_placeholder')}
-                  value={createForm.camp_session_id}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, camp_session_id: e.target.value }))}
-                  style={inputStyle()}
-                />
+                <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', padding: '8px 0' }}>
+                  No camp sessions available. Please create a camp session before adding deadlines.
+                </p>
               )}
             </FormField>
 
@@ -480,7 +474,7 @@ export function AdminDeadlinesPage() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
               <Button variant="ghost" onClick={() => setModalMode(null)}>{t('deadlines.modal_cancel_btn')}</Button>
-              <Button onClick={handleCreate} disabled={saving}>
+              <Button onClick={handleCreate} disabled={saving || sessions.length === 0}>
                 {saving ? t('deadlines.modal_create_btn_loading') : t('deadlines.modal_create_btn')}
               </Button>
             </div>

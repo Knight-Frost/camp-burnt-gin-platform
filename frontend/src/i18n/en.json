@@ -2167,7 +2167,7 @@
     "success_delete": "Deadline and calendar event deleted.",
     "error_delete": "Failed to delete deadline.",
     "modal_create_title": "New Deadline",
-    "form_session_id_label": "Session ID *",
+    "form_session_id_label": "Camp Session *",
     "form_session_id_placeholder": "Camp Session ID",
     "form_session_wide_label": "Session-wide (applies to all applicants in this session)",
     "form_type_label": "Type *",

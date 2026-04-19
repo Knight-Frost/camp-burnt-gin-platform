@@ -2167,7 +2167,7 @@
     "success_delete": "Plazo y evento del calendario eliminados.",
     "error_delete": "Error al eliminar el plazo.",
     "modal_create_title": "Nuevo Plazo",
-    "form_session_id_label": "ID de Sesión *",
+    "form_session_id_label": "Sesión de Campamento *",
     "form_session_id_placeholder": "ID de Sesión de Campamento",
     "form_session_wide_label": "Para toda la sesión (aplica a todos los solicitantes en esta sesión)",
     "form_type_label": "Tipo *",
