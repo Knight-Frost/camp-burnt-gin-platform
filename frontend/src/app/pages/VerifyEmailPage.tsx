@@ -33,13 +33,17 @@ export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const [state, setState]       = useState<VerifyState>('verifying');
   const [resending, setResending] = useState(false);
-  // Guard prevents the verification API call from firing twice in React StrictMode.
-  const hasRun = useRef(false);
+  // Tracks which searchParams string was last processed.
+  // Using the serialised params (not a boolean) means the guard resets when the
+  // URL actually changes — e.g. the user navigates from ?pending=true to the
+  // full signed URL after clicking the link in their email — while still
+  // blocking React StrictMode's double-invocation for the same params.
+  const processedParams = useRef<string | null>(null);
 
   useEffect(() => {
-    // Skip if this effect has already run once.
-    if (hasRun.current) return;
-    hasRun.current = true;
+    const paramsKey = searchParams.toString();
+    if (processedParams.current === paramsKey) return;
+    processedParams.current = paramsKey;
 
     // ?pending=true means the user just registered — skip the verify request and
     // show the "check your inbox" screen with a resend button.

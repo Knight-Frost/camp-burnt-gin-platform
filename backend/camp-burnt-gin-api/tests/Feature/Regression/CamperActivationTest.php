@@ -210,4 +210,56 @@ class CamperActivationTest extends TestCase
         // Camper was already active for another reason; should remain active.
         $this->assertDatabaseHas('campers', ['id' => $camper->id, 'is_active' => true]);
     }
+
+    public function test_withdrawing_an_already_withdrawn_application_is_rejected(): void
+    {
+        // Guards against a silent re-withdraw that would produce a bogus audit
+        // log entry, re-fire notifications, or otherwise appear to succeed when
+        // no real state transition is possible. ApplicationPolicy::withdraw
+        // already blocks this over HTTP (returns 403); we verify the
+        // service-layer guard independently so internal call paths
+        // (e.g. batch / admin-on-behalf scripts) are also safe.
+        $parent = $this->createParent();
+        $session = CampSession::factory()->create(['capacity' => 50]);
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $application = Application::factory()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'status' => ApplicationStatus::Withdrawn,
+            'is_draft' => false,
+        ]);
+
+        $result = app(\App\Services\Camper\ApplicationService::class)
+            ->withdrawApplication($application, $parent);
+
+        $this->assertFalse($result['success']);
+        $this->assertTrue($result['already_withdrawn'] ?? false);
+
+        // HTTP layer is also gated: policy blocks the action with a 403.
+        $this->actingAs($parent)
+            ->postJson("/api/applications/{$application->id}/withdraw")
+            ->assertStatus(403);
+    }
+
+    public function test_withdrawing_a_terminal_application_is_rejected(): void
+    {
+        // Rejected/cancelled applications are terminal and cannot become 'withdrawn'.
+        $parent = $this->createParent();
+        $session = CampSession::factory()->create(['capacity' => 50]);
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $application = Application::factory()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'status' => ApplicationStatus::Rejected,
+            'is_draft' => false,
+        ]);
+
+        // Policy also blocks this, so we check via the service directly to
+        // assert the service-layer guard is wired up (defence in depth).
+        $result = app(\App\Services\Camper\ApplicationService::class)
+            ->withdrawApplication($application, $parent);
+
+        $this->assertFalse($result['success']);
+        $this->assertTrue($result['not_withdrawable'] ?? false);
+    }
 }

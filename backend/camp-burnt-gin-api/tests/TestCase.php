@@ -17,6 +17,13 @@ abstract class TestCase extends BaseTestCase
         // to avoid network calls and allow predictable test passwords.
         // Production code retains the full policy via StoreUserRequest.
         Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
+
+        // Several services (notably SpecialNeedsRiskAssessmentService) cache
+        // DB-loaded config with Cache::remember. RefreshDatabase truncates the
+        // tables but the cache store is shared across tests, so a later test
+        // can receive stale values from an earlier one. Flushing here keeps
+        // each test isolated from previous state.
+        Cache::flush();
     }
 
     /**

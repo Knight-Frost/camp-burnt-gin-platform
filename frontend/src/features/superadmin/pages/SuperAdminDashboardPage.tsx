@@ -25,10 +25,10 @@ import { SessionsCarousel, type SessionCardData } from '@/ui/components/Sessions
 import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
 import {
   getReportsSummary, getDocumentRequestStats, getApplications, getDocumentRequests,
-  getCamps,
+  getSessions,
   type ReportsSummary, type DocumentRequestStats, type DocumentRequest,
 } from '@/features/admin/api/admin.api';
-import type { Application, Camp } from '@/features/admin/types/admin.types';
+import type { Application, CampSession } from '@/features/admin/types/admin.types';
 import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { ActivityFeed, type ActivityItem } from '@/ui/components/ActivityFeed';
 import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
@@ -78,7 +78,7 @@ export function SuperAdminDashboardPage() {
 
   const [summary,             setSummary]             = useState<ReportsSummary | null>(null);
   const [docStats,            setDocStats]            = useState<DocumentRequestStats | null>(null);
-  const [camps,               setCamps]               = useState<Camp[]>([]);
+  const [sessions,            setSessions]            = useState<CampSession[]>([]);
   const [pendingApps,         setPendingApps]         = useState<Application[]>([]);
   const [overdueDocs,         setOverdueDocs]         = useState<DocumentRequest[]>([]);
   const [recentApps,          setRecentApps]          = useState<Application[]>([]);
@@ -100,7 +100,7 @@ export function SuperAdminDashboardPage() {
     Promise.all([
       getReportsSummary(),
       getDocumentRequestStats().catch(() => null),
-      getCamps().catch(() => [] as Camp[]),
+      getSessions().catch(() => [] as CampSession[]),
       getDocumentRequests({ page: 1 }).catch(() => ({ data: [] as DocumentRequest[] })),
       // Needs Attention: oldest waiting apps, fetched by status so none are missed.
       Promise.all([
@@ -112,10 +112,10 @@ export function SuperAdminDashboardPage() {
         .then((r) => r.data)
         .catch(() => [] as Application[]),
     ])
-      .then(([rpt, docs, campsData, docPage, [submittedApps, underReviewApps], recentAppsData]) => {
+      .then(([rpt, docs, sessionsData, docPage, [submittedApps, underReviewApps], recentAppsData]) => {
         setSummary(rpt);
         setDocStats(docs);
-        setCamps(campsData);
+        setSessions(sessionsData);
 
         // Merge submitted + under_review, de-duplicate, sort oldest-first.
         const seen = new Set<number>();
@@ -137,7 +137,7 @@ export function SuperAdminDashboardPage() {
 
         // Recent Activity: already sorted updated_at DESC — filter noise and take top 6.
         const reviewed = recentAppsData
-          .filter((a) => !['draft', 'cancelled'].includes(a.status))
+          .filter((a) => !a.is_draft && a.status !== 'cancelled')
           .slice(0, 6);
         setRecentApps(reviewed);
       })
@@ -174,17 +174,15 @@ export function SuperAdminDashboardPage() {
   };
 
   // Only explicitly active sessions — no past/archived/inactive
-  const sessionCards: SessionCardData[] = camps.flatMap((c) =>
-    (c.sessions ?? [])
-      .filter((s) => s.is_active === true)
-      .map((s) => ({
-        id:          s.id,
-        campName:    c.name,
-        sessionName: s.name ?? `Session ${s.id}`,
-        enrolled:    s.enrolled_count ?? 0,
-        capacity:    s.capacity ?? 0,
-      }))
-  );
+  const sessionCards: SessionCardData[] = sessions
+    .filter((s) => s.is_active === true)
+    .map((s) => ({
+      id:          s.id,
+      campName:    '',
+      sessionName: s.name ?? `Session ${s.id}`,
+      enrolled:    s.enrolled_count ?? 0,
+      capacity:    s.capacity ?? 0,
+    }));
 
   // Priority items: pending apps + overdue docs, sorted by urgency
   const priorityItems: PriorityItem[] = [

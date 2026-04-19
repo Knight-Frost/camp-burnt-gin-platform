@@ -45,6 +45,8 @@ class SystemNotificationService
     public const APPLICATION_SUBMITTED = 'application.submitted';
     public const APPLICATION_APPROVED = 'application.approved';
     public const APPLICATION_REJECTED = 'application.rejected';
+    public const APPLICATION_CANCELLED = 'application.cancelled';
+    public const APPLICATION_REINSTATED = 'application.reinstated';
     public const APPLICATION_STATUS_CHANGED = 'application.status_changed';
 
     // Security events — notify the user any time their account security changes
@@ -228,6 +230,42 @@ class SystemNotificationService
             eventType: self::APPLICATION_REJECTED,
             subject: "Application not approved for {$camperName}",
             body: "<p>We regret to inform you that the camp application for <strong>{$camperName}</strong> was not approved at this time.</p>{$noteHtml}<p>If you have questions, please reach out through the inbox.</p>",
+            relatedType: 'App\\Models\\Application',
+            relatedId: $applicationId,
+        );
+    }
+
+    /**
+     * Notify the parent that their application was cancelled by camp staff.
+     * Reviewer notes are included when provided so the parent has context.
+     */
+    public function applicationCancelled(User $recipient, int $applicationId, string $camperName, ?string $notes = null): Conversation
+    {
+        $noteHtml = $notes ? '<p><em>Reason: '.e($notes).'</em></p>' : '';
+
+        return $this->notify(
+            recipient: $recipient,
+            eventType: self::APPLICATION_CANCELLED,
+            subject: "Application cancelled for {$camperName}",
+            // Grey colour — neutral, factual; cancellation is administrative.
+            body: "<p>The camp application for <strong>{$camperName}</strong> has been <strong style=\"color:#6b7280\">cancelled</strong> by camp staff.</p>{$noteHtml}<p>If you believe this was done in error, please reply to this message and a staff member will review.</p>",
+            relatedType: 'App\\Models\\Application',
+            relatedId: $applicationId,
+        );
+    }
+
+    /**
+     * Notify the parent that a cancelled application has been reinstated
+     * (admin reversed the cancellation). The application is back under
+     * review and a fresh decision will follow.
+     */
+    public function applicationReinstated(User $recipient, int $applicationId, string $camperName): Conversation
+    {
+        return $this->notify(
+            recipient: $recipient,
+            eventType: self::APPLICATION_REINSTATED,
+            subject: "Application reopened for {$camperName}",
+            body: "<p>Good news — the previously-cancelled camp application for <strong>{$camperName}</strong> has been <strong style=\"color:#2563eb\">reopened</strong> and is back under review.</p><p>You'll receive another message as soon as a decision is made.</p>",
             relatedType: 'App\\Models\\Application',
             relatedId: $applicationId,
         );

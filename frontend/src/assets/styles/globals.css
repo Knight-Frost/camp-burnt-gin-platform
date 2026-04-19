@@ -9,8 +9,9 @@
    message bubble containers. The .tiptap class only exists on the live editor,
    not on display-side containers where sanitized HTML is injected. */
 .message-body p               { margin: 0; }
-.message-body ul              { padding-left: 1.4rem; list-style-type: disc; margin: 0.25rem 0; }
-.message-body ol              { padding-left: 1.4rem; list-style-type: decimal; margin: 0.25rem 0; }
+.message-body ul              { padding-left: 1.4rem !important; list-style-type: disc !important; margin: 0.25rem 0; }
+.message-body ol              { padding-left: 1.4rem !important; list-style-type: decimal !important; margin: 0.25rem 0; }
+.message-body li              { display: list-item !important; }
 .message-body li + li         { margin-top: 0.15rem; }
 .message-body strong,
 .message-body b               { font-weight: 600; }

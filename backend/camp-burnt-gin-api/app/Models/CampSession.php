@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\ApplicationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -39,7 +38,6 @@ class CampSession extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'camp_id',                  // The parent Camp this session belongs to.
         'name',                     // Human-readable label (e.g. "Session A").
         'start_date',               // First day of the session.
         'end_date',                 // Last day of the session.
@@ -76,14 +74,6 @@ class CampSession extends Model
     }
 
     /**
-     * Get the Camp program this session is an instance of.
-     */
-    public function camp(): BelongsTo
-    {
-        return $this->belongsTo(Camp::class);
-    }
-
-    /**
      * Get all applications submitted for this session.
      *
      * Applications across all status values (draft, submitted, approved, etc.)
@@ -106,7 +96,7 @@ class CampSession extends Model
      * Count of approved (enrolled) campers for this session.
      *
      * Uses the already-eager-loaded withCount result when available (set by
-     * CampController::index() via withCount(['applications as enrolled_count'])).
+     * CampSessionController::index() via withCount(['applications as enrolled_count'])).
      * Falls back to a direct COUNT query only when not pre-loaded.
      */
     public function getEnrolledCountAttribute(): int

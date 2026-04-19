@@ -41,14 +41,28 @@ class DocumentPolicy
      */
     public function view(User $user, Document $document): bool
     {
-        // Admins always get through.
-        if ($user->isAdmin()) {
+        // The person who uploaded the document can always view it — even if
+        // the parent application is still a draft. They need to be able to
+        // preview and delete their own staging uploads.
+        if ($document->uploaded_by === $user->id) {
             return true;
         }
 
-        // The person who uploaded the document can always view it.
-        if ($document->uploaded_by === $user->id) {
-            return true;
+        // Admins and medical staff may never view a document that is still in
+        // the applicant's private staging area. Two staging signals close the
+        // door: (a) the document itself has no submitted_at, OR (b) the
+        // document is attached to an Application that is still is_draft=true
+        // or has no submitted_at. Either condition = staging = deny.
+        $isStaging = $document->isDraft() || $this->parentApplicationIsDraft($document);
+
+        // Admins see every submitted document belonging to a submitted app.
+        if ($user->isAdmin()) {
+            return ! $isStaging;
+        }
+
+        // Staging documents stay private to the uploader, full stop.
+        if ($isStaging) {
+            return false;
         }
 
         // Medical providers can view documents only for ACTIVE (enrolled) campers and their
@@ -70,7 +84,37 @@ class DocumentPolicy
             return $user->campers()->where('id', $document->documentable_id)->exists();
         }
 
+        // Application-linked documents: the owning parent can view once submitted.
+        if ($document->documentable_type === 'App\\Models\\Application') {
+            /** @var \App\Models\Application|null $application */
+            $application = $document->documentable;
+            if ($application instanceof \App\Models\Application && $application->camper) {
+                return $user->campers()->where('id', $application->camper->id)->exists();
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * True when the document is attached to an Application that has not yet
+     * been submitted by the family. Such documents are applicant staging PHI
+     * and must not leak to admin or medical reviewers, even if submitted_at
+     * happens to be set on the document row itself (belt-and-suspenders).
+     */
+    private function parentApplicationIsDraft(Document $document): bool
+    {
+        if ($document->documentable_type !== \App\Models\Application::class) {
+            return false;
+        }
+
+        /** @var \App\Models\Application|null $app */
+        $app = $document->documentable;
+        if (! $app instanceof \App\Models\Application) {
+            return false;
+        }
+
+        return $app->is_draft === true || $app->submitted_at === null;
     }
 
     /**

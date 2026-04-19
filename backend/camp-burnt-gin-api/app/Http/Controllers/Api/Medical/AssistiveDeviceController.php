@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\AssistiveDevice\StoreAssistiveDeviceRequest;
 use App\Http\Requests\AssistiveDevice\UpdateAssistiveDeviceRequest;
 use App\Models\AssistiveDevice;
+use App\Services\Camper\CamperChildRowUpserter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -64,22 +65,27 @@ class AssistiveDeviceController extends Controller
      * All incoming fields are validated and whitelisted by
      * StoreAssistiveDeviceRequest before reaching this method.
      */
-    public function store(StoreAssistiveDeviceRequest $request): JsonResponse
+    public function store(StoreAssistiveDeviceRequest $request, CamperChildRowUpserter $upserter): JsonResponse
     {
         // Confirm the caller is authorized to add assistive device records.
         $this->authorize('create', AssistiveDevice::class);
 
-        // Persist only the safe, validated PHI fields to the database.
-        $device = AssistiveDevice::create($request->validated());
+        $data = $request->validated();
 
-        // Load the camper so the response is self-contained.
+        // Idempotent write — natural key is (device_type, notes). Re-posting
+        // the same device updates the mutable flags (requires_transfer_assistance)
+        // in place rather than duplicating.
+        $device = $upserter->upsertAssistiveDevice((int) $data['camper_id'], $data);
+        $wasExisting = ! $device->wasRecentlyCreated;
+
         $device->load('camper');
 
-        // HTTP 201 Created signals the new resource was successfully added.
         return response()->json([
-            'message' => 'Assistive device created successfully.',
+            'message' => $wasExisting
+                ? 'Assistive device already on record; no duplicate created.'
+                : 'Assistive device created successfully.',
             'data' => $device,
-        ], Response::HTTP_CREATED);
+        ], $wasExisting ? Response::HTTP_OK : Response::HTTP_CREATED);
     }
 
     /**

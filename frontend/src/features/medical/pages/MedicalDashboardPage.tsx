@@ -55,6 +55,7 @@ import { ROUTES } from '@/shared/constants/routes';
 import { useAppSelector } from '@/store/hooks';
 import { PersonalGreeting } from '@/ui/components/PersonalGreeting';
 import { HeroSlideshow } from '@/ui/components/HeroSlideshow';
+import { useMedicalSession } from '@/features/medical/context/MedicalSessionContext';
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ function buildActivity(stats: MedicalStats): ActivityItem[] {
 
   return items
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 6);
+    .slice(0, 30);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -207,6 +208,7 @@ export function MedicalDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
+  const { activeSessionId, activeSession } = useMedicalSession();
 
   const [stats, setStats]               = useState<MedicalStats | null>(null);
   const [followUps, setFollowUps]       = useState<MedicalFollowUp[]>([]);
@@ -215,17 +217,18 @@ export function MedicalDashboardPage() {
   const [statsRetryKey, setStatsRetryKey] = useState(0);
   const [completingId, setCompletingId] = useState<number | null>(null);
 
-  // ── Fetch stats + follow-ups ──────────────────────────────────────────────────
+  // ── Fetch stats + follow-ups (session-scoped when a session is selected) ──────
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
     setStatsError(false);
+    const sessionParam = activeSessionId ? { session_id: activeSessionId } : undefined;
     try {
       const [statsData, followUpData] = await Promise.all([
-        getMedicalStats(),
-        getMedicalFollowUps({ status: 'pending', page: 1 }),
+        getMedicalStats(sessionParam),
+        getMedicalFollowUps({ status: 'pending', page: 1, ...sessionParam }),
       ]);
       setStats(statsData);
-      const inProgressData = await getMedicalFollowUps({ status: 'in_progress', page: 1 });
+      const inProgressData = await getMedicalFollowUps({ status: 'in_progress', page: 1, ...sessionParam });
       const merged = [...followUpData.data, ...inProgressData.data].sort((a, b) => {
         const order: Record<MedicalFollowUp['priority'], number> = { urgent: 0, high: 1, medium: 2, low: 3 };
         const pd = order[a.priority] - order[b.priority];
@@ -238,7 +241,7 @@ export function MedicalDashboardPage() {
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [activeSessionId]);
 
   useEffect(() => { void fetchStats(); }, [fetchStats, statsRetryKey]);
 
@@ -299,6 +302,21 @@ export function MedicalDashboardPage() {
         <div className="relative z-10 p-6 lg:p-8">
           {/* eslint-disable-next-line jsx-a11y/aria-role */}
           <PersonalGreeting user={user} role="medical" stats={{ overdueCount }} />
+          {activeSession && (
+            <div
+              className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
+              style={{
+                background: 'rgba(255,255,255,0.14)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                color: '#fff',
+              }}
+            >
+              <span style={{ opacity: 0.75 }}>Session:</span>
+              <span>{activeSession.name}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -477,8 +495,8 @@ export function MedicalDashboardPage() {
                 <EmptyState title={t('medical.dashboard.followup.empty_title')} description={t('medical.dashboard.followup.empty_desc')} />
               </div>
             ) : (
-              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {followUps.slice(0, 6).map((fu) => {
+              <ul className="divide-y overflow-y-auto" style={{ borderColor: 'var(--border)', maxHeight: '480px' }}>
+                {followUps.map((fu) => {
                   const overdue = isOverdue(fu.due_date);
                   const isCompleting = completingId === fu.id;
                   return (
@@ -542,7 +560,7 @@ export function MedicalDashboardPage() {
                 <EmptyState title={t('medical.dashboard.activity.empty_title')} description={t('medical.dashboard.activity.empty_desc')} />
               </div>
             ) : (
-              <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              <ul className="divide-y overflow-y-auto" style={{ borderColor: 'var(--border)', maxHeight: '480px' }}>
                 {activityItems.map((item) => (
                   <li key={`${item.kind}-${item.id}`} className="flex items-start gap-3 p-4 hover:bg-[var(--muted)] transition-colors">
                     <ActivityIcon kind={item.kind} />

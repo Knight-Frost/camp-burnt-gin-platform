@@ -74,6 +74,46 @@ class FormsDownloadController extends Controller
         return $this->serveForm(OfficialFormType::CyshcnForm);
     }
 
+    /** Serve the CPAP/BiPAP waiver form. */
+    public function cpapWaiver(): BinaryFileResponse|JsonResponse
+    {
+        return $this->serveConditionalForm('cpap_waiver.pdf', 'CPAP-BiPAP-Waiver-1856-ENG-DPH.pdf');
+    }
+
+    /** Serve the Seizure Action Plan form. */
+    public function seizurePlan(): BinaryFileResponse|JsonResponse
+    {
+        return $this->serveConditionalForm('seizure_plan.pdf', 'Seizure-Action-Plan-4522-ENG-DPH.pdf');
+    }
+
+    /** Serve the G-Tube Feeding Action Plan form. */
+    public function gtubePlan(): BinaryFileResponse|JsonResponse
+    {
+        return $this->serveConditionalForm('gtube_plan.pdf', 'G-Tube-Feeding-Action-Plan-4515-ENG-DPH.pdf');
+    }
+
+    /**
+     * Stream a supplemental conditional form PDF by filename.
+     */
+    private function serveConditionalForm(string $filename, string $downloadName): BinaryFileResponse|JsonResponse
+    {
+        $path = storage_path('app/forms/'.$filename);
+
+        if (! file_exists($path)) {
+            return response()->json([
+                'message' => 'This form is currently unavailable. Contact your camp administrator.',
+            ], 503);
+        }
+
+        return response()->download($path, $downloadName, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$downloadName.'"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
     /**
      * Stream a form PDF for download.
      */

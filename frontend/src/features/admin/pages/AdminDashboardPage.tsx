@@ -20,16 +20,16 @@ import { useTranslation } from 'react-i18next';
 
 import {
   getAdminApplications,
-  getCamps,
+  getSessions,
   getReportsSummary,
   getSessionDashboard,
   getFamilies,
   type ReportsSummary,
 } from '@/features/admin/api/admin.api';
-import type { SessionDashboardStats, FamiliesSummary } from '@/features/admin/types/admin.types';
+import type { SessionDashboardStats, FamiliesSummary, CampSession } from '@/features/admin/types/admin.types';
 import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
-import type { Application, Camp } from '@/features/admin/types/admin.types';
+import type { Application } from '@/features/admin/types/admin.types';
 import { useAppSelector } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { SkeletonCard, SkeletonTable } from '@/ui/components/Skeletons';
@@ -94,7 +94,7 @@ export function AdminDashboardPage() {
 
   const [summary,             setSummary]             = useState<ReportsSummary | null>(null);
   const [pendingApps,         setPendingApps]         = useState<Application[]>([]);
-  const [camps,               setCamps]               = useState<Camp[]>([]);
+  const [sessions,            setSessions]            = useState<CampSession[]>([]);
   const [activity,            setActivity]            = useState<Application[]>([]);
   const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
   // Unread message count from shared context — no extra API call.
@@ -118,7 +118,7 @@ export function AdminDashboardPage() {
     //   3. Recent Activity — most recently updated apps system-wide, sorted updated_at DESC
     Promise.all([
       getReportsSummary(),
-      getCamps().catch(() => [] as Camp[]),
+      getSessions().catch(() => [] as CampSession[]),
       getFamilies({ page: 1 }).then((res) => res.summary).catch(() => null),
       // Needs Attention: fetch oldest submitted + oldest under_review independently.
       // Status filter + submitted_at ASC guarantees the longest-waiting apps surface first,
@@ -133,13 +133,13 @@ export function AdminDashboardPage() {
         .then((r) => r.data)
         .catch(() => [] as Application[]),
     ])
-      .then(([rptSummary, campsData, familySummary, [submittedApps, underReviewApps], recentAppsData]) => {
+      .then(([rptSummary, sessionsData, familySummary, [submittedApps, underReviewApps], recentAppsData]) => {
         setSummary(rptSummary);
         setGlobalFamilySummary(familySummary);
-        setCamps(campsData);
+        setSessions(sessionsData);
 
         // Auto-select the first active session for session-scoped metrics
-        const firstActive = campsData.flatMap((c) => c.sessions ?? []).find((s) => s.is_active);
+        const firstActive = sessionsData.find((s) => s.is_active);
         if (firstActive) {
           setSelectedSessionId(firstActive.id);
         }
@@ -159,7 +159,7 @@ export function AdminDashboardPage() {
 
         // Recent Activity: already sorted updated_at DESC by the backend — just take top 6.
         const recentActivity = recentAppsData
-          .filter((a) => !['draft', 'cancelled'].includes(a.status))
+          .filter((a) => !a.is_draft && a.status !== 'cancelled')
           .slice(0, 6);
         setActivity(recentActivity);
       })
@@ -223,17 +223,15 @@ export function AdminDashboardPage() {
   const tooltipScope = isSessionScoped ? 'this session' : 'all sessions';
 
   // Only explicitly active sessions — no past/archived/inactive
-  const sessionCards: SessionCardData[] = camps.flatMap((c) =>
-    (c.sessions ?? [])
-      .filter((s) => s.is_active === true)
-      .map((s) => ({
-        id:          s.id,
-        campName:    c.name,
-        sessionName: s.name ?? `Session ${s.id}`,
-        enrolled:    s.enrolled_count ?? 0,
-        capacity:    s.capacity ?? 0,
-      }))
-  );
+  const sessionCards: SessionCardData[] = sessions
+    .filter((s) => s.is_active === true)
+    .map((s) => ({
+      id:          s.id,
+      campName:    '',
+      sessionName: s.name ?? `Session ${s.id}`,
+      enrolled:    s.enrolled_count ?? 0,
+      capacity:    s.capacity ?? 0,
+    }));
 
   if (error) return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
 

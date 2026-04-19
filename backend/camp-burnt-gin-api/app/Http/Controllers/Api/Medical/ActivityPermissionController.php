@@ -69,15 +69,19 @@ class ActivityPermissionController extends Controller
         // Confirm the caller is allowed to create activity permission records.
         $this->authorize('create', ActivityPermission::class);
 
-        // Persist only the safe, validated fields to the database.
-        $permission = ActivityPermission::create($request->validated());
+        // Upsert by the unique key (camper_id + activity_name) so that re-submissions
+        // and retry attempts don't crash with a duplicate-entry constraint violation.
+        $validated = $request->validated();
+        $permission = ActivityPermission::updateOrCreate(
+            ['camper_id' => $validated['camper_id'], 'activity_name' => $validated['activity_name']],
+            $validated,
+        );
 
         // Load the camper so the response includes context about who this applies to.
         $permission->load('camper');
 
-        // HTTP 201 Created signals a new resource was successfully added.
         return response()->json([
-            'message' => 'Activity permission created successfully.',
+            'message' => 'Activity permission saved successfully.',
             'data' => $permission,
         ], Response::HTTP_CREATED);
     }

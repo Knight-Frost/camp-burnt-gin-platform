@@ -53,15 +53,13 @@ class RejectionLetterNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        // Load session and camp to personalise the letter with specific program details
         $session = $this->application->campSession;
-        $camp = $session->camp;
 
         // Build the base message — the negative news is delivered gently but clearly
         $message = (new MailMessage)
-            ->subject('Application Update - '.$camp->name)
+            ->subject('Application Update - Camp Burnt Gin')
             ->greeting('Dear '.$notifiable->name.',')
-            ->line('Thank you for your interest in '.$camp->name.'.')
+            ->line('Thank you for your interest in Camp Burnt Gin.')
             ->line('')
             ->line('After careful review, we regret to inform you that we are unable to accept the application for '.$this->application->camper->full_name.' for the '.$session->name.' session at this time.');
 

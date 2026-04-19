@@ -35,7 +35,7 @@ const TIPTAP_STYLES = `
     height: 0;
     pointer-events: none;
   }
-  .tiptap { outline: none; }
+  .tiptap { outline: none; overflow-y: auto; word-break: break-word; }
   .tiptap a { color: ${BRAND}; text-decoration: underline; }
   .tiptap ul { padding-left: 1.4rem; list-style-type: disc; }
   .tiptap ol { padding-left: 1.4rem; list-style-type: decimal; }
@@ -230,7 +230,7 @@ export function RichTextEditor({
   if (!editor) return null;
 
   return (
-    <div className="flex flex-col" style={{ minHeight }}>
+    <div className="flex flex-col" style={{ minHeight, overflow: 'hidden' }}>
       <EditorToolbar
         editor={editor}
         className="px-2 py-1 border-b"
@@ -239,7 +239,7 @@ export function RichTextEditor({
         editor={editor}
         minHeight={minHeight}
         maxHeight={maxHeight}
-        className="flex-1 px-3 py-2"
+        className="px-3 py-2"
       />
     </div>
   );

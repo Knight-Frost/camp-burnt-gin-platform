@@ -257,6 +257,7 @@ export interface StoreTreatmentLogPayload {
 
 export async function getTreatmentLogs(params?: {
   camper_id?: number;
+  session_id?: number;
   from?: string;
   to?: string;
   type?: TreatmentType;
@@ -376,8 +377,8 @@ export interface MedicalStats {
   treatment_type_counts: Record<string, number>;
 }
 
-export async function getMedicalStats(): Promise<MedicalStats> {
-  const { data } = await axiosInstance.get<{ data: MedicalStats }>('/medical/stats');
+export async function getMedicalStats(params?: { session_id?: number }): Promise<MedicalStats> {
+  const { data } = await axiosInstance.get<{ data: MedicalStats }>('/medical/stats', { params });
   return data.data;
 }
 
@@ -429,18 +430,6 @@ export interface StoreMedicalIncidentPayload {
   incident_time?: string;
 }
 
-export async function getMedicalIncidents(params?: {
-  camper_id?: number;
-  type?: IncidentType;
-  severity?: IncidentSeverity;
-  from?: string;
-  to?: string;
-  page?: number;
-}): Promise<PaginatedResponse<MedicalIncident>> {
-  const { data } = await axiosInstance.get<PaginatedResponse<MedicalIncident>>('/medical-incidents', { params });
-  return data;
-}
-
 export async function createMedicalIncident(payload: StoreMedicalIncidentPayload): Promise<MedicalIncident> {
   const { data } = await axiosInstance.post<ApiResponse<MedicalIncident>>('/medical-incidents', payload);
   return data.data;
@@ -489,17 +478,6 @@ export interface StoreMedicalFollowUpPayload {
   status?: FollowUpStatus;
   priority?: FollowUpPriority;
   due_date: string;
-}
-
-export async function getMedicalFollowUps(params?: {
-  camper_id?: number;
-  status?: FollowUpStatus;
-  assigned_to?: number;
-  overdue?: boolean;
-  page?: number;
-}): Promise<PaginatedResponse<MedicalFollowUp>> {
-  const { data } = await axiosInstance.get<PaginatedResponse<MedicalFollowUp>>('/medical-follow-ups', { params });
-  return data;
 }
 
 export async function createMedicalFollowUp(payload: StoreMedicalFollowUpPayload): Promise<MedicalFollowUp> {
@@ -575,17 +553,6 @@ export interface StoreMedicalVisitPayload {
 export async function getMedicalVisit(id: number): Promise<MedicalVisit> {
   const { data } = await axiosInstance.get<ApiResponse<MedicalVisit>>(`/medical-visits/${id}`);
   return data.data;
-}
-
-export async function getMedicalVisits(params?: {
-  camper_id?: number;
-  disposition?: VisitDisposition;
-  from?: string;
-  to?: string;
-  page?: number;
-}): Promise<PaginatedResponse<MedicalVisit>> {
-  const { data } = await axiosInstance.get<PaginatedResponse<MedicalVisit>>('/medical-visits', { params });
-  return data;
 }
 
 export async function createMedicalVisit(payload: StoreMedicalVisitPayload): Promise<MedicalVisit> {
@@ -677,5 +644,126 @@ export async function getCamperMedicalAlerts(camperId: number): Promise<MedicalA
 
 export async function getPersonalCarePlan(camperId: number): Promise<PersonalCarePlan | null> {
   const { data } = await axiosInstance.get<ApiResponse<PersonalCarePlan | null>>(`/campers/${camperId}/personal-care-plan`);
+  return data.data;
+}
+
+// ─── Session-aware incident/visit/follow-up helpers ───────────────────────────
+
+export async function getMedicalIncidents(params?: {
+  camper_id?: number;
+  session_id?: number;
+  type?: IncidentType;
+  severity?: IncidentSeverity;
+  from?: string;
+  to?: string;
+  escalation_required?: boolean;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalIncident>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalIncident>>('/medical-incidents', { params });
+  return data;
+}
+
+export async function getMedicalVisits(params?: {
+  camper_id?: number;
+  session_id?: number;
+  disposition?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalVisit>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalVisit>>('/medical-visits', { params });
+  return data;
+}
+
+export async function getMedicalFollowUps(params?: {
+  camper_id?: number;
+  session_id?: number;
+  status?: string;
+  assigned_to?: number;
+  overdue?: boolean;
+  priority?: string;
+  page?: number;
+}): Promise<PaginatedResponse<MedicalFollowUp>> {
+  const { data } = await axiosInstance.get<PaginatedResponse<MedicalFollowUp>>('/medical-follow-ups', { params });
+  return data;
+}
+
+// ─── Risk Engine Configuration (Phase 18) ────────────────────────────────────
+
+export interface RiskFactor {
+  id: number;
+  key: string;
+  label: string;
+  category: 'medical' | 'behavioral' | 'physical' | 'feeding' | 'allergy';
+  points: number;
+  per_item: boolean;
+  source_model: string | null;
+  tooltip: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface RiskRule {
+  id: number;
+  name: string;
+  description: string | null;
+  conditions: Array<{ factor_key: string; present: boolean }>;
+  points_adjustment: number;
+  is_active: boolean;
+}
+
+export interface RiskThreshold {
+  id: number;
+  threshold_type: 'supervision' | 'complexity';
+  level_value: string;
+  label: string;
+  min_score: number;
+  max_score: number | null;
+  staffing_ratio: string | null;
+  intervention_description: string | null;
+  sort_order: number;
+}
+
+export async function getRiskFactors(): Promise<Record<string, RiskFactor[]>> {
+  const { data } = await axiosInstance.get<ApiResponse<Record<string, RiskFactor[]>>>('/risk-factors');
+  return data.data;
+}
+
+export async function updateRiskFactor(id: number, payload: Partial<Pick<RiskFactor, 'label' | 'points' | 'is_active' | 'tooltip' | 'sort_order' | 'category'>>): Promise<RiskFactor> {
+  const { data } = await axiosInstance.put<ApiResponse<RiskFactor>>(`/risk-factors/${id}`, payload);
+  return data.data;
+}
+
+export async function createRiskFactor(payload: Omit<RiskFactor, 'id'>): Promise<RiskFactor> {
+  const { data } = await axiosInstance.post<ApiResponse<RiskFactor>>('/risk-factors', payload);
+  return data.data;
+}
+
+export async function getRiskRules(): Promise<RiskRule[]> {
+  const { data } = await axiosInstance.get<ApiResponse<RiskRule[]>>('/risk-rules');
+  return data.data;
+}
+
+export async function createRiskRule(payload: Omit<RiskRule, 'id'>): Promise<RiskRule> {
+  const { data } = await axiosInstance.post<ApiResponse<RiskRule>>('/risk-rules', payload);
+  return data.data;
+}
+
+export async function updateRiskRule(id: number, payload: Partial<RiskRule>): Promise<RiskRule> {
+  const { data } = await axiosInstance.put<ApiResponse<RiskRule>>(`/risk-rules/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteRiskRule(id: number): Promise<void> {
+  await axiosInstance.delete(`/risk-rules/${id}`);
+}
+
+export async function getRiskThresholds(): Promise<Record<string, RiskThreshold[]>> {
+  const { data } = await axiosInstance.get<ApiResponse<Record<string, RiskThreshold[]>>>('/risk-thresholds');
+  return data.data;
+}
+
+export async function updateRiskThreshold(id: number, payload: Partial<Pick<RiskThreshold, 'min_score' | 'max_score' | 'label' | 'staffing_ratio' | 'intervention_description'>>): Promise<RiskThreshold> {
+  const { data } = await axiosInstance.put<ApiResponse<RiskThreshold>>(`/risk-thresholds/${id}`, payload);
   return data.data;
 }

@@ -4,7 +4,10 @@ namespace Tests\Feature\Regression;
 
 use App\Jobs\SendNotificationJob;
 use App\Models\Application;
+use App\Models\ApplicationConsent;
+use App\Models\CampSession;
 use App\Models\Camper;
+use App\Models\Document;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -71,21 +74,35 @@ class QueuedNotificationsTest extends TestCase
 
     public function test_converting_draft_to_submitted_queues_notification(): void
     {
-        $parent = $this->createParent();
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $application = Application::factory()->create([
-            'camper_id' => $camper->id,
-            'is_draft' => true,
+        $parent  = $this->createParent();
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
+        $camper  = Camper::factory()->create([
+            'user_id'       => $parent->id,
+            'first_name'    => 'Alice',
+            'last_name'     => 'Smith',
+            'date_of_birth' => '2010-01-01',
+            'gender'        => 'female',
+            'tshirt_size'   => 'Youth M',
+            'county'        => 'Richland',
         ]);
 
-        // Convert draft to submitted
-        $response = $this->actingAs($parent)->putJson("/api/applications/{$application->id}", [
-            'submit' => true,
+        \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
+        \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
+
+        $application = Application::factory()->draft()->create([
+            'camper_id'         => $camper->id,
+            'camp_session_id'   => $session->id,
+            'signed_at'         => now(),
+            'signature_name'    => 'Jane Smith',
+            'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
+        \Tests\Support\TestApplicationFixture::attachConsents($application, 'Jane Smith');
 
-        $response->assertStatus(200);
+        // Finalize via the correct endpoint
+        $response = $this->actingAs($parent)->postJson("/api/applications/{$application->id}/finalize");
 
-        // Verify notification was queued
+        $response->assertOk();
+
         Queue::assertPushed(SendNotificationJob::class, function ($job) {
             return $job->notification instanceof ApplicationSubmittedNotification;
         });

@@ -99,6 +99,7 @@ const MedicalIncidentsPage     = withSuspense(lazy(() => import('@/features/medi
 const MedicalFollowUpsPage     = withSuspense(lazy(() => import('@/features/medical/pages/MedicalFollowUpsPage').then(m => ({ default: m.MedicalFollowUpsPage }))));
 const MedicalVisitsPage        = withSuspense(lazy(() => import('@/features/medical/pages/MedicalVisitsPage').then(m => ({ default: m.MedicalVisitsPage }))));
 const MedicalEmergencyViewPage  = withSuspense(lazy(() => import('@/features/medical/pages/MedicalEmergencyViewPage').then(m => ({ default: m.MedicalEmergencyViewPage }))));
+const RiskManagementPage        = withSuspense(lazy(() => import('@/features/medical/pages/RiskManagementPage')));
 // MedicalCamperRiskPage replaced by CamperRiskPage — medical portal now uses the full risk UI
 
 // ─── Super admin pages ────────────────────────────────────────────────────────
@@ -228,6 +229,10 @@ export const router = createBrowserRouter([
           { path: '/admin/calendar',            element: <AdminCalendarPage /> },
           { path: '/admin/documents',           element: <AdminDocumentsPage /> },
           { path: '/admin/deadlines',           element: <AdminDeadlinesPage /> },
+          // Risk configuration lives under both portals: admin role can edit
+          // (backend routes require admin/super_admin for PUT/DELETE) while
+          // medical role gets a read-only view of the same page via /medical/risk-management.
+          { path: '/admin/risk-management',     element: <RiskManagementPage /> },
           // Form Builder is super_admin-only governance tooling. The parent RoleGuard
           // allows admin + super_admin into this portal, so these routes add a second
           // RoleGuard to restrict form-builder access to super_admin exclusively.
@@ -270,6 +275,7 @@ export const router = createBrowserRouter([
           // Emergency view shows critical info for a specific camper at a glance
           { path: '/medical/records/:camperId/emergency',        element: <MedicalEmergencyViewPage /> },
           { path: '/medical/records/:id/risk',                  element: <CamperRiskPage /> },
+          { path: '/medical/risk-management',                    element: <RiskManagementPage /> },
           { path: '/medical/announcements',                      element: <ParentAnnouncementsPage /> },
           { path: '/medical/inbox',                              element: <InboxPage /> },
           { path: '/medical/profile',                            element: <ProfilePage /> },

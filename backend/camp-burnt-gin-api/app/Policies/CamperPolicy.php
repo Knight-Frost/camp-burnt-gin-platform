@@ -44,9 +44,14 @@ class CamperPolicy
      */
     public function view(User $user, Camper $camper): bool
     {
-        // Admins always get through.
+        // Admins may view a camper's full record only when the family has at least one
+        // formally-submitted application. Pre-submission data belongs exclusively to the
+        // family — staff have no legitimate access need until the applicant consents by
+        // submitting. super_admin follows the same rule; neither role is an exception.
         if ($user->isAdmin()) {
-            return true;
+            return $camper->applications()
+                ->where('is_draft', false)
+                ->exists();
         }
 
         // A parent may view their own child's profile.

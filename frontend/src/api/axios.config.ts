@@ -27,6 +27,20 @@ import { demoAdapter } from '@/lib/demo/demoAdapter';
 // Instance
 // ---------------------------------------------------------------------------
 
+// Demo mode in a production build silently swaps the network layer for mock
+// data — applications look like they persist but never reach the backend.
+// That is catastrophic for a HIPAA system: staff could "approve" applicants
+// that simply disappear. Fail the build/boot unless an operator has explicitly
+// acknowledged this by setting VITE_ALLOW_DEMO_IN_PROD=true (demo deployments).
+if (import.meta.env.PROD && DEMO_MODE && import.meta.env.VITE_ALLOW_DEMO_IN_PROD !== 'true') {
+  throw new Error(
+    '[Security] VITE_DEMO_MODE=true in a production build. ' +
+    'Demo mode intercepts every API request and returns mock data; real camper ' +
+    'submissions are silently discarded. Remove VITE_DEMO_MODE from .env.production, ' +
+    'or set VITE_ALLOW_DEMO_IN_PROD=true if this is an intentional demo deployment.'
+  );
+}
+
 // In production builds VITE_API_BASE_URL must be defined.
 // Skip this check in demo mode — no backend is needed.
 if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL && !DEMO_MODE) {
@@ -265,11 +279,14 @@ function errorInterceptor(error: AxiosError<{
       return Promise.reject({ message: 'You do not have permission to perform this action.' });
     }
 
-    // 422 Unprocessable Entity — server rejected the submitted form data
+    // 422 Unprocessable Entity — server rejected the submitted form data.
+    // Pass the full response body through so callers that expect non-standard
+    // fields (e.g. missing_fields / missing_documents / missing_consents from the
+    // finalize endpoint) can read them. Standard `errors` is preserved as well.
     if (status === 422) {
       return Promise.reject({
+        ...responseData,
         message: responseData?.message ?? 'Validation failed.',
-        // errors is a field-keyed object, e.g. { email: ['The email field is required.'] }
         errors: responseData?.errors ?? {},
       });
     }

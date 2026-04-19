@@ -41,6 +41,11 @@ class MedicalVisitController extends Controller
             ->orderByDesc('visit_date')
             ->orderByDesc('visit_time');
 
+        // Phase 18: scope to a specific camp session.
+        if ($request->filled('session_id')) {
+            $query->where('camp_session_id', $request->integer('session_id'));
+        }
+
         // Scope to a single camper when viewing their medical record or profile.
         if ($request->filled('camper_id')) {
             $query->where('camper_id', $request->integer('camper_id'));
@@ -89,6 +94,7 @@ class MedicalVisitController extends Controller
         // Validate the visit payload including the nested vitals object.
         $validated = $request->validate([
             'camper_id' => 'required|integer|exists:campers,id',
+            'camp_session_id' => 'nullable|integer|exists:camp_sessions,id',
             // 'before_or_equal:today' prevents recording future visits.
             'visit_date' => 'required|date|before_or_equal:today',
             'visit_time' => 'nullable|date_format:H:i',

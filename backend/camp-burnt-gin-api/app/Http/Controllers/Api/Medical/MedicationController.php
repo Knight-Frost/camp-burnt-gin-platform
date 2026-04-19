@@ -7,6 +7,7 @@ use App\Http\Requests\Medication\StoreMedicationRequest;
 use App\Http\Requests\Medication\UpdateMedicationRequest;
 use App\Models\AuditLog;
 use App\Models\Medication;
+use App\Services\Camper\CamperChildRowUpserter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,27 +57,38 @@ class MedicationController extends Controller
      * StoreMedicationRequest validates and whitelists all incoming fields
      * before they reach this method, keeping raw user input out of the DB call.
      */
-    public function store(StoreMedicationRequest $request): JsonResponse
+    public function store(StoreMedicationRequest $request, CamperChildRowUpserter $upserter): JsonResponse
     {
         // Confirm the caller is authorized to add medication records.
         $this->authorize('create', Medication::class);
 
-        // Only validated (safe) fields are written to the database.
-        $medication = Medication::create($request->validated());
+        $data = $request->validated();
 
-        // Audit log: adding a medication record is a clinical PHI event.
-        AuditLog::logPhiAccess('medication.created', $request->user(), $medication, [
-            'camper_id' => $medication->camper_id,
-        ]);
+        // Idempotent write: retries of the same medication on the same camper
+        // (network hiccups, autosave races, validation bounces in the form
+        // flow) must not create duplicate rows. The upserter matches on the
+        // clinical natural key (name, dosage, frequency, purpose) and updates
+        // the existing row in place if one exists.
+        $medication = $upserter->upsertMedication((int) $data['camper_id'], $data);
+        $wasExisting = ! $medication->wasRecentlyCreated;
+
+        if (! $wasExisting) {
+            // Only log creation audit for actually-new rows; in-place updates
+            // of existing medications aren't a PHI-creation event.
+            AuditLog::logPhiAccess('medication.created', $request->user(), $medication, [
+                'camper_id' => $medication->camper_id,
+            ]);
+        }
 
         // Load camper details so the API response is self-contained.
         $medication->load('camper');
 
-        // HTTP 201 signals the resource was successfully created.
         return response()->json([
-            'message' => 'Medication created successfully.',
+            'message' => $wasExisting
+                ? 'Medication already on record; no duplicate created.'
+                : 'Medication created successfully.',
             'data' => $medication,
-        ], Response::HTTP_CREATED);
+        ], $wasExisting ? Response::HTTP_OK : Response::HTTP_CREATED);
     }
 
     /**

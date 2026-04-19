@@ -9,7 +9,6 @@ use App\Models\Application;
 use App\Models\ApplicationDraft;
 use App\Models\AssistiveDevice;
 use App\Models\BehavioralProfile;
-use App\Models\Camp;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\Conversation;
@@ -50,7 +49,6 @@ use App\Policies\ApplicationPolicy;
 use App\Policies\AssistiveDevicePolicy;
 use App\Policies\BehavioralProfilePolicy;
 use App\Policies\CamperPolicy;
-use App\Policies\CampPolicy;
 use App\Policies\CampSessionPolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\DeadlinePolicy;
@@ -138,7 +136,6 @@ class AppServiceProvider extends ServiceProvider
         FeedingPlan::class => FeedingPlanPolicy::class,
 
         // Camp management
-        Camp::class => CampPolicy::class,
         CampSession::class => CampSessionPolicy::class,
 
         // Inbox messaging system policies
@@ -162,6 +159,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Risk assessment — system-calculated camper risk scores (PHI)
         RiskAssessment::class => RiskAssessmentPolicy::class,
+
+        // Risk engine configuration — dynamic scoring factors, rules, thresholds (Phase 18)
+        \App\Models\RiskFactor::class => \App\Policies\RiskFactorPolicy::class,
+        \App\Models\RiskRule::class => \App\Policies\RiskRulePolicy::class,
+        \App\Models\RiskThreshold::class => \App\Policies\RiskThresholdPolicy::class,
 
         // Applicant Documents — admin-to-applicant document workflow
         ApplicantDocument::class => ApplicantDocumentPolicy::class,

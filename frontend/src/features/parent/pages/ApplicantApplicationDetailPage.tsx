@@ -19,30 +19,21 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, User, FileText, Calendar, Download,
-  CheckCircle, Clock, AlertTriangle, XCircle, Info, Plus, Eye, X, RefreshCw,
+  ArrowLeft, FileText, Download,
+  CheckCircle, Clock, AlertTriangle, XCircle, Info, Plus, X, RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { getApplication, withdrawApplication, submitDocument } from '@/features/parent/api/applicant.api';
+import { getApplicationCanonical, withdrawApplication, submitDraftApplication } from '@/features/parent/api/applicant.api';
 import { NewSessionModal } from '@/features/parent/components/NewSessionModal';
-import type { Camper } from '@/shared/types/camp.types';
+import type { Camper, CanonicalApplicationPayload, CanonicalDocument } from '@/shared/types';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonCard } from '@/ui/components/Skeletons';
 import { ROUTES } from '@/shared/constants/routes';
 import axiosInstance from '@/api/axios.config';
 import type { Application } from '@/features/admin/types/admin.types';
-import {
-  getDocumentLabel,
-  isRequiredDocumentType,
-  UNIVERSAL_REQUIRED_DOC_TYPES,
-} from '@/shared/constants/documentRequirements';
-
-// Thin wrapper so call sites remain concise — applicant-facing labels only.
-function formatDocType(raw: string | null | undefined): string {
-  return getDocumentLabel(raw, 'applicant');
-}
+import { CanonicalApplicationSections } from '@/features/applications/components/CanonicalApplicationSections';
 
 // ─── Section card — reusable titled card with an icon ─────────────────────────
 
@@ -76,22 +67,9 @@ function SectionCard({
   );
 }
 
-// ─── Field row — label + value pair ───────────────────────────────────────────
-
-// Shows "Not provided" when value is null/undefined to communicate intent clearly
-function Field({ label, value }: { label: string; value?: string | null }) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--muted-foreground)' }}>
-        {label}
-      </p>
-      <p className="text-sm" style={{ color: value ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
-        {value ?? t('applicant_detail.not_provided')}
-      </p>
-    </div>
-  );
-}
+// Field helper removed — all section-level field rendering now lives in the
+// shared CanonicalApplicationSections component. SectionCard is kept because
+// the Status timeline card at the top of the page still uses it.
 
 // ─── Status timeline ──────────────────────────────────────────────────────────
 
@@ -122,15 +100,7 @@ function StatusTimeline({ status }: { status: string }) {
     );
   }
   if (status === 'draft') {
-    // Draft applications haven't entered the pipeline yet
-    return (
-      <div className="flex items-center gap-2 py-2">
-        <Info className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          {t('applicant_detail.draft_notice')}
-        </p>
-      </div>
-    );
+    return null; // handled inline in the status card with Submit Draft button
   }
 
   const stepOrder = ['submitted', 'under_review', 'waitlisted', 'approved'];
@@ -191,6 +161,7 @@ export function ApplicantApplicationDetailPage() {
   const { t } = useTranslation();
 
   const [application, setApplication] = useState<Application | null>(null);
+  const [canonical, setCanonical] = useState<CanonicalApplicationPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -206,15 +177,17 @@ export function ApplicantApplicationDetailPage() {
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Track which document is currently being submitted
-  const [submittingDocId, setSubmittingDocId] = useState<number | null>(null);
+  const [submittingDraft, setSubmittingDraft] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError(false);
-    getApplication(Number(id))
-      .then((app) => setApplication(app as unknown as Application))
+    getApplicationCanonical(Number(id))
+      .then(({ data, canonical }) => {
+        setApplication(data as unknown as Application);
+        setCanonical(canonical);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id, retryKey]);
@@ -237,6 +210,22 @@ export function ApplicantApplicationDetailPage() {
     }
   }
 
+  async function handleSubmitDraft() {
+    if (!application) return;
+    const confirmed = window.confirm('Submit this application? Once submitted it will be sent to staff for review and cannot be edited as a draft.');
+    if (!confirmed) return;
+    setSubmittingDraft(true);
+    try {
+      const updated = await submitDraftApplication(application.id);
+      setApplication(updated as unknown as Application);
+      toast.success('Application submitted successfully.');
+    } catch {
+      toast.error('Could not submit application. Please try again.');
+    } finally {
+      setSubmittingDraft(false);
+    }
+  }
+
   // Open the "Apply for a New Session" modal.
   // Session loading, selection, and navigation are handled inside NewSessionModal.
   function handleOpenNewAppModal() {
@@ -244,28 +233,12 @@ export function ApplicantApplicationDetailPage() {
     setShowNewAppModal(true);
   }
 
-  async function handleSubmitDocument(docId: number) {
-    if (!application) return;
-    setSubmittingDocId(docId);
-    try {
-      const updated = await submitDocument(docId);
-      // Update the doc in-place inside application.documents
-      setApplication((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          documents: (prev.documents ?? []).map((d) =>
-            d.id === docId ? { ...d, submitted_at: updated.submitted_at } : d
-          ),
-        };
-      });
-      toast.success('Document submitted to staff.');
-    } catch {
-      toast.error('Could not submit document. Please try again.');
-    } finally {
-      setSubmittingDocId(null);
-    }
-  }
+  // Per-document submit flow removed in the canonical-view cutover. On a
+  // draft, documents cascade to submitted state atomically inside
+  // finalize() (see ApplicationController::finalize). For submitted
+  // applications, any re-uploaded document is auto-submitted by
+  // DocumentService. A separate applicant-facing action for "submit just
+  // this doc" was rarely used and was a source of partial-visibility bugs.
 
   // Fetch preview blob whenever the preview modal opens (auth-gated download URL)
   useEffect(() => {
@@ -303,6 +276,18 @@ export function ApplicantApplicationDetailPage() {
       .catch(() => toast.error(t('applicant_detail.download_error')));
   }
 
+  // Adapter: canonical document callbacks wired to the existing preview/download flow.
+  const onPreviewCanonical = (doc: CanonicalDocument) => {
+    setPreviewDoc({
+      id: doc.id,
+      name: doc.original_filename ?? doc.document_type_label,
+      mime: doc.mime_type ?? 'application/octet-stream',
+    });
+  };
+  const onDownloadCanonical = (doc: CanonicalDocument) => {
+    handleDownload(doc.id, doc.original_filename ?? `${doc.document_type}.bin`);
+  };
+
   // Show skeleton cards while the application is loading
   if (loading) {
     return (
@@ -319,9 +304,8 @@ export function ApplicantApplicationDetailPage() {
     return <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />;
   }
 
-  // Destructure for cleaner JSX below
+  // Camper kept for the page header and the "New Session" modal.
   const camper  = application.camper;
-  const session = application.session;
 
   return (
     <>
@@ -407,7 +391,27 @@ export function ApplicantApplicationDetailPage() {
         {/* Status timeline card — always shown */}
         <div>
           <SectionCard title={t('applicant_detail.status_title')} icon={<AlertTriangle className="h-4 w-4" />}>
-            <StatusTimeline status={application.is_draft ? 'draft' : application.status} />
+            {application.is_draft ? (
+              <div className="flex items-start justify-between gap-4 py-2">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    {t('applicant_detail.draft_notice')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={submittingDraft}
+                  onClick={() => void handleSubmitDraft()}
+                  className="flex-shrink-0 text-sm px-4 py-1.5 rounded-xl font-medium transition-colors disabled:opacity-50"
+                  style={{ background: 'var(--ember-orange)', color: '#fff' }}
+                >
+                  {submittingDraft ? 'Submitting…' : 'Submit Application'}
+                </button>
+              </div>
+            ) : (
+              <StatusTimeline status={application.status} />
+            )}
             {/* Admin notes box appears only when the reviewer left a message */}
             {application.notes && (
               <div
@@ -429,336 +433,18 @@ export function ApplicantApplicationDetailPage() {
           </SectionCard>
         </div>
 
-        {/* Camper information — only rendered when camper data was eager-loaded */}
-        {camper && (
-          <div>
-            <SectionCard title={t('applicant_detail.camper_info')} icon={<User className="h-4 w-4" />}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <Field label={t('applicant_detail.field_full_name')} value={camper.full_name} />
-                <Field label={t('applicant_detail.field_dob')}       value={camper.date_of_birth ? format(new Date(camper.date_of_birth), 'MMM d, yyyy') : '—'} />
-                <Field label={t('applicant_detail.field_gender')}    value={camper.gender} />
-                {/* Handle both t_shirt_size and tshirt_size field name variants from the API */}
-                <Field label={t('applicant_detail.field_tshirt')}    value={(camper as { t_shirt_size?: string }).t_shirt_size ?? (camper as { tshirt_size?: string }).tshirt_size} />
-              </div>
-            </SectionCard>
-          </div>
+        {/* All 11 canonical sections — admin and applicant portals consume
+            the same component against the same canonical payload, so they
+            cannot show divergent truth for the same row. Role-appropriate
+            document labels and compliance messages are selected server-side. */}
+        {canonical && (
+          <CanonicalApplicationSections
+            canonical={canonical}
+            role="applicant"
+            onPreviewDocument={onPreviewCanonical}
+            onDownloadDocument={onDownloadCanonical}
+          />
         )}
-
-        {/* Camp session details — only rendered when session data was eager-loaded */}
-        {session && (
-          <div>
-            <SectionCard title={t('applicant_detail.camp_session_title')} icon={<Calendar className="h-4 w-4" />}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <Field label={t('applicant_detail.field_session')} value={session.name} />
-                <Field label={t('applicant_detail.field_camp')}    value={session.camp?.name} />
-                <Field label={t('applicant_detail.field_start')}   value={session.start_date ? format(new Date(session.start_date), 'MMMM d, yyyy') : undefined} />
-                <Field label={t('applicant_detail.field_end')}     value={session.end_date   ? format(new Date(session.end_date),   'MMMM d, yyyy') : undefined} />
-              </div>
-            </SectionCard>
-          </div>
-        )}
-
-        {/* Application completeness — form submission status + required uploads */}
-        <div>
-          <SectionCard title={t('applicant_detail.checklist_title')} icon={<CheckCircle className="h-4 w-4" />}>
-            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
-              {/* Application form row */}
-              {(() => {
-                const isComplete = !!(application.submitted_at && !application.is_draft);
-                return (
-                  <div className="flex items-center justify-between gap-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      {isComplete ? (
-                        <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
-                      )}
-                      <div>
-                        <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant_detail.application_form_label')}</span>
-                        <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.digital_label')}</span>
-                      </div>
-                    </div>
-                    {isComplete ? (
-                      <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.submitted_label')}</span>
-                    ) : (
-                      <Link to={ROUTES.PARENT_FORMS} className="text-xs font-medium hover:underline" style={{ color: '#ca8a04' }}>
-                        {t('applicant_detail.upload_link')}
-                      </Link>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Medical form upload — always required regardless of digital/paper source.
-                  A draft (submitted_at = null) means the file is staged but not yet sent to staff.
-                  We show a distinct "Draft" state so the applicant knows to hit Submit. */}
-              {(() => {
-                const medicalDoc = application.documents?.find(
-                  (d) => d.document_type === 'official_medical_form'
-                );
-                // Only count as complete when the document has been submitted to staff
-                const isSubmitted = !!(medicalDoc && medicalDoc.submitted_at);
-                const isDraft = !!(medicalDoc && !medicalDoc.submitted_at);
-                return (
-                  <div className="flex items-center justify-between gap-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      {isSubmitted ? (
-                        <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
-                      )}
-                      <div>
-                        <span className="text-sm" style={{ color: 'var(--foreground)' }}>{t('applicant_detail.medical_form_label')}</span>
-                        <span className="ml-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>{t('applicant_detail.doctor_complete')}</span>
-                      </div>
-                    </div>
-                    {isSubmitted ? (
-                      <span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t('applicant_detail.uploaded_label')}</span>
-                    ) : isDraft ? (
-                      <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>Draft — not yet visible to staff</span>
-                    ) : (
-                      <Link
-                        to={ROUTES.PARENT_FORMS}
-                        className="text-xs font-medium hover:underline"
-                        style={{ color: '#ca8a04' }}
-                      >
-                        {t('applicant_detail.upload_link')}
-                      </Link>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Universal required documents — immunization record and insurance card.
-                  These are always required and must be uploaded AND submitted to staff
-                  before the application can be approved. A draft (submitted_at = null)
-                  means the file was staged locally but admin cannot see it yet — the
-                  checklist shows orange in that state to avoid a false "complete" signal.
-                  Labels come from the shared canonical module to stay in sync with admin. */}
-              {UNIVERSAL_REQUIRED_DOC_TYPES.map((docType) => {
-                const doc = application.documents?.find((d) => d.document_type === docType);
-                const label = getDocumentLabel(docType, 'applicant');
-                // A document is only truly "complete" when it has been submitted to staff.
-                // Draft docs (submitted_at = null) are invisible to admin and must not
-                // show a green checkmark — that creates a false sense of completion.
-                const isSubmitted = !!(doc && doc.submitted_at);
-                const isDraft = !!(doc && !doc.submitted_at);
-                return (
-                  <div key={docType} className="flex items-center justify-between gap-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      {isSubmitted ? (
-                        <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
-                      )}
-                      <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
-                    </div>
-                    {isSubmitted ? (
-                      <span className="text-xs font-medium" style={{ color: '#16a34a' }}>
-                        {t('applicant_detail.uploaded_label')}
-                      </span>
-                    ) : isDraft ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>
-                          Draft — not yet visible to staff
-                        </span>
-                        <button
-                          onClick={() => doc && void handleSubmitDocument(doc.id)}
-                          disabled={submittingDocId === doc?.id}
-                          className="text-xs font-medium px-2 py-0.5 rounded border transition-colors disabled:opacity-50"
-                          style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
-                        >
-                          {submittingDocId === doc?.id ? 'Submitting…' : 'Submit to Staff'}
-                        </button>
-                      </div>
-                    ) : (
-                      <Link
-                        to={ROUTES.PARENT_DOCUMENTS}
-                        className="text-xs font-medium hover:underline"
-                        style={{ color: '#ca8a04' }}
-                      >
-                        {t('applicant_detail.upload_link')}
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Conditional required documents — derived from the camper's medical and behavioral profile.
-                  These rows only appear when the camper's submitted data triggers the requirement,
-                  so parents are informed exactly what extra documentation is needed for their child. */}
-              {(() => {
-                const camper = application.camper;
-                const medical = camper?.medical_record;
-                const conditionalTypes: string[] = [];
-
-                if (medical?.has_seizures) {
-                  conditionalTypes.push('seizure_action_plan', 'seizure_medication_authorization');
-                }
-                if (camper?.feeding_plan?.g_tube) {
-                  conditionalTypes.push('feeding_action_plan', 'feeding_equipment_list');
-                }
-                if (camper?.behavioral_profile?.one_to_one_supervision) {
-                  conditionalTypes.push('behavioral_support_plan', 'staffing_accommodation_request');
-                }
-                if (camper?.behavioral_profile?.wandering_risk) {
-                  conditionalTypes.push('elopement_prevention_plan');
-                }
-                if (camper?.behavioral_profile?.aggression) {
-                  conditionalTypes.push('crisis_intervention_plan');
-                }
-                if (camper?.assistive_devices?.some((d) => d.device_type?.toLowerCase().includes('cpap'))) {
-                  conditionalTypes.push('cpap_waiver');
-                }
-                if (camper?.assistive_devices?.some((d) => d.device_type?.toLowerCase().includes('neurostimulator'))) {
-                  conditionalTypes.push('device_management_plan');
-                }
-
-                if (conditionalTypes.length === 0) return null;
-
-                return conditionalTypes.map((docType) => {
-                  const doc = application.documents?.find((d) => d.document_type === docType);
-                  const label = getDocumentLabel(docType, 'applicant');
-                  const isSubmitted = !!(doc && doc.submitted_at);
-                  const isDraft = !!(doc && !doc.submitted_at);
-                  return (
-                    <div key={docType} className="flex items-center justify-between gap-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        {isSubmitted ? (
-                          <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-                        ) : (
-                          <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#ca8a04' }} />
-                        )}
-                        <div>
-                          <span className="text-sm" style={{ color: 'var(--foreground)' }}>{label}</span>
-                        </div>
-                      </div>
-                      {isSubmitted ? (
-                        <span className="text-xs font-medium" style={{ color: '#16a34a' }}>
-                          {t('applicant_detail.uploaded_label')}
-                        </span>
-                      ) : isDraft ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium" style={{ color: '#ca8a04' }}>
-                            Draft — not yet visible to staff
-                          </span>
-                          <button
-                            onClick={() => doc && void handleSubmitDocument(doc.id)}
-                            disabled={submittingDocId === doc?.id}
-                            className="text-xs font-medium px-2 py-0.5 rounded border transition-colors disabled:opacity-50"
-                            style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
-                          >
-                            {submittingDocId === doc?.id ? 'Submitting…' : 'Submit to Staff'}
-                          </button>
-                        </div>
-                      ) : (
-                        <Link
-                          to={ROUTES.PARENT_DOCUMENTS}
-                          className="text-xs font-medium hover:underline"
-                          style={{ color: '#ca8a04' }}
-                        >
-                          {t('applicant_detail.upload_link')}
-                        </Link>
-                      )}
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </SectionCard>
-        </div>
-
-        {/* Supplementary Documents — additional files beyond the required checklist.
-            Required document types are shown in the checklist above; this section
-            shows any remaining uploads so the applicant has a complete file inventory. */}
-        <div>
-          <SectionCard title="Supplementary Documents" icon={<FileText className="h-4 w-4" />}>
-            {(() => {
-              const supplementaryDocs = (application.documents ?? []).filter(
-                (d) => !isRequiredDocumentType(d.document_type),
-              );
-              if (supplementaryDocs.length === 0) {
-                return (
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    No supplementary documents uploaded.
-                  </p>
-                );
-              }
-              return (
-              <div className="flex flex-col gap-2">
-                {supplementaryDocs.map((doc) => {
-                  const isDraft = !doc.submitted_at;
-                  return (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-3 rounded-xl border"
-                    style={{
-                      borderColor: isDraft ? 'rgba(234,88,12,0.4)' : 'var(--border)',
-                      background: isDraft ? 'rgba(234,88,12,0.04)' : 'transparent',
-                    }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <FileText className="h-4 w-4 flex-shrink-0" style={{ color: isDraft ? 'var(--ember-orange)' : 'var(--muted-foreground)' }} />
-                      <div className="min-w-0">
-                        {/* original_filename = raw model field (embedded relation); file_name = transformed API field */}
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-                            {doc.original_filename ?? doc.file_name ?? doc.name ?? 'Document'}
-                          </p>
-                          {isDraft && (
-                            <span
-                              className="text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
-                              style={{ background: 'rgba(234,88,12,0.12)', color: 'var(--ember-orange)' }}
-                            >
-                              Draft
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                          {formatDocType(doc.document_type)}
-                          {(() => { const b = doc.file_size ?? doc.size; return b != null ? ` · ${(b / 1024).toFixed(1)} KB` : ''; })()}
-                          {isDraft && ' · Not yet visible to staff'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* Submit to Staff — only for draft documents */}
-                      {isDraft && (
-                        <button
-                          onClick={() => handleSubmitDocument(doc.id)}
-                          disabled={submittingDocId === doc.id}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors disabled:opacity-50"
-                          style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
-                        >
-                          {submittingDocId === doc.id ? 'Submitting…' : 'Submit to Staff'}
-                        </button>
-                      )}
-                      {/* View — opens preview modal using an authenticated blob fetch */}
-                      <button
-                        onClick={() => setPreviewDoc({ id: doc.id, name: doc.original_filename ?? doc.file_name ?? 'Document', mime: doc.mime_type })}
-                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
-                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                      >
-                        <Eye className="h-3 w-3" />
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleDownload(doc.id, doc.original_filename ?? doc.file_name ?? doc.name ?? 'document')}
-                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:border-[var(--ember-orange)]"
-                        style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                      >
-                        <Download className="h-3 w-3" />
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-              );
-            })()}
-          </SectionCard>
-        </div>
       </div>
 
       {/* What's Next — status-specific guidance including medical form requirement */}

@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApplicationStatus;
 use App\Enums\DocumentVerificationStatus;
+use App\Models\Application;
 use App\Models\Camper;
+use App\Models\CampSession;
 use App\Models\Document;
 use App\Models\Role;
 use App\Models\User;
@@ -76,6 +79,11 @@ class CamperComplianceEndpointTest extends TestCase
         $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
+        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
 
         $response = $this->actingAs($admin)
             ->getJson("/api/campers/{$camper->id}/compliance-status");
@@ -225,6 +233,7 @@ class CamperComplianceEndpointTest extends TestCase
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Approved,
                 'submitted_at' => now(),
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
             ]);
         }
 
@@ -238,6 +247,7 @@ class CamperComplianceEndpointTest extends TestCase
                 'missing_documents' => [],
                 'expired_documents' => [],
                 'unverified_documents' => [],
+                'incomplete_documents' => [],
             ],
         ]);
     }

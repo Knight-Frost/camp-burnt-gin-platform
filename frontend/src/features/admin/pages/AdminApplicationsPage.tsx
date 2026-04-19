@@ -30,14 +30,26 @@ import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBan
 // making it impossible for admins to find withdrawn applications without searching.
 const STATUS_FILTERS = ['all', 'draft', 'submitted', 'under_review', 'approved', 'waitlisted', 'rejected', 'cancelled', 'withdrawn'] as const;
 
+/**
+ * Submission intake mode filter. `all` is frontend-only; the others map to
+ * the `submission_source` column on applications. Paper apps need a separate
+ * review queue because the completeness gate and expected artifacts differ
+ * (signature + consents on paper vs digital), so operating them together in
+ * a single list hides the workload of each pipeline.
+ */
+const SOURCE_FILTERS = ['all', 'digital', 'paper_self', 'paper_admin'] as const;
+type SourceFilter = typeof SOURCE_FILTERS[number];
+
 type SortKey = 'submitted_at' | 'status' | 'reviewed_at';
 
 interface Filters {
   search: string;
   status: string;
+  submission_source: SourceFilter;
   page: number;
   sort: SortKey;
   direction: 'asc' | 'desc';
+  include_drafts: boolean;
 }
 
 export function AdminApplicationsPage() {
@@ -140,9 +152,11 @@ export function AdminApplicationsPage() {
   const [filters, setFilters]   = useState<Filters>({
     search: '',
     status: 'all',
+    submission_source: 'all',
     page: 1,
     sort: 'submitted_at',
     direction: 'asc',
+    include_drafts: false,
   });
   const [retryKey, setRetryKey] = useState(0);
   const [searchInput, setSearchInput] = useState('');
@@ -169,7 +183,9 @@ export function AdminApplicationsPage() {
     }, 300);
   }, []);
   const setStatus = (s: string)    => setFilters((f) => ({ ...f, status: s, page: 1 }));
+  const setSource = (s: SourceFilter) => setFilters((f) => ({ ...f, submission_source: s, page: 1 }));
   const setPage   = (p: number)    => setFilters((f) => ({ ...f, page: p }));
+  const setIncludeDrafts = (v: boolean) => setFilters((f) => ({ ...f, include_drafts: v, page: 1 }));
   function toggleSort(col: SortKey) {
     setFilters((f) => ({
       ...f, page: 1, sort: col,
@@ -184,14 +200,22 @@ export function AdminApplicationsPage() {
       try {
         const isDraft = filters.status === 'draft';
         const data = await getApplications({
-          page:            filters.page,
-          per_page:        PER_PAGE,       // RISK-1 FIX: explicit, not relying on backend default
-          search:          filters.search || undefined,
-          status:          !isDraft && filters.status !== 'all' ? filters.status : undefined,
-          drafts_only:     isDraft || undefined,
-          camp_session_id: workspaceSessionId,
-          sort:            filters.sort,
-          direction:       filters.direction,
+          page:               filters.page,
+          per_page:           PER_PAGE,       // RISK-1 FIX: explicit, not relying on backend default
+          search:             filters.search || undefined,
+          status:             !isDraft && filters.status !== 'all' ? filters.status : undefined,
+          drafts_only:        isDraft || undefined,
+          // Opt-in "Include drafts" flag only applies to the default
+          // (no-status-filter) view. When the admin has picked a specific
+          // status or the dedicated Draft filter, this flag is a no-op so
+          // we omit it to keep the wire payload minimal.
+          include_drafts:     !isDraft && filters.status === 'all' && filters.include_drafts
+                              ? true
+                              : undefined,
+          camp_session_id:    workspaceSessionId,
+          submission_source:  filters.submission_source !== 'all' ? filters.submission_source : undefined,
+          sort:               filters.sort,
+          direction:          filters.direction,
         });
         if (!cancelled) setResponse(data);
       } catch {
@@ -274,6 +298,54 @@ export function AdminApplicationsPage() {
             ))}
           </select>
         </div>
+        {/* Source filter — lets the admin isolate the paper queue from the
+            digital queue so intake workflows and staffing can be planned
+            separately. */}
+        <div
+          className="flex items-center gap-2 rounded-lg px-3 py-2 border"
+          style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
+        >
+          <span className="text-sm" aria-hidden="true">📄</span>
+          <select
+            value={filters.submission_source}
+            onChange={(e) => setSource(e.target.value as SourceFilter)}
+            className="bg-transparent text-sm outline-none"
+            style={{ color: 'var(--foreground)' }}
+            aria-label="Filter by submission source"
+          >
+            <option value="all"         style={{ background: 'var(--card)' }}>All sources</option>
+            <option value="digital"     style={{ background: 'var(--card)' }}>Digital only</option>
+            <option value="paper_self"  style={{ background: 'var(--card)' }}>Paper (family uploaded)</option>
+            <option value="paper_admin" style={{ background: 'var(--card)' }}>Paper (staff entered)</option>
+          </select>
+        </div>
+
+        {/* Include-drafts toggle.
+            Drafts are incomplete, not-yet-submitted applications. They stay
+            out of the default review queue so the queue reflects real work.
+            This opt-in toggle exists for one specific use case: diagnosing
+            "application already exists" errors where the blocker turns out
+            to be a stuck draft. Only visible in the default (All Statuses)
+            view; hiding it when a specific status is selected keeps the UI
+            honest about what the toggle actually does. */}
+        {filters.status === 'all' && (
+          <label
+            className="flex items-center gap-2 rounded-lg px-3 py-2 border cursor-pointer select-none"
+            style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
+            title="Include in-progress drafts from applicants. Off by default so the review queue only surfaces actionable work."
+          >
+            <input
+              type="checkbox"
+              checked={filters.include_drafts}
+              onChange={(e) => setIncludeDrafts(e.target.checked)}
+              className="cursor-pointer"
+              aria-label="Include draft applications"
+            />
+            <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+              Include drafts
+            </span>
+          </label>
+        )}
       </div>
 
       {/* Table */}
@@ -395,6 +467,19 @@ export function AdminApplicationsPage() {
                       ↩ {t('admin.applications.reapplication')}
                     </span>
                   )}
+                  {(app.submission_source === 'paper_self' || app.submission_source === 'paper_admin') && (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full mt-1 ml-1 font-medium"
+                      style={{ background: 'rgba(234,88,12,0.10)', color: 'var(--ember-orange)' }}
+                      title={
+                        app.submission_source === 'paper_self'
+                          ? 'Family uploaded a scanned paper packet themselves'
+                          : 'Staff entered this record from a physical packet'
+                      }
+                    >
+                      📄 {app.submission_source === 'paper_self' ? 'Paper (family)' : 'Paper (staff)'}
+                    </span>
+                  )}
                 </div>
 
                 {/* ── Session (3 cols) ─────────────────────────────────── */}
@@ -402,11 +487,6 @@ export function AdminApplicationsPage() {
                   <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                     {app.session?.name ?? t('admin.applications.unknown_session')}
                   </p>
-                  {app.session?.camp && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      {app.session.camp.name}
-                    </p>
-                  )}
                 </div>
 
                 {/* ── Submitted (3 cols) ───────────────────────────────── */}

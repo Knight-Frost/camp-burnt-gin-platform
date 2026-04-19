@@ -30,6 +30,7 @@ import {
   Megaphone,
   Layout,
   User,
+  ShieldAlert,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '@/store/hooks';
@@ -73,7 +74,7 @@ export function AdminLayout() {
     { group: gPrimary, label: t('portal_nav.applications'),     to: ROUTES.ADMIN_APPLICATIONS,  icon: FileText },
     { group: gPrimary, label: t('portal_nav.families'),         to: ROUTES.ADMIN_FAMILIES,      icon: Home },
     { group: gPrimary, label: t('portal_nav.camper_directory'), to: ROUTES.ADMIN_CAMPERS,       icon: Users },
-    { group: gPrimary, label: t('portal_nav.sessions_camps'),   to: ROUTES.ADMIN_SESSIONS,      icon: CalendarDays },
+    { group: gPrimary, label: t('portal_nav.camp_sessions'),     to: ROUTES.ADMIN_SESSIONS,      icon: CalendarDays },
     // COMMUNICATION
     { group: gComm,   label: t('portal_nav.inbox'),            to: '/admin/inbox',             icon: MessageSquare, badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { group: gComm,   label: t('portal_nav.announcements'),    to: ROUTES.ADMIN_ANNOUNCEMENTS, icon: Megaphone },
@@ -83,6 +84,7 @@ export function AdminLayout() {
     { group: gOps,    label: t('portal_nav.deadlines'),        to: ROUTES.ADMIN_DEADLINES,     icon: Clock },
     { group: gOps,    label: t('portal_nav.reports'),          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
     // SYSTEM — governance & configuration
+    { group: gSystem, label: t('portal_nav.risk_management'),  to: '/admin/risk-management',   icon: ShieldAlert },
     { group: gSystem, label: t('portal_nav.form_builder'),     to: ROUTES.ADMIN_FORM_BUILDER,  icon: Layout },
     { group: gSystem, label: t('portal_nav.my_profile'),       to: '/admin/profile',           icon: User },
     { group: gSystem, label: t('portal_nav.settings'),         to: '/admin/settings',          icon: Settings },

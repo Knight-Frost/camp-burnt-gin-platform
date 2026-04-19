@@ -42,6 +42,7 @@ import {
   getApplications,
   uploadDocument,
   submitDocument,
+  finalizeApplication,
 } from '@/features/parent/api/applicant.api';
 import type { OfficialFormTemplate } from '@/shared/types';
 import type { Document } from '@/features/parent/api/applicant.api';
@@ -82,6 +83,27 @@ const UPLOAD_SLOTS: UploadSlotDef[] = [
     documentType: 'official_cyshcn_form',
     required: false,
   },
+  {
+    id: 'cpap_waiver',
+    labelKey: 'official_forms.slot_cpap_label',
+    descKey: 'official_forms.slot_cpap_desc',
+    documentType: 'cpap_waiver',
+    required: false,
+  },
+  {
+    id: 'seizure_plan',
+    labelKey: 'official_forms.slot_seizure_label',
+    descKey: 'official_forms.slot_seizure_desc',
+    documentType: 'seizure_plan',
+    required: false,
+  },
+  {
+    id: 'gtube_plan',
+    labelKey: 'official_forms.slot_gtube_label',
+    descKey: 'official_forms.slot_gtube_desc',
+    documentType: 'gtube_plan',
+    required: false,
+  },
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -112,6 +134,14 @@ export function ApplicantOfficialFormsPage() {
   const [error, setError] = useState(false);
   const [slotStates, setSlotStates] = useState<Record<string, SlotState>>({});
   const [activeApplicationId, setActiveApplicationId] = useState<number | null>(null);
+  // Needed to decide whether handleSubmitAll should flip the Application from
+  // draft → submitted. Paper applicants never touch the 10-section form, so
+  // without this finalization step their application record would sit as
+  // is_draft=true forever even after they uploaded the full packet.
+  const [activeApplicationIsDraft, setActiveApplicationIsDraft] = useState(false);
+  const [activeApplicationSource, setActiveApplicationSource] = useState<
+    'digital' | 'paper_self' | 'paper_admin' | null
+  >(null);
   const [submitting, setSubmitting] = useState(false);
   const [downloadingForm, setDownloadingForm] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewState>({
@@ -141,8 +171,14 @@ export function ApplicantOfficialFormsPage() {
 
         if (submittedApp) {
           setActiveApplicationId(submittedApp.id);
+          setActiveApplicationIsDraft(false);
+          setActiveApplicationSource(submittedApp.submission_source ?? 'digital');
         } else if (draftApp || localDraft) {
-          if (draftApp) setActiveApplicationId(draftApp.id);
+          if (draftApp) {
+            setActiveApplicationId(draftApp.id);
+            setActiveApplicationIsDraft(true);
+            setActiveApplicationSource(draftApp.submission_source ?? 'digital');
+          }
         }
 
         // Initialize slot states from previously uploaded documents.
@@ -278,7 +314,7 @@ export function ApplicantOfficialFormsPage() {
   // ── Submission handler ──────────────────────────────────────────────────────
 
   async function handleSubmitAll() {
-    // Collect IDs of uploaded documents that have not yet been submitted.
+    // Collect IDs of uploaded documents that are still drafts.
     const toSubmit = UPLOAD_SLOTS.flatMap((slot) => {
       const st = slotStates[slot.id];
       return st?.uploadedDoc && !st.uploadedDoc.submitted_at ? [st.uploadedDoc.id] : [];
@@ -286,11 +322,43 @@ export function ApplicantOfficialFormsPage() {
 
     if (toSubmit.length === 0) return;
 
+    const isPaper =
+      activeApplicationSource === 'paper_self' ||
+      activeApplicationSource === 'paper_admin';
+
     setSubmitting(true);
     try {
-      await Promise.all(toSubmit.map((id) => submitDocument(id)));
+      if (isPaper && activeApplicationIsDraft && activeApplicationId !== null) {
+        // Paper draft: do NOT submit docs individually. The backend's
+        // finalize endpoint cascades submitted_at to every draft doc
+        // attached to this application in a single atomic transaction.
+        // Submitting docs first would leave a window where the docs look
+        // submitted but the app is still a draft — exactly the leak path
+        // the admin Uploaded Documents tab used to surface.
+        try {
+          await finalizeApplication(activeApplicationId);
+          setActiveApplicationIsDraft(false);
+        } catch (err) {
+          const fe = err as { missing_documents?: Array<{ label?: string }>; message?: string };
+          const missing = fe.missing_documents?.map((m) => m.label).filter(Boolean).join(', ');
+          toast.error(
+            missing
+              ? `${t('official_forms.submit_error')} — ${missing}`
+              : (fe.message ?? t('official_forms.submit_error')),
+          );
+          return;
+        }
+      } else if (!activeApplicationIsDraft) {
+        // Submitted digital application, corrective / supplementary upload
+        // path: the gate is already passed, so individually submit each new
+        // doc so the admin sees it immediately.
+        await Promise.all(toSubmit.map((id) => submitDocument(id)));
+      } else {
+        // Digital draft — the applicant should submit via ApplicationFormPage.
+        // Just keep the docs as drafts; finalize there will cascade.
+      }
 
-      // Refresh to capture updated submitted_at values from the server.
+      // Refresh slot state from the server so submitted_at values are accurate.
       const updatedDocs = await getDocuments();
       setSlotStates((prev) => {
         const next = { ...prev };
@@ -302,6 +370,7 @@ export function ApplicantOfficialFormsPage() {
         });
         return next;
       });
+
       toast.success(t('official_forms.submit_success'));
     } catch {
       toast.error(t('official_forms.submit_error'));
@@ -552,11 +621,88 @@ export function ApplicantOfficialFormsPage() {
               />
             ))}
           </div>
+
+          {/* Supplemental / conditional forms — provider-completed, condition-specific */}
+          <div style={{ marginTop: 20 }}>
+            <p style={{ fontFamily: 'var(--font-headline)', fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--foreground)', margin: '0 0 2px' }}>
+              {t('official_forms.supplemental_title')}
+            </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-xs)', color: 'var(--muted-foreground)', margin: '0 0 10px' }}>
+              {t('official_forms.supplemental_subtitle')}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <SupplementalFormCard
+                label={t('official_forms.slot_cpap_label')}
+                description={t('official_forms.slot_cpap_desc')}
+                href="/api/forms/cpap-waiver"
+                filename="CPAP-BiPAP-Waiver-1856-ENG-DPH.pdf"
+                t={t}
+              />
+              <SupplementalFormCard
+                label={t('official_forms.slot_seizure_label')}
+                description={t('official_forms.slot_seizure_desc')}
+                href="/api/forms/seizure-plan"
+                filename="Seizure-Action-Plan-4522-ENG-DPH.pdf"
+                t={t}
+              />
+              <SupplementalFormCard
+                label={t('official_forms.slot_gtube_label')}
+                description={t('official_forms.slot_gtube_desc')}
+                href="/api/forms/gtube-plan"
+                filename="G-Tube-Feeding-Action-Plan-4515-ENG-DPH.pdf"
+                t={t}
+              />
+            </div>
+          </div>
         </section>
 
         {/* ── Step 2: Upload Completed Forms ──────────────────────────────── */}
         <section>
           <StepHeader step={2} title={t('official_forms.step2_title')} subtitle={t('official_forms.step2_subtitle')} />
+
+          {/* Upload ≠ Submit notice. Placed above every upload card so the
+              distinction is impossible to miss. The submit model is unchanged —
+              this is purely a visibility lift. */}
+          <div
+            role="note"
+            style={{
+              background: 'rgba(234,88,12,0.06)',
+              border: '1px solid rgba(234,88,12,0.28)',
+              borderLeft: '4px solid var(--ember-orange)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 14px',
+              marginBottom: 14,
+              display: 'flex',
+              gap: 10,
+              alignItems: 'flex-start',
+            }}
+          >
+            <AlertCircle className="w-4 h-4" style={{ color: 'var(--ember-orange)', flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <p
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 700,
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--foreground)',
+                  margin: 0,
+                }}
+              >
+                {t('official_forms.upload_notice_title')}
+              </p>
+              <p
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--muted-foreground)',
+                  margin: '3px 0 0',
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('official_forms.upload_notice_body')}
+              </p>
+            </div>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {UPLOAD_SLOTS.map((slot) => {
@@ -813,6 +959,80 @@ function StepHeader({ step, title, subtitle }: { step: number; title: string; su
   );
 }
 
+function SupplementalFormCard({
+  label,
+  description,
+  href,
+  filename,
+  t,
+}: {
+  label: string;
+  description: string;
+  href: string;
+  filename: string;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+      }}
+    >
+      <div
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 'var(--radius-md)',
+          background: 'rgba(124,58,237,0.07)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <FileText className="w-4 h-4" style={{ color: '#7c3aed' }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--foreground)', margin: 0 }}>
+          {label}
+        </p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-xs)', color: 'var(--muted-foreground)', margin: '2px 0 0', lineHeight: 1.45 }}>
+          {description}
+        </p>
+      </div>
+      <a
+        href={href}
+        download={filename}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          flexShrink: 0,
+          padding: '5px 12px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border)',
+          background: 'var(--card)',
+          fontFamily: 'var(--font-body)',
+          fontSize: 'var(--text-xs)',
+          fontWeight: 500,
+          color: 'var(--foreground)',
+          textDecoration: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        <Download className="w-3.5 h-3.5" />
+        {t('official_forms.supplemental_download')}
+      </a>
+    </div>
+  );
+}
+
 function FormDownloadCard({
   form,
   isDownloading,
@@ -998,6 +1218,47 @@ function UploadSlotCard({
           >
             {slot.required ? t('official_forms.required_badge') : t('official_forms.optional_badge')}
           </span>
+          {/* Explicit upload/submission status chip. Only renders after an upload
+              exists. Amber = draft (lives only on this page); green = sent to
+              staff (the gate in Step 3 has already run). */}
+          {isSubmittedToStaff && (
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 600,
+                background: 'rgba(22,163,74,0.12)',
+                color: '#15803d',
+                borderRadius: 999,
+                padding: '1px 8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              {t('official_forms.submitted_to_staff_badge')}
+            </span>
+          )}
+          {isDraft && (
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 600,
+                background: 'rgba(234,179,8,0.12)',
+                color: '#92400e',
+                borderRadius: 999,
+                padding: '1px 8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <AlertCircle className="w-3 h-3" />
+              {t('official_forms.draft_badge')}
+            </span>
+          )}
         </div>
         <p
           style={{

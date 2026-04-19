@@ -16,6 +16,7 @@ use App\Models\MedicalVisit;
 use App\Models\TreatmentLog;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 /**
  * Seeder — medical operations data.
@@ -177,6 +178,10 @@ class MedicalOperationsSeeder extends Seeder
             return;
         }
 
+        // Base for incident/visit dates: spread over the last 6 days so they
+        // always appear in the Recent Activity feed on the dashboard.
+        $d = fn (int $daysAgo): string => Carbon::today()->subDays($daysAgo)->toDateString();
+
         // Ethan — behavioral incident (transition meltdown)
         MedicalIncident::create([
             'camper_id' => $ethan->id,
@@ -188,7 +193,7 @@ class MedicalOperationsSeeder extends Seeder
             'location' => 'Swimming pool transition area',
             'witnesses' => 'Counselor J. Torres, Lifeguard M. Reed',
             'escalation_required' => false,
-            'incident_date' => '2025-06-11',
+            'incident_date' => $d(5),
             'incident_time' => '14:30:00',
         ]);
 
@@ -203,7 +208,7 @@ class MedicalOperationsSeeder extends Seeder
             'location' => 'Outdoor activity area — behind Arts Building',
             'witnesses' => 'Activity counselor B. Johnson',
             'escalation_required' => false,
-            'incident_date' => '2025-06-10',
+            'incident_date' => $d(6),
             'incident_time' => '15:45:00',
         ]);
 
@@ -215,7 +220,7 @@ class MedicalOperationsSeeder extends Seeder
             'notes' => 'BG 58 mg/dL episode during high-activity period. Per parent, afternoon basal may need adjustment during camp activities. Contact parent to review pump settings.',
             'status' => FollowUpStatus::Completed,
             'priority' => FollowUpPriority::High,
-            'due_date' => '2025-06-11',
+            'due_date' => $d(5),
             'completed_at' => now()->subMonths(9)->setTime(10, 0),
             'completed_by' => $this->medical->id,
         ]);
@@ -231,7 +236,7 @@ class MedicalOperationsSeeder extends Seeder
             'location' => 'Outdoor recreation area',
             'witnesses' => 'Counselor T. Kim',
             'escalation_required' => false,
-            'incident_date' => '2025-06-12',
+            'incident_date' => $d(4),
             'incident_time' => '13:45:00',
         ]);
 
@@ -246,7 +251,7 @@ class MedicalOperationsSeeder extends Seeder
             'location' => 'Dining Hall, Table 4',
             'witnesses' => 'Counselor M. Davis, 3 other campers',
             'escalation_required' => false,
-            'incident_date' => '2025-06-10',
+            'incident_date' => $d(6),
             'incident_time' => '18:20:00',
         ]);
 
@@ -258,7 +263,7 @@ class MedicalOperationsSeeder extends Seeder
             'notes' => 'Liam had breakthrough absence seizure during dinner. Last documented seizure was September 2025. Parent called during incident — updated on outcome. Recommend notifying neurologist for medication review.',
             'status' => FollowUpStatus::Completed,
             'priority' => FollowUpPriority::Urgent,
-            'due_date' => '2025-06-11',
+            'due_date' => $d(5),
             'completed_at' => now()->subMonths(9)->setTime(8, 30),
             'completed_by' => $this->medical->id,
         ]);
@@ -274,7 +279,7 @@ class MedicalOperationsSeeder extends Seeder
             'location' => 'Path between Cabin 3 and recreation hall',
             'witnesses' => 'Counselor A. Smith',
             'escalation_required' => false,
-            'incident_date' => '2025-06-11',
+            'incident_date' => $d(5),
             'incident_time' => '11:20:00',
         ]);
 
@@ -290,7 +295,7 @@ class MedicalOperationsSeeder extends Seeder
             'witnesses' => 'Night counselor P. Washington, RN on call',
             'escalation_required' => true,
             'escalation_notes' => 'Medical director notified immediately per SMA respiratory emergency protocol. No deterioration. Equipment failure documented for equipment review committee.',
-            'incident_date' => '2025-06-13',
+            'incident_date' => $d(3),
             'incident_time' => '05:30:00',
         ]);
 
@@ -298,7 +303,7 @@ class MedicalOperationsSeeder extends Seeder
         MedicalVisit::create([
             'camper_id' => $ava->id,
             'recorded_by' => $this->medical->id,
-            'visit_date' => '2025-06-13',
+            'visit_date' => $d(3),
             'visit_time' => '07:00:00',
             'chief_complaint' => 'Hyperglycemia with trace ketones — departure day',
             'symptoms' => 'BG 312 mg/dL on waking, trending up. Dexcom alarm. Ketones 0.8 mmol/L. Camper reports fatigue and mild nausea. No vomiting.',
@@ -315,7 +320,7 @@ class MedicalOperationsSeeder extends Seeder
         MedicalVisit::create([
             'camper_id' => Camper::where('first_name', 'Lucas')->where('last_name', 'Williams')->firstOrFail()->id,
             'recorded_by' => $this->nurse->id,
-            'visit_date' => '2025-06-11',
+            'visit_date' => $d(5),
             'visit_time' => '14:00:00',
             'chief_complaint' => 'Routine respiratory assessment — post-activity check',
             'symptoms' => 'No acute symptoms. Routine monitoring.',

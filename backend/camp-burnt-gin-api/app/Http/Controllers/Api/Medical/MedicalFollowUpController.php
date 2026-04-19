@@ -45,6 +45,11 @@ class MedicalFollowUpController extends Controller
             // Sort by priority within the same due date: urgent first, low last.
             ->orderByRaw("FIELD(priority, 'urgent', 'high', 'medium', 'low')");
 
+        // Phase 18: scope to a specific camp session.
+        if ($request->filled('session_id')) {
+            $query->where('camp_session_id', $request->integer('session_id'));
+        }
+
         // Scope to one camper's follow-ups when viewing their medical record page.
         if ($request->filled('camper_id')) {
             $query->where('camper_id', $request->integer('camper_id'));
@@ -93,6 +98,7 @@ class MedicalFollowUpController extends Controller
 
         $validated = $request->validate([
             'camper_id' => 'required|integer|exists:campers,id',
+            'camp_session_id' => 'nullable|integer|exists:camp_sessions,id',
             // Assignee is optional — follow-ups may be unassigned initially.
             'assigned_to' => 'nullable|integer|exists:users,id',
             'treatment_log_id' => 'nullable|integer|exists:treatment_logs,id',

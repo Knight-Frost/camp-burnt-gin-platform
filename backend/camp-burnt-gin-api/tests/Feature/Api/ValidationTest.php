@@ -159,15 +159,21 @@ class ValidationTest extends TestCase
             ->assertJsonValidationErrors(['camp_session_id']);
     }
 
-    public function test_duplicate_application_rejected(): void
+    public function test_duplicate_active_application_returns_conflict(): void
     {
+        // Contract after 2026-04-18: a LIVE (non-draft, non-final) application
+        // for the same (camper, session) is the only case that produces 409.
+        // Drafts resume, final-state rows allow a fresh submission.
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create();
 
-        $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper->id,
+        \App\Models\Application::factory()->create([
+            'camper_id'       => $camper->id,
             'camp_session_id' => $session->id,
+            'is_draft'        => false,
+            'status'          => \App\Enums\ApplicationStatus::Submitted,
+            'submitted_at'    => now()->subDay(),
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
@@ -175,8 +181,8 @@ class ValidationTest extends TestCase
             'camp_session_id' => $session->id,
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['camp_session_id']);
+        $response->assertStatus(409)
+            ->assertJsonStructure(['message', 'existing_application_id', 'existing_application_status']);
     }
 
     public function test_application_review_requires_valid_status(): void

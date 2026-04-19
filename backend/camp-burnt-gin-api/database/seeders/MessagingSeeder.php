@@ -111,7 +111,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $sarah->id,
                 'subject' => 'Re: Ethan\'s Summer 2026 Application — confirmation',
-                'category' => 'Application',
+                'category' => 'application',
                 'application_id' => $appEthan?->id,
                 'camper_id' => $ethan->id,
                 'camp_session_id' => $session1->id,
@@ -139,7 +139,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $michael->id,
                 'subject' => 'Question about Ava\'s OmniPod insulin pump at camp',
-                'category' => 'Medical',
+                'category' => 'medical',
                 'application_id' => $appAva?->id,
                 'camper_id' => $ava->id,
                 'last_message_at' => now()->subHours(2),
@@ -173,7 +173,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $jennifer->id,
                 'subject' => 'Inquiry about Noah\'s application decision',
-                'category' => 'Application',
+                'category' => 'application',
                 'application_id' => $appNoah?->id,
                 'camper_id' => $noah->id,
                 'last_message_at' => now()->subDays(1),
@@ -199,7 +199,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $david->id,
                 'subject' => 'Clean Intermittent Catheterization — procedure questions',
-                'category' => 'Medical',
+                'category' => 'medical',
                 'camper_id' => $sofia->id,
                 'application_id' => $appSofia?->id,
                 'last_message_at' => now()->subDays(2),
@@ -221,7 +221,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $grace->id,
                 'subject' => 'Waitlist question for Tyler — Session 1 2026',
-                'category' => 'Application',
+                'category' => 'application',
                 'camper_id' => $tyler->id,
                 'last_message_at' => now()->subDays(3),
                 'is_archived' => false,
@@ -240,7 +240,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $anthony->id,
                 'subject' => 'Penelope\'s AAC communication device at camp',
-                'category' => 'Medical',
+                'category' => 'medical',
                 'camper_id' => $penny->id,
                 'last_message_at' => now()->subDays(1),
                 'is_archived' => false,
@@ -267,7 +267,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $admin->id,
                 'subject' => 'Important: Session 1 — Summer 2026 Pre-Camp Information',
-                'category' => 'General',
+                'category' => 'general',
                 'camp_session_id' => $session1->id,
                 'last_message_at' => now()->subDays(5),
                 'is_archived' => false,
@@ -288,7 +288,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $patricia->id,
                 'subject' => 'Mia\'s Hydroxyurea — 2025 session clarification',
-                'category' => 'Medical',
+                'category' => 'medical',
                 'camper_id' => $mia->id,
                 'application_id' => $appMia25?->id,
                 'last_message_at' => now()->subDays(275),
@@ -314,7 +314,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $sarah->id,
                 'subject' => 'Ethan\'s application — quick question (duplicate)',
-                'category' => 'Application',
+                'category' => 'application',
                 'camper_id' => $ethan->id,
                 'last_message_at' => now()->subDays(4),
                 'is_archived' => false,
@@ -332,7 +332,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $robert->id,
                 'subject' => 'Emma\'s g-tube site — positioning and activity restrictions',
-                'category' => 'Medical',
+                'category' => 'medical',
                 'camper_id' => $emma->id,
                 'last_message_at' => now()->subHours(6),
                 'is_archived' => false,
@@ -445,7 +445,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $james->id,
                 'subject' => 'Henry\'s approved application — arrival and packing questions',
-                'category' => 'Application',
+                'category' => 'application',
                 'application_id' => $appHenry?->id,
                 'camper_id' => $henry->id,
                 'camp_session_id' => $session1->id,
@@ -472,7 +472,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $michelle->id,
                 'subject' => 'Questions before I start Olivia\'s application',
-                'category' => 'General',
+                'category' => 'general',
                 'camp_session_id' => $session2->id,
                 'last_message_at' => now()->subHours(8),
                 'is_archived' => false,
@@ -494,7 +494,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $admin->id,
                 'subject' => 'S1 2026 — Pre-camp staffing allocation review',
-                'category' => 'General',
+                'category' => 'general',
                 'camp_session_id' => $session1->id,
                 'last_message_at' => now()->subHours(3),
                 'is_archived' => false,
@@ -526,7 +526,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $patricia->id,
                 'subject' => 'Mia Davis — Session 2 2026 interest and scheduling',
-                'category' => 'Application',
+                'category' => 'application',
                 'camper_id' => $mia->id,
                 'camp_session_id' => $session2->id,
                 'last_message_at' => now()->subDays(1),
@@ -552,7 +552,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $jennifer->id,
                 'subject' => 'Noah\'s seizure medication — administration questions for nursing team',
-                'category' => 'Medical',
+                'category' => 'medical',
                 'camper_id' => $noah->id,
                 'camp_session_id' => $session2->id,
                 'last_message_at' => now()->subHours(5),
@@ -578,7 +578,7 @@ class MessagingSeeder extends Seeder
             $conv = $this->makeConv([
                 'created_by_id' => $admin->id,
                 'subject' => 'Pre-camp form template review — S1 2026',
-                'category' => 'General',
+                'category' => 'general',
                 'last_message_at' => now()->subDays(1),
                 'is_archived' => false,
             ]);
@@ -611,7 +611,7 @@ class MessagingSeeder extends Seeder
             'camper_id' => null,
             'camp_session_id' => null,
             'is_archived' => false,
-            'category' => 'General',
+            'category' => 'general',
         ], $attrs));
     }
 

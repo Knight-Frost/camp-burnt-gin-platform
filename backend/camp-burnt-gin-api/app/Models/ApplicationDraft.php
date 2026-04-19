@@ -31,6 +31,7 @@ class ApplicationDraft extends Model
     use HasFactory;
     protected $fillable = [
         'user_id',
+        'application_id',
         'label',
         'draft_data',
     ];
@@ -47,5 +48,15 @@ class ApplicationDraft extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The Application this blob is staging (if any). Set by the form page
+     * as soon as the Application row is created; used by finalize() to
+     * delete the blob by FK instead of fragile label-match.
+     */
+    public function application(): BelongsTo
+    {
+        return $this->belongsTo(Application::class);
     }
 }

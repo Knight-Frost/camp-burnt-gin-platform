@@ -47,26 +47,24 @@ class AcceptanceLetterNotification extends Notification implements ShouldQueue
     /**
      * Build the acceptance letter email.
      *
-     * Loads session and camp details from the application and constructs a warm,
+     * Loads session details from the application and constructs a warm,
      * professional letter with all the information families need to prepare for camp.
      */
     public function toMail(object $notifiable): MailMessage
     {
-        // Load the session and its parent camp to fill in the letter details
         $session = $this->application->campSession;
-        $camp = $session->camp;
 
         return (new MailMessage)
-            ->subject('Congratulations! Application Accepted - '.$camp->name)
+            ->subject('Congratulations! Application Accepted - Camp Burnt Gin')
             ->greeting('Dear '.$notifiable->name.',')
             ->line('We are delighted to inform you that the application for '.$this->application->camper->full_name.' has been accepted!')
             ->line('')
             ->line('**Camp Details:**')
-            ->line('Camp: '.$camp->name)
+            ->line('Camp: Camp Burnt Gin')
             ->line('Session: '.$session->name)
             // Format dates as "June 2 - June 8, 2026" for readability
             ->line('Dates: '.$session->start_date->format('F j').' - '.$session->end_date->format('F j, Y'))
-            ->line('Location: '.$camp->location)
+            ->line('Location: 1628 Old Wire Rd, Gaston, SC 29053')
             ->line('')
             ->line('Please review the camp information and ensure all required forms are completed before the session begins.')
             // Deep link to the specific application so the family can see their details

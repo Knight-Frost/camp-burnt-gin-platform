@@ -48,6 +48,7 @@ interface DashboardShellProps {
   pinnedBottomItems?: NavItem[];
   pageTitle: string;
   children: ReactNode;
+  subHeader?: ReactNode;
 }
 
 /**
@@ -69,6 +70,7 @@ function ShellInner({
   pinnedBottomItems,
   pageTitle,
   children,
+  subHeader,
 }: DashboardShellProps) {
   const location = useLocation();
   const { tone, setTone } = useBackgroundTone();
@@ -113,6 +115,10 @@ function ShellInner({
         {/* Non-blocking MFA enrollment nudge — visible to any user with mfa_enabled=false.
             Dismissible per session. Disappears instantly when MFA is enabled. */}
         <MfaWarningBanner />
+
+        {/* Optional portal-specific sub-header bar (e.g. session picker in medical portal).
+            Rendered outside the scroll container so it stays visible on scroll. */}
+        {subHeader}
 
         {/*
          * The inbox route gets special treatment:
@@ -162,3 +168,4 @@ export function DashboardShell(props: DashboardShellProps) {
     </BackgroundBrightnessProvider>
   );
 }
+

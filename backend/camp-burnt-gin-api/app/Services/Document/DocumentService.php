@@ -91,26 +91,58 @@ class DocumentService
         // PATCH /documents/{id}/submit before any document becomes visible to admins.
         $submittedAt = $user->isAdmin() ? now() : null;
 
-        // Create the database record for this document
-        $document = Document::create([
-            'documentable_type' => $data['documentable_type'] ?? null,
-            'documentable_id' => $data['documentable_id'] ?? null,
-            // Optional direct FK to Message — used when a document is a message attachment.
-            // This powers Message::hasAttachments() / Message::attachments() relationship.
-            'message_id' => $data['message_id'] ?? null,
-            'uploaded_by' => $user->id,
-            'original_filename' => $file->getClientOriginalName(),
-            'stored_filename' => $storedFilename,
-            'mime_type' => $file->getMimeType(),
-            'file_size' => $file->getSize(),
-            'disk' => 'local',
-            'path' => $path.'/'.$storedFilename,
-            'document_type' => $data['document_type'] ?? null,
-            'expiration_date' => $expirationDate,
-            // Mark as not yet scanned — the security scan runs in the background
-            'is_scanned' => false,
-            'submitted_at' => $submittedAt,
-        ]);
+        // ── Idempotent write: one live doc per (owner, type) ─────────────
+        // BEFORE creating the new row, archive any existing LIVE Document of
+        // the same (documentable_type, documentable_id, document_type).
+        // "Live" = archived_at IS NULL AND deleted_at IS NULL.
+        //
+        // This is the primary defence. A DB-level functional unique index
+        // (migration 2026_04_19_000003) backs it up so duplication is
+        // impossible even if future code forgets this step. Message
+        // attachments are intentionally exempt — a thread can carry
+        // many attachments of the same type.
+        $ownerType     = $data['documentable_type'] ?? null;
+        $ownerId       = $data['documentable_id'] ?? null;
+        $docType       = $data['document_type'] ?? null;
+        $isMessageAttachment = ! empty($data['message_id']);
+
+        $create = function () use ($data, $user, $path, $storedFilename, $file, $expirationDate, $submittedAt) {
+            return Document::create([
+                'documentable_type' => $data['documentable_type'] ?? null,
+                'documentable_id' => $data['documentable_id'] ?? null,
+                'message_id' => $data['message_id'] ?? null,
+                'uploaded_by' => $user->id,
+                'original_filename' => $file->getClientOriginalName(),
+                'stored_filename' => $storedFilename,
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'disk' => 'local',
+                'path' => $path.'/'.$storedFilename,
+                'document_type' => $data['document_type'] ?? null,
+                'expiration_date' => $expirationDate,
+                'is_scanned' => false,
+                'submitted_at' => $submittedAt,
+            ]);
+        };
+
+        if (! $isMessageAttachment && $ownerType !== null && $ownerId !== null && $docType !== null) {
+            // Transactional archive-old + create-new. If the create throws on
+            // the unique-index guard (duplicate race), we roll back so neither
+            // the archive nor the create lands — caller sees the failure.
+            $document = DB::transaction(function () use ($ownerType, $ownerId, $docType, $create) {
+                Document::where('documentable_type', $ownerType)
+                    ->where('documentable_id', $ownerId)
+                    ->where('document_type', $docType)
+                    ->whereNull('archived_at')
+                    ->lockForUpdate()
+                    ->update(['archived_at' => now()]);
+
+                return $create();
+            });
+        } else {
+            // Unowned doc (orphan) or message attachment — no dedupe key.
+            $document = $create();
+        }
 
         // For medical examination form documents attached to a Camper, persist the exam date
         // back to the camper's MedicalRecord so the date is available outside the document system.

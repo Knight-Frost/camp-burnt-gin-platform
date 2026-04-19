@@ -37,5 +37,9 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="SANCTUM_EXPIRATION" value="60"/>
+        <!-- Default to strict compliance during tests so existing suites cover
+             the full enforcement path. Individual flag-bypass tests flip this
+             inline via Config::set('compliance.strict_enabled', false). -->
+        <env name="APP_COMPLIANCE_CHECKS" value="true"/>
     </php>
 </phpunit>

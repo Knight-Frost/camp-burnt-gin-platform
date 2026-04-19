@@ -15,6 +15,13 @@ use App\Traits\QueuesNotifications;
 use Illuminate\Support\Facades\DB;
 
 /**
+ * Sentinel exception raised when the locked in-transaction capacity re-check
+ * detects that the session just filled up. Caught by reviewApplication() to
+ * return a structured error instead of leaking as a 500.
+ */
+class CapacityRaceException extends \RuntimeException {}
+
+/**
  * ApplicationService — Camp Application Review Workflow
  *
  * This service is the single authoritative entry point for every admin-initiated
@@ -87,7 +94,16 @@ class ApplicationService
      * @param  User  $reviewedBy  The admin performing the review.
      * @param  bool  $overrideIncomplete  True when admin explicitly approved despite missing data.
      * @param  array  $missingSummary  Structured list of what was missing at approval time.
-     * @return array{success: bool, invalid_transition?: bool, capacity_exceeded?: bool, compliance_details?: array}
+     * @return array{
+     *   success: bool,
+     *   draft_not_reviewable?: bool,
+     *   invalid_transition?: bool,
+     *   capacity_exceeded?: bool,
+     *   session_name?: string,
+     *   capacity?: int,
+     *   enrolled?: int,
+     *   compliance_details?: array
+     * }
      */
     public function reviewApplication(
         Application $application,
@@ -97,6 +113,13 @@ class ApplicationService
         bool $overrideIncomplete = false,
         array $missingSummary = [],
     ): array {
+        // Draft applications are not officially submitted and must never receive
+        // review decisions. The policy layer enforces this, but we guard here too
+        // so that any internal call path (e.g., admin-on-behalf) is also safe.
+        if ($application->is_draft) {
+            return ['success' => false, 'draft_not_reviewable' => true];
+        }
+
         // Capture the current status before any mutation occurs.
         $previousStatus = $application->status;
 
@@ -152,7 +175,44 @@ class ApplicationService
         // ── Atomic database mutations ─────────────────────────────────────────
         // All writes are wrapped in a single transaction. If any step fails, the
         // entire block is rolled back and the system remains in its prior state.
-        DB::transaction(function () use ($application, $newStatus, $notes, $reviewedBy, $previousStatus, $overrideIncomplete, $missingSummary) {
+        // Capacity-race detection uses a sentinel exception (defined below) so
+        // an empty/no-op transaction doesn't accidentally commit.
+        $capacityRaceResult = null;
+        try {
+            DB::transaction(function () use (
+            $application,
+            $newStatus,
+            $notes,
+            $reviewedBy,
+            $previousStatus,
+            $overrideIncomplete,
+            $missingSummary,
+            &$capacityRaceResult,
+        ) {
+            // Step 1b: Re-check capacity inside the transaction under a row-level
+            // lock. Two admins approving the last spot at the same time can BOTH
+            // pass the outer pre-flight check above; without this lock they would
+            // both commit and the session enrolled_count would exceed capacity.
+            // lockForUpdate serialises the two transactions so the second one
+            // sees the updated enrollment and bails out cleanly.
+            if ($newStatus === ApplicationStatus::Approved && $application->camp_session_id !== null) {
+                $session = \App\Models\CampSession::whereKey($application->camp_session_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($session && $session->isAtCapacity()) {
+                    $capacityRaceResult = [
+                        'success' => false,
+                        'capacity_exceeded' => true,
+                        'session_name' => $session->name,
+                        'capacity' => $session->capacity,
+                        'enrolled' => $session->enrolled_count,
+                    ];
+                    // Abort the transaction without writing anything.
+                    throw new CapacityRaceException();
+                }
+            }
+
             // Step 2: Persist the review decision.
             $updateData = [
                 'status' => $newStatus,
@@ -239,7 +299,12 @@ class ApplicationService
                 description: $auditDescription,
                 metadata: $auditMetadata,
             );
-        });
+            });
+        } catch (CapacityRaceException) {
+            // Another admin just took the last spot between the pre-flight and
+            // the locked re-check. Return the same error shape as the pre-flight.
+            return $capacityRaceResult ?? ['success' => false, 'capacity_exceeded' => true];
+        }
 
         // ── Post-commit side effects ──────────────────────────────────────────
         // Notifications and letters are dispatched only after the transaction has
@@ -255,12 +320,24 @@ class ApplicationService
         );
 
         // Dispatch the most specific in-app inbox message for the new status.
-        match ($newStatus) {
-            ApplicationStatus::Approved => $this->systemNotifications->applicationApproved(
+        // Cancelled → bespoke message with reason. UnderReview transitions
+        // from Cancelled → bespoke "reinstated" message so the parent isn't
+        // confused by a status that just says "under review" again.
+        $isReinstatement = $previousStatus === ApplicationStatus::Cancelled
+            && $newStatus === ApplicationStatus::UnderReview;
+
+        match (true) {
+            $newStatus === ApplicationStatus::Approved => $this->systemNotifications->applicationApproved(
                 $parentUser, $application->id, $camperName
             ),
-            ApplicationStatus::Rejected => $this->systemNotifications->applicationRejected(
+            $newStatus === ApplicationStatus::Rejected => $this->systemNotifications->applicationRejected(
                 $parentUser, $application->id, $camperName, $notes
+            ),
+            $newStatus === ApplicationStatus::Cancelled => $this->systemNotifications->applicationCancelled(
+                $parentUser, $application->id, $camperName, $notes
+            ),
+            $isReinstatement => $this->systemNotifications->applicationReinstated(
+                $parentUser, $application->id, $camperName
             ),
             default => $this->systemNotifications->applicationStatusChanged(
                 $parentUser, $application->id, $camperName, $newStatus->value
@@ -344,11 +421,32 @@ class ApplicationService
      *
      * @param  Application  $application  The application being withdrawn.
      * @param  User  $withdrawnBy  The parent performing the withdrawal.
-     * @return array{success: bool}
+     * @return array{success: bool, already_withdrawn?: bool, not_withdrawable?: bool}
      */
     public function withdrawApplication(Application $application, User $withdrawnBy): array
     {
         $previousStatus = $application->status;
+
+        // Idempotency guard: a second Withdraw on the same application must not
+        // re-write the audit log, re-fire notifications, or silently appear to
+        // succeed. The ApplicationPolicy blocks this at the HTTP layer, but a
+        // service-layer check protects internal call paths (batch operations,
+        // admin-on-behalf flows) from producing bogus audit entries.
+        if ($previousStatus === ApplicationStatus::Withdrawn) {
+            return ['success' => false, 'already_withdrawn' => true];
+        }
+
+        // Withdrawal is only meaningful while the application is in an active
+        // state. Rejected/cancelled applications should not become "withdrawn".
+        $withdrawableFrom = [
+            ApplicationStatus::Submitted,
+            ApplicationStatus::UnderReview,
+            ApplicationStatus::Approved,
+            ApplicationStatus::Waitlisted,
+        ];
+        if (! in_array($previousStatus, $withdrawableFrom, true)) {
+            return ['success' => false, 'not_withdrawable' => true];
+        }
 
         $application->loadMissing('camper.user', 'campSession');
 

@@ -58,6 +58,7 @@ class MinimalSeeder extends Seeder
             RequiredDocumentRuleSeeder::class,
             ActivityPermissionSeeder::class,
             FormDefinitionSeeder::class,
+            RiskEngineSeeder::class,
         ]);
 
         // The one account that must exist for anyone to log in.

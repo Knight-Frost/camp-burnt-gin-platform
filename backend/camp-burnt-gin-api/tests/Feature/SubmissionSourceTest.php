@@ -50,6 +50,9 @@ class SubmissionSourceTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $app = Application::factory()->create(['submission_source' => SubmissionSource::Digital->value]);
+        // The controller now rejects a digital→paper flip when no paper packet
+        // is on file — attach one so the legitimate admin use case still works.
+        $this->attachPaperPacket($app);
 
         $response = $this->actingAs($admin)
             ->putJson("/api/applications/{$app->id}", [
@@ -64,6 +67,7 @@ class SubmissionSourceTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $app = Application::factory()->create(['submission_source' => SubmissionSource::Digital->value]);
+        $this->attachPaperPacket($app);
 
         $response = $this->actingAs($admin)
             ->putJson("/api/applications/{$app->id}", [
@@ -72,6 +76,23 @@ class SubmissionSourceTest extends TestCase
 
         $response->assertOk();
         $this->assertEquals('paper_self', $app->fresh()->submission_source->value);
+    }
+
+    private function attachPaperPacket(Application $app): void
+    {
+        \App\Models\Document::create([
+            'documentable_type'   => \App\Models\Application::class,
+            'documentable_id'     => $app->id,
+            'document_type'       => 'paper_application_packet',
+            'original_filename'   => 'packet.pdf',
+            'stored_filename'     => 'packet.pdf',
+            'path'                => 'documents/packet.pdf',
+            'mime_type'           => 'application/pdf',
+            'file_size'           => 2048,
+            'uploaded_by'         => $app->camper?->user_id ?? User::factory()->admin()->create()->id,
+            'submitted_at'        => now(),
+            'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
+        ]);
     }
 
     public function test_admin_can_revert_to_digital(): void

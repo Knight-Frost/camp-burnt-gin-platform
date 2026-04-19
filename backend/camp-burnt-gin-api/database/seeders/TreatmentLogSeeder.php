@@ -8,6 +8,7 @@ use App\Models\MedicalVisit;
 use App\Models\TreatmentLog;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 /**
  * Seeder — Treatment log entries for all demo campers.
@@ -37,18 +38,24 @@ class TreatmentLogSeeder extends Seeder
             'tyler' => Camper::where('first_name', 'Tyler')->where('last_name', 'Wilson')->firstOrFail(),
         ];
 
-        // Resolve visit IDs for linking — nullable if visit not yet seeded
+        // Base date: 13 days ago — treatments spread over the last 13 days so they
+        // always appear in the dashboard activity feed regardless of when the seed runs.
+        $base = Carbon::today()->subDays(13);
+        $d = fn (int $offset): string => $base->copy()->addDays($offset)->toDateString();
+
+        // Resolve visit IDs for linking — nullable if visit not yet seeded.
+        // Uses relative dates so links still resolve after the visit seeder is updated.
         $visitId = fn (int $camperId, string $date, string $time): ?int => MedicalVisit::where('camper_id', $camperId)
             ->where('visit_date', $date)
             ->where('visit_time', $time)
             ->value('id');
 
         $logs = [
-            // ── Lily — Albuterol rescue inhaler (03/01, linked to health office visit) ──
+            // ── Lily — Albuterol rescue inhaler (day 0, linked to health office visit) ──
             [
                 'camper' => $campers['lily'],
-                'medical_visit_id' => $visitId($campers['lily']->id, '2026-03-01', '11:00:00'),
-                'treatment_date' => '2026-03-01',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(0),
                 'treatment_time' => '11:00',
                 'type' => TreatmentType::MedicationAdministered,
                 'title' => 'Albuterol rescue inhaler — mild wheeze post trail walk',
@@ -60,11 +67,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Mia — Heat protocol observation (03/02, linked to health office visit) ──
+            // ── Mia — Heat protocol observation (day 1) ──
             [
                 'camper' => $campers['mia'],
-                'medical_visit_id' => $visitId($campers['mia']->id, '2026-03-02', '13:30:00'),
-                'treatment_date' => '2026-03-02',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(1),
                 'treatment_time' => '13:30',
                 'type' => TreatmentType::Observation,
                 'title' => 'Heat protocol activation — ambient temp 89°F',
@@ -76,11 +83,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Tyler — Headache assessment (03/03) ──
+            // ── Tyler — Headache assessment (day 2) ──
             [
                 'camper' => $campers['tyler'],
-                'medical_visit_id' => $visitId($campers['tyler']->id, '2026-03-03', '10:15:00'),
-                'treatment_date' => '2026-03-03',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(2),
                 'treatment_time' => '10:15',
                 'type' => TreatmentType::Observation,
                 'title' => 'Headache — frontal, mild (4/10), suspected dehydration',
@@ -92,11 +99,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Noah — Knee abrasion first aid (03/03) ──
+            // ── Noah — Knee abrasion first aid (day 2) ──
             [
                 'camper' => $campers['noah'],
                 'medical_visit_id' => null,
-                'treatment_date' => '2026-03-03',
+                'treatment_date' => $d(2),
                 'treatment_time' => '12:10',
                 'type' => TreatmentType::FirstAid,
                 'title' => 'Abrasion — right knee, latex-free wound care applied',
@@ -108,11 +115,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Noah — Dressing change follow-up (03/04) ──
+            // ── Noah — Dressing change follow-up (day 4) ──
             [
                 'camper' => $campers['noah'],
-                'medical_visit_id' => $visitId($campers['noah']->id, '2026-03-04', '09:00:00'),
-                'treatment_date' => '2026-03-04',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(4),
                 'treatment_time' => '09:00',
                 'type' => TreatmentType::FirstAid,
                 'title' => 'Dressing change — right knee abrasion (day 2)',
@@ -124,11 +131,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Ava — Glucose administration (03/04, linked to health office visit) ──
+            // ── Ava — Glucose administration (day 4) ──
             [
                 'camper' => $campers['ava'],
-                'medical_visit_id' => $visitId($campers['ava']->id, '2026-03-04', '14:30:00'),
-                'treatment_date' => '2026-03-04',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(4),
                 'treatment_time' => '14:12',
                 'type' => TreatmentType::MedicationAdministered,
                 'title' => 'Glucose tablets — hypoglycemia BG 52 mg/dL at archery range',
@@ -140,11 +147,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => 'Second hypoglycemia event this session. Endocrinologist (Dr. Gonzalez) must be contacted to review basal rate and correction factor. Flagged for parent follow-up meeting.',
             ],
 
-            // ── Ethan — Evening medication administration (03/05) ──
+            // ── Ethan — Evening medication administration (day 6) ──
             [
                 'camper' => $campers['ethan'],
-                'medical_visit_id' => $visitId($campers['ethan']->id, '2026-03-05', '20:30:00'),
-                'treatment_date' => '2026-03-05',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(6),
                 'treatment_time' => '20:30',
                 'type' => TreatmentType::MedicationAdministered,
                 'title' => 'Scheduled evening medications — Levetiracetam + Melatonin',
@@ -156,11 +163,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Sofia — Scheduled catheterization (03/05) ──
+            // ── Sofia — Scheduled catheterization (day 6) ──
             [
                 'camper' => $campers['sofia'],
-                'medical_visit_id' => $visitId($campers['sofia']->id, '2026-03-05', '16:00:00'),
-                'treatment_date' => '2026-03-05',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(6),
                 'treatment_time' => '16:00',
                 'type' => TreatmentType::Other,
                 'title' => 'Intermittent catheterization — scheduled 4 PM (bladder management protocol)',
@@ -172,11 +179,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Tyler — Paper cut first aid (03/05) ──
+            // ── Tyler — Paper cut first aid (day 6) ──
             [
                 'camper' => $campers['tyler'],
                 'medical_visit_id' => null,
-                'treatment_date' => '2026-03-05',
+                'treatment_date' => $d(6),
                 'treatment_time' => '14:05',
                 'type' => TreatmentType::FirstAid,
                 'title' => 'Paper cut — right index finger, arts & crafts',
@@ -188,11 +195,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Lucas — Respiratory observation (03/06, linked to health office visit) ──
+            // ── Lucas — Respiratory observation (day 8) ──
             [
                 'camper' => $campers['lucas'],
-                'medical_visit_id' => $visitId($campers['lucas']->id, '2026-03-06', '07:40:00'),
-                'treatment_date' => '2026-03-06',
+                'medical_visit_id' => null,
+                'treatment_date' => $d(8),
                 'treatment_time' => '07:20',
                 'type' => TreatmentType::Emergency,
                 'title' => 'Respiratory distress — O2 sat drop to 94% post-BiPAP',
@@ -204,11 +211,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => 'Written notification to cardiologist required. BiPAP setting change (IPAP +1 cmH2O) to be confirmed with family tonight. Monitor O2 sat every 30 minutes through morning.',
             ],
 
-            // ── Ethan — Morning seizure medication (03/06) ──
+            // ── Ethan — Morning seizure medication (day 9) ──
             [
                 'camper' => $campers['ethan'],
                 'medical_visit_id' => null,
-                'treatment_date' => '2026-03-06',
+                'treatment_date' => $d(9),
                 'treatment_time' => '08:00',
                 'type' => TreatmentType::MedicationAdministered,
                 'title' => 'Scheduled morning medication — Levetiracetam',
@@ -220,11 +227,11 @@ class TreatmentLogSeeder extends Seeder
                 'follow_up_notes' => null,
             ],
 
-            // ── Ava — Routine morning BG monitoring (03/07) ──
+            // ── Ava — Routine morning BG monitoring (day 13) ──
             [
                 'camper' => $campers['ava'],
                 'medical_visit_id' => null,
-                'treatment_date' => '2026-03-07',
+                'treatment_date' => $d(13),
                 'treatment_time' => '08:00',
                 'type' => TreatmentType::Observation,
                 'title' => 'Routine morning BG check — post-hypoglycemia monitoring protocol',

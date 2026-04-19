@@ -38,3 +38,13 @@ Schedule::command('records:identify-expired')
     ->at('03:00')
     ->withoutOverlapping()
     ->description('Identify campers past retention period for archival review');
+
+// Storage hygiene: soft-delete applicant draft uploads that were never submitted
+// and are older than 30 days. Hard deletion + on-disk cleanup is intentionally
+// NOT scheduled — run `documents:prune-drafts --force-delete` manually if the
+// soft-deleted backlog ever needs to be truly purged.
+Schedule::command('documents:prune-drafts --days=30')
+    ->daily()
+    ->at('02:30')
+    ->withoutOverlapping()
+    ->description('Soft-delete abandoned applicant draft documents older than 30 days');

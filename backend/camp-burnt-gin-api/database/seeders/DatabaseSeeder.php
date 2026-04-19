@@ -12,26 +12,37 @@ use Illuminate\Database\Seeder;
  *
  * ─── MODES ───────────────────────────────────────────────────────────────────
  *
- *   SEED_MODE=minimal  →  MinimalSeeder
- *     Clean-slate bootstrap. Creates system configuration and one super_admin
- *     account. No families, campers, applications, or simulation data.
- *     Use for: first deployment, controlled testing, clean demos.
+ *   SEED_MODE=demo  (default when unset)  →  DemoSeeder
+ *     Clean demo with 4 accounts and 2 fully-completed draft applications.
+ *     Super admin + admin + medical staff + 1 applicant (Angela Thornton).
+ *     2 campers: Marcus (ASD/ADHD) and Destiny (Sickle Cell) — both DRAFT.
+ *     Use for: demos, onboarding, applicant portal testing.
  *
- *   SEED_MODE=full     →  FullSimulationSeeder  (default when unset)
- *     Complete scenario simulation. All 37 seeders across 5 tiers. ~76 campers,
- *     all application statuses, all medical complexity tiers, 14 edge cases.
+ *   SEED_MODE=super_admin_only  →  MinimalSeeder
+ *     System configuration only: roles, document rules, risk engine, and one
+ *     super_admin account. No test data of any kind.
+ *     Use for: first production deployment, clean-slate staging environments.
+ *
+ *   SEED_MODE=full  →  FullSimulationSeeder
+ *     Complete scenario simulation. 5 tiers, ~76 campers, all application
+ *     statuses, all medical complexity tiers, 14 edge cases, messaging,
+ *     notifications, audit logs, documents.
  *     Use for: development, QA, feature demonstration.
  *
  * ─── COMMANDS ────────────────────────────────────────────────────────────────
  *
- *   Minimal mode:
- *     SEED_MODE=minimal php artisan migrate:fresh --seed
- *
- *   Full simulation mode (default):
+ *   Demo mode (default):
  *     php artisan migrate:fresh --seed
+ *     SEED_MODE=demo php artisan migrate:fresh --seed
+ *
+ *   Super admin only (production bootstrap):
+ *     SEED_MODE=super_admin_only php artisan migrate:fresh --seed
+ *
+ *   Full simulation (development/QA):
  *     SEED_MODE=full php artisan migrate:fresh --seed
  *
- *   Run a specific mode directly (bypasses this router):
+ *   Run a specific seeder directly (bypasses this router):
+ *     php artisan db:seed --class=DemoSeeder
  *     php artisan db:seed --class=MinimalSeeder
  *     php artisan db:seed --class=FullSimulationSeeder
  */
@@ -39,16 +50,18 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Default to 'minimal' — developers must explicitly opt in to full simulation
-        // data. This prevents accidentally seeding test credentials into staging.
-        $mode = env('SEED_MODE', 'minimal');
+        $mode = env('SEED_MODE', 'demo');
 
-        if ($mode === 'minimal') {
-            $this->command->info('Seed mode: minimal');
-            $this->call(MinimalSeeder::class);
-        } else {
-            $this->command->info('Seed mode: full simulation');
-            $this->call(FullSimulationSeeder::class);
-        }
+        match ($mode) {
+            'super_admin_only' => $this->runMode('super admin only', MinimalSeeder::class),
+            'full'             => $this->runMode('full simulation', FullSimulationSeeder::class),
+            default            => $this->runMode('demo', DemoSeeder::class),
+        };
+    }
+
+    private function runMode(string $label, string $seederClass): void
+    {
+        $this->command->info("Seed mode: {$label}");
+        $this->call($seederClass);
     }
 }

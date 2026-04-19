@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\CalendarEventController;
-use App\Http\Controllers\Api\Camp\CampController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
@@ -45,6 +44,9 @@ use App\Http\Controllers\Api\Medical\MedicalVisitController;
 use App\Http\Controllers\Api\Medical\MedicationController;
 use App\Http\Controllers\Api\Medical\TreatmentLogController;
 use App\Http\Controllers\Api\Risk\RiskAssessmentController;
+use App\Http\Controllers\Api\Risk\RiskFactorController;
+use App\Http\Controllers\Api\Risk\RiskRuleController;
+use App\Http\Controllers\Api\Risk\RiskThresholdController;
 use App\Http\Controllers\Api\System\AuditLogController;
 use App\Http\Controllers\Api\System\HealthController;
 use App\Http\Controllers\Api\System\NotificationController;
@@ -104,6 +106,9 @@ Route::middleware('throttle:api')->prefix('forms')->group(function () {
     Route::get('/application-spanish', [FormsDownloadController::class, 'applicationSpanish'])->name('forms.application-spanish');
     Route::get('/medical-exam', [FormsDownloadController::class, 'medicalExam'])->name('forms.medical-exam');
     Route::get('/cyshcn', [FormsDownloadController::class, 'cyshcn'])->name('forms.cyshcn');
+    Route::get('/cpap-waiver', [FormsDownloadController::class, 'cpapWaiver'])->name('forms.cpap-waiver');
+    Route::get('/seizure-plan', [FormsDownloadController::class, 'seizurePlan'])->name('forms.seizure-plan');
+    Route::get('/gtube-plan', [FormsDownloadController::class, 'gtubePlan'])->name('forms.gtube-plan');
 });
 
 /*
@@ -224,21 +229,13 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
 
     /*
     |--------------------------------------------------------------------------
-    | Camp and Session Routes
+    | Session Routes
     |--------------------------------------------------------------------------
     |
-    | Camps and sessions are publicly readable by any authenticated user.
+    | Sessions are publicly readable by any authenticated user.
     | Only admins can create, update, or delete them.
     |
     */
-    Route::prefix('camps')->group(function () {
-        Route::get('/', [CampController::class, 'index'])->name('camps.index');
-        Route::get('/{camp}', [CampController::class, 'show'])->name('camps.show');
-        Route::post('/', [CampController::class, 'store'])->middleware('admin')->name('camps.store');
-        Route::put('/{camp}', [CampController::class, 'update'])->middleware('admin')->name('camps.update');
-        Route::delete('/{camp}', [CampController::class, 'destroy'])->middleware('admin')->name('camps.destroy');
-    });
-
     Route::prefix('sessions')->group(function () {
         Route::get('/', [CampSessionController::class, 'index'])->name('sessions.index');
         Route::get('/{session}', [CampSessionController::class, 'show'])->name('sessions.show');
@@ -486,6 +483,12 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     Route::prefix('applications')->group(function () {
         Route::get('/', [ApplicationController::class, 'index'])->name('applications.index');
         Route::post('/', [ApplicationController::class, 'store'])->name('applications.store');
+        // Initialize a blank draft — creates Application + Camper + empty
+        // MedicalRecord in one atomic call so the applicant form has an
+        // application_id to drive the backend validation engine during
+        // editing. Before this endpoint, the form only persisted to a blob.
+        Route::post('/initialize-draft', [ApplicationController::class, 'initializeDraft'])
+            ->name('applications.initialize-draft');
         Route::get('/{application}', [ApplicationController::class, 'show'])->name('applications.show');
         Route::put('/{application}', [ApplicationController::class, 'update'])->name('applications.update');
         // Sign an application (parent e-signature step)
@@ -495,16 +498,26 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::post('/{application}/withdraw', [ApplicationController::class, 'withdraw'])->name('applications.withdraw');
         // Store guardian consent records (5 consents per application, matching CYSHCN paper form).
         Route::post('/{application}/consents', [ApplicationController::class, 'storeConsents'])->name('applications.consents.store');
+        // Finalize a draft into an official submission — applicant-only, runs full completeness check.
+        Route::post('/{application}/finalize', [ApplicationController::class, 'finalize'])->name('applications.finalize');
         // Clone an application into a new reapplication draft (same camper, new session).
         Route::post('/{application}/clone', [ApplicationController::class, 'clone'])->name('applications.clone');
         // Hard delete — admin only; step-up required (irreversible action)
         Route::delete('/{application}', [ApplicationController::class, 'destroy'])
             ->middleware(['admin', 'mfa.step_up'])
             ->name('applications.destroy');
-        // Pre-approval completeness check — read-only; returns structured missing-data report.
+        // Completeness + validation report — read-only. Admin reads it
+        // before approval; applicant reads it during form filling to drive
+        // the live sidebar, submit gate, and issues panel. Authorization is
+        // the application's `view` policy (owner OR admin), so no extra
+        // middleware beyond the auth group.
         Route::get('/{application}/completeness', [ApplicationController::class, 'completeness'])
-            ->middleware('admin')
             ->name('applications.completeness');
+        // Lifecycle IDs for form bootstrapping — returns just the camper
+        // + singleton relation IDs the form needs to drive progressive
+        // writes. Used when resuming a draft from its application_id.
+        Route::get('/{application}/lifecycle-ids', [ApplicationController::class, 'lifecycleIds'])
+            ->name('applications.lifecycle-ids');
         // Approve/reject an application — admin-only; no MFA step-up (routine operational task).
         // Delete (above) retains step-up because it is irreversible.
         Route::post('/{application}/review', [ApplicationController::class, 'review'])
@@ -690,6 +703,36 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     Route::get('/medical/stats', [MedicalStatsController::class, 'index'])
         ->middleware('role:admin,medical')
         ->name('medical.stats');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Risk Engine Configuration Routes (Phase 18)
+    |--------------------------------------------------------------------------
+    |
+    | Allow medical directors and admins to configure the dynamic risk scoring
+    | engine: factor point values, conditional rules, and supervision thresholds.
+    | All write operations invalidate the risk engine cache immediately.
+    |
+    */
+    Route::prefix('risk-factors')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [RiskFactorController::class, 'index'])->name('risk-factors.index');
+        Route::post('/', [RiskFactorController::class, 'store'])->middleware('role:admin,super_admin')->name('risk-factors.store');
+        Route::get('/{riskFactor}', [RiskFactorController::class, 'show'])->name('risk-factors.show');
+        Route::put('/{riskFactor}', [RiskFactorController::class, 'update'])->middleware('role:admin,super_admin')->name('risk-factors.update');
+        Route::delete('/{riskFactor}', [RiskFactorController::class, 'destroy'])->middleware('role:super_admin')->name('risk-factors.destroy');
+    });
+
+    Route::prefix('risk-rules')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [RiskRuleController::class, 'index'])->name('risk-rules.index');
+        Route::post('/', [RiskRuleController::class, 'store'])->middleware('role:admin,super_admin')->name('risk-rules.store');
+        Route::put('/{riskRule}', [RiskRuleController::class, 'update'])->middleware('role:admin,super_admin')->name('risk-rules.update');
+        Route::delete('/{riskRule}', [RiskRuleController::class, 'destroy'])->middleware('role:admin,super_admin')->name('risk-rules.destroy');
+    });
+
+    Route::prefix('risk-thresholds')->middleware('role:admin,medical')->group(function () {
+        Route::get('/', [RiskThresholdController::class, 'index'])->name('risk-thresholds.index');
+        Route::put('/{riskThreshold}', [RiskThresholdController::class, 'update'])->middleware('role:admin,super_admin')->name('risk-thresholds.update');
+    });
 
     /*
     |--------------------------------------------------------------------------

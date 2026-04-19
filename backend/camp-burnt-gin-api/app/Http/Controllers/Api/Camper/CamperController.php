@@ -52,10 +52,14 @@ class CamperController extends Controller
         if ($user->isAdmin()) {
             // Confirm this admin is allowed to list all campers via CamperPolicy.
             $this->authorize('viewAny', Camper::class);
-            // Eager-load the parent user and the latest application with session info.
-            // Medical data (allergies, medications, etc.) is intentionally excluded here —
-            // the list view does not display PHI; it is loaded on the individual camper detail page.
-            $query = Camper::with(['user', 'applications.campSession']);
+            // Only surface campers whose families have at least one formally-submitted
+            // application. Pre-submission campers are private to the family.
+            // Eager-load only the non-draft applications — PHI lives in show(), not here.
+            $query = Camper::whereHas('applications', fn ($q) => $q->where('is_draft', false))
+                ->with([
+                    'user',
+                    'applications' => fn ($q) => $q->where('is_draft', false)->with('campSession'),
+                ]);
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
@@ -80,7 +84,12 @@ class CamperController extends Controller
             // Medical providers see only operationally active campers — those with at least
             // one approved application. Campers whose applications have been reversed or
             // cancelled are excluded from clinical workflows until re-approved.
-            $query = Camper::active()->with(['medicalRecord.allergies', 'medicalRecord.medications', 'medicalRecord.diagnoses']);
+            //
+            // PHI chains (allergies/medications/diagnoses) are NOT eager-loaded here:
+            // the fields are encrypted and decryption is O(n) per row, so pulling them
+            // into a paginated list triggers DecryptException under realistic data sizes.
+            // Detail-level PHI is loaded by the show() endpoint only.
+            $query = Camper::active();
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
@@ -144,11 +153,48 @@ class CamperController extends Controller
             $data['user_id'] = $request->user()->id;
         }
 
+        // Camper identity = (user_id, first_name, last_name, date_of_birth).
+        // Creating the same tuple twice returns the existing row instead of a
+        // duplicate profile. A parent restarting the application flow must
+        // not end up with two Camper rows for the same child (BUG-215).
+        // Includes soft-deleted rows so "deleted" duplicates get restored
+        // rather than recreated behind them.
+        //
+        // whereDate() is used for date_of_birth so the comparison works
+        // across both MySQL (date column) and SQLite (stores date+time).
+        $existing = Camper::withTrashed()
+            ->where('user_id', $data['user_id'])
+            ->where('first_name', $data['first_name'])
+            ->where('last_name', $data['last_name'])
+            ->whereDate('date_of_birth', $data['date_of_birth'])
+            ->first();
+
+        if ($existing !== null) {
+            if ($existing->trashed()) {
+                $existing->restore();
+            }
+
+            // Apply any newly-provided non-identity fields (e.g. updated t-shirt
+            // size, gender correction). Identity fields are excluded so they
+            // cannot be overwritten via this idempotent path.
+            $mutable = array_diff_key($data, array_flip([
+                'user_id', 'first_name', 'last_name', 'date_of_birth',
+            ]));
+            if (! empty($mutable)) {
+                $existing->fill($mutable)->save();
+            }
+
+            return response()->json([
+                'message' => 'Existing camper returned (idempotent create).',
+                'data'    => $existing,
+            ], Response::HTTP_OK);
+        }
+
         $camper = Camper::create($data);
 
         return response()->json([
             'message' => 'Camper created successfully.',
-            'data' => $camper,
+            'data'    => $camper,
         ], Response::HTTP_CREATED);
     }
 
@@ -165,12 +211,15 @@ class CamperController extends Controller
     {
         $this->authorize('view', $camper);
 
-        // Load the parent user account, application history, and all clinical sub-records.
+        // Load the parent user account, submitted application history, and all clinical sub-records.
         // PHI fields are decrypted at read-time by Eloquent casts; this is intentional for
         // the individual show endpoint (not a list) — only privileged roles reach this via CamperPolicy.
+        // Draft applications are excluded so the admin Applications section only shows
+        // formally-submitted records — preventing draft `status='submitted'` rows from
+        // appearing as if the family has already applied.
         $camper->load([
             'user',
-            'applications.campSession',
+            'applications' => fn ($q) => $q->where('is_draft', false)->with('campSession'),
             'behavioralProfile',
             'emergencyContacts',
             'medicalRecord',

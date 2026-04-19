@@ -36,22 +36,23 @@ export interface ApplicationCompleteness {
   /** Documents that have been uploaded but not yet verified by an admin. Distinct from missing. */
   unverified_documents: CompletenessItem[];
   missing_consents: CompletenessItem[];
-}
-
-export interface Camp {
-  id: number;
-  name: string;
-  location: string;
-  description?: string;
-  sessions?: CampSession[];
-  created_at?: string;
-  updated_at?: string;
+  /**
+   * How this application entered the system. Drives the review-modal copy:
+   * for paper_self / paper_admin sources with a packet on file, the digital
+   * signature and 7 consent types are not required (they live on paper).
+   */
+  submission_source?: 'digital' | 'paper_self' | 'paper_admin';
+  /**
+   * True when this is a paper intake AND the paper packet has been received
+   * and submitted. In that case the backend has already suppressed the
+   * digital-only entries from `missing_consents`; the flag lets the UI
+   * explain WHY consents are not listed rather than leaving admins guessing.
+   */
+  paper_substitutes_digital?: boolean;
 }
 
 export interface CampSession {
   id: number;
-  camp_id: number;
-  camp?: Camp;
   name: string;
   start_date: string;
   end_date: string;
@@ -77,6 +78,11 @@ export interface Application {
   // 'draft' is not a status value — it is represented by the is_draft boolean.
   status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn';
   is_draft?: boolean;
+  /**
+   * How this application entered the system. Drives UI treatment (paper badge,
+   * relaxed completeness gate) and audit reports. See App\Enums\SubmissionSource.
+   */
+  submission_source?: 'digital' | 'paper_self' | 'paper_admin' | null;
   // True when an admin overrode the completeness warning and approved with known gaps.
   is_incomplete_at_approval?: boolean;
   // Set when this application was created by cloning a prior one (reapplication flow).

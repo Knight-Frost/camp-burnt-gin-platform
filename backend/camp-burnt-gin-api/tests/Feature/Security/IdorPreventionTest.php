@@ -210,4 +210,35 @@ class IdorPreventionTest extends TestCase
         // All enumeration attempts should be blocked
         $this->assertEquals(10, $forbiddenCount);
     }
+
+    public function test_parent_cannot_view_another_parents_draft_document_by_id(): void
+    {
+        // Drafts (submitted_at = null) are the uploader's private staging area.
+        // If two parents both parent the same camper (historical data state) or
+        // if IDs are enumerated, the policy must still block a non-uploader from
+        // viewing a draft document. This guards against a cross-account draft
+        // enumeration path that GET /documents/{id} relied on the policy to close.
+        $parent1 = $this->createParent();
+        $parent2 = $this->createParent();
+        $camper  = Camper::factory()->create(['user_id' => $parent1->id]);
+
+        // Parent 1 uploads a draft document for their camper. submitted_at stays null.
+        $draftDoc = \App\Models\Document::create([
+            'documentable_type'   => \App\Models\Camper::class,
+            'documentable_id'     => $camper->id,
+            'document_type'       => 'official_medical_form',
+            'original_filename'   => 'wip.pdf',
+            'stored_filename'     => 'wip.pdf',
+            'path'                => 'documents/wip.pdf',
+            'mime_type'           => 'application/pdf',
+            'file_size'           => 1024,
+            'uploaded_by'         => $parent1->id,
+            'submitted_at'        => null,
+        ]);
+
+        // Parent 2 — unrelated to this camper — must not be able to view it.
+        $this->actingAs($parent2)
+            ->getJson("/api/documents/{$draftDoc->id}")
+            ->assertStatus(403);
+    }
 }

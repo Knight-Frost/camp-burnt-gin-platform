@@ -72,6 +72,25 @@ class ApplicationPolicy
     }
 
     /**
+     * Can the user finalize (officially submit) this draft application?
+     *
+     * Finalization is the act of converting a draft application into an official
+     * submission after all required data has been collected (camper fields,
+     * documents, signature, consents). This triggers the full completeness check
+     * and atomically marks the application as submitted.
+     *
+     * Only the owning parent may finalize — admins use the review workflow instead.
+     * The application must still be a draft; attempting to finalize an already-submitted
+     * application is always rejected.
+     */
+    public function finalize(User $user, Application $application): bool
+    {
+        return $user->isApplicant()
+            && $application->is_draft
+            && $user->ownsCamper($application->camper);
+    }
+
+    /**
      * Can the user edit an existing application?
      *
      * Admins may update any application at any time.
@@ -134,7 +153,9 @@ class ApplicationPolicy
      */
     public function review(User $user, Application $application): bool
     {
-        return $user->isAdmin();
+        // Draft applications have not been officially submitted — they must never
+        // be approved, rejected, or otherwise acted on by reviewers.
+        return $user->isAdmin() && ! $application->is_draft;
     }
 
     /**

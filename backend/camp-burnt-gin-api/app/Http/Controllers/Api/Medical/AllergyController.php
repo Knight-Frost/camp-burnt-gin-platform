@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Allergy\StoreAllergyRequest;
 use App\Http\Requests\Allergy\UpdateAllergyRequest;
 use App\Models\Allergy;
+use App\Services\Camper\CamperChildRowUpserter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -55,22 +56,26 @@ class AllergyController extends Controller
      * Validation is handled upstream in StoreAllergyRequest; only fields that
      * pass those rules arrive here via $request->validated().
      */
-    public function store(StoreAllergyRequest $request): JsonResponse
+    public function store(StoreAllergyRequest $request, CamperChildRowUpserter $upserter): JsonResponse
     {
         // Confirm the caller is allowed to add allergy records.
         $this->authorize('create', Allergy::class);
 
-        // Insert the validated PHI fields into the database.
-        $allergy = Allergy::create($request->validated());
+        $data = $request->validated();
 
-        // Load camper so the API response is self-contained.
+        // Idempotent write — see MedicationController::store for the full
+        // rationale. Natural key is (allergen, severity, reaction, treatment).
+        $allergy = $upserter->upsertAllergy((int) $data['camper_id'], $data);
+        $wasExisting = ! $allergy->wasRecentlyCreated;
+
         $allergy->load('camper');
 
-        // HTTP 201 signals the resource was successfully created.
         return response()->json([
-            'message' => 'Allergy created successfully.',
+            'message' => $wasExisting
+                ? 'Allergy already on record; no duplicate created.'
+                : 'Allergy created successfully.',
             'data' => $allergy,
-        ], Response::HTTP_CREATED);
+        ], $wasExisting ? Response::HTTP_OK : Response::HTTP_CREATED);
     }
 
     /**

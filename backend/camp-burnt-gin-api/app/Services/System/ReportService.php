@@ -47,7 +47,7 @@ class ReportService
     public function generateApplicationsReport(array $filters): array
     {
         // Eager-load all relationships needed for the report to avoid N+1 queries
-        $query = Application::with(['camper.user', 'campSession.camp', 'reviewer']);
+        $query = Application::with(['camper.user', 'campSession', 'reviewer']);
 
         // Apply each filter only when a value was actually provided
         if (! empty($filters['status'])) {
@@ -87,7 +87,7 @@ class ReportService
                     'parent_name' => $app->camper->user->name,
                     'parent_email' => $app->camper->user->email,
                     'camp_session' => $app->campSession->name,
-                    'camp_name' => $app->campSession->camp->name,
+                    'camp_name' => 'Camp Burnt Gin',
                     'status' => $app->status->value,
                     // toIso8601String() produces a standard parseable datetime for the frontend
                     'submitted_at' => $app->submitted_at?->toIso8601String(),
@@ -113,7 +113,7 @@ class ReportService
     {
         $query = Application::with([
             'camper.user',
-            'campSession.camp',
+            'campSession',
         ])
             ->where('status', ApplicationStatus::Approved);
 
@@ -156,7 +156,7 @@ class ReportService
     {
         $query = Application::with([
             'camper.user',
-            'campSession.camp',
+            'campSession',
             'reviewer',  // Who made the rejection decision
         ])
             ->where('status', ApplicationStatus::Rejected);

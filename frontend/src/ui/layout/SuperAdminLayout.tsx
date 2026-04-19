@@ -75,7 +75,7 @@ export function SuperAdminLayout() {
     { group: gPrimary, label: t('portal_nav.applications'),       to: '/super-admin/applications',     icon: FileText },
     { group: gPrimary, label: t('portal_nav.families'),           to: '/super-admin/families',         icon: Home },
     { group: gPrimary, label: t('portal_nav.camper_directory'),   to: '/super-admin/campers',          icon: Shield },
-    { group: gPrimary, label: t('portal_nav.sessions_camps'),     to: '/super-admin/sessions',         icon: CalendarDays },
+    { group: gPrimary, label: t('portal_nav.camp_sessions'),      to: '/super-admin/sessions',         icon: CalendarDays },
     // COMMUNICATION
     { group: gComm,   label: t('portal_nav.inbox'),              to: '/super-admin/inbox',            icon: MessageSquare, badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { group: gComm,   label: t('portal_nav.announcements'),      to: '/super-admin/announcements',    icon: Megaphone },

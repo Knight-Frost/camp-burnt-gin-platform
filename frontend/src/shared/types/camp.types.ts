@@ -4,26 +4,11 @@
  */
 
 // ---------------------------------------------------------------------------
-// Camps & Sessions
+// Sessions
 // ---------------------------------------------------------------------------
-
-export interface Camp {
-  id: number;
-  name: string;
-  description: string;
-  location: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface Session {
   id: number;
-  camp_id: number;
-  camp?: Camp;
   name: string;
   start_date: string;
   end_date: string;
@@ -112,6 +97,139 @@ export interface OfficialFormTemplate {
   url?: string;
 }
 
+/**
+ * Canonical per-document compliance metadata computed server-side by
+ * ApplicationDocumentResource. Frontends MUST render from these fields
+ * directly and must not recompute is_expired / compliance_status locally.
+ * That local recomputation is what produced the admin-vs-applicant
+ * divergent-truth bug.
+ */
+export interface CanonicalDocument {
+  id: number;
+  document_type: string;
+  document_type_label: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  uploaded_at: string | null;
+  submitted_at: string | null;
+  verification_status: string | null;
+  expiration_date: string | null;
+  exam_date: string | null;
+  is_submitted: boolean;
+  is_verified: boolean;
+  is_expired: boolean;
+  is_archived: boolean;
+  is_incomplete_metadata: boolean;
+  /** Single ground-truth status: 'ok' | 'draft' | 'expired' | 'unverified' | 'incomplete_metadata' | 'archived'. */
+  compliance_status: string;
+  admin_label: string;
+  applicant_label: string;
+  visible_to_admin: boolean;
+}
+
+/**
+ * Compliance issue as exposed in meta.compliance.issues. Each issue has
+ * role-appropriate labels — admin frontends render admin_label, applicant
+ * frontends render applicant_label.
+ */
+export interface CanonicalComplianceIssue {
+  category: 'missing' | 'expired' | 'unverified' | 'incomplete_metadata';
+  document_type: string;
+  document_id?: number;
+  expiration_date?: string | null;
+  exam_date?: string | null;
+  admin_label: string;
+  applicant_label: string;
+}
+
+/**
+ * Canonical 11-section projection returned alongside `data` in the GET
+ * /api/applications/{id} response (under key `canonical`). Both admin and
+ * applicant frontends render from this shape — same sections, same document
+ * labels, same compliance issues — with role-appropriate label selection.
+ */
+/**
+ * Per-section validation result from ApplicationCompletenessService.
+ * Each section has a boolean is_complete and a list of missing entries
+ * with a key, label, and severity. Frontends render ✅ / ⚠️ / ❌ purely
+ * from `is_complete` and the severity of the missing entries.
+ */
+export interface CanonicalValidationSection {
+  is_complete: boolean;
+  missing: Array<{ key: string; label: string; severity: 'high' | 'medium' | 'low' | string }>;
+  errors: Array<{ key: string; label: string; severity: string }>;
+}
+
+/**
+ * The full validation engine output. Backend is the single source of
+ * truth for completeness, validity, and submission-readiness. Every
+ * completion-signal pixel in the UI must derive from this block.
+ */
+export interface CanonicalValidationMeta {
+  state: 'INCOMPLETE' | 'BLOCKED' | 'READY' | 'SUBMITTED';
+  is_complete: boolean;
+  is_valid: boolean;
+  sections: Record<string, CanonicalValidationSection>;
+  documents: {
+    missing: Array<Record<string, unknown>>;
+    expired: Array<Record<string, unknown>>;
+    incomplete: Array<Record<string, unknown>>;
+    unverified: Array<Record<string, unknown>>;
+  };
+  missing_consents: Array<{ key: string; label: string; severity: string }>;
+  blocking_issues: Array<{ section: string; key: string; label: string; severity: string }>;
+  warnings: Array<{ section: string; key: string; label: string; severity: string }>;
+  completion_percentage: number;
+  submission_source: string;
+  paper_substitutes_digital: boolean;
+}
+
+export interface CanonicalApplicationPayload {
+  id: number;
+  status: ApplicationStatus;
+  is_draft: boolean;
+  submitted_at: string | null;
+  signed_at: string | null;
+  signature_name: string | null;
+  camp_session_id: number | null;
+  second_session_id: number | null;
+  camp_session: { id: number; name: string; start_date: string | null; end_date: string | null } | null;
+  second_session: { id: number; name: string; start_date: string | null; end_date: string | null } | null;
+  submission_source: string | null;
+  sections: {
+    camper: Record<string, unknown>;
+    health: Record<string, unknown>;
+    behavior: Record<string, unknown> | null;
+    equipment: Record<string, unknown>;
+    diet: Record<string, unknown> | null;
+    personal_care: Record<string, unknown> | null;
+    activities: Record<string, unknown>;
+    medications: { list: Array<Record<string, unknown>> };
+    narratives: Record<string, string | null>;
+    documents: { list: CanonicalDocument[] };
+    consents: Record<string, unknown>;
+  };
+  meta: {
+    /**
+     * Full engine output — state, per-section is_complete, blocking
+     * issues, completion percentage. Frontends should render every
+     * completion-related signal from this block. See backend
+     * ApplicationCompletenessService.
+     */
+    validation: CanonicalValidationMeta;
+    compliance: {
+      is_compliant: boolean;
+      required_documents: Array<Record<string, unknown>>;
+      missing_documents: Array<Record<string, unknown>>;
+      expired_documents: Array<Record<string, unknown>>;
+      unverified_documents: Array<Record<string, unknown>>;
+      incomplete_documents: Array<Record<string, unknown>>;
+      issues: CanonicalComplianceIssue[];
+    };
+  };
+}
+
 export interface Application {
   id: number;
   camper_id: number;
@@ -128,6 +246,17 @@ export interface Application {
   signed_at?: string;
   signature_name?: string;
   submitted_at?: string;
+  /**
+   * How this application entered the system:
+   *   - 'digital'     — parent completed the 10-section web form
+   *   - 'paper_self'  — parent uploaded a scanned paper packet themselves
+   *   - 'paper_admin' — staff received a physical packet and entered the record
+   *
+   * Drives UI treatment: paper-intake banners, relaxed completeness gate, and
+   * the applicant-facing paper-packet status section. Absent for legacy rows
+   * submitted before the column existed; treat `undefined` as `'digital'`.
+   */
+  submission_source?: 'digital' | 'paper_self' | 'paper_admin' | null;
   created_at: string;
   updated_at: string;
 }

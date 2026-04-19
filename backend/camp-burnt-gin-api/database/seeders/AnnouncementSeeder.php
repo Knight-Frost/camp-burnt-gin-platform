@@ -3,11 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Announcement;
-use App\Models\AuditLog;
 use App\Models\CalendarEvent;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 /**
  * Seeder — announcements and calendar events.
@@ -22,7 +20,6 @@ use Illuminate\Support\Str;
  * and three medical-staff-targeted events (audience='medical') added to support
  * the medical portal calendar view.
  *
- * Also seeds a small set of realistic audit log entries for the admin log viewer.
  */
 class AnnouncementSeeder extends Seeder
 {
@@ -32,7 +29,7 @@ class AnnouncementSeeder extends Seeder
 
         $this->seedAnnouncements($admin);
         $this->seedCalendarEvents($admin);
-        $this->seedAuditLog($admin);
+        // Audit log entries are seeded exclusively by AuditLogSeeder to avoid duplicates.
     }
 
     private function seedAnnouncements(User $admin): void
@@ -132,82 +129,4 @@ class AnnouncementSeeder extends Seeder
         }
     }
 
-    private function seedAuditLog(User $admin): void
-    {
-        $sarah = User::where('email', 'sarah.johnson@example.com')->first();
-        $david = User::where('email', 'david.martinez@example.com')->first();
-        $super = User::where('email', 'admin@campburntgin.org')->first();
-
-        $entries = [
-            [
-                'user_id' => $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'application.approved',
-                'description' => 'Approved application for Ethan Johnson (Session 1 — Summer 2026)',
-                'auditable_type' => 'App\\Models\\Application',
-                'auditable_id' => 1,
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ],
-            [
-                'user_id' => $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'application.rejected',
-                'description' => 'Rejected application for Noah Thompson (Session 1 — Summer 2026): session at capacity',
-                'auditable_type' => 'App\\Models\\Application',
-                'auditable_id' => 4,
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ],
-            [
-                'user_id' => $sarah ? $sarah->id : $admin->id,
-                'event_type' => 'authentication',
-                'action' => 'login',
-                'description' => 'User logged in successfully',
-                'auditable_type' => null,
-                'auditable_id' => null,
-                'ip_address' => '192.168.1.100',
-                'user_agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            ],
-            [
-                'user_id' => $david ? $david->id : $admin->id,
-                'event_type' => 'phi_access',
-                'action' => 'camper.medical_record.viewed',
-                'description' => 'Applicant viewed medical record for Sofia Martinez',
-                'auditable_type' => 'App\\Models\\MedicalRecord',
-                'auditable_id' => 1,
-                'ip_address' => '10.0.0.45',
-                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-            ],
-            [
-                'user_id' => $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'announcement.created',
-                'description' => 'Published announcement: Registration Now Open — Session 1 & Session 2, Summer 2026',
-                'auditable_type' => 'App\\Models\\Announcement',
-                'auditable_id' => 1,
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ],
-            [
-                'user_id' => $super ? $super->id : $admin->id,
-                'event_type' => 'admin_action',
-                'action' => 'user.role.updated',
-                'description' => 'Super admin updated role for user admin@example.com to admin',
-                'auditable_type' => 'App\\Models\\User',
-                'auditable_id' => 2,
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ],
-        ];
-
-        foreach ($entries as $entry) {
-            AuditLog::create(array_merge($entry, [
-                'request_id' => Str::uuid()->toString(),
-                'old_values' => null,
-                'new_values' => null,
-                'metadata' => null,
-            ]));
-        }
-    }
 }

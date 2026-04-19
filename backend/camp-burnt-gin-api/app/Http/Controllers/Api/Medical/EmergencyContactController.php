@@ -7,6 +7,7 @@ use App\Http\Requests\EmergencyContact\StoreEmergencyContactRequest;
 use App\Http\Requests\EmergencyContact\UpdateEmergencyContactRequest;
 use App\Models\AuditLog;
 use App\Models\EmergencyContact;
+use App\Services\Camper\CamperChildRowUpserter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -63,18 +64,23 @@ class EmergencyContactController extends Controller
      * StoreEmergencyContactRequest validates all fields (name, phone, relationship, etc.)
      * before they reach this method, so only safe data is written to the DB.
      */
-    public function store(StoreEmergencyContactRequest $request): JsonResponse
+    public function store(StoreEmergencyContactRequest $request, CamperChildRowUpserter $upserter): JsonResponse
     {
         // Confirm the caller is permitted to add emergency contacts.
         $this->authorize('create', EmergencyContact::class);
 
-        // Persist only the validated PHI fields.
-        $contact = EmergencyContact::create($request->validated());
+        $data = $request->validated();
 
-        // Load the camper so the response includes context about whose contact this is.
+        // Idempotent write — natural key is (name, relationship, phone_primary).
+        // If the same contact is re-submitted, update flags/secondary phone
+        // in place rather than duplicating. Prevents the 36-contact blow-up
+        // observed in the dev DB before BUG-214 cleanup.
+        $contact = $upserter->upsertEmergencyContact((int) $data['camper_id'], $data);
+        $wasExisting = ! $contact->wasRecentlyCreated;
+
         $contact->load('camper');
 
-        if ($request->user()->isAdmin()) {
+        if (! $wasExisting && $request->user()->isAdmin()) {
             AuditLog::logAdminAction(
                 action: 'emergency_contact.created',
                 user: $request->user(),
@@ -84,9 +90,11 @@ class EmergencyContactController extends Controller
         }
 
         return response()->json([
-            'message' => 'Emergency contact created successfully.',
+            'message' => $wasExisting
+                ? 'Emergency contact already on record; no duplicate created.'
+                : 'Emergency contact created successfully.',
             'data' => $contact,
-        ], Response::HTTP_CREATED);
+        ], $wasExisting ? Response::HTTP_OK : Response::HTTP_CREATED);
     }
 
     /**

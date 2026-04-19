@@ -71,9 +71,29 @@ export async function getApplication(id: number): Promise<Application> {
   return data.data;
 }
 
+/**
+ * Fetch the canonical 11-section projection of an application. This is the
+ * shape admin and applicant frontends both render from — same sections,
+ * same document status labels, same compliance issues, with role-appropriate
+ * label selection. The legacy `data` key is kept on the response too for
+ * backward compatibility with older components; prefer this helper for any
+ * new rendering.
+ */
+export async function getApplicationCanonical(id: number): Promise<{
+  data: Application;
+  canonical: import('@/shared/types').CanonicalApplicationPayload;
+}> {
+  const { data } = await axiosInstance.get<{
+    data: Application;
+    canonical: import('@/shared/types').CanonicalApplicationPayload;
+  }>(`/applications/${id}`);
+  return data;
+}
+
 export interface CreateApplicationPayload {
   camper_id: number;
   session_id: number;
+  is_draft?: boolean;
   narrative_rustic_environment?: string;
   narrative_staff_suggestions?: string;
   narrative_participation_concerns?: string;
@@ -114,6 +134,20 @@ export async function signApplication(
 }
 
 /**
+ * Submit a saved draft application (flip is_draft → false).
+ * The ApplicationController::update() endpoint handles is_draft=false + submitted_at stamping
+ * when the `submit` flag is present. This is the authoritative path for promoting a
+ * server-side draft application to submitted without re-running the full creation wizard.
+ */
+export async function submitDraftApplication(id: number): Promise<Application> {
+  const { data } = await axiosInstance.patch<ApiResponse<Application>>(
+    `/applications/${id}`,
+    { submit: true }
+  );
+  return data.data;
+}
+
+/**
  * Withdraw an application. Parent-initiated only.
  * Valid from: pending, under_review, approved, waitlisted.
  * If the application was approved, the backend deactivates the camper
@@ -149,6 +183,106 @@ export async function storeConsents(
   await axiosInstance.post(`/applications/${applicationId}/consents`, { consents });
 }
 
+export interface FinalizationGap {
+  key: string;
+  label: string;
+  severity: 'high' | 'medium';
+}
+
+export interface FinalizationReport {
+  missing_fields: FinalizationGap[];
+  missing_documents: FinalizationGap[];
+  missing_consents: FinalizationGap[];
+}
+
+/**
+ * Finalize a draft application — the applicant's official submission gate.
+ *
+ * Called as the LAST step of the submission waterfall, after documents,
+ * signature, and consents have been attached. Runs the full backend
+ * completeness check and atomically marks the application as submitted.
+ *
+ * On success: returns the now-submitted Application record.
+ * On failure (422): throws with a FinalizationReport payload describing
+ * exactly what is missing so the frontend can guide the applicant.
+ */
+export async function finalizeApplication(id: number): Promise<Application> {
+  const { data } = await axiosInstance.post<ApiResponse<Application>>(
+    `/applications/${id}/finalize`
+  );
+  return data.data;
+}
+
+/**
+ * Create a blank draft Application + Camper + empty MedicalRecord atomically.
+ * Returns the IDs the form needs to drive the backend validation engine.
+ * Idempotent: if the applicant already has a draft for the session, returns
+ * the existing IDs instead of creating a new row.
+ */
+export interface InitializeDraftResponse {
+  application_id: number;
+  camper_id: number;
+  medical_record_id: number;
+  behavioral_profile_id: number;
+  feeding_plan_id: number;
+}
+
+export async function initializeDraftApplication(payload: {
+  camp_session_id: number;
+  /** Reuse an existing Camper — set for reapplication flows. */
+  camper_id?: number;
+  /** Audit-trail pointer to the terminal application being succeeded. */
+  reapplied_from_id?: number;
+  first_name?: string;
+  last_name?: string;
+  date_of_birth?: string;
+}): Promise<InitializeDraftResponse> {
+  const { data } = await axiosInstance.post<ApiResponse<InitializeDraftResponse>>(
+    '/applications/initialize-draft',
+    payload,
+  );
+  return data.data;
+}
+
+/**
+ * Read the validation engine output for this application. Single source of
+ * truth for completeness, blocking_issues, per-section status, and the
+ * state (INCOMPLETE / BLOCKED / READY / SUBMITTED).
+ *
+ * Response carries the rich `validation` object AND the legacy flat fields
+ * (missing_fields / missing_documents / missing_consents / …) so older
+ * callers like IncompleteApprovalModal keep working unchanged.
+ */
+export interface CompletenessResponse {
+  is_complete: boolean;
+  missing_fields: Array<{ key: string; label: string; severity: string }>;
+  missing_documents: Array<{ key: string; label: string; severity: string }>;
+  unverified_documents: Array<{ key: string; label: string; severity: string }>;
+  missing_consents: Array<{ key: string; label: string; severity: string }>;
+  submission_source: string;
+  paper_substitutes_digital: boolean;
+  validation: import('@/shared/types').CanonicalValidationMeta;
+}
+
+export async function getApplicationCompleteness(id: number): Promise<CompletenessResponse> {
+  const { data } = await axiosInstance.get<ApiResponse<CompletenessResponse>>(
+    `/applications/${id}/completeness`,
+  );
+  return data.data;
+}
+
+/**
+ * Fetch just the lifecycle IDs (camper + singleton relations) for a given
+ * application. Used by the form when resuming a draft — we only need the
+ * IDs to drive progressive writes, not the full application payload.
+ */
+export async function getApplicationLifecycleIds(id: number): Promise<InitializeDraftResponse> {
+  const { data } = await axiosInstance.get<ApiResponse<InitializeDraftResponse>>(
+    `/applications/${id}/lifecycle-ids`,
+  );
+  return data.data;
+}
+
 /**
  * Clone an existing terminal application into a new draft.
  * The clone shares the same camper_id, is_draft=true, and reapplied_from_id
@@ -176,6 +310,13 @@ export interface ApplicationDraft {
   id: number;
   label: string;
   draft_data?: Record<string, unknown> | null;
+  /**
+   * FK to the real Application row this blob belongs to. Populated by
+   * initializeDraftApplication at form-start; absent only on legacy blobs
+   * that predate the lifecycle refactor. The form treats its absence as a
+   * hard error and redirects to start to re-initialize.
+   */
+  application_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -186,10 +327,18 @@ export async function getDrafts(): Promise<ApplicationDraft[]> {
   return data.data ?? [];
 }
 
-/** Create a new empty draft save slot. Returns the created draft with its id. */
-export async function createDraft(label?: string): Promise<ApplicationDraft> {
+/**
+ * Create a new empty draft save slot. Returns the created draft with its id.
+ *
+ * `applicationId` links the blob to its Application record when one exists
+ * at blob-creation time. When the blob outlives the Application (finalize
+ * succeeds, or the Application is deleted), the blob is automatically
+ * cleaned up — no reliance on label-match fallback.
+ */
+export async function createDraft(label?: string, applicationId?: number): Promise<ApplicationDraft> {
   const { data } = await axiosInstance.post<{ data: ApplicationDraft }>('/application-drafts', {
     label: label ?? 'New Application',
+    ...(applicationId ? { application_id: applicationId } : {}),
   });
   return data.data;
 }
@@ -214,6 +363,7 @@ export async function saveDraft(
   label: string,
   draftData: Record<string, unknown>,
   lastKnownUpdatedAt?: string,
+  applicationId?: number,
 ): Promise<string | undefined> {
   const { data } = await axiosInstance.put<{ data: { id: number; label: string; updated_at: string } }>(
     `/application-drafts/${id}`,
@@ -221,6 +371,7 @@ export async function saveDraft(
       label,
       draft_data: draftData,
       ...(lastKnownUpdatedAt ? { last_known_updated_at: lastKnownUpdatedAt } : {}),
+      ...(applicationId ? { application_id: applicationId } : {}),
     },
   );
   return data.data?.updated_at;
@@ -398,12 +549,6 @@ export interface StoreHealthProfilePayload {
   has_neurostimulator?: boolean;
   // Mobility
   mobility_notes?: string;
-  // Other
-  has_contagious_illness?: boolean;
-  contagious_illness_description?: string;
-  tubes_in_ears?: boolean;
-  has_recent_illness?: boolean;
-  recent_illness_description?: string;
 }
 
 export async function storeHealthProfile(
@@ -487,6 +632,203 @@ export async function uploadDocument(formData: FormData): Promise<Document> {
 }
 
 // ---------------------------------------------------------------------------
+// Applicant-facing update/delete helpers
+// ---------------------------------------------------------------------------
+//
+// The form's per-section progressive flush needs to PUT single-record
+// relations (camper, medical record, behavioral profile, feeding plan) and
+// DELETE + recreate list relations (contacts, diagnoses, allergies,
+// assistive devices, activity permissions, medications) on every section
+// transition. Owner-gated on the backend via the respective Policy classes;
+// admin has the same access via the admin.api mirror.
+
+export interface UpdateCamperPayload {
+  first_name?: string;
+  last_name?: string;
+  preferred_name?: string;
+  date_of_birth?: string;
+  gender?: string;
+  tshirt_size?: string;
+  county?: string;
+  needs_interpreter?: boolean;
+  preferred_language?: string;
+  camper_address?: string;
+  camper_city?: string;
+  camper_state?: string;
+  camper_zip?: string;
+}
+export async function updateCamperProfile(id: number, payload: UpdateCamperPayload): Promise<void> {
+  await axiosInstance.put(`/campers/${id}`, payload);
+}
+
+export interface UpdateMedicalRecordPayload {
+  physician_name?: string;
+  physician_phone?: string;
+  physician_address?: string;
+  insurance_provider?: string;
+  insurance_policy_number?: string;
+  insurance_group?: string;
+  medicaid_number?: string;
+  has_seizures?: boolean;
+  last_seizure_date?: string;
+  seizure_description?: string;
+  has_neurostimulator?: boolean;
+  immunizations_current?: boolean;
+  tetanus_date?: string;
+  date_of_medical_exam?: string;
+  special_needs?: string;
+  dietary_restrictions?: string;
+}
+export async function updateMedicalRecord(id: number, payload: UpdateMedicalRecordPayload): Promise<void> {
+  await axiosInstance.put(`/medical-records/${id}`, payload);
+}
+
+export async function updateBehavioralProfile(id: number, payload: CreateBehavioralProfilePayload): Promise<void> {
+  const { camper_id: _unused, ...body } = payload;
+  void _unused;
+  await axiosInstance.put(`/behavioral-profiles/${id}`, body);
+}
+
+export async function updateFeedingPlan(id: number, payload: CreateFeedingPlanPayload): Promise<void> {
+  const { camper_id: _unused, ...body } = payload;
+  void _unused;
+  await axiosInstance.put(`/feeding-plans/${id}`, body);
+}
+
+/** List-relation deletes — called before wipe/recreate in a section flush. */
+export async function deleteEmergencyContact(id: number): Promise<void> {
+  await axiosInstance.delete(`/emergency-contacts/${id}`);
+}
+export async function deleteDiagnosis(id: number): Promise<void> {
+  await axiosInstance.delete(`/diagnoses/${id}`);
+}
+export async function deleteAllergy(id: number): Promise<void> {
+  await axiosInstance.delete(`/allergies/${id}`);
+}
+export async function deleteAssistiveDevice(id: number): Promise<void> {
+  await axiosInstance.delete(`/assistive-devices/${id}`);
+}
+export async function deleteActivityPermission(id: number): Promise<void> {
+  await axiosInstance.delete(`/activity-permissions/${id}`);
+}
+export async function deleteMedication(id: number): Promise<void> {
+  await axiosInstance.delete(`/medications/${id}`);
+}
+
+// List-relation PUTs — used by the form's diff-based sync to update rows
+// in place when the parent edits (instead of delete+recreate). Owner-gated
+// on the backend via each Policy class.
+
+export interface UpdateEmergencyContactPayload {
+  name?: string;
+  relationship?: string;
+  phone_primary?: string;
+  phone_secondary?: string;
+  email?: string;
+  is_primary?: boolean;
+  is_authorized_pickup?: boolean;
+}
+export async function updateEmergencyContact(id: number, payload: UpdateEmergencyContactPayload): Promise<void> {
+  await axiosInstance.put(`/emergency-contacts/${id}`, payload);
+}
+
+export interface UpdateDiagnosisPayload {
+  name?: string;
+  severity_level?: string;
+  notes?: string;
+}
+export async function updateDiagnosis(id: number, payload: UpdateDiagnosisPayload): Promise<void> {
+  await axiosInstance.put(`/diagnoses/${id}`, payload);
+}
+
+export interface UpdateAllergyPayload {
+  allergen?: string;
+  severity?: string;
+  reaction?: string;
+  treatment?: string;
+}
+export async function updateAllergy(id: number, payload: UpdateAllergyPayload): Promise<void> {
+  await axiosInstance.put(`/allergies/${id}`, payload);
+}
+
+export interface UpdateAssistiveDevicePayload {
+  device_type?: string;
+  requires_transfer_assistance?: boolean;
+  notes?: string;
+}
+export async function updateAssistiveDevice(id: number, payload: UpdateAssistiveDevicePayload): Promise<void> {
+  await axiosInstance.put(`/assistive-devices/${id}`, payload);
+}
+
+export interface UpdateActivityPermissionPayload {
+  activity_name?: string;
+  permission_level?: string;
+  restriction_notes?: string;
+}
+export async function updateActivityPermission(id: number, payload: UpdateActivityPermissionPayload): Promise<void> {
+  await axiosInstance.put(`/activity-permissions/${id}`, payload);
+}
+
+export interface UpdateMedicationPayload {
+  name?: string;
+  dosage?: string;
+  frequency?: string;
+  purpose?: string;
+  prescribing_physician?: string;
+  notes?: string;
+}
+export async function updateMedication(id: number, payload: UpdateMedicationPayload): Promise<void> {
+  await axiosInstance.put(`/medications/${id}`, payload);
+}
+
+/** Update the Application's narrative fields + sections_reviewed + admin notes. */
+export interface UpdateApplicationPayload {
+  notes?: string;
+  narrative_rustic_environment?: string;
+  narrative_staff_suggestions?: string;
+  narrative_participation_concerns?: string;
+  narrative_camp_benefit?: string;
+  narrative_heat_tolerance?: string;
+  narrative_transportation?: string;
+  narrative_additional_info?: string;
+  narrative_emergency_protocols?: string;
+  sections_reviewed?: Record<string, string>;
+}
+export async function updateApplication(id: number, payload: UpdateApplicationPayload): Promise<void> {
+  await axiosInstance.put(`/applications/${id}`, payload);
+}
+
+/**
+ * List-relation row shapes returned by GET /campers/{id}. Exposes enough
+ * fields for the form's diff-based sync to match form rows against server
+ * rows by natural key. Additional properties may be present; only the
+ * ones listed here are consumed by the sync logic.
+ */
+export interface ServerEmergencyContact { id: number; name?: string; relationship?: string; phone_primary?: string }
+export interface ServerDiagnosis { id: number; name?: string; notes?: string }
+export interface ServerAllergy { id: number; allergen?: string; severity?: string; reaction?: string; treatment?: string }
+export interface ServerAssistiveDevice { id: number; device_type?: string; requires_transfer_assistance?: boolean; notes?: string }
+export interface ServerActivityPermission { id: number; activity_name?: string; permission_level?: string; restriction_notes?: string }
+export interface ServerMedication { id: number; name?: string; dosage?: string; frequency?: string; purpose?: string }
+
+/**
+ * Fetches the camper with every relevant relation nested. Used by the
+ * form's per-section diff-based sync logic to compare current server
+ * rows against in-memory form state.
+ */
+export async function getCamperFull(id: number): Promise<Camper & {
+  emergency_contacts?: ServerEmergencyContact[];
+  diagnoses?: ServerDiagnosis[];
+  allergies?: ServerAllergy[];
+  assistive_devices?: ServerAssistiveDevice[];
+  activity_permissions?: ServerActivityPermission[];
+  medications?: ServerMedication[];
+}> {
+  const { data } = await axiosInstance.get<ApiResponse<Camper>>(`/campers/${id}`);
+  return data.data;
+}
+
+// ---------------------------------------------------------------------------
 // Documents (applicant portal)
 // ---------------------------------------------------------------------------
 
@@ -517,6 +859,33 @@ export async function deleteDocument(id: number): Promise<void> {
 export async function submitDocument(id: number): Promise<Document> {
   const { data } = await axiosInstance.patch<{ data: Document }>(`/documents/${id}/submit`);
   return data.data;
+}
+
+/**
+ * Upload a document and immediately submit it so staff can see it.
+ *
+ * Backend policy: applicant uploads ALWAYS land as drafts (submitted_at=null)
+ * for security separation. The caller must then call /submit to make them
+ * visible to admins. If the submit step fails after the upload succeeds, the
+ * upload is left as an invisible draft — and the next form submission retry
+ * will create a duplicate. This helper deletes the orphaned upload on submit
+ * failure so retries start from a clean state.
+ */
+export async function uploadAndSubmitDocument(formData: FormData): Promise<Document> {
+  const uploaded = await uploadDocument(formData);
+  try {
+    return await submitDocument(uploaded.id);
+  } catch (submitError) {
+    // Best-effort cleanup. If the delete itself fails we still surface the
+    // original submit error — the draft will remain on the applicant's
+    // detail page where they can manually submit or delete it.
+    try {
+      await deleteDocument(uploaded.id);
+    } catch {
+      /* swallow — original error is more important */
+    }
+    throw submitError;
+  }
 }
 
 // ─── Required Documents (sent by admin) ──────────────────────────────────────

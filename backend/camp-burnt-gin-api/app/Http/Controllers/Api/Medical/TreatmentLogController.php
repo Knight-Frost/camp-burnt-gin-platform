@@ -45,6 +45,11 @@ class TreatmentLogController extends Controller
             ->orderByDesc('treatment_date')
             ->orderByDesc('treatment_time');
 
+        // Phase 18: scope to a specific camp session.
+        if ($request->filled('session_id')) {
+            $query->where('camp_session_id', $request->integer('session_id'));
+        }
+
         // Narrow to a specific camper when viewing their individual medical record.
         if ($request->filled('camper_id')) {
             $query->where('camper_id', $request->integer('camper_id'));

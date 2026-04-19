@@ -42,8 +42,6 @@ class SessionDashboardController extends Controller
     {
         $this->authorize('view', $session);
 
-        $session->load('camp');
-
         // ── Application counts per status ────────────────────────────────────────
         // selectRaw + groupBy produces a flat map of status → count without loading
         // every application row. Only count non-draft submissions.
@@ -156,7 +154,10 @@ class SessionDashboardController extends Controller
                 'session' => [
                     'id' => $session->id,
                     'name' => $session->name,
-                    'camp' => $session->camp?->name,
+                    // Camp is fixed for this deployment; the Camp model was removed
+                    // when the schema collapsed Camp→CampSession. Kept in the payload
+                    // for backwards compatibility with existing frontend consumers.
+                    'camp' => 'Camp Burnt Gin',
                     'start_date' => $session->start_date?->toDateString(),
                     'end_date' => $session->end_date?->toDateString(),
                     'capacity' => $session->capacity,

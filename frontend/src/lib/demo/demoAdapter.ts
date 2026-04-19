@@ -17,7 +17,6 @@
 
 import type { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import {
-  CAMPS,
   SESSIONS,
   CAMPERS,
   APPLICATIONS,
@@ -170,28 +169,10 @@ export function demoAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
     return ok(config, apiEnvelope({ ...camper, medical_record: medicalRecord }));
   }
 
-  // ── Camps ─────────────────────────────────────────────────────────────────
-
-  if (url === '/camps' && method === 'get') {
-    return ok(config, apiEnvelope(CAMPS));
-  }
-
-  if (url.match(/^\/camps\/\d+$/) && method === 'put') {
-    const id = extractId(url, '/camps');
-    const camp = CAMPS.find((c) => c.id === id) ?? CAMPS[0];
-    return ok(config, apiEnvelope(camp));
-  }
-
-  if (url === '/camps' && method === 'post') {
-    return ok(config, apiEnvelope({ ...CAMPS[0], id: 99 }), 201);
-  }
-
   // ── Sessions ──────────────────────────────────────────────────────────────
 
   if (url === '/sessions' && method === 'get') {
-    let items = [...SESSIONS];
-    if (params.camp_id) items = items.filter((s) => s.camp_id === params.camp_id);
-    return ok(config, apiEnvelope(items));
+    return ok(config, apiEnvelope([...SESSIONS]));
   }
 
   if (url.match(/^\/sessions\/\d+\/dashboard$/)) {

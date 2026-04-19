@@ -2,8 +2,11 @@
 
 namespace Tests\Feature\Security;
 
+use App\Enums\ApplicationStatus;
+use App\Models\Application;
 use App\Models\AuditLog;
 use App\Models\Camper;
+use App\Models\CampSession;
 use App\Models\MedicalRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -73,6 +76,11 @@ class PhiAuditingTest extends TestCase
     {
         $admin = $this->createAdmin();
         $camper = Camper::factory()->create();
+        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
 
         // Access camper
         $response = $this->actingAs($admin)->getJson("/api/campers/{$camper->id}");

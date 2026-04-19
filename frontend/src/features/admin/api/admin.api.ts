@@ -6,17 +6,48 @@ import { axiosInstance } from '@/api/axios.config';
 import type { ApiResponse, PaginatedResponse } from '@/shared/types/api.types';
 import type {
   Application, ApplicationCompleteness, ApplicationReviewPayload, AuditLogEntry,
-  BehavioralProfile, Camp, Camper, CampSession, Document, EmergencyContact,
+  BehavioralProfile, Camper, CampSession, Document, EmergencyContact,
   FamilyWorkspace, ProviderLink, RiskAssessment, User,
 } from '@/features/admin/types/admin.types';
 
-export async function getApplications(params?: { page?: number; per_page?: number; status?: string; search?: string; camp_session_id?: number; drafts_only?: boolean; sort?: string; direction?: 'asc' | 'desc' }): Promise<PaginatedResponse<Application>> {
+export async function getApplications(params?: {
+  page?: number;
+  per_page?: number;
+  status?: string;
+  search?: string;
+  camp_session_id?: number;
+  drafts_only?: boolean;
+  /** Opt-in: include drafts alongside submitted applications. Off by default. */
+  include_drafts?: boolean;
+  /** Filter by intake mode: 'digital' | 'paper_self' | 'paper_admin'. Omit for all. */
+  submission_source?: 'digital' | 'paper_self' | 'paper_admin';
+  sort?: string;
+  direction?: 'asc' | 'desc';
+}): Promise<PaginatedResponse<Application>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Application>>('/applications', { params });
   return data;
 }
 export async function getApplication(id: number): Promise<Application> {
   const { data } = await axiosInstance.get<ApiResponse<Application>>(`/applications/${id}`);
   return data.data;
+}
+
+/**
+ * Fetch the canonical 11-section projection of an application for admin
+ * review. Same endpoint as the legacy getApplication — the server returns
+ * both `data` (legacy) and `canonical` (new shape) in one response. Use
+ * this helper when you need the 11-section rendering or the server-
+ * computed per-document compliance metadata with role-appropriate labels.
+ */
+export async function getApplicationCanonical(id: number): Promise<{
+  data: Application;
+  canonical: import('@/shared/types').CanonicalApplicationPayload;
+}> {
+  const { data } = await axiosInstance.get<{
+    data: Application;
+    canonical: import('@/shared/types').CanonicalApplicationPayload;
+  }>(`/applications/${id}`);
+  return data;
 }
 export async function reviewApplication(id: number, payload: ApplicationReviewPayload): Promise<Application> {
   const { data } = await axiosInstance.post<ApiResponse<Application>>(`/applications/${id}/review`, payload);
@@ -282,18 +313,7 @@ export async function getRiskAssessmentHistory(camperId: number): Promise<RiskAs
   );
   return data.data;
 }
-export async function getCamps(): Promise<Camp[]> {
-  const { data } = await axiosInstance.get<ApiResponse<Camp[]>>('/camps'); return data.data;
-}
-export async function createCamp(payload: Omit<Camp, 'id' | 'created_at' | 'updated_at'>): Promise<Camp> {
-  const { data } = await axiosInstance.post<ApiResponse<Camp>>('/camps', payload); return data.data;
-}
-export async function updateCamp(id: number, payload: Partial<Omit<Camp, 'id'>>): Promise<Camp> {
-  const { data } = await axiosInstance.put<ApiResponse<Camp>>(`/camps/${id}`, payload); return data.data;
-}
-export async function deleteCamp(id: number): Promise<void> { await axiosInstance.delete(`/camps/${id}`); }
-
-export async function getSessions(params?: { camp_id?: number; per_page?: number }): Promise<CampSession[]> {
+export async function getSessions(params?: { per_page?: number }): Promise<CampSession[]> {
   const { data } = await axiosInstance.get<ApiResponse<CampSession[]>>('/sessions', { params }); return data.data;
 }
 export async function createSession(payload: Omit<CampSession, 'id' | 'created_at' | 'camp'>): Promise<CampSession> {

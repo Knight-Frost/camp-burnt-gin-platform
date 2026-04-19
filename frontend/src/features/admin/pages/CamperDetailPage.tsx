@@ -326,6 +326,7 @@ export function CamperDetailPage() {
   const [med, setMed]             = useState<MedData | null>(null);
   const [risk, setRisk]           = useState<RiskSummary | null>(null);
   const [loading, setLoading]     = useState(true);
+  const [forbidden, setForbidden] = useState(false);
   const [medLoading, setMedLoading] = useState(true);
   const [riskLoading, setRiskLoading] = useState(true);
   const [error, setError]         = useState(false);
@@ -338,7 +339,16 @@ export function CamperDetailPage() {
 
     getCamper(camperId)
       .then(data => { if (!cancelled) setCamper(data); })
-      .catch(() => { if (!cancelled) { setError(true); toast.error(t('common.error_loading')); } })
+      .catch((err: { response?: { status?: number } }) => {
+        if (!cancelled) {
+          if (err?.response?.status === 403) {
+            setForbidden(true);
+          } else {
+            setError(true);
+            toast.error(t('common.error_loading'));
+          }
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -405,6 +415,18 @@ export function CamperDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map(i => <Skeletons.Card key={i} />)}
         </div>
+      </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <div className="p-6 max-w-5xl">
+        <EmptyState
+          title="No Submitted Application"
+          description="This camper's record is only accessible after a formal application has been submitted. The family has not yet submitted an application."
+          action={{ label: t('admin.campers.title'), onClick: () => navigate(`${portalBase}/campers`) }}
+        />
       </div>
     );
   }

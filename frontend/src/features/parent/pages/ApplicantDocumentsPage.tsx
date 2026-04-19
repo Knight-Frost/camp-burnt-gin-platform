@@ -40,20 +40,16 @@ import {
   getDocuments,
   deleteDocument,
   uploadDocument,
-  submitDocument,
   getRequiredDocuments,
   submitCompletedDocument,
   getDocumentRequests,
   uploadDocumentRequest,
-  getApplications,
   type Document,
   type RequiredDocument,
   type DocumentRequestRecord,
 } from '@/features/parent/api/applicant.api';
 import {
   getDocumentLabel,
-  getDocumentNote,
-  UNIVERSAL_REQUIRED_DOC_TYPES,
 } from '@/shared/constants/documentRequirements';
 import {
   searchInboxUsers,
@@ -861,13 +857,9 @@ export function ApplicantDocumentsPage() {
   // We prefer a submitted (non-draft) application; fall back to any draft.
   // Without an applicationId, required doc uploads would be orphaned (no
   // documentable association) and admin queries would not find them.
-  const [activeApplicationId, setActiveApplicationId] = useState<number | null>(null);
-
-  // ── Required doc upload state (per-type) ─────────────────────────────────
-  // Each key is a document type string from UNIVERSAL_REQUIRED_DOC_TYPES.
-  const [requiredDocUploading, setRequiredDocUploading] = useState<string | null>(null);
-  // Per-type file input refs so each card triggers its own hidden <input>.
-  const requiredDocInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // Required-document state is intentionally absent here. Required documents
+  // live exclusively inside the ApplicationFormPage submission flow — see the
+  // comment above the removed "Required Documents" section in the render.
 
   // ── General upload state (UploadArea — supplementary docs) ───────────────
   const [uploading, setUploading] = useState(false);
@@ -905,48 +897,9 @@ export function ApplicantDocumentsPage() {
 
   useEffect(() => {
     load();
-    // Load the active application ID so required doc uploads can be associated
-    // with the correct application record (not orphaned with null documentable).
-    getApplications()
-      .then((apps) => {
-        const submitted = apps.find((a) => !a.is_draft && a.submitted_at);
-        const draft = apps.find((a) => a.is_draft);
-        setActiveApplicationId((submitted ?? draft)?.id ?? null);
-      })
-      .catch(() => { /* non-critical — page still works, uploads fall back to orphaned */ });
   }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-
-  // Required document upload — canonical type enforced, linked to the active
-  // application, immediately submitted so admin can see it without a second step.
-  async function handleRequiredDocUpload(file: File, docType: string) {
-    setRequiredDocUploading(docType);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('document_type', docType);
-      // Association: link to the application record, not orphaned.
-      // Both ApplicationController::show() and DocumentEnforcementService query
-      // Application-polymorphic docs, so this ensures admin can see the doc.
-      if (activeApplicationId !== null) {
-        fd.append('documentable_type', 'App\\Models\\Application');
-        fd.append('documentable_id', String(activeApplicationId));
-      }
-      const uploaded = await uploadDocument(fd);
-      // Submit immediately — applicant uploads start as drafts (submitted_at = null)
-      // and are invisible to admin until submitted. Required docs must be visible
-      // to staff as soon as they are uploaded; there is no reason to stage them.
-      await submitDocument(uploaded.id);
-      toast.success(`${getDocumentLabel(docType, 'applicant')} submitted to staff.`);
-      load();
-    } catch (err) {
-      const msg = (err as { message?: string })?.message;
-      toast.error(msg ? `Upload failed: ${msg}` : 'Upload failed. Please try again.');
-    } finally {
-      setRequiredDocUploading(null);
-    }
-  }
 
   // Supplementary upload (UploadArea — not linked to a specific task)
   async function handleUpload(file: File, documentType: string) {
@@ -1107,163 +1060,21 @@ export function ApplicantDocumentsPage() {
             Documents
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            Complete the tasks below, then upload any additional documents required for your application.
+            Respond to any documents camp staff has requested from you, and upload optional supporting files here. Your application's required documents (immunization record, insurance card, medical form) live inside the application form itself.
           </p>
         </div>
 
-        {/* ── Universal Required Documents ─────────────────────────────── */}
-        {/* Immunization Record and Insurance Card are required for every applicant.
-            This section provides a dedicated, typed upload path so the canonical
-            document_type key is always stored correctly and the document is linked
-            to the active application (not orphaned) and submitted to staff immediately.
-            Without this section, applicants would use the free-text supplementary
-            upload area, which risks type mismatches and orphaned draft records that
-            are invisible to admin due to the submitted_at IS NOT NULL filter. */}
-        <section>
-          <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
-            <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
-              Required Documents
-            </h3>
-          </div>
-          <p className="text-xs mb-4" style={{ color: 'var(--muted-foreground)' }}>
-            These documents are required for all applicants. Upload each one — they will be submitted to staff automatically.
-          </p>
-
-          <div className="flex flex-col gap-3">
-            {UNIVERSAL_REQUIRED_DOC_TYPES.map((docType) => {
-              // Find the best match: prefer submitted, then draft (most recent first).
-              const submittedDoc = documents
-                .filter((d) => d.document_type === docType && d.submitted_at)
-                .sort((a, b) => new Date(b.submitted_at!).getTime() - new Date(a.submitted_at!).getTime())[0] ?? null;
-              const draftDoc = !submittedDoc
-                ? documents
-                    .filter((d) => d.document_type === docType && !d.submitted_at)
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null
-                : null;
-              const existingDoc = submittedDoc ?? draftDoc;
-              const isSubmitted = !!submittedDoc;
-              const isDraft = !!draftDoc && !submittedDoc;
-              const isUploading = requiredDocUploading === docType;
-              const label = getDocumentLabel(docType, 'applicant');
-              const note = getDocumentNote(docType);
-
-              return (
-                <div
-                  key={docType}
-                  className="rounded-2xl border px-5 py-4 flex items-center justify-between gap-4"
-                  style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: isSubmitted
-                          ? 'rgba(22,163,74,0.10)'
-                          : 'rgba(234,88,12,0.08)',
-                      }}
-                    >
-                      {isSubmitted ? (
-                        <CheckCircle className="h-4 w-4" style={{ color: '#16a34a' }} />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4" style={{ color: '#ca8a04' }} />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{label}</p>
-                      {note && (
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                          {note}
-                        </p>
-                      )}
-                      {existingDoc && (
-                        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                          {existingDoc.file_name}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {isSubmitted ? (
-                      <>
-                        <span className="text-xs font-medium" style={{ color: '#16a34a' }}>Submitted to staff</span>
-                        {/* Allow re-upload if needed (e.g. document expired) */}
-                        <label className="cursor-pointer">
-                          <input
-                            ref={(el) => { requiredDocInputRefs.current[docType] = el; }}
-                            type="file"
-                            className="sr-only"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) void handleRequiredDocUpload(f, docType);
-                              e.target.value = '';
-                            }}
-                          />
-                          <span
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors cursor-pointer"
-                            style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'transparent' }}
-                          >
-                            Replace
-                          </span>
-                        </label>
-                      </>
-                    ) : isDraft ? (
-                      <>
-                        <span className="text-xs" style={{ color: '#ca8a04' }}>Draft — not visible to staff</span>
-                        <button
-                          type="button"
-                          disabled={isUploading}
-                          onClick={async () => {
-                            if (draftDoc) {
-                              setRequiredDocUploading(docType);
-                              try {
-                                await submitDocument(draftDoc.id);
-                                toast.success(`${label} submitted to staff.`);
-                                load();
-                              } catch {
-                                toast.error('Submit failed. Please try again.');
-                              } finally {
-                                setRequiredDocUploading(null);
-                              }
-                            }
-                          }}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50"
-                          style={{ borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)', background: 'transparent' }}
-                        >
-                          {isUploading ? 'Submitting…' : 'Submit to Staff'}
-                        </button>
-                      </>
-                    ) : (
-                      <label className="cursor-pointer">
-                        <input
-                          ref={(el) => { requiredDocInputRefs.current[docType] = el; }}
-                          type="file"
-                          className="sr-only"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          disabled={isUploading}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) void handleRequiredDocUpload(f, docType);
-                            e.target.value = '';
-                          }}
-                        />
-                        <span
-                          className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          style={{ background: 'var(--ember-orange)', color: '#fff' }}
-                        >
-                          <Upload className="h-3.5 w-3.5" />
-                          {isUploading ? 'Uploading…' : 'Upload'}
-                        </span>
-                      </label>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        {/* Required documents for the camp application (Immunization Record,
+            Insurance Card, Medical Examination Form, etc.) are intentionally
+            NOT rendered on this page.
+            They belong exclusively to the ApplicationFormPage submission flow
+            so that:
+              - completion is evaluated in one place (the finalize gate)
+              - the "submitted to staff" label can only ever reflect the real
+                application state (draft docs never claim to be submitted)
+              - this page stays focused on its actual purpose: admin-initiated
+                document requests and optional supplementary uploads.
+            See ApplicationFormPage step 11 for the required-document flow. */}
 
         {/* ── Task panel — Documents Requested From You ─────────────────── */}
         {/* Always rendered — admins can create requests at any time and users

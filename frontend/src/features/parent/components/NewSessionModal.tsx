@@ -28,7 +28,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { getSessions } from '@/features/parent/api/applicant.api';
+import {
+  getSessions,
+  initializeDraftApplication,
+  createDraft,
+} from '@/features/parent/api/applicant.api';
 import type { Camper, Application, Session } from '@/shared/types';
 import { ROUTES } from '@/shared/constants/routes';
 import { Avatar } from '@/ui/components/Avatar';
@@ -112,6 +116,7 @@ export function NewSessionModal({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Focus the dialog on mount for accessibility
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -149,24 +154,44 @@ export function NewSessionModal({
       )
     : null;
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!selectedSessionId || duplicateApp) return;
-    onClose();
-    navigate(ROUTES.PARENT_APPLICATION_NEW, {
-      state: {
-        prefill: {
-          first_name:    camper.first_name,
-          last_name:     camper.last_name,
-          date_of_birth: camper.date_of_birth,
-          gender:        camper.gender,
-          tshirt_size:   camper.tshirt_size,
+    try {
+      // Reapplication must hit the same lifecycle gate as a first-time
+      // application: initialize the Application (reusing the existing
+      // Camper) so the form has real IDs to drive the validation engine.
+      // No blob-only flows remain — this is the single entry path.
+      const init = await initializeDraftApplication({
+        camp_session_id:   selectedSessionId,
+        camper_id:         camper.id,
+        reapplied_from_id: reappliedFromId ?? undefined,
+      });
+      const draft = await createDraft('Reapplication', init.application_id);
+      onClose();
+      navigate(ROUTES.PARENT_APPLICATION_NEW, {
+        state: {
+          prefill: {
+            first_name:    camper.first_name,
+            last_name:     camper.last_name,
+            date_of_birth: camper.date_of_birth,
+            gender:        camper.gender,
+            tshirt_size:   camper.tshirt_size,
+          },
+          sessionId:           selectedSessionId,
+          draftId:             draft.id,
+          applicationId:       init.application_id,
+          camperId:            init.camper_id,
+          medicalRecordId:     init.medical_record_id,
+          behavioralProfileId: init.behavioral_profile_id,
+          feedingPlanId:       init.feeding_plan_id,
+          ...(reappliedFromId != null ? { reappliedFromId } : {}),
         },
-        sessionId: selectedSessionId,
-        // Only set the audit-trail link when a prior application was found.
-        // Its absence means a first-time application for this camper.
-        ...(reappliedFromId != null ? { reappliedFromId } : {}),
-      },
-    });
+      });
+    } catch {
+      // Show the inline error banner rather than silently failing.
+      // Network / policy / validation errors all land here.
+      setInitError('We couldn\'t start your reapplication right now. Please try again in a moment.');
+    }
   }
 
   return (
@@ -387,6 +412,20 @@ export function NewSessionModal({
         )}
 
         {/* ── Action buttons ───────────────────────────────── */}
+        {initError && (
+          <div
+            className="flex items-start gap-2 rounded-lg border px-3 py-2 mt-2 text-sm"
+            style={{
+              background: 'rgba(220,38,38,0.06)',
+              borderColor: 'rgba(220,38,38,0.25)',
+              color: '#b91c1c',
+            }}
+            role="alert"
+          >
+            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>{initError}</span>
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 mt-2">
           <button
             type="button"

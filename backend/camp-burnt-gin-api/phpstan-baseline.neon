@@ -61,12 +61,6 @@ parameters:
 			path: app/Http/Controllers/Api/Auth/AuthController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
-
-		-
 			message: '#^Called ''count'' on Laravel collection, but could have been retrieved as a query\.$#'
 			identifier: larastan.noUnnecessaryCollectionCall
 			count: 1
@@ -109,27 +103,27 @@ parameters:
 			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
 
 		-
-			message: '#^Offset ''capacity'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
-			identifier: offsetAccess.notFound
+			message: '#^Offset ''already_withdrawn'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
-			message: '#^Offset ''enrolled'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
-			identifier: offsetAccess.notFound
+			message: '#^Offset ''not_withdrawable'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
-			message: '#^Offset ''session_name'' does not exist on array\{success\: false, invalid_transition\?\: bool, capacity_exceeded\: bool, compliance_details\?\: array\}\.$#'
-			identifier: offsetAccess.notFound
+			message: '#^Offset ''success'' on array\{success\: bool, already_withdrawn\?\: bool, not_withdrawable\?\: bool\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
 			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationSubmitted\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
-			count: 2
+			count: 3
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
@@ -545,6 +539,12 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: app/Http/Controllers/Api/Inbox/MessageController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Medical/MedicalIncidentController.php
 
 		-
 			message: '#^Parameter \#2 \$allergies of static method App\\Models\\TreatmentLog\:\:detectAllergyConflicts\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Allergy\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
@@ -973,12 +973,6 @@ parameters:
 			path: app/Models/User.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/Camper/AcceptanceLetterNotification.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_date\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1043,12 +1037,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Notifications/Camper/IncompleteApplicationReminderNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/Camper/RejectionLetterNotification.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
@@ -1375,6 +1363,12 @@ parameters:
 			path: app/Services/Camper/ApplicationService.php
 
 		-
+			message: '#^Variable \$capacityRaceResult on left side of \?\? always exists and is always null\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: app/Services/Camper/ApplicationService.php
+
+		-
 			message: '#^Call to an undefined method App\\Models\\User\:\:applications\(\)\.$#'
 			identifier: method.notFound
 			count: 2
@@ -1675,12 +1669,6 @@ parameters:
 			path: app/Services/MessageService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/System/LetterService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_date\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1703,12 +1691,6 @@ parameters:
 			identifier: method.notFound
 			count: 2
 			path: app/Services/System/LetterService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$camp\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/System/ReportService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'

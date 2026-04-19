@@ -763,43 +763,43 @@ export function MedicalRecordPage() {
           <div className="flex items-center gap-2">
             <Link
               to={`/medical/records/${id}/treatments`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
-              style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+              style={{ background: '#166534', color: '#ffffff' }}
             >
               <ClipboardList className="h-3.5 w-3.5" />
               {t('medical.record.treatment_log')}
             </Link>
             <Link
               to={`/medical/records/${id}/documents`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
-              style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+              style={{ background: '#166534', color: '#ffffff' }}
             >
               <FileText className="h-3.5 w-3.5" />
               {t('medical.record.documents')}
             </Link>
             <Link
               to={`/medical/records/${id}/incidents`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
-              style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+              style={{ background: '#166534', color: '#ffffff' }}
             >
               <AlertOctagon className="h-3.5 w-3.5" />
               {t('medical.record.incidents')}
             </Link>
             <Link
               to={`/medical/records/${id}/visits`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
-              style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'var(--card)' }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+              style={{ background: '#166534', color: '#ffffff' }}
             >
               <Stethoscope className="h-3.5 w-3.5" />
               {t('medical.record.visits')}
             </Link>
             <Link
               to={`/medical/records/${id}/risk`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-80"
-              style={{ borderColor: 'rgba(22,101,52,0.3)', color: '#166534', background: 'rgba(22,101,52,0.07)' }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+              style={{ background: '#166534', color: '#ffffff' }}
             >
               <TrendingUp className="h-3.5 w-3.5" />
-              {t('medical.record.risk_assessment', 'Risk Assessment')}
+              {t('medical.record.risk_assessment')}
             </Link>
           </div>
         </div>

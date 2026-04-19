@@ -59,10 +59,20 @@ class DocumentEnforcementService
      *     required_documents: array,
      *     missing_documents: array,
      *     expired_documents: array,
-     *     unverified_documents: array
+     *     unverified_documents: array,
+     *     incomplete_documents: array
      * }
+     *
+     * @param  \App\Models\Application|null  $finalizingApplication
+     *         When the caller is the applicant's own finalize flow, the target
+     *         application is still is_draft=true at the moment this check runs
+     *         — but its documents DO count toward its own completeness because
+     *         the cascade inside finalize() is about to promote them. Pass the
+     *         application here to include its draft docs in the counted set.
+     *         Admin/approval gate callers should omit this (default null) so
+     *         only truly-submitted applications contribute.
      */
-    public function checkCompliance(Camper $camper): array
+    public function checkCompliance(Camper $camper, ?\App\Models\Application $finalizingApplication = null): array
     {
         // Run the full risk assessment to know this camper's tier, level, and flags
         $assessment = $this->riskAssessment->assessCamper($camper);
@@ -71,17 +81,45 @@ class DocumentEnforcementService
         $requiredDocuments = $this->getRequiredDocuments($assessment);
 
         // Fetch all documents already uploaded for this camper
-        $uploadedDocuments = $this->getUploadedDocuments($camper);
+        $uploadedDocuments = $this->getUploadedDocuments($camper, $finalizingApplication);
 
-        // Check each compliance dimension separately for granular error reporting
+        // Each finder works against the required-type set so errors are
+        // scoped to rules that actually apply to this camper. Historical
+        // rows of the same type dedupe to a single representative — see
+        // binByType() for the rationale behind BUG-210.
         $missingDocuments = $this->findMissingDocuments($requiredDocuments, $uploadedDocuments);
-        $expiredDocuments = $this->findExpiredDocuments($uploadedDocuments);
-        $unverifiedDocuments = $this->findUnverifiedDocuments($uploadedDocuments);
+
+        // Testing bypass: config('compliance.strict_enabled') gates the three
+        // non-presence rules (expired / unverified / incomplete-metadata).
+        // When the flag is off we still check that a document EXISTS for
+        // each required type — that's the contract the admin workflow
+        // depends on and it can't be meaningfully relaxed — but we let
+        // rows with stale or unverified metadata through so the submission
+        // flow can be exercised against seed data without curating every
+        // fixture's dates.
+        //
+        // Production hard-override: regardless of the env value, a deploy
+        // running with APP_ENV=production always enforces strict mode.
+        // This guards against an operator accidentally shipping a relaxed
+        // gate by leaving APP_COMPLIANCE_CHECKS=false in a production .env.
+        $strictMode = app()->environment('production')
+            || (bool) config('compliance.strict_enabled');
+
+        if ($strictMode) {
+            $expiredDocuments    = $this->findExpiredDocuments($requiredDocuments, $uploadedDocuments);
+            $unverifiedDocuments = $this->findUnverifiedDocuments($requiredDocuments, $uploadedDocuments);
+            $incompleteDocuments = $this->findIncompleteMetadataDocuments($requiredDocuments, $uploadedDocuments);
+        } else {
+            $expiredDocuments    = collect();
+            $unverifiedDocuments = collect();
+            $incompleteDocuments = collect();
+        }
 
         // A camper is fully compliant only when every category is empty
         $isCompliant = $missingDocuments->isEmpty()
             && $expiredDocuments->isEmpty()
-            && $unverifiedDocuments->isEmpty();
+            && $unverifiedDocuments->isEmpty()
+            && $incompleteDocuments->isEmpty();
 
         return [
             'is_compliant' => $isCompliant,
@@ -89,6 +127,7 @@ class DocumentEnforcementService
             'missing_documents' => $this->formatMissingDocuments($missingDocuments),
             'expired_documents' => $this->formatExpiredDocuments($expiredDocuments),
             'unverified_documents' => $this->formatUnverifiedDocuments($unverifiedDocuments),
+            'incomplete_documents' => $this->formatIncompleteDocuments($incompleteDocuments),
         ];
     }
 
@@ -158,69 +197,201 @@ class DocumentEnforcementService
      * Deduplication via unique('id') prevents double-counting if a row somehow appears
      * in both result sets (should not happen, but is a safety guard).
      */
-    protected function getUploadedDocuments(Camper $camper): Collection
+    protected function getUploadedDocuments(Camper $camper, ?\App\Models\Application $finalizingApplication = null): Collection
     {
-        // Path 1: documents directly attached to the camper record
-        $camperDocs = Document::where('documentable_type', \App\Models\Camper::class)
+        // Path 1: documents directly attached to the camper record.
+        // For the applicant's own finalize flow we include draft camper docs
+        // because the cascade inside finalize() is about to promote them; for
+        // admin callers (null $finalizingApplication) we exclude drafts so
+        // staging PHI never surfaces in the review queue.
+        $camperDocsQuery = Document::where('documentable_type', \App\Models\Camper::class)
             ->where('documentable_id', $camper->id)
-            ->whereNotNull('submitted_at')
-            ->get();
+            ->whereNull('archived_at');
+        if ($finalizingApplication === null) {
+            $camperDocsQuery->whereNotNull('submitted_at');
+        }
+        $camperDocs = $camperDocsQuery->get();
 
-        // Path 2: documents attached to any of this camper's applications
-        $applicationIds = $camper->applications()->pluck('id');
-        $appDocs = $applicationIds->isNotEmpty()
-            ? Document::where('documentable_type', \App\Models\Application::class)
-                ->whereIn('documentable_id', $applicationIds)
-                ->whereNotNull('submitted_at')
-                ->get()
-            : collect();
+        // Path 2: documents attached to applications. A draft application's
+        // docs are staging PHI for admin-facing compliance, so they are
+        // excluded from that path. They ARE counted when the applicant's
+        // own finalize flow is evaluating its target application — the
+        // cascade inside finalize() promotes those docs atomically.
+        $appIds = $camper->applications()
+            ->where('is_draft', false)
+            ->whereNotNull('submitted_at')
+            ->pluck('id')
+            ->all();
+        if ($finalizingApplication !== null && ! in_array($finalizingApplication->id, $appIds, true)) {
+            $appIds[] = $finalizingApplication->id;
+        }
+        $appDocsQuery = Document::where('documentable_type', \App\Models\Application::class)
+            ->whereIn('documentable_id', $appIds)
+            ->whereNull('archived_at');
+        if ($finalizingApplication === null) {
+            $appDocsQuery->whereNotNull('submitted_at');
+        }
+        $appDocs = count($appIds) > 0 ? $appDocsQuery->get() : collect();
 
         return $camperDocs->merge($appDocs)->unique('id')->values();
     }
 
     /**
-     * Find required document types that have not been uploaded at all.
+     * Compliance is evaluated at the document-TYPE level, not at the row
+     * level. Each required type gets at most one entry in each category:
      *
-     * Compares the list of required document types against the types that
-     * have been uploaded. Any required type without a matching upload is "missing".
+     *   • missing    — no row of this type exists.
+     *   • expired    — row(s) exist but every in-date row is absent. The
+     *                  newest row is returned as the representative so the
+     *                  UI can name a specific filename in the error.
+     *   • unverified — at least one fresh-enough row exists but admin has
+     *                  not approved it yet. Pending/rejected both qualify.
+     *
+     * This helper bins uploaded documents by type so the three finders below
+     * can reason "latest valid vs latest expired" per type without returning
+     * one error per row. BUG-210 was caused by emitting one "expired" entry
+     * per historical upload of the same type — the applicant saw the same
+     * error six times.
+     *
+     * @param  Collection  $uploaded  Documents (already filtered to non-archived)
+     * @return array<string, Collection>  type → newest-first collection
+     */
+    protected function binByType(Collection $uploaded): array
+    {
+        return $uploaded
+            ->sortByDesc('created_at')
+            ->groupBy('document_type')
+            ->all();
+    }
+
+    /**
+     * Return required rules that have no uploaded row at all.
+     *
+     * A type with ONLY expired rows is NOT missing (it's expired). A type
+     * with ONLY unverified rows is NOT missing (it's unverified). This
+     * ensures the three categories partition the required set cleanly —
+     * a single type can't appear in two of them.
      */
     protected function findMissingDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
-        // Get a unique list of document types that have been uploaded
-        $uploadedTypes = $uploadedDocuments->pluck('document_type')->unique();
+        $bins = $this->binByType($uploadedDocuments);
 
-        // Keep only the rules whose document_type has not been uploaded
-        return $requiredDocuments->filter(function ($rule) use ($uploadedTypes) {
-            return ! $uploadedTypes->contains($rule->document_type);
-        });
+        return $requiredDocuments->filter(
+            fn ($rule) => ! isset($bins[$rule->document_type])
+                || $bins[$rule->document_type]->isEmpty(),
+        );
     }
 
     /**
-     * Find uploaded documents that have passed their expiration date.
+     * Return one representative expired document per required type that
+     * has NO in-date row on file.
      *
-     * An expired document (e.g. a TB test from 3 years ago) is treated as
-     * missing from a compliance standpoint — the camper needs a current version.
+     * A type with both an old expired row AND a recent in-date row is
+     * considered compliant — the fresh upload supersedes the stale one.
+     * Only types where every row is expired produce an entry, and each
+     * such type produces exactly one entry (the newest expired row, so
+     * the error can name a recognisable filename).
      */
-    protected function findExpiredDocuments(Collection $uploadedDocuments): Collection
+    protected function findExpiredDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
-        // Document::isExpired() checks whether expiration_date is in the past
-        return $uploadedDocuments->filter(function (Document $document) {
-            return $document->isExpired();
-        });
+        $bins = $this->binByType($uploadedDocuments);
+        $out  = collect();
+
+        foreach ($requiredDocuments as $rule) {
+            $rows = $bins[$rule->document_type] ?? collect();
+            if ($rows->isEmpty()) {
+                continue; // handled by findMissingDocuments
+            }
+
+            $hasInDate = $rows->contains(fn (Document $d) => ! $d->isExpired());
+            if ($hasInDate) {
+                continue; // fresh upload supersedes the expired one(s)
+            }
+
+            // Every row is expired — return the newest so the UI can name it.
+            $out->push($rows->first());
+        }
+
+        return $out;
     }
 
     /**
-     * Find uploaded documents that have not been verified by an admin.
+     * Return one representative unverified document per required type that
+     * has NO admin-verified row on file.
      *
-     * A document that is pending review or was rejected does not count as
-     * compliant — an admin must actively approve it.
+     * Same dedupe rule as expired: a type with an approved row is
+     * compliant regardless of how many pending rows exist alongside it.
      */
-    protected function findUnverifiedDocuments(Collection $uploadedDocuments): Collection
+    protected function findUnverifiedDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
-        // Document::isVerified() returns true only for admin-approved documents
-        return $uploadedDocuments->filter(function (Document $document) {
-            return ! $document->isVerified();
-        });
+        $bins = $this->binByType($uploadedDocuments);
+        $out  = collect();
+
+        foreach ($requiredDocuments as $rule) {
+            $rows = $bins[$rule->document_type] ?? collect();
+            if ($rows->isEmpty()) {
+                continue;
+            }
+
+            $hasVerified = $rows->contains(fn (Document $d) => $d->isVerified());
+            if ($hasVerified) {
+                continue;
+            }
+
+            $out->push($rows->first());
+        }
+
+        return $out;
+    }
+
+    /**
+     * Types that REQUIRE an exam_date to be meaningful. These are medical
+     * forms whose validity window is anchored to the physician's exam date
+     * (CYSHCN rule: Form 4523 must be based on an exam in the past 12
+     * months). A row uploaded without an exam_date has no expiration
+     * anchor — it can neither be validated nor flagged as expired, and
+     * must therefore be surfaced to the applicant as incomplete metadata.
+     */
+    protected const TYPES_REQUIRING_EXAM_DATE = [
+        'official_medical_form',
+        'physical_examination',
+    ];
+
+    /**
+     * Return one representative row per required type that is uploaded but
+     * missing metadata the type needs to be evaluable. Today this is only
+     * the exam-date anchor for medical forms, but the category is open so
+     * future "needs effective date", "needs issuing physician", etc. can
+     * attach without reshuffling the compliance contract.
+     *
+     * A type with at least one row that HAS the needed metadata is
+     * considered satisfied on this dimension; only types whose entire bin
+     * is incomplete produce an entry.
+     */
+    protected function findIncompleteMetadataDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
+    {
+        $bins = $this->binByType($uploadedDocuments);
+        $out  = collect();
+
+        foreach ($requiredDocuments as $rule) {
+            if (! in_array($rule->document_type, self::TYPES_REQUIRING_EXAM_DATE, true)) {
+                continue;
+            }
+
+            $rows = $bins[$rule->document_type] ?? collect();
+            if ($rows->isEmpty()) {
+                continue; // caught by findMissingDocuments
+            }
+
+            $hasDatedRow = $rows->contains(fn (Document $d) => $d->expiration_date !== null);
+            if ($hasDatedRow) {
+                continue;
+            }
+
+            $out->push($rows->first());
+        }
+
+        return $out;
     }
 
     /**
@@ -254,15 +425,52 @@ class DocumentEnforcementService
 
     /**
      * Format expired documents for the API response.
-     * Returns document IDs, types, and expiry dates — no PHI content.
+     *
+     * Returns the expiration date AND a derived exam_date when the type
+     * is anchored to a physician exam (medical forms). Applicants need
+     * to see BOTH so the error is actionable — just "has expired" does
+     * not tell them what date to go back and correct.
      */
     protected function formatExpiredDocuments(Collection $expiredDocuments): array
     {
         return $expiredDocuments->map(function (Document $document) {
+            $examDate = null;
+            if (
+                in_array($document->document_type, self::TYPES_REQUIRING_EXAM_DATE, true)
+                && $document->expiration_date !== null
+            ) {
+                // Exam date = expiration_date - 1 year, per the rule in DocumentService::upload.
+                // The attribute is cast to Carbon via the Document model, but the static
+                // analyser sees the docblock as string — wrap with Carbon::parse to keep
+                // both runtime and analyser happy without changing the cast.
+                $examDate = \Carbon\Carbon::parse($document->expiration_date)
+                    ->subYear()
+                    ->format('Y-m-d');
+            }
+
             return [
-                'document_id' => $document->id,
-                'document_type' => $document->document_type,
+                'document_id'     => $document->id,
+                'document_type'   => $document->document_type,
                 'expiration_date' => $document->expiration_date?->format('Y-m-d'),
+                'exam_date'       => $examDate,
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Format incomplete-metadata documents for the API response.
+     *
+     * Today this only surfaces the "medical form uploaded without exam
+     * date" case. The payload identifies the document so the UI can deep
+     * link back to the fix location (the Health section's exam-date field).
+     */
+    protected function formatIncompleteDocuments(Collection $incompleteDocuments): array
+    {
+        return $incompleteDocuments->map(function (Document $document) {
+            return [
+                'document_id'   => $document->id,
+                'document_type' => $document->document_type,
+                'reason'        => 'missing_exam_date',
             ];
         })->values()->toArray();
     }

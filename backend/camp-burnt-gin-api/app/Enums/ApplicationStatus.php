@@ -50,8 +50,13 @@ enum ApplicationStatus: string
     }
 
     /**
-     * Returns true if the application has reached a permanent end state.
-     * Final statuses cannot be changed back — the decision is done.
+     * Returns true if the application has reached a lifecycle end state
+     * for the applicant's perspective — meaning the parent should be able
+     * to start a fresh reapplication rather than being blocked by a slot
+     * still held by this row. The admin-only `canTransitionTo()` rules
+     * are looser (Cancelled may be reversed back to UnderReview) but
+     * that reversal is an administrative exception, not a reason to
+     * block the parent from reapplying in the meantime.
      */
     public function isFinal(): bool
     {
@@ -98,7 +103,8 @@ enum ApplicationStatus: string
      *   Approved     → Rejected (reversal), Cancelled (admin cancellation)
      *   Rejected     → Approved (re-approval only — cannot re-open to Pending/UnderReview)
      *   Waitlisted   → Approved, Rejected, Cancelled
-     *   Cancelled    → no valid transitions (irreversible)
+     *   Cancelled    → UnderReview (admin reversal only — puts the application
+     *                  back in the queue so a fresh decision can be made)
      *   Withdrawn    → no valid transitions (irreversible, parent-initiated)
      *
      * Self-transitions (same → same) are always invalid.
@@ -141,8 +147,14 @@ enum ApplicationStatus: string
                 self::Rejected,
                 self::Cancelled,
             ]),
-            // Terminal states — no further admin transitions permitted.
-            self::Cancelled, self::Withdrawn => false,
+            // Admin reversal of a cancellation — the application goes back
+            // into review so a fresh decision can be made. No direct jump
+            // to Approved/Rejected; forcing UnderReview ensures an audit
+            // trail of "cancelled then re-reviewed" rather than "cancelled
+            // then silently approved."
+            self::Cancelled => $new === self::UnderReview,
+            // Withdrawn is parent-initiated and permanent.
+            self::Withdrawn => false,
         };
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Diagnosis\StoreDiagnosisRequest;
 use App\Http\Requests\Diagnosis\UpdateDiagnosisRequest;
 use App\Models\Diagnosis;
+use App\Services\Camper\CamperChildRowUpserter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,22 +57,27 @@ class DiagnosisController extends Controller
      * StoreDiagnosisRequest validates all incoming fields before they arrive here,
      * so $request->validated() only contains safe, whitelisted data.
      */
-    public function store(StoreDiagnosisRequest $request): JsonResponse
+    public function store(StoreDiagnosisRequest $request, CamperChildRowUpserter $upserter): JsonResponse
     {
         // Confirm the caller has permission to add a diagnosis.
         $this->authorize('create', Diagnosis::class);
 
-        // Persist only the validated PHI fields to the database.
-        $diagnosis = Diagnosis::create($request->validated());
+        $data = $request->validated();
 
-        // Load the associated camper so the API response is fully self-contained.
+        // Idempotent write — natural key is (name, description, severity_level).
+        // Matching rows update in place rather than creating duplicates when
+        // the application form submission is retried.
+        $diagnosis = $upserter->upsertDiagnosis((int) $data['camper_id'], $data);
+        $wasExisting = ! $diagnosis->wasRecentlyCreated;
+
         $diagnosis->load('camper');
 
-        // HTTP 201 Created indicates a new resource was successfully added.
         return response()->json([
-            'message' => 'Diagnosis created successfully.',
+            'message' => $wasExisting
+                ? 'Diagnosis already on record; no duplicate created.'
+                : 'Diagnosis created successfully.',
             'data' => $diagnosis,
-        ], Response::HTTP_CREATED);
+        ], $wasExisting ? Response::HTTP_OK : Response::HTTP_CREATED);
     }
 
     /**

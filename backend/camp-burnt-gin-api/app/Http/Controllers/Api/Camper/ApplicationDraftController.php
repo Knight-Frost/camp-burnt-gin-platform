@@ -64,12 +64,17 @@ class ApplicationDraftController extends Controller
 
         $validated = $request->validate([
             'label' => ['sometimes', 'string', 'max:255'],
+            // application_id is optional: blobs may exist before the
+            // Application row has been created. When set, finalize() will
+            // delete this blob by FK — no more label-match fallback.
+            'application_id' => ['sometimes', 'nullable', 'integer', 'exists:applications,id'],
         ]);
 
         $draft = ApplicationDraft::create([
-            'user_id' => $request->user()->id,
-            'label' => $validated['label'] ?? 'New Application',
-            'draft_data' => null,
+            'user_id'        => $request->user()->id,
+            'application_id' => $validated['application_id'] ?? null,
+            'label'          => $validated['label'] ?? 'New Application',
+            'draft_data'     => null,
         ]);
 
         return response()->json(['data' => $draft], Response::HTTP_CREATED);
@@ -106,6 +111,9 @@ class ApplicationDraftController extends Controller
 
         $validated = $request->validate([
             'label' => ['sometimes', 'string', 'max:255'],
+            // Optional late-bind: the Application was created after the blob.
+            // Once set, finalize() uses it to delete the blob by FK.
+            'application_id' => ['sometimes', 'nullable', 'integer', 'exists:applications,id'],
             'draft_data' => ['required', 'array'],
             'last_known_updated_at' => ['sometimes', 'nullable', 'string'],
         ]);
@@ -135,10 +143,18 @@ class ApplicationDraftController extends Controller
             }
         }
 
-        $draft->update([
-            'label' => $validated['label'] ?? $draft->label,
+        $updatePayload = [
+            'label'      => $validated['label'] ?? $draft->label,
             'draft_data' => $validated['draft_data'],
-        ]);
+        ];
+        // Never unset a linkage that's already been established. The form
+        // page may send application_id only on the first save after the
+        // Application row is created; subsequent saves can omit it.
+        if (array_key_exists('application_id', $validated) && $validated['application_id'] !== null) {
+            $updatePayload['application_id'] = $validated['application_id'];
+        }
+
+        $draft->update($updatePayload);
 
         return response()->json(['data' => $draft->only(['id', 'label', 'updated_at'])]);
     }

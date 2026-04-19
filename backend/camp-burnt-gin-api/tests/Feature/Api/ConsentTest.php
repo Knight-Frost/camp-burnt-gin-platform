@@ -152,6 +152,24 @@ class ConsentTest extends TestCase
         )->assertStatus(401);
     }
 
+    public function test_future_signed_at_is_rejected(): void
+    {
+        // A consent signature stamped in the future contaminates the legal
+        // audit trail. Without this check, a forged request could record a
+        // parent's signature as dated months from now, undermining the
+        // HIPAA / CYSHCN compliance log.
+        [$parent, $application] = $this->createApplicationForParent();
+
+        $payload = $this->makeConsentPayload('general');
+        $payload['signed_at'] = now()->addMonth()->toISOString();
+
+        $this->actingAs($parent)->postJson(
+            "/api/applications/{$application->id}/consents",
+            ['consents' => [$payload]]
+        )->assertStatus(422)
+          ->assertJsonValidationErrors(['consents.0.signed_at']);
+    }
+
     public function test_guardian_name_is_required(): void
     {
         [$parent, $application] = $this->createApplicationForParent();

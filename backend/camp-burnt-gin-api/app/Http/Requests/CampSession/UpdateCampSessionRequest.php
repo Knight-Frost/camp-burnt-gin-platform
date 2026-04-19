@@ -25,7 +25,6 @@ class UpdateCampSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'camp_id' => ['sometimes', 'exists:camps,id'],
             'name' => ['sometimes', 'string', 'max:255'],
             'start_date' => ['sometimes', 'date'],
             'end_date' => ['sometimes', 'date', 'after:start_date'],

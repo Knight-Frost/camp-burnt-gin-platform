@@ -26,6 +26,10 @@ class DocumentEnforcementServiceTest extends TestCase
     {
         parent::setUp();
 
+        // RiskEngineSeeder populates risk_factors/risk_rules/risk_thresholds.
+        // DocumentEnforcementService depends on SpecialNeedsRiskAssessmentService,
+        // which reads its scoring configuration from these tables.
+        $this->seed(\Database\Seeders\RiskEngineSeeder::class);
         $this->seed(\Database\Seeders\RequiredDocumentRuleSeeder::class);
         $this->service = app(DocumentEnforcementService::class);
     }
@@ -150,7 +154,11 @@ class DocumentEnforcementServiceTest extends TestCase
         $compliance = $this->service->checkCompliance($camper);
         $requiredTypes = collect($compliance['required_documents'])->pluck('document_type');
 
-        // Upload and verify all required documents; submitted_at required so enforcement sees them
+        // Upload and verify all required documents; submitted_at required so enforcement sees them.
+        // Medical-form types need an expiration anchor (from the physician's exam date)
+        // or the new incomplete-metadata gate will flag them — that is the correct contract,
+        // but for this "everything valid" test we set the expiration a year out.
+        $examAnchoredTypes = ['official_medical_form', 'physical_examination'];
         foreach ($requiredTypes as $docType) {
             Document::create([
                 'documentable_type' => Camper::class,
@@ -167,6 +175,9 @@ class DocumentEnforcementServiceTest extends TestCase
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Approved,
                 'submitted_at' => now(),
+                'expiration_date' => in_array($docType, $examAnchoredTypes, true)
+                    ? now()->addYear()
+                    : null,
             ]);
         }
 
@@ -176,6 +187,7 @@ class DocumentEnforcementServiceTest extends TestCase
         $this->assertEmpty($compliance['missing_documents']);
         $this->assertEmpty($compliance['expired_documents']);
         $this->assertEmpty($compliance['unverified_documents']);
+        $this->assertEmpty($compliance['incomplete_documents']);
     }
 
     public function test_camper_not_compliant_with_unverified_documents(): void

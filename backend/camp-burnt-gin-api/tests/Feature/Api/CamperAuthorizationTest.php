@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\ApplicationStatus;
+use App\Models\Application;
 use App\Models\Camper;
+use App\Models\CampSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -59,7 +62,16 @@ class CamperAuthorizationTest extends TestCase
     {
         $admin = $this->createAdmin();
         $parent = $this->createParent();
-        Camper::factory()->count(3)->forUser($parent)->create();
+        $session = CampSession::factory()->create();
+        // Admin may only see campers with at least one submitted application.
+        $campers = Camper::factory()->count(3)->forUser($parent)->create();
+        foreach ($campers as $camper) {
+            Application::factory()->for($camper)->for($session, 'campSession')->create([
+                'is_draft' => false,
+                'status' => ApplicationStatus::Submitted,
+                'submitted_at' => now(),
+            ]);
+        }
 
         $response = $this->actingAs($admin)->getJson('/api/campers');
 
@@ -67,16 +79,48 @@ class CamperAuthorizationTest extends TestCase
             ->assertJsonCount(3, 'data');
     }
 
+    public function test_admin_cannot_view_campers_without_submitted_application(): void
+    {
+        $admin = $this->createAdmin();
+        $parent = $this->createParent();
+        // Camper with only a draft application — must not appear in admin directory.
+        $camper = Camper::factory()->forUser($parent)->create();
+        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->draft()->create();
+
+        $response = $this->actingAs($admin)->getJson('/api/campers');
+
+        $response->assertStatus(200)->assertJsonCount(0, 'data');
+    }
+
     public function test_admin_can_view_any_camper(): void
     {
         $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
+        // Must have a submitted application for admin to access the full record.
+        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
 
         $response = $this->actingAs($admin)->getJson("/api/campers/{$camper->id}");
 
         $response->assertStatus(200)
             ->assertJsonPath('data.id', $camper->id);
+    }
+
+    public function test_admin_cannot_view_camper_without_submitted_application(): void
+    {
+        $admin = $this->createAdmin();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
+        // Draft-only camper — admin must receive 403 on detail page.
+        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->draft()->create();
+
+        $response = $this->actingAs($admin)->getJson("/api/campers/{$camper->id}");
+
+        $response->assertStatus(403);
     }
 
     public function test_admin_can_create_camper_for_any_user(): void

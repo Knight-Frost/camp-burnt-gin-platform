@@ -132,11 +132,6 @@ function SessionCard({ session, isSelected, onSelect }: SessionCardProps) {
 
         {/* Text overlay — anchored to bottom of photo */}
         <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-8">
-          {session.camp?.name && (
-            <p className="text-xs font-medium mb-0.5" style={{ color: 'rgba(255,255,255,0.72)', letterSpacing: '0.03em' }}>
-              {session.camp.name}
-            </p>
-          )}
           <h3 className="font-headline font-bold text-base leading-tight" style={{ color: '#fff' }}>
             {session.name}
           </h3>

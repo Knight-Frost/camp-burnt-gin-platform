@@ -63,7 +63,9 @@ class ReportController extends Controller
         $this->authorize('viewAny', Application::class);
 
         // selectRaw with GROUP BY produces a flat map of status → count without loading all rows.
-        $apps = Application::selectRaw('status, COUNT(*) as count')->groupBy('status')->pluck('count', 'status');
+        // Uses the submitted() scope (is_draft=false AND submitted_at IS NOT NULL) so draft
+        // applications — which share the 'submitted' status value — are never counted here.
+        $apps = Application::submitted()->selectRaw('status, COUNT(*) as count')->groupBy('status')->pluck('count', 'status');
 
         // Count only approved applications per session — drafts, rejected, and waitlisted
         // applications must not inflate the enrolled figure shown on the Reports page.
@@ -90,7 +92,7 @@ class ReportController extends Controller
             'data' => [
                 'total_campers' => Camper::count(),
                 // Exclude unsubmitted drafts — they are not real applications.
-                'total_applications' => Application::where('is_draft', false)->count(),
+                'total_applications' => Application::submitted()->count(),
                 // Full breakdown map, e.g. {"submitted": 12, "approved": 45, "rejected": 3}
                 'applications_by_status' => $apps,
                 // Individual status shortcuts for the dashboard counter cards.

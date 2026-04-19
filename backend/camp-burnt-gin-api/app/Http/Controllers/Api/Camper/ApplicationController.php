@@ -10,6 +10,7 @@ use App\Http\Requests\Application\StoreApplicationRequest;
 use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\ApplicationConsent;
+use App\Models\FormDefinition;
 use App\Models\AuditLog;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
 use App\Services\Camper\ApplicationCompletenessService;
@@ -80,18 +81,38 @@ class ApplicationController extends Controller
             // Eager-load related records so we don't hit the DB again for each application row.
             $query = Application::with([
                 'camper.user',
-                'campSession.camp',
+                'campSession',
                 'reviewer',
             ]);
 
-            // Filter by status enum value (e.g., "pending", "accepted").
+            // Filter by status enum value (e.g., "submitted", "approved").
+            // Drafts share the 'submitted' status enum value with real
+            // submitted apps — the is_draft column is what actually
+            // distinguishes them. When the admin is filtering by a status
+            // they mean the review-queue meaning, so exclude drafts here.
+            // Drafts are reached via drafts_only=true instead.
             if ($request->filled('status')) {
-                $query->where('status', $request->status);
+                $query->where('status', $request->status)
+                    ->where('is_draft', false);
             }
 
             // Narrow results to a single camp session (e.g., "Summer 2026 Week 1").
             if ($request->filled('camp_session_id')) {
                 $query->where('camp_session_id', $request->camp_session_id);
+            }
+
+            // Filter by submission source — gives the admin a dedicated
+            // "paper intake" queue separate from the digital-form queue.
+            // Whitelisted against the enum to reject arbitrary SQL.
+            if ($request->filled('submission_source')) {
+                $valid = array_map(
+                    fn ($c) => $c->value,
+                    \App\Enums\SubmissionSource::cases(),
+                );
+                $requested = (string) $request->submission_source;
+                if (in_array($requested, $valid, true)) {
+                    $query->where('submission_source', $requested);
+                }
             }
 
             // Full-text search across camper name and parent name/email.
@@ -119,12 +140,20 @@ class ApplicationController extends Controller
                 $query->whereDate('submitted_at', '<=', $request->date_to);
             }
 
-            // By default exclude unsubmitted drafts from the admin review queue —
-            // admins should only see applications the parent has actually submitted.
-            // Pass drafts_only=true to flip this and see only drafts instead.
+            // Admin visibility rule:
+            //
+            //   • default (no flag)    → submitted only (is_draft = false).
+            //     Drafts are incomplete work-in-progress by the applicant and
+            //     should not clutter the review queue.
+            //   • include_drafts=true  → BOTH drafts and submitted. Opt-in
+            //     escape hatch so admins can diagnose "an application already
+            //     exists" situations where a draft is silently blocking.
+            //   • drafts_only=true     → drafts only. Explicit dedicated view.
+            //
+            // drafts_only wins over include_drafts when both are sent.
             if ($request->boolean('drafts_only')) {
                 $query->where('is_draft', true);
-            } else {
+            } elseif (! $request->boolean('include_drafts')) {
                 $query->where('is_draft', false);
             }
 
@@ -159,7 +188,7 @@ class ApplicationController extends Controller
             $applications = Application::whereIn('camper_id', $camperIds)
                 ->with([
                     'camper.user',
-                    'campSession.camp',
+                    'campSession',
                     'reviewer',
                 ])
                 ->latest()
@@ -247,6 +276,76 @@ class ApplicationController extends Controller
         // Default to draft mode if the client didn't explicitly pass is_draft.
         $isDraft = $request->boolean('is_draft', false);
 
+        // ── Duplicate-prevention upsert gate ──────────────────────────────────
+        // This is the ONLY place duplicate detection runs. The FormRequest
+        // intentionally does not enforce `Rule::unique` because validation
+        // would fire before this branch and short-circuit draft resumption.
+        //
+        // Outcomes, in priority order, with the row locked via SELECT ... FOR
+        // UPDATE inside a transaction so two concurrent POSTs can't both pass:
+        //
+        //   • Draft exists             → update it with the new payload and
+        //     return 200. Clicking "Continue" must NEVER silently create a
+        //     second draft.
+        //
+        //   • Active non-draft exists  → 409 Conflict. "Active" means the
+        //     application is still in the queue or enrolled — statuses
+        //     Submitted, UnderReview, Approved, Waitlisted. The applicant
+        //     must withdraw or have the admin act before reapplying.
+        //
+        //   • Final-state row exists   → allow a new application. Rejected,
+        //     Cancelled, and Withdrawn are historical records and do NOT
+        //     occupy the slot. The old row is preserved as audit history.
+        if (isset($data['camper_id'], $data['camp_session_id'])) {
+            $conflict = null;
+            $resumed  = null;
+
+            DB::transaction(function () use ($data, &$conflict, &$resumed) {
+                $rows = Application::where('camper_id', $data['camper_id'])
+                    ->where('camp_session_id', $data['camp_session_id'])
+                    ->lockForUpdate()
+                    ->get();
+
+                $draft = $rows->first(fn ($a) => $a->is_draft);
+                // "Active" = the row still occupies the slot. Status enum's
+                // isFinal() is the authority: Approved/Rejected/Cancelled/
+                // Withdrawn are final and do NOT block reapplication; anything
+                // else (Submitted/UnderReview/Waitlisted) does.
+                $activeSubmitted = $rows->first(
+                    fn ($a) => ! $a->is_draft && ! $a->status->isFinal(),
+                );
+
+                if ($draft !== null) {
+                    $draft->update(array_filter($data, fn ($v) => $v !== null));
+                    $draft->load(['camper', 'campSession']);
+                    $resumed = $draft;
+                    return;
+                }
+
+                if ($activeSubmitted !== null) {
+                    $conflict = $activeSubmitted;
+                    return;
+                }
+                // Final-state row(s) only, or no row at all — fall through to
+                // creation below. The row lock is released at commit.
+            });
+
+            if ($resumed !== null) {
+                return response()->json([
+                    'message' => 'Existing draft application returned.',
+                    'data'    => $resumed,
+                ], Response::HTTP_OK);
+            }
+
+            if ($conflict !== null) {
+                return response()->json([
+                    'message' => 'You already have an active application for this camper and session.',
+                    'existing_application_id' => $conflict->id,
+                    'existing_application_status' => $conflict->status->value,
+                ], Response::HTTP_CONFLICT);
+            }
+        }
+
         $data['is_draft'] = $isDraft;
         // All new applications start as Submitted regardless of what the client sends.
         // Drafts also use Submitted as their status — the is_draft flag separates them.
@@ -258,6 +357,17 @@ class ApplicationController extends Controller
         }
 
         // Wrap creation + notification in a transaction so both succeed or both fail atomically.
+        //
+        // Race-condition note: the upsert gate above holds a row-level lock
+        // for the duration of its transaction, which serialises concurrent
+        // POSTs for the same (camper, session) pair. The hard DB unique
+        // constraint was removed in 2026_04_18_000002 to allow final-state
+        // rows to coexist, so the QueryException fallback that used to guard
+        // this block no longer has a condition to fire on. It's still
+        // theoretically possible for two concurrent requests to race the
+        // upsert-gate release → create window; that would produce two
+        // historical rows, which is preferable to the old failure mode of
+        // permanently locking the applicant out of reapplying.
         $application = DB::transaction(function () use ($data, $isDraft) {
             $application = Application::create($data);
             // Eager-load camper and session so the notification has all the data it needs.
@@ -313,7 +423,7 @@ class ApplicationController extends Controller
             'camper.assistiveDevices',
             'camper.activityPermissions',
             'camper.documents',
-            'campSession.camp',
+            'campSession',
             'secondSession',
             'reviewer',
             'documents',
@@ -354,6 +464,12 @@ class ApplicationController extends Controller
 
         $merged = $appDocs->merge($camperDocs)->merge($orphanedDocs)->unique('id')->values();
 
+        // Archive filter: exclude superseded docs for ALL viewers (BUG-216).
+        // Only the current live copy per (owner, type) is user-visible;
+        // historical archives remain in the DB for audit but are out of the
+        // normal read path.
+        $merged = $merged->filter(fn ($doc) => $doc->archived_at === null)->values();
+
         // Submission gate: admins only see submitted documents (submitted_at IS NOT NULL).
         // Applicants see all their own documents — including drafts — so they can review
         // staged uploads and know which ones still need to be submitted to staff.
@@ -361,10 +477,33 @@ class ApplicationController extends Controller
             $merged = $merged->filter(fn ($doc) => $doc->submitted_at !== null)->values();
         }
 
+        // App-layer dedupe by (documentable_type, documentable_id,
+        // document_type) — newest id wins. The DB functional unique index
+        // enforces this too; the app-layer fallback protects against
+        // legacy rows that predate the index (e.g. on SQLite test DBs).
+        $byKey = [];
+        foreach ($merged as $doc) {
+            $key = ($doc->documentable_type ?? 'orphan')
+                .'|'.($doc->documentable_id ?? 'orphan')
+                .'|'.($doc->document_type ?? 'untyped');
+            if (! isset($byKey[$key]) || $doc->id > $byKey[$key]->id) {
+                $byKey[$key] = $doc;
+            }
+        }
+        $merged = collect(array_values($byKey))->values();
+
         $application->setRelation('documents', $merged);
 
+        // Canonical 11-section projection. Admin and applicant frontends
+        // consume this shape; the legacy `data` key is kept temporarily so
+        // old consumers don't 500 during the Phase 4 frontend cutover. It
+        // will be removed once both portals are reading exclusively from
+        // `canonical`.
+        $canonical = new \App\Http\Resources\ApplicationResource($application);
+
         return response()->json([
-            'data' => $application,
+            'data'      => $application,
+            'canonical' => $canonical->toArray(request()),
         ]);
     }
 
@@ -386,6 +525,22 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
+        // Optimistic concurrency guard — prevents stale overwrites when the applicant
+        // has the form open in multiple tabs or when a slow network causes out-of-order
+        // requests. The client sends the last updated_at it observed; if the server's
+        // current value differs, a concurrent write already occurred.
+        if ($request->has('last_known_updated_at')) {
+            $clientTs = $request->string('last_known_updated_at')->toString();
+            $serverTs = $application->updated_at?->toISOString() ?? '';
+            if ($clientTs !== $serverTs) {
+                return response()->json([
+                    'message'           => 'Application was modified by another request. Refresh and retry.',
+                    'conflict'          => true,
+                    'server_updated_at' => $serverTs,
+                ], Response::HTTP_CONFLICT);
+            }
+        }
+
         $data = $request->validated();
 
         // Snapshot editable content fields before mutation so the audit log can record
@@ -405,9 +560,57 @@ class ApplicationController extends Controller
         ];
         $oldSnapshot = $application->only($contentFields);
 
+        // If an admin is changing the submission source TO paper, require that
+        // a paper_application_packet already exist (or is being added in the
+        // same review flow). Without this guard a digital application could be
+        // re-flagged as paper to bypass the 7-consent gate with no paperwork
+        // ever on file — producing an application that looks complete but has
+        // neither digital nor physical signatures backing it.
+        $currentSource = $application->submission_source instanceof \App\Enums\SubmissionSource
+            ? $application->submission_source->value
+            : ($application->submission_source ?? 'digital');
+        if (array_key_exists('submission_source', $data)
+            && in_array($data['submission_source'], ['paper_self', 'paper_admin'], true)
+            && ($currentSource !== $data['submission_source'])
+        ) {
+            $packetExists = \App\Models\Document::query()
+                ->where('document_type', 'paper_application_packet')
+                ->whereNotNull('submitted_at')
+                ->whereNull('archived_at')
+                ->where(function ($q) use ($application) {
+                    $q->where(function ($q2) use ($application) {
+                        $q2->where('documentable_type', \App\Models\Application::class)
+                           ->where('documentable_id', $application->id);
+                    })->orWhere(function ($q2) use ($application) {
+                        $q2->where('documentable_type', \App\Models\Camper::class)
+                           ->where('documentable_id', $application->camper_id);
+                    });
+                })
+                ->exists();
+
+            if (! $packetExists) {
+                return response()->json([
+                    'message' => 'A completed paper application packet must be uploaded before this application can be marked as a paper submission.',
+                    'errors'  => ['submission_source' => ['Paper packet is required before setting a paper source.']],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
         // Check if this is a "submit now" action on a previously saved draft.
+        // Run the same completeness gate as finalize() — no bypass allowed.
         if ($application->isDraft() && $request->has('submit') && $request->boolean('submit')) {
-            $data['is_draft'] = false;
+            $report = $this->completenessService->check($application, forFinalization: true);
+
+            if (! $report['is_complete']) {
+                return response()->json([
+                    'message'           => 'Application is incomplete and cannot be submitted.',
+                    'missing_fields'    => $report['missing_fields'],
+                    'missing_documents' => $report['missing_documents'],
+                    'missing_consents'  => $report['missing_consents'],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $data['is_draft']     = false;
             $data['submitted_at'] = now();
         }
 
@@ -503,13 +706,368 @@ class ApplicationController extends Controller
      *
      * This endpoint is read-only and makes no state changes.
      */
+    /**
+     * Lightweight endpoint returning just the lifecycle IDs the form needs
+     * to drive progressive per-section writes. Used by the draft-resume
+     * flow: given a draft blob's application_id, the form needs the
+     * camper + singleton relation IDs to hydrate its in-memory ID map
+     * without pulling the full Application + PHI.
+     *
+     * Same authorization as /completeness (owner or admin).
+     */
+    public function lifecycleIds(Application $application): JsonResponse
+    {
+        $this->authorize('view', $application);
+
+        $application->loadMissing([
+            'camper.medicalRecord',
+            'camper.behavioralProfile',
+            'camper.feedingPlan',
+        ]);
+
+        // Top up any missing singleton relations — applications created
+        // before the init-draft refactor may not have all four rows.
+        $camper = $application->camper;
+        if (! $camper) {
+            abort(404, 'Application has no camper attached.');
+        }
+        $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+        $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
+        $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
+
+        return response()->json(['data' => [
+            'application_id'        => $application->id,
+            'camper_id'             => $camper->id,
+            'medical_record_id'     => $medicalRecord->id,
+            'behavioral_profile_id' => $behavioralProfile->id,
+            'feeding_plan_id'       => $feedingPlan->id,
+        ]]);
+    }
+
+    /**
+     * Initialize a blank draft application for the applicant.
+     *
+     * POST /api/applications/initialize-draft
+     * body: { camp_session_id, first_name?, last_name?, date_of_birth? }
+     *
+     * Creates an Application (is_draft=true) plus a Camper stub and empty
+     * MedicalRecord row in one atomic transaction. The frontend form uses
+     * the returned application_id to drive the validation engine during
+     * editing — before this, the form had no Application row so
+     * `/completeness` could not be called during filling.
+     *
+     * Idempotency: if the applicant already has a draft Application for
+     * the same session, the existing row is returned instead. No duplicate
+     * drafts are created even under aggressive double-submit.
+     *
+     * @return JsonResponse { data: { application_id, camper_id } }
+     */
+    public function initializeDraft(Request $request): JsonResponse
+    {
+        $this->authorize('create', Application::class);
+
+        $data = $request->validate([
+            'camp_session_id' => ['required', 'integer', 'exists:camp_sessions,id'],
+            // Optional: reuse an existing Camper (reapplication flow). When
+            // provided, the endpoint skips creating a new Camper stub and
+            // attaches the new Application to the caller's existing record.
+            'camper_id'       => ['sometimes', 'nullable', 'integer', 'exists:campers,id'],
+            // Seed fields used only when a brand-new Camper stub is created.
+            'first_name'      => ['sometimes', 'nullable', 'string', 'max:100'],
+            'last_name'       => ['sometimes', 'nullable', 'string', 'max:100'],
+            'date_of_birth'   => ['sometimes', 'nullable', 'date'],
+            // Audit-trail link on reapplications — mirrors the field that
+            // createApplication() accepts. When present, the new draft
+            // carries a pointer back to the terminal application it succeeds.
+            'reapplied_from_id' => ['sometimes', 'nullable', 'integer', 'exists:applications,id'],
+        ]);
+
+        $user = $request->user();
+
+        // Atomic: camper + application + empty medical record. Idempotent on
+        // (user_id, camp_session_id) — a second call returns the existing
+        // draft so two concurrent tab opens don't produce two drafts.
+        $result = DB::transaction(function () use ($data, $user) {
+            // Resume an existing draft for this session if one is already on
+            // file (same contract as the existing POST /applications upsert).
+            $existing = Application::where('camp_session_id', $data['camp_session_id'])
+                ->where('is_draft', true)
+                ->whereHas('camper', fn ($q) => $q->where('user_id', $user->id))
+                ->lockForUpdate()
+                ->first();
+            if ($existing) {
+                // Existing draft — load its singleton relation IDs so the
+                // caller (frontend form) has everything it needs to wire
+                // progressive writes without an extra round trip.
+                $camper = \App\Models\Camper::query()
+                    ->with(['medicalRecord', 'behavioralProfile', 'feedingPlan'])
+                    ->findOrFail($existing->camper_id);
+                return [
+                    'application_id'        => $existing->id,
+                    'camper_id'             => $existing->camper_id,
+                    'medical_record_id'     => optional($camper->medicalRecord)->id,
+                    'behavioral_profile_id' => optional($camper->behavioralProfile)->id,
+                    'feeding_plan_id'       => optional($camper->feedingPlan)->id,
+                ];
+            }
+
+            // Reapplication path — reuse the existing Camper and its
+            // singleton relations. Policy check ensures the caller actually
+            // owns that Camper before we attach a new Application to it.
+            if (! empty($data['camper_id'])) {
+                /** @var \App\Models\Camper $camper */
+                $camper = \App\Models\Camper::with([
+                    'medicalRecord', 'behavioralProfile', 'feedingPlan',
+                ])->findOrFail($data['camper_id']);
+
+                // Ownership gate — must be the caller's camper.
+                if ($camper->user_id !== $user->id) {
+                    abort(403, 'Cannot initialize an application for a camper you do not own.');
+                }
+
+                // Top up any missing singleton relations (older campers may
+                // predate one or more of the stub-on-init rows).
+                $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+                $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
+                $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
+
+                $application = Application::create([
+                    'camper_id'         => $camper->id,
+                    'camp_session_id'   => $data['camp_session_id'],
+                    'is_draft'          => true,
+                    'status'            => ApplicationStatus::Submitted,
+                    'reapplied_from_id' => $data['reapplied_from_id'] ?? null,
+                ]);
+
+                return [
+                    'application_id'        => $application->id,
+                    'camper_id'             => $camper->id,
+                    'medical_record_id'     => $medicalRecord->id,
+                    'behavioral_profile_id' => $behavioralProfile->id,
+                    'feeding_plan_id'       => $feedingPlan->id,
+                ];
+            }
+
+            // Fresh flow — new Camper stub. The frontend fills real data in
+            // Section 1 and PATCH /campers/{id} updates this row as the
+            // parent types.
+            $camper = \App\Models\Camper::create([
+                'user_id'       => $user->id,
+                'first_name'    => $data['first_name']    ?? 'New',
+                'last_name'     => $data['last_name']     ?? 'Camper',
+                'date_of_birth' => $data['date_of_birth'] ?? now()->subYears(10)->toDateString(),
+            ]);
+
+            // Pre-create every singleton relation the form's progressive-
+            // save logic writes to. Creating them here means the form
+            // always PUTs against known IDs; it never has to branch on
+            // "first save / subsequent save". Empty rows satisfy the
+            // engine's "exists" checks and the per-field validators
+            // correctly fail on empty fields until the parent fills them.
+            $medicalRecord = $camper->medicalRecord()->create([]);
+            $behavioralProfile = $camper->behavioralProfile()->create([]);
+            $feedingPlan = $camper->feedingPlan()->create([]);
+            // Personal care plan uses an idempotent updateOrCreate endpoint
+            // so no stub required here. Activity permissions, diagnoses,
+            // allergies, medications, assistive devices, and emergency
+            // contacts are list relations — the form syncs them on each
+            // section transition.
+
+            $application = Application::create([
+                'camper_id'       => $camper->id,
+                'camp_session_id' => $data['camp_session_id'],
+                'is_draft'        => true,
+                'status'          => ApplicationStatus::Submitted,
+            ]);
+
+            return [
+                'application_id'        => $application->id,
+                'camper_id'             => $camper->id,
+                'medical_record_id'     => $medicalRecord->id,
+                'behavioral_profile_id' => $behavioralProfile->id,
+                'feeding_plan_id'       => $feedingPlan->id,
+            ];
+        });
+
+        return response()->json(['data' => $result], Response::HTTP_CREATED);
+    }
+
     public function completeness(Application $application): JsonResponse
     {
-        $this->authorize('review', $application);
+        // Owner (applicant) + any admin can read their own application's
+        // completeness. The `view` policy method already enforces that rule
+        // — no need for a separate admin-only gate. This lets the applicant
+        // form call the same endpoint the admin review page uses, keeping
+        // a single source of truth for validation.
+        $this->authorize('view', $application);
 
-        $report = $this->completenessService->check($application);
+        // Return BOTH the flat legacy shape (used by IncompleteApprovalModal)
+        // AND the rich engine output (used by ApplicationFormPage sidebar,
+        // Submit gate, Issues Summary) in one payload. Single round trip.
+        $flat = $this->completenessService->check($application);
+        $rich = $this->completenessService->evaluate($application);
 
-        return response()->json(['data' => $report]);
+        return response()->json([
+            'data' => array_merge($flat, [
+                'validation' => $rich,
+            ]),
+        ]);
+    }
+
+    /**
+     * Finalize a draft application — the applicant's official submission gate.
+     *
+     * POST /api/applications/{application}/finalize
+     *
+     * This is the two-phase submission endpoint. The frontend first creates the
+     * application as is_draft=true (so child records can reference its ID), then
+     * attaches documents, signature, and consents. This endpoint is called LAST
+     * and performs the full completeness check before atomically marking the
+     * application as officially submitted.
+     *
+     * On success: flips is_draft=false, stamps submitted_at, links the active
+     * form definition, sends parent notifications, and returns the updated record.
+     *
+     * On failure: returns 422 with a structured report of all missing data,
+     * including the key, label, and severity of each gap. The frontend uses
+     * this to navigate the applicant to the exact failing section and field.
+     *
+     * Blocked if: the application is already submitted (not a draft), the caller
+     * is not the owning parent, or any required data is absent.
+     */
+    public function finalize(Application $application, Request $request): JsonResponse
+    {
+        $this->authorize('finalize', $application);
+
+        // Run the submission-time completeness check. Unlike the approval gate,
+        // this does not block on unverified documents — the admin verifies those
+        // after submission. The forFinalization flag skips the is_draft check
+        // (we are about to flip that flag) and excludes unverified from is_complete.
+        $report = $this->completenessService->check($application, forFinalization: true);
+
+        if (! $report['is_complete']) {
+            return response()->json([
+                'message'           => 'Application is incomplete and cannot be submitted.',
+                'missing_fields'    => $report['missing_fields'],
+                'missing_documents' => $report['missing_documents'],
+                'missing_consents'  => $report['missing_consents'],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // All checks pass — atomically mark as submitted and send notifications.
+        $application = DB::transaction(function () use ($application) {
+            // ── Child-row dedupe ───────────────────────────────────────────
+            // Five child tables (medications, allergies, emergency_contacts,
+            // diagnoses, assistive_devices) use unconditional Model::create()
+            // in their controllers. Every retry of the submission flow
+            // duplicates every row in those tables for this camper. Their
+            // fields are AES-256 encrypted at rest so SQL dedupe isn't an
+            // option — we dedupe in PHP by natural-key signature before the
+            // application flips submitted. See CamperChildRowDeduper and
+            // BUG-214 for the full rationale.
+            /** @var \App\Models\Camper|null $camper */
+            $camper = $application->camper()->first();
+            if ($camper !== null) {
+                app(\App\Services\Camper\CamperChildRowDeduper::class)
+                    ->dedupeForCamper($camper);
+            }
+
+            $application->update([
+                'is_draft'           => false,
+                'submitted_at'       => now(),
+                'form_definition_id' => FormDefinition::where('status', 'active')->value('id'),
+            ]);
+
+            // ── Stale-draft cleanup ────────────────────────────────────────
+            // A camper can legitimately have one draft per session in flight,
+            // but the scenarios below leave orphan rows that appear in the
+            // parent's drafts list alongside the submitted record:
+            //   • Same-session duplicates: a prior submit attempt created a
+            //     draft that the upsert gate later couldn't match (e.g. a
+            //     session change mid-flow), so a second draft was born for
+            //     the same (camper, session) pair.
+            //   • Session-less shells: the reapplication flow starts drafts
+            //     with camp_session_id=null. If the applicant abandons that
+            //     shell and begins fresh, the null-session row never gets
+            //     finalized and never matches a later upsert.
+            //
+            // Both patterns are cleaned here: for this camper, remove any
+            // OTHER is_draft=true rows whose session matches the finalized
+            // application's session OR whose session is null. Drafts for
+            // genuinely different sessions (parent applying to multiple) are
+            // preserved.
+            Application::where('camper_id', $application->camper_id)
+                ->where('id', '!=', $application->id)
+                ->where('is_draft', true)
+                ->where(function ($q) use ($application) {
+                    $q->where('camp_session_id', $application->camp_session_id)
+                      ->orWhereNull('camp_session_id');
+                })
+                ->delete();
+
+            // Clean up the ApplicationDraft JSON staging blobs.
+            //
+            // Primary path (new): delete by application_id FK. The form page
+            // links the blob to its Application as soon as the draft row is
+            // created, so every blob staged for THIS submission finalizes out
+            // cleanly and unambiguously. No label drift, no nickname edge
+            // cases.
+            \App\Models\ApplicationDraft::where('application_id', $application->id)->delete();
+
+            // Legacy fallback: blobs written before the application_id
+            // column existed still have NULL for the FK. Match those by the
+            // camper's first_name in the label (the frontend writes it at
+            // form-start). Preserves blobs belonging to other campers the
+            // same user may be applying for.
+            /** @var \App\Models\Camper|null $camper */
+            $camper = $application->camper()->first();
+            if ($camper !== null) {
+                \App\Models\ApplicationDraft::where('user_id', $camper->user_id)
+                    ->whereNull('application_id')
+                    ->where(function ($q) use ($camper) {
+                        $q->where('label', 'like', '%'.$camper->first_name.'%')
+                          ->orWhere('label', 'New Application');
+                    })
+                    ->delete();
+            }
+
+            // Cascade submission to every draft document attached to this
+            // application and its camper. Until the application is submitted,
+            // those uploads are staging PHI — the admin queue filters them out.
+            // Stamping submitted_at here (and only here) is how the applicant's
+            // uploads become visible to staff: in a single atomic step, with
+            // no intermediate window where the app is submitted but its docs
+            // are not (or vice versa).
+            $now = now();
+            \App\Models\Document::where('documentable_type', \App\Models\Application::class)
+                ->where('documentable_id', $application->id)
+                ->whereNull('submitted_at')
+                ->whereNull('archived_at')
+                ->update(['submitted_at' => $now]);
+            \App\Models\Document::where('documentable_type', \App\Models\Camper::class)
+                ->where('documentable_id', $application->camper_id)
+                ->whereNull('submitted_at')
+                ->whereNull('archived_at')
+                ->update(['submitted_at' => $now]);
+
+            $application->loadMissing('camper.user', 'campSession');
+            $camperName = $application->camper->first_name.' '.$application->camper->last_name;
+
+            $this->queueNotification(
+                $application->camper->user,
+                new ApplicationSubmittedNotification($application)
+            );
+            $this->systemNotifications->applicationSubmitted(
+                $application->camper->user, $application->id, $camperName
+            );
+
+            return $application;
+        });
+
+        return response()->json([
+            'message' => 'Application submitted successfully.',
+            'data'    => $application,
+        ]);
     }
 
     /**
@@ -546,6 +1104,15 @@ class ApplicationController extends Controller
             overrideIncomplete: (bool) $request->validated('override_incomplete', false),
             missingSummary: $request->validated('missing_summary', []),
         );
+
+        // Handle attempt to review an unsubmitted draft — this should not happen in normal
+        // usage (policy blocks it), but guard here for any direct API call.
+        if (! $result['success'] && ($result['draft_not_reviewable'] ?? false)) {
+            return response()->json([
+                'message' => 'Draft applications cannot be reviewed. The application must be submitted by the applicant first.',
+                'errors' => ['status' => 'Application is still a draft.'],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         // Handle invalid state transition — the current status cannot move to the requested one.
         if (! $result['success'] && ($result['invalid_transition'] ?? false)) {
@@ -607,10 +1174,27 @@ class ApplicationController extends Controller
     {
         $this->authorize('withdraw', $application);
 
-        $this->applicationService->withdrawApplication(
+        $result = $this->applicationService->withdrawApplication(
             application: $application,
             withdrawnBy: $request->user()
         );
+
+        // Idempotency: a second withdraw on an already-withdrawn application
+        // must surface clearly rather than pretending it succeeded.
+        if (! ($result['success'] ?? false)) {
+            if ($result['already_withdrawn'] ?? false) {
+                return response()->json([
+                    'message' => 'Application has already been withdrawn.',
+                    'errors' => ['status' => 'already_withdrawn'],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            if ($result['not_withdrawable'] ?? false) {
+                return response()->json([
+                    'message' => 'This application is no longer in a state that can be withdrawn.',
+                    'errors' => ['status' => 'not_withdrawable'],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
 
         return response()->json([
             'message' => 'Application withdrawn successfully.',
@@ -645,7 +1229,13 @@ class ApplicationController extends Controller
             'consents.*.guardian_relationship' => ['required', 'string', 'max:100'],
             'consents.*.guardian_signature' => ['required', 'string'],
             'consents.*.applicant_signature' => ['nullable', 'string'],
-            'consents.*.signed_at' => ['required', 'date'],
+            // before_or_equal:now blocks future-dated signatures. Without this,
+            // a forged client request could stamp a consent as signed in 2099,
+            // contaminating the legal audit trail. Uses 'now' (not 'today')
+            // so that "signed right now" timestamps with today's time-of-day
+            // are still valid — 'today' compares to midnight and would
+            // reject any same-day timestamp after 00:00:00.
+            'consents.*.signed_at' => ['required', 'date', 'before_or_equal:now'],
         ]);
 
         DB::transaction(function () use ($application, $validated) {
@@ -707,9 +1297,21 @@ class ApplicationController extends Controller
      *
      * POST /api/applications/{application}/sign
      *
-     * Stores the parent's digital signature, name, timestamp, and IP address.
-     * Once signed, the application cannot be signed again (idempotent guard).
-     * This creates a legal audit trail of who signed and from where.
+     * Idempotent contract:
+     *
+     *   • Unsigned               → store the signature, return 200.
+     *   • Signed + is_draft=true → overwrite with the incoming signature.
+     *     The applicant is still editing, so re-signing is a legitimate
+     *     action (e.g. they switched from typed to drawn).
+     *   • Signed + is_draft=false → return the existing signature. The
+     *     legal record is locked but the endpoint must NOT error. The
+     *     parent's submission flow retries `sign → consents → finalize`
+     *     as a single unit, and a previous partial success must not
+     *     convert into a blocking error on the next attempt.
+     *
+     * Under no condition does this endpoint return an error on a repeat
+     * call — that was the source of BUG-209 ("Application has already
+     * been signed" blocking submission).
      *
      * Implements FR-9: Digital signature support.
      */
@@ -718,27 +1320,30 @@ class ApplicationController extends Controller
         // Only the application owner (parent) can sign — via ApplicationPolicy update gate.
         $this->authorize('update', $application);
 
-        // Guard against duplicate signatures — an application can only be signed once.
-        if ($application->isSigned()) {
-            return response()->json([
-                'message' => 'Application has already been signed.',
-            ], Response::HTTP_BAD_REQUEST);
+        $alreadySigned = $application->isSigned();
+        $isDraft       = $application->isDraft();
+
+        if (! $alreadySigned || $isDraft) {
+            $application->update([
+                // signature_data is typically a base64-encoded SVG or PNG of the
+                // hand-drawn signature, or the typed name for typed signatures.
+                'signature_data'    => $request->validated('signature_data'),
+                // The signer's typed name for readability on printed forms.
+                'signature_name'    => $request->validated('signature_name'),
+                // UTC timestamp of when the signature was applied. Refreshed
+                // on every accepted (re-)sign so the audit trail always names
+                // the most recent signing moment.
+                'signed_at'         => now(),
+                // Record the IP address for the legal audit trail.
+                'signed_ip_address' => $request->ip(),
+            ]);
         }
 
-        $application->update([
-            // signature_data is typically a base64-encoded SVG or PNG of the hand-drawn signature.
-            'signature_data' => $request->validated('signature_data'),
-            // The signer's typed name for readability on printed forms.
-            'signature_name' => $request->validated('signature_name'),
-            // UTC timestamp of when the signature was applied.
-            'signed_at' => now(),
-            // Record the IP address for the legal audit trail.
-            'signed_ip_address' => $request->ip(),
-        ]);
-
         return response()->json([
-            'message' => 'Application signed successfully.',
-            'data' => $application,
+            'message' => $alreadySigned && ! $isDraft
+                ? 'Application is already signed; existing signature preserved.'
+                : 'Application signed successfully.',
+            'data'    => $application->fresh(),
         ]);
     }
 }

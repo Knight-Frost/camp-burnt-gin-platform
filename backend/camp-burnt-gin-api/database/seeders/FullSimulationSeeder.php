@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Hash;
  *
  *   Tier 1 — System bootstrap (production-safe, always runs)
  *     RoleSeeder              → 4 roles (super_admin, admin, applicant, medical)
- *     System configuration    → document rules, activity permissions, form definitions
+ *     System configuration    → document rules, activity permissions, form definitions, risk engine
  *     Super admin account     → admin@campburntgin.org (inline, production bootstrap)
  *
  *   Tier 2 — People and structure (dev/staging only)
@@ -87,6 +87,7 @@ class FullSimulationSeeder extends Seeder
             RequiredDocumentRuleSeeder::class,
             ActivityPermissionSeeder::class,
             FormDefinitionSeeder::class,
+            RiskEngineSeeder::class,
         ]);
 
         // Super admin — the only account that must exist before any staff can log in.
@@ -173,12 +174,11 @@ class FullSimulationSeeder extends Seeder
         $superAdminRole = Role::where('name', 'super_admin')->firstOrFail();
 
         // Use ADMIN_BOOTSTRAP_PASSWORD env var when set (recommended for CI/staging).
-        // Falls back to the hardcoded default for local development convenience.
-        // Change immediately after any non-local deploy.
-        $password = env('ADMIN_BOOTSTRAP_PASSWORD', 'ChangeThisPassword123!');
+        // Generate a secure random password when unset — printed once to console.
+        $password = env('ADMIN_BOOTSTRAP_PASSWORD') ?: \Illuminate\Support\Str::random(20);
         $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org');
 
-        User::firstOrCreate(
+        $created = User::firstOrCreate(
             ['email' => $email],
             [
                 'name' => 'Super Administrator',
@@ -188,14 +188,21 @@ class FullSimulationSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
+        if ($created->wasRecentlyCreated && ! env('ADMIN_BOOTSTRAP_PASSWORD')) {
+            $this->command->newLine();
+            $this->command->warn('GENERATED PASSWORD (save this now — it will not be shown again):');
+            $this->command->warn('  '.$password);
+            $this->command->newLine();
+        }
     }
 
     private function printProductionSummary(): void
     {
         $this->command->newLine();
-        $this->command->warn('SECURITY: Change the super admin password immediately!');
-        $this->command->warn('  Email:    '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org'));
-        $this->command->warn('  Password: ChangeThisPassword123!');
+        $this->command->warn('SECURITY: Change the super admin password immediately after first login!');
+        $this->command->warn('  Email: '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org'));
+        $this->command->warn('  Password: set via ADMIN_BOOTSTRAP_PASSWORD env var (or randomly generated — check above)');
         $this->command->newLine();
     }
 
@@ -206,7 +213,7 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->warn('SECURITY: Change the super admin password immediately!');
-        $this->command->warn('  '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org').' / ChangeThisPassword123!');
+        $this->command->warn('  '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org').' / (set via ADMIN_BOOTSTRAP_PASSWORD or randomly generated — check above)');
         $this->command->newLine();
 
         $this->command->line('<comment>Staff accounts</comment> (password: password):');

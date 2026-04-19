@@ -76,9 +76,15 @@ class StoreApplicationRequest extends FormRequest
                 $this->user()?->isAdmin()
                     ? 'exists:camp_sessions,id'
                     : Rule::exists('camp_sessions', 'id')->where('portal_open', true)->where('is_active', true),
-                Rule::unique('applications')->where(function ($query) {
-                    return $query->where('camper_id', $this->input('camper_id'));
-                }),
+                // Duplicate detection is intentionally NOT enforced here.
+                // A `Rule::unique` at the validation layer fires BEFORE the
+                // controller runs, so it would short-circuit the draft-resume
+                // branch in ApplicationController::store() and surface the
+                // generic "already exists" error even when the existing row
+                // is the applicant's own abandoned draft (which the controller
+                // would otherwise resume cleanly). The controller enforces the
+                // correct upsert semantics: resume drafts, reapply after final
+                // states, block only active submissions.
             ],
             'notes' => ['nullable', 'string', 'max:1000'],
             // Narrative responses from Section "About Your Camper" (free-text)
@@ -116,7 +122,6 @@ class StoreApplicationRequest extends FormRequest
         return [
             'camper_id.exists' => 'The selected camper is invalid or does not belong to you.',
             'camp_session_id.exists' => 'The selected camp session is not currently accepting applications.',
-            'camp_session_id.unique' => 'An application for this camper and session already exists.',
             'camp_session_id_second.different' => 'Your second session choice must be different from your first choice.',
         ];
     }

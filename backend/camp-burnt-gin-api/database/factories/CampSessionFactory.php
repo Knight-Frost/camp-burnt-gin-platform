@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Camp;
 use App\Models\CampSession;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -31,7 +30,6 @@ class CampSessionFactory extends Factory
         $endDate = (clone $startDate)->modify('+1 week');
 
         return [
-            'camp_id' => Camp::factory(),
             'name' => 'Session '.fake()->numberBetween(1, 10),
             'start_date' => $startDate,
             'end_date' => $endDate,

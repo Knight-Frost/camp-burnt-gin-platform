@@ -69,6 +69,10 @@ class Application extends Model
         'camp_session_id_second',
         // Submission provenance (2026_04_10_000001)
         'submission_source',    // SubmissionSource enum: digital | paper_self | paper_admin
+        // Per-section review timestamps (2026_04_19_000004). Allows the
+        // completeness engine to distinguish "parent attested nothing to
+        // declare" from "parent never visited the section". JSON column.
+        'sections_reviewed',
     ];
 
     /**
@@ -90,6 +94,9 @@ class Application extends Model
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'signed_at' => 'datetime',
+            // JSON map of { sectionKey: ISO8601 timestamp } — see
+            // ApplicationCompletenessService for semantics.
+            'sections_reviewed' => 'array',
         ];
     }
 

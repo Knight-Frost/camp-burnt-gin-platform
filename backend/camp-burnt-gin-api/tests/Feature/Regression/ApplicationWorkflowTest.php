@@ -5,8 +5,11 @@ namespace Tests\Feature\Regression;
 use App\Enums\ApplicationStatus;
 use App\Jobs\SendNotificationJob;
 use App\Models\Application;
+use App\Models\ApplicationConsent;
 use App\Models\AuditLog;
+use App\Models\CampSession;
 use App\Models\Camper;
+use App\Models\Document;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -100,29 +103,39 @@ class ApplicationWorkflowTest extends TestCase
 
     public function test_draft_to_submitted_workflow(): void
     {
-        $parent = $this->createParent();
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
-
-        // Create draft
-        $application = Application::factory()->create([
-            'camper_id' => $camper->id,
-            'is_draft' => true,
-            'submitted_at' => null,
+        $parent  = $this->createParent();
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
+        $camper  = Camper::factory()->create([
+            'user_id'       => $parent->id,
+            'first_name'    => 'Alice',
+            'last_name'     => 'Smith',
+            'date_of_birth' => '2010-01-01',
+            'gender'        => 'female',
+            'tshirt_size'   => 'Youth M',
+            'county'        => 'Richland',
         ]);
 
-        // Submit draft
-        $response = $this->actingAs($parent)->putJson("/api/applications/{$application->id}", [
-            'submit' => true,
+        \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
+        \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
+
+        $application = Application::factory()->draft()->create([
+            'camper_id'         => $camper->id,
+            'camp_session_id'   => $session->id,
+            'signed_at'         => now(),
+            'signature_name'    => 'Jane Smith',
+            'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
 
-        $response->assertStatus(200);
+        \Tests\Support\TestApplicationFixture::attachConsents($application, 'Jane Smith');
 
-        // Verify state change
+        // Submit via the finalize endpoint (the correct two-phase submission path)
+        $response = $this->actingAs($parent)->postJson("/api/applications/{$application->id}/finalize");
+
+        $response->assertOk();
+
         $application->refresh();
         $this->assertFalse($application->is_draft);
         $this->assertNotNull($application->submitted_at);
-
-        // Verify notification was queued
         Queue::assertPushed(SendNotificationJob::class);
     }
 
@@ -298,25 +311,32 @@ class ApplicationWorkflowTest extends TestCase
         $this->assertCount(3, $response->json('data'));
     }
 
-    public function test_duplicate_applications_are_prevented(): void
+    public function test_duplicate_active_application_returns_409_not_422(): void
     {
+        // Regression guard for BUG-208: the old implementation used
+        // Rule::unique at the FormRequest layer which returned 422. That
+        // short-circuited the controller's draft-resume logic and also
+        // applied to final-state rows that should not block. New contract
+        // is 409 Conflict with a structured body that names the blocker.
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $session = \App\Models\CampSession::factory()->create();
 
-        // Create first application
         Application::factory()->create([
-            'camper_id' => $camper->id,
+            'camper_id'       => $camper->id,
             'camp_session_id' => $session->id,
+            'is_draft'        => false,
+            'status'          => \App\Enums\ApplicationStatus::Submitted,
+            'submitted_at'    => now()->subHour(),
         ]);
 
-        // Try to create duplicate
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper->id,
+            'camper_id'       => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
+            'is_draft'        => false,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(409)
+            ->assertJsonStructure(['message', 'existing_application_id', 'existing_application_status']);
     }
 }

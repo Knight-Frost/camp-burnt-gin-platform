@@ -34,105 +34,107 @@ class MedicalStatsController extends Controller
     /**
      * Return aggregated medical dashboard statistics.
      *
-     * All queries are scoped to today or the last 7 days to keep numbers
-     * operationally relevant. No PHI record data is returned — only counts
-     * and limited recent-activity previews.
+     * Camper counts and follow-up urgency numbers are always global (session-independent)
+     * because they reflect the total clinical population. The activity feed and treatment
+     * type breakdown respect an optional session_id filter so medical staff can scope
+     * the dashboard to the currently selected session.
+     *
+     * Activity feed uses limit-based queries (most recent N records) rather than a
+     * fixed time window — this guarantees the feed is never empty just because the
+     * system has been idle for a few days.
      */
     public function index(Request $request): JsonResponse
     {
-        // Re-use the TreatmentLog viewAny gate as the access check for dashboard data.
         $this->authorize('viewAny', TreatmentLog::class);
 
-        // Define the two reference dates used across multiple queries below.
         $today = Carbon::today()->toDateString();
-        $weekAgo = Carbon::today()->subDays(7)->toDateString();
 
-        // --- Camper overview counts ---
-        // All counts are scoped to active (approved, enrolled) campers only.
-        // Medical providers are authorized to see clinical data for active campers;
-        // rejected, withdrawn, pending, and waitlisted campers are out of scope.
+        // Optional session scope — passed by the frontend when a session is selected.
+        $sessionId = $request->filled('session_id') ? $request->integer('session_id') : null;
 
-        // Total number of active (enrolled) campers in the system.
+        // --- Camper overview counts (always global — total clinical population) ---
+
         $totalCampers = Camper::active()->count();
 
-        // Active campers with at least one severe or life-threatening allergy on file.
         $campersWithSevereAllergies = Camper::active()->whereHas('allergies', function ($q) {
             $q->whereIn('severity', ['severe', 'life_threatening']);
         })->count();
 
-        // Active campers who have at least one active medication record.
         $campersOnMedications = Camper::active()->whereHas('medications')->count();
 
-        // Active campers with at least one currently active medical restriction.
         $campersWithRestrictions = Camper::active()->whereHas('restrictions', function ($q) {
             $q->where('is_active', true);
         })->count();
 
-        // Active campers who have not yet had a medical record created — useful for flagging
-        // incomplete intake paperwork before a camper arrives at camp.
         $campersWithoutMedicalRecord = Camper::active()->doesntHave('medicalRecord')->count();
 
-        // --- Follow-up urgency summary ---
+        // --- Follow-up urgency summary (session-scoped when session_id is provided) ---
 
-        // Tasks due exactly today that are not yet resolved.
-        $followUpsDueToday = MedicalFollowUp::whereDate('due_date', $today)
+        $followUpBase = MedicalFollowUp::query();
+        if ($sessionId) {
+            $followUpBase->where('camp_session_id', $sessionId);
+        }
+
+        $followUpsDueToday = (clone $followUpBase)
+            ->whereDate('due_date', $today)
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->count();
 
-        // Tasks whose due date has already passed and are still unresolved.
-        $overdueFollowUps = MedicalFollowUp::whereDate('due_date', '<', $today)
+        $overdueFollowUps = (clone $followUpBase)
+            ->whereDate('due_date', '<', $today)
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->count();
 
-        // All tasks that are neither completed nor cancelled — the full open workload.
-        $openFollowUps = MedicalFollowUp::whereNotIn('status', ['completed', 'cancelled'])->count();
+        $openFollowUps = (clone $followUpBase)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->count();
 
-        // --- Recent activity feed (last 7 days, capped at 5 items each) ---
+        // --- Recent activity feed (most recent 5 of each type, session-scoped) ---
         //
-        // Only columns needed by the activity feed are selected to avoid decrypting
-        // and transmitting PHI fields (notes, dosage, full description, etc.) that
-        // the dashboard display never uses. The 'title' and 'chief_complaint' fields
-        // are intentionally included — they are PHI but are required for the feed
-        // summary line and are authorized for medical staff viewing this endpoint.
+        // Limit-based rather than date-bounded: always returns the most recent records
+        // regardless of when they were created. This prevents an empty feed after
+        // quiet periods or on a freshly seeded database.
+        //
+        // Only non-PHI columns plus the authorized summary fields (title, chief_complaint)
+        // are selected — full notes/dosage/description columns are never sent here.
 
-        // The 5 most recent treatment log entries within the past 7 days.
         $recentTreatments = TreatmentLog::select([
-            'id', 'camper_id', 'recorded_by', 'type', 'treatment_date', 'treatment_time', 'title', 'created_at',
+            'id', 'camper_id', 'camp_session_id', 'recorded_by', 'type',
+            'treatment_date', 'treatment_time', 'title', 'created_at',
         ])
             ->with(['camper:id,first_name,last_name', 'recorder:id,name'])
-            ->whereDate('treatment_date', '>=', $weekAgo)
+            ->when($sessionId, fn ($q) => $q->where('camp_session_id', $sessionId))
             ->orderByDesc('treatment_date')
             ->orderByDesc('treatment_time')
             ->limit(5)
             ->get();
 
-        // The 5 most recent incident reports within the past 7 days.
         $recentIncidents = MedicalIncident::select([
-            'id', 'camper_id', 'recorded_by', 'severity', 'incident_date', 'incident_time', 'title', 'created_at',
+            'id', 'camper_id', 'camp_session_id', 'recorded_by', 'severity',
+            'incident_date', 'incident_time', 'title', 'created_at',
         ])
             ->with(['camper:id,first_name,last_name', 'recorder:id,name'])
-            ->whereDate('incident_date', '>=', $weekAgo)
+            ->when($sessionId, fn ($q) => $q->where('camp_session_id', $sessionId))
             ->orderByDesc('incident_date')
             ->orderByDesc('incident_time')
             ->limit(5)
             ->get();
 
-        // The 5 most recent health center visits within the past 7 days.
         $recentVisits = MedicalVisit::select([
-            'id', 'camper_id', 'recorded_by', 'disposition', 'visit_date', 'visit_time', 'chief_complaint', 'created_at',
+            'id', 'camper_id', 'camp_session_id', 'recorded_by', 'disposition',
+            'visit_date', 'visit_time', 'chief_complaint', 'created_at',
         ])
             ->with(['camper:id,first_name,last_name', 'recorder:id,name'])
-            ->whereDate('visit_date', '>=', $weekAgo)
+            ->when($sessionId, fn ($q) => $q->where('camp_session_id', $sessionId))
             ->orderByDesc('visit_date')
             ->orderByDesc('visit_time')
             ->limit(5)
             ->get();
 
-        // --- Treatment type breakdown (last 7 days) ---
+        // --- Treatment type breakdown (all-time, session-scoped) ---
 
-        // A count-per-type map (e.g., { "medication": 12, "observation": 5 }) that
-        // powers any chart or summary widget on the dashboard.
-        $treatmentTypeCounts = TreatmentLog::whereDate('treatment_date', '>=', $weekAgo)
+        $treatmentTypeCounts = TreatmentLog::query()
+            ->when($sessionId, fn ($q) => $q->where('camp_session_id', $sessionId))
             ->selectRaw('type, count(*) as count')
             ->groupBy('type')
             ->pluck('count', 'type');

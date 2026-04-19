@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -29,7 +29,10 @@ import { format, parseISO } from 'date-fns';
 import {
   getSessions,
   getDrafts,
+  getDraft,
   createDraft,
+  initializeDraftApplication,
+  getApplicationLifecycleIds,
   deleteDraft as apiDeleteDraft,
   type ApplicationDraft,
 } from '@/features/parent/api/applicant.api';
@@ -178,13 +181,31 @@ export function ApplicationStartPage() {
     setStartingNew(true);
     try {
       i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
-      const draft = await createDraft('New Application');
+
+      // Create the real Application row up-front so the form can drive the
+      // backend validation engine during editing. Idempotent: if the
+      // applicant already has a draft for this session the existing IDs
+      // come back.
+      const init = await initializeDraftApplication({
+        camp_session_id: selectedSession.id,
+      });
+
+      const draft = await createDraft('New Application', init.application_id);
       // Clear any stale draft from a previous application so the new form
       // always starts empty — regardless of whether the server fetch later
       // succeeds or fails.
       sessionStorage.removeItem(draftKey);
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
-        state: { language, sessionId: selectedSession.id, draftId: draft.id },
+        state: {
+          language,
+          sessionId:           selectedSession.id,
+          draftId:             draft.id,
+          applicationId:       init.application_id,
+          camperId:            init.camper_id,
+          medicalRecordId:     init.medical_record_id,
+          behavioralProfileId: init.behavioral_profile_id,
+          feedingPlanId:       init.feeding_plan_id,
+        },
       });
     } catch {
       // Server draft creation failed — fall back to sessionStorage-only mode.
@@ -200,8 +221,37 @@ export function ApplicationStartPage() {
     }
   }
 
-  function continueDraft(draftId: number) {
-    navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { draftId } });
+  async function continueDraft(draftId: number) {
+    // Resume must satisfy the same lifecycle contract as startNew —
+    // the form ALWAYS sees a real applicationId + singleton IDs. Legacy
+    // blobs that predate the column redirect to startNew with a clean
+    // error rather than loading the form in a half-state.
+    try {
+      const draft = await getDraft(draftId);
+      if (!draft.application_id) {
+        // Legacy blob without a linked Application. We could silently
+        // initialize, but we don't have a session_id to attach to
+        // without asking — safer to send the parent back to pick.
+        sessionStorage.removeItem(draftKey);
+        navigate(ROUTES.PARENT_APPLICATION_START);
+        return;
+      }
+      const ids = await getApplicationLifecycleIds(draft.application_id);
+      navigate(ROUTES.PARENT_APPLICATION_NEW, {
+        state: {
+          draftId,
+          applicationId:       ids.application_id,
+          camperId:            ids.camper_id,
+          medicalRecordId:     ids.medical_record_id,
+          behavioralProfileId: ids.behavioral_profile_id,
+          feedingPlanId:       ids.feeding_plan_id,
+        },
+      });
+    } catch {
+      // Network or policy error — route to start so the parent can retry
+      // from a clean state instead of landing on a broken form.
+      navigate(ROUTES.PARENT_APPLICATION_START);
+    }
   }
 
   async function handleDeleteDraft(draftId: number, label: string) {
@@ -766,6 +816,33 @@ export function ApplicationStartPage() {
                     {t('app_start.select_session_hint2')}
                   </p>
                 )}
+
+                {/* Paper-intake alternative.
+                    Families who received the paper packet in the mail or prefer
+                    to fill it out by hand need a clearly labelled, reachable
+                    path. Without this link they get funnelled into the 10-section
+                    digital form and have no way to indicate they are submitting
+                    on paper. The link takes them to the Official Forms page
+                    where the Paper Application Packet upload slot lives. */}
+                <div
+                  className="mt-3 text-center text-xs"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  {t(
+                    'app_start.paper_alternative_prefix',
+                    'Prefer paper?',
+                  )}{' '}
+                  <Link
+                    to={ROUTES.PARENT_FORMS}
+                    className="underline underline-offset-2 font-medium"
+                    style={{ color: 'var(--ember-orange)' }}
+                  >
+                    {t(
+                      'app_start.paper_alternative_link',
+                      'Upload a completed paper packet instead',
+                    )}
+                  </Link>
+                </div>
               </div>
             </section>
 

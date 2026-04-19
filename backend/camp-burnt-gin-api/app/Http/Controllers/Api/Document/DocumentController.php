@@ -82,11 +82,20 @@ class DocumentController extends Controller
                 $query->whereNull('archived_at');
             }
 
-            // Submission gate: admins only see submitted documents (submitted_at IS NOT NULL).
-            // Draft documents (submitted_at = null) belong to applicants who haven't
-            // finished staging their upload — exposing them to admins before submission
-            // breaks the "upload ≠ submission" privacy model.
+            // Submission gate — two invariants admins depend on:
+            //
+            //   1. The document itself has been submitted (submitted_at IS NOT NULL).
+            //      Draft documents are the uploader's private staging area.
+            //
+            //   2. If the document is attached to an Application, that Application
+            //      must itself be submitted (is_draft = false AND submitted_at set).
+            //      An Application-polymorphic document with submitted_at set while
+            //      the parent Application is still a draft is a BROKEN state — it
+            //      used to leak applicant staging PHI into the admin queue. This
+            //      filter is the last line of defence: even if something upstream
+            //      stamps submitted_at prematurely, the admin queue stays clean.
             $query->whereNotNull('submitted_at');
+            $this->excludeDocumentsForDraftApplications($query);
 
             // Optional filter: restrict to a specific entity type (e.g., "App\Models\Camper")
             if ($documentableType) {
@@ -135,7 +144,10 @@ class DocumentController extends Controller
 
             // Medical providers only see submitted documents — drafts are still private
             // staging uploads by the applicant and have not been formally sent to staff.
+            // Application-polymorphic documents additionally respect their parent
+            // application's submission state (see excludeDocumentsForDraftApplications).
             $query->whereNotNull('submitted_at');
+            $this->excludeDocumentsForDraftApplications($query);
 
             $documents = $query->latest()->paginate(15);
         } elseif ($user->isApplicant()) {
@@ -314,6 +326,40 @@ class DocumentController extends Controller
      *   2. verification_status is a backed enum — getRawOriginal() avoids a ValueError on
      *      legacy or invalid values that don't match the enum's defined cases
      *
+     * Add a WHERE clause that excludes documents whose parent Application is
+     * still a draft. Safe to call on any Document query builder — it only
+     * affects rows where documentable_type is App\Models\Application. Rows
+     * attached to Camper, MedicalRecord, Message, etc. pass through unchanged.
+     *
+     * This is the admin/medical-side last line of defence: even if some call
+     * path stamps submitted_at on a doc whose parent application is a draft,
+     * it still will not appear in the admin review queue.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Document>  $query
+     */
+    private function excludeDocumentsForDraftApplications($query): void
+    {
+        $query->where(function ($q) {
+            // Non-Application docs pass unconditionally.
+            $q->where('documentable_type', '!=', \App\Models\Application::class)
+                ->orWhereNull('documentable_type')
+                // Application-polymorphic docs must have a parent app that is
+                // both marked submitted (is_draft=false) AND has a submitted_at
+                // timestamp. Both checks together protect against each other:
+                // a stale is_draft flag without submitted_at, or vice versa,
+                // would still be treated as a draft.
+                ->orWhereExists(function ($sub) {
+                    $sub->select(\Illuminate\Support\Facades\DB::raw(1))
+                        ->from('applications')
+                        ->whereColumn('applications.id', 'documents.documentable_id')
+                        ->where('documents.documentable_type', \App\Models\Application::class)
+                        ->where('applications.is_draft', false)
+                        ->whereNotNull('applications.submitted_at');
+                });
+        });
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function transformDocument(Document $document): array
@@ -402,6 +448,27 @@ class DocumentController extends Controller
             return response()->json([
                 'message' => 'You do not have permission to submit this document.',
             ], Response::HTTP_FORBIDDEN);
+        }
+
+        // Integrity guard — a document attached to a draft Application must NOT
+        // be independently submittable. The correct lifecycle is:
+        //   1. applicant uploads doc → draft (submitted_at=null)
+        //   2. applicant finalizes application → finalize() cascades
+        //      submitted_at=now() to every linked doc atomically
+        //
+        // Allowing this endpoint to flip submitted_at on a draft-linked doc
+        // was the bug that leaked staging PHI into the admin queue: the doc
+        // looked submitted, admin queries matched it, the parent application
+        // was still a hidden draft. Refuse here so future callers cannot
+        // reintroduce the leak.
+        if ($document->documentable_type === \App\Models\Application::class) {
+            $parentApp = \App\Models\Application::find($document->documentable_id);
+            if ($parentApp && ($parentApp->is_draft || $parentApp->submitted_at === null)) {
+                return response()->json([
+                    'message' => 'This document is attached to a draft application. Submit the application itself; its documents will become visible to staff at that point.',
+                    'errors'  => ['document' => 'parent_application_is_draft'],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
         }
 
         $document->update(['submitted_at' => now()]);

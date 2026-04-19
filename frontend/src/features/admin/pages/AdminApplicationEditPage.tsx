@@ -174,6 +174,26 @@ const SECTIONS = [
   { label: 'Consents',       icon: PenLine },
 ] as const;
 
+/**
+ * Maps a canonical section key (see CanonicalApplicationSections) to the tab
+ * index used here. Must stay in sync with SECTIONS above AND with the eleven
+ * SectionCard `id="sec-N"` anchors in the JSX below. The admin review page
+ * links here with `#section-KEY` and this map resolves the target tab.
+ */
+const SECTION_KEY_TO_INDEX: Record<string, number> = {
+  camper:        0,
+  health:        1,
+  behavior:      2,
+  equipment:     3,
+  diet:          4,
+  personal_care: 5,
+  activities:    6,
+  medications:   7,
+  narratives:    8,
+  documents:     9,
+  consents:      10,
+};
+
 const ACTIVITIES = [
   { key: 'sports_games', label: 'Sports & Games' },
   { key: 'arts_crafts',  label: 'Arts & Crafts' },
@@ -591,8 +611,27 @@ export function AdminApplicationEditPage() {
       })
       .catch(() => setError('Failed to load application data. Go back and try again.'))
       .finally(() => setLoading(false));
-   
+
   }, [id]);
+
+  // ── Deep-link to a section via URL hash ────────────────────────────────────
+  // The admin review page links here with `#section-KEY` (canonical section
+  // keys: camper, health, behavior, equipment, diet, personal_care,
+  // activities, medications, narratives, documents, consents). When the data
+  // finishes loading, jump to the matching tab + scroll its card into view.
+  useEffect(() => {
+    if (loading) return;
+    const match = location.hash.match(/^#section-([a-z_]+)$/);
+    if (!match) return;
+    const key = match[1];
+    const idx = SECTION_KEY_TO_INDEX[key];
+    if (idx === undefined) return;
+    setActiveTab(idx);
+    // Defer the scroll a tick so the target element is mounted and laid out.
+    requestAnimationFrame(() => {
+      secRefs[idx].current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [loading, location.hash, secRefs]);
 
   // ── Extra refs for list inits (declared here to avoid hook order issues) ───
   const diagInit = useRef<DraftItem<DiagnosisPayload>[]>([]);

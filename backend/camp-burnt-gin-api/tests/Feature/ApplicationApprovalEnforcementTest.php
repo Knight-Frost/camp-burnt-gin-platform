@@ -31,6 +31,12 @@ class ApplicationApprovalEnforcementTest extends TestCase
     {
         parent::setUp();
 
+        // Clear the risk engine cache so SpecialNeedsRiskAssessmentService always
+        // reads from the freshly-seeded DB state (cache is in-memory and persists
+        // across tests within the same process).
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $this->seed(\Database\Seeders\RiskEngineSeeder::class);
         $this->seed(\Database\Seeders\RequiredDocumentRuleSeeder::class);
 
         // Create roles
@@ -189,6 +195,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Approved,
                 'submitted_at' => now(),
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
             ]);
         }
 
@@ -292,6 +299,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
                 'scan_passed' => true,
                 'verification_status' => DocumentVerificationStatus::Pending,
                 'submitted_at' => now(),
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
             ]);
         }
 
@@ -331,43 +339,14 @@ class ApplicationApprovalEnforcementTest extends TestCase
             'tshirt_size' => 'M',
             'county' => 'Richland',
         ]);
+        \Tests\Support\TestApplicationFixture::buildCamperMinimum($this->camper);
+        \Tests\Support\TestApplicationFixture::attachRequiredDocuments($this->camper);
         $this->application->update([
-            'signed_at' => now(),
-            'signature_name' => 'Parent Name',
+            'signed_at'         => now(),
+            'signature_name'    => 'Parent Name',
+            'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
-        $this->camper->emergencyContacts()->create([
-            'name' => 'Guardian', 'relationship' => 'Parent', 'phone_primary' => '555-0100',
-        ]);
-        foreach (['general', 'photos', 'liability', 'activity', 'authorization'] as $type) {
-            $this->application->consents()->create([
-                'consent_type' => $type,
-                'guardian_name' => 'Parent Name',
-                'guardian_relationship' => 'Parent',
-                'guardian_signature' => 'signature',
-                'signed_at' => now(),
-            ]);
-        }
-
-        // Upload and verify all three universal required documents.
-        // submitted_at required so enforcement service sees them.
-        foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
-            Document::create([
-                'documentable_type' => Camper::class,
-                'documentable_id' => $this->camper->id,
-                'uploaded_by' => $this->camper->user_id,
-                'original_filename' => "{$type}.pdf",
-                'stored_filename' => "stored_{$type}.pdf",
-                'mime_type' => 'application/pdf',
-                'file_size' => 1024,
-                'disk' => 'local',
-                'path' => '/test/path',
-                'document_type' => $type,
-                'is_scanned' => true,
-                'scan_passed' => true,
-                'verification_status' => DocumentVerificationStatus::Approved,
-                'submitted_at' => now(),
-            ]);
-        }
+        \Tests\Support\TestApplicationFixture::attachConsents($this->application, 'Parent Name');
 
         $response = $this->actingAs($this->admin)
             ->getJson("/api/applications/{$this->application->id}/completeness");

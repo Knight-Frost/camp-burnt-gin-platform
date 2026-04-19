@@ -131,13 +131,6 @@ export function ArchivedSessionsPage() {
                     </span>
                   </div>
 
-                  {/* Camp name */}
-                  {session.camp && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      {session.camp.name}
-                    </p>
-                  )}
-
                   {/* Dates */}
                   <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--muted-foreground)' }}>
                     <Calendar className="h-3 w-3 flex-shrink-0" />

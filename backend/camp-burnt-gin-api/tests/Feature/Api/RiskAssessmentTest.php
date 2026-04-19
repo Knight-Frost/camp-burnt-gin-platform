@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\ApplicationStatus;
 use App\Enums\RiskReviewStatus;
 use App\Enums\SupervisionLevel;
 use App\Models\Allergy;
+use App\Models\Application;
 use App\Models\BehavioralProfile;
 use App\Models\Camper;
+use App\Models\CampSession;
 use App\Models\MedicalRecord;
 use App\Models\RiskAssessment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,6 +40,10 @@ class RiskAssessmentTest extends TestCase
     {
         parent::setUp();
         $this->setUpRoles();
+
+        // Risk scoring reads factors/rules/thresholds from the DB. Without the
+        // seeder, every score is 0 and every level defaults to standard/low.
+        $this->seed(\Database\Seeders\RiskEngineSeeder::class);
     }
 
     // ── Show (GET /risk-assessment) ──────────────────────────────────────────
@@ -344,6 +351,11 @@ class RiskAssessmentTest extends TestCase
         $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
+        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
 
         $response = $this->actingAs($admin)
             ->getJson("/api/campers/{$camper->id}/risk-summary");

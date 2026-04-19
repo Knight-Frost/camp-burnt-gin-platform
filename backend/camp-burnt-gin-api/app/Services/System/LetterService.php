@@ -70,14 +70,14 @@ class LetterService
             'date' => now()->format('F j, Y'),
             'recipient' => $application->camper->user->name,
             'camper_name' => $application->camper->full_name,
-            'camp_name' => $application->campSession->camp->name,
+            'camp_name' => 'Camp Burnt Gin',
             'session_name' => $application->campSession->name,
             // Include start and end dates so the parent knows when to prepare
             'session_dates' => [
                 'start' => $application->campSession->start_date->format('F j, Y'),
                 'end' => $application->campSession->end_date->format('F j, Y'),
             ],
-            'location' => $application->campSession->camp->location,
+            'location' => '1628 Old Wire Rd, Gaston, SC 29053',
         ];
     }
 
@@ -96,7 +96,7 @@ class LetterService
             'date' => now()->format('F j, Y'),
             'recipient' => $application->camper->user->name,
             'camper_name' => $application->camper->full_name,
-            'camp_name' => $application->campSession->camp->name,
+            'camp_name' => 'Camp Burnt Gin',
             'session_name' => $application->campSession->name,
             // Include the reviewer's notes if any were provided during the review
             'notes' => $application->notes,

@@ -32,10 +32,7 @@ import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import {
   getApplications,
-  getDrafts,
-  deleteDraft as apiDeleteDraft,
   deleteApplication as apiDeleteApplication,
-  type ApplicationDraft,
 } from '@/features/parent/api/applicant.api';
 import type { Application, ApplicationStatus, Camper } from '@/shared/types';
 import { NewSessionModal } from '@/features/parent/components/NewSessionModal';
@@ -218,7 +215,7 @@ function AppCard({
             <>
               <Button
                 size="sm"
-                onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { applicationId: app.id } })}
+                onClick={() => navigate(ROUTES.PARENT_APPLICATION_DETAIL(app.id))}
               >
                 Continue
               </Button>
@@ -351,66 +348,9 @@ function LocalDraftCard({ camperName, onDelete }: { camperName: string | null; o
   );
 }
 
-// Card for a server-side draft — survives logout/login, deleteable
-function ServerDraftCard({
-  draft,
-  onDelete,
-}: {
-  draft: ApplicationDraft;
-  onDelete: (id: number) => void;
-}) {
-  const navigate = useNavigate();
-  // Try to parse a camper name from the stored draft_data blob
-  const label = draft.label && draft.label !== 'New Application' ? draft.label : null;
-  return (
-    <div
-      className="flex items-center justify-between gap-4 px-6 py-4 rounded-2xl border"
-      style={{ background: 'var(--card)', borderColor: 'var(--ember-orange)' }}
-    >
-      <div className="flex items-center gap-4 min-w-0 flex-1">
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(234,88,12,0.10)' }}
-        >
-          <FileText className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-              {label ?? 'Untitled application'}
-            </p>
-            <span
-              className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-              style={{ background: 'rgba(234,88,12,0.12)', color: '#c2410c' }}
-            >
-              Draft – Not Submitted
-            </span>
-          </div>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-            Last saved {new Date(draft.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <Button
-          size="sm"
-          onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { draftId: draft.id } })}
-        >
-          Continue
-        </Button>
-        <button
-          type="button"
-          onClick={() => onDelete(draft.id)}
-          className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
-          style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-          title="Delete draft"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
+// ApplicationDraft JSON-blob cards were removed: drafts in this list are
+// now Application rows only (is_draft=true). See the `load()` function for
+// the rationale — the dual-source fetch produced the "ghost draft" bug.
 
 export function ApplicantApplicationsPage() {
   const { t } = useTranslation();
@@ -429,7 +369,6 @@ export function ApplicantApplicationsPage() {
     waitlisted:   t('status_labels.waitlisted'),
   };
   const [applications, setApplications] = useState<Application[]>([]);
-  const [serverDrafts, setServerDrafts] = useState<ApplicationDraft[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(false);
   // View mode: 'all' shows all groups, 'active' only in-flight, 'past' only resolved
@@ -443,9 +382,16 @@ export function ApplicantApplicationsPage() {
   // Holds camper name parsed from sessionStorage draft if one exists
   const [localDraft, setLocalDraft]     = useState<{ camperName: string | null } | null>(null);
   // Delete-draft confirmation modal state
+  //
+  // ApplicationDraft JSON blob cards are no longer rendered here — the
+  // applicant list shows Application rows only. Blobs are form-page
+  // internal staging and are cleaned up by ApplicationController::finalize()
+  // via the application_id FK. The 'localDraft' sessionStorage path and
+  // the 'draft' server-blob path remain wired only for the delete-confirm
+  // modal's backward-compat paths; both surfaces have been removed from
+  // the list itself.
   const [deleteTarget, setDeleteTarget] = useState<
     | { type: 'localDraft'; camperName: string | null }
-    | { type: 'draft'; id: number; camperName: string | null }
     | { type: 'application'; app: Application }
     | null
   >(null);
@@ -480,22 +426,22 @@ export function ApplicantApplicationsPage() {
     } catch { /* ignore corrupt draft */ }
   }, [localDraftKey]);
 
-  // Fetch all applications + server drafts in parallel
+  // Fetch all applications. ApplicationDraft JSON blobs are deliberately
+  // NOT fetched here — they're form-page internal staging and rendering them
+  // as separate list cards produced the "ghost draft" bug where a submitted
+  // application and its pre-submit blob appeared as two distinct entries for
+  // the same camper. Drafts in the list are Application rows with
+  // is_draft=true.
   const load = () => {
     setLoading(true);
     setError(false);
-    Promise.all([getApplications(), getDrafts()])
-      .then(([apps, drafts]) => { setApplications(apps); setServerDrafts(drafts); })
+    getApplications()
+      .then((apps) => { setApplications(apps); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
-
-  /** Opens the delete-draft confirmation modal for a server-side ApplicationDraft. */
-  function requestDeleteDraft(draftId: number, camperName: string | null) {
-    setDeleteTarget({ type: 'draft', id: draftId, camperName });
-  }
 
   /** Opens the delete confirmation modal for an Application record that is still a draft. */
   function requestDeleteApplication(app: Application) {
@@ -511,9 +457,6 @@ export function ApplicantApplicationsPage() {
         // Local-only draft — no server record, just clear sessionStorage
         sessionStorage.removeItem(localDraftKey);
         setLocalDraft(null);
-      } else if (deleteTarget.type === 'draft') {
-        await apiDeleteDraft(deleteTarget.id);
-        setServerDrafts((prev) => prev.filter((d) => d.id !== deleteTarget.id));
       } else {
         await apiDeleteApplication(deleteTarget.app.id);
         setApplications((prev) => prev.filter((a) => a.id !== deleteTarget.app.id));
@@ -562,7 +505,6 @@ export function ApplicantApplicationsPage() {
   // Resolve the camper name for the delete modal based on target type
   const deleteModalCamperName =
     deleteTarget?.type === 'localDraft' ? deleteTarget.camperName
-    : deleteTarget?.type === 'draft'    ? deleteTarget.camperName
     : deleteTarget?.type === 'application' ? (deleteTarget.app.camper?.full_name ?? null)
     : null;
 
@@ -683,7 +625,7 @@ export function ApplicantApplicationsPage() {
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <ErrorState onRetry={load} />
         </div>
-      ) : filtered.length === 0 && !localDraft && serverDrafts.length === 0 ? (
+      ) : filtered.length === 0 && !localDraft ? (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <EmptyState
             title={applications.length === 0 ? 'No applications yet' : 'No matching applications'}
@@ -705,7 +647,7 @@ export function ApplicantApplicationsPage() {
             {view === 'all' && !statusFilter ? (
               // Default grouped view: Drafts → Active → Past sections
               <>
-                {(draftApps.length > 0 || localDraft || serverDrafts.length > 0) && (
+                {(draftApps.length > 0 || localDraft) && (
                   <div className="flex flex-col gap-3">
                     <div className="px-1">
                       <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
@@ -715,19 +657,11 @@ export function ApplicantApplicationsPage() {
                         className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full"
                         style={{ background: 'var(--border)', color: 'var(--muted-foreground)' }}
                       >
-                        {serverDrafts.length + draftApps.length + (localDraft ? 1 : 0)}
+                        {draftApps.length + (localDraft ? 1 : 0)}
                       </span>
                     </div>
-                    {/* Server drafts — authoritative; survive logout/login */}
-                    {serverDrafts.map((draft) => (
-                      <ServerDraftCard
-                        key={draft.id}
-                        draft={draft}
-                        onDelete={(id) => requestDeleteDraft(id, draft.label && draft.label !== 'New Application' ? draft.label : null)}
-                      />
-                    ))}
                     {/* LocalDraftCard is a fallback for pre-server-draft sessionStorage drafts */}
-                    {localDraft && serverDrafts.length === 0 && (
+                    {localDraft && draftApps.length === 0 && (
                       <LocalDraftCard
                         camperName={localDraft.camperName}
                         onDelete={() => setDeleteTarget({ type: 'localDraft', camperName: localDraft.camperName })}
@@ -755,16 +689,9 @@ export function ApplicantApplicationsPage() {
                 />
               </>
             ) : statusFilter === 'draft' ? (
-              // When "Draft" is selected in the status filter, show server drafts + local draft
+              // When "Draft" is selected in the status filter, show draft Applications + any local sessionStorage draft
               <div className="flex flex-col gap-3">
-                {serverDrafts.map((draft) => (
-                  <ServerDraftCard
-                    key={draft.id}
-                    draft={draft}
-                    onDelete={(id) => requestDeleteDraft(id, draft.label && draft.label !== 'New Application' ? draft.label : null)}
-                  />
-                ))}
-                {localDraft && serverDrafts.length === 0 && (
+                {localDraft && draftApps.length === 0 && (
                   <LocalDraftCard
                     camperName={localDraft.camperName}
                     onDelete={() => setDeleteTarget({ type: 'localDraft', camperName: localDraft.camperName })}

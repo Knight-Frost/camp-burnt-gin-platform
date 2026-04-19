@@ -170,14 +170,27 @@ function CamperCard({
             </p>
           </div>
         </div>
-        <Link
-          to={`${camperBase}/${camper.id}`}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-        >
-          <ClipboardList className="h-3.5 w-3.5" />
-          Full Record
-        </Link>
+        {/* Full Record is only accessible once the family has submitted an application.
+            Pre-submission camper data is private to the applicant. */}
+        {sortedApps.length > 0 ? (
+          <Link
+            to={`${camperBase}/${camper.id}`}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
+            style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            Full Record
+          </Link>
+        ) : (
+          <span
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border cursor-not-allowed"
+            style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', opacity: 0.4 }}
+            title="Available after application is submitted"
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            Full Record
+          </span>
+        )}
       </div>
 
       {/* Applications section */}
