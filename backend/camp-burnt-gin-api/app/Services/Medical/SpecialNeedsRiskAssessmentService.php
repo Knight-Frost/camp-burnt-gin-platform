@@ -92,7 +92,7 @@ class SpecialNeedsRiskAssessmentService
     /**
      * Load risk factors from DB, cached to avoid per-request queries.
      *
-     * @return array<string, array<string, mixed>>  Keyed by factor key.
+     * @return array<string, array<string, mixed>> Keyed by factor key.
      */
     protected function loadFactors(): array
     {

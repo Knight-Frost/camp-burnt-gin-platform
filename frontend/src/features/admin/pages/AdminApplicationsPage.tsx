@@ -37,8 +37,7 @@ const STATUS_FILTERS = ['all', 'draft', 'submitted', 'under_review', 'approved',
  * (signature + consents on paper vs digital), so operating them together in
  * a single list hides the workload of each pipeline.
  */
-const SOURCE_FILTERS = ['all', 'digital', 'paper_self', 'paper_admin'] as const;
-type SourceFilter = typeof SOURCE_FILTERS[number];
+type SourceFilter = 'all' | 'digital' | 'paper_self' | 'paper_admin';
 
 type SortKey = 'submitted_at' | 'status' | 'reviewed_at';
 

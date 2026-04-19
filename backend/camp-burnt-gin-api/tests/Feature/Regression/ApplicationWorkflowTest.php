@@ -5,11 +5,9 @@ namespace Tests\Feature\Regression;
 use App\Enums\ApplicationStatus;
 use App\Jobs\SendNotificationJob;
 use App\Models\Application;
-use App\Models\ApplicationConsent;
 use App\Models\AuditLog;
-use App\Models\CampSession;
 use App\Models\Camper;
-use App\Models\Document;
+use App\Models\CampSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -103,26 +101,26 @@ class ApplicationWorkflowTest extends TestCase
 
     public function test_draft_to_submitted_workflow(): void
     {
-        $parent  = $this->createParent();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create([
-            'user_id'       => $parent->id,
-            'first_name'    => 'Alice',
-            'last_name'     => 'Smith',
+        $camper = Camper::factory()->create([
+            'user_id' => $parent->id,
+            'first_name' => 'Alice',
+            'last_name' => 'Smith',
             'date_of_birth' => '2010-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
 
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
         \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
 
         $application = Application::factory()->draft()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Smith',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
 
@@ -323,17 +321,17 @@ class ApplicationWorkflowTest extends TestCase
         $session = \App\Models\CampSession::factory()->create();
 
         Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => \App\Enums\ApplicationStatus::Submitted,
-            'submitted_at'    => now()->subHour(),
+            'is_draft' => false,
+            'status' => \App\Enums\ApplicationStatus::Submitted,
+            'submitted_at' => now()->subHour(),
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
+            'is_draft' => false,
         ]);
 
         $response->assertStatus(409)

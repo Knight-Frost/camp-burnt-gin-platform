@@ -54,6 +54,14 @@ class DocumentEnforcementService
      * suitable for both approval enforcement and display in the admin portal.
      *
      * @param  Camper  $camper  The camper whose documents are being checked
+     * @param  \App\Models\Application|null  $finalizingApplication
+     *                                                               When the caller is the applicant's own finalize flow, the target
+     *                                                               application is still is_draft=true at the moment this check runs
+     *                                                               — but its documents DO count toward its own completeness because
+     *                                                               the cascade inside finalize() is about to promote them. Pass the
+     *                                                               application here to include its draft docs in the counted set.
+     *                                                               Admin/approval gate callers should omit this (default null) so
+     *                                                               only truly-submitted applications contribute.
      * @return array{
      *     is_compliant: bool,
      *     required_documents: array,
@@ -62,15 +70,6 @@ class DocumentEnforcementService
      *     unverified_documents: array,
      *     incomplete_documents: array
      * }
-     *
-     * @param  \App\Models\Application|null  $finalizingApplication
-     *         When the caller is the applicant's own finalize flow, the target
-     *         application is still is_draft=true at the moment this check runs
-     *         — but its documents DO count toward its own completeness because
-     *         the cascade inside finalize() is about to promote them. Pass the
-     *         application here to include its draft docs in the counted set.
-     *         Admin/approval gate callers should omit this (default null) so
-     *         only truly-submitted applications contribute.
      */
     public function checkCompliance(Camper $camper, ?\App\Models\Application $finalizingApplication = null): array
     {
@@ -106,11 +105,11 @@ class DocumentEnforcementService
             || (bool) config('compliance.strict_enabled');
 
         if ($strictMode) {
-            $expiredDocuments    = $this->findExpiredDocuments($requiredDocuments, $uploadedDocuments);
+            $expiredDocuments = $this->findExpiredDocuments($requiredDocuments, $uploadedDocuments);
             $unverifiedDocuments = $this->findUnverifiedDocuments($requiredDocuments, $uploadedDocuments);
             $incompleteDocuments = $this->findIncompleteMetadataDocuments($requiredDocuments, $uploadedDocuments);
         } else {
-            $expiredDocuments    = collect();
+            $expiredDocuments = collect();
             $unverifiedDocuments = collect();
             $incompleteDocuments = collect();
         }
@@ -254,7 +253,7 @@ class DocumentEnforcementService
      * error six times.
      *
      * @param  Collection  $uploaded  Documents (already filtered to non-archived)
-     * @return array<string, Collection>  type → newest-first collection
+     * @return array<string, Collection> type → newest-first collection
      */
     protected function binByType(Collection $uploaded): array
     {
@@ -295,7 +294,7 @@ class DocumentEnforcementService
     protected function findExpiredDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
         $bins = $this->binByType($uploadedDocuments);
-        $out  = collect();
+        $out = collect();
 
         foreach ($requiredDocuments as $rule) {
             $rows = $bins[$rule->document_type] ?? collect();
@@ -325,7 +324,7 @@ class DocumentEnforcementService
     protected function findUnverifiedDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
         $bins = $this->binByType($uploadedDocuments);
-        $out  = collect();
+        $out = collect();
 
         foreach ($requiredDocuments as $rule) {
             $rows = $bins[$rule->document_type] ?? collect();
@@ -371,7 +370,7 @@ class DocumentEnforcementService
     protected function findIncompleteMetadataDocuments(Collection $requiredDocuments, Collection $uploadedDocuments): Collection
     {
         $bins = $this->binByType($uploadedDocuments);
-        $out  = collect();
+        $out = collect();
 
         foreach ($requiredDocuments as $rule) {
             if (! in_array($rule->document_type, self::TYPES_REQUIRING_EXAM_DATE, true)) {
@@ -449,10 +448,10 @@ class DocumentEnforcementService
             }
 
             return [
-                'document_id'     => $document->id,
-                'document_type'   => $document->document_type,
+                'document_id' => $document->id,
+                'document_type' => $document->document_type,
                 'expiration_date' => $document->expiration_date?->format('Y-m-d'),
-                'exam_date'       => $examDate,
+                'exam_date' => $examDate,
             ];
         })->values()->toArray();
     }
@@ -468,9 +467,9 @@ class DocumentEnforcementService
     {
         return $incompleteDocuments->map(function (Document $document) {
             return [
-                'document_id'   => $document->id,
+                'document_id' => $document->id,
                 'document_type' => $document->document_type,
-                'reason'        => 'missing_exam_date',
+                'reason' => 'missing_exam_date',
             ];
         })->values()->toArray();
     }

@@ -46,9 +46,9 @@ class DocumentUniquenessEnforcer
             ->get();
 
         $result = [
-            'groups_found'  => $duplicateGroups->count(),
+            'groups_found' => $duplicateGroups->count(),
             'rows_archived' => 0,
-            'groups'        => [],
+            'groups' => [],
         ];
 
         foreach ($duplicateGroups as $g) {
@@ -61,7 +61,7 @@ class DocumentUniquenessEnforcer
                 ->orderByDesc('id')            // newest id first
                 ->get();
 
-            $keeper   = $rows->shift();
+            $keeper = $rows->shift();
             $archiveIds = $rows->pluck('id')->all();
 
             if (! empty($archiveIds) && ! $dryRun) {
@@ -70,10 +70,10 @@ class DocumentUniquenessEnforcer
 
             $result['rows_archived'] += count($archiveIds);
             $result['groups'][] = [
-                'key'      => class_basename((string) $g->documentable_type)
+                'key' => class_basename((string) $g->documentable_type)
                              .':'.$g->documentable_id
                              .':'.$g->document_type,
-                'kept'     => $keeper?->id ?? 0,
+                'kept' => $keeper?->id ?? 0,
                 'archived' => $archiveIds,
             ];
         }

@@ -53,31 +53,31 @@ class ApplicationResource extends JsonResource
         $viewerIsAdmin = $viewer !== null && method_exists($viewer, 'isAdmin') && $viewer->isAdmin();
 
         return [
-            'id'          => $app->id,
-            'status'      => $app->status instanceof \BackedEnum ? $app->status->value : $app->status,
-            'is_draft'    => (bool) $app->is_draft,
-            'submitted_at'=> $app->submitted_at?->toISOString(),
-            'signed_at'   => $app->signed_at?->toISOString(),
-            'signature_name'     => $app->signature_name,
-            'camp_session_id'    => $app->camp_session_id,
-            'second_session_id'  => $app->second_session_id,
-            'camp_session'       => $this->shapeSession($app->campSession),
-            'second_session'     => $this->shapeSession($app->secondSession),
-            'submission_source'  => $app->submission_source instanceof \BackedEnum ? $app->submission_source->value : $app->submission_source,
+            'id' => $app->id,
+            'status' => $app->status instanceof \BackedEnum ? $app->status->value : $app->status,
+            'is_draft' => (bool) $app->is_draft,
+            'submitted_at' => $app->submitted_at?->toISOString(),
+            'signed_at' => $app->signed_at?->toISOString(),
+            'signature_name' => $app->signature_name,
+            'camp_session_id' => $app->camp_session_id,
+            'second_session_id' => $app->second_session_id,
+            'camp_session' => $this->shapeSession($app->campSession),
+            'second_session' => $this->shapeSession($app->secondSession),
+            'submission_source' => $app->submission_source instanceof \BackedEnum ? $app->submission_source->value : $app->submission_source,
 
             // ── The 11 canonical sections ──────────────────────────────
             'sections' => [
-                'camper'        => $this->sectionCamper($app),
-                'health'        => $this->sectionHealth($app),
-                'behavior'      => $this->sectionBehavior($app),
-                'equipment'     => $this->sectionEquipment($app),
-                'diet'          => $this->sectionDiet($app),
+                'camper' => $this->sectionCamper($app),
+                'health' => $this->sectionHealth($app),
+                'behavior' => $this->sectionBehavior($app),
+                'equipment' => $this->sectionEquipment($app),
+                'diet' => $this->sectionDiet($app),
                 'personal_care' => $this->sectionPersonalCare($app),
-                'activities'    => $this->sectionActivities($app),
-                'medications'   => $this->sectionMedications($app),
-                'narratives'    => $this->sectionNarratives($app),
-                'documents'     => $this->sectionDocuments($app, $viewerIsAdmin),
-                'consents'      => $this->sectionConsents($app),
+                'activities' => $this->sectionActivities($app),
+                'medications' => $this->sectionMedications($app),
+                'narratives' => $this->sectionNarratives($app),
+                'documents' => $this->sectionDocuments($app, $viewerIsAdmin),
+                'consents' => $this->sectionConsents($app),
             ],
 
             'meta' => [
@@ -103,6 +103,7 @@ class ApplicationResource extends JsonResource
     private function buildValidationMeta(Application $app): array
     {
         $engine = app(\App\Services\Camper\ApplicationCompletenessService::class);
+
         // Admin review page and applicant detail both read this block; we
         // run the engine in approval-gate mode (forFinalization=false) so
         // post-submit drift like unverified/expired documents surfaces.
@@ -116,10 +117,10 @@ class ApplicationResource extends JsonResource
         }
 
         return [
-            'id'         => $session->id,
-            'name'       => $session->name,
+            'id' => $session->id,
+            'name' => $session->name,
             'start_date' => $session->start_date?->format('Y-m-d'),
-            'end_date'   => $session->end_date?->format('Y-m-d'),
+            'end_date' => $session->end_date?->format('Y-m-d'),
         ];
     }
 
@@ -131,30 +132,30 @@ class ApplicationResource extends JsonResource
         }
 
         return [
-            'id'                 => $c->id,
-            'first_name'         => $c->first_name,
-            'last_name'          => $c->last_name,
-            'preferred_name'     => $c->preferred_name,
-            'full_name'          => $c->full_name,
-            'date_of_birth'      => $c->date_of_birth?->format('Y-m-d'),
-            'gender'             => $c->gender,
-            'tshirt_size'        => $c->tshirt_size,
-            'county'             => $c->county,
-            'needs_interpreter'  => (bool) $c->needs_interpreter,
+            'id' => $c->id,
+            'first_name' => $c->first_name,
+            'last_name' => $c->last_name,
+            'preferred_name' => $c->preferred_name,
+            'full_name' => $c->full_name,
+            'date_of_birth' => $c->date_of_birth?->format('Y-m-d'),
+            'gender' => $c->gender,
+            'tshirt_size' => $c->tshirt_size,
+            'county' => $c->county,
+            'needs_interpreter' => (bool) $c->needs_interpreter,
             'preferred_language' => $c->preferred_language,
-            'supervision_level'  => $c->supervision_level instanceof \BackedEnum ? $c->supervision_level->value : $c->supervision_level,
-            'applicant_address'  => $c->applicant_address,
-            'applicant_city'     => $c->applicant_city,
-            'applicant_state'    => $c->applicant_state,
-            'applicant_zip'      => $c->applicant_zip,
+            'supervision_level' => $c->supervision_level instanceof \BackedEnum ? $c->supervision_level->value : $c->supervision_level,
+            'applicant_address' => $c->applicant_address,
+            'applicant_city' => $c->applicant_city,
+            'applicant_state' => $c->applicant_state,
+            'applicant_zip' => $c->applicant_zip,
             'emergency_contacts' => $c->emergencyContacts->map(fn ($e) => [
-                'id'                   => $e->id,
-                'name'                 => $e->name,
-                'relationship'         => $e->relationship,
-                'phone_primary'        => $e->phone_primary,
-                'phone_secondary'      => $e->phone_secondary,
-                'is_primary'           => (bool) $e->is_primary,
-                'is_guardian'          => (bool) $e->is_guardian,
+                'id' => $e->id,
+                'name' => $e->name,
+                'relationship' => $e->relationship,
+                'phone_primary' => $e->phone_primary,
+                'phone_secondary' => $e->phone_secondary,
+                'is_primary' => (bool) $e->is_primary,
+                'is_guardian' => (bool) $e->is_guardian,
                 'is_authorized_pickup' => (bool) $e->is_authorized_pickup,
             ])->values()->all(),
         ];
@@ -182,16 +183,16 @@ class ApplicationResource extends JsonResource
         return [
             'medical_record' => $mr === null ? null : array_filter($mr->only($mr->getFillable()), fn ($v, $k) => $k !== 'camper_id', ARRAY_FILTER_USE_BOTH),
             'diagnoses' => ($c?->diagnoses ?? collect())->map(fn ($d) => [
-                'id'             => $d->id,
-                'name'           => $d->name,
-                'description'    => $d->description,
+                'id' => $d->id,
+                'name' => $d->name,
+                'description' => $d->description,
                 'severity_level' => $d->severity_level instanceof \BackedEnum ? $d->severity_level->value : $d->severity_level,
             ])->values()->all(),
             'allergies' => ($c?->allergies ?? collect())->map(fn ($a) => [
-                'id'        => $a->id,
-                'allergen'  => $a->allergen,
-                'severity'  => $a->severity instanceof \BackedEnum ? $a->severity->value : $a->severity,
-                'reaction'  => $a->reaction,
+                'id' => $a->id,
+                'allergen' => $a->allergen,
+                'severity' => $a->severity instanceof \BackedEnum ? $a->severity->value : $a->severity,
+                'reaction' => $a->reaction,
                 'treatment' => $a->treatment,
             ])->values()->all(),
         ];
@@ -215,10 +216,10 @@ class ApplicationResource extends JsonResource
     {
         return [
             'assistive_devices' => ($app->camper?->assistiveDevices ?? collect())->map(fn ($v) => [
-                'id'                            => $v->id,
-                'device_type'                   => $v->device_type,
-                'requires_transfer_assistance'  => (bool) $v->requires_transfer_assistance,
-                'notes'                         => $v->notes,
+                'id' => $v->id,
+                'device_type' => $v->device_type,
+                'requires_transfer_assistance' => (bool) $v->requires_transfer_assistance,
+                'notes' => $v->notes,
             ])->values()->all(),
         ];
     }
@@ -251,9 +252,9 @@ class ApplicationResource extends JsonResource
     {
         return [
             'permissions' => ($app->camper?->activityPermissions ?? collect())->map(fn ($ap) => [
-                'id'                => $ap->id,
-                'activity_name'     => $ap->activity_name,
-                'permission_level'  => $ap->permission_level instanceof \BackedEnum ? $ap->permission_level->value : $ap->permission_level,
+                'id' => $ap->id,
+                'activity_name' => $ap->activity_name,
+                'permission_level' => $ap->permission_level instanceof \BackedEnum ? $ap->permission_level->value : $ap->permission_level,
                 'restriction_notes' => $ap->restriction_notes,
             ])->values()->all(),
         ];
@@ -263,11 +264,11 @@ class ApplicationResource extends JsonResource
     {
         return [
             'list' => ($app->camper?->medications ?? collect())->map(fn ($m) => [
-                'id'        => $m->id,
-                'name'      => $m->name,
-                'dosage'    => $m->dosage,
+                'id' => $m->id,
+                'name' => $m->name,
+                'dosage' => $m->dosage,
                 'frequency' => $m->frequency,
-                'purpose'   => $m->purpose,
+                'purpose' => $m->purpose,
             ])->values()->all(),
         ];
     }
@@ -275,14 +276,14 @@ class ApplicationResource extends JsonResource
     private function sectionNarratives(Application $app): array
     {
         return [
-            'rustic_environment'     => $app->narrative_rustic_environment,
-            'staff_suggestions'      => $app->narrative_staff_suggestions,
+            'rustic_environment' => $app->narrative_rustic_environment,
+            'staff_suggestions' => $app->narrative_staff_suggestions,
             'participation_concerns' => $app->narrative_participation_concerns,
-            'camp_benefit'           => $app->narrative_camp_benefit,
-            'heat_tolerance'         => $app->narrative_heat_tolerance,
-            'transportation'         => $app->narrative_transportation,
-            'additional_info'        => $app->narrative_additional_info,
-            'emergency_protocols'    => $app->narrative_emergency_protocols,
+            'camp_benefit' => $app->narrative_camp_benefit,
+            'heat_tolerance' => $app->narrative_heat_tolerance,
+            'transportation' => $app->narrative_transportation,
+            'additional_info' => $app->narrative_additional_info,
+            'emergency_protocols' => $app->narrative_emergency_protocols,
         ];
     }
 
@@ -308,7 +309,7 @@ class ApplicationResource extends JsonResource
      */
     private function sectionDocuments(Application $app, bool $viewerIsAdmin): array
     {
-        $appDocs    = $app->documents ?? collect();
+        $appDocs = $app->documents ?? collect();
         $camperDocs = $app->camper?->documents ?? collect();
 
         $merged = $appDocs
@@ -346,15 +347,15 @@ class ApplicationResource extends JsonResource
     private function sectionConsents(Application $app): array
     {
         return [
-            'signed_at'      => $app->signed_at?->toISOString(),
+            'signed_at' => $app->signed_at?->toISOString(),
             'signature_name' => $app->signature_name,
-            'consents'       => ($app->consents ?? collect())->map(fn ($c) => [
-                'id'                    => $c->id,
-                'consent_type'          => $c->consent_type,
-                'guardian_name'         => $c->guardian_name,
+            'consents' => ($app->consents ?? collect())->map(fn ($c) => [
+                'id' => $c->id,
+                'consent_type' => $c->consent_type,
+                'guardian_name' => $c->guardian_name,
                 'guardian_relationship' => $c->guardian_relationship,
-                'guardian_signature'    => $c->guardian_signature,
-                'signed_at'             => $c->signed_at?->toISOString(),
+                'guardian_signature' => $c->guardian_signature,
+                'signed_at' => $c->signed_at?->toISOString(),
             ])->values()->all(),
         ];
     }
@@ -372,12 +373,12 @@ class ApplicationResource extends JsonResource
         $camper = $app->camper;
         if ($camper === null) {
             return [
-                'is_compliant'        => false,
-                'missing_documents'   => [],
-                'expired_documents'   => [],
-                'unverified_documents'=> [],
-                'incomplete_documents'=> [],
-                'issues'              => [],
+                'is_compliant' => false,
+                'missing_documents' => [],
+                'expired_documents' => [],
+                'unverified_documents' => [],
+                'incomplete_documents' => [],
+                'issues' => [],
             ];
         }
 
@@ -397,42 +398,42 @@ class ApplicationResource extends JsonResource
         foreach ($report['missing_documents'] as $m) {
             $label = $this->humanDocumentLabel($m['document_type']);
             $issues[] = [
-                'category'       => 'missing',
-                'document_type'  => $m['document_type'],
-                'admin_label'    => "Blocks approval: $label has not been uploaded",
-                'applicant_label'=> "Action needed: Upload the $label",
+                'category' => 'missing',
+                'document_type' => $m['document_type'],
+                'admin_label' => "Blocks approval: $label has not been uploaded",
+                'applicant_label' => "Action needed: Upload the $label",
             ];
         }
         foreach ($report['expired_documents'] as $e) {
             $label = $this->humanDocumentLabel($e['document_type']);
             $issues[] = [
-                'category'       => 'expired',
-                'document_type'  => $e['document_type'],
-                'document_id'    => $e['document_id'] ?? null,
-                'expiration_date'=> $e['expiration_date'] ?? null,
-                'exam_date'      => $e['exam_date'] ?? null,
-                'admin_label'    => "Blocks approval: $label expired ".($e['expiration_date'] ?? '').' — re-submission required',
-                'applicant_label'=> "Action needed: $label is out of date; upload a current copy",
+                'category' => 'expired',
+                'document_type' => $e['document_type'],
+                'document_id' => $e['document_id'] ?? null,
+                'expiration_date' => $e['expiration_date'] ?? null,
+                'exam_date' => $e['exam_date'] ?? null,
+                'admin_label' => "Blocks approval: $label expired ".($e['expiration_date'] ?? '').' — re-submission required',
+                'applicant_label' => "Action needed: $label is out of date; upload a current copy",
             ];
         }
         foreach ($report['unverified_documents'] as $u) {
             $label = $this->humanDocumentLabel($u['document_type']);
             $issues[] = [
-                'category'       => 'unverified',
-                'document_type'  => $u['document_type'],
-                'document_id'    => $u['document_id'] ?? null,
-                'admin_label'    => "Pending: $label awaiting verification",
-                'applicant_label'=> "$label submitted — awaiting staff review",
+                'category' => 'unverified',
+                'document_type' => $u['document_type'],
+                'document_id' => $u['document_id'] ?? null,
+                'admin_label' => "Pending: $label awaiting verification",
+                'applicant_label' => "$label submitted — awaiting staff review",
             ];
         }
         foreach ($report['incomplete_documents'] as $i) {
             $label = $this->humanDocumentLabel($i['document_type']);
             $issues[] = [
-                'category'       => 'incomplete_metadata',
-                'document_type'  => $i['document_type'],
-                'document_id'    => $i['document_id'] ?? null,
-                'admin_label'    => "Blocks approval: $label has no exam date on file",
-                'applicant_label'=> "Action needed: $label is missing the physician exam date. Re-upload with the exam date completed.",
+                'category' => 'incomplete_metadata',
+                'document_type' => $i['document_type'],
+                'document_id' => $i['document_id'] ?? null,
+                'admin_label' => "Blocks approval: $label has no exam date on file",
+                'applicant_label' => "Action needed: $label is missing the physician exam date. Re-upload with the exam date completed.",
             ];
         }
 
@@ -449,19 +450,19 @@ class ApplicationResource extends JsonResource
                 continue;
             }
             $issues[] = [
-                'category'       => 'section',
-                'section'        => $issue['section'],
-                'document_type'  => 'section:'.$issue['section'],
-                'admin_label'    => 'Blocks approval: '.$issue['label'],
-                'applicant_label'=> 'Action needed: '.$issue['label'],
+                'category' => 'section',
+                'section' => $issue['section'],
+                'document_type' => 'section:'.$issue['section'],
+                'admin_label' => 'Blocks approval: '.$issue['label'],
+                'applicant_label' => 'Action needed: '.$issue['label'],
             ];
         }
         foreach ($validation['missing_consents'] as $c) {
             $issues[] = [
-                'category'       => 'consent',
-                'document_type'  => 'consent:'.$c['key'],
-                'admin_label'    => 'Blocks approval: '.$c['label'],
-                'applicant_label'=> 'Action needed: '.$c['label'],
+                'category' => 'consent',
+                'document_type' => 'consent:'.$c['key'],
+                'admin_label' => 'Blocks approval: '.$c['label'],
+                'applicant_label' => 'Action needed: '.$c['label'],
             ];
         }
 
@@ -469,26 +470,26 @@ class ApplicationResource extends JsonResource
             // is_compliant now reflects full engine truth: all required
             // sections complete AND no blocking document issues AND no
             // unverified documents. A single true-or-false that cannot lie.
-            'is_compliant'         => $validation['is_valid'] && $validation['is_complete'],
-            'required_documents'   => $report['required_documents'],
-            'missing_documents'    => $report['missing_documents'],
-            'expired_documents'    => $report['expired_documents'],
+            'is_compliant' => $validation['is_valid'] && $validation['is_complete'],
+            'required_documents' => $report['required_documents'],
+            'missing_documents' => $report['missing_documents'],
+            'expired_documents' => $report['expired_documents'],
             'unverified_documents' => $report['unverified_documents'],
             'incomplete_documents' => $report['incomplete_documents'],
-            'issues'               => $issues,
+            'issues' => $issues,
         ];
     }
 
     private function humanDocumentLabel(string $type): string
     {
         return match ($type) {
-            'official_medical_form'       => 'Medical Examination Form',
-            'immunization_record'         => 'Immunization Record',
-            'insurance_card'              => 'Insurance Card',
-            'paper_application_packet'    => 'Paper Application Packet',
-            'physical_examination'        => 'Physical Examination',
-            'seizure_action_plan'         => 'Seizure Action Plan',
-            'emergency_care_plan'         => 'Emergency Care Plan',
+            'official_medical_form' => 'Medical Examination Form',
+            'immunization_record' => 'Immunization Record',
+            'insurance_card' => 'Insurance Card',
+            'paper_application_packet' => 'Paper Application Packet',
+            'physical_examination' => 'Physical Examination',
+            'seizure_action_plan' => 'Seizure Action Plan',
+            'emergency_care_plan' => 'Emergency Care Plan',
             default => ucwords(str_replace('_', ' ', $type)),
         };
     }

@@ -37,11 +37,11 @@ class DocumentComplianceDedupeTest extends TestCase
         RequiredDocumentRule::firstOrCreate(
             ['document_type' => $type],
             [
-                'description'              => $description,
-                'is_mandatory'             => true,
-                'medical_complexity_tier'  => null,
-                'supervision_level'        => null,
-                'condition_flag'           => null,
+                'description' => $description,
+                'is_mandatory' => true,
+                'medical_complexity_tier' => null,
+                'supervision_level' => null,
+                'condition_flag' => null,
             ],
         );
     }
@@ -57,10 +57,10 @@ class DocumentComplianceDedupeTest extends TestCase
         for ($i = 0; $i < 6; $i++) {
             Document::factory()->create([
                 'documentable_type' => Camper::class,
-                'documentable_id'   => $camper->id,
-                'document_type'     => 'official_medical_form',
-                'expiration_date'   => now()->subMonths($i + 1),
-                'submitted_at'      => now()->subMonths($i + 1),
+                'documentable_id' => $camper->id,
+                'document_type' => 'official_medical_form',
+                'expiration_date' => now()->subMonths($i + 1),
+                'submitted_at' => now()->subMonths($i + 1),
                 'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
             ]);
         }
@@ -92,10 +92,10 @@ class DocumentComplianceDedupeTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             Document::factory()->create([
                 'documentable_type' => Camper::class,
-                'documentable_id'   => $camper->id,
-                'document_type'     => 'official_medical_form',
-                'expiration_date'   => now()->subMonths($i + 1),
-                'submitted_at'      => now()->subMonths($i + 1),
+                'documentable_id' => $camper->id,
+                'document_type' => 'official_medical_form',
+                'expiration_date' => now()->subMonths($i + 1),
+                'submitted_at' => now()->subMonths($i + 1),
                 'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
             ]);
         }
@@ -103,10 +103,10 @@ class DocumentComplianceDedupeTest extends TestCase
         // Fresh upload — one year out
         Document::factory()->create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $camper->id,
-            'document_type'     => 'official_medical_form',
-            'expiration_date'   => now()->addYear(),
-            'submitted_at'      => now(),
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => now()->addYear(),
+            'submitted_at' => now(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
@@ -118,7 +118,7 @@ class DocumentComplianceDedupeTest extends TestCase
         $this->assertNotContains(
             'official_medical_form',
             $expiredTypes,
-            'Fresh in-date upload must clear the expired entry for this type — found: ' . json_encode($report),
+            'Fresh in-date upload must clear the expired entry for this type — found: '.json_encode($report),
         );
         $this->assertNotContains('official_medical_form', $missingTypes);
     }
@@ -134,10 +134,10 @@ class DocumentComplianceDedupeTest extends TestCase
 
         Document::factory()->create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $camper->id,
-            'document_type'     => 'official_medical_form',
-            'expiration_date'   => now()->subMonth(),
-            'submitted_at'      => now()->subMonth(),
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => now()->subMonth(),
+            'submitted_at' => now()->subMonth(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
@@ -162,11 +162,11 @@ class DocumentComplianceDedupeTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create();
 
         Document::factory()->create([
-            'documentable_type'  => Camper::class,
-            'documentable_id'    => $camper->id,
-            'document_type'      => 'official_medical_form',
-            'expiration_date'    => null, // no exam date was captured
-            'submitted_at'       => now(),
+            'documentable_type' => Camper::class,
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => null, // no exam date was captured
+            'submitted_at' => now(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
@@ -174,7 +174,7 @@ class DocumentComplianceDedupeTest extends TestCase
 
         $this->assertNotEmpty($report['incomplete_documents'], 'medical form without exam date must surface in incomplete_documents');
         $this->assertSame('official_medical_form', $report['incomplete_documents'][0]['document_type']);
-        $this->assertSame('missing_exam_date',     $report['incomplete_documents'][0]['reason']);
+        $this->assertSame('missing_exam_date', $report['incomplete_documents'][0]['reason']);
 
         // And it must not double-surface in expired or missing.
         $this->assertEmpty(collect($report['expired_documents'])->where('document_type', 'official_medical_form'));
@@ -196,11 +196,11 @@ class DocumentComplianceDedupeTest extends TestCase
 
         $expiration = now()->subMonths(2);
         Document::factory()->create([
-            'documentable_type'   => Camper::class,
-            'documentable_id'     => $camper->id,
-            'document_type'       => 'official_medical_form',
-            'expiration_date'     => $expiration,
-            'submitted_at'        => $expiration->copy()->subYear(),
+            'documentable_type' => Camper::class,
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => $expiration,
+            'submitted_at' => $expiration->copy()->subYear(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
@@ -231,10 +231,10 @@ class DocumentComplianceDedupeTest extends TestCase
         // No medical_form at all — that should be "missing", not "expired".
         Document::factory()->create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $camper->id,
-            'document_type'     => 'some_unrequired_misc',
-            'expiration_date'   => now()->subMonth(),
-            'submitted_at'      => now()->subMonth(),
+            'documentable_id' => $camper->id,
+            'document_type' => 'some_unrequired_misc',
+            'expiration_date' => now()->subMonth(),
+            'submitted_at' => now()->subMonth(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 

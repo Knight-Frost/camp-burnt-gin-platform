@@ -81,16 +81,16 @@ class SubmissionSourceTest extends TestCase
     private function attachPaperPacket(Application $app): void
     {
         \App\Models\Document::create([
-            'documentable_type'   => \App\Models\Application::class,
-            'documentable_id'     => $app->id,
-            'document_type'       => 'paper_application_packet',
-            'original_filename'   => 'packet.pdf',
-            'stored_filename'     => 'packet.pdf',
-            'path'                => 'documents/packet.pdf',
-            'mime_type'           => 'application/pdf',
-            'file_size'           => 2048,
-            'uploaded_by'         => $app->camper?->user_id ?? User::factory()->admin()->create()->id,
-            'submitted_at'        => now(),
+            'documentable_type' => \App\Models\Application::class,
+            'documentable_id' => $app->id,
+            'document_type' => 'paper_application_packet',
+            'original_filename' => 'packet.pdf',
+            'stored_filename' => 'packet.pdf',
+            'path' => 'documents/packet.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 2048,
+            'uploaded_by' => $app->camper?->user_id ?? User::factory()->admin()->create()->id,
+            'submitted_at' => now(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
     }

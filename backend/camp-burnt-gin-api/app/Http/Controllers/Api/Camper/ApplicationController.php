@@ -10,8 +10,8 @@ use App\Http\Requests\Application\StoreApplicationRequest;
 use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\ApplicationConsent;
-use App\Models\FormDefinition;
 use App\Models\AuditLog;
+use App\Models\FormDefinition;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
 use App\Services\Camper\ApplicationCompletenessService;
 use App\Services\Camper\ApplicationService;
@@ -298,7 +298,7 @@ class ApplicationController extends Controller
         //     occupy the slot. The old row is preserved as audit history.
         if (isset($data['camper_id'], $data['camp_session_id'])) {
             $conflict = null;
-            $resumed  = null;
+            $resumed = null;
 
             DB::transaction(function () use ($data, &$conflict, &$resumed) {
                 $rows = Application::where('camper_id', $data['camper_id'])
@@ -319,11 +319,13 @@ class ApplicationController extends Controller
                     $draft->update(array_filter($data, fn ($v) => $v !== null));
                     $draft->load(['camper', 'campSession']);
                     $resumed = $draft;
+
                     return;
                 }
 
                 if ($activeSubmitted !== null) {
                     $conflict = $activeSubmitted;
+
                     return;
                 }
                 // Final-state row(s) only, or no row at all — fall through to
@@ -333,7 +335,7 @@ class ApplicationController extends Controller
             if ($resumed !== null) {
                 return response()->json([
                     'message' => 'Existing draft application returned.',
-                    'data'    => $resumed,
+                    'data' => $resumed,
                 ], Response::HTTP_OK);
             }
 
@@ -502,7 +504,7 @@ class ApplicationController extends Controller
         $canonical = new \App\Http\Resources\ApplicationResource($application);
 
         return response()->json([
-            'data'      => $application,
+            'data' => $application,
             'canonical' => $canonical->toArray(request()),
         ]);
     }
@@ -534,8 +536,8 @@ class ApplicationController extends Controller
             $serverTs = $application->updated_at?->toISOString() ?? '';
             if ($clientTs !== $serverTs) {
                 return response()->json([
-                    'message'           => 'Application was modified by another request. Refresh and retry.',
-                    'conflict'          => true,
+                    'message' => 'Application was modified by another request. Refresh and retry.',
+                    'conflict' => true,
                     'server_updated_at' => $serverTs,
                 ], Response::HTTP_CONFLICT);
             }
@@ -580,10 +582,10 @@ class ApplicationController extends Controller
                 ->where(function ($q) use ($application) {
                     $q->where(function ($q2) use ($application) {
                         $q2->where('documentable_type', \App\Models\Application::class)
-                           ->where('documentable_id', $application->id);
+                            ->where('documentable_id', $application->id);
                     })->orWhere(function ($q2) use ($application) {
                         $q2->where('documentable_type', \App\Models\Camper::class)
-                           ->where('documentable_id', $application->camper_id);
+                            ->where('documentable_id', $application->camper_id);
                     });
                 })
                 ->exists();
@@ -591,7 +593,7 @@ class ApplicationController extends Controller
             if (! $packetExists) {
                 return response()->json([
                     'message' => 'A completed paper application packet must be uploaded before this application can be marked as a paper submission.',
-                    'errors'  => ['submission_source' => ['Paper packet is required before setting a paper source.']],
+                    'errors' => ['submission_source' => ['Paper packet is required before setting a paper source.']],
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
         }
@@ -603,14 +605,14 @@ class ApplicationController extends Controller
 
             if (! $report['is_complete']) {
                 return response()->json([
-                    'message'           => 'Application is incomplete and cannot be submitted.',
-                    'missing_fields'    => $report['missing_fields'],
+                    'message' => 'Application is incomplete and cannot be submitted.',
+                    'missing_fields' => $report['missing_fields'],
                     'missing_documents' => $report['missing_documents'],
-                    'missing_consents'  => $report['missing_consents'],
+                    'missing_consents' => $report['missing_consents'],
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $data['is_draft']     = false;
+            $data['is_draft'] = false;
             $data['submitted_at'] = now();
         }
 
@@ -731,16 +733,16 @@ class ApplicationController extends Controller
         if (! $camper) {
             abort(404, 'Application has no camper attached.');
         }
-        $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+        $medicalRecord = $camper->medicalRecord ?? $camper->medicalRecord()->create([]);
         $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
-        $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
+        $feedingPlan = $camper->feedingPlan ?? $camper->feedingPlan()->create([]);
 
         return response()->json(['data' => [
-            'application_id'        => $application->id,
-            'camper_id'             => $camper->id,
-            'medical_record_id'     => $medicalRecord->id,
+            'application_id' => $application->id,
+            'camper_id' => $camper->id,
+            'medical_record_id' => $medicalRecord->id,
             'behavioral_profile_id' => $behavioralProfile->id,
-            'feeding_plan_id'       => $feedingPlan->id,
+            'feeding_plan_id' => $feedingPlan->id,
         ]]);
     }
 
@@ -771,11 +773,11 @@ class ApplicationController extends Controller
             // Optional: reuse an existing Camper (reapplication flow). When
             // provided, the endpoint skips creating a new Camper stub and
             // attaches the new Application to the caller's existing record.
-            'camper_id'       => ['sometimes', 'nullable', 'integer', 'exists:campers,id'],
+            'camper_id' => ['sometimes', 'nullable', 'integer', 'exists:campers,id'],
             // Seed fields used only when a brand-new Camper stub is created.
-            'first_name'      => ['sometimes', 'nullable', 'string', 'max:100'],
-            'last_name'       => ['sometimes', 'nullable', 'string', 'max:100'],
-            'date_of_birth'   => ['sometimes', 'nullable', 'date'],
+            'first_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'last_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'date_of_birth' => ['sometimes', 'nullable', 'date'],
             // Audit-trail link on reapplications — mirrors the field that
             // createApplication() accepts. When present, the new draft
             // carries a pointer back to the terminal application it succeeds.
@@ -802,12 +804,13 @@ class ApplicationController extends Controller
                 $camper = \App\Models\Camper::query()
                     ->with(['medicalRecord', 'behavioralProfile', 'feedingPlan'])
                     ->findOrFail($existing->camper_id);
+
                 return [
-                    'application_id'        => $existing->id,
-                    'camper_id'             => $existing->camper_id,
-                    'medical_record_id'     => optional($camper->medicalRecord)->id,
+                    'application_id' => $existing->id,
+                    'camper_id' => $existing->camper_id,
+                    'medical_record_id' => optional($camper->medicalRecord)->id,
                     'behavioral_profile_id' => optional($camper->behavioralProfile)->id,
-                    'feeding_plan_id'       => optional($camper->feedingPlan)->id,
+                    'feeding_plan_id' => optional($camper->feedingPlan)->id,
                 ];
             }
 
@@ -827,24 +830,24 @@ class ApplicationController extends Controller
 
                 // Top up any missing singleton relations (older campers may
                 // predate one or more of the stub-on-init rows).
-                $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+                $medicalRecord = $camper->medicalRecord ?? $camper->medicalRecord()->create([]);
                 $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
-                $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
+                $feedingPlan = $camper->feedingPlan ?? $camper->feedingPlan()->create([]);
 
                 $application = Application::create([
-                    'camper_id'         => $camper->id,
-                    'camp_session_id'   => $data['camp_session_id'],
-                    'is_draft'          => true,
-                    'status'            => ApplicationStatus::Submitted,
+                    'camper_id' => $camper->id,
+                    'camp_session_id' => $data['camp_session_id'],
+                    'is_draft' => true,
+                    'status' => ApplicationStatus::Submitted,
                     'reapplied_from_id' => $data['reapplied_from_id'] ?? null,
                 ]);
 
                 return [
-                    'application_id'        => $application->id,
-                    'camper_id'             => $camper->id,
-                    'medical_record_id'     => $medicalRecord->id,
+                    'application_id' => $application->id,
+                    'camper_id' => $camper->id,
+                    'medical_record_id' => $medicalRecord->id,
                     'behavioral_profile_id' => $behavioralProfile->id,
-                    'feeding_plan_id'       => $feedingPlan->id,
+                    'feeding_plan_id' => $feedingPlan->id,
                 ];
             }
 
@@ -852,9 +855,9 @@ class ApplicationController extends Controller
             // Section 1 and PATCH /campers/{id} updates this row as the
             // parent types.
             $camper = \App\Models\Camper::create([
-                'user_id'       => $user->id,
-                'first_name'    => $data['first_name']    ?? 'New',
-                'last_name'     => $data['last_name']     ?? 'Camper',
+                'user_id' => $user->id,
+                'first_name' => $data['first_name'] ?? 'New',
+                'last_name' => $data['last_name'] ?? 'Camper',
                 'date_of_birth' => $data['date_of_birth'] ?? now()->subYears(10)->toDateString(),
             ]);
 
@@ -874,18 +877,18 @@ class ApplicationController extends Controller
             // section transition.
 
             $application = Application::create([
-                'camper_id'       => $camper->id,
+                'camper_id' => $camper->id,
                 'camp_session_id' => $data['camp_session_id'],
-                'is_draft'        => true,
-                'status'          => ApplicationStatus::Submitted,
+                'is_draft' => true,
+                'status' => ApplicationStatus::Submitted,
             ]);
 
             return [
-                'application_id'        => $application->id,
-                'camper_id'             => $camper->id,
-                'medical_record_id'     => $medicalRecord->id,
+                'application_id' => $application->id,
+                'camper_id' => $camper->id,
+                'medical_record_id' => $medicalRecord->id,
                 'behavioral_profile_id' => $behavioralProfile->id,
-                'feeding_plan_id'       => $feedingPlan->id,
+                'feeding_plan_id' => $feedingPlan->id,
             ];
         });
 
@@ -947,10 +950,10 @@ class ApplicationController extends Controller
 
         if (! $report['is_complete']) {
             return response()->json([
-                'message'           => 'Application is incomplete and cannot be submitted.',
-                'missing_fields'    => $report['missing_fields'],
+                'message' => 'Application is incomplete and cannot be submitted.',
+                'missing_fields' => $report['missing_fields'],
                 'missing_documents' => $report['missing_documents'],
-                'missing_consents'  => $report['missing_consents'],
+                'missing_consents' => $report['missing_consents'],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -973,8 +976,8 @@ class ApplicationController extends Controller
             }
 
             $application->update([
-                'is_draft'           => false,
-                'submitted_at'       => now(),
+                'is_draft' => false,
+                'submitted_at' => now(),
                 'form_definition_id' => FormDefinition::where('status', 'active')->value('id'),
             ]);
 
@@ -1001,7 +1004,7 @@ class ApplicationController extends Controller
                 ->where('is_draft', true)
                 ->where(function ($q) use ($application) {
                     $q->where('camp_session_id', $application->camp_session_id)
-                      ->orWhereNull('camp_session_id');
+                        ->orWhereNull('camp_session_id');
                 })
                 ->delete();
 
@@ -1026,7 +1029,7 @@ class ApplicationController extends Controller
                     ->whereNull('application_id')
                     ->where(function ($q) use ($camper) {
                         $q->where('label', 'like', '%'.$camper->first_name.'%')
-                          ->orWhere('label', 'New Application');
+                            ->orWhere('label', 'New Application');
                     })
                     ->delete();
             }
@@ -1066,7 +1069,7 @@ class ApplicationController extends Controller
 
         return response()->json([
             'message' => 'Application submitted successfully.',
-            'data'    => $application,
+            'data' => $application,
         ]);
     }
 
@@ -1321,19 +1324,19 @@ class ApplicationController extends Controller
         $this->authorize('update', $application);
 
         $alreadySigned = $application->isSigned();
-        $isDraft       = $application->isDraft();
+        $isDraft = $application->isDraft();
 
         if (! $alreadySigned || $isDraft) {
             $application->update([
                 // signature_data is typically a base64-encoded SVG or PNG of the
                 // hand-drawn signature, or the typed name for typed signatures.
-                'signature_data'    => $request->validated('signature_data'),
+                'signature_data' => $request->validated('signature_data'),
                 // The signer's typed name for readability on printed forms.
-                'signature_name'    => $request->validated('signature_name'),
+                'signature_name' => $request->validated('signature_name'),
                 // UTC timestamp of when the signature was applied. Refreshed
                 // on every accepted (re-)sign so the audit trail always names
                 // the most recent signing moment.
-                'signed_at'         => now(),
+                'signed_at' => now(),
                 // Record the IP address for the legal audit trail.
                 'signed_ip_address' => $request->ip(),
             ]);
@@ -1343,7 +1346,7 @@ class ApplicationController extends Controller
             'message' => $alreadySigned && ! $isDraft
                 ? 'Application is already signed; existing signature preserved.'
                 : 'Application signed successfully.',
-            'data'    => $application->fresh(),
+            'data' => $application->fresh(),
         ]);
     }
 }

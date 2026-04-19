@@ -4,9 +4,8 @@ namespace Tests\Feature;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
-use App\Models\ApplicationConsent;
-use App\Models\CampSession;
 use App\Models\Camper;
+use App\Models\CampSession;
 use App\Models\Document;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,20 +37,20 @@ class ApplicationFinalizationTest extends TestCase
 
     private function makeDraftWithCamper(): array
     {
-        $parent  = $this->createParent();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create([
-            'user_id'     => $parent->id,
-            'first_name'  => 'Alice',
-            'last_name'   => 'Smith',
+        $camper = Camper::factory()->create([
+            'user_id' => $parent->id,
+            'first_name' => 'Alice',
+            'last_name' => 'Smith',
             'date_of_birth' => '2010-01-01',
-            'gender'      => 'female',
+            'gender' => 'female',
             'tshirt_size' => 'Youth M',
-            'county'      => 'Richland',
+            'county' => 'Richland',
         ]);
 
         $draft = Application::factory()->draft()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
@@ -65,7 +64,7 @@ class ApplicationFinalizationTest extends TestCase
         [, , $draft] = $this->makeDraftWithCamper();
 
         $this->postJson("/api/applications/{$draft->id}/finalize")
-             ->assertUnauthorized();
+            ->assertUnauthorized();
     }
 
     public function test_admin_cannot_finalize_applicant_draft(): void
@@ -74,8 +73,8 @@ class ApplicationFinalizationTest extends TestCase
         [, , $draft] = $this->makeDraftWithCamper();
 
         $this->actingAs($admin)
-             ->postJson("/api/applications/{$draft->id}/finalize")
-             ->assertForbidden();
+            ->postJson("/api/applications/{$draft->id}/finalize")
+            ->assertForbidden();
     }
 
     public function test_other_parent_cannot_finalize_draft(): void
@@ -84,43 +83,43 @@ class ApplicationFinalizationTest extends TestCase
         [, , $draft] = $this->makeDraftWithCamper();
 
         $this->actingAs($other)
-             ->postJson("/api/applications/{$draft->id}/finalize")
-             ->assertForbidden();
+            ->postJson("/api/applications/{$draft->id}/finalize")
+            ->assertForbidden();
     }
 
     public function test_parent_cannot_finalize_already_submitted_application(): void
     {
-        $parent  = $this->createParent();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
-        $app     = Application::factory()->create([
-            'camper_id'       => $camper->id,
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
+        $app = Application::factory()->create([
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
         $this->actingAs($parent)
-             ->postJson("/api/applications/{$app->id}/finalize")
-             ->assertForbidden();
+            ->postJson("/api/applications/{$app->id}/finalize")
+            ->assertForbidden();
     }
 
     // ── Completeness enforcement ───────────────────────────────────────────────
 
     public function test_finalize_blocked_when_camper_fields_missing(): void
     {
-        $parent  = $this->createParent();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create([
-            'user_id'     => $parent->id,
+        $camper = Camper::factory()->create([
+            'user_id' => $parent->id,
             'tshirt_size' => null,
-            'county'      => null,
+            'county' => null,
         ]);
         $draft = Application::factory()->draft()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
         $response = $this->actingAs($parent)
-                         ->postJson("/api/applications/{$draft->id}/finalize");
+            ->postJson("/api/applications/{$draft->id}/finalize");
 
         $response->assertUnprocessable();
         $body = $response->json();
@@ -135,18 +134,18 @@ class ApplicationFinalizationTest extends TestCase
         // Camper has all required fields but no EC, signature, consents, or documents
 
         $response = $this->actingAs($parent)
-                         ->postJson("/api/applications/{$draft->id}/finalize");
+            ->postJson("/api/applications/{$draft->id}/finalize");
 
         $response->assertUnprocessable();
         $body = $response->json();
         // Response must include all three gap categories for structured frontend handling
-        $this->assertArrayHasKey('missing_fields',    $body);
-        $this->assertArrayHasKey('missing_documents',  $body);
-        $this->assertArrayHasKey('missing_consents',   $body);
+        $this->assertArrayHasKey('missing_fields', $body);
+        $this->assertArrayHasKey('missing_documents', $body);
+        $this->assertArrayHasKey('missing_consents', $body);
         // Each gap must have key, label, and severity
         foreach ($body['missing_fields'] as $gap) {
-            $this->assertArrayHasKey('key',      $gap);
-            $this->assertArrayHasKey('label',    $gap);
+            $this->assertArrayHasKey('key', $gap);
+            $this->assertArrayHasKey('label', $gap);
             $this->assertArrayHasKey('severity', $gap);
         }
     }
@@ -156,15 +155,15 @@ class ApplicationFinalizationTest extends TestCase
         [$parent, $camper, $draft] = $this->makeDraftWithCamper();
         // Add EC so field checks pass (except consents, signature, docs)
         $camper->emergencyContacts()->create([
-            'name'          => 'Jane Smith',
-            'relationship'  => 'Mother',
+            'name' => 'Jane Smith',
+            'relationship' => 'Mother',
             'phone_primary' => '555-0001',
         ]);
         // Sign the application
         $draft->update(['signed_at' => now(), 'signature_name' => 'Jane Smith']);
 
         $response = $this->actingAs($parent)
-                         ->postJson("/api/applications/{$draft->id}/finalize");
+            ->postJson("/api/applications/{$draft->id}/finalize");
 
         $response->assertUnprocessable();
         $body = $response->json();
@@ -181,7 +180,7 @@ class ApplicationFinalizationTest extends TestCase
         $this->seedCompleteApplication($draft, $camper, $parent);
 
         $response = $this->actingAs($parent)
-                         ->postJson("/api/applications/{$draft->id}/finalize");
+            ->postJson("/api/applications/{$draft->id}/finalize");
 
         $response->assertOk();
 
@@ -224,8 +223,8 @@ class ApplicationFinalizationTest extends TestCase
 
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
         $draft->update([
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Smith',
+            'signed_at' => now(),
+            'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft, 'Jane Smith');
@@ -236,22 +235,22 @@ class ApplicationFinalizationTest extends TestCase
         foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
             Document::create([
                 'documentable_type' => 'App\\Models\\Camper',
-                'documentable_id'   => $camper->id,
-                'document_type'     => $type,
+                'documentable_id' => $camper->id,
+                'document_type' => $type,
                 'original_filename' => $type.'.pdf',
-                'stored_filename'   => $type.'.pdf',
-                'path'              => 'documents/'.$type.'.pdf',
-                'mime_type'         => 'application/pdf',
-                'file_size'         => 1024,
-                'uploaded_by'       => $parent->id,
-                'submitted_at'      => now(),
-                'is_verified'       => false,
-                'expiration_date'   => $type === 'official_medical_form' ? now()->addYear() : null,
+                'stored_filename' => $type.'.pdf',
+                'path' => 'documents/'.$type.'.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'uploaded_by' => $parent->id,
+                'submitted_at' => now(),
+                'is_verified' => false,
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
             ]);
         }
 
         $response = $this->actingAs($parent)
-                         ->postJson("/api/applications/{$draft->id}/finalize");
+            ->postJson("/api/applications/{$draft->id}/finalize");
 
         // Finalization must succeed even with unverified documents
         $response->assertOk();
@@ -274,8 +273,8 @@ class ApplicationFinalizationTest extends TestCase
 
         $draft->update([
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
-            'is_draft'          => false,
-            'submitted_at'      => now(),
+            'is_draft' => false,
+            'submitted_at' => now(),
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
 
@@ -283,34 +282,34 @@ class ApplicationFinalizationTest extends TestCase
         // the correct verification_status enum so isVerified() returns true.
         foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
             Document::create([
-                'documentable_type'   => \App\Models\Camper::class,
-                'documentable_id'     => $camper->id,
-                'document_type'       => $type,
-                'original_filename'   => $type.'.pdf',
-                'stored_filename'     => $type.'.pdf',
-                'path'                => 'documents/'.$type.'.pdf',
-                'mime_type'           => 'application/pdf',
-                'file_size'           => 1024,
-                'uploaded_by'         => $parent->id,
-                'submitted_at'        => now(),
+                'documentable_type' => \App\Models\Camper::class,
+                'documentable_id' => $camper->id,
+                'document_type' => $type,
+                'original_filename' => $type.'.pdf',
+                'stored_filename' => $type.'.pdf',
+                'path' => 'documents/'.$type.'.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'uploaded_by' => $parent->id,
+                'submitted_at' => now(),
                 'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
-                'expiration_date'     => $type === 'official_medical_form' ? now()->addYear() : null,
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
             ]);
         }
 
         // Attach the completed paper packet — this IS the digital signature
         // and consents for the purposes of the completeness gate.
         Document::create([
-            'documentable_type'   => \App\Models\Application::class,
-            'documentable_id'     => $draft->id,
-            'document_type'       => 'paper_application_packet',
-            'original_filename'   => 'packet.pdf',
-            'stored_filename'     => 'packet.pdf',
-            'path'                => 'documents/packet.pdf',
-            'mime_type'           => 'application/pdf',
-            'file_size'           => 2048,
-            'uploaded_by'         => $parent->id,
-            'submitted_at'        => now(),
+            'documentable_type' => \App\Models\Application::class,
+            'documentable_id' => $draft->id,
+            'document_type' => 'paper_application_packet',
+            'original_filename' => 'packet.pdf',
+            'stored_filename' => 'packet.pdf',
+            'path' => 'documents/packet.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 2048,
+            'uploaded_by' => $parent->id,
+            'submitted_at' => now(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
@@ -351,19 +350,19 @@ class ApplicationFinalizationTest extends TestCase
 
         foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
             Document::create([
-                'documentable_type'   => 'App\\Models\\Camper',
-                'documentable_id'     => $camper->id,
-                'document_type'       => $type,
-                'original_filename'   => $type.'.pdf',
-                'stored_filename'     => $type.'.pdf',
-                'path'                => 'documents/'.$type.'.pdf',
-                'mime_type'           => 'application/pdf',
-                'file_size'           => 1024,
-                'uploaded_by'         => $parent->id,
-                'submitted_at'        => now(),
+                'documentable_type' => 'App\\Models\\Camper',
+                'documentable_id' => $camper->id,
+                'document_type' => $type,
+                'original_filename' => $type.'.pdf',
+                'stored_filename' => $type.'.pdf',
+                'path' => 'documents/'.$type.'.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'uploaded_by' => $parent->id,
+                'submitted_at' => now(),
                 'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
                 // Archived: should be excluded from compliance consideration.
-                'archived_at'         => now(),
+                'archived_at' => now(),
             ]);
         }
 
@@ -390,8 +389,8 @@ class ApplicationFinalizationTest extends TestCase
         // locks that gate shut.
         [, , $draft] = $this->makeDraftWithCamper();
         $draft->update([
-            'is_draft'          => false,
-            'submitted_at'      => now(),
+            'is_draft' => false,
+            'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::Digital,
         ]);
         $admin = $this->createAdmin();
@@ -414,22 +413,22 @@ class ApplicationFinalizationTest extends TestCase
     {
         [$parent, $camper, $draft] = $this->makeDraftWithCamper();
         $draft->update([
-            'is_draft'          => false,
-            'submitted_at'      => now(),
+            'is_draft' => false,
+            'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::Digital,
         ]);
 
         Document::create([
-            'documentable_type'   => \App\Models\Application::class,
-            'documentable_id'     => $draft->id,
-            'document_type'       => 'paper_application_packet',
-            'original_filename'   => 'packet.pdf',
-            'stored_filename'     => 'packet.pdf',
-            'path'                => 'documents/packet.pdf',
-            'mime_type'           => 'application/pdf',
-            'file_size'           => 2048,
-            'uploaded_by'         => $parent->id,
-            'submitted_at'        => now(),
+            'documentable_type' => \App\Models\Application::class,
+            'documentable_id' => $draft->id,
+            'document_type' => 'paper_application_packet',
+            'original_filename' => 'packet.pdf',
+            'stored_filename' => 'packet.pdf',
+            'path' => 'documents/packet.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 2048,
+            'uploaded_by' => $parent->id,
+            'submitted_at' => now(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
@@ -453,17 +452,17 @@ class ApplicationFinalizationTest extends TestCase
         $session = CampSession::factory()->create(['is_active' => true]);
 
         $digital = Application::factory()->create([
-            'camper_id'         => Camper::factory()->create(['user_id' => $parent->id])->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => false,
-            'submitted_at'      => now(),
+            'camper_id' => Camper::factory()->create(['user_id' => $parent->id])->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => false,
+            'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::Digital,
         ]);
         $paper = Application::factory()->create([
-            'camper_id'         => Camper::factory()->create(['user_id' => $parent->id])->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => false,
-            'submitted_at'      => now(),
+            'camper_id' => Camper::factory()->create(['user_id' => $parent->id])->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => false,
+            'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
         ]);
 
@@ -483,8 +482,8 @@ class ApplicationFinalizationTest extends TestCase
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
         \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
         $draft->update([
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Smith',
+            'signed_at' => now(),
+            'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft, 'Jane Smith');

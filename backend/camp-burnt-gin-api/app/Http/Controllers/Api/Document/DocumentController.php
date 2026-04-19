@@ -466,7 +466,7 @@ class DocumentController extends Controller
             if ($parentApp && ($parentApp->is_draft || $parentApp->submitted_at === null)) {
                 return response()->json([
                     'message' => 'This document is attached to a draft application. Submit the application itself; its documents will become visible to staff at that point.',
-                    'errors'  => ['document' => 'parent_application_is_draft'],
+                    'errors' => ['document' => 'parent_application_is_draft'],
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
         }

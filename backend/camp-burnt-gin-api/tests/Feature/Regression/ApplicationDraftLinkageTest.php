@@ -4,11 +4,9 @@ namespace Tests\Feature\Regression;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
-use App\Models\ApplicationConsent;
 use App\Models\ApplicationDraft;
 use App\Models\Camper;
 use App\Models\CampSession;
-use App\Models\Document;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\TestApplicationFixture;
@@ -40,12 +38,12 @@ class ApplicationDraftLinkageTest extends TestCase
     private function buildCamperWithEverythingButSubmit(\App\Models\User $parent): Camper
     {
         $camper = Camper::factory()->forUser($parent)->create([
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2015-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         TestApplicationFixture::buildCamperMinimum($camper);
         TestApplicationFixture::attachRequiredDocuments($camper);
@@ -60,13 +58,13 @@ class ApplicationDraftLinkageTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $draft = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => true,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => null,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Parent',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($draft);
@@ -75,10 +73,10 @@ class ApplicationDraftLinkageTest extends TestCase
         // Under the old label-match cleanup, this would have survived
         // finalize. With the FK-based cleanup it must be deleted.
         $blob = ApplicationDraft::create([
-            'user_id'        => $parent->id,
+            'user_id' => $parent->id,
             'application_id' => $draft->id,
-            'label'          => 'Totally different label',
-            'draft_data'     => ['s1' => []],
+            'label' => 'Totally different label',
+            'draft_data' => ['s1' => []],
         ]);
 
         $this->actingAs($parent)
@@ -99,37 +97,37 @@ class ApplicationDraftLinkageTest extends TestCase
         $sessionB = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $finalizingDraft = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $sessionA->id,
-            'is_draft'          => true,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => null,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Parent',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $sessionA->id,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($finalizingDraft);
 
         // Another in-flight Application (different session) with its own blob.
         $otherDraft = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $sessionB->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $mineBlob = ApplicationDraft::create([
-            'user_id'        => $parent->id,
+            'user_id' => $parent->id,
             'application_id' => $finalizingDraft->id,
-            'label'          => 'Athena',
-            'draft_data'     => ['s1' => []],
+            'label' => 'Athena',
+            'draft_data' => ['s1' => []],
         ]);
         $othersBlob = ApplicationDraft::create([
-            'user_id'        => $parent->id,
+            'user_id' => $parent->id,
             'application_id' => $otherDraft->id,
-            'label'          => 'Athena',
-            'draft_data'     => ['s1' => []],
+            'label' => 'Athena',
+            'draft_data' => ['s1' => []],
         ]);
 
         $this->actingAs($parent)
@@ -153,22 +151,22 @@ class ApplicationDraftLinkageTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $draft = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => true,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => null,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Parent',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($draft);
 
         $legacyBlob = ApplicationDraft::create([
-            'user_id'        => $parent->id,
+            'user_id' => $parent->id,
             'application_id' => null,
-            'label'          => 'Athena application — legacy',
-            'draft_data'     => ['s1' => []],
+            'label' => 'Athena application — legacy',
+            'draft_data' => ['s1' => []],
         ]);
 
         $this->actingAs($parent)

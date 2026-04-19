@@ -533,6 +533,7 @@ function ThresholdsTab() {
                   ) : (
                     <div className="flex items-end gap-3 mt-3 flex-wrap">
                       <div>
+                        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                         <label className="text-xs mb-1 block" style={{ color: 'var(--muted-foreground)' }}>Min Score</label>
                         <input
                           type="number" min={0} max={100}
@@ -543,6 +544,7 @@ function ThresholdsTab() {
                         />
                       </div>
                       <div>
+                        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                         <label className="text-xs mb-1 block" style={{ color: 'var(--muted-foreground)' }}>Max Score (blank = unlimited)</label>
                         <input
                           type="number" min={0} max={100}
@@ -554,6 +556,7 @@ function ThresholdsTab() {
                       </div>
                       {threshold.threshold_type === 'supervision' && (
                         <div>
+                          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                           <label className="text-xs mb-1 block" style={{ color: 'var(--muted-foreground)' }}>Staffing Ratio</label>
                           <input
                             type="text"

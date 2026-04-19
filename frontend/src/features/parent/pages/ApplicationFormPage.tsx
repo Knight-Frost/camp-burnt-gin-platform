@@ -3806,11 +3806,18 @@ function ReviewSheet({
   const sessionName = sessions.find((s) => String(s.id) === String(form.s1.session_id))?.name ?? 'No session selected';
 
   return (
+    // Modal backdrop + content. Click-outside-to-close is wired via the
+    // backdrop onClick; Escape-to-close is handled by the surrounding
+    // form-page focus context. Static-element warnings are suppressed
+    // here only because the modal's interactive controls (Submit / Close
+    // buttons) live inside and provide the real keyboard affordance.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="relative flex flex-col w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
         style={{
@@ -4102,8 +4109,10 @@ export function ApplicationFormPage() {
   const flushSection = useCallback(async (sectionId: number): Promise<void> => {
     if (!applicationId || !camperId) return;
 
-    try {
-      switch (sectionId) {
+    // Errors propagate to the goToStep wrapper, which surfaces them as the
+    // inline "Save failed" banner. Silent failure is not acceptable — the
+    // parent must know their change didn't reach the server.
+    switch (sectionId) {
         case 0: {
           // Camper identity
           await updateCamperProfile(camperId, {
@@ -4495,12 +4504,6 @@ export function ApplicationFormPage() {
         // works without per-transition flush.
         default:
           break;
-      }
-    } catch (err) {
-      // Surface flush failures to the goToStep wrapper so it can show an
-      // inline banner. Silent failure is not acceptable — the parent must
-      // know their change didn't reach the server.
-      throw err;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId, camperId, medicalRecordId, behavioralProfileId, feedingPlanId, form]);

@@ -7,12 +7,10 @@ use App\Enums\ApplicationStatus;
 use App\Enums\DiagnosisSeverity;
 use App\Models\Allergy;
 use App\Models\Application;
-use App\Models\ApplicationConsent;
 use App\Models\AssistiveDevice;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\Diagnosis;
-use App\Models\Document;
 use App\Models\EmergencyContact;
 use App\Models\Medication;
 use App\Services\Camper\CamperChildRowDeduper;
@@ -48,12 +46,12 @@ class ChildRowDedupeTest extends TestCase
     {
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create([
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2015-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         $camper->medicalRecord()->create([]);
 
@@ -67,10 +65,10 @@ class ChildRowDedupeTest extends TestCase
         for ($i = 0; $i < 15; $i++) {
             Medication::create([
                 'camper_id' => $camper->id,
-                'name'      => 'Baclofen',
-                'dosage'    => '10mg',
+                'name' => 'Baclofen',
+                'dosage' => '10mg',
                 'frequency' => 'Three times daily',
-                'purpose'   => 'Muscle relaxant',
+                'purpose' => 'Muscle relaxant',
             ]);
         }
 
@@ -89,24 +87,24 @@ class ChildRowDedupeTest extends TestCase
 
         Medication::create([
             'camper_id' => $camper->id,
-            'name'      => 'Baclofen',
-            'dosage'    => '10mg',
+            'name' => 'Baclofen',
+            'dosage' => '10mg',
             'frequency' => 'Three times daily',
-            'purpose'   => 'Muscle relaxant',
+            'purpose' => 'Muscle relaxant',
         ]);
         Medication::create([
             'camper_id' => $camper->id,
-            'name'      => 'Vitamin D3',
-            'dosage'    => '1000 IU',
+            'name' => 'Vitamin D3',
+            'dosage' => '1000 IU',
             'frequency' => 'Once daily',
-            'purpose'   => 'Supplement',
+            'purpose' => 'Supplement',
         ]);
         Medication::create([
             'camper_id' => $camper->id,
-            'name'      => 'Baclofen',
-            'dosage'    => '20mg', // different dosage → distinct row
+            'name' => 'Baclofen',
+            'dosage' => '20mg', // different dosage → distinct row
             'frequency' => 'Three times daily',
-            'purpose'   => 'Muscle relaxant',
+            'purpose' => 'Muscle relaxant',
         ]);
 
         $counts = app(CamperChildRowDeduper::class)->dedupeForCamper($camper);
@@ -174,12 +172,12 @@ class ChildRowDedupeTest extends TestCase
     {
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create([
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2015-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
         \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
@@ -194,14 +192,14 @@ class ChildRowDedupeTest extends TestCase
         }
 
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
-        $draft   = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => true,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => null,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Parent',
+        $draft = Application::factory()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft);

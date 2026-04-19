@@ -440,6 +440,8 @@ export function ApplicantApplicationDetailPage() {
         {canonical && (
           <CanonicalApplicationSections
             canonical={canonical}
+            // Component-level viewer-role discriminator, not WAI-ARIA role.
+            // eslint-disable-next-line jsx-a11y/aria-role
             role="applicant"
             onPreviewDocument={onPreviewCanonical}
             onDownloadDocument={onDownloadCanonical}

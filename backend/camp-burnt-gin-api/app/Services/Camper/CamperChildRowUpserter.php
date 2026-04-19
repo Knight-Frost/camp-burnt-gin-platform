@@ -47,10 +47,10 @@ class CamperChildRowUpserter
             $camperId,
             $data,
             fn (array $d) => [
-                $d['name']      ?? null,
-                $d['dosage']    ?? null,
+                $d['name'] ?? null,
+                $d['dosage'] ?? null,
                 $d['frequency'] ?? null,
-                $d['purpose']   ?? null,
+                $d['purpose'] ?? null,
             ],
             fn (Medication $m) => [
                 $m->name,
@@ -71,9 +71,9 @@ class CamperChildRowUpserter
             $camperId,
             $data,
             fn (array $d) => [
-                $d['allergen']  ?? null,
-                $d['severity']  ?? null,
-                $d['reaction']  ?? null,
+                $d['allergen'] ?? null,
+                $d['severity'] ?? null,
+                $d['reaction'] ?? null,
                 $d['treatment'] ?? null,
             ],
             fn (Allergy $a) => [
@@ -95,8 +95,8 @@ class CamperChildRowUpserter
             $camperId,
             $data,
             fn (array $d) => [
-                $d['name']           ?? null,
-                $d['description']    ?? null,
+                $d['name'] ?? null,
+                $d['description'] ?? null,
                 $d['severity_level'] ?? null,
             ],
             fn (Diagnosis $dx) => [
@@ -125,8 +125,8 @@ class CamperChildRowUpserter
             $camperId,
             $data,
             fn (array $d) => [
-                $d['name']          ?? null,
-                $d['relationship']  ?? null,
+                $d['name'] ?? null,
+                $d['relationship'] ?? null,
                 $d['phone_primary'] ?? null,
             ],
             fn (EmergencyContact $e) => [
@@ -148,7 +148,7 @@ class CamperChildRowUpserter
             $data,
             fn (array $d) => [
                 $d['device_type'] ?? null,
-                $d['notes']       ?? null,
+                $d['notes'] ?? null,
             ],
             fn (AssistiveDevice $v) => [
                 $v->device_type,
@@ -162,6 +162,7 @@ class CamperChildRowUpserter
      * update in place if found, otherwise create.
      *
      * @template T of Model
+     *
      * @param  class-string<T>  $modelClass
      * @param  callable(array): array  $dataSignatureFn
      * @param  callable(T): array  $rowSignatureFn

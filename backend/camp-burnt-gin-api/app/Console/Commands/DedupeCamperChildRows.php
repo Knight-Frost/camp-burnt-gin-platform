@@ -37,12 +37,12 @@ class DedupeCamperChildRows extends Command
         }
 
         $totals = [
-            'campers_scanned'    => 0,
-            'medications'        => 0,
-            'allergies'          => 0,
+            'campers_scanned' => 0,
+            'medications' => 0,
+            'allergies' => 0,
             'emergency_contacts' => 0,
-            'diagnoses'          => 0,
-            'assistive_devices'  => 0,
+            'diagnoses' => 0,
+            'assistive_devices' => 0,
         ];
 
         $query->chunk(100, function ($campers) use ($deduper, $dryRun, &$totals) {
@@ -86,6 +86,7 @@ class DedupeCamperChildRows extends Command
     private function simulate(CamperChildRowDeduper $deduper, Camper $camper): array
     {
         \Illuminate\Support\Facades\DB::beginTransaction();
+
         try {
             $deleted = $deduper->dedupeForCamper($camper);
 

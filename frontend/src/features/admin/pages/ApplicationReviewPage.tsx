@@ -170,30 +170,52 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
 
       {/* Cancel confirmation — destructive action guard. The optional
           notes textarea lets the admin capture a reason which is
-          delivered verbatim in the parent's inbox message. */}
+          delivered verbatim in the parent's inbox message. The backdrop
+          uses a button element so screen readers + keyboard users get
+          the same dismiss affordance as a click outside. */}
       {cancelConfirmOpen && (
+        // role="dialog" is the appropriate landmark here; jsx-a11y's
+        // no-noninteractive-element-interactions doesn't recognise dialog as
+        // interactive, but it semantically is per WAI-ARIA. The Escape-to-close
+        // handler is a standard accessibility pattern for modals.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.45)' }}
           role="dialog"
           aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !submitting) setCancelConfirmOpen(false);
+          aria-labelledby="cancel-confirm-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !submitting) setCancelConfirmOpen(false);
           }}
         >
+          {/* Backdrop click-to-dismiss as a button so it's keyboard- and
+              screen-reader-accessible; visually hidden via inset positioning. */}
+          <button
+            type="button"
+            aria-label="Close cancel confirmation"
+            onClick={() => { if (!submitting) setCancelConfirmOpen(false); }}
+            disabled={!!submitting}
+            className="absolute inset-0 w-full h-full cursor-default"
+            style={{ background: 'rgba(0,0,0,0.45)', border: 0 }}
+          />
           <div
-            className="w-full max-w-md rounded-2xl p-6"
+            className="relative w-full max-w-md rounded-2xl p-6"
             style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
           >
             <div className="flex items-start gap-3 mb-4">
               <div
                 className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0"
                 style={{ background: 'rgba(220,38,38,0.10)' }}
+                aria-hidden="true"
               >
                 <AlertTriangle className="h-5 w-5" style={{ color: '#b91c1c' }} />
               </div>
               <div className="min-w-0">
-                <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+                <h3
+                  id="cancel-confirm-title"
+                  className="font-headline font-semibold text-base"
+                  style={{ color: 'var(--foreground)' }}
+                >
                   Cancel this application?
                 </h3>
                 <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -205,10 +227,15 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
                 </p>
               </div>
             </div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+            <label
+              htmlFor="cancel-confirm-notes"
+              className="block text-xs font-medium mb-1.5"
+              style={{ color: 'var(--muted-foreground)' }}
+            >
               Reason for cancellation (optional — shown to the parent)
             </label>
             <textarea
+              id="cancel-confirm-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -219,7 +246,6 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
                 borderColor: 'var(--border)',
                 color: 'var(--foreground)',
               }}
-              autoFocus
             />
             <div className="flex items-center justify-end gap-2">
               <Button
@@ -755,6 +781,10 @@ export function ApplicationReviewPage() {
         <div className="lg:col-span-2">
           <CanonicalApplicationSections
             canonical={canonical}
+            // The `role` prop is a component-level viewer-role discriminator,
+            // not the WAI-ARIA `role` attribute. ESLint's a11y plugin can't
+            // tell the difference and flags it as an invalid ARIA role.
+            // eslint-disable-next-line jsx-a11y/aria-role
             role="admin"
             editable={canEdit}
             onEditSection={handleEditSection}

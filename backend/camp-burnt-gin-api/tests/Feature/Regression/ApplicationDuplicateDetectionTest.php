@@ -29,23 +29,23 @@ class ApplicationDuplicateDetectionTest extends TestCase
 
     public function test_draft_is_resumed_not_rejected_when_reposting(): void
     {
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->forUser($parent)->create();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $draft = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
-            'notes'           => 'updated on resume',
+            'is_draft' => true,
+            'notes' => 'updated on resume',
         ]);
 
         $response->assertStatus(200)
@@ -63,22 +63,22 @@ class ApplicationDuplicateDetectionTest extends TestCase
 
     public function test_reapplication_is_allowed_after_withdrawn(): void
     {
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->forUser($parent)->create();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Withdrawn,
-            'submitted_at'    => now()->subWeek(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Withdrawn,
+            'submitted_at' => now()->subWeek(),
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
+            'is_draft' => true,
         ]);
 
         $response->assertStatus(201);
@@ -93,22 +93,22 @@ class ApplicationDuplicateDetectionTest extends TestCase
 
     public function test_reapplication_is_allowed_after_rejected(): void
     {
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->forUser($parent)->create();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Rejected,
-            'submitted_at'    => now()->subWeek(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Rejected,
+            'submitted_at' => now()->subWeek(),
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
+            'is_draft' => true,
         ]);
 
         $response->assertStatus(201);
@@ -116,22 +116,22 @@ class ApplicationDuplicateDetectionTest extends TestCase
 
     public function test_active_submitted_application_blocks_with_409(): void
     {
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->forUser($parent)->create();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $existing = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::UnderReview,
-            'submitted_at'    => now()->subDay(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::UnderReview,
+            'submitted_at' => now()->subDay(),
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
+            'is_draft' => true,
         ]);
 
         $response->assertStatus(409)
@@ -143,24 +143,24 @@ class ApplicationDuplicateDetectionTest extends TestCase
     {
         // Admin default = submitted-only review queue. Drafts are incomplete
         // work-in-progress and should not clutter the queue by default.
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
 
         $draft = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $submitted = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
         ]);
 
         $ids = collect($this->actingAs($admin)->getJson('/api/applications')->json('data'))
@@ -175,24 +175,24 @@ class ApplicationDuplicateDetectionTest extends TestCase
     {
         // Opt-in escape hatch. The admin toggles "Include drafts" to diagnose
         // a blocked applicant; both drafts AND submitted must be returned.
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
 
         $draft = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $submitted = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
         ]);
 
         $ids = collect(
@@ -211,24 +211,24 @@ class ApplicationDuplicateDetectionTest extends TestCase
         // 'submitted' enum value so the status column alone isn't enough
         // to distinguish them; is_draft=false is applied alongside the
         // status filter for this reason.
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
 
         Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $submitted = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
         ]);
 
         $ids = collect($this->actingAs($admin)->getJson('/api/applications?status=submitted')->json('data'))

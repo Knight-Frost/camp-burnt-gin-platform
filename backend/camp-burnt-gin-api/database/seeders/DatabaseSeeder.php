@@ -54,8 +54,8 @@ class DatabaseSeeder extends Seeder
 
         match ($mode) {
             'super_admin_only' => $this->runMode('super admin only', MinimalSeeder::class),
-            'full'             => $this->runMode('full simulation', FullSimulationSeeder::class),
-            default            => $this->runMode('demo', DemoSeeder::class),
+            'full' => $this->runMode('full simulation', FullSimulationSeeder::class),
+            default => $this->runMode('demo', DemoSeeder::class),
         };
     }
 

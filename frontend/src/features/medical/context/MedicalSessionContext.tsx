@@ -41,14 +41,20 @@ export function MedicalSessionProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     getSessions({ per_page: 100 })
       .then((data) => {
-        setSessions(Array.isArray(data) ? data : (data as any).data ?? []);
+        // The API helper returns either a Session[] or a paginated wrapper
+        // with a `.data` field; handle both without leaking `any` into the
+        // rest of the file.
+        const list: CampSession[] = Array.isArray(data)
+          ? data
+          : ((data as { data?: CampSession[] }).data ?? []);
+        setSessions(list);
 
         // Rehydrate selection from sessionStorage.
         try {
           const stored = sessionStorage.getItem(STORAGE_KEY);
           if (stored) {
             const storedId = parseInt(stored, 10);
-            const found = (Array.isArray(data) ? data : (data as any).data ?? [])
+            const found = list
               .find((s: CampSession) => s.id === storedId);
             if (found) {
               setActiveSessionState(found);
@@ -90,6 +96,9 @@ export function MedicalSessionProvider({ children }: { children: React.ReactNode
   );
 }
 
+// Co-locating the hook with its provider/context is a standard React
+// pattern; the fast-refresh warning is acceptable here.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useMedicalSession(): MedicalSessionValue {
   const ctx = useContext(MedicalSessionContext);
   if (!ctx) {

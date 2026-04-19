@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Application;
 use App\Models\Camper;
 use App\Models\Document;
-use App\Models\EmergencyContact;
 use App\Models\MedicalRecord;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -90,19 +89,19 @@ class SeederValidationService
         $nonDraft = Application::where('is_draft', false)->count();
         if ($nonDraft > 0) {
             $errors[] = "Found {$nonDraft} application(s) with is_draft=false. "
-                . 'DevSeeder must only create draft applications (is_draft=true).';
+                .'DevSeeder must only create draft applications (is_draft=true).';
         }
 
         $withSubmittedAt = Application::whereNotNull('submitted_at')->count();
         if ($withSubmittedAt > 0) {
             $errors[] = "Found {$withSubmittedAt} application(s) with submitted_at IS NOT NULL. "
-                . 'Draft applications must have submitted_at=NULL.';
+                .'Draft applications must have submitted_at=NULL.';
         }
 
         $withSignedAt = Application::whereNotNull('signed_at')->count();
         if ($withSignedAt > 0) {
             $errors[] = "Found {$withSignedAt} application(s) with signed_at set. "
-                . 'Draft applications must not have a signature timestamp.';
+                .'Draft applications must not have a signature timestamp.';
         }
 
         return $errors;
@@ -129,7 +128,7 @@ class SeederValidationService
             $count = Application::where('is_draft', true)->whereNull($field)->count();
             if ($count > 0) {
                 $errors[] = "Found {$count} draft application(s) with NULL {$field}. "
-                    . 'All narrative fields must be populated for a logically complete application.';
+                    .'All narrative fields must be populated for a logically complete application.';
             }
         }
 
@@ -170,8 +169,8 @@ class SeederValidationService
 
             if ($count > 0) {
                 $errors[] = "Found {$count} active document(s) of type '{$type}'. "
-                    . 'DevSeeder must not create required upload documents — '
-                    . 'applications should be blocked only by these missing uploads.';
+                    .'DevSeeder must not create required upload documents — '
+                    .'applications should be blocked only by these missing uploads.';
             }
         }
 

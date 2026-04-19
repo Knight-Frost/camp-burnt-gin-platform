@@ -4,7 +4,6 @@ namespace Tests\Feature\Regression;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
-use App\Models\AuditLog;
 use App\Models\Camper;
 use App\Models\CampSession;
 use App\Models\Document;
@@ -47,17 +46,17 @@ class ApplicationCompletenessEngineTest extends TestCase
         ]);
         $session = CampSession::factory()->create(['is_active' => true]);
         $app = Application::factory()->draft()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             // Explicitly clear narratives that the factory randomises.
-            'narrative_rustic_environment'     => null,
-            'narrative_staff_suggestions'      => null,
+            'narrative_rustic_environment' => null,
+            'narrative_staff_suggestions' => null,
             'narrative_participation_concerns' => null,
-            'narrative_camp_benefit'           => null,
-            'narrative_heat_tolerance'         => null,
-            'narrative_transportation'         => null,
-            'narrative_additional_info'        => null,
-            'narrative_emergency_protocols'    => null,
+            'narrative_camp_benefit' => null,
+            'narrative_heat_tolerance' => null,
+            'narrative_transportation' => null,
+            'narrative_additional_info' => null,
+            'narrative_emergency_protocols' => null,
         ]);
 
         $result = $this->engine()->evaluate($app);
@@ -65,8 +64,8 @@ class ApplicationCompletenessEngineTest extends TestCase
         $this->assertSame('INCOMPLETE', $result['state']);
         $this->assertFalse($result['is_complete']);
         foreach (['camper', 'health', 'behavior', 'equipment', 'diet',
-                  'personal_care', 'activities', 'medications', 'narratives',
-                  'documents', 'consents'] as $key) {
+            'personal_care', 'activities', 'medications', 'narratives',
+            'documents', 'consents'] as $key) {
             $this->assertFalse(
                 $result['sections'][$key]['is_complete'],
                 "Section '$key' must be incomplete on an empty application",
@@ -85,10 +84,10 @@ class ApplicationCompletenessEngineTest extends TestCase
 
         $session = CampSession::factory()->create(['is_active' => true]);
         $app = Application::factory()->draft()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Parent',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($app);
@@ -113,12 +112,12 @@ class ApplicationCompletenessEngineTest extends TestCase
 
         $session = CampSession::factory()->create(['is_active' => true]);
         $app = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => false,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => now()->subDays(30),
-            'signed_at'         => now()->subDays(30),
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now()->subDays(30),
+            'signed_at' => now()->subDays(30),
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($app);
@@ -157,19 +156,19 @@ class ApplicationCompletenessEngineTest extends TestCase
 
         $session = CampSession::factory()->create(['is_active' => true]);
         $app = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => false,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => now(),
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
         ]);
 
         // Packet on file — substitutes for digital signature+consents.
         Document::create([
             'documentable_type' => Application::class,
-            'documentable_id'   => $app->id,
-            'document_type'     => 'paper_application_packet',
+            'documentable_id' => $app->id,
+            'document_type' => 'paper_application_packet',
             'original_filename' => 'packet.pdf', 'stored_filename' => 'packet.pdf',
             'path' => 'documents/packet.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
@@ -200,7 +199,7 @@ class ApplicationCompletenessEngineTest extends TestCase
         ]);
 
         $app = Application::factory()->draft()->create([
-            'camper_id'         => $camper->id,
+            'camper_id' => $camper->id,
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
 
@@ -227,12 +226,12 @@ class ApplicationCompletenessEngineTest extends TestCase
 
         $session = CampSession::factory()->create(['is_active' => true]);
         $app = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => false,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => now()->subWeek(),
-            'signed_at'         => now()->subWeek(),
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now()->subWeek(),
+            'signed_at' => now()->subWeek(),
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($app);
@@ -254,7 +253,7 @@ class ApplicationCompletenessEngineTest extends TestCase
             'Expected pre-check invalid; got: '.json_encode($preCheck['documents']),
         );
 
-        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $output = new \Symfony\Component\Console\Output\BufferedOutput;
         \Illuminate\Support\Facades\Artisan::call('applications:revalidate', ['--apply' => true], $output);
 
         $app->refresh();
@@ -267,8 +266,8 @@ class ApplicationCompletenessEngineTest extends TestCase
         // Audit + notification were recorded.
         $this->assertDatabaseHas('audit_logs', [
             'auditable_type' => Application::class,
-            'auditable_id'   => $app->id,
-            'action'         => 'application.reverted.revalidation',
+            'auditable_id' => $app->id,
+            'action' => 'application.reverted.revalidation',
         ]);
         Notification::assertSentTo(
             $parent,
@@ -284,11 +283,11 @@ class ApplicationCompletenessEngineTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['is_active' => true]);
         $app = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
         ]);
 
         $this->artisan('applications:revalidate')->assertExitCode(0);
@@ -313,15 +312,15 @@ class ApplicationCompletenessEngineTest extends TestCase
         // must leave it alone — once admin has touched it, reverting silently
         // would overwrite admin work.
         $app = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Approved,
-            'submitted_at'    => now()->subWeek(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Approved,
+            'submitted_at' => now()->subWeek(),
         ]);
 
         $this->artisan('applications:revalidate', ['--apply' => true])
-             ->assertExitCode(0);
+            ->assertExitCode(0);
 
         $app->refresh();
         $this->assertFalse($app->is_draft);

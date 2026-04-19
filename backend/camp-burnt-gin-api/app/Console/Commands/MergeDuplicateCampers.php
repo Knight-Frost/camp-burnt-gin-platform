@@ -104,9 +104,9 @@ class MergeDuplicateCampers extends Command
         }
 
         $totals = [
-            'groups_found'    => 0,
-            'groups_merged'   => 0,
-            'groups_skipped'  => 0,
+            'groups_found' => 0,
+            'groups_merged' => 0,
+            'groups_skipped' => 0,
             'campers_retired' => 0,
         ];
         $perTable = [];
@@ -130,10 +130,10 @@ class MergeDuplicateCampers extends Command
                 $totals['groups_skipped']++;
                 $ambiguous[] = [
                     'user_id' => $survivor->user_id,
-                    'name'    => "{$survivor->first_name} {$survivor->last_name}",
-                    'dob'     => $survivor->date_of_birth?->format('Y-m-d'),
-                    'ids'     => $campers->pluck('id')->all(),
-                    'reason'  => 'Duplicate campers have non-final applications for the same session',
+                    'name' => "{$survivor->first_name} {$survivor->last_name}",
+                    'dob' => $survivor->date_of_birth?->format('Y-m-d'),
+                    'ids' => $campers->pluck('id')->all(),
+                    'reason' => 'Duplicate campers have non-final applications for the same session',
                 ];
 
                 continue;
@@ -232,6 +232,7 @@ class MergeDuplicateCampers extends Command
     private function simulateMerge(Camper $survivor, \Illuminate\Support\Collection $losers): array
     {
         DB::beginTransaction();
+
         try {
             return $this->performMerge($survivor, $losers);
         } finally {

@@ -4,11 +4,9 @@ namespace Tests\Feature\Regression;
 
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
-use App\Models\ApplicationConsent;
 use App\Models\ApplicationDraft;
 use App\Models\Camper;
 use App\Models\CampSession;
-use App\Models\Document;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\TestApplicationFixture;
@@ -55,13 +53,13 @@ class FinalizeDraftCleanupTest extends TestCase
         TestApplicationFixture::buildCamperMinimum($camper);
 
         $draft = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => true,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => null,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Parent',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
         ]);
 
@@ -82,11 +80,11 @@ class FinalizeDraftCleanupTest extends TestCase
 
         // Orphan duplicate: a prior aborted submit left this row behind.
         $orphan = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $draft = $this->buildFinalizableDraft($camper, $session);
@@ -117,11 +115,11 @@ class FinalizeDraftCleanupTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $shell = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => null,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $draft = $this->buildFinalizableDraft($camper, $session);
@@ -148,11 +146,11 @@ class FinalizeDraftCleanupTest extends TestCase
         $sessionB = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $otherSessionDraft = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $sessionB->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $draft = $this->buildFinalizableDraft($camper, $sessionA);
@@ -180,16 +178,16 @@ class FinalizeDraftCleanupTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $matchingBlob = ApplicationDraft::create([
-            'user_id'    => $parent->id,
-            'label'      => 'Athena application',
+            'user_id' => $parent->id,
+            'label' => 'Athena application',
             'draft_data' => ['s1' => []],
         ]);
 
         // Another parent's blob — must not be affected.
         $otherParent = $this->createParent();
         $unrelatedBlob = ApplicationDraft::create([
-            'user_id'    => $otherParent->id,
-            'label'      => 'Athena',
+            'user_id' => $otherParent->id,
+            'label' => 'Athena',
             'draft_data' => ['s1' => []],
         ]);
 

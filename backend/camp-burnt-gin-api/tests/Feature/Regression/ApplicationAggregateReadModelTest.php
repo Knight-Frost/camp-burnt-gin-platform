@@ -37,22 +37,22 @@ class ApplicationAggregateReadModelTest extends TestCase
     {
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create([
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2015-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         $camper->medicalRecord()->create([]);
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         return Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
         ]);
     }
 
@@ -139,16 +139,16 @@ class ApplicationAggregateReadModelTest extends TestCase
 
         Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $app->camper_id,
-            'document_type'     => 'immunization_record',
+            'documentable_id' => $app->camper_id,
+            'document_type' => 'immunization_record',
             'original_filename' => 'immunization.pdf',
-            'stored_filename'   => 'immunization.pdf',
-            'path'              => 'documents/immunization.pdf',
-            'mime_type'         => 'application/pdf',
-            'file_size'         => 1024,
-            'uploaded_by'       => $parent->id,
-            'submitted_at'      => now(),
-            'is_verified'       => true,
+            'stored_filename' => 'immunization.pdf',
+            'path' => 'documents/immunization.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 1024,
+            'uploaded_by' => $parent->id,
+            'submitted_at' => now(),
+            'is_verified' => true,
         ]);
 
         $list = $this->actingAs($parent)
@@ -177,8 +177,8 @@ class ApplicationAggregateReadModelTest extends TestCase
         // A submitted doc — both admin and applicant see it.
         Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $app->camper_id,
-            'document_type'     => 'immunization_record',
+            'documentable_id' => $app->camper_id,
+            'document_type' => 'immunization_record',
             'original_filename' => 'imm.pdf', 'stored_filename' => 'imm.pdf',
             'path' => 'documents/imm.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
@@ -187,8 +187,8 @@ class ApplicationAggregateReadModelTest extends TestCase
         // A draft doc — only applicant sees it.
         Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $app->camper_id,
-            'document_type'     => 'insurance_card',
+            'documentable_id' => $app->camper_id,
+            'document_type' => 'insurance_card',
             'original_filename' => 'ins.pdf', 'stored_filename' => 'ins.pdf',
             'path' => 'documents/ins.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,

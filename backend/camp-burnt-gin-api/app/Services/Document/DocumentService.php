@@ -101,9 +101,9 @@ class DocumentService
         // impossible even if future code forgets this step. Message
         // attachments are intentionally exempt — a thread can carry
         // many attachments of the same type.
-        $ownerType     = $data['documentable_type'] ?? null;
-        $ownerId       = $data['documentable_id'] ?? null;
-        $docType       = $data['document_type'] ?? null;
+        $ownerType = $data['documentable_type'] ?? null;
+        $ownerId = $data['documentable_id'] ?? null;
+        $docType = $data['document_type'] ?? null;
         $isMessageAttachment = ! empty($data['message_id']);
 
         $create = function () use ($data, $user, $path, $storedFilename, $file, $expirationDate, $submittedAt) {

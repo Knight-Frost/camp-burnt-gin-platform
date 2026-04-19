@@ -65,7 +65,7 @@ class RevalidateApplications extends Command
                 if (! $result['is_complete'] || ! $result['is_valid']) {
                     $failing[] = [
                         'application' => $app,
-                        'result'      => $result,
+                        'result' => $result,
                     ];
                 }
             }
@@ -77,6 +77,7 @@ class RevalidateApplications extends Command
         if (empty($failing)) {
             $this->newLine();
             $this->info('All submitted applications pass validation. Nothing to do.');
+
             return self::SUCCESS;
         }
 
@@ -103,6 +104,7 @@ class RevalidateApplications extends Command
         if ($dryRun) {
             $this->newLine();
             $this->comment('No rows were changed. Re-run with --apply to revert these applications to draft.');
+
             return self::SUCCESS;
         }
 
@@ -141,34 +143,34 @@ class RevalidateApplications extends Command
             $application->save();
 
             AuditLog::create([
-                'request_id'     => (string) \Illuminate\Support\Str::uuid(),
-                'user_id'        => null, // system
-                'event_type'     => 'data_change',
+                'request_id' => (string) \Illuminate\Support\Str::uuid(),
+                'user_id' => null, // system
+                'event_type' => 'data_change',
                 'auditable_type' => Application::class,
-                'auditable_id'   => $application->id,
-                'action'         => 'application.reverted.revalidation',
-                'description'    => sprintf(
+                'auditable_id' => $application->id,
+                'action' => 'application.reverted.revalidation',
+                'description' => sprintf(
                     'System reverted application #%d from submitted to draft after revalidation found %d blocking issue%s.',
                     $application->id,
                     count($blockingIssues),
                     count($blockingIssues) === 1 ? '' : 's',
                 ),
-                'old_values'     => [
-                    'is_draft'     => false,
+                'old_values' => [
+                    'is_draft' => false,
                     'submitted_at' => $previousSubmittedAt?->toISOString(),
                 ],
-                'new_values'     => [
-                    'is_draft'     => true,
+                'new_values' => [
+                    'is_draft' => true,
                     'submitted_at' => null,
                 ],
-                'metadata'       => [
+                'metadata' => [
                     'blocking_issues' => array_map(fn ($i) => [
                         'section' => $i['section'],
-                        'key'     => $i['key'],
-                        'label'   => $i['label'],
+                        'key' => $i['key'],
+                        'label' => $i['label'],
                     ], $blockingIssues),
                 ],
-                'created_at'     => now(),
+                'created_at' => now(),
             ]);
         });
 

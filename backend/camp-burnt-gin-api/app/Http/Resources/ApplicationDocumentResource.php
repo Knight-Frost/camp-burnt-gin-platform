@@ -28,10 +28,10 @@ class ApplicationDocumentResource extends JsonResource
         /** @var Document $doc */
         $doc = $this->resource;
 
-        $isSubmitted      = $doc->submitted_at !== null;
-        $isVerified       = $doc->isVerified();
-        $isExpired        = $doc->isExpired();
-        $isArchived       = $doc->archived_at !== null;
+        $isSubmitted = $doc->submitted_at !== null;
+        $isVerified = $doc->isVerified();
+        $isExpired = $doc->isExpired();
+        $isArchived = $doc->archived_at !== null;
 
         $type = $doc->document_type;
         $requiresExamDate = in_array($type, [
@@ -51,57 +51,57 @@ class ApplicationDocumentResource extends JsonResource
 
         // Single ground-truth status — what admin and applicant both render from.
         $complianceStatus = match (true) {
-            $isArchived                 => 'archived',
-            ! $isSubmitted              => 'draft',
-            $isExpired                  => 'expired',
-            $isIncompleteMetadata       => 'incomplete_metadata',
-            ! $isVerified               => 'unverified',
-            default                     => 'ok',
+            $isArchived => 'archived',
+            ! $isSubmitted => 'draft',
+            $isExpired => 'expired',
+            $isIncompleteMetadata => 'incomplete_metadata',
+            ! $isVerified => 'unverified',
+            default => 'ok',
         };
 
         return [
-            'id'                      => $doc->id,
-            'document_type'           => $type,
-            'document_type_label'     => $this->labelFor($type),
-            'original_filename'       => $doc->original_filename,
-            'mime_type'               => $doc->mime_type,
-            'file_size'               => $doc->file_size,
-            'uploaded_at'             => $doc->created_at?->toISOString(),
-            'submitted_at'            => $doc->submitted_at?->toISOString(),
-            'verification_status'     => $doc->verification_status?->value,
-            'expiration_date'         => $doc->expiration_date?->format('Y-m-d'),
-            'exam_date'               => $examDate,
+            'id' => $doc->id,
+            'document_type' => $type,
+            'document_type_label' => $this->labelFor($type),
+            'original_filename' => $doc->original_filename,
+            'mime_type' => $doc->mime_type,
+            'file_size' => $doc->file_size,
+            'uploaded_at' => $doc->created_at?->toISOString(),
+            'submitted_at' => $doc->submitted_at?->toISOString(),
+            'verification_status' => $doc->verification_status?->value,
+            'expiration_date' => $doc->expiration_date?->format('Y-m-d'),
+            'exam_date' => $examDate,
 
             // Computed compliance booleans. Frontends MUST NOT recompute these.
-            'is_submitted'            => $isSubmitted,
-            'is_verified'             => $isVerified,
-            'is_expired'              => $isExpired,
-            'is_archived'             => $isArchived,
-            'is_incomplete_metadata'  => $isIncompleteMetadata,
-            'compliance_status'       => $complianceStatus,
+            'is_submitted' => $isSubmitted,
+            'is_verified' => $isVerified,
+            'is_expired' => $isExpired,
+            'is_archived' => $isArchived,
+            'is_incomplete_metadata' => $isIncompleteMetadata,
+            'compliance_status' => $complianceStatus,
 
             // Role-appropriate labels. Admin frontends pick admin_label,
             // applicant frontends pick applicant_label. Same underlying
             // truth, different wording.
-            'admin_label'             => $this->adminLabelFor($complianceStatus, $type),
-            'applicant_label'         => $this->applicantLabelFor($complianceStatus, $type),
+            'admin_label' => $this->adminLabelFor($complianceStatus, $type),
+            'applicant_label' => $this->applicantLabelFor($complianceStatus, $type),
 
             // Visibility filter: admin listing endpoints show only submitted
             // + non-draft; applicants can see anything in their own staging.
-            'visible_to_admin'        => $isSubmitted && ! $isArchived,
+            'visible_to_admin' => $isSubmitted && ! $isArchived,
         ];
     }
 
     private function labelFor(string $type): string
     {
         return match ($type) {
-            'official_medical_form'       => 'Medical Examination Form',
-            'immunization_record'         => 'Immunization Record',
-            'insurance_card'              => 'Insurance Card',
-            'paper_application_packet'    => 'Paper Application Packet',
-            'physical_examination'        => 'Physical Examination',
-            'seizure_action_plan'         => 'Seizure Action Plan',
-            'emergency_care_plan'         => 'Emergency Care Plan',
+            'official_medical_form' => 'Medical Examination Form',
+            'immunization_record' => 'Immunization Record',
+            'insurance_card' => 'Insurance Card',
+            'paper_application_packet' => 'Paper Application Packet',
+            'physical_examination' => 'Physical Examination',
+            'seizure_action_plan' => 'Seizure Action Plan',
+            'emergency_care_plan' => 'Emergency Care Plan',
             default => ucwords(str_replace('_', ' ', $type)),
         };
     }
@@ -111,13 +111,13 @@ class ApplicationDocumentResource extends JsonResource
         $label = $this->labelFor($type);
 
         return match ($status) {
-            'ok'                   => "$label — verified",
-            'draft'                => "$label — draft (not submitted by applicant yet)",
-            'expired'              => "Blocks approval: $label has expired; re-submission required",
-            'unverified'           => "Pending review: $label awaiting admin verification",
-            'incomplete_metadata'  => "Blocks approval: $label has no exam date on file",
-            'archived'             => "$label — archived",
-            default                => $label,
+            'ok' => "$label — verified",
+            'draft' => "$label — draft (not submitted by applicant yet)",
+            'expired' => "Blocks approval: $label has expired; re-submission required",
+            'unverified' => "Pending review: $label awaiting admin verification",
+            'incomplete_metadata' => "Blocks approval: $label has no exam date on file",
+            'archived' => "$label — archived",
+            default => $label,
         };
     }
 
@@ -126,13 +126,13 @@ class ApplicationDocumentResource extends JsonResource
         $label = $this->labelFor($type);
 
         return match ($status) {
-            'ok'                   => "$label — submitted and verified",
-            'draft'                => "$label uploaded — submit to staff to finalize",
-            'expired'              => "Action needed: $label is out of date; upload a current copy",
-            'unverified'           => "$label submitted — awaiting staff review",
-            'incomplete_metadata'  => "Action needed: $label is missing the physician exam date. Re-upload with the exam date completed.",
-            'archived'             => "$label — archived",
-            default                => $label,
+            'ok' => "$label — submitted and verified",
+            'draft' => "$label uploaded — submit to staff to finalize",
+            'expired' => "Action needed: $label is out of date; upload a current copy",
+            'unverified' => "$label submitted — awaiting staff review",
+            'incomplete_metadata' => "Action needed: $label is missing the physician exam date. Re-upload with the exam date completed.",
+            'archived' => "$label — archived",
+            default => $label,
         };
     }
 }

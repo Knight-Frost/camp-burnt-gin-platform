@@ -55,6 +55,7 @@ class PruneDraftDocuments extends Command
 
         if ($total === 0) {
             $this->info("No draft documents older than {$days} days found.");
+
             return self::SUCCESS;
         }
 
@@ -79,6 +80,7 @@ class PruneDraftDocuments extends Command
                     ));
                 }
             });
+
             return self::SUCCESS;
         }
 
@@ -105,6 +107,7 @@ class PruneDraftDocuments extends Command
         });
 
         $this->info("Processed {$processed} draft document(s).");
+
         return self::SUCCESS;
     }
 }

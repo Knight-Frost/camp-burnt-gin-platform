@@ -36,24 +36,24 @@ class CamperIdentityUniquenessTest extends TestCase
 
         $first = $this->actingAs($parent)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertCreated()
             ->json('data');
 
         $second = $this->actingAs($parent)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertOk()
             ->json('data');
@@ -73,12 +73,12 @@ class CamperIdentityUniquenessTest extends TestCase
 
         $first = $this->actingAs($parent)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertCreated()
             ->json('data');
@@ -86,12 +86,12 @@ class CamperIdentityUniquenessTest extends TestCase
         // Second call changes tshirt_size; should update the existing row.
         $second = $this->actingAs($parent)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth L',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth L',
+                'county' => 'Richland',
             ])
             ->assertOk()
             ->json('data');
@@ -108,24 +108,24 @@ class CamperIdentityUniquenessTest extends TestCase
 
         $camperA = $this->actingAs($parentA)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertCreated()
             ->json('data');
 
         $camperB = $this->actingAs($parentB)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertCreated()
             ->json('data');
@@ -140,12 +140,12 @@ class CamperIdentityUniquenessTest extends TestCase
 
         $first = $this->actingAs($parent)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertCreated()
             ->json('data');
@@ -154,12 +154,12 @@ class CamperIdentityUniquenessTest extends TestCase
 
         $second = $this->actingAs($parent)
             ->postJson('/api/campers', [
-                'first_name'    => 'Athena',
-                'last_name'     => 'Wicker',
+                'first_name' => 'Athena',
+                'last_name' => 'Wicker',
                 'date_of_birth' => '2015-01-01',
-                'gender'        => 'female',
-                'tshirt_size'   => 'Youth M',
-                'county'        => 'Richland',
+                'gender' => 'female',
+                'tshirt_size' => 'Youth M',
+                'county' => 'Richland',
             ])
             ->assertOk()
             ->json('data');

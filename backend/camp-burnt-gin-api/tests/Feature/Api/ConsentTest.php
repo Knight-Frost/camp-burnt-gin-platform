@@ -167,7 +167,7 @@ class ConsentTest extends TestCase
             "/api/applications/{$application->id}/consents",
             ['consents' => [$payload]]
         )->assertStatus(422)
-          ->assertJsonValidationErrors(['consents.0.signed_at']);
+            ->assertJsonValidationErrors(['consents.0.signed_at']);
     }
 
     public function test_guardian_name_is_required(): void

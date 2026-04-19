@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;
@@ -26,15 +25,15 @@ class PruneDraftDocumentsTest extends TestCase
     private function makeDoc(array $attrs): Document
     {
         $doc = Document::create(array_merge([
-            'documentable_type'   => \App\Models\Camper::class,
-            'documentable_id'     => 1,
-            'document_type'       => 'supplementary',
-            'original_filename'   => 'x.pdf',
-            'stored_filename'     => 'x.pdf',
-            'path'                => 'documents/x.pdf',
-            'mime_type'           => 'application/pdf',
-            'file_size'           => 100,
-            'uploaded_by'         => $this->createParent()->id,
+            'documentable_type' => \App\Models\Camper::class,
+            'documentable_id' => 1,
+            'document_type' => 'supplementary',
+            'original_filename' => 'x.pdf',
+            'stored_filename' => 'x.pdf',
+            'path' => 'documents/x.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 100,
+            'uploaded_by' => $this->createParent()->id,
         ], $attrs));
 
         // Eloquent stamps created_at itself — force the backdated value for
@@ -53,6 +52,7 @@ class PruneDraftDocumentsTest extends TestCase
                 $doc->save();
             });
         }
+
         return $doc->fresh() ?? $doc;
     }
 
@@ -60,7 +60,7 @@ class PruneDraftDocumentsTest extends TestCase
     {
         $stale = $this->makeDoc([
             'submitted_at' => null,
-            'created_at'   => now()->subDays(60),
+            'created_at' => now()->subDays(60),
         ]);
 
         $this->artisan('documents:prune-drafts', ['--days' => 30])
@@ -73,14 +73,14 @@ class PruneDraftDocumentsTest extends TestCase
     {
         $fresh = $this->makeDoc([
             'submitted_at' => null,
-            'created_at'   => now()->subDays(2),
+            'created_at' => now()->subDays(2),
         ]);
 
         $this->artisan('documents:prune-drafts', ['--days' => 30])
             ->assertSuccessful();
 
         $this->assertDatabaseHas('documents', [
-            'id'         => $fresh->id,
+            'id' => $fresh->id,
             'deleted_at' => null,
         ]);
     }
@@ -89,14 +89,14 @@ class PruneDraftDocumentsTest extends TestCase
     {
         $old = $this->makeDoc([
             'submitted_at' => now()->subDays(90),
-            'created_at'   => now()->subDays(120),
+            'created_at' => now()->subDays(120),
         ]);
 
         $this->artisan('documents:prune-drafts', ['--days' => 30])
             ->assertSuccessful();
 
         $this->assertDatabaseHas('documents', [
-            'id'         => $old->id,
+            'id' => $old->id,
             'deleted_at' => null,
         ]);
     }
@@ -108,15 +108,15 @@ class PruneDraftDocumentsTest extends TestCase
         // control of their archive pile.
         $archivedOld = $this->makeDoc([
             'submitted_at' => null,
-            'created_at'   => now()->subDays(120),
-            'archived_at'  => now()->subDays(60),
+            'created_at' => now()->subDays(120),
+            'archived_at' => now()->subDays(60),
         ]);
 
         $this->artisan('documents:prune-drafts', ['--days' => 30])
             ->assertSuccessful();
 
         $this->assertDatabaseHas('documents', [
-            'id'         => $archivedOld->id,
+            'id' => $archivedOld->id,
             'deleted_at' => null,
         ]);
     }
@@ -125,14 +125,14 @@ class PruneDraftDocumentsTest extends TestCase
     {
         $stale = $this->makeDoc([
             'submitted_at' => null,
-            'created_at'   => now()->subDays(60),
+            'created_at' => now()->subDays(60),
         ]);
 
         $this->artisan('documents:prune-drafts', ['--days' => 30, '--dry-run' => true])
             ->assertSuccessful();
 
         $this->assertDatabaseHas('documents', [
-            'id'         => $stale->id,
+            'id' => $stale->id,
             'deleted_at' => null,
         ]);
     }

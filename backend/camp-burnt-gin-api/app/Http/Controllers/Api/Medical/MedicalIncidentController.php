@@ -209,7 +209,7 @@ class MedicalIncidentController extends Controller
         // camper relation may be null if the row was soft-deleted after the
         // incident was recorded; guard with ?-> and surface null cleanly.
         $data['camper_name'] = $incident->camper
-            ? trim(($incident->camper->first_name ?? '') . ' ' . ($incident->camper->last_name ?? ''))
+            ? trim(($incident->camper->first_name ?? '').' '.($incident->camper->last_name ?? ''))
             : null;
 
         $data['recorder_name'] = $incident->recorder?->name;
@@ -227,8 +227,7 @@ class MedicalIncidentController extends Controller
      */
     protected function notifyMedicalStaff(MedicalIncident $incident): void
     {
-        $recipients = User::whereHas('role', fn ($q) =>
-            $q->whereIn('name', ['admin', 'super_admin', 'medical'])
+        $recipients = User::whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin', 'medical'])
         )->get();
 
         foreach ($recipients as $recipient) {

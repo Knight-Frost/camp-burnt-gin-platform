@@ -37,11 +37,11 @@ class ComplianceBypassFlagTest extends TestCase
         RequiredDocumentRule::firstOrCreate(
             ['document_type' => $type],
             [
-                'description'             => ucfirst(str_replace('_', ' ', $type)),
-                'is_mandatory'            => true,
+                'description' => ucfirst(str_replace('_', ' ', $type)),
+                'is_mandatory' => true,
                 'medical_complexity_tier' => null,
-                'supervision_level'       => null,
-                'condition_flag'          => null,
+                'supervision_level' => null,
+                'condition_flag' => null,
             ],
         );
     }
@@ -63,11 +63,11 @@ class ComplianceBypassFlagTest extends TestCase
         $camper = $this->makeCamperWithMedicalRecord();
 
         Document::factory()->create([
-            'documentable_type'   => Camper::class,
-            'documentable_id'     => $camper->id,
-            'document_type'       => 'official_medical_form',
-            'expiration_date'     => now()->subMonths(6),
-            'submitted_at'        => now()->subYears(2),
+            'documentable_type' => Camper::class,
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => now()->subMonths(6),
+            'submitted_at' => now()->subYears(2),
             'verification_status' => DocumentVerificationStatus::Approved,
         ]);
 
@@ -105,11 +105,11 @@ class ComplianceBypassFlagTest extends TestCase
         $camper = $this->makeCamperWithMedicalRecord();
 
         Document::factory()->create([
-            'documentable_type'   => Camper::class,
-            'documentable_id'     => $camper->id,
-            'document_type'       => 'official_medical_form',
-            'expiration_date'     => now()->subMonths(6),
-            'submitted_at'        => now()->subYears(2),
+            'documentable_type' => Camper::class,
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => now()->subMonths(6),
+            'submitted_at' => now()->subYears(2),
             'verification_status' => DocumentVerificationStatus::Approved,
         ]);
 
@@ -132,11 +132,11 @@ class ComplianceBypassFlagTest extends TestCase
         $camper = $this->makeCamperWithMedicalRecord();
 
         Document::factory()->create([
-            'documentable_type'   => Camper::class,
-            'documentable_id'     => $camper->id,
-            'document_type'       => 'official_medical_form',
-            'expiration_date'     => now()->subMonths(6),
-            'submitted_at'        => now()->subYears(2),
+            'documentable_type' => Camper::class,
+            'documentable_id' => $camper->id,
+            'document_type' => 'official_medical_form',
+            'expiration_date' => now()->subMonths(6),
+            'submitted_at' => now()->subYears(2),
             'verification_status' => DocumentVerificationStatus::Approved,
         ]);
 

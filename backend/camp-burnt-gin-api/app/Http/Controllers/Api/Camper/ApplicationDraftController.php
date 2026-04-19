@@ -71,10 +71,10 @@ class ApplicationDraftController extends Controller
         ]);
 
         $draft = ApplicationDraft::create([
-            'user_id'        => $request->user()->id,
+            'user_id' => $request->user()->id,
             'application_id' => $validated['application_id'] ?? null,
-            'label'          => $validated['label'] ?? 'New Application',
-            'draft_data'     => null,
+            'label' => $validated['label'] ?? 'New Application',
+            'draft_data' => null,
         ]);
 
         return response()->json(['data' => $draft], Response::HTTP_CREATED);
@@ -144,7 +144,7 @@ class ApplicationDraftController extends Controller
         }
 
         $updatePayload = [
-            'label'      => $validated['label'] ?? $draft->label,
+            'label' => $validated['label'] ?? $draft->label,
             'draft_data' => $validated['draft_data'],
         ];
         // Never unset a linkage that's already been established. The form

@@ -4,10 +4,8 @@ namespace Tests\Feature\Regression;
 
 use App\Jobs\SendNotificationJob;
 use App\Models\Application;
-use App\Models\ApplicationConsent;
-use App\Models\CampSession;
 use App\Models\Camper;
-use App\Models\Document;
+use App\Models\CampSession;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -74,26 +72,26 @@ class QueuedNotificationsTest extends TestCase
 
     public function test_converting_draft_to_submitted_queues_notification(): void
     {
-        $parent  = $this->createParent();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create([
-            'user_id'       => $parent->id,
-            'first_name'    => 'Alice',
-            'last_name'     => 'Smith',
+        $camper = Camper::factory()->create([
+            'user_id' => $parent->id,
+            'first_name' => 'Alice',
+            'last_name' => 'Smith',
             'date_of_birth' => '2010-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
 
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
         \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
 
         $application = Application::factory()->draft()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'signed_at'         => now(),
-            'signature_name'    => 'Jane Smith',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($application, 'Jane Smith');

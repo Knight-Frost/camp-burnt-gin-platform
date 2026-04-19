@@ -186,7 +186,7 @@ class CamperController extends Controller
 
             return response()->json([
                 'message' => 'Existing camper returned (idempotent create).',
-                'data'    => $existing,
+                'data' => $existing,
             ], Response::HTTP_OK);
         }
 
@@ -194,7 +194,7 @@ class CamperController extends Controller
 
         return response()->json([
             'message' => 'Camper created successfully.',
-            'data'    => $camper,
+            'data' => $camper,
         ], Response::HTTP_CREATED);
     }
 

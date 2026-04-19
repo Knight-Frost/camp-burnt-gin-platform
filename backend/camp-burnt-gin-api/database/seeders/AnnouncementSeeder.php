@@ -19,7 +19,6 @@ use Illuminate\Database\Seeder;
  * Calendar events cover deadlines, sessions, orientations, internal reviews,
  * and three medical-staff-targeted events (audience='medical') added to support
  * the medical portal calendar view.
- *
  */
 class AnnouncementSeeder extends Seeder
 {
@@ -128,5 +127,4 @@ class AnnouncementSeeder extends Seeder
             }
         }
     }
-
 }

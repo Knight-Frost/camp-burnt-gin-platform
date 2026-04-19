@@ -37,16 +37,16 @@ class ApplicationSignIdempotencyTest extends TestCase
 
     private function makeDraftApplication(): Application
     {
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->forUser($parent)->create();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $app = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => true,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => null,
+            'is_draft' => true,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => null,
         ]);
 
         $this->actingAs($parent);
@@ -92,19 +92,19 @@ class ApplicationSignIdempotencyTest extends TestCase
         // The submit retry case. The flow runs sign → consents → finalize.
         // If a prior attempt already flipped the app to non-draft + signed,
         // the retry must not 400 on the sign step.
-        $parent  = $this->createParent();
-        $camper  = Camper::factory()->forUser($parent)->create();
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         $app = Application::factory()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'is_draft'          => false,
-            'status'            => ApplicationStatus::Submitted,
-            'submitted_at'      => now()->subMinute(),
-            'signed_at'         => now()->subMinute(),
-            'signature_name'    => 'Jack Frost',
-            'signature_data'    => 'Jack Frost',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now()->subMinute(),
+            'signed_at' => now()->subMinute(),
+            'signature_name' => 'Jack Frost',
+            'signature_data' => 'Jack Frost',
             'signed_ip_address' => '10.0.0.1',
         ]);
 

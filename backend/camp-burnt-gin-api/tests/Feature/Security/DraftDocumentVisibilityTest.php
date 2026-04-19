@@ -41,16 +41,16 @@ class DraftDocumentVisibilityTest extends TestCase
         $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 10]);
         $camper = Camper::factory()->create([
-            'user_id'       => $parent->id,
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'user_id' => $parent->id,
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2012-05-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         $application = Application::factory()->draft()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
@@ -59,16 +59,16 @@ class DraftDocumentVisibilityTest extends TestCase
         // admin mistakenly submitting by id). The parent application is still
         // a draft — the admin queue must still ignore this row.
         $doc = Document::create([
-            'documentable_type'   => Application::class,
-            'documentable_id'     => $application->id,
-            'document_type'       => 'immunization_record',
-            'original_filename'   => 'Screenshot 2026-04-18.png',
-            'stored_filename'     => 'wip.png',
-            'path'                => 'documents/wip.png',
-            'mime_type'           => 'image/png',
-            'file_size'           => 1024,
-            'uploaded_by'         => $parent->id,
-            'submitted_at'        => now(),
+            'documentable_type' => Application::class,
+            'documentable_id' => $application->id,
+            'document_type' => 'immunization_record',
+            'original_filename' => 'Screenshot 2026-04-18.png',
+            'stored_filename' => 'wip.png',
+            'path' => 'documents/wip.png',
+            'mime_type' => 'image/png',
+            'file_size' => 1024,
+            'uploaded_by' => $parent->id,
+            'submitted_at' => now(),
             'verification_status' => DocumentVerificationStatus::Pending,
         ]);
 
@@ -146,20 +146,20 @@ class DraftDocumentVisibilityTest extends TestCase
         $session = CampSession::factory()->create(['is_active' => true]);
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $draft = Application::factory()->draft()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
         Document::create([
-            'documentable_type'   => Application::class,
-            'documentable_id'     => $draft->id,
-            'document_type'       => 'official_medical_form',
-            'original_filename'   => 'form.pdf',
-            'stored_filename'     => 'form.pdf',
-            'path'                => 'documents/form.pdf',
-            'mime_type'           => 'application/pdf',
-            'file_size'           => 2048,
-            'uploaded_by'         => $parent->id,
-            'submitted_at'        => now(),
+            'documentable_type' => Application::class,
+            'documentable_id' => $draft->id,
+            'document_type' => 'official_medical_form',
+            'original_filename' => 'form.pdf',
+            'stored_filename' => 'form.pdf',
+            'path' => 'documents/form.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 2048,
+            'uploaded_by' => $parent->id,
+            'submitted_at' => now(),
             'verification_status' => DocumentVerificationStatus::Approved,
         ]);
         $this->seed(\Database\Seeders\RiskEngineSeeder::class);
@@ -182,20 +182,20 @@ class DraftDocumentVisibilityTest extends TestCase
         $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true]);
         $camper = Camper::factory()->create([
-            'user_id'       => $parent->id,
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'user_id' => $parent->id,
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2012-05-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
         $draft = Application::factory()->draft()->create([
-            'camper_id'         => $camper->id,
-            'camp_session_id'   => $session->id,
-            'signed_at'         => now(),
-            'signature_name'    => 'Aurora Wicker',
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Aurora Wicker',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft, 'Aurora');
@@ -206,8 +206,8 @@ class DraftDocumentVisibilityTest extends TestCase
         // camper, one already archived (must NOT be touched).
         $appDoc = Document::create([
             'documentable_type' => Application::class,
-            'documentable_id'   => $draft->id,
-            'document_type'     => 'official_medical_form',
+            'documentable_id' => $draft->id,
+            'document_type' => 'official_medical_form',
             'original_filename' => 'form.pdf', 'stored_filename' => 'form.pdf',
             'path' => 'documents/form.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
@@ -216,8 +216,8 @@ class DraftDocumentVisibilityTest extends TestCase
         ]);
         $camperDoc = Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $camper->id,
-            'document_type'     => 'immunization_record',
+            'documentable_id' => $camper->id,
+            'document_type' => 'immunization_record',
             'original_filename' => 'imm.pdf', 'stored_filename' => 'imm.pdf',
             'path' => 'documents/imm.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
@@ -225,19 +225,19 @@ class DraftDocumentVisibilityTest extends TestCase
         ]);
         $archivedDoc = Document::create([
             'documentable_type' => Application::class,
-            'documentable_id'   => $draft->id,
-            'document_type'     => 'insurance_card',
+            'documentable_id' => $draft->id,
+            'document_type' => 'insurance_card',
             'original_filename' => 'old.pdf', 'stored_filename' => 'old.pdf',
             'path' => 'documents/old.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
             'submitted_at' => null,
-            'archived_at'  => now()->subDay(),
+            'archived_at' => now()->subDay(),
         ]);
         // Additional required doc to satisfy finalize completeness.
         Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $camper->id,
-            'document_type'     => 'insurance_card',
+            'documentable_id' => $camper->id,
+            'document_type' => 'insurance_card',
             'original_filename' => 'ins.pdf', 'stored_filename' => 'ins.pdf',
             'path' => 'documents/ins.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
@@ -266,25 +266,25 @@ class DraftDocumentVisibilityTest extends TestCase
         $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true]);
         $camper = Camper::factory()->create([
-            'user_id'       => $parent->id,
-            'first_name'    => 'Test',
-            'last_name'     => 'Cascade',
+            'user_id' => $parent->id,
+            'first_name' => 'Test',
+            'last_name' => 'Cascade',
             'date_of_birth' => '2012-01-01',
-            'gender'        => 'male',
-            'tshirt_size'   => 'Youth L',
-            'county'        => 'Richland',
+            'gender' => 'male',
+            'tshirt_size' => 'Youth L',
+            'county' => 'Richland',
         ]);
         $app = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'submitted_at'    => now(),
-            'status'          => ApplicationStatus::Submitted,
+            'is_draft' => false,
+            'submitted_at' => now(),
+            'status' => ApplicationStatus::Submitted,
         ]);
         $doc = Document::create([
             'documentable_type' => Application::class,
-            'documentable_id'   => $app->id,
-            'document_type'     => 'immunization_record',
+            'documentable_id' => $app->id,
+            'document_type' => 'immunization_record',
             'original_filename' => 'imm.pdf', 'stored_filename' => 'imm.pdf',
             'path' => 'documents/imm.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,

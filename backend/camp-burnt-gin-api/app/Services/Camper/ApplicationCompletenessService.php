@@ -63,12 +63,12 @@ class ApplicationCompletenessService
      * value = human-readable label used by the UI warning modals.
      */
     private const REQUIRED_CAMPER_FIELDS = [
-        'first_name'    => 'Camper first name',
-        'last_name'     => 'Camper last name',
+        'first_name' => 'Camper first name',
+        'last_name' => 'Camper last name',
         'date_of_birth' => 'Date of birth',
-        'gender'        => 'Gender',
-        'tshirt_size'   => 'T-shirt size',
-        'county'        => 'County (required for CYSHCN eligibility)',
+        'gender' => 'Gender',
+        'tshirt_size' => 'T-shirt size',
+        'county' => 'County (required for CYSHCN eligibility)',
     ];
 
     /**
@@ -76,13 +76,13 @@ class ApplicationCompletenessService
      * Kept in sync with the CONSENT_DEFS array in ApplicationFormPage.tsx.
      */
     private const REQUIRED_CONSENT_TYPES = [
-        'general'       => 'General consent',
-        'photos'        => 'Photo and media release',
-        'liability'     => 'Release of liability',
-        'activity'      => 'Activity participation consent',
+        'general' => 'General consent',
+        'photos' => 'Photo and media release',
+        'liability' => 'Release of liability',
+        'activity' => 'Activity participation consent',
         'authorization' => 'Medical treatment authorization',
-        'medication'    => 'Medication administration consent',
-        'hipaa'         => 'HIPAA privacy acknowledgment',
+        'medication' => 'Medication administration consent',
+        'hipaa' => 'HIPAA privacy acknowledgment',
     ];
 
     /**
@@ -93,13 +93,13 @@ class ApplicationCompletenessService
      */
     private const CANONICAL_ACTIVITIES = [
         'sports_games' => 'Sports & Games',
-        'arts_crafts'  => 'Arts & Crafts',
-        'nature'       => 'Nature Activities',
-        'fine_arts'    => 'Fine Arts',
-        'swimming'     => 'Swimming',
-        'boating'      => 'Boating',
-        'camping'      => 'Camping',
-        'camp_out'     => 'Camp Out',
+        'arts_crafts' => 'Arts & Crafts',
+        'nature' => 'Nature Activities',
+        'fine_arts' => 'Fine Arts',
+        'swimming' => 'Swimming',
+        'boating' => 'Boating',
+        'camping' => 'Camping',
+        'camp_out' => 'Camp Out',
     ];
 
     /** Valid values for ADL levels on PersonalCarePlan. */
@@ -169,17 +169,17 @@ class ApplicationCompletenessService
 
         // Per-section validators
         $sections = [
-            'camper'        => $this->validateCamper($application, $paperSubstitutesDigital),
-            'health'        => $this->validateHealth($application),
-            'behavior'      => $this->validateBehavior($application),
-            'equipment'     => $this->validateEquipment($application),
-            'diet'          => $this->validateDiet($application),
+            'camper' => $this->validateCamper($application, $paperSubstitutesDigital),
+            'health' => $this->validateHealth($application),
+            'behavior' => $this->validateBehavior($application),
+            'equipment' => $this->validateEquipment($application),
+            'diet' => $this->validateDiet($application),
             'personal_care' => $this->validatePersonalCare($application),
-            'activities'    => $this->validateActivities($application),
-            'medications'   => $this->validateMedications($application),
-            'narratives'    => $this->validateNarratives($application),
-            'documents'     => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
-            'consents'      => $this->validateConsents($application, $paperSubstitutesDigital),
+            'activities' => $this->validateActivities($application),
+            'medications' => $this->validateMedications($application),
+            'narratives' => $this->validateNarratives($application),
+            'documents' => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
+            'consents' => $this->validateConsents($application, $paperSubstitutesDigital),
         ];
 
         // Raw document breakdown (for UI that wants to render the four doc
@@ -218,10 +218,10 @@ class ApplicationCompletenessService
             foreach ($result['missing'] as $item) {
                 if (($item['severity'] ?? 'high') === 'high') {
                     $blockingIssues[] = [
-                        'section'   => $sectionKey,
-                        'key'       => $item['key'],
-                        'label'     => $item['label'],
-                        'severity'  => $item['severity'] ?? 'high',
+                        'section' => $sectionKey,
+                        'key' => $item['key'],
+                        'label' => $item['label'],
+                        'severity' => $item['severity'] ?? 'high',
                     ];
                 }
             }
@@ -233,9 +233,9 @@ class ApplicationCompletenessService
             foreach ($result['missing'] as $item) {
                 if (($item['severity'] ?? 'high') !== 'high') {
                     $warnings[] = [
-                        'section'  => $sectionKey,
-                        'key'      => $item['key'],
-                        'label'    => $item['label'],
+                        'section' => $sectionKey,
+                        'key' => $item['key'],
+                        'label' => $item['label'],
                         'severity' => $item['severity'],
                     ];
                 }
@@ -243,9 +243,9 @@ class ApplicationCompletenessService
         }
         foreach ($docBreakdown['unverified'] as $doc) {
             $warnings[] = [
-                'section'  => 'documents',
-                'key'      => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
-                'label'    => ucwords(str_replace('_', ' ', $doc['document_type'])).' — uploaded, pending admin verification',
+                'section' => 'documents',
+                'key' => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
+                'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' — uploaded, pending admin verification',
                 'severity' => 'medium',
             ];
         }
@@ -260,16 +260,16 @@ class ApplicationCompletenessService
         $completionPercentage = (int) round(($completed / count(self::SECTION_KEYS)) * 100);
 
         return [
-            'state'                     => $state,
-            'is_complete'               => $isComplete,
-            'is_valid'                  => $isValid,
-            'sections'                  => $sections,
-            'documents'                 => $docBreakdown,
-            'missing_consents'          => $sections['consents']['missing'],
-            'blocking_issues'           => $blockingIssues,
-            'warnings'                  => $warnings,
-            'completion_percentage'     => $completionPercentage,
-            'submission_source'         => $this->submissionSourceString($application),
+            'state' => $state,
+            'is_complete' => $isComplete,
+            'is_valid' => $isValid,
+            'sections' => $sections,
+            'documents' => $docBreakdown,
+            'missing_consents' => $sections['consents']['missing'],
+            'blocking_issues' => $blockingIssues,
+            'warnings' => $warnings,
+            'completion_percentage' => $completionPercentage,
+            'submission_source' => $this->submissionSourceString($application),
             'paper_substitutes_digital' => $paperSubstitutesDigital,
         ];
     }
@@ -302,8 +302,8 @@ class ApplicationCompletenessService
             }
             foreach ($section['missing'] as $m) {
                 $missingFields[] = [
-                    'key'      => $m['key'],
-                    'label'    => $m['label'],
+                    'key' => $m['key'],
+                    'label' => $m['label'],
                     'severity' => $m['severity'] ?? 'high',
                 ];
             }
@@ -315,22 +315,22 @@ class ApplicationCompletenessService
         $missingDocs = [];
         foreach ($result['documents']['missing'] as $doc) {
             $missingDocs[] = [
-                'key'      => 'doc_'.$doc['document_type'],
-                'label'    => $doc['description'] ?? ucwords(str_replace('_', ' ', $doc['document_type'])),
+                'key' => 'doc_'.$doc['document_type'],
+                'label' => $doc['description'] ?? ucwords(str_replace('_', ' ', $doc['document_type'])),
                 'severity' => 'high',
             ];
         }
         foreach ($result['documents']['expired'] as $doc) {
             $missingDocs[] = [
-                'key'      => 'expired_'.($doc['document_id'] ?? $doc['document_type']),
-                'label'    => $this->expiredDocLabel($doc),
+                'key' => 'expired_'.($doc['document_id'] ?? $doc['document_type']),
+                'label' => $this->expiredDocLabel($doc),
                 'severity' => 'medium',
             ];
         }
         foreach ($result['documents']['incomplete'] as $doc) {
             $missingDocs[] = [
-                'key'      => 'incomplete_'.($doc['document_id'] ?? $doc['document_type']),
-                'label'    => $this->incompleteDocLabel($doc),
+                'key' => 'incomplete_'.($doc['document_id'] ?? $doc['document_type']),
+                'label' => $this->incompleteDocLabel($doc),
                 'severity' => 'high',
             ];
         }
@@ -339,8 +339,8 @@ class ApplicationCompletenessService
         // `missing_documents` list, matching the legacy behaviour.
         if ($this->isPaperSubmission($application) && ! $this->paperPacketOnFile($application)) {
             $missingDocs[] = [
-                'key'      => 'doc_paper_application_packet',
-                'label'    => 'Completed paper application packet',
+                'key' => 'doc_paper_application_packet',
+                'label' => 'Completed paper application packet',
                 'severity' => 'high',
             ];
         }
@@ -348,8 +348,8 @@ class ApplicationCompletenessService
         $unverifiedDocs = [];
         foreach ($result['documents']['unverified'] as $doc) {
             $unverifiedDocs[] = [
-                'key'      => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
-                'label'    => ucwords(str_replace('_', ' ', $doc['document_type'])).' — uploaded, pending admin verification',
+                'key' => 'unverified_'.($doc['document_id'] ?? $doc['document_type']),
+                'label' => ucwords(str_replace('_', ' ', $doc['document_type'])).' — uploaded, pending admin verification',
                 'severity' => 'medium',
             ];
         }
@@ -363,12 +363,12 @@ class ApplicationCompletenessService
             && ($forFinalization || empty($unverifiedDocs));
 
         return [
-            'is_complete'               => $isCompleteFlat,
-            'missing_fields'            => $missingFields,
-            'missing_documents'         => $missingDocs,
-            'unverified_documents'      => $unverifiedDocs,
-            'missing_consents'          => $result['missing_consents'],
-            'submission_source'         => $result['submission_source'],
+            'is_complete' => $isCompleteFlat,
+            'missing_fields' => $missingFields,
+            'missing_documents' => $missingDocs,
+            'unverified_documents' => $unverifiedDocs,
+            'missing_consents' => $result['missing_consents'],
+            'submission_source' => $result['submission_source'],
             'paper_substitutes_digital' => $result['paper_substitutes_digital'],
         ];
     }
@@ -384,6 +384,7 @@ class ApplicationCompletenessService
 
         if (! $camper) {
             $missing[] = $this->item('camper_missing', 'Camper record is missing');
+
             return $this->sectionResult(false, $missing);
         }
 
@@ -424,6 +425,7 @@ class ApplicationCompletenessService
 
         if (! $mr) {
             $missing[] = $this->item('medical_record', 'Medical record has not been started');
+
             return $this->sectionResult(false, $missing);
         }
 
@@ -472,9 +474,9 @@ class ApplicationCompletenessService
             ['aggression',            'aggression_description',            'Aggression description'],
             ['self_abuse',            'self_abuse_description',            'Self-abuse description'],
             ['wandering_risk',        'wandering_description',             'Wandering risk description'],
-            ['one_to_one_supervision','one_to_one_description',            'One-to-one supervision description'],
+            ['one_to_one_supervision', 'one_to_one_description',            'One-to-one supervision description'],
             ['sexual_behaviors',      'sexual_behaviors_description',      'Sexual behaviors description'],
-            ['interpersonal_behavior','interpersonal_behavior_description','Interpersonal behavior description'],
+            ['interpersonal_behavior', 'interpersonal_behavior_description', 'Interpersonal behavior description'],
             ['social_emotional',      'social_emotional_description',      'Social/emotional concerns description'],
         ];
         if ($bp) {
@@ -586,14 +588,15 @@ class ApplicationCompletenessService
                 'personal_care_plan',
                 'Personal care plan has not been completed',
             );
+
             return $this->sectionResult(false, $missing);
         }
 
         $required = [
-            'bathing_level'       => 'Bathing assistance level',
-            'toileting_level'     => 'Toileting assistance level',
-            'dressing_level'      => 'Dressing assistance level',
-            'oral_hygiene_level'  => 'Oral hygiene assistance level',
+            'bathing_level' => 'Bathing assistance level',
+            'toileting_level' => 'Toileting assistance level',
+            'dressing_level' => 'Dressing assistance level',
+            'oral_hygiene_level' => 'Oral hygiene assistance level',
         ];
         foreach ($required as $field => $label) {
             $value = $pcp->{$field};
@@ -768,8 +771,8 @@ class ApplicationCompletenessService
         );
 
         return [
-            'missing'    => $compliance['missing_documents'] ?? [],
-            'expired'    => $compliance['expired_documents'] ?? [],
+            'missing' => $compliance['missing_documents'] ?? [],
+            'expired' => $compliance['expired_documents'] ?? [],
             'incomplete' => $compliance['incomplete_documents'] ?? [],
             'unverified' => $compliance['unverified_documents'] ?? [],
         ];
@@ -810,6 +813,7 @@ class ApplicationCompletenessService
         if ($app->submission_source instanceof SubmissionSource) {
             return $app->submission_source->value;
         }
+
         return $app->submission_source ?? 'digital';
     }
 
@@ -819,6 +823,7 @@ class ApplicationCompletenessService
             return false;
         }
         $reviewed = $app->sections_reviewed ?? [];
+
         return ! empty($reviewed[$section]);
     }
 
@@ -836,6 +841,7 @@ class ApplicationCompletenessService
                 return true;
             }
         }
+
         return false;
     }
 
@@ -868,6 +874,7 @@ class ApplicationCompletenessService
         if (! $isComplete) {
             return 'INCOMPLETE';
         }
+
         return 'READY';
     }
 
@@ -885,12 +892,14 @@ class ApplicationCompletenessService
         if (! empty($doc['expiration_date'])) {
             return sprintf('%s expired on %s', $typeLabel, $doc['expiration_date']);
         }
+
         return $typeLabel.' has expired';
     }
 
     private function incompleteDocLabel(array $doc): string
     {
         $typeLabel = ucwords(str_replace('_', ' ', $doc['document_type']));
+
         return ($doc['reason'] ?? '') === 'missing_exam_date'
             ? $typeLabel.' — physician exam date is required (enter in the Health section)'
             : $typeLabel.' — required information missing';
@@ -905,8 +914,8 @@ class ApplicationCompletenessService
     {
         return [
             'is_complete' => $isComplete,
-            'missing'     => $missing,
-            'errors'      => $errors,
+            'missing' => $missing,
+            'errors' => $errors,
         ];
     }
 }

@@ -33,18 +33,18 @@ class TestApplicationFixture
     public static function buildCamperMinimum(Camper $camper): void
     {
         $camper->update([
-            'first_name'    => $camper->first_name ?: 'Athena',
-            'last_name'     => $camper->last_name ?: 'Wicker',
+            'first_name' => $camper->first_name ?: 'Athena',
+            'last_name' => $camper->last_name ?: 'Wicker',
             'date_of_birth' => $camper->date_of_birth ?: '2015-01-01',
-            'gender'        => $camper->gender ?: 'female',
-            'tshirt_size'   => $camper->tshirt_size ?: 'Youth M',
-            'county'        => $camper->county ?: 'Richland',
+            'gender' => $camper->gender ?: 'female',
+            'tshirt_size' => $camper->tshirt_size ?: 'Youth M',
+            'county' => $camper->county ?: 'Richland',
         ]);
 
         if ($camper->emergencyContacts()->count() === 0) {
             $camper->emergencyContacts()->create([
-                'name'          => 'Jane Parent',
-                'relationship'  => 'Mother',
+                'name' => 'Jane Parent',
+                'relationship' => 'Mother',
                 'phone_primary' => '803-555-0100',
             ]);
         }
@@ -52,15 +52,15 @@ class TestApplicationFixture
         $mr = $camper->medicalRecord()->firstOrCreate([]);
         if (empty($mr->physician_name) || empty($mr->insurance_provider)) {
             $mr->update([
-                'physician_name'           => $mr->physician_name ?: 'Dr. Test Physician',
-                'insurance_provider'       => $mr->insurance_provider ?: 'Test Insurance Co',
-                'insurance_policy_number'  => $mr->insurance_policy_number ?: 'POL-TEST-001',
+                'physician_name' => $mr->physician_name ?: 'Dr. Test Physician',
+                'insurance_provider' => $mr->insurance_provider ?: 'Test Insurance Co',
+                'insurance_policy_number' => $mr->insurance_policy_number ?: 'POL-TEST-001',
             ]);
         }
 
         if ($camper->diagnoses()->count() === 0) {
             $camper->diagnoses()->create([
-                'name'           => 'Cerebral palsy',
+                'name' => 'Cerebral palsy',
                 'severity_level' => 'moderate',
             ]);
         }
@@ -68,9 +68,9 @@ class TestApplicationFixture
         // Personal care plan — every ADL level set to a valid enum value.
         if (! $camper->personalCarePlan) {
             $camper->personalCarePlan()->create([
-                'bathing_level'      => 'independent',
-                'toileting_level'    => 'independent',
-                'dressing_level'     => 'independent',
+                'bathing_level' => 'independent',
+                'toileting_level' => 'independent',
+                'dressing_level' => 'independent',
                 'oral_hygiene_level' => 'independent',
             ]);
         }
@@ -85,7 +85,7 @@ class TestApplicationFixture
         foreach ($activities as $slug) {
             if (! in_array($slug, $existing, true)) {
                 $camper->activityPermissions()->create([
-                    'activity_name'    => $slug,
+                    'activity_name' => $slug,
                     'permission_level' => 'yes',
                 ]);
             }
@@ -96,12 +96,13 @@ class TestApplicationFixture
     public static function reviewedOptionalSections(): array
     {
         $ts = now()->toISOString();
+
         return [
-            'behavior'    => $ts,
-            'equipment'   => $ts,
-            'diet'        => $ts,
+            'behavior' => $ts,
+            'equipment' => $ts,
+            'diet' => $ts,
             'medications' => $ts,
-            'narratives'  => $ts,
+            'narratives' => $ts,
         ];
     }
 
@@ -113,12 +114,12 @@ class TestApplicationFixture
         foreach ($types as $type) {
             if (! in_array($type, $existing, true)) {
                 ApplicationConsent::create([
-                    'application_id'        => $app->id,
-                    'consent_type'          => $type,
-                    'guardian_name'         => $guardianName,
+                    'application_id' => $app->id,
+                    'consent_type' => $type,
+                    'guardian_name' => $guardianName,
                     'guardian_relationship' => 'Mother',
-                    'guardian_signature'    => $guardianName,
-                    'signed_at'             => now(),
+                    'guardian_signature' => $guardianName,
+                    'signed_at' => now(),
                 ]);
             }
         }
@@ -140,19 +141,19 @@ class TestApplicationFixture
             }
             Document::create([
                 'documentable_type' => Camper::class,
-                'documentable_id'   => $camper->id,
-                'document_type'     => $type,
+                'documentable_id' => $camper->id,
+                'document_type' => $type,
                 'original_filename' => $type.'.pdf',
-                'stored_filename'   => $type.'.pdf',
-                'path'              => 'documents/'.$type.'.pdf',
-                'mime_type'         => 'application/pdf',
-                'file_size'         => 1024,
-                'uploaded_by'       => $camper->user_id,
-                'submitted_at'      => now(),
-                'is_verified'       => true,
+                'stored_filename' => $type.'.pdf',
+                'path' => 'documents/'.$type.'.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'uploaded_by' => $camper->user_id,
+                'submitted_at' => now(),
+                'is_verified' => true,
                 'verification_status' => 'approved',
-                'expiration_date'   => $type === 'official_medical_form' ? now()->addYear() : null,
-                'exam_date'         => $type === 'official_medical_form' ? now()->subMonth() : null,
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
+                'exam_date' => $type === 'official_medical_form' ? now()->subMonth() : null,
             ]);
         }
     }

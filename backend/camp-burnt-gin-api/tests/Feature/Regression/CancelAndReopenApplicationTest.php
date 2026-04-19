@@ -5,8 +5,8 @@ namespace Tests\Feature\Regression;
 use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\Camper;
-use App\Models\Conversation;
 use App\Models\CampSession;
+use App\Models\Conversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;
@@ -60,23 +60,23 @@ class CancelAndReopenApplicationTest extends TestCase
 
     public function test_cancel_sends_cancellation_inbox_message_with_reviewer_notes(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create([
             'first_name' => 'Rhea', 'last_name' => 'Linden',
         ]);
         $session = CampSession::factory()->create(['is_active' => true]);
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::UnderReview,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::UnderReview,
+            'submitted_at' => now(),
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
             'status' => 'cancelled',
-            'notes'  => 'Session capacity redistributed across age groups.',
+            'notes' => 'Session capacity redistributed across age groups.',
         ]);
         $response->assertOk();
 
@@ -109,18 +109,18 @@ class CancelAndReopenApplicationTest extends TestCase
 
     public function test_reopen_sends_reinstated_inbox_message(): void
     {
-        $admin  = $this->createAdmin();
+        $admin = $this->createAdmin();
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create([
             'first_name' => 'Rhea', 'last_name' => 'Linden',
         ]);
         $session = CampSession::factory()->create(['is_active' => true]);
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Cancelled,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Cancelled,
+            'submitted_at' => now(),
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [

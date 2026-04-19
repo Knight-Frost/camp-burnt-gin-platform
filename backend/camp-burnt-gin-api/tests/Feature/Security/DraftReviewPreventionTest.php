@@ -3,8 +3,8 @@
 namespace Tests\Feature\Security;
 
 use App\Models\Application;
-use App\Models\CampSession;
 use App\Models\Camper;
+use App\Models\CampSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;
@@ -26,12 +26,12 @@ class DraftReviewPreventionTest extends TestCase
 
     private function makeDraftApplication(): Application
     {
-        $parent  = $this->createParent();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
 
         return Application::factory()->draft()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
     }
@@ -73,7 +73,7 @@ class DraftReviewPreventionTest extends TestCase
     public function test_super_admin_cannot_approve_draft_application(): void
     {
         $superAdmin = $this->createSuperAdmin();
-        $draft      = $this->makeDraftApplication();
+        $draft = $this->makeDraftApplication();
 
         $response = $this->actingAs($superAdmin)
             ->postJson("/api/applications/{$draft->id}/review", ['status' => 'approved']);
@@ -83,8 +83,8 @@ class DraftReviewPreventionTest extends TestCase
 
     public function test_draft_approval_blocked_draft_camper_not_activated(): void
     {
-        $admin  = $this->createAdmin();
-        $draft  = $this->makeDraftApplication();
+        $admin = $this->createAdmin();
+        $draft = $this->makeDraftApplication();
         $camper = $draft->camper;
 
         $this->assertFalse((bool) $camper->is_active);
@@ -98,13 +98,13 @@ class DraftReviewPreventionTest extends TestCase
 
     public function test_submitted_application_can_still_be_approved(): void
     {
-        $admin   = $this->createAdmin();
-        $parent  = $this->createParent();
+        $admin = $this->createAdmin();
+        $parent = $this->createParent();
         $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
-        $camper  = Camper::factory()->create(['user_id' => $parent->id]);
+        $camper = Camper::factory()->create(['user_id' => $parent->id]);
 
         $application = Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 

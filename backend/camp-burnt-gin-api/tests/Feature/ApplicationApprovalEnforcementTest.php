@@ -342,8 +342,8 @@ class ApplicationApprovalEnforcementTest extends TestCase
         \Tests\Support\TestApplicationFixture::buildCamperMinimum($this->camper);
         \Tests\Support\TestApplicationFixture::attachRequiredDocuments($this->camper);
         $this->application->update([
-            'signed_at'         => now(),
-            'signature_name'    => 'Parent Name',
+            'signed_at' => now(),
+            'signature_name' => 'Parent Name',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($this->application, 'Parent Name');

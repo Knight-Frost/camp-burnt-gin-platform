@@ -169,11 +169,11 @@ class ValidationTest extends TestCase
         $session = CampSession::factory()->create();
 
         \App\Models\Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => \App\Enums\ApplicationStatus::Submitted,
-            'submitted_at'    => now()->subDay(),
+            'is_draft' => false,
+            'status' => \App\Enums\ApplicationStatus::Submitted,
+            'submitted_at' => now()->subDay(),
         ]);
 
         $response = $this->actingAs($parent)->postJson('/api/applications', [

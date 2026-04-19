@@ -47,7 +47,7 @@ class CamperChildRowDeduper
     public function dedupeForCamper(Camper $camper): array
     {
         return [
-            'medications'        => $this->dedupeModel(
+            'medications' => $this->dedupeModel(
                 Medication::class,
                 $camper->id,
                 fn (Medication $m) => [
@@ -57,7 +57,7 @@ class CamperChildRowDeduper
                     $m->purpose,
                 ],
             ),
-            'allergies'          => $this->dedupeModel(
+            'allergies' => $this->dedupeModel(
                 Allergy::class,
                 $camper->id,
                 fn (Allergy $a) => [
@@ -80,7 +80,7 @@ class CamperChildRowDeduper
                     $e->is_authorized_pickup,
                 ],
             ),
-            'diagnoses'          => $this->dedupeModel(
+            'diagnoses' => $this->dedupeModel(
                 Diagnosis::class,
                 $camper->id,
                 fn (Diagnosis $d) => [
@@ -89,7 +89,7 @@ class CamperChildRowDeduper
                     $d->severity_level,
                 ],
             ),
-            'assistive_devices'  => $this->dedupeModel(
+            'assistive_devices' => $this->dedupeModel(
                 AssistiveDevice::class,
                 $camper->id,
                 fn (AssistiveDevice $v) => [
@@ -106,6 +106,7 @@ class CamperChildRowDeduper
      * "Newer" = higher id — preserves the most recent edit.
      *
      * @template T of \Illuminate\Database\Eloquent\Model
+     *
      * @param  class-string<T>  $modelClass
      * @param  callable(T): array  $signatureFn
      */

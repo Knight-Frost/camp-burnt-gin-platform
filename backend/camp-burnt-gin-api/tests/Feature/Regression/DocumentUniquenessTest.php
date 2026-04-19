@@ -58,11 +58,11 @@ class DocumentUniquenessTest extends TestCase
         $session = CampSession::factory()->create(['portal_open' => true, 'is_active' => true]);
 
         return Application::factory()->create([
-            'camper_id'       => $camper->id,
+            'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft'        => false,
-            'status'          => ApplicationStatus::Submitted,
-            'submitted_at'    => now(),
+            'is_draft' => false,
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
         ]);
     }
 
@@ -75,16 +75,16 @@ class DocumentUniquenessTest extends TestCase
         $firstFile = UploadedFile::fake()->image('first.png');
         $result1 = $service->upload($firstFile, [
             'documentable_type' => Application::class,
-            'documentable_id'   => $app->id,
-            'document_type'     => 'insurance_card',
+            'documentable_id' => $app->id,
+            'document_type' => 'insurance_card',
         ], $user);
         $this->assertTrue($result1['success']);
 
         $secondFile = UploadedFile::fake()->image('second.png');
         $result2 = $service->upload($secondFile, [
             'documentable_type' => Application::class,
-            'documentable_id'   => $app->id,
-            'document_type'     => 'insurance_card',
+            'documentable_id' => $app->id,
+            'document_type' => 'insurance_card',
         ], $user);
         $this->assertTrue($result2['success']);
 
@@ -121,8 +121,8 @@ class DocumentUniquenessTest extends TestCase
                 UploadedFile::fake()->image("$type.png"),
                 [
                     'documentable_type' => Application::class,
-                    'documentable_id'   => $app->id,
-                    'document_type'     => $type,
+                    'documentable_id' => $app->id,
+                    'document_type' => $type,
                 ],
                 $user,
             );
@@ -146,17 +146,17 @@ class DocumentUniquenessTest extends TestCase
         foreach (range(1, 5) as $i) {
             \DB::table('documents')->insert([
                 'documentable_type' => Application::class,
-                'documentable_id'   => $app->id,
-                'document_type'     => 'immunization_record',
-                'uploaded_by'       => $app->camper->user_id,
+                'documentable_id' => $app->id,
+                'document_type' => 'immunization_record',
+                'uploaded_by' => $app->camper->user_id,
                 'original_filename' => "file$i.pdf",
-                'stored_filename'   => "file$i.pdf",
-                'mime_type'         => 'application/pdf',
-                'file_size'         => 100,
-                'disk'              => 'local',
-                'path'              => "documents/file$i.pdf",
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'stored_filename' => "file$i.pdf",
+                'mime_type' => 'application/pdf',
+                'file_size' => 100,
+                'disk' => 'local',
+                'path' => "documents/file$i.pdf",
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -181,25 +181,25 @@ class DocumentUniquenessTest extends TestCase
         // One live, one archived of the same type.
         Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $app->camper_id,
-            'document_type'     => 'immunization_record',
-            'uploaded_by'       => $parent->id,
+            'documentable_id' => $app->camper_id,
+            'document_type' => 'immunization_record',
+            'uploaded_by' => $parent->id,
             'original_filename' => 'live.pdf', 'stored_filename' => 'live.pdf',
-            'mime_type'         => 'application/pdf', 'file_size' => 100,
-            'disk'              => 'local', 'path' => 'documents/live.pdf',
-            'submitted_at'      => now(),
-            'is_verified'       => true,
+            'mime_type' => 'application/pdf', 'file_size' => 100,
+            'disk' => 'local', 'path' => 'documents/live.pdf',
+            'submitted_at' => now(),
+            'is_verified' => true,
         ]);
         Document::create([
             'documentable_type' => Camper::class,
-            'documentable_id'   => $app->camper_id,
-            'document_type'     => 'immunization_record',
-            'uploaded_by'       => $parent->id,
+            'documentable_id' => $app->camper_id,
+            'document_type' => 'immunization_record',
+            'uploaded_by' => $parent->id,
             'original_filename' => 'archived.pdf', 'stored_filename' => 'archived.pdf',
-            'mime_type'         => 'application/pdf', 'file_size' => 100,
-            'disk'              => 'local', 'path' => 'documents/archived.pdf',
-            'submitted_at'      => now()->subDay(),
-            'archived_at'       => now()->subDay(),
+            'mime_type' => 'application/pdf', 'file_size' => 100,
+            'disk' => 'local', 'path' => 'documents/archived.pdf',
+            'submitted_at' => now()->subDay(),
+            'archived_at' => now()->subDay(),
         ]);
 
         $applicantDocs = $this->actingAs($parent)
@@ -229,18 +229,18 @@ class DocumentUniquenessTest extends TestCase
         foreach (['official_medical_form', 'immunization_record', 'insurance_card'] as $type) {
             Document::create([
                 'documentable_type' => Application::class,
-                'documentable_id'   => $app->id,
-                'document_type'     => $type,
-                'uploaded_by'       => $parent->id,
+                'documentable_id' => $app->id,
+                'document_type' => $type,
+                'uploaded_by' => $parent->id,
                 'original_filename' => "$type.pdf",
-                'stored_filename'   => "$type.pdf",
-                'mime_type'         => 'application/pdf',
-                'file_size'         => 100,
-                'disk'              => 'local',
-                'path'              => "documents/$type.pdf",
-                'submitted_at'      => now(),
-                'is_verified'       => true,
-                'expiration_date'   => $type === 'official_medical_form' ? now()->addYear() : null,
+                'stored_filename' => "$type.pdf",
+                'mime_type' => 'application/pdf',
+                'file_size' => 100,
+                'disk' => 'local',
+                'path' => "documents/$type.pdf",
+                'submitted_at' => now(),
+                'is_verified' => true,
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
             ]);
         }
 
@@ -255,7 +255,7 @@ class DocumentUniquenessTest extends TestCase
         $this->assertCount(3, $adminDocs);
 
         $applicantTypes = collect($applicantDocs)->pluck('document_type')->sort()->values()->all();
-        $adminTypes     = collect($adminDocs)->pluck('document_type')->sort()->values()->all();
+        $adminTypes = collect($adminDocs)->pluck('document_type')->sort()->values()->all();
         $this->assertSame($applicantTypes, $adminTypes,
             'both roles must see identical document types, no duplicates, no missing');
     }

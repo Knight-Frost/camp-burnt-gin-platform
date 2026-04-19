@@ -178,127 +178,129 @@ class ApplicationService
         // Capacity-race detection uses a sentinel exception (defined below) so
         // an empty/no-op transaction doesn't accidentally commit.
         $capacityRaceResult = null;
+
         try {
             DB::transaction(function () use (
-            $application,
-            $newStatus,
-            $notes,
-            $reviewedBy,
-            $previousStatus,
-            $overrideIncomplete,
-            $missingSummary,
-            &$capacityRaceResult,
-        ) {
-            // Step 1b: Re-check capacity inside the transaction under a row-level
-            // lock. Two admins approving the last spot at the same time can BOTH
-            // pass the outer pre-flight check above; without this lock they would
-            // both commit and the session enrolled_count would exceed capacity.
-            // lockForUpdate serialises the two transactions so the second one
-            // sees the updated enrollment and bails out cleanly.
-            if ($newStatus === ApplicationStatus::Approved && $application->camp_session_id !== null) {
-                $session = \App\Models\CampSession::whereKey($application->camp_session_id)
-                    ->lockForUpdate()
-                    ->first();
+                $application,
+                $newStatus,
+                $notes,
+                $reviewedBy,
+                $previousStatus,
+                $overrideIncomplete,
+                $missingSummary,
+                &$capacityRaceResult,
+            ) {
+                // Step 1b: Re-check capacity inside the transaction under a row-level
+                // lock. Two admins approving the last spot at the same time can BOTH
+                // pass the outer pre-flight check above; without this lock they would
+                // both commit and the session enrolled_count would exceed capacity.
+                // lockForUpdate serialises the two transactions so the second one
+                // sees the updated enrollment and bails out cleanly.
+                if ($newStatus === ApplicationStatus::Approved && $application->camp_session_id !== null) {
+                    $session = \App\Models\CampSession::whereKey($application->camp_session_id)
+                        ->lockForUpdate()
+                        ->first();
 
-                if ($session && $session->isAtCapacity()) {
-                    $capacityRaceResult = [
-                        'success' => false,
-                        'capacity_exceeded' => true,
-                        'session_name' => $session->name,
-                        'capacity' => $session->capacity,
-                        'enrolled' => $session->enrolled_count,
-                    ];
-                    // Abort the transaction without writing anything.
-                    throw new CapacityRaceException();
+                    if ($session && $session->isAtCapacity()) {
+                        $capacityRaceResult = [
+                            'success' => false,
+                            'capacity_exceeded' => true,
+                            'session_name' => $session->name,
+                            'capacity' => $session->capacity,
+                            'enrolled' => $session->enrolled_count,
+                        ];
+
+                        // Abort the transaction without writing anything.
+                        throw new CapacityRaceException;
+                    }
                 }
-            }
 
-            // Step 2: Persist the review decision.
-            $updateData = [
-                'status' => $newStatus,
-                'notes' => $notes,
-                'reviewed_at' => now(),
-                'reviewed_by' => $reviewedBy->id,
-            ];
+                // Step 2: Persist the review decision.
+                $updateData = [
+                    'status' => $newStatus,
+                    'notes' => $notes,
+                    'reviewed_at' => now(),
+                    'reviewed_by' => $reviewedBy->id,
+                ];
 
-            // Flag the application when it was approved despite known missing data.
-            // This flag persists so future admins can see the application was incomplete at approval.
-            if ($overrideIncomplete && $newStatus === ApplicationStatus::Approved) {
-                $updateData['is_incomplete_at_approval'] = true;
-            }
+                // Flag the application when it was approved despite known missing data.
+                // This flag persists so future admins can see the application was incomplete at approval.
+                if ($overrideIncomplete && $newStatus === ApplicationStatus::Approved) {
+                    $updateData['is_incomplete_at_approval'] = true;
+                }
 
-            $application->update($updateData);
+                $application->update($updateData);
 
-            // Step 3: Approval path — activate camper and medical record.
-            if ($newStatus === ApplicationStatus::Approved) {
-                // Mark the camper as operationally active.
-                $application->camper->update(['is_active' => true]);
+                // Step 3: Approval path — activate camper and medical record.
+                if ($newStatus === ApplicationStatus::Approved) {
+                    // Mark the camper as operationally active.
+                    $application->camper->update(['is_active' => true]);
 
-                // Create the medical record if it does not exist (first approval),
-                // then ensure it is active. firstOrCreate is idempotent across
-                // repeated approve → reverse → approve cycles.
-                $medicalRecord = MedicalRecord::firstOrCreate(
-                    ['camper_id' => $application->camper_id]
+                    // Create the medical record if it does not exist (first approval),
+                    // then ensure it is active. firstOrCreate is idempotent across
+                    // repeated approve → reverse → approve cycles.
+                    $medicalRecord = MedicalRecord::firstOrCreate(
+                        ['camper_id' => $application->camper_id]
+                    );
+                    $medicalRecord->update(['is_active' => true]);
+                }
+
+                // Step 4: Reversal path — conditionally deactivate camper and medical record.
+                // A reversal occurs when a previously approved application is moved to
+                // rejected or cancelled. Deactivation only applies when the camper has
+                // no other currently approved application for a different session.
+                $isReversal = $previousStatus === ApplicationStatus::Approved
+                    && in_array($newStatus, [ApplicationStatus::Rejected, ApplicationStatus::Cancelled]);
+
+                if ($isReversal) {
+                    $hasOtherApprovedApplication = Application::where('camper_id', $application->camper_id)
+                        ->where('id', '!=', $application->id)
+                        ->where('status', ApplicationStatus::Approved->value)
+                        ->exists();
+
+                    if (! $hasOtherApprovedApplication) {
+                        // No other approved enrollment — remove the camper from operational views.
+                        $application->camper->update(['is_active' => false]);
+
+                        // Deactivate the associated medical record without deleting it.
+                        // The record is retained for HIPAA audit and record-retention compliance.
+                        MedicalRecord::where('camper_id', $application->camper_id)
+                            ->update(['is_active' => false]);
+                    }
+                }
+
+                // Step 5: Write an immutable audit log entry for this review action.
+                // When the admin overrode the completeness warning, the action key and
+                // description make this explicit, and the missing_at_approval metadata
+                // records exactly what was missing so it is never silently lost.
+                $auditMetadata = [
+                    'application_id' => $application->id,
+                    'camper_id' => $application->camper_id,
+                    'previous_status' => $previousStatus->value,
+                    'new_status' => $newStatus->value,
+                    'notes' => $notes,
+                ];
+
+                if ($overrideIncomplete && ! empty($missingSummary)) {
+                    $auditMetadata['forced_approval_with_missing'] = true;
+                    $auditMetadata['missing_at_approval'] = $missingSummary;
+                }
+
+                $auditAction = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
+                    ? 'application.approved.override'
+                    : "application.{$newStatus->value}";
+
+                $auditDescription = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
+                    ? "Application #{$application->id} FORCE APPROVED with missing data by admin #{$reviewedBy->id}. "
+                      ."Previous status: {$previousStatus->value}."
+                    : "Application #{$application->id} status changed from {$previousStatus->value} to {$newStatus->value}.";
+
+                AuditLog::logAdminAction(
+                    action: $auditAction,
+                    user: $reviewedBy,
+                    description: $auditDescription,
+                    metadata: $auditMetadata,
                 );
-                $medicalRecord->update(['is_active' => true]);
-            }
-
-            // Step 4: Reversal path — conditionally deactivate camper and medical record.
-            // A reversal occurs when a previously approved application is moved to
-            // rejected or cancelled. Deactivation only applies when the camper has
-            // no other currently approved application for a different session.
-            $isReversal = $previousStatus === ApplicationStatus::Approved
-                && in_array($newStatus, [ApplicationStatus::Rejected, ApplicationStatus::Cancelled]);
-
-            if ($isReversal) {
-                $hasOtherApprovedApplication = Application::where('camper_id', $application->camper_id)
-                    ->where('id', '!=', $application->id)
-                    ->where('status', ApplicationStatus::Approved->value)
-                    ->exists();
-
-                if (! $hasOtherApprovedApplication) {
-                    // No other approved enrollment — remove the camper from operational views.
-                    $application->camper->update(['is_active' => false]);
-
-                    // Deactivate the associated medical record without deleting it.
-                    // The record is retained for HIPAA audit and record-retention compliance.
-                    MedicalRecord::where('camper_id', $application->camper_id)
-                        ->update(['is_active' => false]);
-                }
-            }
-
-            // Step 5: Write an immutable audit log entry for this review action.
-            // When the admin overrode the completeness warning, the action key and
-            // description make this explicit, and the missing_at_approval metadata
-            // records exactly what was missing so it is never silently lost.
-            $auditMetadata = [
-                'application_id' => $application->id,
-                'camper_id' => $application->camper_id,
-                'previous_status' => $previousStatus->value,
-                'new_status' => $newStatus->value,
-                'notes' => $notes,
-            ];
-
-            if ($overrideIncomplete && ! empty($missingSummary)) {
-                $auditMetadata['forced_approval_with_missing'] = true;
-                $auditMetadata['missing_at_approval'] = $missingSummary;
-            }
-
-            $auditAction = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
-                ? 'application.approved.override'
-                : "application.{$newStatus->value}";
-
-            $auditDescription = ($overrideIncomplete && $newStatus === ApplicationStatus::Approved)
-                ? "Application #{$application->id} FORCE APPROVED with missing data by admin #{$reviewedBy->id}. "
-                  ."Previous status: {$previousStatus->value}."
-                : "Application #{$application->id} status changed from {$previousStatus->value} to {$newStatus->value}.";
-
-            AuditLog::logAdminAction(
-                action: $auditAction,
-                user: $reviewedBy,
-                description: $auditDescription,
-                metadata: $auditMetadata,
-            );
             });
         } catch (CapacityRaceException) {
             // Another admin just took the last spot between the pre-flight and
@@ -310,6 +312,7 @@ class ApplicationService
         // Notifications and letters are dispatched only after the transaction has
         // committed successfully. If the transaction were to roll back, these
         // would not execute.
+        /** @var \App\Models\User $parentUser */
         $parentUser = $application->camper->user;
         $camperName = $application->camper->first_name.' '.$application->camper->last_name;
 

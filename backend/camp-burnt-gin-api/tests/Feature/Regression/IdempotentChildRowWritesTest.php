@@ -44,12 +44,12 @@ class IdempotentChildRowWritesTest extends TestCase
     private function makeCamperForParent(\App\Models\User $parent): Camper
     {
         $camper = Camper::factory()->forUser($parent)->create([
-            'first_name'    => 'Athena',
-            'last_name'     => 'Wicker',
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
             'date_of_birth' => '2015-01-01',
-            'gender'        => 'female',
-            'tshirt_size'   => 'Youth M',
-            'county'        => 'Richland',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
         $camper->medicalRecord()->create([]);
 
@@ -63,10 +63,10 @@ class IdempotentChildRowWritesTest extends TestCase
 
         $payload = [
             'camper_id' => $camper->id,
-            'name'      => 'Baclofen',
-            'dosage'    => '10mg',
+            'name' => 'Baclofen',
+            'dosage' => '10mg',
             'frequency' => 'Three times daily',
-            'purpose'   => 'Muscle relaxant',
+            'purpose' => 'Muscle relaxant',
         ];
 
         $this->actingAs($parent)->postJson('/api/medications', $payload)->assertCreated();
@@ -108,9 +108,9 @@ class IdempotentChildRowWritesTest extends TestCase
 
         $payload = [
             'camper_id' => $camper->id,
-            'allergen'  => 'Penicillin',
-            'severity'  => AllergySeverity::Moderate->value,
-            'reaction'  => 'Rash',
+            'allergen' => 'Penicillin',
+            'severity' => AllergySeverity::Moderate->value,
+            'reaction' => 'Rash',
             'treatment' => 'Benadryl',
         ];
 
@@ -126,9 +126,9 @@ class IdempotentChildRowWritesTest extends TestCase
         $camper = $this->makeCamperForParent($parent);
 
         $payload = [
-            'camper_id'      => $camper->id,
-            'name'           => 'Cerebral palsy',
-            'description'    => 'Spastic quadriplegic',
+            'camper_id' => $camper->id,
+            'name' => 'Cerebral palsy',
+            'description' => 'Spastic quadriplegic',
             'severity_level' => DiagnosisSeverity::Moderate->value,
         ];
 
@@ -144,12 +144,12 @@ class IdempotentChildRowWritesTest extends TestCase
         $camper = $this->makeCamperForParent($parent);
 
         $payload = [
-            'camper_id'     => $camper->id,
-            'name'          => 'Margaret Howell',
-            'relationship'  => 'Grandmother',
+            'camper_id' => $camper->id,
+            'name' => 'Margaret Howell',
+            'relationship' => 'Grandmother',
             'phone_primary' => '8035550412',
-            'is_primary'    => false,
-            'is_guardian'   => false,
+            'is_primary' => false,
+            'is_guardian' => false,
             'is_authorized_pickup' => true,
         ];
 
@@ -165,10 +165,10 @@ class IdempotentChildRowWritesTest extends TestCase
         $camper = $this->makeCamperForParent($parent);
 
         $payload = [
-            'camper_id'                     => $camper->id,
-            'device_type'                   => 'Manual Wheelchair',
-            'requires_transfer_assistance'  => true,
-            'notes'                         => 'Standard',
+            'camper_id' => $camper->id,
+            'device_type' => 'Manual Wheelchair',
+            'requires_transfer_assistance' => true,
+            'notes' => 'Standard',
         ];
 
         $this->actingAs($parent)->postJson('/api/assistive-devices', $payload)->assertCreated();

@@ -54,14 +54,14 @@ class ApplicationRevertedToDraftNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'type'            => 'application_reverted_to_draft',
-            'title'           => 'Action needed on your camp application',
-            'message'         => 'We found some required information that needs attention. Your application is back in draft — open it to review the items that need updating.',
-            'application_id'  => $this->application->id,
-            'issue_count'     => count($this->blockingIssues),
+            'type' => 'application_reverted_to_draft',
+            'title' => 'Action needed on your camp application',
+            'message' => 'We found some required information that needs attention. Your application is back in draft — open it to review the items that need updating.',
+            'application_id' => $this->application->id,
+            'issue_count' => count($this->blockingIssues),
             // Section names only — no specific field values — keeps PHI
             // out of the stored notification row.
-            'issue_sections'  => array_values(array_unique(array_column($this->blockingIssues, 'section'))),
+            'issue_sections' => array_values(array_unique(array_column($this->blockingIssues, 'section'))),
         ];
     }
 }
