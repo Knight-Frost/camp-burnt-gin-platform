@@ -610,7 +610,7 @@ php artisan serve --host=0.0.0.0
 The queue worker processes background jobs (email dispatch, notification delivery):
 
 ```bash
-php artisan queue:work --queue=default
+php artisan queue:work --queue=notifications,default
 ```
 
 ### Start Reverb WebSocket Server
