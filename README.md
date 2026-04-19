@@ -120,43 +120,71 @@ Four roles are defined in the `roles` table. Access is enforced at three indepen
 
 ### Component Overview
 
-```
-Browser (React 18 SPA)
-├── Redux Toolkit — auth state only
-├── Axios — HTTP client (bearer token injected per request)
-├── React Router 7 — lazy-loaded, role-gated pages
-├── i18next — EN / ES at runtime
-└── Laravel Echo + Pusher-JS — WebSocket (real-time inbox + bell)
-        │
-        │ HTTPS / WSS
-        ▼
-Laravel 12 API (backend/camp-burnt-gin-api/)
-├── Sanctum auth middleware
-├── Role and policy gates (EnsureUserHasRole, EnsureUserIsAdmin, EnsureMfaEnrolled, EnsureMfaStepUp)
-├── Controllers (thin — delegate all logic to services)
-├── Services (all business logic)
-├── Eloquent models with encrypted casts (PHI fields)
-├── SecurityHeaders middleware (HSTS, CSP, X-Frame-Options, X-Content-Type-Options)
-├── AuditPhiAccess middleware (automatic PHI access logging)
-└── AddRequestId middleware
-        │
-        ├── MySQL 8.0 (application data + jobs queue + cache + sessions)
-        ├── Local filesystem storage/app/ (uploaded documents)
-        └── Database queue → SendNotificationJob → Gmail SMTP
+```mermaid
+flowchart TD
+    subgraph Browser["Browser — React 18 SPA"]
+        A["React 18 · Redux Toolkit · Axios\nReact Router 7 · i18next EN/ES"]
+        Echo["Laravel Echo + Pusher-JS\nWebSocket client"]
+    end
+
+    subgraph API["Laravel 12 REST API"]
+        Sanctum["auth:sanctum\nSanctum token validation"]
+        Gates["Role + Policy Gates\nEnsureUserHasRole · EnsureMfaEnrolled · EnsureMfaStepUp"]
+        Controllers["Controllers\nthin — authorize + delegate"]
+        Services["Services\nall business logic"]
+        Models["Eloquent Models\nencrypted casts on PHI fields"]
+        Middleware["Middleware\nAuditPhiAccess · SecurityHeaders · AddRequestId"]
+    end
+
+    subgraph Persistence["Persistence"]
+        DB[("MySQL 8.0\ndata · jobs · cache · sessions")]
+        FS["Filesystem\nstorage/app/documents/"]
+    end
+
+    subgraph Workers["Background Workers"]
+        Queue["notifications queue\nSendNotificationJob"]
+        SMTP["Gmail SMTP\noutbound email"]
+    end
+
+    subgraph Realtime["Real-time"]
+        Reverb["Laravel Reverb\nWebSocket server :8080"]
+    end
+
+    A -->|"HTTPS · Bearer token"| Sanctum
+    Sanctum --> Gates --> Controllers
+    Middleware -.- Controllers
+    Controllers --> Services --> Models --> DB
+    Services --> FS
+    Services --> Queue --> SMTP
+    Echo <-->|"WSS"| Reverb
+    Reverb --> DB
 ```
 
 ### Backend Request Lifecycle
 
-```
-1. Axios sends request with Authorization: Bearer <token>
-2. auth:sanctum validates the token
-3. EnsureUserHasRole / EnsureUserIsAdmin checks the role
-4. Controller calls $this->authorize() against the resource policy
-5. AuditPhiAccess middleware logs the access if the route is PHI-flagged
-6. Controller delegates to a service class
-7. Service reads/writes models; PHI fields encrypted transparently by Eloquent
-8. Controller returns a JSON Resource
-9. Post-commit: queued jobs (email, inbox messages) are dispatched
+```mermaid
+sequenceDiagram
+    participant SPA as React SPA
+    participant Auth as auth:sanctum
+    participant Gate as Role + Policy Gate
+    participant Audit as AuditPhiAccess
+    participant Ctrl as Controller
+    participant Svc as Service
+    participant DB as MySQL
+    participant Queue as Job Queue
+
+    SPA->>Auth: HTTP request + Bearer token
+    Auth->>Gate: token valid → check role
+    Gate->>Audit: role passes → log PHI access if flagged
+    Audit->>Ctrl: proceed
+    Ctrl->>Ctrl: $this->authorize() — policy check
+    Ctrl->>Svc: delegate business logic
+    Svc->>DB: read / write (PHI fields encrypted by Eloquent)
+    DB-->>Svc: result
+    Svc-->>Ctrl: return data
+    Ctrl-->>SPA: JSON Resource
+    Svc-)Queue: dispatch job after DB transaction commits
+    Queue-)SPA: email + WebSocket notification (async)
 ```
 
 ### Frontend Structure
@@ -187,21 +215,35 @@ Applications move through seven states defined in `App\Enums\ApplicationStatus`.
 
 ### State Transition Map
 
-```
-                   ┌──────────────────────────────┐
-                   │  (all transitions validated   │
-                   │   by canTransitionTo())        │
-                   └──────────────────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> submitted : finalize draft
 
-  [draft]
-     │  finalize
-     ▼
-  submitted ──► under_review ──► approved
-      │               │               │
-      │               ▼               ▼
-      │           rejected       waitlisted ──► approved
-      │               │               │
-      └──► cancelled  └──► withdrawn  └──► rejected / cancelled
+    submitted --> under_review : set under review
+    submitted --> approved : approve
+    submitted --> rejected : reject
+    submitted --> waitlisted : waitlist
+    submitted --> cancelled : cancel
+    submitted --> withdrawn : applicant withdraws
+
+    under_review --> approved : approve
+    under_review --> rejected : reject
+    under_review --> waitlisted : waitlist
+    under_review --> cancelled : cancel
+    under_review --> submitted : revert to submitted
+
+    approved --> rejected : reverse decision
+    approved --> cancelled : cancel
+
+    rejected --> approved : reverse decision
+
+    waitlisted --> approved : promote (spot opens)
+    waitlisted --> rejected : reject
+    waitlisted --> cancelled : cancel
+
+    cancelled --> under_review : reopen
+
+    withdrawn --> [*]
 ```
 
 Withdrawn is a terminal state (no outbound transitions). A parent can withdraw any application that is not already in a final state.
@@ -799,17 +841,17 @@ The frontend testing framework (Vitest, React Testing Library, Playwright) is fu
 
 | Concern | File |
 |---|---|
-| Application status transitions | `app/Enums/ApplicationStatus.php` |
-| Application approval orchestration | `app/Services/Camper/ApplicationService.php` |
-| Document compliance checking | `app/Services/Document/DocumentEnforcementService.php` |
-| Email notification dispatch | `app/Services/Camper/ApplicationService.php` + `app/Services/MessageService.php` |
-| Letter service (acceptance/rejection) | `app/Services/System/LetterService.php` |
-| Medical alert computation | `app/Services/Medical/MedicalAlertService.php` |
-| Risk scoring | `app/Services/Medical/SpecialNeedsRiskAssessmentService.php` |
-| BCC-safe recipient resolution | `app/Models/Message.php` → `getRecipientsForUser()` |
-| Frontend route tree | `frontend/src/core/routing/index.tsx` |
-| Auth token lifecycle | `frontend/src/features/auth/store/authSlice.ts` + `frontend/src/api/axios.config.ts` |
-| Design tokens | `frontend/src/assets/styles/design-tokens.css` |
+| Application status transitions | [app/Enums/ApplicationStatus.php](backend/camp-burnt-gin-api/app/Enums/ApplicationStatus.php) |
+| Application approval orchestration | [app/Services/Camper/ApplicationService.php](backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php) |
+| Document compliance checking | [app/Services/Document/DocumentEnforcementService.php](backend/camp-burnt-gin-api/app/Services/Document/DocumentEnforcementService.php) |
+| Email notification dispatch | [ApplicationService.php](backend/camp-burnt-gin-api/app/Services/Camper/ApplicationService.php) + [MessageService.php](backend/camp-burnt-gin-api/app/Services/MessageService.php) |
+| Letter service (acceptance/rejection) | [app/Services/System/LetterService.php](backend/camp-burnt-gin-api/app/Services/System/LetterService.php) |
+| Medical alert computation | [app/Services/Medical/MedicalAlertService.php](backend/camp-burnt-gin-api/app/Services/Medical/MedicalAlertService.php) |
+| Risk scoring | [app/Services/Medical/SpecialNeedsRiskAssessmentService.php](backend/camp-burnt-gin-api/app/Services/Medical/SpecialNeedsRiskAssessmentService.php) |
+| BCC-safe recipient resolution | [app/Models/Message.php](backend/camp-burnt-gin-api/app/Models/Message.php) → `getRecipientsForUser()` |
+| Frontend route tree | [frontend/src/core/routing/index.tsx](frontend/src/core/routing/index.tsx) |
+| Auth token lifecycle | [authSlice.ts](frontend/src/features/auth/store/authSlice.ts) + [axios.config.ts](frontend/src/api/axios.config.ts) |
+| Design tokens | [frontend/src/assets/styles/design-tokens.css](frontend/src/assets/styles/design-tokens.css) |
 
 ### Extending the System
 
@@ -843,68 +885,68 @@ The frontend testing framework (Vitest, React Testing Library, Playwright) is fu
 
 ## 16. Reference Documentation
 
-All reference documentation is in `docs/`. The index file `docs/INDEX.md` provides navigation links for every area.
+All reference documentation is in `docs/`. The index file [docs/INDEX.md](docs/INDEX.md) provides navigation links for every area.
 
 ### Architecture
 
-| Document | Path |
+| Document | Link |
 |---|---|
-| System architecture overview | `docs/architecture/System_Architecture_Overview.md` |
-| Backend architecture | `docs/architecture/Backend_Architecture.md` |
-| Architecture decisions | `docs/architecture/Architecture_Decisions.md` |
+| System architecture overview | [docs/architecture/System_Architecture_Overview.md](docs/architecture/System_Architecture_Overview.md) |
+| Backend architecture | [docs/architecture/Backend_Architecture.md](docs/architecture/Backend_Architecture.md) |
+| Architecture decisions | [docs/architecture/Architecture_Decisions.md](docs/architecture/Architecture_Decisions.md) |
 
 ### API and Data
 
-| Document | Path |
+| Document | Link |
 |---|---|
-| API endpoint reference | `docs/api/API_Reference.md` |
-| Data model | `docs/database/Data_Model.md` |
-| Schema overview | `docs/database/Schema_Overview.md` |
+| API endpoint reference | [docs/api/API_Reference.md](docs/api/API_Reference.md) |
+| Data model | [docs/database/Data_Model.md](docs/database/Data_Model.md) |
+| Schema overview | [docs/database/Schema_Overview.md](docs/database/Schema_Overview.md) |
 
 ### Security and Auth
 
-| Document | Path |
+| Document | Link |
 |---|---|
-| Authentication flows | `docs/auth/Authentication.md` |
-| Roles and permissions | `docs/roles-and-permissions/Roles_and_Permissions.md` |
-| Security controls | `docs/security/Security.md` |
-| Audit logging | `docs/security/Audit_Logging.md` |
-| Rate limiting | `docs/security/Rate_Limiting.md` |
+| Authentication flows | [docs/auth/Authentication.md](docs/auth/Authentication.md) |
+| Roles and permissions | [docs/roles-and-permissions/Roles_and_Permissions.md](docs/roles-and-permissions/Roles_and_Permissions.md) |
+| Security controls | [docs/security/Security.md](docs/security/Security.md) |
+| Audit logging | [docs/security/Audit_Logging.md](docs/security/Audit_Logging.md) |
+| Rate limiting | [docs/security/Rate_Limiting.md](docs/security/Rate_Limiting.md) |
 
 ### Features and Workflows
 
-| Document | Path |
+| Document | Link |
 |---|---|
-| Application lifecycle (authoritative) | `docs/workflows/Application_Lifecycle.md` |
-| Application form | `docs/features/Application_Form.md` |
-| Application drafts | `docs/features/Application_Drafts.md` |
-| Email notifications | `docs/features/Email_Notifications.md` |
-| Medical records | `docs/features/Medical_Records.md` |
-| Messaging system | `docs/features/Messaging.md` |
-| File uploads | `docs/features/File_Uploads.md` |
+| Application lifecycle (authoritative) | [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md) |
+| Application form | [docs/features/Application_Form.md](docs/features/Application_Form.md) |
+| Application drafts | [docs/features/Application_Drafts.md](docs/features/Application_Drafts.md) |
+| Email notifications | [docs/features/Email_Notifications.md](docs/features/Email_Notifications.md) |
+| Medical records | [docs/features/Medical_Records.md](docs/features/Medical_Records.md) |
+| Messaging system | [docs/features/Messaging.md](docs/features/Messaging.md) |
+| File uploads | [docs/features/File_Uploads.md](docs/features/File_Uploads.md) |
 
 ### Frontend
 
-| Document | Path |
+| Document | Link |
 |---|---|
-| Frontend developer reference (canonical) | `frontend/FRONTEND_GUIDE.md` |
-| Portal overview | `docs/frontend/OVERVIEW.md` |
-| Routing | `docs/frontend/Routing.md` |
-| State management | `docs/frontend/State_Management.md` |
-| Design system | `docs/ui-ux/Design_System.md` |
+| Frontend developer reference (canonical) | [frontend/FRONTEND_GUIDE.md](frontend/FRONTEND_GUIDE.md) |
+| Portal overview | [docs/frontend/OVERVIEW.md](docs/frontend/OVERVIEW.md) |
+| Routing | [docs/frontend/Routing.md](docs/frontend/Routing.md) |
+| State management | [docs/frontend/State_Management.md](docs/frontend/State_Management.md) |
+| Design system | [docs/ui-ux/Design_System.md](docs/ui-ux/Design_System.md) |
 
 ### Operations
 
-| Document | Path |
+| Document | Link |
 |---|---|
-| Environment setup | `docs/deployment/Setup.md` |
-| CI/CD pipeline | `docs/deployment/CI_CD.md` |
-| Deployment procedures | `docs/deployment/Deployment.md` |
-| Troubleshooting | `docs/deployment/Troubleshooting.md` |
-| Testing strategy | `docs/testing/Testing.md` |
-| Contributing guidelines | `docs/governance/Contributing.md` |
-| Active bug tracker | `docs/bug-tracking/BUG_TRACKER.md` |
+| Environment setup | [docs/deployment/Setup.md](docs/deployment/Setup.md) |
+| CI/CD pipeline | [docs/deployment/CI_CD.md](docs/deployment/CI_CD.md) |
+| Deployment procedures | [docs/deployment/Deployment.md](docs/deployment/Deployment.md) |
+| Troubleshooting | [docs/deployment/Troubleshooting.md](docs/deployment/Troubleshooting.md) |
+| Testing strategy | [docs/testing/Testing.md](docs/testing/Testing.md) |
+| Contributing guidelines | [docs/governance/Contributing.md](docs/governance/Contributing.md) |
+| Active bug tracker | [docs/bug-tracking/BUG_TRACKER.md](docs/bug-tracking/BUG_TRACKER.md) |
 
 ---
 
-*Last updated: April 2026. For the authoritative application workflow specification, see `docs/workflows/Application_Lifecycle.md`. For the full API surface, see `docs/api/API_Reference.md`.*
+*Last updated: April 2026. For the authoritative application workflow specification, see [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md). For the full API surface, see [docs/api/API_Reference.md](docs/api/API_Reference.md).*
