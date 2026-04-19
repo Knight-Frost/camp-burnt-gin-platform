@@ -1207,6 +1207,12 @@ parameters:
 			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
 
 		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: app/Notifications/Camper/ApplicationStatusChangedNotification.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 2
@@ -1241,6 +1247,12 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Notifications/Camper/RejectionLetterNotification.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Notifications/Camper/WaitlistedNotification.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
