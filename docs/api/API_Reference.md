@@ -4216,6 +4216,190 @@ Reorder options within a field. The request is scoped to prevent cross-field reo
 
 ---
 
+## Application Drafts Endpoints
+
+Server-side save slots for in-progress application forms. Applicant-only — admin and medical roles cannot access drafts. See `docs/features/Application_Drafts.md` for full lifecycle documentation.
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| `GET` | `/api/application-drafts` | List all draft slots (no `draft_data` in list) | Applicant |
+| `POST` | `/api/application-drafts` | Create a new empty draft slot | Applicant |
+| `GET` | `/api/application-drafts/{draft}` | Retrieve a draft including full `draft_data` | Applicant (owner) |
+| `PUT` | `/api/application-drafts/{draft}` | Overwrite draft data (auto-save endpoint) | Applicant (owner) |
+| `DELETE` | `/api/application-drafts/{draft}` | Hard-delete a draft slot | Applicant (owner) |
+
+### POST /api/application-drafts
+
+**Auth:** Yes | **Role:** Applicant | **Rate Limit:** `api`
+
+| Parameter | Type | Required | Validation |
+|-----------|------|----------|------------|
+| `label` | string | No | Max 255 chars; defaults to "New Application" |
+
+**Success (201):** `{ "data": { "id": 42, "label": "New Application", "draft_data": null, ... } }`
+
+**Error (429):** User already has 10 draft slots (limit per user).
+
+---
+
+### PUT /api/application-drafts/{draft}
+
+Auto-save endpoint. Called on a debounced interval while the applicant fills out the form.
+
+**Auth:** Yes | **Role:** Applicant (owner only) | **Rate Limit:** `api`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `draft_data` | object | No | Full FormState JSON blob (max 512 KB) |
+| `last_known_updated_at` | ISO 8601 string | No | Optimistic concurrency guard |
+| `label` | string | No | Update the display label |
+
+**Success (200):** `{ "data": { "id": 42, "updated_at": "..." } }`
+
+**Error (409 Conflict):** Stale `last_known_updated_at`:
+```json
+{ "message": "Draft was modified in another tab...", "conflict": true, "server_updated_at": "..." }
+```
+**Error (422):** `draft_data` exceeds 512 KB.
+
+---
+
+## Risk Assessment Endpoints
+
+Medical risk scoring for campers. See `docs/features/Risk_Engine.md` for full engine documentation.
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| `GET` | `/api/campers/{camper}/risk-summary` | Quick summary: score, level, flags | Admin, Super Admin, Medical |
+| `GET` | `/api/campers/{camper}/risk-assessment` | Full assessment with factor breakdown | Admin, Super Admin, Medical |
+| `POST` | `/api/campers/{camper}/risk-assessment/review` | Mark assessment as clinically reviewed | Medical, Super Admin |
+| `POST` | `/api/campers/{camper}/risk-assessment/override` | Override supervision level | Medical, Super Admin |
+| `GET` | `/api/campers/{camper}/risk-assessment/history` | Paginated assessment history | Admin, Super Admin, Medical |
+| `POST` | `/api/campers/{camper}/risk-assessment/recommendations` | Add clinical recommendation | Medical, Super Admin |
+| `DELETE` | `/api/campers/{camper}/risk-assessment/recommendations/{index}` | Remove recommendation | Medical, Super Admin |
+
+**Risk Configuration Endpoints** (read: Admin + Medical; write destroy: Super Admin only):
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET/POST` | `/api/risk-factors` | List / create risk factors |
+| `GET/PUT/DELETE` | `/api/risk-factors/{riskFactor}` | Get / update / delete a factor |
+| `GET/POST` | `/api/risk-rules` | List / create conditional rules |
+| `PUT/DELETE` | `/api/risk-rules/{riskRule}` | Update / delete a rule |
+| `GET` | `/api/risk-thresholds` | List score-to-tier thresholds |
+| `PUT` | `/api/risk-thresholds/{riskThreshold}` | Update a threshold |
+| `GET` | `/api/risk-thresholds/impact` | Preview threshold change impact (dry-run) |
+
+### GET /api/campers/{camper}/risk-assessment
+
+Runs a fresh assessment and returns the result merged with clinical review state. Every call is logged to `audit_logs` with `event_type = phi_access`.
+
+**Auth:** Yes | **Role:** Admin, Super Admin, Medical | **Rate Limit:** `api`
+
+**Success (200):**
+```json
+{
+  "data": {
+    "camper_id": 12,
+    "risk_score": 45,
+    "supervision_level": "enhanced",
+    "medical_complexity_tier": "tier_2",
+    "flags": { "has_anaphylaxis": false, "has_seizures": true, "is_one_to_one": false },
+    "factor_breakdown": [...],
+    "review_status": "system_calculated",
+    "override_supervision_level": null,
+    "calculated_at": "2026-04-19T14:00:00Z"
+  }
+}
+```
+
+---
+
+### POST /api/campers/{camper}/risk-assessment/review
+
+**Auth:** Yes | **Role:** Medical, Super Admin | **Rate Limit:** `api`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `clinical_notes` | string | No | Encrypted PHI at rest |
+
+**Success (200):** `{ "data": { ...updated assessment... } }`
+
+---
+
+### POST /api/campers/{camper}/risk-assessment/override
+
+**Auth:** Yes | **Role:** Medical, Super Admin | **Rate Limit:** `api`
+
+| Parameter | Type | Required | Validation |
+|-----------|------|----------|------------|
+| `supervision_level` | string | Yes | `standard`, `enhanced`, `intensive`, `one_to_one` |
+| `override_reason` | string | Yes | Mandatory — encrypted PHI at rest. All overrides are audit-logged. |
+
+**Success (200):** `{ "data": { ...updated assessment... } }`
+
+---
+
+## Deadlines Endpoints
+
+Named deadlines linked to camp sessions. Write operations auto-sync to `calendar_events` via the `DeadlineObserver`. Soft-deleted deadlines cascade to their calendar events.
+
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| `GET` | `/api/deadlines/my` | Applicant's own visible deadlines | Applicant |
+| `GET` | `/api/deadlines` | List all deadlines (filterable) | Admin, Super Admin, Medical |
+| `POST` | `/api/deadlines` | Create a deadline | Admin, Super Admin |
+| `POST` | `/api/deadlines/bulk-session` | Bulk-create deadlines for a session | Admin, Super Admin |
+| `GET` | `/api/deadlines/{deadline}` | Get a single deadline | Admin, Super Admin, Medical |
+| `PUT` | `/api/deadlines/{deadline}` | Update a deadline | Admin, Super Admin |
+| `DELETE` | `/api/deadlines/{deadline}` | Soft-delete (cascades to calendar event) | Admin, Super Admin |
+| `POST` | `/api/deadlines/{deadline}/extend` | Extend the due date | Admin, Super Admin |
+| `POST` | `/api/deadlines/{deadline}/complete` | Manually mark as completed | Admin, Super Admin |
+
+### POST /api/deadlines
+
+**Auth:** Yes | **Role:** Admin, Super Admin | **Rate Limit:** `api`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `camp_session_id` | integer | Yes | Session this deadline belongs to |
+| `entity_type` | string | Yes | `document_request`, `application`, `medical_requirement`, or `session` |
+| `entity_id` | integer | No | Null = session-wide deadline |
+| `title` | string | Yes | Human-readable label |
+| `description` | string | No | Additional detail |
+| `due_date` | datetime | Yes | Deadline date and time |
+| `grace_period_days` | integer | No | Days before enforcement triggers (default 0) |
+| `is_enforced` | boolean | No | Default false |
+| `enforcement_mode` | string | No | `hard` (HTTP 422) or `soft` (warning flag); default `soft` |
+| `is_visible_to_applicants` | boolean | No | Default true |
+
+**Success (201):** `{ "data": { "id": ..., "title": "...", "due_date": "...", ... } }`
+
+---
+
+### POST /api/deadlines/{deadline}/extend
+
+**Auth:** Yes | **Role:** Admin, Super Admin | **Rate Limit:** `api`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `due_date` | datetime | Yes | New (later) due date |
+| `override_note` | string | Yes | Required reason |
+
+**Success (200):** `{ "data": { ...updated deadline... } }`
+
+---
+
+### GET /api/deadlines/my
+
+Returns deadlines visible to the authenticated applicant across all their sessions. Only returns deadlines where `is_visible_to_applicants = true`.
+
+**Auth:** Yes | **Role:** Applicant | **Rate Limit:** `api`
+
+**Success (200):** `{ "data": [ ...deadline records... ] }`
+
+---
+
 ## System Health Endpoints
 
 Public liveness and readiness probes. No authentication required.
@@ -4250,7 +4434,7 @@ Readiness check. Returns `200 OK` if the application and its dependencies (datab
 ---
 
 **API Version:** 1.0
-**Last Updated:** March 2026
-**Total Endpoints:** ~164
+**Last Updated:** April 2026
+**Total Endpoints:** ~190
 **Authentication:** Laravel Sanctum Bearer Tokens
 **Compliance:** HIPAA-compliant PHI access auditing, CYSHCN medical compliance enforcement

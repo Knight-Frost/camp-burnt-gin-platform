@@ -187,12 +187,20 @@ This documentation set covers the full Camp Burnt Gin registration and medical m
 | Document | Description | Audience |
 |---|---|---|
 | `Reports_and_Exports.md` | Report endpoints, CSV export formats, access control by role, scheduled report configuration | Backend engineers, QA, product |
-| `FORENSIC_AUDIT_REPORT.md` | Comprehensive system audit (2026-03-29) — findings, severity classifications, remediation status | Senior engineers, security, compliance |
-| `Forensic_Audit_Report_2026-03-27.md` | Backend and frontend audit with IB-001 through IB-010 issue tracking and applied fixes | Senior engineers, security |
-| `Forensic_Audit_Proof_2026-03-27.md` | Proof of execution for all 2026-03-27 audit findings — verification outputs and before/after comparisons | Senior engineers, QA |
-| `Full_Audit_Cleansing_Report_2026-03-24.md` | Type safety corrections, workflow verification, and data model cleansing from 2026-03-24 audit | Senior engineers |
-| `Workflow_Audit_Report.md` | Workflow audit findings: capacity gate logic, session scope leaks, transition matrix gaps | Backend engineers, QA |
-| `Workflow_Correction_Audit_2026-03-24.md` | Lifecycle architecture corrections, transaction safety improvements, full remediation record | Backend engineers, security |
+
+---
+
+### `/docs/archive/`
+
+Historical audit reports and superseded documentation. These files are retained for audit trail purposes only and do not reflect the current system state.
+
+| Document | Description |
+|---|---|
+| `README.md` | Archive index — explains what is here and why |
+| `HIPAA_Compliance_Alignment_Report.md` | Historical HIPAA alignment assessment (2026-03) |
+| `OWASP_Compliance_Report.md` | Historical OWASP Top-10 assessment (2026-03) |
+
+Historical forensic audit reports (2026-03-24 through 2026-03-29) were deleted during the April 2026 documentation audit. Their findings are fully applied to the codebase; the reports themselves contained no information relevant to current operations.
 
 ---
 

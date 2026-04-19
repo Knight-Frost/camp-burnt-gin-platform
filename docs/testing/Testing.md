@@ -1,6 +1,6 @@
 # Camp Burnt Gin API - Testing Guide
 
-**Test Suite Status:** 549 passing (100%) | **Runtime:** < 3 seconds | **Assertions:** 1358
+**Test Suite Status:** 560+ passing (100%) | **Runtime:** < 3 seconds
 
 ---
 
@@ -31,7 +31,7 @@ php artisan test
 
 **Expected output:**
 ```
-Tests:    549 passed (1358 assertions)
+Tests:    560+ passed
 Duration: < 3 seconds
 ```
 
@@ -105,7 +105,7 @@ The test environment is configured for fast, deterministic testing:
 | Validation | 26 | `tests/Feature/Api/ValidationTest.php` | Input validation rules |
 | Integration | 30+ | `tests/Feature/Api/` | Complete API workflows |
 
-**Total:** 549 tests, 1358 assertions
+**Total:** 560+ tests (backend PHPUnit); frontend Vitest suite has 16 pre-existing failures unrelated to current features
 
 ---
 
@@ -145,11 +145,11 @@ php artisan test --stop-on-failure
    PASS  Tests\Feature\Security\AccountLockoutTest
    PASS  Tests\Feature\Regression\QueuedNotificationsTest
 
-Tests:    334 passed (600+ assertions)
-Duration: 2.91s
+Tests:    560+ passed
+Duration: < 3s
 ```
 
-All 334 tests should pass consistently. If any tests fail:
+All backend tests should pass consistently. If any tests fail:
 1. Check database connectivity
 2. Verify `.env.testing` configuration
 3. Run `php artisan optimize:clear`
@@ -629,8 +629,8 @@ docker-compose exec app bash -c "
 
 ### Current Performance
 
-- **Runtime:** < 3 seconds for 334 tests
-- **Pass rate:** 100% (334/334)
+- **Runtime:** < 3 seconds for 560+ tests
+- **Pass rate:** 100% (backend PHPUnit)
 - **Test reliability:** 100% deterministic
 - **No external dependencies:** No workers, SMTP, or services required
 
@@ -812,7 +812,7 @@ use App\Http\Controllers\Api\Medical\MedicalRecordController;
 | Inbox Messaging | 32 | Complete |
 | Validation | 26 | Complete |
 | Integration | 30+ | Complete |
-| **Total** | **549** | **100% Pass** |
+| **Total** | **560+** | **100% Pass (backend)** |
 
 ### Key Testing Features
 
@@ -891,9 +891,9 @@ php artisan test --filter AuthorizationTest
 ---
 
 **Status:** Production-Ready
-**Test Coverage:** 100% pass rate (549/549 tests)
+**Test Coverage:** 100% pass rate (backend; 560+ PHPUnit tests)
 **Maintenance:** All tests deterministic and maintainable
-**Last Updated:** April 2026 (2026-04-09) — Full System Forensic Audit; updated counts from 334 to 549 tests; added new security test coverage notes
+**Last Updated:** April 2026
 
 ---
 
@@ -1236,9 +1236,9 @@ This runs the seeder on whatever the current database state is.
 
 ## Related Documentation
 
-- [SETUP.md](SETUP.md) — full environment setup instructions
-- [ROLES_AND_PERMISSIONS.md](ROLES_AND_PERMISSIONS.md) — role definitions and permission matrix
-- [DATA_MODEL.md](DATA_MODEL.md) — database tables and relationships
+- [Setup Guide](../deployment/Setup.md) — full environment setup instructions
+- [Roles and Permissions](../roles-and-permissions/Roles_and_Permissions.md) — role definitions and permission matrix
+- [Data Model](../database/Data_Model.md) — database tables and relationships
 
 ---
 
