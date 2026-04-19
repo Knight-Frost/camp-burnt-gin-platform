@@ -228,7 +228,7 @@ export interface PersonalCarePlan {
 export interface Allergy {
   id: number;
   allergen: string;
-  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening';
+  severity: 'mild' | 'moderate' | 'severe' | 'life_threatening';
   reaction?: string;
   treatment?: string;
 }

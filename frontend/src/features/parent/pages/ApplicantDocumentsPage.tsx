@@ -98,6 +98,37 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
   const isImage = doc.mime_type.startsWith('image/');
   const isPdf   = doc.mime_type === 'application/pdf';
 
+  // Document URLs are authenticated API routes — `<img src>` and
+  // `<iframe src>` cannot send the bearer token, so they 401 silently and
+  // the modal renders blank. Fetch the bytes via axios (which carries the
+  // token) into an object URL the browser can render directly. Revoke the
+  // URL on unmount to avoid a memory leak. This also fixes the broken
+  // Download anchor — the `download` attribute is gated on a same-origin
+  // href; an object URL counts as same-origin.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let revoked = false;
+    let createdUrl: string | null = null;
+    setLoadError(false);
+    setBlobUrl(null);
+    axiosInstance
+      .get(doc.url, { responseType: 'blob' })
+      .then((res) => {
+        if (revoked) return;
+        createdUrl = URL.createObjectURL(res.data as Blob);
+        setBlobUrl(createdUrl);
+      })
+      .catch(() => { if (!revoked) setLoadError(true); });
+    return () => {
+      revoked = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [doc.url]);
+
+  const previewSrc = blobUrl ?? '';
+
   return (
     <div
       role="button"
@@ -125,9 +156,12 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
           </span>
           <div className="flex items-center gap-1">
             <a
-              href={doc.url}
+              href={blobUrl ?? '#'}
               download={doc.file_name}
+              aria-disabled={!blobUrl}
+              onClick={(e) => { if (!blobUrl) e.preventDefault(); }}
               className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+              style={{ opacity: blobUrl ? 1 : 0.4 }}
               title="Download"
             >
               <Download className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
@@ -142,29 +176,41 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
           </div>
         </div>
         <div className="overflow-auto" style={{ maxHeight: 'calc(90vh - 56px)' }}>
-          {isImage && (
+          {!blobUrl && !loadError && (
+            <div className="flex items-center justify-center py-16">
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Loading…</p>
+            </div>
+          )}
+          {loadError && (
+            <div className="flex items-center justify-center py-16">
+              <p className="text-sm" style={{ color: 'var(--destructive)' }}>
+                We couldn't load this document. Please try again or contact camp staff.
+              </p>
+            </div>
+          )}
+          {blobUrl && isImage && (
             <img
-              src={doc.url}
+              src={previewSrc}
               alt={doc.file_name}
               className="w-full h-auto object-contain"
             />
           )}
-          {isPdf && (
+          {blobUrl && isPdf && (
             <iframe
-              src={doc.url}
+              src={previewSrc}
               title={doc.file_name}
               className="w-full border-0"
               style={{ height: '75vh' }}
             />
           )}
-          {!isImage && !isPdf && (
+          {blobUrl && !isImage && !isPdf && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <FileText className="h-12 w-12" style={{ color: 'var(--muted-foreground)' }} />
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 Preview not available for this file type.
               </p>
               <a
-                href={doc.url}
+                href={blobUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-sm font-medium hover:underline"

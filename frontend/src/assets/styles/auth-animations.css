@@ -225,3 +225,22 @@
 .auth-shake {
   animation: authShake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
+
+/* ── Reduced-motion override ───────────────────────────────────────────────
+   The Ken-Burns drift, firefly drift/pulse, and floating-element animations
+   on the auth portal are decorative. On lower-power devices and for users
+   who have set OS-level "reduce motion" they cause perceptible lag and can
+   trigger vestibular symptoms. Honour the preference per WCAG 2.1 §2.3.3
+   by stilling every animation in this stylesheet. */
+@media (prefers-reduced-motion: reduce) {
+  .auth-bg,
+  .auth-firefly,
+  .auth-firefly-glow,
+  [class*='auth-float'],
+  [style*='kenBurns'],
+  [style*='fireflyRise'],
+  [style*='fireflyPulse'] {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -733,7 +733,7 @@ export async function deleteDiagnosis(id: number): Promise<void> {
 // Allergies
 export interface AllergyPayload {
   allergen: string;
-  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening';
+  severity: 'mild' | 'moderate' | 'severe' | 'life_threatening';
   reaction?: string;
   treatment?: string;
 }

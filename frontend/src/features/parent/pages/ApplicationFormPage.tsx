@@ -238,7 +238,7 @@ function mergeDraft(parsed: Partial<FormState>): FormState {
       return {
         allergen: String(a.allergen ?? ''),
         reaction: String(a.reaction ?? ''),
-        severity: (['mild', 'moderate', 'severe', 'life-threatening'].includes(sev)
+        severity: (['mild', 'moderate', 'severe', 'life_threatening'].includes(sev)
           ? sev : '') as Allergy['severity'],
         epi_pen:  Boolean(a.epi_pen ?? false),
       };
@@ -302,7 +302,7 @@ const STATES_US = [
 interface Allergy {
   allergen: string;
   reaction: string;
-  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening' | '';
+  severity: 'mild' | 'moderate' | 'severe' | 'life_threatening' | '';
   epi_pen: boolean;
 }
 
@@ -1694,7 +1694,7 @@ function Section2({
                       <option value="mild">{t('applicant.form.s2_severity_mild')}</option>
                       <option value="moderate">{t('applicant.form.s2_severity_moderate')}</option>
                       <option value="severe">{t('applicant.form.s2_severity_severe')}</option>
-                      <option value="life-threatening">{t('applicant.form.s2_severity_life_threatening')}</option>
+                      <option value="life_threatening">{t('applicant.form.s2_severity_life_threatening')}</option>
                     </SelectInput>
                   </div>
                   <div className="flex items-center gap-2 self-end pb-1">

@@ -90,6 +90,9 @@ function FieldRow({ label, value }: { label: string; value?: string | null }) {
  */
 function SeverityBadge({ severity }: { severity: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
+    // Canonical backend value is `life_threatening`; hyphen alias kept for
+    // legacy / display-only data paths still using the old spelling.
+    life_threatening:   { bg: 'rgba(220,38,38,0.15)', text: 'var(--destructive)' },
     'life-threatening': { bg: 'rgba(220,38,38,0.15)', text: 'var(--destructive)' },
     severe:   { bg: 'rgba(22,163,74,0.12)',  text: 'var(--ember-orange)' },
     moderate: { bg: 'rgba(96,165,250,0.12)',  text: 'var(--night-sky-blue)' },
@@ -741,7 +744,7 @@ export function MedicalRecordPage() {
     { value: 'mild',            label: 'Mild' },
     { value: 'moderate',        label: 'Moderate' },
     { value: 'severe',          label: 'Severe' },
-    { value: 'life-threatening', label: 'Life-Threatening' },
+    { value: 'life_threatening', label: 'Life-Threatening' },
   ];
 
   return (

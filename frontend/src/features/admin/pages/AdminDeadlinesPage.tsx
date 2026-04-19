@@ -26,6 +26,8 @@ import {
   extendDeadline, completeDeadline, deleteDeadline,
   type Deadline, type EntityType, type EnforcementMode,
 } from '@/features/admin/api/deadlines.api';
+import { getSessions } from '@/features/admin/api/admin.api';
+import type { CampSession } from '@/features/admin/types/admin.types';
 import { DeadlineBadge } from '@/ui/components/DeadlineBadge';
 import { Button } from '@/ui/components/Button';
 import { SkeletonCard } from '@/ui/components/Skeletons';
@@ -116,6 +118,21 @@ export function AdminDeadlinesPage() {
 
   // Create form
   const [createForm, setCreateForm] = useState<CreateFormState>(DEFAULT_CREATE);
+  /** Sessions populate the camp-session dropdown in the create modal so the
+   *  admin picks a named session instead of typing a raw ID (BUG-Feature-1). */
+  const [sessions, setSessions] = useState<CampSession[]>([]);
+
+  useEffect(() => {
+    getSessions({ per_page: 100 })
+      .then((result) => {
+        const list = Array.isArray(result) ? result : ((result as { data?: CampSession[] }).data ?? []);
+        setSessions(list);
+      })
+      .catch(() => {
+        // Non-critical — the input falls back to a manual entry below if
+        // sessions can't be fetched. Don't toast; the create form still works.
+      });
+  }, []);
 
   // Extend/complete forms
   const [extendDate, setExtendDate]     = useState('');
@@ -327,13 +344,31 @@ export function AdminDeadlinesPage() {
         <Modal title={t('deadlines.modal_create_title')} onClose={() => setModalMode(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <FormField label={t('deadlines.form_session_id_label')}>
-              <input
-                type="number"
-                placeholder={t('deadlines.form_session_id_placeholder')}
-                value={createForm.camp_session_id}
-                onChange={(e) => setCreateForm((f) => ({ ...f, camp_session_id: e.target.value }))}
-                style={inputStyle()}
-              />
+              {sessions.length > 0 ? (
+                <select
+                  value={createForm.camp_session_id}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, camp_session_id: e.target.value }))}
+                  style={inputStyle()}
+                >
+                  <option value="">— Select a camp session —</option>
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.start_date ? ` (${format(parseISO(s.start_date), 'MMM d, yyyy')})` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                // Fallback — sessions endpoint failed; allow manual entry so
+                // the page never becomes uncreatable.
+                <input
+                  type="number"
+                  placeholder={t('deadlines.form_session_id_placeholder')}
+                  value={createForm.camp_session_id}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, camp_session_id: e.target.value }))}
+                  style={inputStyle()}
+                />
+              )}
             </FormField>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

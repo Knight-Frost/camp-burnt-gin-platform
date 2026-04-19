@@ -241,7 +241,7 @@ const SEVERITY_OPTIONS: Array<{ value: Allergy['severity']; label: string }> = [
   { value: 'mild',            label: 'Mild' },
   { value: 'moderate',        label: 'Moderate' },
   { value: 'severe',          label: 'Severe' },
-  { value: 'life-threatening',label: 'Life-threatening' },
+  { value: 'life_threatening', label: 'Life-threatening' },
 ];
 const NARRATIVE_FIELDS: { key: keyof SnState; label: string; help: string }[] = [
   { key: 'narrative_rustic_environment',     label: 'Rustic Environment',     help: 'How does the camper adapt to outdoor/rustic settings?' },

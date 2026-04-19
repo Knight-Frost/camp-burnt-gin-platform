@@ -113,6 +113,9 @@ const SEVERITY_COLOR: Record<string, string> = {
   mild: '#f59e0b',
   moderate: '#f97316',
   severe: '#dc2626',
+  // Canonical backend value is `life_threatening` (AllergySeverity enum).
+  // Hyphen alias kept for any historical strings still in flight.
+  life_threatening: '#7f1d1d',
   'life-threatening': '#7f1d1d',
 };
 

@@ -84,7 +84,7 @@ function CamperCard({
   const rec = camper.medical_record;
   const allergyCount       = rec?.allergies?.length ?? 0;
   const medCount           = rec?.medications?.length ?? 0;
-  const hasLifeThreatening = rec?.allergies?.some((a) => a.severity === 'life-threatening');
+  const hasLifeThreatening = rec?.allergies?.some((a) => a.severity === 'life_threatening');
   const hasSpecialCare     = Boolean(rec?.special_needs);
 
   return (

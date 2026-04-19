@@ -252,7 +252,7 @@ export function CampMedicalDirectoryPage() {
   const displayedCampers = (camperResponse?.data ?? []).filter((c) => {
     const record = c.medical_record;
     if (filters.alertFilter === 'life_threatening') {
-      return record?.allergies?.some((a) => a.severity === 'life-threatening');
+      return record?.allergies?.some((a) => a.severity === 'life_threatening');
     }
     if (filters.alertFilter === 'has_allergy') {
       return (record?.allergies?.length ?? 0) > 0;
