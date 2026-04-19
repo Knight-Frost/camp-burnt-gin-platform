@@ -14,7 +14,6 @@ use App\Models\RiskRule;
 use App\Models\RiskThreshold;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * SpecialNeedsRiskAssessmentService — Dynamic Medical Risk Scoring Engine
@@ -532,6 +531,7 @@ class SpecialNeedsRiskAssessmentService
                 $camper->supervision_level = $overrideLevel;
                 $camper->saveQuietly();
             }
+
             return;
         }
 

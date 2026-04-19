@@ -200,7 +200,7 @@ class RiskAssessmentController extends Controller
         );
 
         $validated = $request->validate([
-            'text'     => ['required', 'string', 'min:10', 'max:1000'],
+            'text' => ['required', 'string', 'min:10', 'max:1000'],
             'priority' => ['required', 'in:critical,high,standard'],
         ]);
 
@@ -210,11 +210,11 @@ class RiskAssessmentController extends Controller
 
         $existing = $assessment->staff_recommendations ?? [];
         $existing[] = [
-            'text'          => $validated['text'],
-            'priority'      => $validated['priority'],
-            'added_by_id'   => auth()->id(),
+            'text' => $validated['text'],
+            'priority' => $validated['priority'],
+            'added_by_id' => auth()->id(),
             'added_by_name' => auth()->user()->name,
-            'added_at'      => now()->toIso8601String(),
+            'added_at' => now()->toIso8601String(),
         ];
 
         $assessment->staff_recommendations = $existing;
@@ -229,7 +229,7 @@ class RiskAssessmentController extends Controller
 
         return response()->json([
             'message' => 'Recommendation added.',
-            'data'    => ['staff_recommendations' => $assessment->staff_recommendations],
+            'data' => ['staff_recommendations' => $assessment->staff_recommendations],
         ]);
     }
 
@@ -279,7 +279,7 @@ class RiskAssessmentController extends Controller
 
         return response()->json([
             'message' => 'Recommendation removed.',
-            'data'    => ['staff_recommendations' => $assessment->staff_recommendations ?? []],
+            'data' => ['staff_recommendations' => $assessment->staff_recommendations ?? []],
         ]);
     }
 
@@ -322,7 +322,7 @@ class RiskAssessmentController extends Controller
 
         // Read staffing ratios from DB thresholds (not the hardcoded enum method)
         // so that changes made via the Risk Management UI are reflected here.
-        $systemRatio    = $this->riskService->getStaffingRatioForLevel($assessment->supervision_level);
+        $systemRatio = $this->riskService->getStaffingRatioForLevel($assessment->supervision_level);
         $effectiveRatio = $this->riskService->getStaffingRatioForLevel($effectiveLevel);
 
         return [
@@ -374,7 +374,7 @@ class RiskAssessmentController extends Controller
             'overridden_at' => $assessment->overridden_at?->toIso8601String(),
 
             // ── Recommendations ────────────────────────────────────────────
-            'recommendations'       => $this->buildRecommendations($assessment->flags ?? []),
+            'recommendations' => $this->buildRecommendations($assessment->flags ?? []),
             'staff_recommendations' => $assessment->staff_recommendations ?? [],
 
             // ── Supervision thresholds (for UI gauge zone rendering) ────────
@@ -390,7 +390,7 @@ class RiskAssessmentController extends Controller
     protected function formatStoredAssessment(RiskAssessment $assessment): array
     {
         $effectiveLevel = $assessment->effectiveSupervisionLevel();
-        $systemRatio    = $this->riskService->getStaffingRatioForLevel($assessment->supervision_level);
+        $systemRatio = $this->riskService->getStaffingRatioForLevel($assessment->supervision_level);
         $effectiveRatio = $this->riskService->getStaffingRatioForLevel($effectiveLevel);
 
         return [

@@ -141,9 +141,9 @@ class RiskAssessment extends Model
     public function riskLevelLabel(): string
     {
         return match ($this->medical_complexity_tier) {
-            MedicalComplexityTier::High     => 'High',
+            MedicalComplexityTier::High => 'High',
             MedicalComplexityTier::Moderate => 'Moderate',
-            default                         => 'Low',
+            default => 'Low',
         };
     }
 
@@ -156,9 +156,9 @@ class RiskAssessment extends Model
     public function riskLevelColor(): string
     {
         return match ($this->medical_complexity_tier) {
-            MedicalComplexityTier::High     => 'high',
+            MedicalComplexityTier::High => 'high',
             MedicalComplexityTier::Moderate => 'moderate',
-            default                         => 'low',
+            default => 'low',
         };
     }
 }

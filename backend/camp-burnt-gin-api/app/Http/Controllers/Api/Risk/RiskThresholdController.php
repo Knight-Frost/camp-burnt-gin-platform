@@ -73,8 +73,8 @@ class RiskThresholdController extends Controller
         $this->authorize('viewAny', RiskThreshold::class);
 
         $validated = $request->validate([
-            'min_score'      => 'required|integer|min:0|max:100',
-            'max_score'      => 'nullable|integer|min:0|max:100',
+            'min_score' => 'required|integer|min:0|max:100',
+            'max_score' => 'nullable|integer|min:0|max:100',
             'threshold_type' => 'sometimes|string|in:supervision,complexity',
         ]);
 

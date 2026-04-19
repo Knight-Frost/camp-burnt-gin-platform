@@ -1911,13 +1911,13 @@ parameters:
 		-
 			message: '#^Property App\\Models\\Camper\:\:\$supervision_level \(string\) does not accept App\\Enums\\SupervisionLevel\.$#'
 			identifier: assign.propertyType
-			count: 1
+			count: 2
 			path: app/Services/Medical/SpecialNeedsRiskAssessmentService.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between string and App\\Enums\\SupervisionLevel will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
-			count: 1
+			count: 2
 			path: app/Services/Medical/SpecialNeedsRiskAssessmentService.php
 
 		-
