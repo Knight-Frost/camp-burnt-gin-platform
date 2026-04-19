@@ -17,6 +17,7 @@ export interface RiskFactor {
 interface RiskFactorBreakdownProps {
   factors: RiskFactor[];
   totalScore: number;
+  riskLevelColor?: string; // DB-driven color from assessment.risk_level_color; defaults to green
 }
 
 const CATEGORY_COLORS: Record<RiskFactor['category'], { bg: string; text: string; label: string }> = {
@@ -40,7 +41,7 @@ function effectivePoints(factor: RiskFactor): number {
  * tooltip explaining what it means and why it matters. Active factors (present = true)
  * are visually distinguished. Zero-point informational flags are shown greyed out.
  */
-export function RiskFactorBreakdown({ factors, totalScore }: RiskFactorBreakdownProps) {
+export function RiskFactorBreakdown({ factors, totalScore, riskLevelColor }: RiskFactorBreakdownProps) {
   // Active (present) factors first, then absent, then zero-point
   const sorted = [...factors].sort((a, b) => {
     const aActive = a.present && a.points > 0 ? 1 : 0;
@@ -63,13 +64,13 @@ export function RiskFactorBreakdown({ factors, totalScore }: RiskFactorBreakdown
         <span className="font-semibold">Total: {totalScore} / 100 pts</span>
       </div>
 
-      {/* Score bar */}
+      {/* Score bar — color driven by DB-configured complexity tier */}
       <div className="h-2 rounded-full bg-[var(--border,#e5e7eb)] overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{
             width: `${Math.min(100, totalScore)}%`,
-            background: totalScore >= 67 ? '#dc2626' : totalScore >= 34 ? '#d97706' : '#16a34a',
+            background: riskLevelColor ?? '#16a34a',
           }}
         />
       </div>

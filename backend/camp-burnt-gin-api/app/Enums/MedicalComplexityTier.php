@@ -32,18 +32,7 @@ enum MedicalComplexityTier: string
         };
     }
 
-    /**
-     * Returns the minimum cumulative risk score needed to reach this tier.
-     *
-     * Scores below 26 = Low, 26–50 = Moderate, 51+ = High.
-     * The risk score engine uses these thresholds to assign tiers automatically.
-     */
-    public function getThreshold(): int
-    {
-        return match ($this) {
-            self::Low => 0,       // Any score from 0 upward starts here.
-            self::Moderate => 26, // Score of 26 or more enters moderate tier.
-            self::High => 51,     // Score of 51 or more enters high tier.
-        };
-    }
+    // Tier thresholds are stored in the risk_thresholds table (threshold_type='complexity')
+    // and loaded by SpecialNeedsRiskAssessmentService::determineComplexityTier().
+    // Hardcoded threshold values were removed to prevent divergence from the DB configuration.
 }

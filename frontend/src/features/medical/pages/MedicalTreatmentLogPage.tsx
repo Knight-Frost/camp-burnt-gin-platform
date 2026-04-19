@@ -31,6 +31,7 @@ import {
   type AllergyConflict,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
+import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 
@@ -226,11 +227,12 @@ function AddLogForm({
   onSaved,
   onClose,
 }: {
-  camperId: number;
+  camperId: number | null;
   onSaved: (log: TreatmentLog) => void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [allergyWarnings, setAllergyWarnings] = useState<AllergyConflict[]>([]);
@@ -242,8 +244,14 @@ function AddLogForm({
     form.type === 'medication_administered' ||
     form.medication_given.trim() !== '';
 
+  const effectiveCamperId = camperId ?? selectedCamper?.id ?? null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!effectiveCamperId) {
+      setError('Please select a camper.');
+      return;
+    }
     if (!form.type || !form.title || !form.description || !form.treatment_date) {
       setError('Please fill in all required fields.');
       return;
@@ -253,7 +261,7 @@ function AddLogForm({
     setAllergyWarnings([]);
     try {
       const result = await createTreatmentLog({
-        camper_id:        camperId,
+        camper_id:        effectiveCamperId,
         treatment_date:   form.treatment_date,
         treatment_time:   form.treatment_time || undefined,
         type:             form.type as TreatmentType,
@@ -298,6 +306,20 @@ function AddLogForm({
       </div>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+
+        {camperId === null && (
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              Camper {REQ}
+            </label>
+            <CamperSearch
+              value={selectedCamper}
+              onSelect={setSelectedCamper}
+              onClear={() => setSelectedCamper(null)}
+              placeholder="Search camper by name…"
+            />
+          </div>
+        )}
 
         {/* Date + Time */}
         <div className="grid grid-cols-2 gap-4">
@@ -622,6 +644,9 @@ export function MedicalTreatmentLogPage() {
     setLogs((prev) => [log, ...prev]);
     setShowForm(false);
     setSavedLog(log);
+    if (!hasCamper) {
+      setRetryKey((k) => k + 1);
+    }
   };
 
   const handleAddAnother = () => {
@@ -679,7 +704,7 @@ export function MedicalTreatmentLogPage() {
           )}
         </div>
 
-        {hasCamper && !showForm && !savedLog && (
+        {!showForm && !savedLog && (
           <button
             onClick={() => { setSavedLog(null); setShowForm(true); }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
@@ -717,10 +742,10 @@ export function MedicalTreatmentLogPage() {
       )}
 
       {/* Entry form */}
-      {hasCamper && showForm && (
+      {showForm && (
         <div className="mb-6">
           <AddLogForm
-            camperId={id!}
+            camperId={hasCamper ? id! : null}
             onSaved={handleSaved}
             onClose={() => setShowForm(false)}
           />

@@ -751,58 +751,62 @@ export function MedicalRecordPage() {
     <>
       <div className="p-6 max-w-4xl">
 
-        {/* Back navigation + quick-nav buttons to sub-pages */}
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            to={ROUTES.MEDICAL_RECORD_TREATMENT}
-            className="inline-flex items-center gap-2 text-sm transition-colors"
-            style={{ color: 'var(--muted-foreground)' }}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t('medical.record.back')}
-          </Link>
+        {/* Back link on its own row so it never competes for space with
+            the quick-nav action buttons below. */}
+        <Link
+          to={ROUTES.MEDICAL_RECORD_TREATMENT}
+          className="inline-flex items-center gap-2 text-sm mb-4 whitespace-nowrap transition-colors"
+          style={{ color: 'var(--muted-foreground)' }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t('medical.record.back')}
+        </Link>
 
-          {/* Quick-nav pill buttons to related sub-pages for this camper */}
-          <div className="flex items-center gap-2">
+        {/* Quick-nav action buttons to related sub-pages for this camper.
+            All five share the filled-brand style, single-line labels, and
+            consistent height. Wraps onto a second row on narrow viewports
+            rather than line-breaking inside individual buttons. */}
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <Link
               to={`/medical/records/${id}/treatments`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-              style={{ background: '#166534', color: '#ffffff' }}
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-90"
+              style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
             >
-              <ClipboardList className="h-3.5 w-3.5" />
-              {t('medical.record.treatment_log')}
+              <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t('medical.record.treatment_log')}</span>
             </Link>
             <Link
               to={`/medical/records/${id}/documents`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-              style={{ background: '#166534', color: '#ffffff' }}
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-90"
+              style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
             >
-              <FileText className="h-3.5 w-3.5" />
-              {t('medical.record.documents')}
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t('medical.record.documents')}</span>
             </Link>
             <Link
               to={`/medical/records/${id}/incidents`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-              style={{ background: '#166534', color: '#ffffff' }}
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-90"
+              style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
             >
-              <AlertOctagon className="h-3.5 w-3.5" />
-              {t('medical.record.incidents')}
+              <AlertOctagon className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t('medical.record.incidents')}</span>
             </Link>
             <Link
               to={`/medical/records/${id}/visits`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-              style={{ background: '#166534', color: '#ffffff' }}
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-90"
+              style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
             >
-              <Stethoscope className="h-3.5 w-3.5" />
-              {t('medical.record.visits')}
+              <Stethoscope className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t('medical.record.visits')}</span>
             </Link>
             <Link
               to={`/medical/records/${id}/risk`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-              style={{ background: '#166534', color: '#ffffff' }}
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-90"
+              style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
             >
-              <TrendingUp className="h-3.5 w-3.5" />
-              {t('medical.record.risk_assessment')}
+              <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t('medical.record.risk_assessment')}</span>
             </Link>
           </div>
         </div>

@@ -57,6 +57,7 @@ class RiskAssessment extends Model
         'override_reason',
         'overridden_by',
         'overridden_at',
+        'staff_recommendations',
     ];
 
     protected $casts = [
@@ -73,6 +74,7 @@ class RiskAssessment extends Model
         'override_supervision_level' => SupervisionLevel::class,
         'clinical_notes' => 'encrypted',
         'override_reason' => 'encrypted',
+        'staff_recommendations' => 'array',
     ];
 
     // ── Relationships ────────────────────────────────────────────────────────
@@ -130,28 +132,33 @@ class RiskAssessment extends Model
     }
 
     /**
-     * Risk level label derived from the numeric score.
+     * Risk level label derived from the medical complexity tier.
      *
-     * Low / Moderate / High — matches the three-zone colour display in the UI.
+     * The complexity tier is DB-configured (via risk_thresholds), so this label
+     * automatically reflects whatever thresholds the medical director has set —
+     * no hardcoded score values. Low / Moderate / High map 1:1 to the three tiers.
      */
     public function riskLevelLabel(): string
     {
-        return match (true) {
-            $this->risk_score >= 67 => 'High',
-            $this->risk_score >= 34 => 'Moderate',
-            default => 'Low',
+        return match ($this->medical_complexity_tier) {
+            MedicalComplexityTier::High     => 'High',
+            MedicalComplexityTier::Moderate => 'Moderate',
+            default                         => 'Low',
         };
     }
 
     /**
-     * CSS colour hint for the risk level (used by API consumers that need a semantic colour key).
+     * Semantic colour key for the risk level.
+     *
+     * Derived from the DB-configured complexity tier rather than hardcoded score
+     * thresholds so that gauge zone colours stay aligned with configured boundaries.
      */
     public function riskLevelColor(): string
     {
-        return match (true) {
-            $this->risk_score >= 67 => 'high',
-            $this->risk_score >= 34 => 'moderate',
-            default => 'low',
+        return match ($this->medical_complexity_tier) {
+            MedicalComplexityTier::High     => 'high',
+            MedicalComplexityTier::Moderate => 'moderate',
+            default                         => 'low',
         };
     }
 }

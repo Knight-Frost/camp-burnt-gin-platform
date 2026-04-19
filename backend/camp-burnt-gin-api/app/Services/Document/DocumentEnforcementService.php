@@ -73,8 +73,12 @@ class DocumentEnforcementService
      */
     public function checkCompliance(Camper $camper, ?\App\Models\Application $finalizingApplication = null): array
     {
-        // Run the full risk assessment to know this camper's tier, level, and flags
-        $assessment = $this->riskAssessment->assessCamper($camper);
+        // Retrieve the current risk assessment without triggering a new calculation.
+        // Using getCurrentAssessment() is read-safe: it reads the existing stored record
+        // rather than running assessCamper(), which would persist new data as a side effect.
+        // Only falls back to a full calculation on first-time initialisation when no
+        // assessment record exists yet.
+        $assessment = $this->riskAssessment->getCurrentAssessment($camper);
 
         // Determine which document rules apply based on the assessment result
         $requiredDocuments = $this->getRequiredDocuments($assessment);

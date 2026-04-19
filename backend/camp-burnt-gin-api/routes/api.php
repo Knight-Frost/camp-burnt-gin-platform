@@ -442,6 +442,13 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/{camper}/risk-assessment/history', [RiskAssessmentController::class, 'history'])
             ->middleware('role:admin,medical')
             ->name('campers.risk-assessment.history');
+        // Staff recommendations: add or remove custom recommendations (role: admin, medical)
+        Route::post('/{camper}/risk-assessment/recommendations', [RiskAssessmentController::class, 'addRecommendation'])
+            ->middleware('role:admin,medical')
+            ->name('campers.risk-assessment.recommendations.store');
+        Route::delete('/{camper}/risk-assessment/recommendations/{index}', [RiskAssessmentController::class, 'deleteRecommendation'])
+            ->middleware('role:admin,medical')
+            ->name('campers.risk-assessment.recommendations.destroy');
         // Runs DocumentEnforcementService and returns compliance gaps
         Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
         // Runs MedicalAlertService and returns sorted alert list
@@ -716,22 +723,24 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     */
     Route::prefix('risk-factors')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [RiskFactorController::class, 'index'])->name('risk-factors.index');
-        Route::post('/', [RiskFactorController::class, 'store'])->middleware('role:admin,super_admin')->name('risk-factors.store');
+        Route::post('/', [RiskFactorController::class, 'store'])->name('risk-factors.store');
         Route::get('/{riskFactor}', [RiskFactorController::class, 'show'])->name('risk-factors.show');
-        Route::put('/{riskFactor}', [RiskFactorController::class, 'update'])->middleware('role:admin,super_admin')->name('risk-factors.update');
+        Route::put('/{riskFactor}', [RiskFactorController::class, 'update'])->name('risk-factors.update');
+        // Hard-delete still requires super_admin — removing a detection key breaks scoring history
         Route::delete('/{riskFactor}', [RiskFactorController::class, 'destroy'])->middleware('role:super_admin')->name('risk-factors.destroy');
     });
 
     Route::prefix('risk-rules')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [RiskRuleController::class, 'index'])->name('risk-rules.index');
-        Route::post('/', [RiskRuleController::class, 'store'])->middleware('role:admin,super_admin')->name('risk-rules.store');
-        Route::put('/{riskRule}', [RiskRuleController::class, 'update'])->middleware('role:admin,super_admin')->name('risk-rules.update');
-        Route::delete('/{riskRule}', [RiskRuleController::class, 'destroy'])->middleware('role:admin,super_admin')->name('risk-rules.destroy');
+        Route::post('/', [RiskRuleController::class, 'store'])->name('risk-rules.store');
+        Route::put('/{riskRule}', [RiskRuleController::class, 'update'])->name('risk-rules.update');
+        Route::delete('/{riskRule}', [RiskRuleController::class, 'destroy'])->name('risk-rules.destroy');
     });
 
     Route::prefix('risk-thresholds')->middleware('role:admin,medical')->group(function () {
         Route::get('/', [RiskThresholdController::class, 'index'])->name('risk-thresholds.index');
-        Route::put('/{riskThreshold}', [RiskThresholdController::class, 'update'])->middleware('role:admin,super_admin')->name('risk-thresholds.update');
+        Route::put('/{riskThreshold}', [RiskThresholdController::class, 'update'])->name('risk-thresholds.update');
+        Route::get('/impact', [RiskThresholdController::class, 'impact'])->name('risk-thresholds.impact');
     });
 
     /*

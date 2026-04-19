@@ -185,6 +185,105 @@ class RiskAssessmentController extends Controller
     }
 
     /**
+     * POST /api/campers/{camper}/risk-assessment/recommendations
+     *
+     * Medical staff or admins add a custom recommendation to the current assessment.
+     * Stored as a JSON array on the assessment record — items include authorship and
+     * timestamp for display in the UI.
+     */
+    public function addRecommendation(Request $request, Camper $camper): JsonResponse
+    {
+        abort_unless(
+            app(\App\Policies\RiskAssessmentPolicy::class)->review(auth()->user(), $camper),
+            403,
+            'You do not have permission to add recommendations to this risk assessment.'
+        );
+
+        $validated = $request->validate([
+            'text'     => ['required', 'string', 'min:10', 'max:1000'],
+            'priority' => ['required', 'in:critical,high,standard'],
+        ]);
+
+        $assessment = RiskAssessment::where('camper_id', $camper->id)
+            ->where('is_current', true)
+            ->firstOrFail();
+
+        $existing = $assessment->staff_recommendations ?? [];
+        $existing[] = [
+            'text'          => $validated['text'],
+            'priority'      => $validated['priority'],
+            'added_by_id'   => auth()->id(),
+            'added_by_name' => auth()->user()->name,
+            'added_at'      => now()->toIso8601String(),
+        ];
+
+        $assessment->staff_recommendations = $existing;
+        $assessment->save();
+
+        AuditLog::logAdminAction(
+            'risk_assessment.recommendation_added',
+            auth()->user(),
+            "Staff recommendation added for camper #{$camper->id}",
+            ['camper_id' => $camper->id, 'assessment_id' => $assessment->id, 'priority' => $validated['priority']]
+        );
+
+        return response()->json([
+            'message' => 'Recommendation added.',
+            'data'    => ['staff_recommendations' => $assessment->staff_recommendations],
+        ]);
+    }
+
+    /**
+     * DELETE /api/campers/{camper}/risk-assessment/recommendations/{index}
+     *
+     * Remove a staff recommendation by its array index.
+     * Only the author or an admin/super_admin may delete.
+     */
+    public function deleteRecommendation(Camper $camper, int $index): JsonResponse
+    {
+        abort_unless(
+            app(\App\Policies\RiskAssessmentPolicy::class)->review(auth()->user(), $camper),
+            403,
+            'You do not have permission to remove recommendations from this risk assessment.'
+        );
+
+        $assessment = RiskAssessment::where('camper_id', $camper->id)
+            ->where('is_current', true)
+            ->firstOrFail();
+
+        $items = $assessment->staff_recommendations ?? [];
+
+        // Only the original author or an admin/super_admin may delete
+        $item = $items[$index] ?? null;
+        abort_unless(
+            $item !== null,
+            404,
+            'Recommendation not found.'
+        );
+        abort_unless(
+            ($item['added_by_id'] === auth()->id()) || auth()->user()->isAdmin(),
+            403,
+            'Only the author or an administrator may delete this recommendation.'
+        );
+
+        array_splice($items, $index, 1);
+        $assessment->staff_recommendations = empty($items) ? null : array_values($items);
+        $assessment->save();
+
+        AuditLog::logAdminAction(
+            'risk_assessment.recommendation_deleted',
+            auth()->user(),
+            "Staff recommendation removed for camper #{$camper->id}",
+            ['camper_id' => $camper->id, 'assessment_id' => $assessment->id]
+        );
+
+        return response()->json([
+            'message' => 'Recommendation removed.',
+            'data'    => ['staff_recommendations' => $assessment->staff_recommendations ?? []],
+        ]);
+    }
+
+    /**
      * GET /api/campers/{camper}/risk-assessment/history
      *
      * Returns the last 20 assessments for a camper, newest first.
@@ -221,6 +320,11 @@ class RiskAssessmentController extends Controller
     {
         $effectiveLevel = $assessment->effectiveSupervisionLevel();
 
+        // Read staffing ratios from DB thresholds (not the hardcoded enum method)
+        // so that changes made via the Risk Management UI are reflected here.
+        $systemRatio    = $this->riskService->getStaffingRatioForLevel($assessment->supervision_level);
+        $effectiveRatio = $this->riskService->getStaffingRatioForLevel($effectiveLevel);
+
         return [
             'id' => $assessment->id,
             'camper_id' => $assessment->camper_id,
@@ -234,12 +338,12 @@ class RiskAssessmentController extends Controller
             // ── Supervision (system-calculated) ─────────────────────────────
             'supervision_level' => $assessment->supervision_level->value,
             'supervision_label' => $assessment->supervision_level->label(),
-            'staffing_ratio' => $assessment->supervision_level->getStaffingRatio(),
+            'staffing_ratio' => $systemRatio,
 
             // ── Effective supervision (may differ if overridden) ─────────────
             'effective_supervision_level' => $effectiveLevel->value,
             'effective_supervision_label' => $effectiveLevel->label(),
-            'effective_staffing_ratio' => $effectiveLevel->getStaffingRatio(),
+            'effective_staffing_ratio' => $effectiveRatio,
             'is_overridden' => $assessment->isOverridden(),
 
             // ── Complexity ──────────────────────────────────────────────────
@@ -270,7 +374,11 @@ class RiskAssessmentController extends Controller
             'overridden_at' => $assessment->overridden_at?->toIso8601String(),
 
             // ── Recommendations ────────────────────────────────────────────
-            'recommendations' => $this->buildRecommendations($assessment->flags ?? []),
+            'recommendations'       => $this->buildRecommendations($assessment->flags ?? []),
+            'staff_recommendations' => $assessment->staff_recommendations ?? [],
+
+            // ── Supervision thresholds (for UI gauge zone rendering) ────────
+            'supervision_thresholds' => $computed['supervision_thresholds'] ?? [],
 
             'is_current' => $assessment->is_current,
         ];
@@ -282,6 +390,8 @@ class RiskAssessmentController extends Controller
     protected function formatStoredAssessment(RiskAssessment $assessment): array
     {
         $effectiveLevel = $assessment->effectiveSupervisionLevel();
+        $systemRatio    = $this->riskService->getStaffingRatioForLevel($assessment->supervision_level);
+        $effectiveRatio = $this->riskService->getStaffingRatioForLevel($effectiveLevel);
 
         return [
             'id' => $assessment->id,
@@ -291,10 +401,10 @@ class RiskAssessmentController extends Controller
             'risk_level_color' => $assessment->riskLevelColor(),
             'supervision_level' => $assessment->supervision_level->value,
             'supervision_label' => $assessment->supervision_level->label(),
-            'staffing_ratio' => $assessment->supervision_level->getStaffingRatio(),
+            'staffing_ratio' => $systemRatio,
             'effective_supervision_level' => $effectiveLevel->value,
             'effective_supervision_label' => $effectiveLevel->label(),
-            'effective_staffing_ratio' => $effectiveLevel->getStaffingRatio(),
+            'effective_staffing_ratio' => $effectiveRatio,
             'is_overridden' => $assessment->isOverridden(),
             'medical_complexity_tier' => $assessment->medical_complexity_tier->value,
             'complexity_label' => $assessment->medical_complexity_tier->label(),
@@ -315,6 +425,7 @@ class RiskAssessmentController extends Controller
                 ? ['id' => $assessment->overriddenByUser->id, 'name' => $assessment->overriddenByUser->name]
                 : null,
             'overridden_at' => $assessment->overridden_at?->toIso8601String(),
+            'staff_recommendations' => $assessment->staff_recommendations ?? [],
             'is_current' => $assessment->is_current,
         ];
     }

@@ -14,16 +14,16 @@ class RiskRulePolicy
 
     public function create(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->hasRole('medical');
     }
 
     public function update(User $user, RiskRule $rule): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->hasRole('medical');
     }
 
     public function delete(User $user, RiskRule $rule): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->hasRole('medical');
     }
 }

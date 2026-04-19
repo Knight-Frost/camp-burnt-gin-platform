@@ -33,17 +33,21 @@ enum SupervisionLevel: string
     }
 
     /**
-     * Returns the staff-to-camper ratio string for this supervision level.
+     * Returns a fallback staffing ratio string for this supervision level.
      *
-     * These ratios are used in staffing reports and care plan documentation
-     * to ensure the right number of staff are scheduled for each group.
+     * @deprecated Use SpecialNeedsRiskAssessmentService::getStaffingRatioForLevel() instead,
+     * which reads the configured value from the risk_thresholds table. This method
+     * returns the original seeded defaults and will not reflect changes made via the
+     * Risk Management UI.
+     *
+     * Kept for backward compatibility with legacy endpoints and tests.
      */
     public function getStaffingRatio(): string
     {
         return match ($this) {
-            self::Standard => '1:6', // One staff member for up to six campers.
-            self::Enhanced => '1:3', // One staff member for up to three campers.
-            self::OneToOne => '1:1', // One staff member dedicated to one camper.
+            self::Standard => '1:6',
+            self::Enhanced => '1:3',
+            self::OneToOne => '1:1',
         };
     }
 }

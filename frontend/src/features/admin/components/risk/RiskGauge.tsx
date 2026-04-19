@@ -1,20 +1,33 @@
+import type { RiskLevelColor } from '@/features/admin/types/admin.types';
+
 interface RiskGaugeProps {
-  score: number;    // 0–100
-  size?: number;    // outer SVG bounding size in px (default 200)
+  score: number;             // 0–100
+  size?: number;             // outer SVG bounding size in px (default 200)
+  riskLevelColor?: RiskLevelColor; // DB-driven risk level — drives needle color and badge label
 }
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
+//
+// Visual zone thirds (33/67) are fixed — they are a VISUAL GUIDE for "roughly
+// low / mid / high on the scale", not the exact operational thresholds.  The
+// actual DB-configured threshold decision is surfaced via `riskLevelColor`.
 
-function scoreToColor(s: number): string {
-  if (s >= 67) return '#dc2626';
-  if (s >= 34) return '#d97706';
-  return '#16a34a';
-}
+const LEVEL_COLORS: Record<RiskLevelColor, string> = {
+  low:      '#16a34a',
+  moderate: '#d97706',
+  high:     '#dc2626',
+};
 
-function scoreToLabel(s: number): string {
-  if (s >= 67) return 'High Risk';
-  if (s >= 34) return 'Moderate Risk';
-  return 'Low Risk';
+const LEVEL_LABELS: Record<RiskLevelColor, string> = {
+  low:      'Low Risk',
+  moderate: 'Moderate Risk',
+  high:     'High Risk',
+};
+
+function scoreToLevelColor(s: number): RiskLevelColor {
+  if (s >= 67) return 'high';
+  if (s >= 34) return 'moderate';
+  return 'low';
 }
 
 // ── Geometry constants ─────────────────────────────────────────────────────────
@@ -24,33 +37,34 @@ function scoreToLabel(s: number): string {
 //   • 100 % at 345° (lower-right)     → START_DEG + SWEEP_DEG
 //   • Arc sweeps clockwise via the top (270° = apex)
 //   • SVG y-axis is inverted, so 270° is visually at the top of the SVG
-//
-// Centre-point is slightly BELOW the SVG mid-height so the arc
-// has breathing room above and the score text fits neatly in
-// the "bowl" (open region between the two arc endpoints).
 
 const START_DEG = 195;
 const SWEEP_DEG = 210;
 
 /**
- * RiskGauge — proper speedometer-style risk meter.
+ * RiskGauge — speedometer-style risk meter.
  *
  * Visual elements:
- *   1. Three zone arcs (Low / Moderate / High) as the muted track background
- *   2. Filled score arc from 0 to current score, colour-matched to zone
+ *   1. Three equal zone arcs (Low / Moderate / High) as the muted track background
+ *   2. Filled score arc from 0 to current score, colour-matched to the risk level
  *   3. Zone-boundary tick marks at 0 %, 33 %, 67 %, 100 %
- *   4. Needle — thin line from hub to arc track, with a short counter-weight tail
- *   5. Hub — coloured outer circle + white inner dot at the needle pivot
- *   6. Score label (large number) and " / 100" text in the bowl of the arc
+ *   4. Needle — thin line from hub to arc track
+ *   5. Hub — coloured outer circle + white inner dot
+ *   6. Score label + " / 100" text in the bowl of the arc
  *   7. "Low" / "High" labels at the arc endpoints
  *   8. Risk-level pill badge below the SVG
+ *
+ * Zone arcs are always equal thirds (33/67) for visual clarity.
+ * The `riskLevelColor` prop drives the needle colour and badge label using
+ * the DB-resolved risk tier — so the visual adapts to threshold changes
+ * without distorting the arc proportions.
  */
-export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
+export function RiskGauge({ score, size = 200, riskLevelColor }: RiskGaugeProps) {
   // ── Layout geometry ──────────────────────────────────────────────────────────
-  const cx = size / 2;          // horizontal centre
-  const cy = size * 0.50;       // vertical pivot — raised so the bowl clears the SVG bottom
-  const r  = size * 0.385;      // arc track radius
-  const sw = size * 0.067;      // arc track stroke width
+  const cx = size / 2;        // horizontal centre
+  const cy = size * 0.50;     // vertical pivot
+  const r  = size * 0.385;    // arc track radius
+  const sw = size * 0.067;    // arc track stroke width
 
   const toRad  = (deg: number) => (deg * Math.PI) / 180;
   const polar  = (deg: number, radius = r) => ({
@@ -69,20 +83,16 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
   };
 
   // ── Score state ──────────────────────────────────────────────────────────────
-  const clamped = Math.max(0, Math.min(100, score));
-  const color   = scoreToColor(clamped);
-  const label   = scoreToLabel(clamped);
+  const clamped  = Math.max(0, Math.min(100, score));
+  const level    = riskLevelColor ?? scoreToLevelColor(clamped);
+  const color    = LEVEL_COLORS[level];
+  const label    = LEVEL_LABELS[level];
 
   // ── Needle geometry ──────────────────────────────────────────────────────────
   const needleDeg = START_DEG + (clamped / 100) * SWEEP_DEG;
-  // Tip sits at the inner edge of the arc stroke so the hub circle butts up neatly
   const tip       = polar(needleDeg, r - sw * 0.35);
-  // Counter-weight: short extension in the opposite direction (classic gauge detail)
   const tail      = polar(needleDeg + 180, r * 0.17);
 
-  // ── SVG viewport ────────────────────────────────────────────────────────────
-  // Height must contain the arc, hub, and score text in the bowl.
-  // Score text was moved down (see below) so svgH is increased to match.
   const svgH = size * 0.98;
 
   return (
@@ -94,12 +104,9 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
         role="img"
         aria-label={`Risk gauge: ${clamped} out of 100 — ${label}`}
       >
-        {/* ── Zone background arcs ─────────────────────────────────────────── */}
-        {/* Low zone  0–33 */}
+        {/* ── Zone background arcs (equal thirds — visual guide) ────────────── */}
         <path d={arcPath(0, 33)}   fill="none" stroke="#16a34a" strokeWidth={sw} strokeLinecap="butt" opacity={0.22} />
-        {/* Moderate zone 33–67 */}
         <path d={arcPath(33, 67)}  fill="none" stroke="#d97706" strokeWidth={sw} strokeLinecap="butt" opacity={0.22} />
-        {/* High zone 67–100 */}
         <path d={arcPath(67, 100)} fill="none" stroke="#dc2626" strokeWidth={sw} strokeLinecap="butt" opacity={0.22} />
 
         {/* ── Score fill arc ───────────────────────────────────────────────── */}
@@ -131,15 +138,6 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
         })}
 
         {/* ── Score label ──────────────────────────────────────────────────── */}
-        {/*
-          Positioned so the TOP of the glyph clears the hub (cy).
-          The needle always travels from hub upward toward the arc — it never
-          dips below the hub — so text whose top edge is at or below cy is
-          geometrically unreachable by the needle shaft.
-          Rule: text_center_y - (fontSize / 2) >= cy
-                cy + r*k - size*0.105 >= cy  →  k >= 0.105/0.385 ≈ 0.27
-          Using 0.44 gives an extra 13 px of clearance at the default size.
-        */}
         <text
           x={cx}
           y={cy + r * 0.42}
@@ -154,7 +152,6 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
         >
           {clamped}
         </text>
-        {/* Denominator / 100 — spaced well below the score number */}
         <text
           x={cx}
           y={cy + r * 0.75}
@@ -171,7 +168,6 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
         </text>
 
         {/* ── Needle ───────────────────────────────────────────────────────── */}
-        {/* Counter-weight tail (semi-transparent, adds realism) */}
         <line
           x1={cx} y1={cy}
           x2={tail.x} y2={tail.y}
@@ -180,7 +176,6 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
           strokeLinecap="round"
           opacity={0.45}
         />
-        {/* Main needle shaft */}
         <line
           x1={cx} y1={cy}
           x2={tip.x} y2={tip.y}
@@ -190,9 +185,7 @@ export function RiskGauge({ score, size = 200 }: RiskGaugeProps) {
         />
 
         {/* ── Hub ──────────────────────────────────────────────────────────── */}
-        {/* Outer coloured ring */}
         <circle cx={cx} cy={cy} r={size * 0.045} fill={color} />
-        {/* White inner dot */}
         <circle cx={cx} cy={cy} r={size * 0.027} fill="white" />
 
         {/* ── Zone end-labels ──────────────────────────────────────────────── */}

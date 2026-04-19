@@ -23,11 +23,12 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, TrendingUp, ShieldCheck, Activity, BookOpen, History,
-  HelpCircle, RefreshCw,
+  HelpCircle, RefreshCw, Plus, Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { getCamper, getRiskAssessment, submitMedicalReview, overrideRiskSupervision, getRiskAssessmentHistory } from '@/features/admin/api/admin.api';
-import type { Camper, RiskAssessment } from '@/features/admin/types/admin.types';
+import { getCamper, getRiskAssessment, submitMedicalReview, overrideRiskSupervision, getRiskAssessmentHistory, addStaffRecommendation, deleteStaffRecommendation } from '@/features/admin/api/admin.api';
+import type { Camper, RiskAssessment, StaffRecommendation } from '@/features/admin/types/admin.types';
 import { useAppSelector } from '@/store/hooks';
 
 import { RiskGauge } from '@/features/admin/components/risk/RiskGauge';
@@ -142,8 +143,13 @@ export function CamperRiskPage() {
   const [loading, setLoading]       = useState(true);
   const [histLoading, setHistLoading] = useState(false);
   const [error, setError]           = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [activeTab, setActiveTab]   = useState<Tab>('overview');
+  const [refreshKey, setRefreshKey]         = useState(0);
+  const [activeTab, setActiveTab]           = useState<Tab>('overview');
+  const [staffRecs, setStaffRecs]           = useState<StaffRecommendation[]>([]);
+  const [addingRec, setAddingRec]           = useState(false);
+  const [recText, setRecText]               = useState('');
+  const [recPriority, setRecPriority]       = useState<'critical' | 'high' | 'standard'>('standard');
+  const [recSubmitting, setRecSubmitting]   = useState(false);
 
   // Fetch camper + assessment together
   useEffect(() => {
@@ -158,6 +164,7 @@ export function CamperRiskPage() {
       .then(([c, a]) => {
         setCamper(c);
         setAssessment(a);
+        setStaffRecs(a.staff_recommendations ?? []);
       })
       .catch(() => setError('Unable to load risk assessment. Please try again.'))
       .finally(() => setLoading(false));
@@ -185,6 +192,33 @@ export function CamperRiskPage() {
       ...(notes ? { clinical_notes: notes } : {}),
     });
     setAssessment(updated);
+  };
+
+  const handleAddRecommendation = async () => {
+    if (!recText.trim()) return;
+    setRecSubmitting(true);
+    try {
+      const updated = await addStaffRecommendation(camperId, { text: recText.trim(), priority: recPriority });
+      setStaffRecs(updated);
+      setRecText('');
+      setRecPriority('standard');
+      setAddingRec(false);
+      toast.success('Recommendation added.');
+    } catch {
+      toast.error('Failed to save recommendation.');
+    } finally {
+      setRecSubmitting(false);
+    }
+  };
+
+  const handleDeleteRecommendation = async (index: number) => {
+    try {
+      const updated = await deleteStaffRecommendation(camperId, index);
+      setStaffRecs(updated);
+      toast.success('Recommendation removed.');
+    } catch {
+      toast.error('Failed to remove recommendation.');
+    }
   };
 
   // ── Loading skeleton ────────────────────────────────────────────────────
@@ -224,7 +258,9 @@ export function CamperRiskPage() {
   }
 
   const reviewBadge   = REVIEW_BADGE[assessment.review_status] ?? REVIEW_BADGE.system_calculated;
-  const scoreColor    = assessment.risk_score >= 67 ? '#dc2626' : assessment.risk_score >= 34 ? '#d97706' : '#16a34a';
+
+  const RISK_LEVEL_COLORS: Record<string, string> = { high: '#dc2626', moderate: '#d97706', low: '#16a34a' };
+  const scoreColor    = RISK_LEVEL_COLORS[assessment.risk_level_color] ?? '#16a34a';
   const activeFactors = (assessment.factor_breakdown ?? []).filter((f) => f.present && f.points > 0);
 
   return (
@@ -293,7 +329,7 @@ export function CamperRiskPage() {
           <div className="flex flex-col sm:flex-row items-center gap-6">
             {/* Gauge */}
             <div className="shrink-0">
-              <RiskGauge score={assessment.risk_score} size={220} />
+              <RiskGauge score={assessment.risk_score} size={220} riskLevelColor={assessment.risk_level_color} />
             </div>
 
             {/* Metrics */}
@@ -335,15 +371,13 @@ export function CamperRiskPage() {
               {assessment.risk_score} / 100 pts
             </span>
             <span className="text-[var(--foreground,#111827)] leading-relaxed">
-              {assessment.risk_score <= 10
-                ? <>Minimal needs. Standard planning applies — no elevated preparation required.</>
-                : assessment.risk_score <= 33
-                ? <>Low risk. {activeFactors.length > 0 ? 'Some conditions present — review the Factor Analysis tab for staff briefing notes.' : 'No scored risk factors active.'}</>
-                : assessment.risk_score <= 50
+              {assessment.medical_complexity_tier === 'high'
+                ? <>High complexity — review all critical recommendations before this camper's session begins. Medical director sign-off recommended.</>
+                : assessment.medical_complexity_tier === 'moderate'
                 ? <>Moderate needs. Pre-session staff briefing required. Review the Recommendations tab and ensure supervision ratio is in place.</>
-                : assessment.risk_score <= 66
-                ? <>Elevated complexity. All recommendations should be actioned before session. Ensure clinical notes have been reviewed by medical staff.</>
-                : <>High complexity — review all critical recommendations before this camper's session begins. Medical director sign-off recommended.</>
+                : assessment.risk_score <= 10
+                ? <>Minimal needs. Standard planning applies — no elevated preparation required.</>
+                : <>Low risk. {activeFactors.length > 0 ? 'Some conditions present — review the Factor Analysis tab for staff briefing notes.' : 'No scored risk factors active.'}</>
               }
             </span>
           </div>
@@ -463,6 +497,7 @@ export function CamperRiskPage() {
             <RiskFactorBreakdown
               factors={assessment.factor_breakdown}
               totalScore={assessment.risk_score}
+              riskLevelColor={scoreColor}
             />
           ) : (
             <p className="text-sm text-[var(--muted-foreground,#6b7280)]">Factor breakdown unavailable. Please refresh.</p>
@@ -472,13 +507,134 @@ export function CamperRiskPage() {
 
       {/* Recommendations */}
       {activeTab === 'recommendations' && (
-        <SectionCard
-          title="Staff Recommendations"
-          icon={<ShieldCheck className="h-4 w-4" />}
-          subtitle="Actionable preparation items derived from this camper's active risk flags"
-        >
-          <RiskRecommendations recommendations={assessment.recommendations ?? []} />
-        </SectionCard>
+        <div className="space-y-4">
+          {/* System-generated */}
+          <SectionCard
+            title="System Recommendations"
+            icon={<ShieldCheck className="h-4 w-4" />}
+            subtitle="Automatically generated from active risk flags"
+          >
+            <RiskRecommendations recommendations={assessment.recommendations ?? []} />
+          </SectionCard>
+
+          {/* Staff-added recommendations */}
+          <SectionCard
+            title="Staff Recommendations"
+            icon={<Activity className="h-4 w-4" />}
+            subtitle="Custom preparation notes added by medical staff or administrators"
+          >
+            <div className="space-y-3">
+              {staffRecs.length > 0 ? (
+                <div className="space-y-2.5">
+                  {staffRecs.map((rec, i) => {
+                    const COLORS = { critical: '#dc2626', high: '#ea580c', standard: '#2563eb' };
+                    const BGTINT = { critical: 'rgba(220,38,38,0.07)', high: 'rgba(234,88,12,0.07)', standard: 'rgba(37,99,235,0.05)' };
+                    const BORDER = { critical: 'rgba(220,38,38,0.25)', high: 'rgba(234,88,12,0.25)', standard: 'rgba(37,99,235,0.18)' };
+                    const color  = COLORS[rec.priority];
+                    return (
+                      <div
+                        key={i}
+                        className="flex gap-3 rounded-xl p-3.5"
+                        style={{ background: BGTINT[rec.priority], border: `1px solid ${BORDER[rec.priority]}` }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span
+                              className="text-xs font-semibold px-1.5 py-0.5 rounded-full capitalize"
+                              style={{ background: `${color}18`, color }}
+                            >
+                              {rec.priority}
+                            </span>
+                            <span className="text-xs text-[var(--muted-foreground,#6b7280)]">
+                              {rec.added_by_name} · {new Date(rec.added_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <p className="text-sm leading-relaxed text-[var(--foreground)]">{rec.text}</p>
+                        </div>
+                        {canReview && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRecommendation(i)}
+                            className="shrink-0 p-1 rounded-lg hover:bg-[var(--border,#e5e7eb)] transition-colors"
+                            title="Remove recommendation"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-[var(--muted-foreground,#9ca3af)]" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                !addingRec && (
+                  <p className="text-sm text-[var(--muted-foreground,#6b7280)]">
+                    No staff recommendations added yet.
+                  </p>
+                )
+              )}
+
+              {/* Add recommendation form */}
+              {canReview && (
+                addingRec ? (
+                  <div
+                    className="rounded-xl border p-4 space-y-3"
+                    style={{ borderColor: 'var(--border,#e5e7eb)', background: 'var(--glass-panel-bg,white)' }}
+                  >
+                    <div className="flex gap-2">
+                      <select
+                        value={recPriority}
+                        onChange={e => setRecPriority(e.target.value as 'critical' | 'high' | 'standard')}
+                        className="text-xs border rounded-lg px-2 py-1.5 bg-white"
+                        style={{ borderColor: 'var(--border,#e5e7eb)' }}
+                      >
+                        <option value="standard">Standard</option>
+                        <option value="high">High Priority</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
+                    <textarea
+                      value={recText}
+                      onChange={e => setRecText(e.target.value)}
+                      placeholder="Describe the preparation action staff should take…"
+                      rows={3}
+                      className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1"
+                      style={{ borderColor: 'var(--border,#e5e7eb)' }}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => { setAddingRec(false); setRecText(''); setRecPriority('standard'); }}
+                        className="px-3 py-1.5 text-xs rounded-lg border hover:bg-[var(--border,#f3f4f6)] transition-colors"
+                        style={{ borderColor: 'var(--border,#e5e7eb)' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddRecommendation}
+                        disabled={recSubmitting || recText.trim().length < 10}
+                        className="px-3 py-1.5 text-xs rounded-lg text-white font-medium disabled:opacity-50 transition-colors"
+                        style={{ background: 'var(--ember-orange,#16a34a)' }}
+                      >
+                        {recSubmitting ? 'Saving…' : 'Save Recommendation'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAddingRec(true)}
+                    className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--border,#f3f4f6)]"
+                    style={{ borderColor: 'var(--border,#e5e7eb)', color: 'var(--ember-orange,#16a34a)' }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Recommendation
+                  </button>
+                )
+              )}
+            </div>
+          </SectionCard>
+        </div>
       )}
 
       {/* Medical Review */}

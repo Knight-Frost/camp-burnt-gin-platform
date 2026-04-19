@@ -596,6 +596,14 @@ export interface RiskRecommendation {
   text: string;
 }
 
+export interface StaffRecommendation {
+  text: string;
+  priority: 'critical' | 'high' | 'standard';
+  added_by_id: number;
+  added_by_name: string;
+  added_at: string;
+}
+
 export interface RiskAssessmentReviewer {
   id: number;
   name: string;
@@ -645,8 +653,19 @@ export interface RiskAssessment {
   overridden_by: RiskAssessmentReviewer | null;
   overridden_at: string | null;
 
-  // Recommendations
+  // Recommendations (system-generated from risk flags)
   recommendations?: RiskRecommendation[];
+
+  // Staff-authored recommendations (added manually via the Recommendations tab)
+  staff_recommendations?: StaffRecommendation[];
+
+  // DB-configured threshold boundaries (ordered by min_score asc)
+  supervision_thresholds?: Array<{
+    label: string;
+    min_score: number;
+    max_score: number | null;
+    staffing_ratio: string | null;
+  }>;
 
   is_current: boolean;
 }

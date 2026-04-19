@@ -24,6 +24,7 @@ import {
   type IncidentSeverity,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
+import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 
@@ -263,20 +264,27 @@ function AddIncidentForm({
   onSaved,
   onClose,
 }: {
-  camperId: number;
+  camperId: number | null;
   onSaved: (incident: MedicalIncident) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(INITIAL_FORM);
+  const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const setField = (k: keyof typeof form) => (v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const effectiveCamperId = camperId ?? selectedCamper?.id ?? null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!effectiveCamperId) {
+      setError(t('medical.incidents.camper_required') || 'Please select a camper.');
+      return;
+    }
     if (!form.type || !form.severity || !form.title || !form.description || !form.incident_date) {
       setError(t('medical.incidents.form_error') || 'Please fill in all required fields.');
       return;
@@ -285,7 +293,7 @@ function AddIncidentForm({
     setError('');
     try {
       const incident = await createMedicalIncident({
-        camper_id: camperId,
+        camper_id: effectiveCamperId,
         type: form.type as IncidentType,
         severity: form.severity as IncidentSeverity,
         title: form.title,
@@ -320,6 +328,20 @@ function AddIncidentForm({
       </div>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        {camperId === null && (
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              {t('medical.incidents.camper') || 'Camper'} <span style={{ color: 'var(--destructive)' }}>*</span>
+            </label>
+            <CamperSearch
+              value={selectedCamper}
+              onSelect={setSelectedCamper}
+              onClear={() => setSelectedCamper(null)}
+              placeholder={t('medical.incidents.search_camper') || 'Search camper by name…'}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -564,6 +586,10 @@ export function MedicalIncidentsPage() {
   const handleSaved = (incident: MedicalIncident) => {
     setIncidents((prev) => [incident, ...prev]);
     setShowForm(false);
+    if (!hasCamper) {
+      // Global view — refetch so filters and pagination stay correct
+      setRetryKey((k) => k + 1);
+    }
   };
 
   const hasFilters = filterType !== '' || filterSeverity !== '';
@@ -610,14 +636,14 @@ export function MedicalIncidentsPage() {
           )}
         </div>
 
-        {hasCamper && !showForm && (
+        {!showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{ background: 'var(--ember-orange)', color: '#fff' }}
           >
             <Plus className="h-4 w-4" />
-            {t('medical.incidents.add') || 'Record Incident'}
+            {t('medical.incidents.add') || 'Report Incident'}
           </button>
         )}
       </div>
@@ -659,10 +685,10 @@ export function MedicalIncidentsPage() {
       </div>
 
       {/* Add form */}
-      {hasCamper && showForm && (
+      {showForm && (
         <div className="mb-6">
           <AddIncidentForm
-            camperId={id!}
+            camperId={hasCamper ? id! : null}
             onSaved={handleSaved}
             onClose={() => setShowForm(false)}
           />

@@ -14,6 +14,6 @@ class RiskThresholdPolicy
 
     public function update(User $user, RiskThreshold $threshold): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->hasRole('medical');
     }
 }

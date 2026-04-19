@@ -25,6 +25,7 @@ import {
   type VisitDisposition,
 } from '@/features/medical/api/medical.api';
 import { getCamper } from '@/features/admin/api/admin.api';
+import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 
@@ -314,20 +315,27 @@ function AddVisitForm({
   onSaved,
   onClose,
 }: {
-  camperId: number;
+  camperId: number | null;
   onSaved: (visit: MedicalVisit) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(INITIAL_FORM);
+  const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const setField = (k: keyof typeof form) => (v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const effectiveCamperId = camperId ?? selectedCamper?.id ?? null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!effectiveCamperId) {
+      setError(t('medical.visits.camper_required') || 'Please select a camper.');
+      return;
+    }
     if (!form.chief_complaint || !form.symptoms || !form.disposition || !form.visit_date) {
       setError(t('medical.visits.form_error') || 'Please fill in all required fields.');
       return;
@@ -346,7 +354,7 @@ function AddVisitForm({
       const hasVitals = Object.keys(vitals).length > 0;
 
       const visit = await createMedicalVisit({
-        camper_id: camperId,
+        camper_id: effectiveCamperId,
         visit_date: form.visit_date,
         visit_time: form.visit_time || undefined,
         chief_complaint: form.chief_complaint,
@@ -382,6 +390,20 @@ function AddVisitForm({
       </div>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        {camperId === null && (
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              {t('medical.visits.camper') || 'Camper'} <span style={{ color: 'var(--destructive)' }}>*</span>
+            </label>
+            <CamperSearch
+              value={selectedCamper}
+              onSelect={setSelectedCamper}
+              onClear={() => setSelectedCamper(null)}
+              placeholder={t('medical.visits.search_camper') || 'Search camper by name…'}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -677,6 +699,9 @@ export function MedicalVisitsPage() {
   const handleSaved = (visit: MedicalVisit) => {
     setVisits((prev) => [visit, ...prev]);
     setShowForm(false);
+    if (!hasCamper) {
+      setRetryKey((k) => k + 1);
+    }
   };
 
   return (
@@ -719,7 +744,7 @@ export function MedicalVisitsPage() {
           )}
         </div>
 
-        {hasCamper && !showForm && (
+        {!showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
@@ -759,10 +784,10 @@ export function MedicalVisitsPage() {
       </div>
 
       {/* Add form */}
-      {hasCamper && showForm && (
+      {showForm && (
         <div className="mb-6">
           <AddVisitForm
-            camperId={id!}
+            camperId={hasCamper ? id! : null}
             onSaved={handleSaved}
             onClose={() => setShowForm(false)}
           />

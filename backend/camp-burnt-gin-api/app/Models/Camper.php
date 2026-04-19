@@ -122,6 +122,11 @@ class Camper extends Model
         return $this->hasMany(Application::class);
     }
 
+    public function riskAssessments(): HasMany
+    {
+        return $this->hasMany(RiskAssessment::class);
+    }
+
     /**
      * Get the camper's full name as a single concatenated string.
      *

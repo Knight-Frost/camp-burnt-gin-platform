@@ -313,6 +313,27 @@ export async function getRiskAssessmentHistory(camperId: number): Promise<RiskAs
   );
   return data.data;
 }
+
+export async function addStaffRecommendation(
+  camperId: number,
+  payload: { text: string; priority: 'critical' | 'high' | 'standard' }
+): Promise<import('../types/admin.types').StaffRecommendation[]> {
+  const { data } = await axiosInstance.post<{ data: { staff_recommendations: import('../types/admin.types').StaffRecommendation[] } }>(
+    `/campers/${camperId}/risk-assessment/recommendations`,
+    payload
+  );
+  return data.data.staff_recommendations;
+}
+
+export async function deleteStaffRecommendation(
+  camperId: number,
+  index: number
+): Promise<import('../types/admin.types').StaffRecommendation[]> {
+  const { data } = await axiosInstance.delete<{ data: { staff_recommendations: import('../types/admin.types').StaffRecommendation[] } }>(
+    `/campers/${camperId}/risk-assessment/recommendations/${index}`
+  );
+  return data.data.staff_recommendations;
+}
 export async function getSessions(params?: { per_page?: number }): Promise<CampSession[]> {
   const { data } = await axiosInstance.get<ApiResponse<CampSession[]>>('/sessions', { params }); return data.data;
 }

@@ -14,6 +14,7 @@ use App\Models\RiskRule;
 use App\Models\RiskThreshold;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * SpecialNeedsRiskAssessmentService — Dynamic Medical Risk Scoring Engine
@@ -46,7 +47,9 @@ class SpecialNeedsRiskAssessmentService
     /**
      * Run the full risk assessment for a camper and return a structured result.
      *
-     * Single public entry point for all callers.
+     * Single public entry point for all callers that need to persist a new assessment.
+     * Callers that need a read-only view of the current assessment should use
+     * getCurrentAssessment() instead to avoid creating unwanted side effects.
      *
      * @return array<string, mixed>
      */
@@ -86,7 +89,58 @@ class SpecialNeedsRiskAssessmentService
             'flags' => $flags,
             'factor_breakdown' => $factorBreakdown,
             'assessment' => $assessment,
+            'supervision_thresholds' => $this->loadThresholds()['supervision'],
         ];
+    }
+
+    /**
+     * Return the current stored assessment for a camper without running or persisting
+     * a new calculation. Safe for read-only callers like compliance checks.
+     *
+     * Falls back to a full assessCamper() call ONLY if no assessment record exists yet.
+     * In that case the result is still persisted — it is the first-time initialisation,
+     * not a side effect.
+     */
+    public function getCurrentAssessment(Camper $camper): array
+    {
+        $existing = RiskAssessment::where('camper_id', $camper->id)
+            ->where('is_current', true)
+            ->first();
+
+        if ($existing) {
+            return [
+                'risk_score' => $existing->risk_score,
+                'supervision_level' => $existing->supervision_level,
+                'medical_complexity_tier' => $existing->medical_complexity_tier,
+                'flags' => $existing->flags ?? [],
+                'factor_breakdown' => $existing->factor_breakdown ?? [],
+                'assessment' => $existing,
+                'supervision_thresholds' => $this->loadThresholds()['supervision'],
+            ];
+        }
+
+        // First-time initialisation — no prior assessment on file.
+        return $this->assessCamper($camper);
+    }
+
+    /**
+     * Return the DB-configured staffing ratio for a supervision level.
+     *
+     * Reads from the cached threshold table so the response always reflects
+     * the current configured value rather than the hardcoded enum constant.
+     * Falls back to the enum constant if the threshold row is not found.
+     */
+    public function getStaffingRatioForLevel(SupervisionLevel $level): string
+    {
+        $thresholds = $this->loadThresholds()['supervision'];
+
+        foreach ($thresholds as $threshold) {
+            if ($threshold['level_value'] === $level->value && ! empty($threshold['staffing_ratio'])) {
+                return $threshold['staffing_ratio'];
+            }
+        }
+
+        return $level->getStaffingRatio();
     }
 
     /**
@@ -447,8 +501,40 @@ class SpecialNeedsRiskAssessmentService
 
     // ── Persistence (unchanged from Phase 16) ───────────────────────────────────
 
+    /**
+     * Update the denormalized supervision_level on the camper record.
+     *
+     * If a clinician has applied an active override to the current assessment,
+     * their clinical decision is preserved — the recalculated system level does
+     * NOT overwrite the operational field. The override remains effective until
+     * the clinician explicitly clears it or a score change beyond SCORE_CHANGE_THRESHOLD
+     * retires the assessment (which resets review_status to system_calculated).
+     *
+     * Without this guard, any observer-triggered recalculation silently erases
+     * clinician overrides — a patient-safety issue.
+     */
     public function persistSupervisionLevel(Camper $camper, SupervisionLevel $level): void
     {
+        // Check whether the current assessment is under an active clinician override.
+        $currentAssessment = RiskAssessment::where('camper_id', $camper->id)
+            ->where('is_current', true)
+            ->first();
+
+        if (
+            $currentAssessment &&
+            $currentAssessment->review_status === RiskReviewStatus::Overridden &&
+            $currentAssessment->override_supervision_level !== null
+        ) {
+            // A clinician override is active. Keep the override level on the camper record.
+            // The system-calculated level is stored in the assessment for transparency.
+            $overrideLevel = $currentAssessment->override_supervision_level;
+            if ($camper->supervision_level !== $overrideLevel) {
+                $camper->supervision_level = $overrideLevel;
+                $camper->saveQuietly();
+            }
+            return;
+        }
+
         if ($camper->supervision_level !== $level) {
             $camper->supervision_level = $level;
             $camper->saveQuietly();
