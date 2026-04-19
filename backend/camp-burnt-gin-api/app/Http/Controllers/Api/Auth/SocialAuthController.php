@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Auth\SocialAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -10,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider as SocialiteDriver;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -62,7 +64,9 @@ class SocialAuthController extends Controller
             return response()->json(['message' => 'Unsupported provider.'], Response::HTTP_NOT_FOUND);
         }
 
-        $url = Socialite::driver($provider)->stateless()->redirect()->getTargetUrl();
+        /** @var SocialiteDriver $driver */
+        $driver = Socialite::driver($provider);
+        $url = $driver->stateless()->redirect()->getTargetUrl();
 
         return response()->json(['url' => $url]);
     }
@@ -83,7 +87,9 @@ class SocialAuthController extends Controller
         }
 
         try {
-            $socialUser = Socialite::driver($provider)->stateless()->user();
+            /** @var SocialiteDriver $driver */
+            $driver = Socialite::driver($provider);
+            $socialUser = $driver->stateless()->user();
         } catch (\Throwable $e) {
             Log::warning('Social auth callback failed', [
                 'provider' => $provider,
@@ -109,12 +115,12 @@ class SocialAuthController extends Controller
         }
 
         return match ($result['action']) {
-            'error' => $this->redirectToFrontend(['error' => $result['message']]),
+            'error' => $this->redirectToFrontend(['error' => (string) ($result['message'] ?? 'Unknown error.')]),
 
             'link_required' => $this->redirectToFrontend([
                 'link_required' => '1',
-                'link_token' => $result['link_token'],
-                'masked_email' => $result['masked_email'],
+                'link_token' => (string) ($result['link_token'] ?? ''),
+                'masked_email' => (string) ($result['masked_email'] ?? ''),
             ]),
 
             default => $this->buildCallbackRedirect($result),
@@ -134,7 +140,7 @@ class SocialAuthController extends Controller
     {
         $request->validate(['code' => 'required|string|size:48']);
 
-        $payload = $this->socialAuthService->exchangeOneTimeCode($request->input('code'));
+        $payload = $this->socialAuthService->exchangeOneTimeCode((string) $request->input('code'));
 
         if (! $payload) {
             return response()->json(
@@ -148,17 +154,20 @@ class SocialAuthController extends Controller
             return response()->json([
                 'success' => true,
                 'mfa_required' => true,
-                'mfa_pending_token' => $payload['mfa_pending_token'],
+                'mfa_pending_token' => (string) ($payload['mfa_pending_token'] ?? ''),
             ]);
         }
 
+        $user = $payload['user'] ?? null;
+        assert($user instanceof User);
+
         return response()->json([
             'success' => true,
-            'message' => $this->successMessage($payload['action'] ?? 'login'),
+            'message' => $this->successMessage((string) ($payload['action'] ?? 'login')),
             'data' => [
-                'user' => $this->buildUserArray($payload['user']),
-                'token' => $payload['token'],
-                'action' => $payload['action'],
+                'user' => $this->buildUserArray($user),
+                'token' => (string) ($payload['token'] ?? ''),
+                'action' => (string) ($payload['action'] ?? 'login'),
             ],
         ]);
     }
@@ -176,16 +185,17 @@ class SocialAuthController extends Controller
         ]);
 
         $result = $this->socialAuthService->confirmLink(
-            $validated['link_token'],
-            $validated['password']
+            (string) $validated['link_token'],
+            (string) $validated['password']
         );
 
         if (! $result['success']) {
-            $status = str_contains($result['message'] ?? '', 'expired')
+            $message = (string) ($result['message'] ?? 'Authentication failed.');
+            $status = str_contains($message, 'expired')
                 ? Response::HTTP_UNPROCESSABLE_ENTITY
                 : Response::HTTP_UNAUTHORIZED;
 
-            return response()->json(['message' => $result['message']], $status);
+            return response()->json(['message' => $message], $status);
         }
 
         // MFA required after linking
@@ -193,18 +203,21 @@ class SocialAuthController extends Controller
             return response()->json([
                 'success' => true,
                 'mfa_required' => true,
-                'mfa_pending_token' => $result['mfa_pending_token'],
+                'mfa_pending_token' => (string) ($result['mfa_pending_token'] ?? ''),
             ]);
         }
+
+        $user = $result['user'] ?? null;
+        assert($user instanceof User);
 
         return response()->json([
             'success' => true,
             'message' => 'Google account linked successfully.',
             'data' => [
-                'user' => $this->buildUserArray($result['user']),
-                'token' => $result['token'],
+                'user' => $this->buildUserArray($user),
+                'token' => (string) ($result['token'] ?? ''),
                 'action' => 'login',
-                'just_linked' => $result['just_linked'] ?? false,
+                'just_linked' => (bool) ($result['just_linked'] ?? false),
             ],
         ]);
     }
@@ -222,21 +235,24 @@ class SocialAuthController extends Controller
         ]);
 
         $result = $this->socialAuthService->completeMfaChallenge(
-            $validated['mfa_pending_token'],
-            $validated['mfa_code']
+            (string) $validated['mfa_pending_token'],
+            (string) $validated['mfa_code']
         );
 
         if (! $result['success']) {
-            return response()->json(['message' => $result['message']], Response::HTTP_UNAUTHORIZED);
+            return response()->json(['message' => (string) ($result['message'] ?? 'MFA verification failed.')], Response::HTTP_UNAUTHORIZED);
         }
+
+        $user = $result['user'] ?? null;
+        assert($user instanceof User);
 
         return response()->json([
             'success' => true,
-            'message' => $this->successMessage($result['action']),
+            'message' => $this->successMessage((string) ($result['action'] ?? 'login')),
             'data' => [
-                'user' => $this->buildUserArray($result['user']),
-                'token' => $result['token'],
-                'action' => $result['action'],
+                'user' => $this->buildUserArray($user),
+                'token' => (string) ($result['token'] ?? ''),
+                'action' => (string) ($result['action'] ?? 'login'),
             ],
         ]);
     }
@@ -255,17 +271,21 @@ class SocialAuthController extends Controller
             return response()->json(['message' => 'Unsupported provider.'], Response::HTTP_NOT_FOUND);
         }
 
-        $result = $this->socialAuthService->unlink($request->user(), $provider);
+        $authUser = $request->user();
+        assert($authUser instanceof User);
+
+        $result = $this->socialAuthService->unlink($authUser, $provider);
 
         if (! $result['success']) {
-            $response = ['message' => $result['message']];
+            $response = ['message' => (string) ($result['message'] ?? 'Unlink failed.')];
             if ($result['requires_password'] ?? false) {
-                $response['requires_password'] = true;
+                $response['requires_password'] = 'true';
             }
+
             return response()->json($response, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        return response()->json(['message' => $result['message']]);
+        return response()->json(['message' => (string) ($result['message'] ?? 'Unlinked.')]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -277,37 +297,39 @@ class SocialAuthController extends Controller
         return in_array($provider, ['google'], true);
     }
 
+    /** @param array<string, mixed> $result */
     private function buildCallbackRedirect(array $result): RedirectResponse
     {
         if ($result['mfa_required'] ?? false) {
             $code = $this->socialAuthService->generateOneTimeCode([
                 'mfa_required' => true,
-                'mfa_pending_token' => $result['mfa_pending_token'],
-                'action' => $result['action'],
+                'mfa_pending_token' => (string) ($result['mfa_pending_token'] ?? ''),
+                'action' => (string) ($result['action'] ?? 'login'),
             ]);
 
             return $this->redirectToFrontend(['code' => $code]);
         }
 
         $code = $this->socialAuthService->generateOneTimeCode([
-            'action' => $result['action'],
+            'action' => (string) ($result['action'] ?? 'login'),
             'mfa_required' => false,
             'user' => $result['user'],
-            'token' => $result['token'],
+            'token' => (string) ($result['token'] ?? ''),
         ]);
 
         return $this->redirectToFrontend(['code' => $code]);
     }
 
+    /** @param array<string, string> $params */
     private function redirectToFrontend(array $params): RedirectResponse
     {
-        $frontendUrl = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
+        $frontendUrl = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
         $query = http_build_query($params);
 
         return redirect("{$frontendUrl}/auth/callback?{$query}");
     }
 
-    private function buildUserArray(\App\Models\User $user): array
+    private function buildUserArray(User $user): array
     {
         $data = $user->toArray();
         $data['avatar_url'] = $user->avatar_path

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
+use Laravel\Socialite\Two\User as SocialiteOAuthTwoUser;
 
 /**
  * SocialAuthService — OAuth identity resolution and account lifecycle.
@@ -50,7 +51,11 @@ class SocialAuthService
             ->first();
 
         if ($existingSocial) {
-            $user = $existingSocial->user()->withTrashed()->first();
+            $user = User::withTrashed()->find($existingSocial->user_id);
+
+            if (! $user) {
+                return ['action' => 'error', 'message' => 'Account not found. Please contact support.'];
+            }
 
             // Soft-deleted accounts are permanently rejected.
             if ($user->trashed()) {
@@ -105,6 +110,7 @@ class SocialAuthService
      */
     public function confirmLink(string $linkToken, string $password): array
     {
+        /** @var array<string, mixed>|null $pending */
         $pending = Cache::get("social_link_pending:{$linkToken}");
 
         if (! $pending) {
@@ -115,12 +121,14 @@ class SocialAuthService
 
         if (! $user || $user->trashed() || ! $user->is_active) {
             Cache::forget("social_link_pending:{$linkToken}");
+
             return ['success' => false, 'message' => 'Account not found or deactivated.'];
         }
 
         // Social-only users cannot confirm via password (they have none).
         if (! $user->hasPassword()) {
             Cache::forget("social_link_pending:{$linkToken}");
+
             return ['success' => false, 'message' => 'This account does not have a password set. Please contact support.'];
         }
 
@@ -131,8 +139,8 @@ class SocialAuthService
         // Password verified — create the social account link.
         SocialAccount::create([
             'user_id' => $user->id,
-            'provider' => $pending['provider'],
-            'provider_id' => $pending['provider_id'],
+            'provider' => (string) ($pending['provider'] ?? ''),
+            'provider_id' => (string) ($pending['provider_id'] ?? ''),
             'provider_email' => $pending['provider_email'],
             'provider_name' => $pending['provider_name'],
             'avatar_url' => $pending['avatar_url'],
@@ -143,9 +151,9 @@ class SocialAuthService
 
         Cache::forget("social_link_pending:{$linkToken}");
 
-        AuditLog::logAuth('social_link_account', $user, ['provider' => $pending['provider']]);
+        AuditLog::logAuth('social_link_account', $user, ['provider' => (string) ($pending['provider'] ?? '')]);
 
-        $result = $this->buildAuthResult('login', $user, $pending['provider']);
+        $result = $this->buildAuthResult('login', $user, (string) ($pending['provider'] ?? ''));
         $result['just_linked'] = true;
 
         return $result;
@@ -158,6 +166,7 @@ class SocialAuthService
      */
     public function completeMfaChallenge(string $mfaPendingToken, string $mfaCode): array
     {
+        /** @var array<string, mixed>|null $pending */
         $pending = Cache::get("social_mfa_pending:{$mfaPendingToken}");
 
         if (! $pending) {
@@ -168,6 +177,7 @@ class SocialAuthService
 
         if (! $user || ! $user->mfa_enabled || ! $user->mfa_secret) {
             Cache::forget("social_mfa_pending:{$mfaPendingToken}");
+
             return ['success' => false, 'message' => 'MFA verification failed.'];
         }
 
@@ -181,11 +191,11 @@ class SocialAuthService
 
         $user->resetFailedLogins();
         $token = $user->createToken('auth-token')->plainTextToken;
-        AuditLog::logAuth('social_login', $user, ['provider' => $pending['provider'], 'mfa_completed' => true]);
+        AuditLog::logAuth('social_login', $user, ['provider' => (string) ($pending['provider'] ?? ''), 'mfa_completed' => true]);
 
         return [
             'success' => true,
-            'action' => $pending['action'],
+            'action' => (string) ($pending['action'] ?? 'login'),
             'user' => $user->load('role'),
             'token' => $token,
         ];
@@ -201,6 +211,8 @@ class SocialAuthService
     public function exchangeOneTimeCode(string $code): ?array
     {
         $key = "social_otc:{$code}";
+
+        /** @var array<string, mixed>|null $payload */
         $payload = Cache::get($key);
 
         if (! $payload) {
@@ -208,6 +220,7 @@ class SocialAuthService
         }
 
         Cache::forget($key);
+
         return $payload;
     }
 
@@ -224,7 +237,7 @@ class SocialAuthService
         $social = $user->socialAccounts()->where('provider', $provider)->first();
 
         if (! $social) {
-            return ['success' => false, 'message' => ucfirst($provider) . ' account is not linked.'];
+            return ['success' => false, 'message' => ucfirst($provider).' account is not linked.'];
         }
 
         $remainingProviders = $user->socialAccounts()->where('provider', '!=', $provider)->count();
@@ -232,7 +245,7 @@ class SocialAuthService
         if (! $user->hasPassword() && $remainingProviders === 0) {
             return [
                 'success' => false,
-                'message' => 'You must set a password before unlinking your ' . ucfirst($provider) . ' account to avoid being locked out.',
+                'message' => 'You must set a password before unlinking your '.ucfirst($provider).' account to avoid being locked out.',
                 'requires_password' => true,
             ];
         }
@@ -240,7 +253,7 @@ class SocialAuthService
         $social->delete();
         AuditLog::logAuth('social_unlink_account', $user, ['provider' => $provider]);
 
-        return ['success' => true, 'message' => ucfirst($provider) . ' account unlinked successfully.'];
+        return ['success' => true, 'message' => ucfirst($provider).' account unlinked successfully.'];
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -302,6 +315,8 @@ class SocialAuthService
             'email_verified_at' => now(),
         ]);
 
+        $oauthUser = $socialUser instanceof SocialiteOAuthTwoUser ? $socialUser : null;
+
         SocialAccount::create([
             'user_id' => $user->id,
             'provider' => $provider,
@@ -309,10 +324,10 @@ class SocialAuthService
             'provider_email' => $socialUser->getEmail(),
             'provider_name' => $socialUser->getName(),
             'avatar_url' => $socialUser->getAvatar(),
-            'access_token' => $socialUser->token,
-            'refresh_token' => $socialUser->refreshToken,
-            'token_expires_at' => isset($socialUser->expiresIn)
-                ? now()->addSeconds($socialUser->expiresIn)
+            'access_token' => $oauthUser?->token,
+            'refresh_token' => $oauthUser?->refreshToken,
+            'token_expires_at' => ($oauthUser && $oauthUser->expiresIn)
+                ? now()->addSeconds((int) $oauthUser->expiresIn)
                 : null,
         ]);
 
@@ -324,14 +339,16 @@ class SocialAuthService
      */
     private function updateSocialTokens(SocialAccount $social, SocialiteUser $socialUser): void
     {
+        $oauthUser = $socialUser instanceof SocialiteOAuthTwoUser ? $socialUser : null;
+
         $social->update([
             'provider_email' => $socialUser->getEmail(),
             'provider_name' => $socialUser->getName(),
             'avatar_url' => $socialUser->getAvatar(),
-            'access_token' => $socialUser->token,
-            'refresh_token' => $socialUser->refreshToken ?? $social->refresh_token,
-            'token_expires_at' => isset($socialUser->expiresIn)
-                ? now()->addSeconds($socialUser->expiresIn)
+            'access_token' => $oauthUser?->token,
+            'refresh_token' => $oauthUser !== null ? $oauthUser->refreshToken : $social->refresh_token,
+            'token_expires_at' => ($oauthUser && $oauthUser->expiresIn)
+                ? now()->addSeconds((int) $oauthUser->expiresIn)
                 : $social->token_expires_at,
         ]);
     }
@@ -343,6 +360,7 @@ class SocialAuthService
     private function storeLinkPending(string $provider, SocialiteUser $socialUser, int $userId): string
     {
         $token = Str::random(40);
+        $oauthUser = $socialUser instanceof SocialiteOAuthTwoUser ? $socialUser : null;
 
         Cache::put("social_link_pending:{$token}", [
             'provider' => $provider,
@@ -350,10 +368,10 @@ class SocialAuthService
             'provider_email' => $socialUser->getEmail(),
             'provider_name' => $socialUser->getName(),
             'avatar_url' => $socialUser->getAvatar(),
-            'access_token' => $socialUser->token,
-            'refresh_token' => $socialUser->refreshToken,
-            'token_expires_at' => isset($socialUser->expiresIn)
-                ? now()->addSeconds($socialUser->expiresIn)
+            'access_token' => $oauthUser?->token,
+            'refresh_token' => $oauthUser?->refreshToken,
+            'token_expires_at' => ($oauthUser && $oauthUser->expiresIn)
+                ? now()->addSeconds((int) $oauthUser->expiresIn)
                 : null,
             'user_id' => $userId,
         ], now()->addMinutes(5));
@@ -364,11 +382,14 @@ class SocialAuthService
     /**
      * Generate a one-time code for secure token delivery to the SPA.
      * Payload is stored in cache for 30 seconds.
+     *
+     * @param  array<string, mixed>  $payload
      */
     public function generateOneTimeCode(array $payload): string
     {
         $code = Str::random(48);
         Cache::put("social_otc:{$code}", $payload, now()->addSeconds(30));
+
         return $code;
     }
 
@@ -382,9 +403,9 @@ class SocialAuthService
         $len = strlen($local);
 
         if ($len <= 3) {
-            return str_repeat('*', $len) . '@' . $domain;
+            return str_repeat('*', $len).'@'.$domain;
         }
 
-        return substr($local, 0, 2) . str_repeat('*', $len - 3) . substr($local, -1) . '@' . $domain;
+        return substr($local, 0, 2).str_repeat('*', $len - 3).substr($local, -1).'@'.$domain;
     }
 }
