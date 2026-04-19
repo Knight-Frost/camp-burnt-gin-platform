@@ -54,6 +54,7 @@ const MfaVerifyPage      = withSuspense(lazy(() => import('@/app/pages/MfaVerify
 const ForgotPasswordPage = withSuspense(lazy(() => import('@/app/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
 const ResetPasswordPage  = withSuspense(lazy(() => import('@/app/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
 const VerifyEmailPage    = withSuspense(lazy(() => import('@/app/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage }))));
+const OAuthCallbackPage  = withSuspense(lazy(() => import('@/app/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage }))));
 
 // ─── Applicant pages ──────────────────────────────────────────────────────────
 // The "applicant" role is what parents/guardians use to submit camper applications
@@ -167,6 +168,8 @@ export const router = createBrowserRouter([
       { path: '/forgot-password',  element: <ForgotPasswordPage /> },
       { path: '/reset-password',   element: <ResetPasswordPage /> },
       { path: '/verify-email',     element: <VerifyEmailPage /> },
+      // OAuth callback — backend redirects here after Google authorization
+      { path: '/auth/callback',    element: <OAuthCallbackPage /> },
     ],
   },
 

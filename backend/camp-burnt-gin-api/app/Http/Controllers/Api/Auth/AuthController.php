@@ -191,12 +191,11 @@ class AuthController extends Controller
     }
 
     /**
-     * Convert a User model to a response-ready array with the computed avatar_url field.
+     * Convert a User model to a response-ready array with computed fields.
      *
-     * Laravel's toArray() only serialises database columns. avatar_url is a computed
-     * public Storage URL that must be appended manually. Centralising this here ensures
-     * login, register, and the /user endpoint all return an identical user shape so the
-     * frontend always has avatar_url regardless of which auth flow was used.
+     * Appends avatar_url (a computed public Storage URL), has_password (whether
+     * a bcrypt hash exists), and social_providers (linked OAuth accounts).
+     * Centralising this ensures all auth endpoints return an identical user shape.
      */
     private function buildUserArray(User $user): array
     {
@@ -204,6 +203,10 @@ class AuthController extends Controller
         $data['avatar_url'] = $user->avatar_path
             ? Storage::disk('public')->url($user->avatar_path)
             : null;
+        $data['has_password'] = $user->hasPassword();
+        $data['social_providers'] = $user->socialAccounts()
+            ->get(['provider', 'provider_email', 'avatar_url'])
+            ->toArray();
 
         return $data;
     }

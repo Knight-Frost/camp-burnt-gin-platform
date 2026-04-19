@@ -62,6 +62,7 @@ import { Skeletons } from '@/ui/components/Skeletons';
 import { useAppDispatch } from '@/store/hooks';
 import { patchUser } from '@/features/auth/store/authSlice';
 import type { User as UserType, UserEmergencyContact } from '@/shared/types/user.types';
+import { LinkedAccountsSection } from '@/features/profile/components/LinkedAccountsSection';
 
 // ---------------------------------------------------------------------------
 // Shared section card
@@ -921,6 +922,22 @@ export function ProfilePage() {
                 setProfile((p) => p ? { ...p, mfa_enabled: newValue } : p);
                 // Sync to Redux so the global MFA banner reacts immediately.
                 dispatch(patchUser({ mfa_enabled: newValue }));
+              }}
+            />
+          </ProfileSection>
+        </div>
+
+        {/* ── Linked Accounts ────────────────────────────────────────── */}
+        <div>
+          <ProfileSection title="Linked Accounts" icon={<Key className="h-4 w-4" />}>
+            <LinkedAccountsSection
+              hasPassword={profile?.has_password ?? true}
+              socialProviders={profile?.social_providers ?? []}
+              onUpdate={(update) => {
+                setProfile(p => p ? { ...p, ...update } as UserType : p);
+                if (update.has_password !== undefined) {
+                  dispatch(patchUser({ has_password: update.has_password } as Partial<UserType>));
+                }
               }}
             />
           </ProfileSection>

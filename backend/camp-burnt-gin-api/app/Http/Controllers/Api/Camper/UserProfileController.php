@@ -410,6 +410,15 @@ class UserProfileController extends Controller
 
         $user = $request->user();
 
+        // Social-only accounts have no password — they must set one first via POST /profile/set-password.
+        if (! $user->hasPassword()) {
+            return response()->json([
+                'message' => 'Your account does not have a password set. Use the "Set a password" option in your account security settings first.',
+                'errors' => ['current_password' => ['No password is set for this account.']],
+                'requires_set_password' => true,
+            ], 422);
+        }
+
         // Hash::check() safely compares the plain-text input with the stored bcrypt hash.
         if (! Hash::check($request->current_password, $user->password)) {
             return response()->json([
@@ -425,6 +434,48 @@ class UserProfileController extends Controller
         app(SystemNotificationService::class)->passwordChanged($user);
 
         return response()->json(['message' => 'Password updated successfully.']);
+    }
+
+    /**
+     * Set a password for social-only accounts.
+     *
+     * POST /api/profile/set-password
+     *
+     * Social-only users (created via Google OAuth) have a null password.
+     * This endpoint lets them add password login without requiring a "current"
+     * password they do not have. Once set, changePassword must be used for
+     * subsequent changes because current_password verification is enforced.
+     */
+    public function setPassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->hasPassword()) {
+            return response()->json([
+                'message' => 'Your account already has a password. Use the change password form instead.',
+            ], 422);
+        }
+
+        $request->validate([
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
+            'password_confirmation' => ['required', 'string'],
+        ]);
+
+        $user->update(['password' => Hash::make($request->password)]);
+        app(SystemNotificationService::class)->passwordChanged($user);
+
+        return response()->json([
+            'message' => 'Password set successfully. You can now also sign in with your email and password.',
+            'has_password' => true,
+        ]);
     }
 
     // -------------------------------------------------------------------------
@@ -518,10 +569,6 @@ class UserProfileController extends Controller
      */
     public function deleteAccount(Request $request): JsonResponse
     {
-        $request->validate([
-            'password' => ['required', 'string'],
-        ]);
-
         $user = $request->user();
 
         // Only applicant accounts may self-delete.
@@ -531,11 +578,29 @@ class UserProfileController extends Controller
             ], 403);
         }
 
-        if (! Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'The password you entered is incorrect.',
-                'errors' => ['password' => ['Password is incorrect.']],
-            ], 422);
+        // Social-only accounts have no password — require confirmation phrase instead.
+        if (! $user->hasPassword()) {
+            $request->validate([
+                'confirm_phrase' => ['required', 'string'],
+            ]);
+
+            if ($request->confirm_phrase !== 'DELETE') {
+                return response()->json([
+                    'message' => 'Please type DELETE to confirm account deletion.',
+                    'errors' => ['confirm_phrase' => ['Type DELETE to confirm.']],
+                ], 422);
+            }
+        } else {
+            $request->validate([
+                'password' => ['required', 'string'],
+            ]);
+
+            if (! Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'message' => 'The password you entered is incorrect.',
+                    'errors' => ['password' => ['Password is incorrect.']],
+                ], 422);
+            }
         }
 
         // Capture the ID before the transaction so we can reference it in the audit log

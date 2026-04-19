@@ -27,6 +27,12 @@ export interface Role {
   display_name: string;
 }
 
+export interface LinkedSocialAccount {
+  provider: string;
+  provider_email: string | null;
+  avatar_url: string | null;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -46,6 +52,10 @@ export interface User {
   roles: Role[];
   /** Convenience: primary role name string (first role, or derived from roles array) */
   role?: string;
+  /** Whether this account has a password set (false for social-only accounts) */
+  has_password?: boolean;
+  /** OAuth providers currently linked to this account */
+  social_providers?: LinkedSocialAccount[];
   created_at: string;
   updated_at: string;
 }

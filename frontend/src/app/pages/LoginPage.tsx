@@ -31,6 +31,7 @@ import type { User } from '@/shared/types';
 import { isValidationError, isLockoutError, isRateLimitError } from '@/shared/types';
 import { useTranslation } from 'react-i18next';
 import { AuthCard } from '@/features/auth/components/AuthCard';
+import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 import '@/assets/styles/auth-animations.css';
 
 // How many individual digit boxes the MFA input renders (always 6 for TOTP codes).
@@ -463,6 +464,18 @@ export function LoginPage() {
         </div>
 
       </form>
+
+      {/* ── Social auth divider ── */}
+      <div className="flex items-center gap-3 mt-5" aria-hidden="true">
+        <div className="flex-1 h-px" style={{ background: 'rgba(155,95,38,0.30)' }} />
+        <span style={{ color: 'rgba(232,188,112,0.50)', fontSize: '0.8125rem' }}>or</span>
+        <div className="flex-1 h-px" style={{ background: 'rgba(155,95,38,0.30)' }} />
+      </div>
+
+      {/* ── Google sign-in ── */}
+      <div className="mt-4">
+        <GoogleSignInButton label="Sign in with Google" disabled={isSubmitting} />
+      </div>
     </AuthCard>
     </div>
   );

@@ -27,6 +27,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { isValidationError } from '@/shared/types';
 import { AuthCard } from '@/features/auth/components/AuthCard';
+import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -414,6 +415,21 @@ export function RegisterPage() {
         </p>
 
       </form>
+
+      {/* ── Social registration divider ── */}
+      <div className="flex items-center gap-3 mt-5" aria-hidden="true">
+        <div className="flex-1 h-px" style={{ background: 'rgba(155,95,38,0.30)' }} />
+        <span style={{ color: 'rgba(232,188,112,0.50)', fontSize: '0.8125rem' }}>or</span>
+        <div className="flex-1 h-px" style={{ background: 'rgba(155,95,38,0.30)' }} />
+      </div>
+
+      {/* ── Google registration ── */}
+      <div className="mt-4">
+        <GoogleSignInButton label="Sign up with Google" disabled={isSubmitting} />
+        <p className="text-center mt-3 text-xs" style={{ color: 'rgba(232,188,112,0.50)' }}>
+          Creates a new applicant account. No password required.
+        </p>
+      </div>
     </AuthCard>
   );
 }

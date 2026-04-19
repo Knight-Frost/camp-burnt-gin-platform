@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\MfaController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Auth\SocialAuthController;
 use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
@@ -133,7 +134,45 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     // Verify an email address using the token sent in the verification email
     // No auth required — the token itself is the credential
     Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->name('verification.verify');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Social / OAuth Authentication Routes
+    |--------------------------------------------------------------------------
+    |
+    | GET  /auth/{provider}/redirect  → Returns the provider's authorization URL.
+    |                                   Frontend redirects the user's browser there.
+    | GET  /auth/{provider}/callback  → Provider posts back here after authorization.
+    |                                   Backend resolves identity, then redirects to SPA.
+    |
+    | The three SPA-facing exchange endpoints are public (no Sanctum token yet):
+    | POST /auth/social/exchange      → Swap a one-time code for a Sanctum token.
+    | POST /auth/social/link-confirm  → Confirm account linking with password.
+    | POST /auth/social/mfa-verify    → Complete the MFA step after social login.
+    |
+    */
+    Route::get('/{provider}/redirect', [SocialAuthController::class, 'redirect'])
+        ->name('auth.social.redirect')
+        ->where('provider', 'google');
+
+    // Google redirects here — no throttle:auth middleware because the provider
+    // controls the rate at which it sends callbacks; our own throttle would reject
+    // legitimate callbacks if burst limits were hit.
+    Route::post('/social/exchange', [SocialAuthController::class, 'exchange'])
+        ->name('auth.social.exchange');
+
+    Route::post('/social/link-confirm', [SocialAuthController::class, 'linkConfirm'])
+        ->name('auth.social.link-confirm');
+
+    Route::post('/social/mfa-verify', [SocialAuthController::class, 'mfaVerify'])
+        ->name('auth.social.mfa-verify');
 });
+
+// Google OAuth callback — must NOT be under throttle:auth (Google controls callback rate)
+Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])
+    ->name('auth.social.callback')
+    ->where('provider', 'google')
+    ->middleware('throttle:api');
 
 /*
 |--------------------------------------------------------------------------
@@ -225,6 +264,26 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::delete('/account', [UserProfileController::class, 'deleteAccount'])
             ->middleware('throttle:sensitive')
             ->name('profile.account.delete');
+
+        // Set a password for social-only accounts (no current password required because they have none)
+        Route::post('/set-password', [UserProfileController::class, 'setPassword'])
+            ->name('profile.password.set');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Social Account Management Routes
+    |--------------------------------------------------------------------------
+    |
+    | These routes manage the OAuth provider links for an authenticated user.
+    | They require auth + verified to prevent unverified users from managing links.
+    |
+    */
+    Route::prefix('auth/social')->group(function () {
+        // Unlink a social provider (requires password or another provider is linked)
+        Route::delete('/{provider}', [SocialAuthController::class, 'unlink'])
+            ->name('auth.social.unlink')
+            ->where('provider', 'google');
     });
 
     /*

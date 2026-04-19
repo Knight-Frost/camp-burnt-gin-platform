@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\SocialAccount;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -164,6 +165,33 @@ class User extends Authenticatable implements MustVerifyEmail
     public function userEmergencyContacts(): HasMany
     {
         return $this->hasMany(UserEmergencyContact::class)->orderByDesc('is_primary')->orderBy('name');
+    }
+
+    /**
+     * Get all social (OAuth) accounts linked to this user.
+     */
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
+    /**
+     * Determine whether this user has a linked social account for a given provider.
+     */
+    public function hasSocialAccount(string $provider): bool
+    {
+        return $this->socialAccounts()->where('provider', $provider)->exists();
+    }
+
+    /**
+     * Determine whether this user can log in with a password.
+     *
+     * Social-only accounts have a null password and cannot use the password-based
+     * login flow until they set a password via POST /api/profile/set-password.
+     */
+    public function hasPassword(): bool
+    {
+        return $this->password !== null;
     }
 
     /**

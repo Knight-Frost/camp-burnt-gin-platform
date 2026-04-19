@@ -321,6 +321,17 @@ class MfaService
             ];
         }
 
+        // Social-only accounts have no password — they must set one before disabling MFA.
+        // This prevents a scenario where an attacker who obtains a valid session token
+        // can disable MFA on a social-only account without any secondary verification.
+        if (! $user->hasPassword()) {
+            return [
+                'success' => false,
+                'message' => 'You must set a password before disabling MFA on a social-linked account. Visit Account Security in your profile settings.',
+                'requires_set_password' => true,
+            ];
+        }
+
         // Proof 1: Verify the submitted password matches the stored bcrypt hash
         if (! Hash::check($password, $user->password)) {
             // Increment the rate-limit counter and set a 15-minute TTL
