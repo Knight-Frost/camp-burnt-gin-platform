@@ -18,10 +18,25 @@ class ApplicationStatusChangedNotification extends Notification
 {
     use Queueable;
 
+    /** @var array<int, string>|null When set, overrides via() channel resolution. */
+    private ?array $channelsOverride = null;
+
     public function __construct(
         protected Application $application,
         protected string $previousStatus
     ) {}
+
+    /**
+     * Returns a database-only instance for synchronous in-app bell notification.
+     * Used when approved/rejected statuses fire formal letters that handle email.
+     */
+    public static function forDatabase(Application $application, string $previousStatus): static
+    {
+        $instance = new static($application, $previousStatus);
+        $instance->channelsOverride = ['database'];
+
+        return $instance;
+    }
 
     /**
      * Get the notification's delivery channels.
@@ -34,6 +49,10 @@ class ApplicationStatusChangedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
+        if ($this->channelsOverride !== null) {
+            return $this->channelsOverride;
+        }
+
         $prefs = $notifiable->notification_preferences ?? [];
         $emailEnabled = $prefs['application_updates'] ?? true;
 

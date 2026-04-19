@@ -8,7 +8,9 @@ use App\Models\Camper;
 use App\Models\CampSession;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
+use App\Notifications\Camper\WaitlistedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 use Tests\Traits\WithRoles;
@@ -106,7 +108,7 @@ class QueuedNotificationsTest extends TestCase
         });
     }
 
-    public function test_application_review_queues_notification(): void
+    public function test_application_under_review_queues_status_changed_notification(): void
     {
         $admin = $this->createAdmin();
         $camper = Camper::factory()->create();
@@ -115,17 +117,77 @@ class QueuedNotificationsTest extends TestCase
             'status' => 'submitted',
         ]);
 
-        // Review application
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
-            'status' => 'approved',
-            'notes' => 'Approved',
-            'override_incomplete' => true, // notification test — not testing compliance enforcement
+            'status' => 'under_review',
+            'notes' => null,
         ]);
 
         $response->assertStatus(200);
 
-        // Verify notification was queued
         Queue::assertPushed(SendNotificationJob::class, function ($job) {
+            return $job->notification instanceof ApplicationStatusChangedNotification;
+        });
+    }
+
+    public function test_approved_does_not_queue_status_changed_email_uses_letter_instead(): void
+    {
+        $admin = $this->createAdmin();
+        $camper = Camper::factory()->create();
+        $application = Application::factory()->create([
+            'camper_id' => $camper->id,
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
+            'status' => 'approved',
+            'notes' => null,
+            'override_incomplete' => true,
+        ]);
+
+        $response->assertStatus(200);
+
+        // ApplicationStatusChangedNotification email must NOT be queued for approved.
+        // The AcceptanceLetterNotification (self-queued via ShouldQueue) handles email.
+        Queue::assertNotPushed(SendNotificationJob::class, function ($job) {
+            return $job->notification instanceof ApplicationStatusChangedNotification;
+        });
+    }
+
+    public function test_waitlisted_queues_waitlisted_notification(): void
+    {
+        $admin = $this->createAdmin();
+        $camper = Camper::factory()->create();
+        $application = Application::factory()->create([
+            'camper_id' => $camper->id,
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
+            'status' => 'waitlisted',
+            'notes' => null,
+        ]);
+
+        $response->assertStatus(200);
+
+        Queue::assertPushed(SendNotificationJob::class, function ($job) {
+            return $job->notification instanceof WaitlistedNotification;
+        });
+    }
+
+    public function test_waitlisted_does_not_queue_generic_status_changed_notification(): void
+    {
+        $admin = $this->createAdmin();
+        $camper = Camper::factory()->create();
+        $application = Application::factory()->create([
+            'camper_id' => $camper->id,
+            'status' => 'submitted',
+        ]);
+
+        $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
+            'status' => 'waitlisted',
+        ])->assertStatus(200);
+
+        Queue::assertNotPushed(SendNotificationJob::class, function ($job) {
             return $job->notification instanceof ApplicationStatusChangedNotification;
         });
     }

@@ -29,7 +29,10 @@ class IncompleteApplicationReminderNotification extends Notification implements 
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $prefs = $notifiable->notification_preferences ?? [];
+        $emailEnabled = $prefs['deadlines'] ?? true;
+
+        return $emailEnabled ? ['mail', 'database'] : ['database'];
     }
 
     /**

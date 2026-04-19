@@ -30,7 +30,9 @@ class AcceptanceLetterNotification extends Notification implements ShouldQueue
      */
     public function __construct(
         protected Application $application
-    ) {}
+    ) {
+        $this->onQueue('notifications');
+    }
 
     /**
      * Get the delivery channels for this notification.

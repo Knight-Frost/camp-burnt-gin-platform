@@ -8,6 +8,8 @@ use App\Models\Application;
 use App\Models\AuditLog;
 use App\Models\Camper;
 use App\Models\CampSession;
+use App\Notifications\Camper\AcceptanceLetterNotification;
+use App\Notifications\Camper\RejectionLetterNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -164,8 +166,11 @@ class ApplicationWorkflowTest extends TestCase
         $this->assertNotNull($application->reviewed_at);
         $this->assertEquals($admin->id, $application->reviewed_by);
 
-        // Verify notification was queued
-        Queue::assertPushed(SendNotificationJob::class);
+        // Approved: AcceptanceLetterNotification is queued (ShouldQueue, self-dispatched).
+        // ApplicationStatusChangedNotification fires database-only for approved — no SendNotificationJob.
+        Queue::assertPushed(\Illuminate\Notifications\SendQueuedNotifications::class, function ($job) {
+            return $job->notification instanceof AcceptanceLetterNotification;
+        });
 
         // Verify audit log was created
         $this->assertDatabaseHas('audit_logs', [
@@ -197,8 +202,10 @@ class ApplicationWorkflowTest extends TestCase
         $this->assertEquals(ApplicationStatus::Rejected, $application->status);
         $this->assertEquals('Insufficient documentation', $application->notes);
 
-        // Verify notification was queued
-        Queue::assertPushed(SendNotificationJob::class);
+        // Rejected: RejectionLetterNotification is queued (ShouldQueue, self-dispatched).
+        Queue::assertPushed(\Illuminate\Notifications\SendQueuedNotifications::class, function ($job) {
+            return $job->notification instanceof RejectionLetterNotification;
+        });
     }
 
     public function test_parent_can_view_own_application_after_submission(): void

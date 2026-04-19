@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\MedicalRecord;
 use App\Models\User;
 use App\Notifications\Camper\ApplicationStatusChangedNotification;
+use App\Notifications\Camper\WaitlistedNotification;
 use App\Services\Document\DocumentEnforcementService;
 use App\Services\System\LetterService;
 use App\Services\SystemNotificationService;
@@ -316,11 +317,23 @@ class ApplicationService
         $parentUser = $application->camper->user;
         $camperName = $application->camper->first_name.' '.$application->camper->last_name;
 
-        // Queue the status-change email notification to the parent.
-        $this->queueNotification(
-            $parentUser,
-            new ApplicationStatusChangedNotification($application, $previousStatus->value)
-        );
+        // Dispatch the status notification.
+        // Approved/rejected: database-only bell — the formal acceptance/rejection letter
+        //   handles the email, so we avoid sending the parent two emails.
+        // Waitlisted: dedicated notification with proper waitlist context.
+        // All other transitions: standard queued status change notification (mail + database).
+        if (in_array($newStatus, [ApplicationStatus::Approved, ApplicationStatus::Rejected])) {
+            $parentUser->notifyNow(
+                ApplicationStatusChangedNotification::forDatabase($application, $previousStatus->value)
+            );
+        } elseif ($newStatus === ApplicationStatus::Waitlisted) {
+            $this->queueNotification($parentUser, new WaitlistedNotification($application));
+        } else {
+            $this->queueNotification(
+                $parentUser,
+                new ApplicationStatusChangedNotification($application, $previousStatus->value)
+            );
+        }
 
         // Dispatch the most specific in-app inbox message for the new status.
         // Cancelled → bespoke message with reason. UnderReview transitions

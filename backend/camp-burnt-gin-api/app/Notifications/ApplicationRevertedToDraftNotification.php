@@ -31,7 +31,7 @@ class ApplicationRevertedToDraftNotification extends Notification
     public function via(object $notifiable): array
     {
         $prefs = $notifiable->notification_preferences ?? [];
-        $emailEnabled = $prefs['applications'] ?? true;
+        $emailEnabled = $prefs['application_updates'] ?? true;
 
         return $emailEnabled ? ['mail', 'database'] : ['database'];
     }
