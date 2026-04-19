@@ -30,21 +30,24 @@ This document defines the business logic, validation rules, and workflow constra
 
 ### Status Transitions
 
-The authoritative transition table is defined in `ApplicationStatus::canTransitionTo()`. The full matrix is:
+The authoritative transition table is defined in `ApplicationStatus::canTransitionTo()`. Status names are the enum values (e.g. `submitted`, not `pending`).
 
-| From \ To | Pending | Under Review | Approved | Rejected | Waitlisted | Cancelled |
-|-----------|---------|--------------|----------|----------|------------|-----------|
-| Pending | — | Yes | Yes | Yes | Yes | Yes |
-| Under Review | Yes | — | Yes | Yes | Yes | Yes |
-| Approved | No | No | — | Yes (reversal) | No | Yes |
-| Rejected | Yes | Yes | Yes (re-approval) | — | No | No |
-| Waitlisted | No | No | Yes | Yes | — | Yes |
-| Cancelled | No | No | No | No | No | — |
+| From \ To | `submitted` | `under_review` | `approved` | `rejected` | `waitlisted` | `cancelled` | `withdrawn` |
+|-----------|-------------|----------------|------------|------------|--------------|-------------|-------------|
+| `submitted` | — | Yes | Yes | Yes | Yes | Yes | No |
+| `under_review` | Yes | — | Yes | Yes | Yes | Yes | No |
+| `approved` | No | No | — | Yes (reversal) | No | Yes | No |
+| `rejected` | No | No | Yes (re-approval) | — | No | No | No |
+| `waitlisted` | No | No | Yes | Yes | — | Yes | No |
+| `cancelled` | No | Yes | No | No | No | — | No |
+| `withdrawn` | No | No | No | No | No | No | — |
 
 **Key rules:**
-- `Approved → Rejected` is a valid reversal. `ApplicationService` handles camper and medical record deactivation.
+- `Approved → Rejected` is a valid reversal. `ApplicationService` deactivates the camper and medical record if no other approved application exists.
 - `Rejected → Approved` is a valid re-approval. `ApplicationService` reactivates the camper and medical record.
-- `Cancelled` is an absolute terminal state. No further transitions are permitted.
+- `Cancelled → Under Review` is the only transition out of `cancelled` — allows an admin to reopen an application.
+- `Withdrawn` is the only true terminal state — no transitions out are permitted. It is set only by applicants via the withdraw endpoint, not by admins.
+- Admin cancellation (`cancelled`) is distinct from parent withdrawal (`withdrawn`). See `Application_Lifecycle.md` Section 9 for full withdrawal workflow.
 - Self-transitions (same → same) are always invalid.
 - Invalid transitions return HTTP 422 before any database write occurs.
 
@@ -148,6 +151,27 @@ public function requiresImmediateAttention(): bool
 - Parent or admin can revoke at any time
 - Revoked links cannot be unrevoked
 - Revocation reason stored in notes
+
+---
+
+## Session Visibility Rules
+
+### portal_open Flag
+
+**Rule:** Applicants see only sessions where both `is_active = true` AND `portal_open = true`.
+
+**Enforcement:** `CampSessionController::index()` applies the filter:
+```php
+if (! $request->user()->isAdmin()) {
+    $query->where('is_active', true)->where('portal_open', true);
+}
+```
+
+Admins see all sessions with no filter.
+
+**Important:** The `show()` endpoint (GET `/api/camp-sessions/{id}`) has no `portal_open` guard. Any authenticated user who knows a session's ID can retrieve its full record directly, regardless of the `portal_open` value. The `portal_open` flag controls listing visibility only.
+
+**Default value:** `portal_open` defaults to `false`. Sessions must be explicitly opened for applicants to see them in the registration list.
 
 ---
 
@@ -315,11 +339,12 @@ awaiting_upload → overdue (when due_date passes without upload)
 
 ## Related Documentation
 
-- [APPLICATION_WORKFLOWS.md](APPLICATION_WORKFLOWS.md) - Application lifecycle
-- [DATA_MODEL.md](DATA_MODEL.md) - Database schema
-- [ROLES_AND_PERMISSIONS.md](ROLES_AND_PERMISSIONS.md) - Authorization rules
+- [Application Lifecycle](Application_Lifecycle.md) — Application lifecycle and service layer contract
+- [Application Workflows](Application_Workflows.md) — State transition diagrams
+- [Data Model](../database/Data_Model.md) — Database schema
+- [Roles and Permissions](../roles-and-permissions/Roles_and_Permissions.md) — Authorization rules
 
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** March 2026
+**Last Updated:** April 2026

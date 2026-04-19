@@ -512,6 +512,8 @@ The system implements 50 database tables across six functional domains.
 | `sender_id` | bigint | FK to users, not null | Message sender |
 | `body` | text | not null | Message content |
 | `idempotency_key` | varchar(64) | unique, not null | Duplicate prevention |
+| `parent_message_id` | bigint | FK to messages, nullable, null on delete | The message being replied to (`reply` or `reply_all` flows) |
+| `reply_type` | enum | nullable | `reply` or `reply_all`; null for original thread messages |
 | `created_at` | timestamp | not null | Send timestamp |
 | `updated_at` | timestamp | not null | Last update timestamp |
 | `deleted_at` | timestamp | nullable | Soft delete timestamp |
@@ -523,11 +525,15 @@ The system implements 50 database tables across six functional domains.
 - KEY (`sender_id`)
 - KEY (`created_at`)
 - KEY (`deleted_at`)
+- COMPOSITE KEY (`parent_message_id`, `created_at`)
 
 **Relationships:**
 - belongs to: `conversations`
 - belongs to: `users` (sender)
+- belongs to: `messages` (parent, optional — only set on reply messages)
+- has many: `messages` (replies)
 - has many: `message_reads`
+- has many: `message_recipients`
 - has many (polymorphic): `documents` (attachments via documentable_type/documentable_id)
 
 ### message_reads
@@ -967,13 +973,15 @@ Uses Laravel's standard notification schema.
 | `user_id` | bigint | FK to users, cascade delete | Owner (always an applicant) |
 | `label` | varchar(255) | not null, default 'New Application' | Display name for the draft |
 | `draft_data` | longtext | nullable | Full serialized FormState JSON blob |
+| `application_id` | bigint | FK to applications, nullable | Set once the Application row is created; used for cleanup on finalization (added 2026-04-19) |
 | `created_at` | timestamp | not null | Creation timestamp |
 | `updated_at` | timestamp | not null | Auto-updated on every save; used for optimistic concurrency guard |
 
-**Note:** Hard-delete only — no soft deletes. No PHI is stored in draft_data; the camper record does not exist until final submission. Max 10 drafts per user; max 512 KB per `draft_data` blob.
+**Note:** Hard-delete only — no soft deletes. No PHI is stored in `draft_data`; the camper record does not exist until final submission. Max 10 drafts per user (HTTP 429 if exceeded); max 512 KB per `draft_data` blob (HTTP 422 if exceeded). Optimistic concurrency guard: if `last_known_updated_at` is supplied and does not match server `updated_at`, returns HTTP 409 Conflict.
 
 **Relationships:**
 - belongs to: `users`
+- belongs to: `applications` (optional — set after Application record is created)
 
 ---
 

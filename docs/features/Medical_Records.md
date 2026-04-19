@@ -187,12 +187,18 @@ The `scopeValid()` query scope enforces the same conditions at the database leve
 
 ### Admin workflow
 
+**Backend status: Complete. Frontend UI status: Not yet built.**
+
+The REST API for provider link management is fully implemented (`GET/POST /api/provider-links`, `POST /api/provider-links/{id}/revoke`, `POST /api/provider-links/{id}/resend`). The frontend API client functions (`getProviderLinks`, `createProviderLink`, `revokeProviderLink`, `resendProviderLink`) exist in `admin.api.ts`. No rendered page or component calls these functions — the feature is not accessible through any portal UI.
+
+The intended workflow (once UI is built):
+
 1. Admin navigates to a camper's medical record in the admin portal.
 2. Admin creates a provider link, supplying the provider's email address, name, and optional notes.
 3. The system generates the token, stores its hash, sets `expires_at = now() + 72h`, and dispatches an email notification containing the access URL.
 4. The provider clicks the URL from their email client. The system verifies the token, records `accessed_at`, and displays the medical form.
 5. The provider fills and submits the form. The system sets `is_used = true` and `submitted_at = now()`.
-6. If the provider has not yet submitted, an admin can revoke the link at any time by calling `revoke(User $user)`.
+6. If the provider has not yet submitted, an admin can revoke the link at any time via the API.
 
 ---
 

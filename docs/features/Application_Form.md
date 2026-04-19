@@ -75,7 +75,7 @@ Clicking "Start Application":
 
 ### Continue Draft
 
-If a draft exists in `localStorage` under the key `cbg_app_draft`, the page parses it on mount and displays the camper's name (from `s1.camper_first_name` + `s1.camper_last_name`) on a "Continue Draft" card. Clicking "Continue Draft" navigates directly to `ROUTES.PARENT_APPLICATION_NEW` without state — the form will hydrate from localStorage.
+If a draft exists in `sessionStorage` under the user-scoped key `cbg_app_draft_<userId>` (e.g. `cbg_app_draft_42`), the page parses it on mount and displays the camper's name (from `s1.camper_first_name` + `s1.camper_last_name`) on a "Continue Draft" card. Clicking "Continue Draft" navigates to `ROUTES.PARENT_APPLICATION_NEW` — the form will hydrate from sessionStorage on mount. The server draft is also loaded and takes precedence if available.
 
 ### Re-apply
 
@@ -150,7 +150,7 @@ The signature block supports two modes selected via `signature_type`:
 
 ### Storage Key
 
-`cbg_app_draft` (stored in `sessionStorage`, not `localStorage`)
+`cbg_app_draft_<userId>` stored in `sessionStorage` — user-scoped key (e.g. `cbg_app_draft_42`). The bare key `cbg_app_draft` (without user suffix) is only used by `ApplicationStartPage` to remove a legacy entry from `localStorage` when starting a new application; it is not the active read/write key.
 
 ### What is Persisted
 
@@ -160,11 +160,11 @@ File objects (`File` instances) attached in Section 9 cannot be serialized to JS
 
 ### Draft Recovery
 
-On mount, `ApplicationFormPage` attempts to parse `sessionStorage.getItem('cbg_app_draft')`. If a valid object is found, form state is initialized from it. The `activeSection` stored in `meta` restores the user to the section they last had open.
+On mount, `ApplicationFormPage` reads `sessionStorage.getItem('cbg_app_draft_<userId>')`. If a valid object is found, form state is initialized from it. The `activeSection` stored in `meta` restores the user to the section they last had open. The server draft is then fetched in the background; if it exists and is newer, it replaces the sessionStorage hydration.
 
 ### Draft Display in Start Page
 
-`ApplicationStartPage` reads `cbg_app_draft` on mount to extract `s1.camper_first_name` and `s1.camper_last_name`. If a name is found, it is displayed on the "Continue Draft" card to confirm which camper's draft is saved.
+`ApplicationStartPage` reads `sessionStorage.getItem('cbg_app_draft_<userId>')` on mount to extract `s1.camper_first_name` and `s1.camper_last_name`. If a name is found, it is displayed on the "Continue Draft" card. It also removes the legacy bare key `localStorage['cbg_app_draft']` (backward-compat cleanup) when "Start Application" is clicked.
 
 ### Draft Scope
 
@@ -428,9 +428,9 @@ Attempts to transition to an invalid status return HTTP 422.
 
 **One application per camper per session.** The backend enforces uniqueness on `(camper_id, camp_session_id)`. Attempting to submit a duplicate application returns a validation error.
 
-**Draft is client-only.** The draft stored in `localStorage` is never synchronized to the server. If a user clears browser storage or switches devices, the draft is gone. There is no server-side draft recovery mechanism.
+**Draft uses two-tier persistence.** Form state is written to `sessionStorage` at a 3-second debounce (same-session fast cache) and to the server via `PUT /api/application-drafts/{id}` at a 30-second interval (cross-session persistence). Server drafts survive tab closes, device switches, and browser clears. See `docs/features/Application_Drafts.md` for full lifecycle documentation.
 
-**File objects are not persisted in draft.** Only file metadata is stored in `localStorage`. When resuming a draft, users must re-select any documents they had attached in Section 9.
+**File objects are not persisted in draft.** Only file metadata is stored in the draft state. When resuming a draft, users must re-select any document files attached in Section 9. The file metadata (name, size, MIME type) is preserved; the actual `File` object is not.
 
 **Medical form upload is not application-scoped.** The `POST /api/documents` endpoint for the medical form upload does not associate the document with a specific application ID. The document is added to the applicant's general document library. Admin review works because `application.documents` includes all documents belonging to the applicant; however, cross-application disambiguation (e.g., if a parent applies for the same camper in two sessions) is not currently supported. This is documented as a known gap.
 

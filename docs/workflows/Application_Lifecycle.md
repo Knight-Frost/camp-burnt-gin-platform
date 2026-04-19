@@ -137,27 +137,28 @@ erDiagram
 | Cancelled | `cancelled` | Application cancelled by administrator | No | Admin only |
 | Withdrawn | `withdrawn` | Voluntarily withdrawn by parent | No | Parent only |
 
-**Terminal states** (no further transitions from either actor): `cancelled`, `withdrawn`.
-`rejected` is not terminal — admins may re-approve. Parents may NOT re-open rejected applications; only admins can re-approve.
+**Terminal state** (no transitions out from any actor): `withdrawn` only.
+`cancelled` is NOT terminal — admins may reopen a cancelled application to `under_review`.
+`rejected` is NOT terminal — admins may re-approve. Parents may NOT re-open rejected applications; only admins can re-approve.
 
 #### Application State Transition Diagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending : submitted
+    [*] --> Submitted : applicant submits
 
-    Pending --> UnderReview : admin opens review
-    Pending --> Approved : admin direct approval
-    Pending --> Rejected : admin direct rejection
-    Pending --> Waitlisted : admin waitlists
-    Pending --> Cancelled : admin cancels
-    Pending --> Withdrawn : parent withdraws
+    Submitted --> UnderReview : admin opens review
+    Submitted --> Approved : admin direct approval
+    Submitted --> Rejected : admin direct rejection
+    Submitted --> Waitlisted : admin waitlists
+    Submitted --> Cancelled : admin cancels
+    Submitted --> Withdrawn : parent withdraws
 
     UnderReview --> Approved : admin approves
     UnderReview --> Rejected : admin rejects
     UnderReview --> Waitlisted : admin waitlists
     UnderReview --> Cancelled : admin cancels
-    UnderReview --> Pending : admin resets
+    UnderReview --> Submitted : admin resets to submitted
     UnderReview --> Withdrawn : parent withdraws
 
     Approved --> Rejected : admin reversal
@@ -171,7 +172,7 @@ stateDiagram-v2
     Waitlisted --> Cancelled : admin cancels
     Waitlisted --> Withdrawn : parent withdraws
 
-    Cancelled --> [*]
+    Cancelled --> UnderReview : admin reopens
     Withdrawn --> [*]
 ```
 
@@ -179,26 +180,26 @@ stateDiagram-v2
 
 **Admin-level transitions** (via `POST /applications/{id}/review`):
 
-| From \ To | Pending | UnderReview | Approved | Rejected | Waitlisted | Cancelled |
-|-----------|---------|-------------|----------|----------|------------|-----------|
-| Pending | — | Yes | Yes | Yes | Yes | Yes |
+| From \ To | Submitted | UnderReview | Approved | Rejected | Waitlisted | Cancelled |
+|-----------|-----------|-------------|----------|----------|------------|-----------|
+| Submitted | — | Yes | Yes | Yes | Yes | Yes |
 | UnderReview | Yes | — | Yes | Yes | Yes | Yes |
 | Approved | No | No | — | Yes (reversal) | No | Yes |
 | Rejected | No | No | Yes (re-approval only) | — | No | No |
 | Waitlisted | No | No | Yes | Yes | — | Yes |
-| Cancelled | No | No | No | No | No | — |
+| Cancelled | No | Yes (reopen) | No | No | No | — |
 | Withdrawn | No | No | No | No | No | — |
 
 **Parent-level transitions** (via `POST /applications/{id}/withdraw`):
 
 | From | To | Notes |
 |------|----|-------|
-| Pending | Withdrawn | Application not yet reviewed |
+| Submitted | Withdrawn | Application not yet reviewed |
 | UnderReview | Withdrawn | Withdrawal during admin review |
 | Approved | Withdrawn | Triggers camper/medical deactivation |
 | Waitlisted | Withdrawn | Removes from waitlist |
 | Rejected | ❌ Not allowed | Admin decision is on record |
-| Cancelled | ❌ Not allowed | Terminal |
+| Cancelled | ❌ Not allowed | Parents cannot withdraw admin-cancelled applications |
 | Withdrawn | ❌ Not allowed | Already withdrawn |
 
 ### Camper States

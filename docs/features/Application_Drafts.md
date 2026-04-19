@@ -8,7 +8,7 @@
 
 The application draft system allows applicants to save their in-progress application form and return to it later — even from a different device or browser. Draft state is stored server-side in the `application_drafts` table and synchronized to the applicant's browser session via dedicated REST endpoints.
 
-A secondary localStorage fallback (`cbg_app_draft`) exists for fast in-page restoration, but the server draft is the authoritative source. Clearing browser storage does not lose form progress as long as the server draft exists.
+A secondary `sessionStorage` fallback (key: `cbg_app_draft_<userId>`, e.g. `cbg_app_draft_42`) exists for fast in-page restoration, but the server draft is the authoritative source. Closing the browser tab clears sessionStorage; server drafts persist across sessions and devices.
 
 ---
 
@@ -22,9 +22,9 @@ ApplicationFormPage (frontend)
   │     GET /api/application-drafts/{id}   → fetch the selected draft's data
   │     Hydrate FormState from draft_data
   │
-  ├── On every auto-save (debounced)
-  │     PUT /api/application-drafts/{id}   → overwrite draft_data
-  │     Mirror to localStorage['cbg_app_draft'] as fast-restore cache
+  ├── On every auto-save (two-tier debounce)
+  │     sessionStorage['cbg_app_draft_<userId>'] → written at 3-second debounce (fast)
+  │     PUT /api/application-drafts/{id}         → written at 30-second debounce (server)
   │
   └── On final Submit
         POST /applications                 → create Application record
@@ -42,8 +42,8 @@ ApplicationFormPage (frontend)
 |---|---|---|
 | `id` | bigint | Primary key |
 | `user_id` | FK → users | Owner; always an applicant |
-| `application_id` | FK → applications (nullable) | Set once the Application row is created; used for cleanup on finalization |
 | `label` | string | Display name for the draft (defaults to "New Application") |
+| `application_id` | FK → applications (nullable) | Set once the Application row is created (added 2026-04-19); used for cleanup on finalization |
 | `draft_data` | JSON (nullable) | Full serialized FormState blob; null until the first save |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | Used for optimistic concurrency guard |
@@ -145,14 +145,14 @@ The draft slot is always deleted on successful submission. The `is_draft` flag i
 
 ---
 
-## localStorage Fallback
+## sessionStorage Fallback
 
-The frontend also mirrors the current form state to `localStorage['cbg_app_draft']` on every auto-save. This key is used as a fast-restore fallback when:
+The frontend mirrors the current form state to `sessionStorage` under the user-scoped key `cbg_app_draft_<userId>` (e.g. `cbg_app_draft_42`) at a 3-second debounce on every form change. This key is used as a fast-restore fallback when:
 
 - No server draft is found for the current user
 - The server is unreachable at the moment the form loads
 
-The localStorage copy is cleared when the server draft is successfully loaded or when the application is submitted. It is not a substitute for the server draft — it is a UX convenience to avoid a blank form on brief connectivity interruptions.
+The sessionStorage copy is cleared when the server draft is successfully loaded or when the application is submitted. It does not survive closing the browser tab — it is a same-session UX convenience to avoid a blank form on brief connectivity interruptions. The server draft is the authoritative cross-session and cross-device store.
 
 ---
 

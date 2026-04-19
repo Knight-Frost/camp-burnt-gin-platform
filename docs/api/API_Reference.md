@@ -1750,11 +1750,32 @@ Soft delete camper.
 
 ### GET /campers/{camper}/risk-summary
 
-Get a camper's aggregated risk summary, including active restrictions, severe allergies, and high-priority follow-ups.
+Returns the camper's current risk score, supervision level, and extracted clinical flags. Runs the risk engine on demand. Applicants are blocked even if they own the camper — this endpoint surfaces internal staffing decisions, not parent-facing data.
 
-**Auth:** Yes | **Role:** Admin, Medical | **Rate Limit:** `api`
+**Auth:** Yes | **Role:** Admin, Super Admin, Medical | **Rate Limit:** `api`
 
-**Success (200):** Risk summary object
+**Success (200):**
+```json
+{
+  "data": {
+    "risk_score": 45,
+    "supervision_level": "enhanced",
+    "supervision_label": "Enhanced Supervision",
+    "staffing_ratio": "1:2",
+    "effective_supervision_level": "intensive",
+    "effective_supervision_label": "Intensive Supervision",
+    "effective_staffing_ratio": "1:1",
+    "medical_complexity_tier": "tier_2",
+    "complexity_label": "Moderate Complexity",
+    "flags": { "seizure_history": true, "g_tube": false, "wandering_risk": false },
+    "review_status": "reviewed",
+    "review_status_label": "Reviewed",
+    "is_overridden": true
+  }
+}
+```
+
+`supervision_level` is the system-calculated value; `effective_supervision_level` reflects any clinical override in effect. If no override exists, both values are identical.
 
 ---
 
@@ -4278,17 +4299,24 @@ Medical risk scoring for campers. See `docs/features/Risk_Engine.md` for full en
 | `POST` | `/api/campers/{camper}/risk-assessment/recommendations` | Add clinical recommendation | Medical, Super Admin |
 | `DELETE` | `/api/campers/{camper}/risk-assessment/recommendations/{index}` | Remove recommendation | Medical, Super Admin |
 
-**Risk Configuration Endpoints** (read: Admin + Medical; write destroy: Super Admin only):
+**Risk Configuration Endpoints:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET/POST` | `/api/risk-factors` | List / create risk factors |
-| `GET/PUT/DELETE` | `/api/risk-factors/{riskFactor}` | Get / update / delete a factor |
-| `GET/POST` | `/api/risk-rules` | List / create conditional rules |
-| `PUT/DELETE` | `/api/risk-rules/{riskRule}` | Update / delete a rule |
-| `GET` | `/api/risk-thresholds` | List score-to-tier thresholds |
-| `PUT` | `/api/risk-thresholds/{riskThreshold}` | Update a threshold |
-| `GET` | `/api/risk-thresholds/impact` | Preview threshold change impact (dry-run) |
+All read operations (`GET`) require Admin or Medical role. All write operations (`POST`, `PUT`) require Admin or Medical. `DELETE` on risk-factors requires Super Admin; `DELETE` on risk-rules and risk-thresholds requires Admin or Medical.
+
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| `GET` | `/api/risk-factors` | Admin, Medical |
+| `POST` | `/api/risk-factors` | Admin, Medical |
+| `GET` | `/api/risk-factors/{riskFactor}` | Admin, Medical |
+| `PUT` | `/api/risk-factors/{riskFactor}` | Admin, Medical |
+| `DELETE` | `/api/risk-factors/{riskFactor}` | **Super Admin only** |
+| `GET` | `/api/risk-rules` | Admin, Medical |
+| `POST` | `/api/risk-rules` | Admin, Medical |
+| `PUT` | `/api/risk-rules/{riskRule}` | Admin, Medical |
+| `DELETE` | `/api/risk-rules/{riskRule}` | Admin, Medical |
+| `GET` | `/api/risk-thresholds` | Admin, Medical |
+| `PUT` | `/api/risk-thresholds/{riskThreshold}` | Admin, Medical |
+| `GET` | `/api/risk-thresholds/impact` | Admin, Medical |
 
 ### GET /api/campers/{camper}/risk-assessment
 
