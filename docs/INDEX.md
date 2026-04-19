@@ -30,7 +30,9 @@ This documentation set covers the full Camp Burnt Gin registration and medical m
 | Use or build shared UI components | Component Guide | `ui-ux/Component_Guide.md` |
 | Understand form behavior and i18n | UI/UX Behavior | `ui-ux/UI_UX_Behavior.md` |
 | Work on the application form | Application Form | `features/Application_Form.md` |
+| Understand server-side draft persistence | Application Drafts | `features/Application_Drafts.md` |
 | Work on medical records or PHI fields | Medical Records | `features/Medical_Records.md` |
+| Understand medical risk scoring | Risk Engine | `features/Risk_Engine.md` |
 | Work on the messaging system | Messaging | `features/Messaging.md` |
 | Work on file uploads | File Uploads | `features/File_Uploads.md` |
 | Run or write tests | Testing Guide | `testing/Testing.md` |
@@ -131,8 +133,10 @@ This documentation set covers the full Camp Burnt Gin registration and medical m
 
 | Document | Description | Audience |
 |---|---|---|
-| `Application_Form.md` | 10-section digital application form, start flow (new/continue draft/re-apply), draft persistence via localStorage, language selection, medical form upload-only flow | Frontend and backend engineers |
+| `Application_Form.md` | 10-section digital application form, start flow (new/continue draft/re-apply), draft persistence, language selection, medical form upload-only flow | Frontend and backend engineers |
+| `Application_Drafts.md` | Server-side draft persistence system: `application_drafts` table, REST endpoints, auto-save lifecycle, optimistic concurrency guard, limits, localStorage fallback | Frontend and backend engineers |
 | `Medical_Records.md` | PHI field encryption, medical provider portal access, behavioral profiles, personal care plans, CYSHCN handling | Backend engineers, security, medical staff |
+| `Risk_Engine.md` | Database-driven medical risk scoring: factor detection, point rules, thresholds, supervision levels, clinical review and override workflow | Medical staff, backend engineers |
 | `Messaging.md` | Gmail-style threaded messaging, TO/CC/BCC recipient model, reply and reply-all server-side logic, BCC privacy enforcement | Backend and frontend engineers |
 | `File_Uploads.md` | Document upload security, MIME type validation, private disk storage, download authorization, document type conventions | Backend and frontend engineers |
 | `External_Mailing.md` | Email notification system, notification templates, queue-based delivery, scheduling and retry behavior | Backend engineers, DevOps |

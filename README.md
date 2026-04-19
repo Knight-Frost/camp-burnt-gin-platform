@@ -35,7 +35,7 @@ The system is built around three core concerns:
 - **Medical data protection:** Personally identifiable health information (PHI) is encrypted at rest using Laravel's encrypted cast, accessed only by authorized roles, and logged to a tamper-evident audit trail on every read.
 - **Operational clarity:** Administrators can manage camp sessions with capacity enforcement and waitlist promotion, issue and track document requests, generate mailing and ID-label reports, communicate through a threaded inbox, and publish announcements and deadlines to all users.
 
-The platform is implemented as a Laravel 12 REST API consumed by a React 18 TypeScript single-page application. Both layers are fully operational across all four portals. The backend has 95 database migrations, 51 controllers, 42 models, and more than 380 passing integration and unit tests.
+The platform is implemented as a Laravel 12 REST API consumed by a React 18 TypeScript single-page application. Both layers are fully operational across all four portals. The backend has 127 database migrations, 52 controllers, 44 models, and more than 560 passing integration and unit tests.
 
 ---
 
@@ -351,7 +351,6 @@ Valid transitions are enforced server-side. Invalid transition attempts return H
 ```
 Camp_Burnt_Gin_Project/
 ├── README.md                                    # This file
-├── BUG_TRACKER.md                               # Active issue log
 ├── Application_Forms/                           # Official blank form PDFs
 │   ├── CYSHCN Camper Application.pdf
 │   ├── Children and Youth with SHCN.pdf
@@ -369,17 +368,17 @@ Camp_Burnt_Gin_Project/
 │       ├── app/
 │       │   ├── Enums/                           # ApplicationStatus, AllergySeverity, etc.
 │       │   ├── Http/
-│       │   │   ├── Controllers/                 # 51 controllers (auth, camp, medical, inbox, etc.)
+│       │   │   ├── Controllers/                 # 52 controllers (auth, camp, medical, inbox, risk, etc.)
 │       │   │   ├── Middleware/                  # Auth, role enforcement, PHI audit, security headers
 │       │   │   ├── Requests/                    # Form request validators (one per mutation)
 │       │   │   └── Resources/                   # JSON API resources
-│       │   ├── Models/                          # 42 Eloquent models
+│       │   ├── Models/                          # 44 Eloquent models
 │       │   ├── Policies/                        # 30+ policy classes (one per model)
 │       │   ├── Services/                        # Business logic (23 service classes)
 │       │   ├── Events/ Listeners/ Jobs/         # Async operations and notifications
 │       │   └── Notifications/                   # Email notification classes
 │       ├── database/
-│       │   ├── migrations/                      # 95 migration files (chronological)
+│       │   ├── migrations/                      # 127 migration files (chronological)
 │       │   └── seeders/                         # 37 seeder classes
 │       ├── routes/
 │       │   └── api.php                          # All API routes (~1,000 lines)
@@ -430,6 +429,7 @@ Camp_Burnt_Gin_Project/
     ├── deployment/                              # Setup, CI/CD, and production procedures
     ├── ui-ux/                                   # Design system and component guide
     ├── governance/                              # Contributing guidelines and code standards
+    ├── bug-tracking/                            # Active issue log (BUG_TRACKER.md)
     └── reports/                                 # Forensic audit reports
 ```
 
@@ -760,9 +760,9 @@ All four portals are feature-complete and wired to the API:
 
 - **Medical form upload:** The physician-completed medical form upload associates the document with the applicant's general document library rather than a specific application. Admin review works correctly because `application.documents` covers all applicant documents. Cross-application disambiguation if a camper submits multiple applications in the same session is a future concern.
 - **Gmail-style messaging migrations:** Two migrations (`2026_03_27_000001` and `2026_03_27_000002`) introduced message recipients and reply threading. Any deployment that was running before these migrations must apply them before the messaging features function correctly: `php artisan migrate`.
-- **Draft persistence:** Application draft state is client-side only (localStorage key `cbg_app_draft`). There is no server-side draft recovery beyond the API's own `is_draft` flag on the application record. Clearing browser storage discards unsaved form progress.
+- **Draft persistence:** Application draft state is persisted server-side via the `application_drafts` table and the `/application-drafts` REST endpoints. The frontend also mirrors the current form state to `localStorage` key `cbg_app_draft` as a fast-restore fallback. On returning to the form page, the server draft is the primary source; localStorage is used only if no server draft is found. Drafts are capped at 10 per user and 512 KB per blob. An optimistic concurrency guard (409 Conflict) prevents two-tab overwrite races.
 - **Cabin management:** The `cabins` table and migration exist. Cabin assignment is not yet surfaced in the admin UI as a manageable workflow.
-- **External provider links:** The backend fully implements token-based external provider access (`MedicalProviderLinkController`, `MedicalProviderLinkService`). The frontend provider access flow exists in a `features/provider/` module; a dedicated provider-facing UI is partially scaffolded.
+- **External provider links:** The backend fully implements token-based external provider access (`MedicalProviderLinkController`, `MedicalProviderLinkService`). A dedicated provider-facing frontend UI has not yet been built. The route `/provider-access/:token` is not present in the frontend routing tree.
 
 ### Frontend/Backend Alignment
 
@@ -936,6 +936,6 @@ All reference documentation is in `docs/`. The index file [docs/INDEX.md](docs/I
 
 ## Conclusion
 
-Camp Burnt Gin is a complete, production-grade camp management platform. All four portals (applicant, admin, medical, and super admin) are fully implemented and wired to the API. The backend enforces a HIPAA-conscious security model across 51 controllers, 42 models, and more than 380 passing tests. The frontend enforces the same model at the routing, state, and API layers.
+Camp Burnt Gin is a complete, production-grade camp management platform. All four portals (applicant, admin, medical, and super admin) are fully implemented and wired to the API. The backend enforces a HIPAA-conscious security model across 52 controllers, 44 models, and more than 560 passing tests. The frontend enforces the same model at the routing, state, and API layers.
 
 This README reflects the state of the implementation as of March 2026. For the authoritative workflow specification, consult [docs/workflows/Application_Lifecycle.md](docs/workflows/Application_Lifecycle.md). For the complete API surface, consult [docs/api/API_Reference.md](docs/api/API_Reference.md). For local development setup, follow Section 9 of this document.

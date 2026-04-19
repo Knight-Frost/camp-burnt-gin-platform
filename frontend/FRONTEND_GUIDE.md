@@ -8,7 +8,7 @@ Full API reference: `frontend/src/features/*/api/*.ts` (source of truth)
 
 HIPAA-compliant camp management app — registrations, medical records, parent-staff comms, admin ops.
 
-**Backend**: Laravel 12, PHP 8.2+, Sanctum 4.2, MySQL 8.0. 334 tests passing. Production-ready.
+**Backend**: Laravel 12, PHP 8.2+, Sanctum 4.2, MySQL 8.0. 560+ tests passing. Production-ready.
 **Frontend**: React 18, TypeScript 5 (strict), Tailwind 3, Framer Motion 12, Vite 5.
 
 ### Users & Roles
@@ -34,7 +34,7 @@ All portals are complete and wired to the API.
 | Super-admin portal (dashboard, user management, audit log, form templates) | Complete |
 | Messaging/inbox (two-panel threaded, new conversation modal) | Complete |
 | Settings (font scale, high contrast, reduced motion, notification preferences) | Complete |
-| Provider link flow (`/provider-access/:token`) | Complete |
+| Provider link flow (`/provider-access/:token`) | Backend complete — frontend UI not yet built |
 
 ---
 
@@ -83,6 +83,7 @@ Camp_Burnt_Gin_Project/
 | Notifications | `src/features/admin/api/notifications.api.ts` |
 | Announcements | `src/features/admin/api/announcements.api.ts` |
 | Calendar | `src/features/admin/api/calendar.api.ts` |
+| Deadlines | `src/features/admin/api/deadlines.api.ts` |
 | Messaging | `src/features/messaging/api/messaging.api.ts` |
 
 ---

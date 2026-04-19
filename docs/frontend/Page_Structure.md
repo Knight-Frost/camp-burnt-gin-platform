@@ -126,6 +126,7 @@ The `applicant` role is used by parents and guardians submitting camper applicat
 | `/admin/families/:userId` | `AdminFamilyWorkspacePage` | Family workspace — all campers and applications for one guardian account | Family members; applications |
 | `/admin/campers` | `AdminCampersPage` | Camper directory with session filter | Paginated campers |
 | `/admin/campers/:id` | `CamperDetailPage` | Full camper profile: applications, active status, risk flags | Single camper; applications; medical risk summary |
+| `/admin/campers/:id/risk` | `CamperRiskPage` | Full risk assessment detail for one camper: score, factor breakdown, supervision level, clinical review and override controls | Single camper risk assessment (PHI) |
 | `/admin/sessions` | `AdminSessionsPage` | Active camp sessions list; create/edit/delete; capacity management | Sessions with enrolled counts |
 | `/admin/sessions/archived` | `ArchivedSessionsPage` | Archived sessions with restore action | Archived sessions |
 | `/admin/sessions/:id` | `SessionDetailPage` | Session dashboard: enrolled campers, waitlist, capacity gauge | Single session; enrolled campers; waitlist |
@@ -134,6 +135,7 @@ The `applicant` role is used by parents and guardians submitting camper applicat
 | `/admin/calendar` | `AdminCalendarPage` | Calendar of sessions and administrative deadlines | Calendar events |
 | `/admin/documents` | `AdminDocumentsPage` | System-wide document library | Documents list |
 | `/admin/deadlines` | `AdminDeadlinesPage` | Application and enrollment deadlines management | Deadlines list |
+| `/admin/risk-management` | `RiskManagementPage` | System-wide risk configuration: risk factors, scoring rules, thresholds; readable by medical role too | Risk factors, rules, thresholds |
 | `/admin/form-builder` | `FormDashboardPage` (shared) | Form builder dashboard — lists all dynamic application form definitions | Form definitions |
 | `/admin/form-builder/:formId` | `FormEditorPage` (shared) | Visual editor for a single form's sections and fields | Form definition by ID |
 | `/admin/inbox` | `InboxPage` (shared) | Admin messaging inbox — threads with applicants and medical staff | Conversations |
@@ -160,7 +162,7 @@ The super-admin portal mirrors all admin pages under the `/super-admin` prefix a
 
 **Pages mirrored from the admin portal** (same components, different URL prefix):
 
-`/super-admin/applications`, `/super-admin/applications/:id`, `/super-admin/applications/:id/edit`, `/super-admin/families`, `/super-admin/families/:userId`, `/super-admin/campers`, `/super-admin/campers/:id`, `/super-admin/sessions`, `/super-admin/sessions/archived`, `/super-admin/sessions/:id`, `/super-admin/reports`, `/super-admin/announcements`, `/super-admin/calendar`, `/super-admin/documents`, `/super-admin/form-builder`, `/super-admin/form-builder/:formId`, `/super-admin/inbox`, `/super-admin/profile`, `/super-admin/settings`
+`/super-admin/applications`, `/super-admin/applications/:id`, `/super-admin/applications/:id/edit`, `/super-admin/families`, `/super-admin/families/:userId`, `/super-admin/campers`, `/super-admin/campers/:id`, `/super-admin/campers/:id/risk`, `/super-admin/sessions`, `/super-admin/sessions/archived`, `/super-admin/sessions/:id`, `/super-admin/reports`, `/super-admin/announcements`, `/super-admin/calendar`, `/super-admin/documents`, `/super-admin/risk-management`, `/super-admin/form-builder`, `/super-admin/form-builder/:formId`, `/super-admin/inbox`, `/super-admin/profile`, `/super-admin/settings`
 
 ---
 
@@ -183,11 +185,13 @@ All routes in this portal handle HIPAA-protected PHI. Medical records are never 
 | `/medical/records/:camperId/incidents` | `MedicalIncidentsPage` | Incidents scoped to a specific camper | Camper incidents |
 | `/medical/records/:camperId/visits` | `MedicalVisitsPage` | Visit log scoped to a specific camper | Camper visits |
 | `/medical/records/:camperId/emergency` | `MedicalEmergencyViewPage` | At-a-glance emergency summary: allergies, medications, risk flags, emergency contacts | Camper emergency data (PHI) |
+| `/medical/records/:id/risk` | `CamperRiskPage` | Risk assessment detail (same component as admin view; medical role has read access plus clinical review/override capability) | Single camper risk assessment (PHI) |
 | `/medical/treatments` | `MedicalTreatmentLogPage` | Global treatment log across all campers | All treatments |
 | `/medical/record-treatment` | `MedicalRecordTreatmentPage` | Form to record a new treatment event | — |
 | `/medical/incidents` | `MedicalIncidentsPage` | Global incidents log across all campers | All incidents |
 | `/medical/follow-ups` | `MedicalFollowUpsPage` | Outstanding medical follow-up items | Follow-up list |
 | `/medical/visits` | `MedicalVisitsPage` | Global visit log across all campers | All visits |
+| `/medical/risk-management` | `RiskManagementPage` | Risk engine configuration view (same component as admin; read-only access for medical role) | Risk factors, rules, thresholds |
 | `/medical/announcements` | `ParentAnnouncementsPage` (shared) | Camp-wide announcements relevant to medical staff | Announcements |
 | `/medical/inbox` | `InboxPage` (shared) | Medical provider messaging; can compose to admins only | Conversations |
 | `/medical/profile` | `ProfilePage` (shared) | Medical provider profile | Authenticated user record |

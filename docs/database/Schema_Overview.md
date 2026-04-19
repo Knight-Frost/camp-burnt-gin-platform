@@ -26,7 +26,7 @@
 | Character set | utf8mb4 |
 | Collation | utf8mb4_unicode_ci |
 | Migration tool | Laravel Migrations (Eloquent Schema Builder) |
-| Total tables | 39 application tables + 3 Laravel framework tables |
+| Total tables | 47 application tables + 3 Laravel framework tables |
 
 ---
 
@@ -82,6 +82,11 @@ One row per table. PHI Encrypted = "Yes" indicates the table contains one or mor
 | `user_emergency_contacts` | `id` | `user_id` | FK → `users` | No | No |
 | `audit_logs` | `id` | `request_id` (UUID), `user_id`, `event_type`, `auditable_type`, `auditable_id`, `created_at` | FK → `users` (nullable), polymorphic auditable | No | No |
 | `application_consents` | `id` | `application_id`, `consent_type` | FK → `applications` | No | No |
+| `application_drafts` | `id` | `user_id`, `application_id` (nullable), `label`, `draft_data` (JSON) | FK → `users`; optional FK → `applications` | No | No |
+| `risk_factors` | `id` | `key`, `label`, `points`, `is_active` | — | No | No |
+| `risk_rules` | `id` | `risk_factor_id`, `condition_type`, `condition_value`, `bonus_points` | FK → `risk_factors` | No | No |
+| `risk_thresholds` | `id` | `label`, `min_score`, `max_score`, `supervision_level`, `complexity_tier` | — | No | No |
+| `risk_assessments` | `id` | `camper_id`, `risk_score`, `supervision_level`, `complexity_tier`, `factor_breakdown` (JSON), `flags` (JSON), `review_status`, `reviewed_by`, `override_reason`, `clinical_notes` | FK → `campers`, `users` (reviewed_by) | Yes (clinical_notes) | No |
 
 ---
 
