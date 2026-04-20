@@ -249,17 +249,17 @@ class DemoSeeder extends Seeder
 
         $this->seedActivityPermissions($ethan, [
             'sports_games' => ActivityPermissionLevel::Yes,
-            'arts_crafts'  => ActivityPermissionLevel::Yes,
-            'nature'       => ActivityPermissionLevel::Yes,
-            'fine_arts'    => ActivityPermissionLevel::Yes,
+            'arts_crafts' => ActivityPermissionLevel::Yes,
+            'nature' => ActivityPermissionLevel::Yes,
+            'fine_arts' => ActivityPermissionLevel::Yes,
             // Seizure protocol: swimming and boating require supervision confirmation
-            'swimming'     => ActivityPermissionLevel::Restricted,
-            'boating'      => ActivityPermissionLevel::Restricted,
-            'camping'      => ActivityPermissionLevel::Yes,
-            'camp_out'     => ActivityPermissionLevel::Yes,
+            'swimming' => ActivityPermissionLevel::Restricted,
+            'boating' => ActivityPermissionLevel::Restricted,
+            'camping' => ActivityPermissionLevel::Yes,
+            'camp_out' => ActivityPermissionLevel::Yes,
         ], [
             'swimming' => 'Seizure action plan on file with Dr. Hill. Must have dedicated water safety supervisor within arm\'s reach at all times. No participation if seizing within 24 hours.',
-            'boating'  => 'Same seizure protocol as swimming. Life vest required. Buddy system mandatory. Counselor must remain physically adjacent.',
+            'boating' => 'Same seizure protocol as swimming. Life vest required. Buddy system mandatory. Counselor must remain physically adjacent.',
         ]);
 
         $this->seedActivityPermissions($lily, array_fill_keys([
@@ -269,16 +269,16 @@ class DemoSeeder extends Seeder
 
         $this->seedActivityPermissions($sofia, [
             'sports_games' => ActivityPermissionLevel::Yes,
-            'arts_crafts'  => ActivityPermissionLevel::Yes,
-            'nature'       => ActivityPermissionLevel::Yes,
-            'fine_arts'    => ActivityPermissionLevel::Yes,
-            'swimming'     => ActivityPermissionLevel::Restricted,
-            'boating'      => ActivityPermissionLevel::No,
-            'camping'      => ActivityPermissionLevel::Yes,
-            'camp_out'     => ActivityPermissionLevel::Yes,
+            'arts_crafts' => ActivityPermissionLevel::Yes,
+            'nature' => ActivityPermissionLevel::Yes,
+            'fine_arts' => ActivityPermissionLevel::Yes,
+            'swimming' => ActivityPermissionLevel::Restricted,
+            'boating' => ActivityPermissionLevel::No,
+            'camping' => ActivityPermissionLevel::Yes,
+            'camp_out' => ActivityPermissionLevel::Yes,
         ], [
             'swimming' => 'May participate with accessible pool entry and a dedicated water aide. Catheter care must be completed before and after water activities.',
-            'boating'  => 'Excluded — wheelchair-accessible transfer to boat is not feasible at current facility.',
+            'boating' => 'Excluded — wheelchair-accessible transfer to boat is not feasible at current facility.',
         ]);
 
         // ── Camp session ──────────────────────────────────────────────────────
@@ -406,7 +406,7 @@ class DemoSeeder extends Seeder
 
     /**
      * @param  array<string, ActivityPermissionLevel>  $permissions  slug → level
-     * @param  array<string, string>                   $notes        slug → restriction_notes
+     * @param  array<string, string>  $notes  slug → restriction_notes
      */
     private function seedActivityPermissions(Camper $camper, array $permissions, array $notes = []): void
     {

@@ -59,9 +59,9 @@ class DatabaseSeeder extends Seeder
         $mode = env('SEED_MODE', 'demo');
 
         match ($mode) {
-            'minimal'                => $this->runMode('minimal', MinimalSeeder::class),
-            'development', 'full'   => $this->runMode('development', FullSimulationSeeder::class),
-            default                  => $this->runMode('demo', DemoSeeder::class),
+            'minimal' => $this->runMode('minimal', MinimalSeeder::class),
+            'development', 'full' => $this->runMode('development', FullSimulationSeeder::class),
+            default => $this->runMode('demo', DemoSeeder::class),
         };
     }
 
