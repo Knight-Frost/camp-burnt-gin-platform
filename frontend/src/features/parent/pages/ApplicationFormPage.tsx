@@ -4145,6 +4145,15 @@ export function ApplicationFormPage() {
   /** Non-null when the most recent flushSection call failed. Displayed as
    *  an inline banner so the parent never sees a silent failure. */
   const [flushError, setFlushError]     = useState<string | null>(null);
+  /**
+   * Becomes true the first time the user clicks the Submit button.
+   * Gates the global Issues Summary panel and the per-section inline hint so
+   * that a new or in-progress draft opens with a calm, error-free view.
+   * Validation still runs in the background (for pills and the Submit gate)
+   * — it just isn't surfaced as alarming error UI until the user actually
+   * tries to submit.
+   */
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   // ── Backend validation engine — the single source of truth for UX ───────
   //
@@ -4944,9 +4953,11 @@ export function ApplicationFormPage() {
 
   /**
    * Opens the pre-submission review modal if all sections are complete,
-   * otherwise navigates to the first incomplete section.
+   * otherwise navigates to the first incomplete section and reveals the
+   * Issues Summary so the applicant can see exactly what still needs work.
    */
   function handleRequestSubmit() {
+    setSubmitAttempted(true);
     if (!isSubmitReady) {
       const firstIncomplete = sections.findIndex((_, i) => getStepStatus(i) !== 'complete');
       if (firstIncomplete !== -1) {
@@ -5786,12 +5797,12 @@ export function ApplicationFormPage() {
         <>
 
         {/* ── Issues Summary (backend engine) ──────────────────────────────
-             The only place the applicant sees every blocking issue the
-             server-side validation engine has flagged. Each item is
-             clickable and jumps to its section via goToStep(). Hidden when
-             the engine reports READY or validation hasn't loaded, so it
-             never nags on a clean form. */}
-        {validation && validation.blocking_issues.length > 0 && (
+             Shown only after the user has clicked Submit at least once.
+             Before that, validation runs silently in the background to
+             power section pills and the Submit gate — but no error panel
+             is shown on a fresh or in-progress draft. Once visible, each
+             item is clickable and jumps to its section via goToStep(). */}
+        {submitAttempted && validation && validation.blocking_issues.length > 0 && (
           <div
             className="rounded-xl border px-4 py-3 mb-6"
             style={{
@@ -5878,12 +5889,12 @@ export function ApplicationFormPage() {
                 </h2>
               </div>
 
-              {/* Section-level hint — shown when the engine reports this
-                  section as incomplete and no backend finalize error is
-                  already displayed below. The count comes directly from
-                  `validation.sections[key].missing.length` — the frontend
-                  never decides what's incomplete on its own. */}
+              {/* Section-level hint — shown only after the user has attempted
+                  to submit, so a fresh draft opens without inline warnings.
+                  The count comes from the backend engine; the frontend never
+                  decides what's incomplete on its own. */}
               {(() => {
+                if (!submitAttempted) return null;
                 if (!validation) return null;
                 const key = validationKeyForStep[currentStep];
                 const section = key ? validation.sections?.[key] : undefined;
