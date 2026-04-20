@@ -48,7 +48,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, bcmath
           coverage: none
           tools: composer:v2
@@ -57,9 +57,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/camp-burnt-gin-api/vendor
-          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          key: composer-php8.3-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
           restore-keys: |
-            composer-php8.2-
+            composer-php8.3-
 
       - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
