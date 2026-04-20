@@ -38,9 +38,7 @@ import { useRealtime } from '@/features/realtime/RealtimeContext';
 
 // ─── Types & schemas ──────────────────────────────────────────────────────────
 
-const passwordSchema = z.object({
-  current_password: z.string().min(1, 'Current password is required'),
-  // Mirror the backend policy: 12+ chars, mixed case, number, symbol.
+const newPasswordFields = {
   password: z.string()
     .min(12, 'Must be at least 12 characters')
     .regex(/[A-Z]/, 'Must include at least one uppercase letter')
@@ -48,11 +46,26 @@ const passwordSchema = z.object({
     .regex(/[0-9]/, 'Must include at least one number')
     .regex(/[^A-Za-z0-9]/, 'Must include at least one symbol'),
   password_confirmation: z.string(),
+};
+
+// For users who already have a password — requires current_password verification.
+const passwordSchema = z.object({
+  current_password: z.string().min(1, 'Current password is required'),
+  ...newPasswordFields,
 }).refine((d) => d.password === d.password_confirmation, {
   message: 'Passwords do not match',
   path: ['password_confirmation'],
 });
 type PasswordFormValues = z.infer<typeof passwordSchema>;
+
+// For OAuth-only users — no current password to verify.
+const setPasswordSchema = z.object({
+  ...newPasswordFields,
+}).refine((d) => d.password === d.password_confirmation, {
+  message: 'Passwords do not match',
+  path: ['password_confirmation'],
+});
+type SetPasswordFormValues = z.infer<typeof setPasswordSchema>;
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
@@ -102,6 +115,8 @@ export function SettingsPage() {
   const currentLanguage = i18n.language?.slice(0, 2) || 'en';
   // All registered languages, derived from the i18n config (same source as LanguageToggle).
   const availableLanguages = Object.keys(i18n.options.resources ?? {});
+  // Tracks whether the user has a password — starts from Redux, can flip to true after set-password.
+  const [hasPassword, setHasPassword] = useState(user?.has_password ?? true);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -125,6 +140,17 @@ export function SettingsPage() {
 
   const watchedPassword     = watch('password', '');
   const watchedConfirmation = watch('password_confirmation', '');
+
+  const {
+    register: registerSet,
+    handleSubmit: handleSubmitSet,
+    reset: resetSet,
+    watch: watchSet,
+    formState: { errors: setErrors },
+  } = useForm<SetPasswordFormValues>({ resolver: zodResolver(setPasswordSchema) });
+
+  const watchedSetPassword     = watchSet('password', '');
+  const watchedSetConfirmation = watchSet('password_confirmation', '');
 
   const handleFontScale = (scale: FontScale) => {
     setFontScaleState(scale);
@@ -201,6 +227,20 @@ export function SettingsPage() {
       reset();
     } catch (err) {
       toast.error((err as { message?: string })?.message ?? 'Failed to update password.');
+    } finally {
+      setSavingPw(false);
+    }
+  };
+
+  const onSetPasswordSubmit = async (values: SetPasswordFormValues) => {
+    setSavingPw(true);
+    try {
+      await axiosInstance.post('/profile/set-password', values);
+      toast.success('Password set successfully. You can now also sign in with your email and password.');
+      resetSet();
+      setHasPassword(true);
+    } catch (err) {
+      toast.error((err as { message?: string })?.message ?? 'Failed to set password.');
     } finally {
       setSavingPw(false);
     }
@@ -412,109 +452,196 @@ export function SettingsPage() {
                 className="rounded-2xl border p-6"
                 style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
               >
-                <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-                  Change Password
-                </h3>
-                <form onSubmit={handleSubmit(onPasswordSubmit)} className="flex flex-col gap-4">
-                  {/* Current password */}
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="settings-current-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                      Current Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="settings-current-password"
-                        type={showCurrent ? 'text' : 'password'}
-                        className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
-                        style={{
-                          background: 'var(--input)',
-                          color: 'var(--foreground)',
-                          borderColor: errors.current_password ? 'var(--destructive)' : 'var(--border)',
-                        }}
-                        {...register('current_password')}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
-                        style={{ color: 'var(--muted-foreground)' }}
-                        onClick={() => setShowCurrent(v => !v)}
-                      >
-                        {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {errors.current_password && (
-                      <p className="text-xs" style={{ color: 'var(--destructive)' }}>
-                        {errors.current_password.message}
-                      </p>
-                    )}
-                  </div>
+                {/* OAuth-only users (no password) see Set Password; others see Change Password */}
+                {!hasPassword ? (
+                  <>
+                    <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
+                      Set a Password
+                    </h3>
+                    <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
+                      Your account uses Google Sign-In. You can add a password so you can also log in with your email.
+                    </p>
+                    <form onSubmit={handleSubmitSet(onSetPasswordSubmit)} className="flex flex-col gap-4">
+                      {/* New password */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="settings-new-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          New Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="settings-new-password"
+                            type={showNew ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
+                            style={{
+                              background: 'var(--input)',
+                              color: 'var(--foreground)',
+                              borderColor: 'var(--border)',
+                            }}
+                            {...registerSet('password')}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: 'var(--muted-foreground)' }}
+                            onClick={() => setShowNew(v => !v)}
+                            aria-label={showNew ? 'Hide password' : 'Show password'}
+                          >
+                            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <PasswordRequirementsDisplay password={watchedSetPassword} />
+                        {setErrors.password && (
+                          <p className="text-xs" style={{ color: 'var(--destructive)' }}>{setErrors.password.message}</p>
+                        )}
+                      </div>
 
-                  {/* New password + live requirements checklist */}
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="settings-new-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                      New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="settings-new-password"
-                        type={showNew ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
-                        style={{
-                          background: 'var(--input)',
-                          color: 'var(--foreground)',
-                          borderColor: 'var(--border)',
-                        }}
-                        {...register('password')}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
-                        style={{ color: 'var(--muted-foreground)' }}
-                        onClick={() => setShowNew(v => !v)}
-                        aria-label={showNew ? 'Hide new password' : 'Show new password'}
-                      >
-                        {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <PasswordRequirementsDisplay password={watchedPassword} />
-                  </div>
+                      {/* Confirm password */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="settings-confirm-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          Confirm Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="settings-confirm-password"
+                            type={showConfirm ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
+                            style={{
+                              background: 'var(--input)',
+                              color: 'var(--foreground)',
+                              borderColor: 'var(--border)',
+                            }}
+                            {...registerSet('password_confirmation')}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: 'var(--muted-foreground)' }}
+                            onClick={() => setShowConfirm(v => !v)}
+                            aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+                          >
+                            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <PasswordMatchIndicator password={watchedSetPassword} confirmation={watchedSetConfirmation} />
+                        {setErrors.password_confirmation && (
+                          <p className="text-xs" style={{ color: 'var(--destructive)' }}>{setErrors.password_confirmation.message}</p>
+                        )}
+                      </div>
 
-                  {/* Confirm new password + live match indicator */}
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="settings-confirm-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                      Confirm New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="settings-confirm-password"
-                        type={showConfirm ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
-                        style={{
-                          background: 'var(--input)',
-                          color: 'var(--foreground)',
-                          borderColor: 'var(--border)',
-                        }}
-                        {...register('password_confirmation')}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
-                        style={{ color: 'var(--muted-foreground)' }}
-                        onClick={() => setShowConfirm(v => !v)}
-                        aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
-                      >
-                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <PasswordMatchIndicator password={watchedPassword} confirmation={watchedConfirmation} />
-                  </div>
+                      <Button type="submit" variant="primary" loading={savingPw} className="self-start mt-2">
+                        Set Password
+                      </Button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+                      Change Password
+                    </h3>
+                    <form onSubmit={handleSubmit(onPasswordSubmit)} className="flex flex-col gap-4">
+                      {/* Current password */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="settings-current-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          Current Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="settings-current-password"
+                            type={showCurrent ? 'text' : 'password'}
+                            className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
+                            style={{
+                              background: 'var(--input)',
+                              color: 'var(--foreground)',
+                              borderColor: errors.current_password ? 'var(--destructive)' : 'var(--border)',
+                            }}
+                            {...register('current_password')}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: 'var(--muted-foreground)' }}
+                            onClick={() => setShowCurrent(v => !v)}
+                          >
+                            {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {errors.current_password && (
+                          <p className="text-xs" style={{ color: 'var(--destructive)' }}>
+                            {errors.current_password.message}
+                          </p>
+                        )}
+                      </div>
 
-                  <Button type="submit" variant="primary" loading={savingPw} className="self-start mt-2">
-                    Update Password
-                  </Button>
-                </form>
+                      {/* New password + live requirements checklist */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="settings-new-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          New Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="settings-new-password"
+                            type={showNew ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
+                            style={{
+                              background: 'var(--input)',
+                              color: 'var(--foreground)',
+                              borderColor: 'var(--border)',
+                            }}
+                            {...register('password')}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: 'var(--muted-foreground)' }}
+                            onClick={() => setShowNew(v => !v)}
+                            aria-label={showNew ? 'Hide new password' : 'Show new password'}
+                          >
+                            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <PasswordRequirementsDisplay password={watchedPassword} />
+                      </div>
+
+                      {/* Confirm new password + live match indicator */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="settings-confirm-password" className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                          Confirm New Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="settings-confirm-password"
+                            type={showConfirm ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className="w-full rounded-lg px-4 py-3 pr-10 text-sm border outline-none transition-all focus:ring-2 focus:ring-ember-orange/30"
+                            style={{
+                              background: 'var(--input)',
+                              color: 'var(--foreground)',
+                              borderColor: 'var(--border)',
+                            }}
+                            {...register('password_confirmation')}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: 'var(--muted-foreground)' }}
+                            onClick={() => setShowConfirm(v => !v)}
+                            aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+                          >
+                            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <PasswordMatchIndicator password={watchedPassword} confirmation={watchedConfirmation} />
+                      </div>
+
+                      <Button type="submit" variant="primary" loading={savingPw} className="self-start mt-2">
+                        Update Password
+                      </Button>
+                    </form>
+                  </>
+                )}
               </div>
             </div>
           )}
