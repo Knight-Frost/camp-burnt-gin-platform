@@ -586,6 +586,13 @@ class MessageService
      */
     public function markAllAsRead(Conversation $conversation, User $user): void
     {
+        // Clear force_unread first so the conversation stops appearing unread immediately,
+        // even if there are no message read receipts to create (user-only-sender case).
+        $conversation->participantRecords()
+            ->where('user_id', $user->id)
+            ->where('force_unread', true)
+            ->update(['force_unread' => false]);
+
         $unread = Message::where('conversation_id', $conversation->id)
             ->where(function ($q) use ($user) {
                 $q->whereNull('sender_id')
@@ -624,6 +631,13 @@ class MessageService
         if ($latest) {
             // Remove the read receipt — this makes the message (and conversation) appear unread
             $latest->reads()->where('user_id', $user->id)->delete();
+        } else {
+            // No non-own messages exist (user is the only sender — no replies yet).
+            // Use the force_unread flag on the participant record so the conversation
+            // still shows as unread even though there are no receipts to delete.
+            $conversation->participantRecords()
+                ->where('user_id', $user->id)
+                ->update(['force_unread' => true]);
         }
     }
 

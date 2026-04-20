@@ -43,6 +43,7 @@ class ConversationParticipant extends Model
         'left_at',
         'is_starred',
         'is_important',
+        'force_unread',
         'trashed_at',
     ];
 
@@ -60,6 +61,9 @@ class ConversationParticipant extends Model
             'left_at' => 'datetime',
             'is_starred' => 'boolean',
             'is_important' => 'boolean',
+            // Set when the user explicitly marks a conversation unread and there are no
+            // non-own messages to remove read receipts from (e.g. they're the only sender).
+            'force_unread' => 'boolean',
             // User-level soft-trash; does NOT delete the conversation for other participants
             'trashed_at' => 'datetime',
         ];

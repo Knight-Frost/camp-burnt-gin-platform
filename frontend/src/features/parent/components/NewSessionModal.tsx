@@ -32,7 +32,9 @@ import {
   getSessions,
   initializeDraftApplication,
   createDraft,
+  getCamperPrefill,
 } from '@/features/parent/api/applicant.api';
+import type { CamperPrefillData } from '@/features/parent/api/applicant.api';
 import type { Camper, Application, Session } from '@/shared/types';
 import { ROUTES } from '@/shared/constants/routes';
 import { Avatar } from '@/ui/components/Avatar';
@@ -117,6 +119,7 @@ export function NewSessionModal({
   const [loadError, setLoadError] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   // Focus the dialog on mount for accessibility
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -155,42 +158,50 @@ export function NewSessionModal({
     : null;
 
   async function handleConfirm() {
-    if (!selectedSessionId || duplicateApp) return;
+    if (!selectedSessionId || duplicateApp || confirming) return;
+    setConfirming(true);
+    setInitError(null);
     try {
-      // Reapplication must hit the same lifecycle gate as a first-time
-      // application: initialize the Application (reusing the existing
-      // Camper) so the form has real IDs to drive the validation engine.
-      // No blob-only flows remain — this is the single entry path.
-      const init = await initializeDraftApplication({
-        camp_session_id:   selectedSessionId,
-        camper_id:         camper.id,
-        reapplied_from_id: reappliedFromId ?? undefined,
-      });
-      const draft = await createDraft('Reapplication', init.application_id);
+      // Run lifecycle init and prefill fetch in parallel — both are needed
+      // before navigating, and neither depends on the other's result.
+      const [init, prefillResult] = await Promise.allSettled([
+        initializeDraftApplication({
+          camp_session_id:   selectedSessionId,
+          camper_id:         camper.id,
+          reapplied_from_id: reappliedFromId ?? undefined,
+        }),
+        getCamperPrefill(camper.id),
+      ]);
+
+      if (init.status === 'rejected') throw init.reason;
+
+      const ids = init.value;
+      const draft = await createDraft('Reapplication', ids.application_id);
+
+      // Prefill is best-effort: if the endpoint fails (e.g. camper has no
+      // prior submitted application), we navigate without autofill rather
+      // than blocking the reapplication flow.
+      const prefillData: CamperPrefillData | null =
+        prefillResult.status === 'fulfilled' ? prefillResult.value : null;
+
       onClose();
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
         state: {
-          prefill: {
-            first_name:    camper.first_name,
-            last_name:     camper.last_name,
-            date_of_birth: camper.date_of_birth,
-            gender:        camper.gender,
-            tshirt_size:   camper.tshirt_size,
-          },
+          prefill:             prefillData,
           sessionId:           selectedSessionId,
           draftId:             draft.id,
-          applicationId:       init.application_id,
-          camperId:            init.camper_id,
-          medicalRecordId:     init.medical_record_id,
-          behavioralProfileId: init.behavioral_profile_id,
-          feedingPlanId:       init.feeding_plan_id,
+          applicationId:       ids.application_id,
+          camperId:            ids.camper_id,
+          medicalRecordId:     ids.medical_record_id,
+          behavioralProfileId: ids.behavioral_profile_id,
+          feedingPlanId:       ids.feeding_plan_id,
           ...(reappliedFromId != null ? { reappliedFromId } : {}),
         },
       });
     } catch {
-      // Show the inline error banner rather than silently failing.
-      // Network / policy / validation errors all land here.
       setInitError('We couldn\'t start your reapplication right now. Please try again in a moment.');
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -438,11 +449,11 @@ export function NewSessionModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!selectedSessionId || !!duplicateApp || loading}
+            disabled={!selectedSessionId || !!duplicateApp || loading || confirming}
             className="text-sm px-5 py-2 rounded-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'var(--ember-orange)', color: '#fff' }}
           >
-            Start New Application
+            {confirming ? 'Starting…' : 'Start New Application'}
           </button>
         </div>
       </div>

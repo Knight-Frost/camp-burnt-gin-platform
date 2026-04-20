@@ -512,6 +512,8 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/{camper}/compliance-status', [CamperController::class, 'complianceStatus'])->name('campers.compliance-status');
         // Runs MedicalAlertService and returns sorted alert list
         Route::get('/{camper}/medical-alerts', [CamperController::class, 'medicalAlerts'])->name('campers.medical-alerts');
+        // Returns safe, non-PHI autofill data for a returning camper's new application.
+        Route::get('/{camper}/prefill', [CamperController::class, 'prefill'])->name('campers.prefill');
         // Fetch or upsert the camper's ADL personal care plan (Section 6 of the application form).
         Route::get('/{camper}/personal-care-plan', [PersonalCarePlanController::class, 'show'])->name('campers.personal-care-plan.show');
         Route::post('/{camper}/personal-care-plan', [PersonalCarePlanController::class, 'store'])->name('campers.personal-care-plan.store');

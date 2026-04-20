@@ -350,11 +350,20 @@ class InboxService
         // Apply the folder-specific filter using a switch statement
         switch ($folder) {
             case 'inbox':
-                // Active (not archived), human conversations, not trashed by this user
+                // Active (not archived), human conversations, not trashed by this user.
+                // Gmail-style: only show conversations where at least one message was
+                // sent by someone OTHER than the current user (or a system message).
+                // Conversations the user initiated with no reply stay in Sent only.
                 $query->active()
                     ->userConversations()
                     ->whereHas('participantRecords', function ($q) use ($user) {
                         $q->where('user_id', $user->id)->whereNull('trashed_at');
+                    })
+                    ->whereHas('messages', function ($q) use ($user) {
+                        $q->where(function ($inner) use ($user) {
+                            $inner->whereNull('sender_id')
+                                ->orWhere('sender_id', '!=', $user->id);
+                        });
                     });
                 break;
 
@@ -525,12 +534,12 @@ class InboxService
      */
     public function getUnreadConversationCount(User $user): int
     {
-        return Conversation::forUser($user)
+        // Conversations with an unread non-own message
+        $unreadFromMessages = Conversation::forUser($user)
             ->active()
             ->userConversations()  // Exclude system notifications — they live in the System folder, not Inbox
             ->whereHas('messages', function ($query) use ($user) {
                 $query->whereDoesntHave('reads', function ($q) use ($user) {
-                    // Exclude messages already read by this user
                     $q->where('user_id', $user->id);
                 })->where(function ($q) use ($user) {
                     // Include system messages (sender_id = null) as unread
@@ -538,7 +547,21 @@ class InboxService
                         ->orWhere('sender_id', '!=', $user->id);
                 });
             })
-            ->count();
+            ->pluck('id');
+
+        // Conversations explicitly forced unread by the user (no non-own messages existed
+        // to remove read receipts from, so force_unread=true on their participant record)
+        $forceUnreadIds = Conversation::forUser($user)
+            ->active()
+            ->userConversations()
+            ->whereHas('participantRecords', function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->where('force_unread', true)
+                    ->whereNull('trashed_at');
+            })
+            ->pluck('id');
+
+        return $unreadFromMessages->merge($forceUnreadIds)->unique()->count();
     }
 
     /**

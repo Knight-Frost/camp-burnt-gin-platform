@@ -102,6 +102,7 @@ import {
   type ServerAssistiveDevice,
   type ServerActivityPermission,
   type ServerMedication,
+  type CamperPrefillData,
 } from '@/features/parent/api/applicant.api';
 import type { CanonicalValidationMeta } from '@/shared/types';
 import { ROUTES } from '@/shared/constants/routes';
@@ -1028,10 +1029,14 @@ function Section1({
   data,
   sessions,
   onChange,
+  showPrefillBanner,
+  onDismissPrefillBanner,
 }: {
   data: FormState['s1'];
   sessions: Session[];
   onChange: (patch: Partial<FormState['s1']>) => void;
+  showPrefillBanner?: boolean;
+  onDismissPrefillBanner?: () => void;
 }) {
   const { t } = useTranslation();
   const set = (field: keyof FormState['s1']) => (v: string | boolean) =>
@@ -1039,6 +1044,39 @@ function Section1({
 
   return (
     <div className="flex flex-col gap-6 p-8">
+
+      {/* Prefill review banner — shown once on reapplication when data was autofilled */}
+      {showPrefillBanner && (
+        <div
+          className="rounded-xl p-4 flex items-start gap-3"
+          style={{
+            background: 'rgba(234,88,12,0.07)',
+            border: '1px solid rgba(234,88,12,0.30)',
+          }}
+          role="alert"
+        >
+          <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--ember-orange)' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold mb-1" style={{ color: 'var(--ember-orange)' }}>
+              Some fields were pre-filled from your previous application
+            </p>
+            <p className="text-sm" style={{ color: 'var(--foreground)' }}>
+              Please review and update all information below — especially phone numbers,
+              addresses, and guardian details — before submitting. Pre-filled values
+              may be out of date. Medical information was <strong>not</strong> carried over
+              and must be completed fresh.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onDismissPrefillBanner}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors"
+            style={{ background: 'var(--ember-orange)', color: '#fff' }}
+          >
+            Got it
+          </button>
+        </div>
+      )}
 
       {/* Application meta */}
       <SectionCard>
@@ -1099,7 +1137,7 @@ function Section1({
             <TextInput value={data.camper_preferred_name} onChange={set('camper_preferred_name')} placeholder={t('applicant.form.optional')} />
           </div>
           <div>
-            <FieldLabel>{t('applicant.form.county')}</FieldLabel>
+            <FieldLabel required>{t('applicant.form.county')}</FieldLabel>
             <TextInput value={data.county} onChange={set('county')} placeholder={t('applicant.form.county')} />
           </div>
         </FormRow>
@@ -3934,7 +3972,7 @@ export function ApplicationFormPage() {
   // Read navigation state set by ApplicationStartPage
   const navState = location.state as {
     language?: string;
-    prefill?: Partial<Record<string, string>>;
+    prefill?: CamperPrefillData | null;
     draftId?: number;
     // Pre-selected session ID — used with prefill to skip session selection in s1.
     sessionId?: number;
@@ -3974,16 +4012,66 @@ export function ApplicationFormPage() {
     // info pre-populated. The chosen session is also pre-selected. Any existing
     // sessionStorage draft is intentionally ignored — this is a brand-new application.
     if (navState?.prefill) {
-      const prefill = navState.prefill;
+      const pf = navState.prefill;
+      const c  = pf.camper;
+      const g1 = pf.guardian1;
+      const g2 = pf.guardian2;
+      const ec = pf.emergency_contact;
       return {
         ...INITIAL_STATE,
         s1: {
           ...INITIAL_STATE.s1,
-          camper_first_name: prefill.first_name    ?? '',
-          camper_last_name:  prefill.last_name     ?? '',
-          camper_dob:        prefill.date_of_birth ?? '',
-          camper_gender:     prefill.gender        ?? '',
-          tshirt_size:       prefill.tshirt_size   ?? '',
+          // Camper basic info
+          camper_first_name:    c.first_name,
+          camper_last_name:     c.last_name,
+          camper_dob:           c.date_of_birth,
+          camper_gender:        c.gender,
+          tshirt_size:          c.tshirt_size          ?? '',
+          camper_preferred_name: c.preferred_name      ?? '',
+          county:               c.county               ?? '',
+          needs_interpreter:    c.needs_interpreter,
+          preferred_language:   c.preferred_language   ?? '',
+          // Camper mailing address
+          camper_address:       c.address              ?? '',
+          camper_city:          c.city                 ?? '',
+          camper_state:         c.state                ?? 'SC',
+          camper_zip:           c.zip                  ?? '',
+          // Guardian 1
+          g1_name:              g1?.name               ?? '',
+          g1_relationship:      g1?.relationship       ?? '',
+          g1_phone_home:        g1?.phone_home         ?? '',
+          g1_phone_work:        g1?.phone_work         ?? '',
+          g1_phone_cell:        g1?.phone_cell         ?? '',
+          g1_email:             g1?.email              ?? '',
+          g1_address:           g1?.address            ?? '',
+          g1_city:              g1?.city               ?? '',
+          g1_state:             g1?.state              ?? 'SC',
+          g1_zip:               g1?.zip                ?? '',
+          // Guardian 2
+          g2_name:              g2?.name               ?? '',
+          g2_relationship:      g2?.relationship       ?? '',
+          g2_phone_home:        g2?.phone_home         ?? '',
+          g2_phone_work:        g2?.phone_work         ?? '',
+          g2_phone_cell:        g2?.phone_cell         ?? '',
+          g2_email:             g2?.email              ?? '',
+          g2_address:           g2?.address            ?? '',
+          g2_city:              g2?.city               ?? '',
+          g2_state:             g2?.state              ?? 'SC',
+          g2_zip:               g2?.zip                ?? '',
+          g2_primary_language:  g2?.primary_language   ?? '',
+          g2_interpreter:       g2?.interpreter_needed ?? false,
+          // Emergency contact
+          ec_name:              ec?.name               ?? '',
+          ec_relationship:      ec?.relationship       ?? '',
+          ec_phone:             ec?.phone_cell         ?? '',
+          ec_phone_home:        ec?.phone_home         ?? '',
+          ec_phone_work:        ec?.phone_work         ?? '',
+          ec_address:           ec?.address            ?? '',
+          ec_city:              ec?.city               ?? '',
+          ec_state:             ec?.state              ?? 'SC',
+          ec_zip:               ec?.zip                ?? '',
+          ec_primary_language:  ec?.primary_language   ?? '',
+          ec_interpreter:       ec?.interpreter_needed ?? false,
           // Pre-select the session chosen in the modal, if provided.
           ...(navState.sessionId ? { session_id: navState.sessionId } : {}),
         },
@@ -4042,6 +4130,8 @@ export function ApplicationFormPage() {
 
   const [sessions, setSessions]         = useState<Session[]>([]);
   const [currentStep, setCurrentStep]   = useState<number>(form.meta.activeSection);
+  // Dismissed once the applicant clicks "Got it" on the prefill review banner in Section 1.
+  const [prefillBannerDismissed, setPrefillBannerDismissed] = useState(!navState?.prefill?.has_prior_submitted_application);
   const [isSaving, setIsSaving]         = useState(false);
   const [lastSavedAt, setLastSavedAt]   = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -5705,6 +5795,8 @@ export function ApplicationFormPage() {
                   data={form.s1}
                   sessions={sessions}
                   onChange={(patch) => updateSection('s1', patch)}
+                  showPrefillBanner={!prefillBannerDismissed}
+                  onDismissPrefillBanner={() => setPrefillBannerDismissed(true)}
                 />
               )}
               {currentStep === 1 && (

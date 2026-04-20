@@ -811,6 +811,61 @@ export interface ServerAssistiveDevice { id: number; device_type?: string; requi
 export interface ServerActivityPermission { id: number; activity_name?: string; permission_level?: string; restriction_notes?: string }
 export interface ServerMedication { id: number; name?: string; dosage?: string; frequency?: string; purpose?: string }
 
+// ---------------------------------------------------------------------------
+// Autofill (returning-camper prefill snapshot)
+// ---------------------------------------------------------------------------
+
+/**
+ * Safe, non-PHI snapshot returned by GET /campers/{id}/prefill.
+ * Contains only stable demographic + contact data appropriate for autofill.
+ * Medical data (medications, diagnoses, allergies, treatment plans) is
+ * intentionally excluded — those fields change frequently and must never
+ * be silently carried forward between sessions.
+ */
+export interface PrefillContact {
+  name: string;
+  relationship: string;
+  phone_home: string | null;
+  phone_work: string | null;
+  phone_cell: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  primary_language: string | null;
+  interpreter_needed: boolean;
+}
+
+export interface CamperPrefillData {
+  camper: {
+    first_name: string;
+    last_name: string;
+    preferred_name: string | null;
+    date_of_birth: string;
+    gender: string;
+    tshirt_size: string | null;
+    county: string | null;
+    needs_interpreter: boolean;
+    preferred_language: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+  };
+  guardian1: PrefillContact | null;
+  guardian2: PrefillContact | null;
+  emergency_contact: Omit<PrefillContact, 'email'> | null;
+  has_prior_submitted_application: boolean;
+}
+
+export async function getCamperPrefill(camperId: number): Promise<CamperPrefillData> {
+  const { data } = await axiosInstance.get<{ data: CamperPrefillData }>(
+    `/campers/${camperId}/prefill`
+  );
+  return data.data;
+}
+
 /**
  * Fetches the camper with every relevant relation nested. Used by the
  * form's per-section diff-based sync logic to compare current server
