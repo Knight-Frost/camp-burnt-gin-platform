@@ -5,41 +5,47 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * DatabaseSeeder — mode router for Camp Burnt Gin.
+ * DatabaseSeeder — seed mode router for Camp Burnt Gin.
  *
- * Reads the SEED_MODE environment variable and delegates to the appropriate
- * seeder. This class contains no seeding logic of its own.
+ * Reads SEED_MODE from the environment and delegates to the appropriate seeder.
+ * This class contains no seeding logic of its own.
  *
  * ─── MODES ───────────────────────────────────────────────────────────────────
  *
- *   SEED_MODE=demo  (default when unset)  →  DemoSeeder
- *     Clean demo with 4 accounts and 2 fully-completed draft applications.
- *     Super admin + admin + medical staff + 1 applicant (Angela Thornton).
- *     2 campers: Marcus (ASD/ADHD) and Destiny (Sickle Cell) — both DRAFT.
- *     Use for: demos, onboarding, applicant portal testing.
+ *   SEED_MODE=demo  (default)
+ *     → DemoSeeder
+ *     Polished small dataset for stakeholder demos and onboarding.
+ *     5 accounts, 3 campers, 3 applications (approved/submitted/under_review),
+ *     documents and medical records for the approved camper.
+ *     Best for: demos, presentations, first-time dev setup, applicant portal testing.
  *
- *   SEED_MODE=super_admin_only  →  MinimalSeeder
- *     System configuration only: roles, document rules, risk engine, and one
- *     super_admin account. No test data of any kind.
- *     Use for: first production deployment, clean-slate staging environments.
+ *   SEED_MODE=development
+ *     → FullSimulationSeeder
+ *     Complete scenario simulation. ~76 campers across ~62 families. Every
+ *     application status, medical complexity tier, edge case, and messaging
+ *     scenario. Full audit logs, notifications, deadlines, and document states.
+ *     Best for: day-to-day development, QA, feature work, dashboard/filter testing.
  *
- *   SEED_MODE=full  →  FullSimulationSeeder
- *     Complete scenario simulation. 5 tiers, ~76 campers, all application
- *     statuses, all medical complexity tiers, 14 edge cases, messaging,
- *     notifications, audit logs, documents.
- *     Use for: development, QA, feature demonstration.
+ *   SEED_MODE=minimal
+ *     → MinimalSeeder
+ *     System configuration only: roles, document rules, activity permissions,
+ *     form definitions, risk engine, and one super_admin account. No test data.
+ *     Best for: first production deployment, clean-slate staging environments.
+ *
+ *   SEED_MODE=full  (alias for development — backward compatibility)
+ *     → FullSimulationSeeder
  *
  * ─── COMMANDS ────────────────────────────────────────────────────────────────
  *
- *   Demo mode (default):
+ *   Demo (default — good starting point for all developers):
  *     php artisan migrate:fresh --seed
  *     SEED_MODE=demo php artisan migrate:fresh --seed
  *
- *   Super admin only (production bootstrap):
- *     SEED_MODE=super_admin_only php artisan migrate:fresh --seed
+ *   Full development dataset:
+ *     SEED_MODE=development php artisan migrate:fresh --seed
  *
- *   Full simulation (development/QA):
- *     SEED_MODE=full php artisan migrate:fresh --seed
+ *   Production bootstrap (super admin only):
+ *     SEED_MODE=minimal php artisan migrate:fresh --seed
  *
  *   Run a specific seeder directly (bypasses this router):
  *     php artisan db:seed --class=DemoSeeder
@@ -53,9 +59,9 @@ class DatabaseSeeder extends Seeder
         $mode = env('SEED_MODE', 'demo');
 
         match ($mode) {
-            'super_admin_only' => $this->runMode('super admin only', MinimalSeeder::class),
-            'full' => $this->runMode('full simulation', FullSimulationSeeder::class),
-            default => $this->runMode('demo', DemoSeeder::class),
+            'minimal'                => $this->runMode('minimal', MinimalSeeder::class),
+            'development', 'full'   => $this->runMode('development', FullSimulationSeeder::class),
+            default                  => $this->runMode('demo', DemoSeeder::class),
         };
     }
 

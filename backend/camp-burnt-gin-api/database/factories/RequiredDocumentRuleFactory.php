@@ -30,9 +30,10 @@ class RequiredDocumentRuleFactory extends Factory
             'document_type' => fake()->randomElement([
                 'seizure_action_plan',
                 'feeding_action_plan',
-                'medication_authorization',
-                'physical_examination',
+                'elopement_prevention_plan',
+                'official_medical_form',
                 'immunization_record',
+                'insurance_card',
             ]),
             'description' => fake()->sentence(),
             'is_mandatory' => true,

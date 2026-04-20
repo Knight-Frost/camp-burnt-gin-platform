@@ -8,50 +8,50 @@ use App\Models\Camper;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeder for default activity permission records.
+ * Seeder — default activity permission records.
  *
- * This seeder creates default activity permissions for all campers
- * without existing permissions, ensuring complete activity matrices
- * for participation planning and risk assessment.
+ * Creates one row per canonical activity slug per camper (if none exists yet).
+ * Slugs MUST match ApplicationCompletenessService::CANONICAL_ACTIVITIES exactly —
+ * the completeness engine validates permissions by slug, not by display label.
+ *
+ * Canonical slugs:
+ *   sports_games, arts_crafts, nature, fine_arts,
+ *   swimming, boating, camping, camp_out
  */
 class ActivityPermissionSeeder extends Seeder
 {
     /**
-     * Default camp activity types.
+     * Canonical activity slugs — must stay in sync with
+     * ApplicationCompletenessService::CANONICAL_ACTIVITIES.
      *
      * @var array<string>
      */
     protected array $defaultActivities = [
-        'Sports',
-        'Swimming',
-        'Boating',
-        'Camp Out',
-        'Arts & Crafts',
-        'Nature',
-        'Fine Arts',
+        'sports_games',
+        'arts_crafts',
+        'nature',
+        'fine_arts',
+        'swimming',
+        'boating',
+        'camping',
+        'camp_out',
     ];
 
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $this->command->info('Seeding default activity permissions...');
-
         $campers = Camper::all();
         $createdCount = 0;
 
         foreach ($campers as $camper) {
-            foreach ($this->defaultActivities as $activity) {
-                // Only create if permission doesn't already exist for this camper-activity pair
+            foreach ($this->defaultActivities as $slug) {
                 $exists = ActivityPermission::where('camper_id', $camper->id)
-                    ->where('activity_name', $activity)
+                    ->where('activity_name', $slug)
                     ->exists();
 
                 if (! $exists) {
                     ActivityPermission::create([
                         'camper_id' => $camper->id,
-                        'activity_name' => $activity,
+                        'activity_name' => $slug,
                         'permission_level' => ActivityPermissionLevel::Yes,
                         'restriction_notes' => null,
                     ]);
@@ -61,6 +61,6 @@ class ActivityPermissionSeeder extends Seeder
             }
         }
 
-        $this->command->info("Created {$createdCount} default activity permissions.");
+        $this->command->line("  Activity permissions seeded: {$createdCount} rows across ".count($campers).' camper(s).');
     }
 }

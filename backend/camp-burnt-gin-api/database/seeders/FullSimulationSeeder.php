@@ -54,13 +54,13 @@ use Illuminate\Support\Facades\Hash;
  *
  * ─── SCENARIO COVERAGE ──────────────────────────────────────────────────────
  *
- *   Application statuses   : pending, under_review, approved, rejected, cancelled, waitlisted, withdrawn
+ *   Application statuses   : submitted, under_review, approved, rejected, cancelled, waitlisted, withdrawn
  *   Draft applications     : 2 (Mia returning draft, Olivia new family draft)
  *   Paper application      : 1 (Henry Carter — admin-entered from physical form)
  *   Medical complexity     : no record, partial, complete (mild/moderate/severe)
  *   Family structures      : single child, multi-child, returning, new, mixed outcomes
  *   Session distribution   : past, upcoming × 2, capacity variation
- *   Admin interactions     : reviewed, pending, rejected, waitlisted with notes
+ *   Admin interactions     : reviewed, awaiting review, rejected, waitlisted with notes
  *   Edge-case accounts     : inactive user, locked-out user, MFA-enabled admin
  *   Scale                  : ~76 total campers across ~62 families (8 core + 32 scale + 14 edge)
  *   Edge cases (EC-001–014): no EC, all flags true, all devices, seizure/no plan, inactive parent,
@@ -227,13 +227,13 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->line('<comment>Applicant accounts</comment> (password: password):');
-        $this->command->line('  sarah.johnson@example.com        Ethan (approved S1) + Lily (pending S1)');
+        $this->command->line('  sarah.johnson@example.com        Ethan (approved S1) + Lily (submitted S1)');
         $this->command->line('  david.martinez@example.com       Sofia (under review S1)');
-        $this->command->line('  jennifer.thompson@example.com    Noah (rejected S1, pending S2)');
-        $this->command->line('  michael.williams@example.com     Ava (approved S2) + Lucas (pending S1)');
+        $this->command->line('  jennifer.thompson@example.com    Noah (rejected S1, submitted S2)');
+        $this->command->line('  michael.williams@example.com     Ava (approved S2) + Lucas (submitted S1)');
         $this->command->line('  patricia.davis@example.com       Mia (past approved + 2026 draft)');
         $this->command->line('  grace.wilson@example.com         Tyler (waitlisted S1)');
-        $this->command->line('  james.carter@example.com         Henry (paper app approved S1 + pending S2)');
+        $this->command->line('  james.carter@example.com         Henry (paper app approved S1 + submitted S2)');
         $this->command->line('  michelle.robinson@example.com    Olivia (draft S2 — no medical data)');
         $this->command->newLine();
 
@@ -243,7 +243,7 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->line('<comment>Application status coverage</comment>:');
-        $this->command->line('  pending      : Lily (S2), Lucas (S1), Noah (S2), Henry (S2) + scale families');
+        $this->command->line('  submitted   : Lily (S2), Lucas (S1), Noah (S2), Henry (S2) + scale families');
         $this->command->line('  under_review : Sofia (S1) + scale families');
         $this->command->line('  approved     : Ethan (S1), Ava (S2), Mia (2025), Henry (S1) + scale families');
         $this->command->line('  rejected     : Noah (S1 — capacity) + scale families');

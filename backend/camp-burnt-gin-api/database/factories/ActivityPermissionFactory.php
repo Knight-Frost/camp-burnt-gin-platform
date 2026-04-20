@@ -28,14 +28,16 @@ class ActivityPermissionFactory extends Factory
      */
     public function definition(): array
     {
+        // Must match CANONICAL_ACTIVITIES in ApplicationCompletenessService.
         $activities = [
-            'Sports',
-            'Swimming',
-            'Boating',
-            'Camp Out',
-            'Arts & Crafts',
-            'Nature',
-            'Fine Arts',
+            'sports_games',
+            'arts_crafts',
+            'nature',
+            'fine_arts',
+            'swimming',
+            'boating',
+            'camping',
+            'camp_out',
         ];
 
         $permissionLevel = fake()->randomElement(ActivityPermissionLevel::cases());
