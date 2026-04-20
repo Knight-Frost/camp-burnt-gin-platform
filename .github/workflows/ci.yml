@@ -37,7 +37,8 @@ jobs:
         run: bash scripts/check-debug-artifacts.sh
 
   # ─── Backend Tests ────────────────────────────────────────────────────────
-  # Runs the full PHPUnit suite against PHP 8.2, 8.3, and 8.4.
+  # Runs the full PHPUnit suite against PHP 8.3 and 8.4.
+  # PHPUnit 12 requires PHP >= 8.3; 8.2 is no longer in the matrix.
   # Uses SQLite :memory: as configured in phpunit.xml -- no external database
   # service is required here. MySQL migration integrity is tested separately
   # in the database.yml workflow.
@@ -50,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3', '8.4']
+        php: ['8.3', '8.4']
 
     steps:
       - name: Checkout code
@@ -102,7 +103,7 @@ jobs:
   # threshold. Uploads the Clover XML report as a build artifact (30-day
   # retention) for downstream analysis or badge generation.
   #
-  # Runs on PHP 8.2 only -- coverage collection is a quality gate, not a
+  # Runs on PHP 8.3 -- coverage collection is a quality gate, not a
   # compatibility check (that is the job of backend-tests above).
   backend-coverage:
     name: Backend Coverage Gate
@@ -114,10 +115,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2 with PCOV
+      - name: Setup PHP 8.3 with PCOV
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, fileinfo
           coverage: pcov
           tools: composer:v2
@@ -126,9 +127,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/camp-burnt-gin-api/vendor
-          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          key: composer-php8.3-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
           restore-keys: |
-            composer-php8.2-
+            composer-php8.3-
 
       - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
@@ -178,7 +179,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: dom, curl, libxml, mbstring, zip
           coverage: none
           tools: composer:v2
@@ -187,9 +188,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/camp-burnt-gin-api/vendor
-          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          key: composer-php8.3-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
           restore-keys: |
-            composer-php8.2-
+            composer-php8.3-
 
       - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
@@ -214,7 +215,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, fileinfo
           coverage: none
           tools: composer:v2
@@ -223,9 +224,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/camp-burnt-gin-api/vendor
-          key: composer-php8.2-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
+          key: composer-php8.3-${{ hashFiles('backend/camp-burnt-gin-api/composer.lock') }}
           restore-keys: |
-            composer-php8.2-
+            composer-php8.3-
 
       - name: Install Composer dependencies
         working-directory: backend/camp-burnt-gin-api
