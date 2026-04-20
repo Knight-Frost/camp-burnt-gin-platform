@@ -426,11 +426,12 @@ class CamperController extends Controller
         $this->authorize('view', $camper);
 
         // Load emergency contacts once (guardians + plain emergency contacts).
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\EmergencyContact> $contacts */
         $contacts = $camper->emergencyContacts()->get();
 
         $guardian1 = $contacts->first(fn ($c) => $c->is_guardian && $c->is_primary);
         $guardian2 = $contacts->first(fn ($c) => $c->is_guardian && ! $c->is_primary);
-        $ec        = $contacts->first(fn ($c) => ! $c->is_guardian);
+        $ec = $contacts->first(fn ($c) => ! $c->is_guardian);
 
         // Determine if this camper has at least one previously submitted application.
         // This drives the "attended_before" and "first_application" flags in the form.
@@ -443,62 +444,62 @@ class CamperController extends Controller
         return response()->json([
             'data' => [
                 'camper' => [
-                    'first_name'         => (string) ($camper->first_name ?? ''),
-                    'last_name'          => (string) ($camper->last_name ?? ''),
-                    'preferred_name'     => (string) ($camper->preferred_name ?? ''),
-                    'date_of_birth'      => (string) ($camper->date_of_birth ?? ''),
-                    'gender'             => (string) ($camper->gender ?? ''),
-                    'tshirt_size'        => (string) ($camper->tshirt_size ?? ''),
-                    'county'             => (string) ($camper->county ?? ''),
-                    'needs_interpreter'  => (bool)   ($camper->needs_interpreter ?? false),
+                    'first_name' => (string) ($camper->first_name ?? ''),
+                    'last_name' => (string) ($camper->last_name ?? ''),
+                    'preferred_name' => (string) ($camper->preferred_name ?? ''),
+                    'date_of_birth' => (string) ($camper->date_of_birth ?? ''),
+                    'gender' => (string) ($camper->gender ?? ''),
+                    'tshirt_size' => (string) ($camper->tshirt_size ?? ''),
+                    'county' => (string) ($camper->county ?? ''),
+                    'needs_interpreter' => (bool) ($camper->needs_interpreter ?? false),
                     'preferred_language' => (string) ($camper->preferred_language ?? ''),
                     // applicant_address is PHI encrypted at rest; safe to return to the
                     // applicant who originally submitted it (their own data).
-                    'address'            => (string) ($camper->applicant_address ?? ''),
-                    'city'               => (string) ($camper->applicant_city ?? ''),
-                    'state'              => (string) ($camper->applicant_state ?? ''),
-                    'zip'                => (string) ($camper->applicant_zip ?? ''),
+                    'address' => (string) ($camper->applicant_address ?? ''),
+                    'city' => (string) ($camper->applicant_city ?? ''),
+                    'state' => (string) ($camper->applicant_state ?? ''),
+                    'zip' => (string) ($camper->applicant_zip ?? ''),
                 ],
                 'guardian1' => $guardian1 ? [
-                    'name'               => (string) ($guardian1->name ?? ''),
-                    'relationship'       => (string) ($guardian1->relationship ?? ''),
-                    'phone_home'         => (string) ($guardian1->phone_primary ?? ''),
-                    'phone_work'         => (string) ($guardian1->phone_work ?? ''),
-                    'phone_cell'         => (string) ($guardian1->phone_secondary ?? ''),
-                    'email'              => (string) ($guardian1->email ?? ''),
-                    'address'            => (string) ($guardian1->address ?? ''),
-                    'city'               => (string) ($guardian1->city ?? ''),
-                    'state'              => (string) ($guardian1->state ?? ''),
-                    'zip'                => (string) ($guardian1->zip ?? ''),
-                    'primary_language'   => (string) ($guardian1->primary_language ?? ''),
-                    'interpreter_needed' => (bool)   ($guardian1->interpreter_needed ?? false),
+                    'name' => (string) ($guardian1->name ?? ''),
+                    'relationship' => (string) ($guardian1->relationship ?? ''),
+                    'phone_home' => (string) ($guardian1->phone_primary ?? ''),
+                    'phone_work' => (string) ($guardian1->phone_work ?? ''),
+                    'phone_cell' => (string) ($guardian1->phone_secondary ?? ''),
+                    'email' => (string) ($guardian1->email ?? ''),
+                    'address' => (string) ($guardian1->address ?? ''),
+                    'city' => (string) ($guardian1->city ?? ''),
+                    'state' => (string) ($guardian1->state ?? ''),
+                    'zip' => (string) ($guardian1->zip ?? ''),
+                    'primary_language' => (string) ($guardian1->primary_language ?? ''),
+                    'interpreter_needed' => (bool) ($guardian1->interpreter_needed ?? false),
                 ] : null,
                 'guardian2' => $guardian2 ? [
-                    'name'               => (string) ($guardian2->name ?? ''),
-                    'relationship'       => (string) ($guardian2->relationship ?? ''),
-                    'phone_home'         => (string) ($guardian2->phone_primary ?? ''),
-                    'phone_work'         => (string) ($guardian2->phone_work ?? ''),
-                    'phone_cell'         => (string) ($guardian2->phone_secondary ?? ''),
-                    'email'              => (string) ($guardian2->email ?? ''),
-                    'address'            => (string) ($guardian2->address ?? ''),
-                    'city'               => (string) ($guardian2->city ?? ''),
-                    'state'              => (string) ($guardian2->state ?? ''),
-                    'zip'                => (string) ($guardian2->zip ?? ''),
-                    'primary_language'   => (string) ($guardian2->primary_language ?? ''),
-                    'interpreter_needed' => (bool)   ($guardian2->interpreter_needed ?? false),
+                    'name' => (string) ($guardian2->name ?? ''),
+                    'relationship' => (string) ($guardian2->relationship ?? ''),
+                    'phone_home' => (string) ($guardian2->phone_primary ?? ''),
+                    'phone_work' => (string) ($guardian2->phone_work ?? ''),
+                    'phone_cell' => (string) ($guardian2->phone_secondary ?? ''),
+                    'email' => (string) ($guardian2->email ?? ''),
+                    'address' => (string) ($guardian2->address ?? ''),
+                    'city' => (string) ($guardian2->city ?? ''),
+                    'state' => (string) ($guardian2->state ?? ''),
+                    'zip' => (string) ($guardian2->zip ?? ''),
+                    'primary_language' => (string) ($guardian2->primary_language ?? ''),
+                    'interpreter_needed' => (bool) ($guardian2->interpreter_needed ?? false),
                 ] : null,
                 'emergency_contact' => $ec ? [
-                    'name'               => (string) ($ec->name ?? ''),
-                    'relationship'       => (string) ($ec->relationship ?? ''),
-                    'phone_home'         => (string) ($ec->phone_primary ?? ''),
-                    'phone_work'         => (string) ($ec->phone_work ?? ''),
-                    'phone_cell'         => (string) ($ec->phone_secondary ?? ''),
-                    'address'            => (string) ($ec->address ?? ''),
-                    'city'               => (string) ($ec->city ?? ''),
-                    'state'              => (string) ($ec->state ?? ''),
-                    'zip'                => (string) ($ec->zip ?? ''),
-                    'primary_language'   => (string) ($ec->primary_language ?? ''),
-                    'interpreter_needed' => (bool)   ($ec->interpreter_needed ?? false),
+                    'name' => (string) ($ec->name ?? ''),
+                    'relationship' => (string) ($ec->relationship ?? ''),
+                    'phone_home' => (string) ($ec->phone_primary ?? ''),
+                    'phone_work' => (string) ($ec->phone_work ?? ''),
+                    'phone_cell' => (string) ($ec->phone_secondary ?? ''),
+                    'address' => (string) ($ec->address ?? ''),
+                    'city' => (string) ($ec->city ?? ''),
+                    'state' => (string) ($ec->state ?? ''),
+                    'zip' => (string) ($ec->zip ?? ''),
+                    'primary_language' => (string) ($ec->primary_language ?? ''),
+                    'interpreter_needed' => (bool) ($ec->interpreter_needed ?? false),
                 ] : null,
                 // Tells the form whether attended_before / first_application should be set.
                 'has_prior_submitted_application' => $hasSubmitted,

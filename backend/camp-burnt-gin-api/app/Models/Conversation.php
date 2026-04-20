@@ -218,6 +218,7 @@ class Conversation extends Model
         // force_unread is set when the user explicitly marked the conversation as unread
         // but there were no non-own messages to remove read receipts from (e.g. they are
         // the only sender). Treat the conversation as having 1 unread in that case.
+        /** @var \App\Models\ConversationParticipant|null $participant */
         $participant = $this->participantRecords()
             ->where('user_id', $user->id)
             ->first();
