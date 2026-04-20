@@ -95,12 +95,12 @@ flowchart TD
 |-------|------|-------|---------------|
 | Phase 2 | 2026-03-01 | Role rename, email verification, auth cleanup | BUG-001, 002, 003, 004, 006, 008, 012, 017 |
 | Phase 3 | 2026-03-02 | Applicant portal, application form | BUG-009, 010, 011 |
-| Phase 4 | 2026-03-06 | Profile system expansion | BUG-014 |
+| Phase 4 | 2026-03-06 | Profile system expansion | [BUG-014](#bug-014) |
 | Phase 5 | 2026-03-07 | Admin portal, camper detail, routing | BUG-005, 019, 020, 022, 023, 029, 035–045, 047, 048 |
 | Phase 6 | 2026-03-08 | Medical portal write capabilities | BUG-007, 028, 034 |
 | Phase 7 | 2026-03-09 | Notifications, Recent Updates | BUG-018, 027 |
 | Phase 8 | 2026-03-09 | Inbox / messaging restructure | BUG-015, 016 |
-| Phase 9 | 2026-03-10 | Audit log redesign | BUG-013 |
+| Phase 9 | 2026-03-10 | Audit log redesign | [BUG-013](#bug-013) |
 | Phase 10 | 2026-03-10 | Documentation update | BUG-025, 026 |
 | Post Phase 8 | — | Inbox / messaging corrections | BUG-049, 050 |
 | Post Phase 9 | — | Auth and UI corrections | BUG-051, 052, 053 |
@@ -129,7 +129,7 @@ The following systemic patterns account for clusters of bugs across the system. 
 | Missing `submitted_at` gate — drafts visible to admins as submitted | BUG-188, 189, 197, 198, 201 | All Resolved |
 | Authorization missing or using wrong policy class | BUG-057, 059, 061, 065, 144, 162 | All Resolved |
 | IDOR — resources not scoped to parent resource in URL | BUG-066, 067, 068 | All Resolved |
-| Multi-table write without DB transaction | BUG-113 | Resolved |
+| Multi-table write without DB transaction | [BUG-113](#bug-113) | Resolved |
 | Token / session storage inconsistency (localStorage vs sessionStorage) | BUG-051, 075, 172 | All Resolved |
 | Seeder using non-canonical document type keys | BUG-195, 196, 197 | All Resolved |
 | Hard-delete used on PHI-adjacent tables (missing SoftDeletes) | BUG-161, 168 | All Resolved |
@@ -146,37 +146,37 @@ PHI exposure, encryption gaps, audit logging, file serving, soft deletes, policy
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-037 | Super Admin can delete own account — no role restriction | Critical | Resolved |
-| BUG-065 | FormDefinitionPolicy::view() exposes draft definitions to all authenticated users | Critical | Resolved |
-| BUG-066 | FormSectionController — section not scoped to form in URL (IDOR) | High | Resolved |
-| BUG-067 | FormFieldController — field not scoped to section in URL (IDOR) | High | Resolved |
-| BUG-068 | FormFieldOptionController — option not scoped to field in URL (IDOR) | High | Resolved |
-| BUG-069 | MedicalRestrictionPolicy::delete() permits permanent delete by medical providers | Medium | Resolved |
-| BUG-070 | DocumentPolicy::view() medical provider check unreachable | High | Resolved |
-| BUG-071 | Announcement update/destroy routes lacked admin middleware | High | Resolved |
-| BUG-073 | DocumentRequestController lacks dedicated Policy class | Low | Resolved |
-| BUG-106 | reviewApplication() missing capacity gate — approve beyond session capacity | Critical | Resolved |
-| BUG-110 | applicationRejected() embeds reviewer notes in HTML without e() escaping — stored XSS | Low | Resolved |
-| BUG-152 | PHI leak: admin notes sent to parents in rejection emails | Critical | Resolved |
-| BUG-153 | PHI stored in audit log in decrypted form | Critical | Resolved |
-| BUG-154 | PHI encryption gap: AssistiveDevice, MedicalFollowUp, EmergencyContact fields | High | Resolved |
-| BUG-155 | TOTP replay attack — same OTP accepted multiple times in 30s window | High | Resolved |
-| BUG-156 | MFA step-up cache key not scoped to token — all sessions elevated together | High | Resolved |
-| BUG-157 | MFA enrollment not enforced on role middleware | High | Resolved |
-| BUG-158 | Account lockout hardcoded 5 min instead of config value (15 min) | High | Resolved |
-| BUG-159 | MFA secret stored in plaintext — raw TOTP seed visible in DB dumps | High | Resolved |
-| BUG-161 | RiskAssessment missing SoftDeletes — PHI table used hard delete | High | Resolved |
-| BUG-162 | RiskAssessmentPolicy not registered in $policies array | High | Resolved |
-| BUG-163 | Missing password reset audit log in PasswordResetService | Medium | Resolved |
-| BUG-164 | Local disk file serving enabled — bypasses authenticated API | Medium | Resolved |
-| BUG-165 | Insecure cookie default — secure flag unset in session.php | Medium | Resolved |
-| BUG-168 | Document tables missing SoftDeletes | Medium | Resolved |
-| BUG-169 | CamperPolicy::delete() allowed deletion of campers with active applications | Medium | Resolved |
-| BUG-172 | Inbox state persisted in localStorage instead of sessionStorage — HIPAA violation | Low | Resolved |
-| BUG-173 | ProtectedRoute missing MFA enrollment gate for privileged roles | Low | Resolved |
-| BUG-176 | Document::forceDelete() did not cascade-delete physical file — orphaned PHI files | High | Resolved |
-| BUG-177 | DocumentController::show() returned decrypted filename without audit log entry | Medium | Resolved |
-| BUG-178 | ReportController CSV exports downloaded PII/PHI without audit log entry | Medium | Resolved |
+| [BUG-037](#bug-037) | Super Admin can delete own account — no role restriction | Critical | Resolved |
+| [BUG-065](#bug-065) | FormDefinitionPolicy::view() exposes draft definitions to all authenticated users | Critical | Resolved |
+| [BUG-066](#bug-066) | FormSectionController — section not scoped to form in URL (IDOR) | High | Resolved |
+| [BUG-067](#bug-067) | FormFieldController — field not scoped to section in URL (IDOR) | High | Resolved |
+| [BUG-068](#bug-068) | FormFieldOptionController — option not scoped to field in URL (IDOR) | High | Resolved |
+| [BUG-069](#bug-069) | MedicalRestrictionPolicy::delete() permits permanent delete by medical providers | Medium | Resolved |
+| [BUG-070](#bug-070) | DocumentPolicy::view() medical provider check unreachable | High | Resolved |
+| [BUG-071](#bug-071) | Announcement update/destroy routes lacked admin middleware | High | Resolved |
+| [BUG-073](#bug-073) | DocumentRequestController lacks dedicated Policy class | Low | Resolved |
+| [BUG-106](#bug-106) | reviewApplication() missing capacity gate — approve beyond session capacity | Critical | Resolved |
+| [BUG-110](#bug-110) | applicationRejected() embeds reviewer notes in HTML without e() escaping — stored XSS | Low | Resolved |
+| [BUG-152](#bug-152) | PHI leak: admin notes sent to parents in rejection emails | Critical | Resolved |
+| [BUG-153](#bug-153) | PHI stored in audit log in decrypted form | Critical | Resolved |
+| [BUG-154](#bug-154) | PHI encryption gap: AssistiveDevice, MedicalFollowUp, EmergencyContact fields | High | Resolved |
+| [BUG-155](#bug-155) | TOTP replay attack — same OTP accepted multiple times in 30s window | High | Resolved |
+| [BUG-156](#bug-156) | MFA step-up cache key not scoped to token — all sessions elevated together | High | Resolved |
+| [BUG-157](#bug-157) | MFA enrollment not enforced on role middleware | High | Resolved |
+| [BUG-158](#bug-158) | Account lockout hardcoded 5 min instead of config value (15 min) | High | Resolved |
+| [BUG-159](#bug-159) | MFA secret stored in plaintext — raw TOTP seed visible in DB dumps | High | Resolved |
+| [BUG-161](#bug-161) | RiskAssessment missing SoftDeletes — PHI table used hard delete | High | Resolved |
+| [BUG-162](#bug-162) | RiskAssessmentPolicy not registered in $policies array | High | Resolved |
+| [BUG-163](#bug-163) | Missing password reset audit log in PasswordResetService | Medium | Resolved |
+| [BUG-164](#bug-164) | Local disk file serving enabled — bypasses authenticated API | Medium | Resolved |
+| [BUG-165](#bug-165) | Insecure cookie default — secure flag unset in session.php | Medium | Resolved |
+| [BUG-168](#bug-168) | Document tables missing SoftDeletes | Medium | Resolved |
+| [BUG-169](#bug-169) | CamperPolicy::delete() allowed deletion of campers with active applications | Medium | Resolved |
+| [BUG-172](#bug-172) | Inbox state persisted in localStorage instead of sessionStorage — HIPAA violation | Low | Resolved |
+| [BUG-173](#bug-173) | ProtectedRoute missing MFA enrollment gate for privileged roles | Low | Resolved |
+| [BUG-176](#bug-176) | Document::forceDelete() did not cascade-delete physical file — orphaned PHI files | High | Resolved |
+| [BUG-177](#bug-177) | DocumentController::show() returned decrypted filename without audit log entry | Medium | Resolved |
+| [BUG-178](#bug-178) | ReportController CSV exports downloaded PII/PHI without audit log entry | Medium | Resolved |
 
 ### 2. Authentication & Session Management
 
@@ -184,22 +184,22 @@ Login failures, token storage, MFA enforcement, session persistence, and role-ba
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-002 | Email verification system not implemented | Critical | Resolved |
-| BUG-004 | Account deactivation incorrectly repurposes email_verified_at | High | Resolved |
-| BUG-006 | Frontend role-based routing not enforced — RoleGuard defined but never used | High | Resolved |
-| BUG-036 | Profile Settings actions log out user — stale token not rehydrated | Critical | Resolved |
-| BUG-040 | Profile save / avatar actions log user out — setUser overwrites roles array | Critical | Resolved |
-| BUG-044 | Login page shows two password reveal icons — browser native conflicts with custom button | Low | Resolved |
-| BUG-045 | Login redirects back to /login after success — stale token validation races fresh login | Critical | Resolved |
-| BUG-046 | Applicant login broken — blocking issue | Critical | Resolved |
-| BUG-051 | Page refresh logs user out — useAuthInit reads localStorage but token in sessionStorage | Critical | Resolved |
-| BUG-062 | TokenExpirationTest fails when SANCTUM_EXPIRATION=null in .env | High | Resolved |
-| BUG-075 | Auth token in sessionStorage causes logout on every page refresh across all portals | Critical | Resolved |
-| BUG-079 | Wrong MFA code triggers global logout — /mfa/ not in isPublicAuthEndpoint | High | Resolved |
-| BUG-080 | Admin portal switches to applicant portal when idle — layout guard fallback | Critical | Resolved |
-| BUG-082 | RoleGuard redirects authenticated users with missing role data — redirect loop | High | Resolved |
-| BUG-103 | Email verification not enforced — unverified users access full system | High | Resolved |
-| BUG-175 | EnsureUserIsMedicalProvider MFA check caused bootstrap deadlock | High | Resolved |
+| [BUG-002](#bug-002) | Email verification system not implemented | Critical | Resolved |
+| [BUG-004](#bug-004) | Account deactivation incorrectly repurposes email_verified_at | High | Resolved |
+| [BUG-006](#bug-006) | Frontend role-based routing not enforced — RoleGuard defined but never used | High | Resolved |
+| [BUG-036](#bug-036) | Profile Settings actions log out user — stale token not rehydrated | Critical | Resolved |
+| [BUG-040](#bug-040) | Profile save / avatar actions log user out — setUser overwrites roles array | Critical | Resolved |
+| [BUG-044](#bug-044) | Login page shows two password reveal icons — browser native conflicts with custom button | Low | Resolved |
+| [BUG-045](#bug-045) | Login redirects back to /login after success — stale token validation races fresh login | Critical | Resolved |
+| [BUG-046](#bug-046) | Applicant login broken — blocking issue | Critical | Resolved |
+| [BUG-051](#bug-051) | Page refresh logs user out — useAuthInit reads localStorage but token in sessionStorage | Critical | Resolved |
+| [BUG-062](#bug-062) | TokenExpirationTest fails when SANCTUM_EXPIRATION=null in .env | High | Resolved |
+| [BUG-075](#bug-075) | Auth token in sessionStorage causes logout on every page refresh across all portals | Critical | Resolved |
+| [BUG-079](#bug-079) | Wrong MFA code triggers global logout — /mfa/ not in isPublicAuthEndpoint | High | Resolved |
+| [BUG-080](#bug-080) | Admin portal switches to applicant portal when idle — layout guard fallback | Critical | Resolved |
+| [BUG-082](#bug-082) | RoleGuard redirects authenticated users with missing role data — redirect loop | High | Resolved |
+| [BUG-103](#bug-103) | Email verification not enforced — unverified users access full system | High | Resolved |
+| [BUG-175](#bug-175) | EnsureUserIsMedicalProvider MFA check caused bootstrap deadlock | High | Resolved |
 
 ### 3. Application Lifecycle & Workflow
 
@@ -207,21 +207,21 @@ Status transitions, approval / reversal architecture, transaction safety, capaci
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-054 | Application submission fails — signApplication omits signature_data; duplicate campers on retry | Critical | Resolved |
-| BUG-109 | Missing inbox notification when draft promoted to submitted | Medium | Resolved |
-| BUG-111 | campers table has no is_active column — reversal leaves camper on rosters | Critical | Resolved |
-| BUG-112 | medical_records table has no is_active column — reversal leaves record visible to staff | Critical | Resolved |
-| BUG-113 | reviewApplication() has no DB::transaction() — partial failure leaves inconsistent state | Critical | Resolved |
-| BUG-114 | No deactivation logic on approval reversal (Approved → Rejected) | Critical | Resolved |
-| BUG-115 | No state transition validation — any status can transition to any other | High | Resolved |
-| BUG-116 | No audit log entry written for application review decisions | High | Resolved |
-| BUG-182 | No submission_source field — no way to distinguish digital vs paper applications | High | Resolved |
-| BUG-202 | ApplicationDraftPolicy::viewAny() included isAdmin() — contradicts docblock | Medium | Resolved |
-| BUG-203 | Save Draft and Clear Draft buttons had no disabled={isSubmitting} guard | Medium | Resolved |
-| BUG-204 | POST /api/application-drafts has no per-user limit — DoS vector | Low | **Open** |
-| BUG-205 | draft_data validated as array with no size cap — 4 GB theoretical max on MySQL longText | Low | **Open** |
-| BUG-206 | handleClearDraft() fire-and-forget — user sees success toast but server DELETE may fail | Low | **Open** |
-| BUG-207 | Server draft hydration setForm() called after mount — in-progress edits silently overwritten | Medium | **Open** |
+| [BUG-054](#bug-054) | Application submission fails — signApplication omits signature_data; duplicate campers on retry | Critical | Resolved |
+| [BUG-109](#bug-109) | Missing inbox notification when draft promoted to submitted | Medium | Resolved |
+| [BUG-111](#bug-111) | campers table has no is_active column — reversal leaves camper on rosters | Critical | Resolved |
+| [BUG-112](#bug-112) | medical_records table has no is_active column — reversal leaves record visible to staff | Critical | Resolved |
+| [BUG-113](#bug-113) | reviewApplication() has no DB::transaction() — partial failure leaves inconsistent state | Critical | Resolved |
+| [BUG-114](#bug-114) | No deactivation logic on approval reversal (Approved → Rejected) | Critical | Resolved |
+| [BUG-115](#bug-115) | No state transition validation — any status can transition to any other | High | Resolved |
+| [BUG-116](#bug-116) | No audit log entry written for application review decisions | High | Resolved |
+| [BUG-182](#bug-182) | No submission_source field — no way to distinguish digital vs paper applications | High | Resolved |
+| [BUG-202](#bug-202) | ApplicationDraftPolicy::viewAny() included isAdmin() — contradicts docblock | Medium | Resolved |
+| [BUG-203](#bug-203) | Save Draft and Clear Draft buttons had no disabled={isSubmitting} guard | Medium | Resolved |
+| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user limit — DoS vector | Low | **Open** |
+| [BUG-205](#bug-205) | draft_data validated as array with no size cap — 4 GB theoretical max on MySQL longText | Low | **Open** |
+| [BUG-206](#bug-206) | handleClearDraft() fire-and-forget — user sees success toast but server DELETE may fail | Low | **Open** |
+| [BUG-207](#bug-207) | Server draft hydration setForm() called after mount — in-progress edits silently overwritten | Medium | **Open** |
 
 ### 4. Document Management
 
@@ -229,33 +229,33 @@ File upload, draft state visibility, verification workflow, naming / label consi
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-055 | Document upload fails for PNG files — image/x-png not in allowed MIME list | High | Resolved |
-| BUG-074 | All FormData uploads broken — Content-Type header omits multipart boundary | Critical | Resolved |
-| BUG-108 | DocumentRequestController::reject() clears DB path but never deletes file from disk | Medium | Resolved |
-| BUG-123 | OfficialFormType::toApiArray() returned 'type' key; frontend expected 'id' | High | Resolved |
-| BUG-124 | ApplicantOfficialFormsPage initialized upload cards as idle — existing uploads not reflected | High | Resolved |
-| BUG-135 | stats() double-counted under_review inside uploaded metric | Medium | Resolved |
-| BUG-136 | stats() double-counted overdue records inside awaiting_upload metric | Low | Resolved |
-| BUG-137 | store() threw "Undefined array key application_id" on nullable validated field | High | Resolved |
-| BUG-179 | DocumentUploader.tsx accepted image/webp which backend does not permit | Low | Resolved |
-| BUG-181 | ApplicationReviewPage showed doc badges but no inline verifyDocument function | High | Resolved |
-| BUG-183 | resolveDocumentableName() returned null for Application and MedicalRecord types | Low | Resolved |
-| BUG-184 | PaperApplicationSection uploaded docs without documentable_type/id — orphaned rows | High | Resolved |
-| BUG-185 | AdminDocumentsPage had no delete confirmation — single click immediately soft-deleted | Medium | Resolved |
-| BUG-186 | AdminDocumentsPage displayed raw snake_case document type values | Low | Resolved |
-| BUG-187 | DocumentService::upload() made all uploads visible immediately — no draft state | High | Resolved |
-| BUG-188 | DocumentController::index() admin query had no submitted_at filter | High | Resolved |
-| BUG-189 | ApplicationController::show() 3-way merge included draft docs for admin reviewers | High | Resolved |
-| BUG-192 | immunization_record.adminLabel diverged from applicantLabel — different names for same doc | High | Resolved |
-| BUG-193 | en.json s2_immunization_cert_required referenced outdated "SC Immunization Certificate" | Medium | Resolved |
-| BUG-194 | s9_doc_medical_exam_label = "Medical Examination" vs "Medical Examination Form" | Medium | Resolved |
-| BUG-195 | DocumentSeeder used 'medical_exam' as document_type; canonical key is 'official_medical_form' | Critical | Resolved |
-| BUG-196 | DocumentSeeder used display-name strings as document_type values | High | Resolved |
-| BUG-197 | DocumentSeeder did not set submitted_at — all seeded docs invisible to admins | Critical | Resolved |
-| BUG-198 | ApplicationFormPage never called submitDocument() — all 3 required docs were drafts | Critical | Resolved |
-| BUG-199 | uploadDocument() returned void — caller could not get document id for submitDocument() | High | Resolved |
-| BUG-200 | ApplicantDocumentsPage had no upload section for immunization_record and insurance_card | Critical | Resolved |
-| BUG-201 | Applicant checklist showed green checkmark for draft documents — split truth | High | Resolved |
+| [BUG-055](#bug-055) | Document upload fails for PNG files — image/x-png not in allowed MIME list | High | Resolved |
+| [BUG-074](#bug-074) | All FormData uploads broken — Content-Type header omits multipart boundary | Critical | Resolved |
+| [BUG-108](#bug-108) | DocumentRequestController::reject() clears DB path but never deletes file from disk | Medium | Resolved |
+| [BUG-123](#bug-123) | OfficialFormType::toApiArray() returned 'type' key; frontend expected 'id' | High | Resolved |
+| [BUG-124](#bug-124) | ApplicantOfficialFormsPage initialized upload cards as idle — existing uploads not reflected | High | Resolved |
+| [BUG-135](#bug-135) | stats() double-counted under_review inside uploaded metric | Medium | Resolved |
+| [BUG-136](#bug-136) | stats() double-counted overdue records inside awaiting_upload metric | Low | Resolved |
+| [BUG-137](#bug-137) | store() threw "Undefined array key application_id" on nullable validated field | High | Resolved |
+| [BUG-179](#bug-179) | DocumentUploader.tsx accepted image/webp which backend does not permit | Low | Resolved |
+| [BUG-181](#bug-181) | ApplicationReviewPage showed doc badges but no inline verifyDocument function | High | Resolved |
+| [BUG-183](#bug-183) | resolveDocumentableName() returned null for Application and MedicalRecord types | Low | Resolved |
+| [BUG-184](#bug-184) | PaperApplicationSection uploaded docs without documentable_type/id — orphaned rows | High | Resolved |
+| [BUG-185](#bug-185) | AdminDocumentsPage had no delete confirmation — single click immediately soft-deleted | Medium | Resolved |
+| [BUG-186](#bug-186) | AdminDocumentsPage displayed raw snake_case document type values | Low | Resolved |
+| [BUG-187](#bug-187) | DocumentService::upload() made all uploads visible immediately — no draft state | High | Resolved |
+| [BUG-188](#bug-188) | DocumentController::index() admin query had no submitted_at filter | High | Resolved |
+| [BUG-189](#bug-189) | ApplicationController::show() 3-way merge included draft docs for admin reviewers | High | Resolved |
+| [BUG-192](#bug-192) | immunization_record.adminLabel diverged from applicantLabel — different names for same doc | High | Resolved |
+| [BUG-193](#bug-193) | en.json s2_immunization_cert_required referenced outdated "SC Immunization Certificate" | Medium | Resolved |
+| [BUG-194](#bug-194) | s9_doc_medical_exam_label = "Medical Examination" vs "Medical Examination Form" | Medium | Resolved |
+| [BUG-195](#bug-195) | DocumentSeeder used 'medical_exam' as document_type; canonical key is 'official_medical_form' | Critical | Resolved |
+| [BUG-196](#bug-196) | DocumentSeeder used display-name strings as document_type values | High | Resolved |
+| [BUG-197](#bug-197) | DocumentSeeder did not set submitted_at — all seeded docs invisible to admins | Critical | Resolved |
+| [BUG-198](#bug-198) | ApplicationFormPage never called submitDocument() — all 3 required docs were drafts | Critical | Resolved |
+| [BUG-199](#bug-199) | uploadDocument() returned void — caller could not get document id for submitDocument() | High | Resolved |
+| [BUG-200](#bug-200) | ApplicantDocumentsPage had no upload section for immunization_record and insurance_card | Critical | Resolved |
+| [BUG-201](#bug-201) | Applicant checklist showed green checkmark for draft documents — split truth | High | Resolved |
 
 ### 5. Medical Portal & Risk Assessment
 
@@ -263,19 +263,19 @@ Staff write capabilities, active-state filtering after lifecycle events, risk sc
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-007 | Medical portal is read-only — no write capabilities for on-site medical staff | Critical | Resolved |
-| BUG-028 | Medical portal has no route or UI for document upload or treatment recording | Critical | Resolved |
-| BUG-034 | Medical portal inbox missing — no /medical/inbox route | Medium | Resolved |
-| BUG-117 | CamperController::index() medical branch has no is_active filter | High | Resolved |
-| BUG-118 | MedicalRecordController::index() has no is_active filter | High | Resolved |
-| BUG-144 | RiskAssessmentController authorized via CamperPolicy — applicants accessed full risk data | Critical | Resolved |
-| BUG-145 | No AllergyObserver — life-threatening allergy did not trigger risk recalculation | High | Resolved |
-| BUG-146 | Legacy risk-summary endpoint used CamperPolicy::view — exposed risk score to parents | High | Resolved |
-| BUG-147 | All 5 model observers called assessCamper() without try/catch — scoring failure cascaded to 500 | Medium | Resolved |
-| BUG-148 | Override route middleware allowed regular admins who then received 403 from policy | Medium | Resolved |
-| BUG-149 | Medical Complexity tooltip showed wrong threshold (0–33 pts; actual is 0–25 pts) | Medium | Resolved |
-| BUG-150 | RiskAuditTimeline showed override supervision label alongside base staffing ratio — contradictory | Medium | Resolved |
-| BUG-151 | MedicalReviewPanel showed stale form values on re-entry after save | Low | Resolved |
+| [BUG-007](#bug-007) | Medical portal is read-only — no write capabilities for on-site medical staff | Critical | Resolved |
+| [BUG-028](#bug-028) | Medical portal has no route or UI for document upload or treatment recording | Critical | Resolved |
+| [BUG-034](#bug-034) | Medical portal inbox missing — no /medical/inbox route | Medium | Resolved |
+| [BUG-117](#bug-117) | CamperController::index() medical branch has no is_active filter | High | Resolved |
+| [BUG-118](#bug-118) | MedicalRecordController::index() has no is_active filter | High | Resolved |
+| [BUG-144](#bug-144) | RiskAssessmentController authorized via CamperPolicy — applicants accessed full risk data | Critical | Resolved |
+| [BUG-145](#bug-145) | No AllergyObserver — life-threatening allergy did not trigger risk recalculation | High | Resolved |
+| [BUG-146](#bug-146) | Legacy risk-summary endpoint used CamperPolicy::view — exposed risk score to parents | High | Resolved |
+| [BUG-147](#bug-147) | All 5 model observers called assessCamper() without try/catch — scoring failure cascaded to 500 | Medium | Resolved |
+| [BUG-148](#bug-148) | Override route middleware allowed regular admins who then received 403 from policy | Medium | Resolved |
+| [BUG-149](#bug-149) | Medical Complexity tooltip showed wrong threshold (0–33 pts; actual is 0–25 pts) | Medium | Resolved |
+| [BUG-150](#bug-150) | RiskAuditTimeline showed override supervision label alongside base staffing ratio — contradictory | Medium | Resolved |
+| [BUG-151](#bug-151) | MedicalReviewPanel showed stale form values on re-entry after save | Low | Resolved |
 
 ### 6. Admin & Super Admin Portal
 
@@ -283,26 +283,26 @@ Data loading failures, route registration, application review page, reports, and
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-005 | Broken routes — Admin/Super Admin camper detail and risk pages | Critical | Resolved |
-| BUG-019 | Super Admin quick links point to /admin/* routes | Medium | Resolved |
-| BUG-022 | Report downloads load only page 1 of applications for chart data | High | Resolved |
-| BUG-023 | AdminReportsPage imports stale motion variant names | Low | Resolved |
-| BUG-029 | Camper detail page missing — /admin/campers/:id leads to 404 | Critical | Resolved |
-| BUG-038 | Application review shows "Unknown Camper", literal i18n keys, no medical data | Critical | Resolved |
-| BUG-039 | Application list shows "Session #undefined" — wrong JSON key | High | Resolved |
-| BUG-048 | Portal context links broken — hardcoded /admin/* paths in shared components | High | Resolved |
-| BUG-076 | Admin Campers page "Failed to load data" — PHI eager-load DecryptException | Critical | Resolved |
-| BUG-077 | Admin Applications page "Failed to load data" — PHI eager-load | Critical | Resolved |
-| BUG-078 | Admin Reports shows 0 accepted applications — 'accepted' vs 'approved' enum key mismatch | High | Resolved |
-| BUG-081 | Campers search causes 500 — full_name virtual accessor used in SQL WHERE clause | Critical | Resolved |
-| BUG-099 | Admin Campers "Failed to load data" — ApplicationStatus enum missing Waitlisted case | Critical | Resolved |
-| BUG-100 | SessionDetailPage 404 — SessionDashboardController routes never registered in api.php | Critical | Resolved |
-| BUG-101 | CampSessionController::destroy() permits deletion of sessions with applications | High | Resolved |
-| BUG-104 | AdminReportsPage silently drops waitlisted applications from all charts | High | Resolved |
-| BUG-105 | Risk level never displayed in UI — backend endpoint and API client exist but never called | Medium | Resolved |
-| BUG-107 | ApplicationController::index() search leaks cross-session data via orWhereHas | High | Resolved |
-| BUG-125 | ApplicationReviewPage had no official forms checklist | Medium | Resolved |
-| BUG-126 | Admin and super-admin sidebars missing "My Profile" nav item | Medium | Resolved |
+| [BUG-005](#bug-005) | Broken routes — Admin/Super Admin camper detail and risk pages | Critical | Resolved |
+| [BUG-019](#bug-019) | Super Admin quick links point to /admin/* routes | Medium | Resolved |
+| [BUG-022](#bug-022) | Report downloads load only page 1 of applications for chart data | High | Resolved |
+| [BUG-023](#bug-023) | AdminReportsPage imports stale motion variant names | Low | Resolved |
+| [BUG-029](#bug-029) | Camper detail page missing — /admin/campers/:id leads to 404 | Critical | Resolved |
+| [BUG-038](#bug-038) | Application review shows "Unknown Camper", literal i18n keys, no medical data | Critical | Resolved |
+| [BUG-039](#bug-039) | Application list shows "Session #undefined" — wrong JSON key | High | Resolved |
+| [BUG-048](#bug-048) | Portal context links broken — hardcoded /admin/* paths in shared components | High | Resolved |
+| [BUG-076](#bug-076) | Admin Campers page "Failed to load data" — PHI eager-load DecryptException | Critical | Resolved |
+| [BUG-077](#bug-077) | Admin Applications page "Failed to load data" — PHI eager-load | Critical | Resolved |
+| [BUG-078](#bug-078) | Admin Reports shows 0 accepted applications — 'accepted' vs 'approved' enum key mismatch | High | Resolved |
+| [BUG-081](#bug-081) | Campers search causes 500 — full_name virtual accessor used in SQL WHERE clause | Critical | Resolved |
+| [BUG-099](#bug-099) | Admin Campers "Failed to load data" — ApplicationStatus enum missing Waitlisted case | Critical | Resolved |
+| [BUG-100](#bug-100) | SessionDetailPage 404 — SessionDashboardController routes never registered in api.php | Critical | Resolved |
+| [BUG-101](#bug-101) | CampSessionController::destroy() permits deletion of sessions with applications | High | Resolved |
+| [BUG-104](#bug-104) | AdminReportsPage silently drops waitlisted applications from all charts | High | Resolved |
+| [BUG-105](#bug-105) | Risk level never displayed in UI — backend endpoint and API client exist but never called | Medium | Resolved |
+| [BUG-107](#bug-107) | ApplicationController::index() search leaks cross-session data via orWhereHas | High | Resolved |
+| [BUG-125](#bug-125) | ApplicationReviewPage had no official forms checklist | Medium | Resolved |
+| [BUG-126](#bug-126) | Admin and super-admin sidebars missing "My Profile" nav item | Medium | Resolved |
 
 ### 7. Applicant Portal & Application Form
 
@@ -310,21 +310,21 @@ Form field parity with the official PDF, missing document sections, draft UX, an
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-009 | Applicant portal has no standalone Documents section | High | Resolved |
-| BUG-010 | ApplicationFormPage header comment incorrectly states sections 6–10 not implemented | Low | Resolved |
-| BUG-011 | No explicit "Save Draft" button — draft behavior is implicit auto-save only | Medium | Resolved |
-| BUG-030 | Applicant portal has no past applications history with filter/sort | Medium | **Open** |
-| BUG-127 | Guardian 2 — digital form had only name + one phone; official form requires address + 3 phones | High | Resolved |
-| BUG-128 | Emergency contact — digital form missing full address, 3 phones, and language/interpreter | High | Resolved |
-| BUG-129 | Digital form had no 2nd-choice session selection | Medium | Resolved |
-| BUG-130 | Digital form had no "first application / attended before" checkboxes | Medium | Resolved |
-| BUG-131 | Camper mailing address not captured in digital form | Medium | Resolved |
-| BUG-132 | Health flags missing from FormState and Section 2 UI | High | Resolved |
-| BUG-133 | Behavioral profile missing 5 boolean flags, attends_school, classroom_type | High | Resolved |
-| BUG-134 | Section 10 missing 2 of 7 required consents — General Consent and Permission to Participate | Critical | Resolved |
-| BUG-170 | STATUS_STEPS omitted waitlisted — stepper showed no progress for waitlisted applications | Low | Resolved |
-| BUG-190 | Date of birth displayed as raw ISO timestamp in applicant application detail | Low | Resolved |
-| BUG-191 | Document filenames blank and no inline view on ApplicantApplicationDetailPage | Medium | Resolved |
+| [BUG-009](#bug-009) | Applicant portal has no standalone Documents section | High | Resolved |
+| [BUG-010](#bug-010) | ApplicationFormPage header comment incorrectly states sections 6–10 not implemented | Low | Resolved |
+| [BUG-011](#bug-011) | No explicit "Save Draft" button — draft behavior is implicit auto-save only | Medium | Resolved |
+| [BUG-030](#bug-030) | Applicant portal has no past applications history with filter/sort | Medium | **Open** |
+| [BUG-127](#bug-127) | Guardian 2 — digital form had only name + one phone; official form requires address + 3 phones | High | Resolved |
+| [BUG-128](#bug-128) | Emergency contact — digital form missing full address, 3 phones, and language/interpreter | High | Resolved |
+| [BUG-129](#bug-129) | Digital form had no 2nd-choice session selection | Medium | Resolved |
+| [BUG-130](#bug-130) | Digital form had no "first application / attended before" checkboxes | Medium | Resolved |
+| [BUG-131](#bug-131) | Camper mailing address not captured in digital form | Medium | Resolved |
+| [BUG-132](#bug-132) | Health flags missing from FormState and Section 2 UI | High | Resolved |
+| [BUG-133](#bug-133) | Behavioral profile missing 5 boolean flags, attends_school, classroom_type | High | Resolved |
+| [BUG-134](#bug-134) | Section 10 missing 2 of 7 required consents — General Consent and Permission to Participate | Critical | Resolved |
+| [BUG-170](#bug-170) | STATUS_STEPS omitted waitlisted — stepper showed no progress for waitlisted applications | Low | Resolved |
+| [BUG-190](#bug-190) | Date of birth displayed as raw ISO timestamp in applicant application detail | Low | Resolved |
+| [BUG-191](#bug-191) | Document filenames blank and no inline view on ApplicantApplicationDetailPage | Medium | Resolved |
 
 ### 8. Inbox & Messaging
 
@@ -332,13 +332,13 @@ Gmail-style folder structure, RBAC for messaging, HIPAA-compliant storage, and n
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-015 | Inbox starred state persisted only in localStorage, not backend | Medium | Resolved |
-| BUG-016 | Inbox missing: Drafts, Sent, Trash, Scheduled send, Important folder | High | Resolved |
-| BUG-017 | Inbox imports Bot icon — AI reference should not appear in UI | Low | Resolved |
-| BUG-049 | Applicant cannot send messages to super_admin — hasNonAdminParticipants check too narrow | High | Resolved |
-| BUG-050 | Inbox folder switching shows brief blank/skeleton flash | Medium | Resolved |
-| BUG-056 | Message attachments sent via Compose not visible to recipient | High | Resolved |
-| BUG-139 | in_app_message_notifications toggle had no effect until re-authentication — stale notifPrefsRef | High | Resolved |
+| [BUG-015](#bug-015) | Inbox starred state persisted only in localStorage, not backend | Medium | Resolved |
+| [BUG-016](#bug-016) | Inbox missing: Drafts, Sent, Trash, Scheduled send, Important folder | High | Resolved |
+| [BUG-017](#bug-017) | Inbox imports Bot icon — AI reference should not appear in UI | Low | Resolved |
+| [BUG-049](#bug-049) | Applicant cannot send messages to super_admin — hasNonAdminParticipants check too narrow | High | Resolved |
+| [BUG-050](#bug-050) | Inbox folder switching shows brief blank/skeleton flash | Medium | Resolved |
+| [BUG-056](#bug-056) | Message attachments sent via Compose not visible to recipient | High | Resolved |
+| [BUG-139](#bug-139) | in_app_message_notifications toggle had no effect until re-authentication — stale notifPrefsRef | High | Resolved |
 
 ### 9. Profile, Settings & Internationalization
 
@@ -346,16 +346,16 @@ Profile system completeness, settings UX, i18n coverage, and password policy con
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-014 | Profile system is minimal — missing most fields from Phase 4 requirements | High | Resolved |
-| BUG-031 | Password change uses min 8 chars; password reset requires 12+ with complexity | Medium | **Open** |
-| BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium | **Open** |
-| BUG-033 | Super Admin role filter uses raw role slugs, not user-friendly labels | Low | **Open** |
-| BUG-024 | Password reset sends no confirmation email | Medium | **Open** |
-| BUG-041 | Avatar upload fails — axios instance overrides multipart/form-data Content-Type | High | Resolved |
-| BUG-140 | applyReducedMotion() half-built — no CSS selector, no UI toggle exposed | Medium | Resolved |
-| BUG-141 | Data & Account tab rendered empty panel for admin/medical users | Medium | Resolved |
-| BUG-142 | Settings tab labels hardcoded English — did not re-render on language switch | Medium | Resolved |
-| BUG-143 | Zero backend tests for profile/settings endpoints | High | Resolved |
+| [BUG-014](#bug-014) | Profile system is minimal — missing most fields from Phase 4 requirements | High | Resolved |
+| [BUG-031](#bug-031) | Password change uses min 8 chars; password reset requires 12+ with complexity | Medium | **Open** |
+| [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium | **Open** |
+| [BUG-033](#bug-033) | Super Admin role filter uses raw role slugs, not user-friendly labels | Low | **Open** |
+| [BUG-024](#bug-024) | Password reset sends no confirmation email | Medium | **Open** |
+| [BUG-041](#bug-041) | Avatar upload fails — axios instance overrides multipart/form-data Content-Type | High | Resolved |
+| [BUG-140](#bug-140) | applyReducedMotion() half-built — no CSS selector, no UI toggle exposed | Medium | Resolved |
+| [BUG-141](#bug-141) | Data & Account tab rendered empty panel for admin/medical users | Medium | Resolved |
+| [BUG-142](#bug-142) | Settings tab labels hardcoded English — did not re-render on language switch | Medium | Resolved |
+| [BUG-143](#bug-143) | Zero backend tests for profile/settings endpoints | High | Resolved |
 
 ### 10. Frontend, UI & TypeScript
 
@@ -363,20 +363,20 @@ Status badge colors, page animations, TypeScript type gaps, ESLint violations, a
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-035 | ApplicationReviewPage back link hardcoded to /admin/applications | Low | Resolved |
-| BUG-042 | Campers list shows raw ISO 8601 date — date_of_birth not formatted | Medium | Resolved |
-| BUG-047 | CamperDetailPage uses camper.t_shirt_size — property does not exist on Camper type | Medium | Resolved |
-| BUG-052 | "Under Review" application status badge is green — should be yellow | Low | Resolved |
-| BUG-053 | "Pending" application status badge is green — should be grey | Low | Resolved |
-| BUG-063 | Page-open animation glitch — content briefly appears at full opacity then disappears | High | Resolved |
-| BUG-064 | 188 ESLint errors — accessibility violations and missing React type imports | Medium | Resolved |
-| BUG-102 | waitlisted and under_review share identical amber color in StatusBadge | High | Resolved |
-| BUG-119 | Application type in admin.types.ts missing 8 narrative fields | Medium | Resolved |
-| BUG-120 | ApplicantApplicationsPage statusFilter typed incorrectly — uses 'draft' not in enum | Low | Resolved |
-| BUG-121 | StatusBadge BadgeVariant extended ApplicationStatus missing 'draft' case | Low | Resolved |
-| BUG-122 | ApplicantOfficialFormsPage used variant="outline" — not a valid ButtonVariant | Low | Resolved |
-| BUG-171 | getMedicalRecordByCamper return type did not account for undefined | Low | Resolved |
-| BUG-174 | Dead ProviderAccessPage in frontend/src/features/provider/ | Low | Resolved |
+| [BUG-035](#bug-035) | ApplicationReviewPage back link hardcoded to /admin/applications | Low | Resolved |
+| [BUG-042](#bug-042) | Campers list shows raw ISO 8601 date — date_of_birth not formatted | Medium | Resolved |
+| [BUG-047](#bug-047) | CamperDetailPage uses camper.t_shirt_size — property does not exist on Camper type | Medium | Resolved |
+| [BUG-052](#bug-052) | "Under Review" application status badge is green — should be yellow | Low | Resolved |
+| [BUG-053](#bug-053) | "Pending" application status badge is green — should be grey | Low | Resolved |
+| [BUG-063](#bug-063) | Page-open animation glitch — content briefly appears at full opacity then disappears | High | Resolved |
+| [BUG-064](#bug-064) | 188 ESLint errors — accessibility violations and missing React type imports | Medium | Resolved |
+| [BUG-102](#bug-102) | waitlisted and under_review share identical amber color in StatusBadge | High | Resolved |
+| [BUG-119](#bug-119) | Application type in admin.types.ts missing 8 narrative fields | Medium | Resolved |
+| [BUG-120](#bug-120) | ApplicantApplicationsPage statusFilter typed incorrectly — uses 'draft' not in enum | Low | Resolved |
+| [BUG-121](#bug-121) | StatusBadge BadgeVariant extended ApplicationStatus missing 'draft' case | Low | Resolved |
+| [BUG-122](#bug-122) | ApplicantOfficialFormsPage used variant="outline" — not a valid ButtonVariant | Low | Resolved |
+| [BUG-171](#bug-171) | getMedicalRecordByCamper return type did not account for undefined | Low | Resolved |
+| [BUG-174](#bug-174) | Dead ProviderAccessPage in frontend/src/features/provider/ | Low | Resolved |
 
 ### 11. Backend, Data Integrity & Technical Debt
 
@@ -384,19 +384,19 @@ Seeders, enum gaps, dead code cleanup, test coverage gaps, and documentation.
 
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
-| BUG-001 | Role name "parent" used throughout — must be renamed to "Applicant" | High | Resolved |
-| BUG-003 | Stale duplicate PasswordResetService at wrong namespace | Low | Resolved |
-| BUG-008 | External medical provider upload link system should be removed | High | Resolved |
-| BUG-012 | Seeder conflict — DatabaseSeeder and DevSeeder create conflicting accounts | Medium | Resolved |
-| BUG-013 | Audit log displays raw vague action names — not human-readable | High | Resolved |
-| BUG-018 | Recent Updates system does not exist as a distinct feature | Medium | Resolved |
-| BUG-021 | Form Management files stored on local disk — not accessible in production | High | **Open** |
-| BUG-025 | No CODEBASE_GUIDE.md exists | Medium | Resolved |
-| BUG-026 | Documentation does not reflect current system state | Medium | Resolved |
-| BUG-027 | Notification settings toggles — race condition and missing channel controls | Medium | Resolved |
-| BUG-072 | RateLimitingTest MFA assertion incorrect | Low | Resolved |
-| BUG-138 | MedicalProviderLinkController left as dead code after routes removed | Low | Resolved |
-| BUG-160 | Dead provider link code — 10 files of unreachable dead code | High | Resolved |
+| [BUG-001](#bug-001) | Role name "parent" used throughout — must be renamed to "Applicant" | High | Resolved |
+| [BUG-003](#bug-003) | Stale duplicate PasswordResetService at wrong namespace | Low | Resolved |
+| [BUG-008](#bug-008) | External medical provider upload link system should be removed | High | Resolved |
+| [BUG-012](#bug-012) | Seeder conflict — DatabaseSeeder and DevSeeder create conflicting accounts | Medium | Resolved |
+| [BUG-013](#bug-013) | Audit log displays raw vague action names — not human-readable | High | Resolved |
+| [BUG-018](#bug-018) | Recent Updates system does not exist as a distinct feature | Medium | Resolved |
+| [BUG-021](#bug-021) | Form Management files stored on local disk — not accessible in production | High | **Open** |
+| [BUG-025](#bug-025) | No CODEBASE_GUIDE.md exists | Medium | Resolved |
+| [BUG-026](#bug-026) | Documentation does not reflect current system state | Medium | Resolved |
+| [BUG-027](#bug-027) | Notification settings toggles — race condition and missing channel controls | Medium | Resolved |
+| [BUG-072](#bug-072) | RateLimitingTest MFA assertion incorrect | Low | Resolved |
+| [BUG-138](#bug-138) | MedicalProviderLinkController left as dead code after routes removed | Low | Resolved |
+| [BUG-160](#bug-160) | Dead provider link code — 10 files of unreachable dead code | High | Resolved |
 
 ---
 
@@ -406,16 +406,16 @@ The following bugs remain unresolved as of 2026-04-19.
 
 | ID | Title | Severity | Category | Layer |
 |----|-------|----------|----------|-------|
-| BUG-021 | Form Management files stored on local disk — not accessible in production | High | Backend & Tech Debt | Backend |
-| BUG-024 | Password reset sends no confirmation email | Medium | Profile & Settings | Backend |
-| BUG-030 | Applicant portal has no past applications history with filter/sort | Medium | Applicant Portal | Frontend |
-| BUG-031 | Password change uses min 8 chars; password reset requires 12+ with complexity | Medium | Profile & Settings | Both |
-| BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium | Profile & Settings | Frontend |
-| BUG-033 | Super Admin role filter uses raw role slugs, not user-friendly labels | Low | Admin Portal | Frontend |
-| BUG-204 | POST /api/application-drafts has no per-user draft limit | Low | Application Lifecycle | Backend |
-| BUG-205 | draft_data has no size cap — 4 GB theoretical maximum on MySQL longText | Low | Application Lifecycle | Backend |
-| BUG-206 | handleClearDraft() fire-and-forget — silent server-side failure on DELETE | Low | Application Lifecycle | Frontend |
-| BUG-207 | Server draft hydration overwrites in-progress edits on slow network | Medium | Application Lifecycle | Frontend |
+| [BUG-021](#bug-021) | Form Management files stored on local disk — not accessible in production | High | Backend & Tech Debt | Backend |
+| [BUG-024](#bug-024) | Password reset sends no confirmation email | Medium | Profile & Settings | Backend |
+| [BUG-030](#bug-030) | Applicant portal has no past applications history with filter/sort | Medium | Applicant Portal | Frontend |
+| [BUG-031](#bug-031) | Password change uses min 8 chars; password reset requires 12+ with complexity | Medium | Profile & Settings | Both |
+| [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium | Profile & Settings | Frontend |
+| [BUG-033](#bug-033) | Super Admin role filter uses raw role slugs, not user-friendly labels | Low | Admin Portal | Frontend |
+| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user draft limit | Low | Application Lifecycle | Backend |
+| [BUG-205](#bug-205) | draft_data has no size cap — 4 GB theoretical maximum on MySQL longText | Low | Application Lifecycle | Backend |
+| [BUG-206](#bug-206) | handleClearDraft() fire-and-forget — silent server-side failure on DELETE | Low | Application Lifecycle | Frontend |
+| [BUG-207](#bug-207) | Server draft hydration overwrites in-progress edits on slow network | Medium | Application Lifecycle | Frontend |
 
 ---
 
@@ -425,197 +425,197 @@ Complete reference of all tracked entries, ordered by ID.
 
 | ID | Title | Module | Severity | Status |
 |----|-------|--------|----------|--------|
-| BUG-001 | Role name "parent" used throughout — must be renamed to "Applicant" | Role Naming / RBAC | High | Resolved |
-| BUG-002 | Email verification system not implemented | Email Verification | Critical | Resolved |
-| BUG-003 | Stale duplicate PasswordResetService at wrong namespace | Password Reset | Low | Resolved |
-| BUG-004 | Account deactivation incorrectly repurposes email_verified_at | User Management | High | Resolved |
-| BUG-005 | Broken routes — Admin/Super Admin camper detail and risk pages do not exist | Admin — Camper Management | Critical | Resolved |
-| BUG-006 | Frontend role-based routing not enforced — RoleGuard never used | RBAC / Routing | High | Resolved |
-| BUG-007 | Medical portal is read-only — no write capabilities for medical staff | Medical Portal | Critical | Resolved |
-| BUG-008 | External medical provider upload link system should be removed | Medical Workflow | High | Resolved |
-| BUG-009 | Applicant portal has no standalone Documents section | Applicant Portal | High | Resolved |
-| BUG-010 | ApplicationFormPage header comment incorrectly states sections 6–10 not implemented | Application Form | Low | Resolved |
-| BUG-011 | No explicit "Save Draft" button — draft behavior implicit only | Application Form | Medium | Resolved |
-| BUG-012 | Seeder conflict — DatabaseSeeder and DevSeeder create conflicting accounts | Seeders | Medium | Resolved |
-| BUG-013 | Audit log displays raw vague action names — not human-readable | Audit Log | High | Resolved |
-| BUG-014 | Profile system is minimal — missing most fields from Phase 4 requirements | Profile System | High | Resolved |
-| BUG-015 | Inbox starred state persisted only in localStorage, not backend | Inbox / Messaging | Medium | Resolved |
-| BUG-016 | Inbox missing: Drafts, Sent, Trash, Scheduled send, Important folder | Inbox / Messaging | High | Resolved |
-| BUG-017 | Inbox imports Bot icon — AI reference should not appear in UI | Inbox / Messaging | Low | Resolved |
-| BUG-018 | Recent Updates system does not exist as a distinct feature | Recent Updates | Medium | Resolved |
-| BUG-019 | Super Admin dashboard quick links point to /admin/* routes | Super Admin Portal | Medium | Resolved |
-| BUG-020 | Form Management session assignment uses raw ID input, no session picker | Form Management | Medium | Resolved |
-| BUG-021 | Form Management files stored on local disk — not accessible in production | Form Management | High | Open |
-| BUG-022 | Report downloads load only page 1 of applications for chart data | Admin Reports | High | Resolved |
-| BUG-023 | AdminReportsPage imports stale/non-standard motion variant names | Admin Reports | Low | Resolved |
-| BUG-024 | Password reset sends no confirmation email | Password Reset | Medium | Open |
-| BUG-025 | No CODEBASE_GUIDE.md exists | Documentation | Medium | Resolved |
-| BUG-026 | Documentation does not reflect current system state | Documentation | Medium | Resolved |
-| BUG-027 | Notification settings toggles — race condition and missing channel controls | Notification Settings | Medium | Resolved |
-| BUG-028 | Medical portal has no route or UI for document upload or treatment recording | Medical Portal | Critical | Resolved |
-| BUG-029 | Camper detail page missing — /admin/campers/:id leads to 404 | Admin — Camper Management | Critical | Resolved |
-| BUG-030 | Applicant portal has no past applications history with filter/sort | Applicant Portal | Medium | Open |
-| BUG-031 | Password change uses min 8 chars; password reset requires 12+ with complexity | Security | Medium | Open |
-| BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Security | Medium | Open |
-| BUG-033 | Super Admin user management role filter uses raw slugs, not user-friendly labels | Super Admin — User Management | Low | Open |
-| BUG-034 | Medical portal inbox missing — no /medical/inbox route | Medical Portal | Medium | Resolved |
-| BUG-035 | ApplicationReviewPage back link hardcoded to /admin/applications | Admin / Super Admin | Low | Resolved |
-| BUG-036 | Profile Settings actions log out user — stale token not rehydrated before validation | Profile System / Auth | Critical | Resolved |
-| BUG-037 | Super Admin can delete their own account — no role restriction on endpoint | Profile System / Security | Critical | Resolved |
-| BUG-038 | Application review page shows "Unknown Camper", literal i18n keys, and no medical data | Admin — Application Review | Critical | Resolved |
-| BUG-039 | Application list shows "Session #undefined" — wrong JSON key and TypeScript type | Admin — Application List | High | Resolved |
-| BUG-040 | Profile save / avatar actions log user out — setUser overwrites roles array | Profile System / Auth | Critical | Resolved |
-| BUG-041 | Avatar upload fails — axios instance overrides multipart/form-data Content-Type | Profile System | High | Resolved |
-| BUG-042 | Campers list shows raw ISO 8601 date — date_of_birth not formatted | Admin — Camper Management | Medium | Resolved |
-| BUG-043 | "View Risk" link routes to 404 — /admin/campers/:id/risk not defined | Admin — Camper Management | High | Resolved |
-| BUG-044 | Login page shows two password reveal icons — browser native conflicts with custom button | Auth — Login Page | Low | Resolved |
-| BUG-045 | Login redirects back to /login after success — stale token validation races fresh login | Auth — Login | Critical | Resolved |
-| BUG-046 | Applicant login broken — blocking issue | Auth — Applicant Login | Critical | Resolved |
-| BUG-047 | CamperDetailPage uses camper.t_shirt_size — property does not exist on Camper type | Admin — Camper Management | Medium | Resolved |
-| BUG-048 | Portal context links broken — AdminApplicationsPage and AdminCampersPage hardcode /admin/* | Admin / Super Admin | High | Resolved |
-| BUG-049 | Applicant cannot send messages to super_admin — hasNonAdminParticipants check too narrow | Inbox / Messaging — RBAC | High | Resolved |
-| BUG-050 | Inbox folder switching shows brief blank/skeleton flash | Inbox / Messaging — UI | Medium | Resolved |
-| BUG-051 | Page refresh logs user out — useAuthInit reads localStorage but token is in sessionStorage | Auth — Session Persistence | Critical | Resolved |
-| BUG-052 | "Under Review" application status badge is green — should be yellow | UI — Status Badges | Low | Resolved |
-| BUG-053 | "Pending" application status badge is green — should be grey | UI — Status Badges | Low | Resolved |
-| BUG-054 | Application submission fails — signApplication omits signature_data; duplicate campers on retry | Applicant Portal — Application Form | Critical | Resolved |
-| BUG-055 | Document upload fails for PNG files — image/x-png not in allowed MIME type list | Document Upload | High | Resolved |
-| BUG-056 | Message attachments sent via Compose not visible to recipient | Inbox / Messaging | High | Resolved |
-| BUG-057 | FormSectionController store() and update() had no authorization | Form Builder — Backend | Critical | Resolved |
-| BUG-058 | FormSectionController reorder() did not scope batch UPDATE to the request's definition | Form Builder — Backend | High | Resolved |
-| BUG-059 | FormFieldController store() and update() had no authorization | Form Builder — Backend | Critical | Resolved |
-| BUG-060 | FormFieldController reorder() used firstOrNew() for authorization; unscoped batch UPDATE | Form Builder — Backend | High | Resolved |
-| BUG-061 | FormFieldOptionController had no authorization on index(), store(), and update() | Form Builder — Backend | Critical | Resolved |
-| BUG-062 | Backend test failure — TokenExpirationTest fails when SANCTUM_EXPIRATION=null in .env | Auth — Login / Session | High | Resolved |
-| BUG-063 | Page-open animation glitch — content briefly appears at full opacity then disappears on each navigation | UI — Layout | High | Resolved |
-| BUG-064 | 188 ESLint errors — accessibility violations and missing React type imports across frontend | Frontend — Multiple | Medium | Resolved |
-| BUG-065 | FormDefinitionPolicy::view() exposes draft form definitions to all authenticated users | Security — Form Builder | Critical | Resolved |
-| BUG-066 | FormSectionController — section not scoped to parent form in URL (IDOR) | Security — Form Builder | High | Resolved |
-| BUG-067 | FormFieldController — field not scoped to parent section in URL (IDOR) | Security — Form Builder | High | Resolved |
-| BUG-068 | FormFieldOptionController — option not scoped to parent field in URL (IDOR) | Security — Form Builder | High | Resolved |
-| BUG-069 | MedicalRestrictionPolicy::delete() permits medical providers to permanently delete restrictions | Security — Medical Portal | Medium | Resolved |
-| BUG-070 | DocumentPolicy::view() medical provider check unreachable — providers blocked from authorized documents | Security — Document Access Control | High | Resolved |
-| BUG-071 | Announcement update/destroy routes lacked admin middleware — route-level enforcement gap | Security — Announcements | High | Resolved |
-| BUG-072 | RateLimitingTest MFA assertion incorrect — test asserted wrong effective rate limit | Backend Tests — Security | Low | Resolved |
-| BUG-073 | DocumentRequestController lacks a dedicated Policy class — no second layer of authorization | Security — Document Requests | Low | Resolved |
-| BUG-074 | All FormData uploads broken — explicit Content-Type header omits boundary, Laravel rejects multipart body | Frontend — File Uploads | Critical | Resolved |
-| BUG-075 | Auth token stored in sessionStorage — causes logout on every page refresh across all portals | Auth — Token Storage | Critical | Resolved |
-| BUG-076 | Admin Campers page shows "Failed to load data" — CamperController::index() eager-loads encrypted PHI | Admin Portal — Campers | Critical | Resolved |
-| BUG-077 | Admin Applications page shows "Failed to load data" — ApplicationController::index() eager-loads encrypted PHI | Admin Portal — Applications | Critical | Resolved |
-| BUG-078 | Admin Reports shows 0 accepted applications — ReportController uses key 'accepted' but enum value is 'approved' | Admin Portal — Reports | High | Resolved |
-| BUG-079 | Wrong MFA code triggers global logout — `/mfa/` not in `isPublicAuthEndpoint` list in axios interceptor | Auth — MFA | High | Resolved |
-| BUG-080 | Admin/super-admin portal switches to applicant portal when idle — `AdminLayout`/`SuperAdminLayout` redirect to `getDashboardRoute(role)` on access denial, which resolves to `/applicant/dashboard` when Redux role is stale | Auth — Layout Guards | Critical | Resolved |
-| BUG-081 | Campers page search causes 500 — `CamperController::index()` uses `full_name` in SQL WHERE clause but `full_name` is a virtual computed attribute with no backing DB column | Admin Portal — Campers | Critical | Resolved |
-| BUG-082 | `RoleGuard` redirects authenticated users with missing role data to `/login`, causing a redirect loop with `ProtectedRoute` | Auth — RBAC | High | Resolved |
-| BUG-099 | Admin Campers page "Failed to load data" — `ApplicationStatus` PHP enum missing `Waitlisted` case causes `ValueError` on any endpoint loading applications with `waitlisted` status | Admin Portal — Applications | Critical | Resolved |
-| BUG-100 | `SessionDetailPage` 404 — `SessionDashboardController` routes (`GET /sessions/{id}/dashboard`, `GET /sessions/{id}/applications`, `POST /sessions/{id}/archive`) never registered in `api.php` | Admin Portal — Sessions | Critical | Resolved |
-| BUG-101 | `CampSessionController::destroy()` permits deletion of sessions with applications; `archive()` action missing entirely | Admin Portal — Sessions | High | Resolved |
-| BUG-102 | `waitlisted` and `under_review` share identical amber color in StatusBadge | UI — Status Badges | High | Resolved |
-| BUG-103 | Email verification not enforced — unverified users access full system after registration | Auth — Email Verification | High | Resolved |
-| BUG-104 | AdminReportsPage silently drops waitlisted applications from all charts | Admin Portal — Reports | High | Resolved |
-| BUG-105 | Risk level never displayed in UI — backend endpoint and API client exist but never called | Admin Portal — Camper Management | Medium | Resolved |
-| BUG-106 | `ApplicationService::reviewApplication()` missing capacity gate — admin can approve beyond session capacity | Admin Portal — Application Review | Critical | Resolved |
-| BUG-107 | `ApplicationController::index()` search uses top-level `orWhereHas` — OR bypasses status/session/is_draft filters, leaking cross-session data | Admin Portal — Applications | High | Resolved |
-| BUG-108 | `DocumentRequestController::reject()` clears DB path fields but never deletes the uploaded file from disk — orphaned files accumulate | Document Requests | Medium | Resolved |
-| BUG-109 | `ApplicationController::update()` missing inbox system notification when draft is promoted to submitted — email fires but inbox message does not | Applicant Portal — Application Form | Medium | Resolved |
-| BUG-110 | `SystemNotificationService::applicationRejected()` embeds reviewer notes in HTML without `e()` escaping — stored XSS vector for admin-injected markup in applicant inbox | Security — Notifications | Low | Resolved |
-| BUG-111 | `campers` table has no `is_active` column — reversal leaves camper visible on all operational rosters | Application Lifecycle | Critical | Resolved |
-| BUG-112 | `medical_records` table has no `is_active` column — reversal leaves medical record visible to medical staff | Application Lifecycle | Critical | Resolved |
-| BUG-113 | `ApplicationService::reviewApplication()` has no `DB::transaction()` — partial failure can leave application, camper, and medical record in inconsistent state | Application Lifecycle | Critical | Resolved |
-| BUG-114 | No deactivation logic on reversal (`Approved → Rejected`) — camper and medical record remain active after reversal | Application Lifecycle | Critical | Resolved |
-| BUG-115 | No state transition validation in `ApplicationService` — any status can transition to any other without guards | Application Lifecycle | High | Resolved |
-| BUG-116 | No audit log entry written for application review decisions — approval, rejection, and reversal actions are unlogged | Application Lifecycle | High | Resolved |
-| BUG-117 | `CamperController::index()` medical branch has no `is_active` filter — medical staff see all campers regardless of enrollment status | Medical Portal | High | Resolved |
-| BUG-118 | `MedicalRecordController::index()` has no `is_active` filter — all medical records returned to medical staff regardless of camper enrollment status | Medical Portal | High | Resolved |
-| BUG-119 | `Application` type in `admin.types.ts` missing 8 narrative fields — `EditNarrativesPanel` required unsafe cast | TypeScript / Types | Medium | Resolved |
-| BUG-120 | `ApplicantApplicationsPage` statusFilter typed as `ApplicationStatus \| ''` but uses `'draft'` as a UI-only filter value — TS2367 | TypeScript / Types | Low | Resolved |
-| BUG-121 | `StatusBadge` `BadgeVariant` extended `ApplicationStatus` which no longer includes `'draft'` — TS2353/TS2339 | TypeScript / Types | Low | Resolved |
-| BUG-122 | `ApplicantOfficialFormsPage` used `variant="outline"` — not a valid `ButtonVariant` value — TS2322 | TypeScript / Types | Low | Resolved |
-| BUG-123 | `OfficialFormType::toApiArray()` returned `type` key; frontend `OfficialFormTemplate` interface expected `id` — API/type contract mismatch | Backend / Frontend Alignment | High | Resolved |
-| BUG-124 | `ApplicantOfficialFormsPage` always initialized upload cards as `idle` — existing uploads not reflected on page load | Applicant Portal — Official Forms | High | Resolved |
-| BUG-125 | `ApplicationReviewPage` had no official forms checklist — admins could not see which required forms were uploaded vs. missing | Admin Portal — Application Review | Medium | Resolved |
-| BUG-126 | Admin and super-admin sidebars missing "My Profile" nav item — credential/profile update page not reachable from staff portals | Admin Portal / Super-Admin Portal | Medium | Resolved |
-| BUG-127 | Guardian 2 in digital form had only name + one phone — official form requires full address + 3 phones + language/interpreter | ApplicationFormPage — Section 1 | High | Resolved |
-| BUG-128 | Emergency contact in digital form had only name, relationship, one phone — official form requires full address + 3 phones + language/interpreter | ApplicationFormPage — Section 1 | High | Resolved |
-| BUG-129 | Digital form had no 2nd-choice session selection — official form explicitly provides this | ApplicationFormPage — Section 1 | Medium | Resolved |
-| BUG-130 | Digital form had no "first application / attended before" checkboxes — official form has these as required fields | ApplicationFormPage — Section 1 | Medium | Resolved |
-| BUG-131 | Camper mailing address not captured in digital form — official form (0717) has a dedicated applicant mailing address block | ApplicationFormPage — Section 1 | Medium | Resolved |
-| BUG-132 | Health flags (tubes in ears, contagious illness + description, recent illness + description) were in backend schema but missing from FormState and Section 2 UI | ApplicationFormPage — Section 2 | High | Resolved |
-| BUG-133 | Behavioral profile missing 5 new boolean flags (sexual_behaviors, interpersonal_behavior, social_emotional, follows_instructions, group_participation), attends_school, classroom_type, and all per-item description fields — present on official PDF | ApplicationFormPage — Section 3 | High | Resolved |
-| BUG-134 | Section 10 was missing "General Consent" (#1) and "Permission to Participate in Activities" (#4) from CONSENT_DEFS — these are explicit PDF consent items; only 5 of 7 required consents were shown | ApplicationFormPage — Section 10 | Critical | Resolved |
-| BUG-135 | `DocumentRequestController::stats()` counted `under_review` records inside the `uploaded` metric AND separately in `under_review`, causing double-counting | DocumentRequestController — stats() | Medium | Resolved |
-| BUG-136 | `stats()` also counted overdue records inside the `awaiting_upload` metric AND separately in `overdue`, making the two metric cards overlap | DocumentRequestController — stats(), index() | Low | Resolved |
-| BUG-137 | `store()` threw `Undefined array key "application_id"` on line 131 when `application_id` was not included in the request payload | DocumentRequestController — store() | High | Resolved |
-| BUG-138 | `MedicalProviderLinkController` (333 lines) was left as dead code after BUG-008 removed its routes | Document controllers directory | Low | Resolved |
-| BUG-139 | `in_app_message_notifications` toggle in Settings saved to backend correctly but `RealtimeContext.notifPrefsRef` was keyed on `[user?.id, token]` only, so the change had no effect on toast gating until the user re-authenticated | RealtimeContext.tsx | High | Resolved |
-| BUG-140 | `applyReducedMotion()` / `getSavedReducedMotion()` existed in themePreferences.ts and `index.html` set `data-reduced-motion` on startup, but `design-tokens.css` had no `[data-reduced-motion='true']` selector and SettingsPage had no UI toggle — the feature was half-built with no user-visible surface | themePreferences.ts, design-tokens.css, SettingsPage.tsx | Medium | Resolved |
-| BUG-141 | Data & Account tab rendered an empty panel for admin/medical users (no content, no explanation). Only applicants have account-deletion access; staff saw nothing and had no context why | SettingsPage.tsx | Medium | Resolved |
-| BUG-142 | Settings tab labels (Appearance, Account, Security, Notifications, Data & Account) were hardcoded English strings and did not re-render when the user switched to Spanish via the Language setting | SettingsPage.tsx, en.json, es.json | Medium | Resolved |
-| BUG-143 | Zero backend tests for profile/settings endpoints — notification preferences, password change, account deletion, profile read/update had no coverage | tests/Feature/Api/UserProfileTest.php (new) | High | Resolved |
-| BUG-144 | `RiskAssessmentController` used `$this->authorize('view', [$camper, PolicyClass])` which resolves `CamperPolicy` (not `RiskAssessmentPolicy`) — applicants could access the full risk assessment, factor breakdown, clinical notes, and override reasons for their own children | RiskAssessmentController.php | Critical | Resolved |
-| BUG-145 | No `AllergyObserver` registered — life-threatening allergy (+15 pts) did not trigger automatic risk recalculation; `campers.supervision_level` cache stayed stale after any allergy save/delete | AllergyObserver.php (new), AppServiceProvider.php | High | Resolved |
-| BUG-146 | Legacy `/api/campers/{camper}/risk-summary` used `CamperPolicy::view` which permits applicants to view their own child's record — exposed risk score, flags, and supervision level to parents | CamperController.php | High | Resolved |
-| BUG-147 | All 5 model observers (Medical, Diagnosis, Behavioral, Feeding, Assistive) called `assessCamper()` without try/catch — a scoring engine failure cascaded into a 500 on the parent write operation (e.g. adding a diagnosis could fail) | 5 Observer files | Medium | Resolved |
-| BUG-148 | Override route middleware declared `role:admin,medical` but `RiskAssessmentPolicy::override()` only allows `medical` and `super_admin` — regular admins passed the route guard and received a confusing 403 from the policy instead of at the route layer | routes/api.php | Medium | Resolved |
-| BUG-149 | Medical Complexity tooltip text said "Low (0–33 pts)" but the complexity tier threshold is 0–25 pts — the displayed threshold was wrong (matched the risk_level system, not the complexity tier system); staff reading the tooltip would have incorrect mental model | CamperRiskPage.tsx | Medium | Resolved |
-| BUG-150 | `RiskAuditTimeline` displayed `entry.effective_supervision_label` (override-aware) alongside `entry.staffing_ratio` (base system ratio) — overridden entries showed "One-to-One · 1:6" which is contradictory | RiskAuditTimeline.tsx | Medium | Resolved |
-| BUG-151 | `MedicalReviewPanel` initialized `notes`, `overrideLevel`, and `overrideReason` state from `assessment` prop at mount but never resynced — re-entering review/override mode after a save showed pre-save (stale) form values | MedicalReviewPanel.tsx | Low | Resolved |
-| BUG-152 | PHI leak: `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails | Notifications — PHI | Critical | Resolved |
-| BUG-153 | PHI stored in audit log: `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns | Audit Log — PHI | Critical | Resolved |
-| BUG-154 | PHI encryption gap: `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast | Models — PHI Encryption | High | Resolved |
-| BUG-155 | TOTP replay attack: `MfaService::verifyKey()` accepted same OTP multiple times within 30-second window | Security — MFA | High | Resolved |
-| BUG-156 | MFA step-up cache key shared across all sessions: `mfa_step_up:{userId}` not scoped to token — any device step-up granted all sessions | Security — MFA | High | Resolved |
-| BUG-157 | MFA enrollment not enforced on middleware: `EnsureUserIsAdmin` and `EnsureUserHasRole` did not embed MFA enrollment check | Security — Middleware | High | Resolved |
-| BUG-158 | Account lockout window too short: `recordFailedLogin()` hardcoded 5-minute lockout instead of using `config('auth.lockout_minutes', 15)` | Security — Auth | High | Resolved |
-| BUG-159 | MFA secret stored in plaintext: `mfa_secret` column had no `encrypted` cast — raw TOTP seed visible in DB dumps | Security — PHI Encryption | High | Resolved |
-| BUG-160 | Dead provider link code: external medical provider invitation system (10 files) existed as unreachable dead code | Dead Code | High | Resolved |
-| BUG-161 | `RiskAssessment` missing `SoftDeletes`: PHI table had no `deleted_at` column — hard delete used instead of soft delete | Security — SoftDeletes | High | Resolved |
-| BUG-162 | `RiskAssessmentPolicy` not registered: policy imported in `AppServiceProvider` but never added to `$policies` array — policy gates always fell through | Security — Policy Registration | High | Resolved |
-| BUG-163 | Missing password reset audit log: `PasswordResetService` did not log `password_reset` event or invalidate MFA step-up cache | Audit Log — Auth | Medium | Resolved |
-| BUG-164 | Local disk file serving enabled: `filesystems.php` had `'serve' => true` on local disk, allowing direct file serving bypass of authenticated API | Security — File Serving | Medium | Resolved |
-| BUG-165 | Insecure cookie default: `session.php` `'secure'` had no default (null/falsy) — cookies sent over plain HTTP in non-production environments | Security — Cookies | Medium | Resolved |
-| BUG-166 | Uninitialized `$lateWarning`: `DocumentRequestController::applicantUpload()` used `$lateWarning` before assignment in some code paths | DocumentRequestController | Medium | Resolved |
-| BUG-167 | `DocumentController::download()` used `auth()` facade instead of `$request->user()` — inconsistent with project auth patterns | DocumentController | Medium | Resolved |
-| BUG-168 | Document tables missing `SoftDeletes`: `Document`, `ApplicantDocument`, `DocumentRequest` had no `deleted_at` column — hard deletes used on PHI-adjacent tables | Security — SoftDeletes | Medium | Resolved |
-| BUG-169 | `CamperPolicy::delete()` allowed deletion of campers with active (non-terminal) applications | CamperPolicy | Medium | Resolved |
-| BUG-170 | Frontend waitlisted step missing: `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted`, causing `currentIdx = -1` for waitlisted applications | Applicant Portal — UI | Low | Resolved |
-| BUG-171 | `getMedicalRecordByCamper` non-nullable return type: function returned `undefined` when no record exists but TypeScript type was `Promise<MedicalRecord>` | Frontend — TypeScript Types | Low | Resolved |
-| BUG-172 | Frontend inbox state in `localStorage`: `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage` instead of `sessionStorage` — HIPAA storage mismatch | Inbox / Messaging — HIPAA | Low | Resolved |
-| BUG-173 | `ProtectedRoute` missing MFA enrollment gate: admin/medical/super_admin roles not redirected to profile page when MFA not enrolled | Auth — MFA Enforcement | Low | Resolved |
-| BUG-174 | Dead `ProviderAccessPage`: `frontend/src/features/provider/` directory contained dead code with no router wiring | Dead Code — Frontend | Low | Resolved |
-| BUG-175 | `EnsureUserIsMedicalProvider` embedded inline MFA check blocking unenrolled medical staff from reaching their profile page to complete MFA setup — bootstrap deadlock | Auth — Middleware | High | Resolved |
-| BUG-176 | `Document::forceDelete()` did not cascade-delete physical file on disk — orphaned PHI files accumulated indefinitely in storage | Security — PHI Storage | High | Resolved |
-| BUG-177 | `DocumentController::show()` returned decrypted `original_filename` (PHI) without logging to audit trail — only download() was logged | HIPAA — Audit Logging | Medium | Resolved |
-| BUG-178 | `ReportController` CSV export endpoints (applications, accepted, rejected, mailing labels, ID labels) downloaded PII/PHI without any audit log entry | HIPAA — Audit Logging | Medium | Resolved |
-| BUG-179 | `DocumentUploader.tsx` accepted `image/webp` MIME type which backend `Document::ALLOWED_MIME_TYPES` does not permit — silent upload failure | Frontend — Upload UX | Low | Resolved |
-| BUG-180 | `ApplicationDraftController::update()` had no optimistic concurrency guard — two browser tabs saving simultaneously could silently lose the first tab's data | Application Drafts — Race Condition | Medium | Resolved |
-| BUG-181 | `ApplicationReviewPage` showed document verification_status badges but imported no `verifyDocument` function — reviewers had to navigate to AdminDocumentsPage to verify required application documents; no inline action possible | Admin — Application Review / Document Workflow | High | Resolved |
-| BUG-182 | No `submission_source` field on applications — system had no way to formally distinguish digital, paper-self, or paper-admin submissions; paper applications appeared as digital with random PDF uploads in the Documents section | Application Model — Paper Workflow | High | Resolved |
-| BUG-183 | `DocumentController::resolveDocumentableName()` returned `null` for `App\Models\Application` and `App\Models\MedicalRecord` documentable types — admin document list showed no associated entity name for these documents | Admin — Document List | Low | Resolved |
-| BUG-184 | `PaperApplicationSection` uploaded `paper_application_packet` docs without `documentable_type`/`documentable_id` — all paper packets stored as orphaned rows with NULL polymorphic columns, invisible via `Application.documents()` or `Camper.documents()` | Applicant — Paper Upload / Data Integrity | High | Resolved |
-| BUG-185 | `AdminDocumentsPage` Uploaded Documents tab had no delete confirmation — single click immediately soft-deleted a file; no safe alternative (archive) existed; documents could not be previewed without downloading | Admin — Documents Management | Medium | Resolved |
-| BUG-186 | `AdminDocumentsPage` displayed raw snake_case document type values (e.g. `immunization_record`) as the primary human-facing label; "Scan" column label was ambiguous (actual function is real antivirus scan) | Admin — Documents UX | Low | Resolved |
-| BUG-187 | Upload = Submission: `DocumentService::upload()` immediately made all applicant uploads visible to admins — no draft state, no review before submission | Documents — Privacy / Workflow | High | Resolved |
-| BUG-188 | `DocumentController::index()` admin query returned all non-archived docs including unsent drafts — no `submitted_at` filter | Documents — Admin Query | High | Resolved |
-| BUG-189 | `ApplicationController::show()` 3-way merged document collection included draft docs for admin reviewers — applicant-staged files visible before submission | Documents — Admin Review Page | High | Resolved |
-| BUG-190 | Date of birth displayed as raw ISO timestamp `2016-06-15T00:00:00.000000Z` in applicant application detail Camper Information section | Applicant — Application Detail | Low | Resolved |
-| BUG-191 | Document filenames blank (only file size shown) and no inline view on `ApplicantApplicationDetailPage` — `original_filename` vs `file_name` field discrepancy between eager-load and API-transform paths; preview href pointed to auth-gated API URL causing 401 | Applicant — Application Detail | Medium | Resolved |
-| BUG-192 | `immunization_record.adminLabel` = "SC Immunization Certificate" diverged from applicantLabel "Immunization Record" — admin and applicant saw different names for the same uploaded document | Documents — Label Consistency | High | Resolved |
-| BUG-193 | `en.json` key `s2_immunization_cert_required` still referenced "SC Immunization Certificate" in the applicant form Section 2 hint, mismatching the Section 9 upload label "Immunization Record" | Documents — i18n Consistency | Medium | Resolved |
-| BUG-194 | `en.json` key `s9_doc_medical_exam_label` = "Medical Examination" but `documentRequirements.ts` `official_medical_form.applicantLabel` = "Medical Examination Form" — applicant form and all other surfaces showed different names for the same document | Documents — i18n Consistency | Medium | Resolved |
-| BUG-195 | `DocumentSeeder` used `'medical_exam'` as `document_type` for Form 4523-ENG-DPH uploads; canonical key is `'official_medical_form'` — seeded medical exam records were invisible in the admin review dedicated row and never satisfied the compliance gate | Documents — Seeder / Data Integrity | Critical | Resolved |
-| BUG-196 | `DocumentSeeder::makeCamperDoc()` used display-name strings (`'Immunization Record'`, `'Photo ID'`, etc.) as `document_type` values — `isRequiredDocumentType()` returned false for immunization record; `getDocumentLabel()` fell through to raw title-case fallback | Documents — Seeder / Data Integrity | High | Resolved |
-| BUG-197 | `DocumentSeeder` did not set `submitted_at` on any seeded document record — all seeded documents were created as drafts (submitted_at IS NULL), making them invisible to `DocumentController::index()` admin queries and `DocumentEnforcementService` compliance checks; fresh install always showed all required documents as missing | Documents — Seeder / Submission State | Critical | Resolved |
-| BUG-198 | `ApplicationFormPage.tsx` uploaded required documents with `documentable_type = 'App\\Models\\Camper'` but never called `submitDocument()` — all three required docs (immunization, insurance, medical) were created as drafts (`submitted_at = null`) and were invisible to admin review via the `submitted_at IS NOT NULL` filter in `ApplicationController::show()` | Documents — Form Submission / Draft State | Critical | Resolved |
-| BUG-199 | `uploadDocument()` in `applicant.api.ts` returned `void`, discarding the created Document record and making it impossible for the caller to get the document `id` needed to call `submitDocument(id)` | Documents — API Return Type | High | Resolved |
-| BUG-200 | `ApplicantDocumentsPage` had no dedicated upload section for `immunization_record` and `insurance_card` — applicants were directed here by the checklist but the only upload mechanism was a free-text supplementary `UploadArea`, causing type-mismatch strings to be stored (e.g. "Insurance Card" instead of `insurance_card`) making the checklist unable to find the uploaded doc | Documents — Upload UX / Type Mismatch | Critical | Resolved |
-| BUG-201 | Applicant checklist in `ApplicantApplicationDetailPage.tsx` showed a green checkmark (`isUploaded = !!doc`) for draft documents — applicant saw "Uploaded" but admin saw "Not uploaded" because the admin filter (`submitted_at IS NOT NULL`) removed the draft; created a split truth between applicant and admin views | Documents — Checklist / Draft State Display | High | Resolved |
-| BUG-202 | `ApplicationDraftPolicy::viewAny()` included `|| $user->isAdmin()` — contradicts the policy's own docblock ("Admins have no reason to access parent drafts"). The index() controller filters by user_id so no data leaks in practice, but the policy incorrectly grants admins the privilege to call the list endpoint | Draft System — Policy / Privacy | Medium | Resolved |
-| BUG-203 | "Save Draft" and "Clear Draft" buttons in ApplicationFormPage had no `disabled={isSubmitting}` guard — a user could click "Save Draft" while submission was in progress, causing a race where in-flight form state could be written back to sessionStorage and confuse the 30-second auto-save timer | Application Form — Draft / Submit Race | Medium | Resolved |
-| BUG-204 | `POST /api/application-drafts` has no per-user limit — a buggy frontend loop or malicious client could spam draft creation and fill the database. Add a guard: return 429 if user already has ≥ 10 drafts | Draft System — Backend / DoS | Low | Open |
-| BUG-205 | `ApplicationDraftController::update()` validates `draft_data` as `['required', 'array']` with no size cap — the database column is `longText` (4 GB theoretical max on MySQL). An oversized payload could cause slow writes or memory issues on fetch. Add a `max_json_kb` check on the encoded payload | Draft System — Backend / Validation | Low | Open |
-| BUG-206 | `handleClearDraft()` calls `apiDeleteDraft(serverDraftId).catch(() => {})` and immediately shows a success toast without waiting for server confirmation — if the DELETE request fails (network error, 5xx), the user thinks the draft is deleted but it persists on the server and reloads on next page visit | Application Form — UX / Fire-and-Forget | Low | Open |
-| BUG-207 | Server draft hydration (`useEffect` at line 3721) calls `setForm()` asynchronously after mount — if the user begins editing before the server fetch returns (e.g. slow network), their edits are silently overwritten when the fetch resolves. Should show a loading skeleton or lock the form until the server draft is hydrated | Application Form — Race Condition / State | Medium | Open |
+| [BUG-001](#bug-001) | Role name "parent" used throughout — must be renamed to "Applicant" | Role Naming / RBAC | High | Resolved |
+| [BUG-002](#bug-002) | Email verification system not implemented | Email Verification | Critical | Resolved |
+| [BUG-003](#bug-003) | Stale duplicate PasswordResetService at wrong namespace | Password Reset | Low | Resolved |
+| [BUG-004](#bug-004) | Account deactivation incorrectly repurposes email_verified_at | User Management | High | Resolved |
+| [BUG-005](#bug-005) | Broken routes — Admin/Super Admin camper detail and risk pages do not exist | Admin — Camper Management | Critical | Resolved |
+| [BUG-006](#bug-006) | Frontend role-based routing not enforced — RoleGuard never used | RBAC / Routing | High | Resolved |
+| [BUG-007](#bug-007) | Medical portal is read-only — no write capabilities for medical staff | Medical Portal | Critical | Resolved |
+| [BUG-008](#bug-008) | External medical provider upload link system should be removed | Medical Workflow | High | Resolved |
+| [BUG-009](#bug-009) | Applicant portal has no standalone Documents section | Applicant Portal | High | Resolved |
+| [BUG-010](#bug-010) | ApplicationFormPage header comment incorrectly states sections 6–10 not implemented | Application Form | Low | Resolved |
+| [BUG-011](#bug-011) | No explicit "Save Draft" button — draft behavior implicit only | Application Form | Medium | Resolved |
+| [BUG-012](#bug-012) | Seeder conflict — DatabaseSeeder and DevSeeder create conflicting accounts | Seeders | Medium | Resolved |
+| [BUG-013](#bug-013) | Audit log displays raw vague action names — not human-readable | Audit Log | High | Resolved |
+| [BUG-014](#bug-014) | Profile system is minimal — missing most fields from Phase 4 requirements | Profile System | High | Resolved |
+| [BUG-015](#bug-015) | Inbox starred state persisted only in localStorage, not backend | Inbox / Messaging | Medium | Resolved |
+| [BUG-016](#bug-016) | Inbox missing: Drafts, Sent, Trash, Scheduled send, Important folder | Inbox / Messaging | High | Resolved |
+| [BUG-017](#bug-017) | Inbox imports Bot icon — AI reference should not appear in UI | Inbox / Messaging | Low | Resolved |
+| [BUG-018](#bug-018) | Recent Updates system does not exist as a distinct feature | Recent Updates | Medium | Resolved |
+| [BUG-019](#bug-019) | Super Admin dashboard quick links point to /admin/* routes | Super Admin Portal | Medium | Resolved |
+| [BUG-020](#bug-020) | Form Management session assignment uses raw ID input, no session picker | Form Management | Medium | Resolved |
+| [BUG-021](#bug-021) | Form Management files stored on local disk — not accessible in production | Form Management | High | Open |
+| [BUG-022](#bug-022) | Report downloads load only page 1 of applications for chart data | Admin Reports | High | Resolved |
+| [BUG-023](#bug-023) | AdminReportsPage imports stale/non-standard motion variant names | Admin Reports | Low | Resolved |
+| [BUG-024](#bug-024) | Password reset sends no confirmation email | Password Reset | Medium | Open |
+| [BUG-025](#bug-025) | No CODEBASE_GUIDE.md exists | Documentation | Medium | Resolved |
+| [BUG-026](#bug-026) | Documentation does not reflect current system state | Documentation | Medium | Resolved |
+| [BUG-027](#bug-027) | Notification settings toggles — race condition and missing channel controls | Notification Settings | Medium | Resolved |
+| [BUG-028](#bug-028) | Medical portal has no route or UI for document upload or treatment recording | Medical Portal | Critical | Resolved |
+| [BUG-029](#bug-029) | Camper detail page missing — /admin/campers/:id leads to 404 | Admin — Camper Management | Critical | Resolved |
+| [BUG-030](#bug-030) | Applicant portal has no past applications history with filter/sort | Applicant Portal | Medium | Open |
+| [BUG-031](#bug-031) | Password change uses min 8 chars; password reset requires 12+ with complexity | Security | Medium | Open |
+| [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Security | Medium | Open |
+| [BUG-033](#bug-033) | Super Admin user management role filter uses raw slugs, not user-friendly labels | Super Admin — User Management | Low | Open |
+| [BUG-034](#bug-034) | Medical portal inbox missing — no /medical/inbox route | Medical Portal | Medium | Resolved |
+| [BUG-035](#bug-035) | ApplicationReviewPage back link hardcoded to /admin/applications | Admin / Super Admin | Low | Resolved |
+| [BUG-036](#bug-036) | Profile Settings actions log out user — stale token not rehydrated before validation | Profile System / Auth | Critical | Resolved |
+| [BUG-037](#bug-037) | Super Admin can delete their own account — no role restriction on endpoint | Profile System / Security | Critical | Resolved |
+| [BUG-038](#bug-038) | Application review page shows "Unknown Camper", literal i18n keys, and no medical data | Admin — Application Review | Critical | Resolved |
+| [BUG-039](#bug-039) | Application list shows "Session #undefined" — wrong JSON key and TypeScript type | Admin — Application List | High | Resolved |
+| [BUG-040](#bug-040) | Profile save / avatar actions log user out — setUser overwrites roles array | Profile System / Auth | Critical | Resolved |
+| [BUG-041](#bug-041) | Avatar upload fails — axios instance overrides multipart/form-data Content-Type | Profile System | High | Resolved |
+| [BUG-042](#bug-042) | Campers list shows raw ISO 8601 date — date_of_birth not formatted | Admin — Camper Management | Medium | Resolved |
+| [BUG-043](#bug-043) | "View Risk" link routes to 404 — /admin/campers/:id/risk not defined | Admin — Camper Management | High | Resolved |
+| [BUG-044](#bug-044) | Login page shows two password reveal icons — browser native conflicts with custom button | Auth — Login Page | Low | Resolved |
+| [BUG-045](#bug-045) | Login redirects back to /login after success — stale token validation races fresh login | Auth — Login | Critical | Resolved |
+| [BUG-046](#bug-046) | Applicant login broken — blocking issue | Auth — Applicant Login | Critical | Resolved |
+| [BUG-047](#bug-047) | CamperDetailPage uses camper.t_shirt_size — property does not exist on Camper type | Admin — Camper Management | Medium | Resolved |
+| [BUG-048](#bug-048) | Portal context links broken — AdminApplicationsPage and AdminCampersPage hardcode /admin/* | Admin / Super Admin | High | Resolved |
+| [BUG-049](#bug-049) | Applicant cannot send messages to super_admin — hasNonAdminParticipants check too narrow | Inbox / Messaging — RBAC | High | Resolved |
+| [BUG-050](#bug-050) | Inbox folder switching shows brief blank/skeleton flash | Inbox / Messaging — UI | Medium | Resolved |
+| [BUG-051](#bug-051) | Page refresh logs user out — useAuthInit reads localStorage but token is in sessionStorage | Auth — Session Persistence | Critical | Resolved |
+| [BUG-052](#bug-052) | "Under Review" application status badge is green — should be yellow | UI — Status Badges | Low | Resolved |
+| [BUG-053](#bug-053) | "Pending" application status badge is green — should be grey | UI — Status Badges | Low | Resolved |
+| [BUG-054](#bug-054) | Application submission fails — signApplication omits signature_data; duplicate campers on retry | Applicant Portal — Application Form | Critical | Resolved |
+| [BUG-055](#bug-055) | Document upload fails for PNG files — image/x-png not in allowed MIME type list | Document Upload | High | Resolved |
+| [BUG-056](#bug-056) | Message attachments sent via Compose not visible to recipient | Inbox / Messaging | High | Resolved |
+| [BUG-057](#bug-057) | FormSectionController store() and update() had no authorization | Form Builder — Backend | Critical | Resolved |
+| [BUG-058](#bug-058) | FormSectionController reorder() did not scope batch UPDATE to the request's definition | Form Builder — Backend | High | Resolved |
+| [BUG-059](#bug-059) | FormFieldController store() and update() had no authorization | Form Builder — Backend | Critical | Resolved |
+| [BUG-060](#bug-060) | FormFieldController reorder() used firstOrNew() for authorization; unscoped batch UPDATE | Form Builder — Backend | High | Resolved |
+| [BUG-061](#bug-061) | FormFieldOptionController had no authorization on index(), store(), and update() | Form Builder — Backend | Critical | Resolved |
+| [BUG-062](#bug-062) | Backend test failure — TokenExpirationTest fails when SANCTUM_EXPIRATION=null in .env | Auth — Login / Session | High | Resolved |
+| [BUG-063](#bug-063) | Page-open animation glitch — content briefly appears at full opacity then disappears on each navigation | UI — Layout | High | Resolved |
+| [BUG-064](#bug-064) | 188 ESLint errors — accessibility violations and missing React type imports across frontend | Frontend — Multiple | Medium | Resolved |
+| [BUG-065](#bug-065) | FormDefinitionPolicy::view() exposes draft form definitions to all authenticated users | Security — Form Builder | Critical | Resolved |
+| [BUG-066](#bug-066) | FormSectionController — section not scoped to parent form in URL (IDOR) | Security — Form Builder | High | Resolved |
+| [BUG-067](#bug-067) | FormFieldController — field not scoped to parent section in URL (IDOR) | Security — Form Builder | High | Resolved |
+| [BUG-068](#bug-068) | FormFieldOptionController — option not scoped to parent field in URL (IDOR) | Security — Form Builder | High | Resolved |
+| [BUG-069](#bug-069) | MedicalRestrictionPolicy::delete() permits medical providers to permanently delete restrictions | Security — Medical Portal | Medium | Resolved |
+| [BUG-070](#bug-070) | DocumentPolicy::view() medical provider check unreachable — providers blocked from authorized documents | Security — Document Access Control | High | Resolved |
+| [BUG-071](#bug-071) | Announcement update/destroy routes lacked admin middleware — route-level enforcement gap | Security — Announcements | High | Resolved |
+| [BUG-072](#bug-072) | RateLimitingTest MFA assertion incorrect — test asserted wrong effective rate limit | Backend Tests — Security | Low | Resolved |
+| [BUG-073](#bug-073) | DocumentRequestController lacks a dedicated Policy class — no second layer of authorization | Security — Document Requests | Low | Resolved |
+| [BUG-074](#bug-074) | All FormData uploads broken — explicit Content-Type header omits boundary, Laravel rejects multipart body | Frontend — File Uploads | Critical | Resolved |
+| [BUG-075](#bug-075) | Auth token stored in sessionStorage — causes logout on every page refresh across all portals | Auth — Token Storage | Critical | Resolved |
+| [BUG-076](#bug-076) | Admin Campers page shows "Failed to load data" — CamperController::index() eager-loads encrypted PHI | Admin Portal — Campers | Critical | Resolved |
+| [BUG-077](#bug-077) | Admin Applications page shows "Failed to load data" — ApplicationController::index() eager-loads encrypted PHI | Admin Portal — Applications | Critical | Resolved |
+| [BUG-078](#bug-078) | Admin Reports shows 0 accepted applications — ReportController uses key 'accepted' but enum value is 'approved' | Admin Portal — Reports | High | Resolved |
+| [BUG-079](#bug-079) | Wrong MFA code triggers global logout — `/mfa/` not in `isPublicAuthEndpoint` list in axios interceptor | Auth — MFA | High | Resolved |
+| [BUG-080](#bug-080) | Admin/super-admin portal switches to applicant portal when idle — `AdminLayout`/`SuperAdminLayout` redirect to `getDashboardRoute(role)` on access denial, which resolves to `/applicant/dashboard` when Redux role is stale | Auth — Layout Guards | Critical | Resolved |
+| [BUG-081](#bug-081) | Campers page search causes 500 — `CamperController::index()` uses `full_name` in SQL WHERE clause but `full_name` is a virtual computed attribute with no backing DB column | Admin Portal — Campers | Critical | Resolved |
+| [BUG-082](#bug-082) | `RoleGuard` redirects authenticated users with missing role data to `/login`, causing a redirect loop with `ProtectedRoute` | Auth — RBAC | High | Resolved |
+| [BUG-099](#bug-099) | Admin Campers page "Failed to load data" — `ApplicationStatus` PHP enum missing `Waitlisted` case causes `ValueError` on any endpoint loading applications with `waitlisted` status | Admin Portal — Applications | Critical | Resolved |
+| [BUG-100](#bug-100) | `SessionDetailPage` 404 — `SessionDashboardController` routes (`GET /sessions/{id}/dashboard`, `GET /sessions/{id}/applications`, `POST /sessions/{id}/archive`) never registered in `api.php` | Admin Portal — Sessions | Critical | Resolved |
+| [BUG-101](#bug-101) | `CampSessionController::destroy()` permits deletion of sessions with applications; `archive()` action missing entirely | Admin Portal — Sessions | High | Resolved |
+| [BUG-102](#bug-102) | `waitlisted` and `under_review` share identical amber color in StatusBadge | UI — Status Badges | High | Resolved |
+| [BUG-103](#bug-103) | Email verification not enforced — unverified users access full system after registration | Auth — Email Verification | High | Resolved |
+| [BUG-104](#bug-104) | AdminReportsPage silently drops waitlisted applications from all charts | Admin Portal — Reports | High | Resolved |
+| [BUG-105](#bug-105) | Risk level never displayed in UI — backend endpoint and API client exist but never called | Admin Portal — Camper Management | Medium | Resolved |
+| [BUG-106](#bug-106) | `ApplicationService::reviewApplication()` missing capacity gate — admin can approve beyond session capacity | Admin Portal — Application Review | Critical | Resolved |
+| [BUG-107](#bug-107) | `ApplicationController::index()` search uses top-level `orWhereHas` — OR bypasses status/session/is_draft filters, leaking cross-session data | Admin Portal — Applications | High | Resolved |
+| [BUG-108](#bug-108) | `DocumentRequestController::reject()` clears DB path fields but never deletes the uploaded file from disk — orphaned files accumulate | Document Requests | Medium | Resolved |
+| [BUG-109](#bug-109) | `ApplicationController::update()` missing inbox system notification when draft is promoted to submitted — email fires but inbox message does not | Applicant Portal — Application Form | Medium | Resolved |
+| [BUG-110](#bug-110) | `SystemNotificationService::applicationRejected()` embeds reviewer notes in HTML without `e()` escaping — stored XSS vector for admin-injected markup in applicant inbox | Security — Notifications | Low | Resolved |
+| [BUG-111](#bug-111) | `campers` table has no `is_active` column — reversal leaves camper visible on all operational rosters | Application Lifecycle | Critical | Resolved |
+| [BUG-112](#bug-112) | `medical_records` table has no `is_active` column — reversal leaves medical record visible to medical staff | Application Lifecycle | Critical | Resolved |
+| [BUG-113](#bug-113) | `ApplicationService::reviewApplication()` has no `DB::transaction()` — partial failure can leave application, camper, and medical record in inconsistent state | Application Lifecycle | Critical | Resolved |
+| [BUG-114](#bug-114) | No deactivation logic on reversal (`Approved → Rejected`) — camper and medical record remain active after reversal | Application Lifecycle | Critical | Resolved |
+| [BUG-115](#bug-115) | No state transition validation in `ApplicationService` — any status can transition to any other without guards | Application Lifecycle | High | Resolved |
+| [BUG-116](#bug-116) | No audit log entry written for application review decisions — approval, rejection, and reversal actions are unlogged | Application Lifecycle | High | Resolved |
+| [BUG-117](#bug-117) | `CamperController::index()` medical branch has no `is_active` filter — medical staff see all campers regardless of enrollment status | Medical Portal | High | Resolved |
+| [BUG-118](#bug-118) | `MedicalRecordController::index()` has no `is_active` filter — all medical records returned to medical staff regardless of camper enrollment status | Medical Portal | High | Resolved |
+| [BUG-119](#bug-119) | `Application` type in `admin.types.ts` missing 8 narrative fields — `EditNarrativesPanel` required unsafe cast | TypeScript / Types | Medium | Resolved |
+| [BUG-120](#bug-120) | `ApplicantApplicationsPage` statusFilter typed as `ApplicationStatus \| ''` but uses `'draft'` as a UI-only filter value — TS2367 | TypeScript / Types | Low | Resolved |
+| [BUG-121](#bug-121) | `StatusBadge` `BadgeVariant` extended `ApplicationStatus` which no longer includes `'draft'` — TS2353/TS2339 | TypeScript / Types | Low | Resolved |
+| [BUG-122](#bug-122) | `ApplicantOfficialFormsPage` used `variant="outline"` — not a valid `ButtonVariant` value — TS2322 | TypeScript / Types | Low | Resolved |
+| [BUG-123](#bug-123) | `OfficialFormType::toApiArray()` returned `type` key; frontend `OfficialFormTemplate` interface expected `id` — API/type contract mismatch | Backend / Frontend Alignment | High | Resolved |
+| [BUG-124](#bug-124) | `ApplicantOfficialFormsPage` always initialized upload cards as `idle` — existing uploads not reflected on page load | Applicant Portal — Official Forms | High | Resolved |
+| [BUG-125](#bug-125) | `ApplicationReviewPage` had no official forms checklist — admins could not see which required forms were uploaded vs. missing | Admin Portal — Application Review | Medium | Resolved |
+| [BUG-126](#bug-126) | Admin and super-admin sidebars missing "My Profile" nav item — credential/profile update page not reachable from staff portals | Admin Portal / Super-Admin Portal | Medium | Resolved |
+| [BUG-127](#bug-127) | Guardian 2 in digital form had only name + one phone — official form requires full address + 3 phones + language/interpreter | ApplicationFormPage — Section 1 | High | Resolved |
+| [BUG-128](#bug-128) | Emergency contact in digital form had only name, relationship, one phone — official form requires full address + 3 phones + language/interpreter | ApplicationFormPage — Section 1 | High | Resolved |
+| [BUG-129](#bug-129) | Digital form had no 2nd-choice session selection — official form explicitly provides this | ApplicationFormPage — Section 1 | Medium | Resolved |
+| [BUG-130](#bug-130) | Digital form had no "first application / attended before" checkboxes — official form has these as required fields | ApplicationFormPage — Section 1 | Medium | Resolved |
+| [BUG-131](#bug-131) | Camper mailing address not captured in digital form — official form (0717) has a dedicated applicant mailing address block | ApplicationFormPage — Section 1 | Medium | Resolved |
+| [BUG-132](#bug-132) | Health flags (tubes in ears, contagious illness + description, recent illness + description) were in backend schema but missing from FormState and Section 2 UI | ApplicationFormPage — Section 2 | High | Resolved |
+| [BUG-133](#bug-133) | Behavioral profile missing 5 new boolean flags (sexual_behaviors, interpersonal_behavior, social_emotional, follows_instructions, group_participation), attends_school, classroom_type, and all per-item description fields — present on official PDF | ApplicationFormPage — Section 3 | High | Resolved |
+| [BUG-134](#bug-134) | Section 10 was missing "General Consent" (#1) and "Permission to Participate in Activities" (#4) from CONSENT_DEFS — these are explicit PDF consent items; only 5 of 7 required consents were shown | ApplicationFormPage — Section 10 | Critical | Resolved |
+| [BUG-135](#bug-135) | `DocumentRequestController::stats()` counted `under_review` records inside the `uploaded` metric AND separately in `under_review`, causing double-counting | DocumentRequestController — stats() | Medium | Resolved |
+| [BUG-136](#bug-136) | `stats()` also counted overdue records inside the `awaiting_upload` metric AND separately in `overdue`, making the two metric cards overlap | DocumentRequestController — stats(), index() | Low | Resolved |
+| [BUG-137](#bug-137) | `store()` threw `Undefined array key "application_id"` on line 131 when `application_id` was not included in the request payload | DocumentRequestController — store() | High | Resolved |
+| [BUG-138](#bug-138) | `MedicalProviderLinkController` (333 lines) was left as dead code after BUG-008 removed its routes | Document controllers directory | Low | Resolved |
+| [BUG-139](#bug-139) | `in_app_message_notifications` toggle in Settings saved to backend correctly but `RealtimeContext.notifPrefsRef` was keyed on `[user?.id, token]` only, so the change had no effect on toast gating until the user re-authenticated | RealtimeContext.tsx | High | Resolved |
+| [BUG-140](#bug-140) | `applyReducedMotion()` / `getSavedReducedMotion()` existed in themePreferences.ts and `index.html` set `data-reduced-motion` on startup, but `design-tokens.css` had no `[data-reduced-motion='true']` selector and SettingsPage had no UI toggle — the feature was half-built with no user-visible surface | themePreferences.ts, design-tokens.css, SettingsPage.tsx | Medium | Resolved |
+| [BUG-141](#bug-141) | Data & Account tab rendered an empty panel for admin/medical users (no content, no explanation). Only applicants have account-deletion access; staff saw nothing and had no context why | SettingsPage.tsx | Medium | Resolved |
+| [BUG-142](#bug-142) | Settings tab labels (Appearance, Account, Security, Notifications, Data & Account) were hardcoded English strings and did not re-render when the user switched to Spanish via the Language setting | SettingsPage.tsx, en.json, es.json | Medium | Resolved |
+| [BUG-143](#bug-143) | Zero backend tests for profile/settings endpoints — notification preferences, password change, account deletion, profile read/update had no coverage | tests/Feature/Api/UserProfileTest.php (new) | High | Resolved |
+| [BUG-144](#bug-144) | `RiskAssessmentController` used `$this->authorize('view', [$camper, PolicyClass])` which resolves `CamperPolicy` (not `RiskAssessmentPolicy`) — applicants could access the full risk assessment, factor breakdown, clinical notes, and override reasons for their own children | RiskAssessmentController.php | Critical | Resolved |
+| [BUG-145](#bug-145) | No `AllergyObserver` registered — life-threatening allergy (+15 pts) did not trigger automatic risk recalculation; `campers.supervision_level` cache stayed stale after any allergy save/delete | AllergyObserver.php (new), AppServiceProvider.php | High | Resolved |
+| [BUG-146](#bug-146) | Legacy `/api/campers/{camper}/risk-summary` used `CamperPolicy::view` which permits applicants to view their own child's record — exposed risk score, flags, and supervision level to parents | CamperController.php | High | Resolved |
+| [BUG-147](#bug-147) | All 5 model observers (Medical, Diagnosis, Behavioral, Feeding, Assistive) called `assessCamper()` without try/catch — a scoring engine failure cascaded into a 500 on the parent write operation (e.g. adding a diagnosis could fail) | 5 Observer files | Medium | Resolved |
+| [BUG-148](#bug-148) | Override route middleware declared `role:admin,medical` but `RiskAssessmentPolicy::override()` only allows `medical` and `super_admin` — regular admins passed the route guard and received a confusing 403 from the policy instead of at the route layer | routes/api.php | Medium | Resolved |
+| [BUG-149](#bug-149) | Medical Complexity tooltip text said "Low (0–33 pts)" but the complexity tier threshold is 0–25 pts — the displayed threshold was wrong (matched the risk_level system, not the complexity tier system); staff reading the tooltip would have incorrect mental model | CamperRiskPage.tsx | Medium | Resolved |
+| [BUG-150](#bug-150) | `RiskAuditTimeline` displayed `entry.effective_supervision_label` (override-aware) alongside `entry.staffing_ratio` (base system ratio) — overridden entries showed "One-to-One · 1:6" which is contradictory | RiskAuditTimeline.tsx | Medium | Resolved |
+| [BUG-151](#bug-151) | `MedicalReviewPanel` initialized `notes`, `overrideLevel`, and `overrideReason` state from `assessment` prop at mount but never resynced — re-entering review/override mode after a save showed pre-save (stale) form values | MedicalReviewPanel.tsx | Low | Resolved |
+| [BUG-152](#bug-152) | PHI leak: `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails | Notifications — PHI | Critical | Resolved |
+| [BUG-153](#bug-153) | PHI stored in audit log: `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns | Audit Log — PHI | Critical | Resolved |
+| [BUG-154](#bug-154) | PHI encryption gap: `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast | Models — PHI Encryption | High | Resolved |
+| [BUG-155](#bug-155) | TOTP replay attack: `MfaService::verifyKey()` accepted same OTP multiple times within 30-second window | Security — MFA | High | Resolved |
+| [BUG-156](#bug-156) | MFA step-up cache key shared across all sessions: `mfa_step_up:{userId}` not scoped to token — any device step-up granted all sessions | Security — MFA | High | Resolved |
+| [BUG-157](#bug-157) | MFA enrollment not enforced on middleware: `EnsureUserIsAdmin` and `EnsureUserHasRole` did not embed MFA enrollment check | Security — Middleware | High | Resolved |
+| [BUG-158](#bug-158) | Account lockout window too short: `recordFailedLogin()` hardcoded 5-minute lockout instead of using `config('auth.lockout_minutes', 15)` | Security — Auth | High | Resolved |
+| [BUG-159](#bug-159) | MFA secret stored in plaintext: `mfa_secret` column had no `encrypted` cast — raw TOTP seed visible in DB dumps | Security — PHI Encryption | High | Resolved |
+| [BUG-160](#bug-160) | Dead provider link code: external medical provider invitation system (10 files) existed as unreachable dead code | Dead Code | High | Resolved |
+| [BUG-161](#bug-161) | `RiskAssessment` missing `SoftDeletes`: PHI table had no `deleted_at` column — hard delete used instead of soft delete | Security — SoftDeletes | High | Resolved |
+| [BUG-162](#bug-162) | `RiskAssessmentPolicy` not registered: policy imported in `AppServiceProvider` but never added to `$policies` array — policy gates always fell through | Security — Policy Registration | High | Resolved |
+| [BUG-163](#bug-163) | Missing password reset audit log: `PasswordResetService` did not log `password_reset` event or invalidate MFA step-up cache | Audit Log — Auth | Medium | Resolved |
+| [BUG-164](#bug-164) | Local disk file serving enabled: `filesystems.php` had `'serve' => true` on local disk, allowing direct file serving bypass of authenticated API | Security — File Serving | Medium | Resolved |
+| [BUG-165](#bug-165) | Insecure cookie default: `session.php` `'secure'` had no default (null/falsy) — cookies sent over plain HTTP in non-production environments | Security — Cookies | Medium | Resolved |
+| [BUG-166](#bug-166) | Uninitialized `$lateWarning`: `DocumentRequestController::applicantUpload()` used `$lateWarning` before assignment in some code paths | DocumentRequestController | Medium | Resolved |
+| [BUG-167](#bug-167) | `DocumentController::download()` used `auth()` facade instead of `$request->user()` — inconsistent with project auth patterns | DocumentController | Medium | Resolved |
+| [BUG-168](#bug-168) | Document tables missing `SoftDeletes`: `Document`, `ApplicantDocument`, `DocumentRequest` had no `deleted_at` column — hard deletes used on PHI-adjacent tables | Security — SoftDeletes | Medium | Resolved |
+| [BUG-169](#bug-169) | `CamperPolicy::delete()` allowed deletion of campers with active (non-terminal) applications | CamperPolicy | Medium | Resolved |
+| [BUG-170](#bug-170) | Frontend waitlisted step missing: `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted`, causing `currentIdx = -1` for waitlisted applications | Applicant Portal — UI | Low | Resolved |
+| [BUG-171](#bug-171) | `getMedicalRecordByCamper` non-nullable return type: function returned `undefined` when no record exists but TypeScript type was `Promise<MedicalRecord>` | Frontend — TypeScript Types | Low | Resolved |
+| [BUG-172](#bug-172) | Frontend inbox state in `localStorage`: `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage` instead of `sessionStorage` — HIPAA storage mismatch | Inbox / Messaging — HIPAA | Low | Resolved |
+| [BUG-173](#bug-173) | `ProtectedRoute` missing MFA enrollment gate: admin/medical/super_admin roles not redirected to profile page when MFA not enrolled | Auth — MFA Enforcement | Low | Resolved |
+| [BUG-174](#bug-174) | Dead `ProviderAccessPage`: `frontend/src/features/provider/` directory contained dead code with no router wiring | Dead Code — Frontend | Low | Resolved |
+| [BUG-175](#bug-175) | `EnsureUserIsMedicalProvider` embedded inline MFA check blocking unenrolled medical staff from reaching their profile page to complete MFA setup — bootstrap deadlock | Auth — Middleware | High | Resolved |
+| [BUG-176](#bug-176) | `Document::forceDelete()` did not cascade-delete physical file on disk — orphaned PHI files accumulated indefinitely in storage | Security — PHI Storage | High | Resolved |
+| [BUG-177](#bug-177) | `DocumentController::show()` returned decrypted `original_filename` (PHI) without logging to audit trail — only download() was logged | HIPAA — Audit Logging | Medium | Resolved |
+| [BUG-178](#bug-178) | `ReportController` CSV export endpoints (applications, accepted, rejected, mailing labels, ID labels) downloaded PII/PHI without any audit log entry | HIPAA — Audit Logging | Medium | Resolved |
+| [BUG-179](#bug-179) | `DocumentUploader.tsx` accepted `image/webp` MIME type which backend `Document::ALLOWED_MIME_TYPES` does not permit — silent upload failure | Frontend — Upload UX | Low | Resolved |
+| [BUG-180](#bug-180) | `ApplicationDraftController::update()` had no optimistic concurrency guard — two browser tabs saving simultaneously could silently lose the first tab's data | Application Drafts — Race Condition | Medium | Resolved |
+| [BUG-181](#bug-181) | `ApplicationReviewPage` showed document verification_status badges but imported no `verifyDocument` function — reviewers had to navigate to AdminDocumentsPage to verify required application documents; no inline action possible | Admin — Application Review / Document Workflow | High | Resolved |
+| [BUG-182](#bug-182) | No `submission_source` field on applications — system had no way to formally distinguish digital, paper-self, or paper-admin submissions; paper applications appeared as digital with random PDF uploads in the Documents section | Application Model — Paper Workflow | High | Resolved |
+| [BUG-183](#bug-183) | `DocumentController::resolveDocumentableName()` returned `null` for `App\Models\Application` and `App\Models\MedicalRecord` documentable types — admin document list showed no associated entity name for these documents | Admin — Document List | Low | Resolved |
+| [BUG-184](#bug-184) | `PaperApplicationSection` uploaded `paper_application_packet` docs without `documentable_type`/`documentable_id` — all paper packets stored as orphaned rows with NULL polymorphic columns, invisible via `Application.documents()` or `Camper.documents()` | Applicant — Paper Upload / Data Integrity | High | Resolved |
+| [BUG-185](#bug-185) | `AdminDocumentsPage` Uploaded Documents tab had no delete confirmation — single click immediately soft-deleted a file; no safe alternative (archive) existed; documents could not be previewed without downloading | Admin — Documents Management | Medium | Resolved |
+| [BUG-186](#bug-186) | `AdminDocumentsPage` displayed raw snake_case document type values (e.g. `immunization_record`) as the primary human-facing label; "Scan" column label was ambiguous (actual function is real antivirus scan) | Admin — Documents UX | Low | Resolved |
+| [BUG-187](#bug-187) | Upload = Submission: `DocumentService::upload()` immediately made all applicant uploads visible to admins — no draft state, no review before submission | Documents — Privacy / Workflow | High | Resolved |
+| [BUG-188](#bug-188) | `DocumentController::index()` admin query returned all non-archived docs including unsent drafts — no `submitted_at` filter | Documents — Admin Query | High | Resolved |
+| [BUG-189](#bug-189) | `ApplicationController::show()` 3-way merged document collection included draft docs for admin reviewers — applicant-staged files visible before submission | Documents — Admin Review Page | High | Resolved |
+| [BUG-190](#bug-190) | Date of birth displayed as raw ISO timestamp `2016-06-15T00:00:00.000000Z` in applicant application detail Camper Information section | Applicant — Application Detail | Low | Resolved |
+| [BUG-191](#bug-191) | Document filenames blank (only file size shown) and no inline view on `ApplicantApplicationDetailPage` — `original_filename` vs `file_name` field discrepancy between eager-load and API-transform paths; preview href pointed to auth-gated API URL causing 401 | Applicant — Application Detail | Medium | Resolved |
+| [BUG-192](#bug-192) | `immunization_record.adminLabel` = "SC Immunization Certificate" diverged from applicantLabel "Immunization Record" — admin and applicant saw different names for the same uploaded document | Documents — Label Consistency | High | Resolved |
+| [BUG-193](#bug-193) | `en.json` key `s2_immunization_cert_required` still referenced "SC Immunization Certificate" in the applicant form Section 2 hint, mismatching the Section 9 upload label "Immunization Record" | Documents — i18n Consistency | Medium | Resolved |
+| [BUG-194](#bug-194) | `en.json` key `s9_doc_medical_exam_label` = "Medical Examination" but `documentRequirements.ts` `official_medical_form.applicantLabel` = "Medical Examination Form" — applicant form and all other surfaces showed different names for the same document | Documents — i18n Consistency | Medium | Resolved |
+| [BUG-195](#bug-195) | `DocumentSeeder` used `'medical_exam'` as `document_type` for Form 4523-ENG-DPH uploads; canonical key is `'official_medical_form'` — seeded medical exam records were invisible in the admin review dedicated row and never satisfied the compliance gate | Documents — Seeder / Data Integrity | Critical | Resolved |
+| [BUG-196](#bug-196) | `DocumentSeeder::makeCamperDoc()` used display-name strings (`'Immunization Record'`, `'Photo ID'`, etc.) as `document_type` values — `isRequiredDocumentType()` returned false for immunization record; `getDocumentLabel()` fell through to raw title-case fallback | Documents — Seeder / Data Integrity | High | Resolved |
+| [BUG-197](#bug-197) | `DocumentSeeder` did not set `submitted_at` on any seeded document record — all seeded documents were created as drafts (submitted_at IS NULL), making them invisible to `DocumentController::index()` admin queries and `DocumentEnforcementService` compliance checks; fresh install always showed all required documents as missing | Documents — Seeder / Submission State | Critical | Resolved |
+| [BUG-198](#bug-198) | `ApplicationFormPage.tsx` uploaded required documents with `documentable_type = 'App\\Models\\Camper'` but never called `submitDocument()` — all three required docs (immunization, insurance, medical) were created as drafts (`submitted_at = null`) and were invisible to admin review via the `submitted_at IS NOT NULL` filter in `ApplicationController::show()` | Documents — Form Submission / Draft State | Critical | Resolved |
+| [BUG-199](#bug-199) | `uploadDocument()` in `applicant.api.ts` returned `void`, discarding the created Document record and making it impossible for the caller to get the document `id` needed to call `submitDocument(id)` | Documents — API Return Type | High | Resolved |
+| [BUG-200](#bug-200) | `ApplicantDocumentsPage` had no dedicated upload section for `immunization_record` and `insurance_card` — applicants were directed here by the checklist but the only upload mechanism was a free-text supplementary `UploadArea`, causing type-mismatch strings to be stored (e.g. "Insurance Card" instead of `insurance_card`) making the checklist unable to find the uploaded doc | Documents — Upload UX / Type Mismatch | Critical | Resolved |
+| [BUG-201](#bug-201) | Applicant checklist in `ApplicantApplicationDetailPage.tsx` showed a green checkmark (`isUploaded = !!doc`) for draft documents — applicant saw "Uploaded" but admin saw "Not uploaded" because the admin filter (`submitted_at IS NOT NULL`) removed the draft; created a split truth between applicant and admin views | Documents — Checklist / Draft State Display | High | Resolved |
+| [BUG-202](#bug-202) | `ApplicationDraftPolicy::viewAny()` included `|| $user->isAdmin()` — contradicts the policy's own docblock ("Admins have no reason to access parent drafts"). The index() controller filters by user_id so no data leaks in practice, but the policy incorrectly grants admins the privilege to call the list endpoint | Draft System — Policy / Privacy | Medium | Resolved |
+| [BUG-203](#bug-203) | "Save Draft" and "Clear Draft" buttons in ApplicationFormPage had no `disabled={isSubmitting}` guard — a user could click "Save Draft" while submission was in progress, causing a race where in-flight form state could be written back to sessionStorage and confuse the 30-second auto-save timer | Application Form — Draft / Submit Race | Medium | Resolved |
+| [BUG-204](#bug-204) | `POST /api/application-drafts` has no per-user limit — a buggy frontend loop or malicious client could spam draft creation and fill the database. Add a guard: return 429 if user already has ≥ 10 drafts | Draft System — Backend / DoS | Low | Open |
+| [BUG-205](#bug-205) | `ApplicationDraftController::update()` validates `draft_data` as `['required', 'array']` with no size cap — the database column is `longText` (4 GB theoretical max on MySQL). An oversized payload could cause slow writes or memory issues on fetch. Add a `max_json_kb` check on the encoded payload | Draft System — Backend / Validation | Low | Open |
+| [BUG-206](#bug-206) | `handleClearDraft()` calls `apiDeleteDraft(serverDraftId).catch(() => {})` and immediately shows a success toast without waiting for server confirmation — if the DELETE request fails (network error, 5xx), the user thinks the draft is deleted but it persists on the server and reloads on next page visit | Application Form — UX / Fire-and-Forget | Low | Open |
+| [BUG-207](#bug-207) | Server draft hydration (`useEffect` at line 3721) calls `setForm()` asynchronously after mount — if the user begins editing before the server fetch returns (e.g. slow network), their edits are silently overwritten when the fetch resolves. Should show a loading skeleton or lock the form until the server draft is hydrated | Application Form — Race Condition / State | Medium | Open |
 
 ---
 
@@ -2373,29 +2373,29 @@ Restructured `routes/api.php` into three tiers:
 
 | ID | Title | Module | Severity | Status |
 |----|-------|--------|----------|--------|
-| BUG-152 | PHI leak: `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails | Notifications — PHI | Critical | Resolved |
-| BUG-153 | PHI stored in audit log: `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns | Audit Log — PHI | Critical | Resolved |
-| BUG-154 | PHI encryption gap: `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast | Models — PHI Encryption | High | Resolved |
-| BUG-155 | TOTP replay attack: `MfaService::verifyKey()` accepted same OTP multiple times within 30-second window | Security — MFA | High | Resolved |
-| BUG-156 | MFA step-up cache key shared across sessions: `mfa_step_up:{userId}` not scoped to token | Security — MFA | High | Resolved |
-| BUG-157 | MFA enrollment not enforced on middleware: `EnsureUserIsAdmin` and `EnsureUserHasRole` missing MFA check | Security — Middleware | High | Resolved |
-| BUG-158 | Account lockout window too short: hardcoded 5-minute lockout instead of `config('auth.lockout_minutes', 15)` | Security — Auth | High | Resolved |
-| BUG-159 | MFA secret stored in plaintext: `mfa_secret` column had no `encrypted` cast | Security — PHI Encryption | High | Resolved |
-| BUG-160 | Dead provider link code: external medical provider invitation system (10 files) was unreachable dead code | Dead Code | High | Resolved |
-| BUG-161 | `RiskAssessment` missing `SoftDeletes`: PHI table had no `deleted_at` column | Security — SoftDeletes | High | Resolved |
-| BUG-162 | `RiskAssessmentPolicy` not registered in `$policies` array | Security — Policy Registration | High | Resolved |
-| BUG-163 | Missing password reset audit log in `PasswordResetService` | Audit Log — Auth | Medium | Resolved |
-| BUG-164 | Local disk file serving enabled: `'serve' => true` in `filesystems.php` | Security — File Serving | Medium | Resolved |
-| BUG-165 | Insecure cookie default: `session.php` `'secure'` had no default | Security — Cookies | Medium | Resolved |
-| BUG-166 | Uninitialized `$lateWarning` in `DocumentRequestController::applicantUpload()` | DocumentRequestController | Medium | Resolved |
-| BUG-167 | `DocumentController::download()` used `auth()` facade instead of `$request->user()` | DocumentController | Medium | Resolved |
-| BUG-168 | Document tables missing `SoftDeletes`: `Document`, `ApplicantDocument`, `DocumentRequest` | Security — SoftDeletes | Medium | Resolved |
-| BUG-169 | `CamperPolicy::delete()` allowed deletion of campers with active applications | CamperPolicy | Medium | Resolved |
-| BUG-170 | `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted` step | Applicant Portal — UI | Low | Resolved |
-| BUG-171 | `getMedicalRecordByCamper` return type `Promise<MedicalRecord>` did not account for `undefined` | Frontend — TypeScript Types | Low | Resolved |
-| BUG-172 | Inbox `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage` instead of `sessionStorage` | Inbox / Messaging — HIPAA | Low | Resolved |
-| BUG-173 | `ProtectedRoute` missing MFA enrollment redirect for admin/medical/super_admin roles | Auth — MFA Enforcement | Low | Resolved |
-| BUG-174 | Dead `ProviderAccessPage`: `frontend/src/features/provider/` directory with no router wiring | Dead Code — Frontend | Low | Resolved |
+| [BUG-152](#bug-152) | PHI leak: `ApplicationStatusChangedNotification` sent admin `notes` field to parents in rejection emails | Notifications — PHI | Critical | Resolved |
+| [BUG-153](#bug-153) | PHI stored in audit log: `AuditLog::logContentChange` stored decrypted PHI field values in `old_values`/`new_values` JSON columns | Audit Log — PHI | Critical | Resolved |
+| [BUG-154](#bug-154) | PHI encryption gap: `AssistiveDevice.notes`, `MedicalFollowUp.title`, `MedicalFollowUp.notes`, `EmergencyContact.city`/`state`/`zip` stored without `encrypted` cast | Models — PHI Encryption | High | Resolved |
+| [BUG-155](#bug-155) | TOTP replay attack: `MfaService::verifyKey()` accepted same OTP multiple times within 30-second window | Security — MFA | High | Resolved |
+| [BUG-156](#bug-156) | MFA step-up cache key shared across sessions: `mfa_step_up:{userId}` not scoped to token | Security — MFA | High | Resolved |
+| [BUG-157](#bug-157) | MFA enrollment not enforced on middleware: `EnsureUserIsAdmin` and `EnsureUserHasRole` missing MFA check | Security — Middleware | High | Resolved |
+| [BUG-158](#bug-158) | Account lockout window too short: hardcoded 5-minute lockout instead of `config('auth.lockout_minutes', 15)` | Security — Auth | High | Resolved |
+| [BUG-159](#bug-159) | MFA secret stored in plaintext: `mfa_secret` column had no `encrypted` cast | Security — PHI Encryption | High | Resolved |
+| [BUG-160](#bug-160) | Dead provider link code: external medical provider invitation system (10 files) was unreachable dead code | Dead Code | High | Resolved |
+| [BUG-161](#bug-161) | `RiskAssessment` missing `SoftDeletes`: PHI table had no `deleted_at` column | Security — SoftDeletes | High | Resolved |
+| [BUG-162](#bug-162) | `RiskAssessmentPolicy` not registered in `$policies` array | Security — Policy Registration | High | Resolved |
+| [BUG-163](#bug-163) | Missing password reset audit log in `PasswordResetService` | Audit Log — Auth | Medium | Resolved |
+| [BUG-164](#bug-164) | Local disk file serving enabled: `'serve' => true` in `filesystems.php` | Security — File Serving | Medium | Resolved |
+| [BUG-165](#bug-165) | Insecure cookie default: `session.php` `'secure'` had no default | Security — Cookies | Medium | Resolved |
+| [BUG-166](#bug-166) | Uninitialized `$lateWarning` in `DocumentRequestController::applicantUpload()` | DocumentRequestController | Medium | Resolved |
+| [BUG-167](#bug-167) | `DocumentController::download()` used `auth()` facade instead of `$request->user()` | DocumentController | Medium | Resolved |
+| [BUG-168](#bug-168) | Document tables missing `SoftDeletes`: `Document`, `ApplicantDocument`, `DocumentRequest` | Security — SoftDeletes | Medium | Resolved |
+| [BUG-169](#bug-169) | `CamperPolicy::delete()` allowed deletion of campers with active applications | CamperPolicy | Medium | Resolved |
+| [BUG-170](#bug-170) | `ApplicantApplicationDetailPage` `STATUS_STEPS` omitted `waitlisted` step | Applicant Portal — UI | Low | Resolved |
+| [BUG-171](#bug-171) | `getMedicalRecordByCamper` return type `Promise<MedicalRecord>` did not account for `undefined` | Frontend — TypeScript Types | Low | Resolved |
+| [BUG-172](#bug-172) | Inbox `LEFT_COLLAPSE_KEY` and `LEFT_FOLDER_KEY` persisted in `localStorage` instead of `sessionStorage` | Inbox / Messaging — HIPAA | Low | Resolved |
+| [BUG-173](#bug-173) | `ProtectedRoute` missing MFA enrollment redirect for admin/medical/super_admin roles | Auth — MFA Enforcement | Low | Resolved |
+| [BUG-174](#bug-174) | Dead `ProviderAccessPage`: `frontend/src/features/provider/` directory with no router wiring | Dead Code — Frontend | Low | Resolved |
 
 ---
 
@@ -2854,15 +2854,15 @@ _Note: counts reflect tracked entries as of 2026-04-12 (last batch: BUG-202–20
 
 | ID | Title | Severity |
 |----|-------|----------|
-| BUG-021 | Form Management files stored on local disk — not accessible in production | High |
-| BUG-024 | Password reset sends no confirmation email | Medium |
-| BUG-030 | Applicant portal has no past applications history with filter/sort | Medium |
-| BUG-031 | Password change uses min 8 chars; reset requires 12+ with complexity | Medium |
-| BUG-032 | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium |
-| BUG-033 | Super Admin role filter uses raw role slugs, not user-friendly labels | Low |
-| BUG-204 | POST /api/application-drafts has no per-user limit — DoS vector | Low |
-| BUG-205 | draft_data validated as array with no size cap | Low |
-| BUG-206 | handleClearDraft() fire-and-forget — silent server-side failure | Low |
-| BUG-207 | Server draft hydration overwrites in-progress edits on slow network | Medium |
+| [BUG-021](#bug-021) | Form Management files stored on local disk — not accessible in production | High |
+| [BUG-024](#bug-024) | Password reset sends no confirmation email | Medium |
+| [BUG-030](#bug-030) | Applicant portal has no past applications history with filter/sort | Medium |
+| [BUG-031](#bug-031) | Password change uses min 8 chars; reset requires 12+ with complexity | Medium |
+| [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium |
+| [BUG-033](#bug-033) | Super Admin role filter uses raw role slugs, not user-friendly labels | Low |
+| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user limit — DoS vector | Low |
+| [BUG-205](#bug-205) | draft_data validated as array with no size cap | Low |
+| [BUG-206](#bug-206) | handleClearDraft() fire-and-forget — silent server-side failure | Low |
+| [BUG-207](#bug-207) | Server draft hydration overwrites in-progress edits on slow network | Medium |
 
 _BUG-046 is Resolved per the Master Index. The previous open-issues list included it in error._
