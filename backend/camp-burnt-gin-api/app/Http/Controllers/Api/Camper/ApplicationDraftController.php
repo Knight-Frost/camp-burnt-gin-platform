@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApplicationDraft;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -54,14 +55,6 @@ class ApplicationDraftController extends Controller
     {
         $this->authorize('create', ApplicationDraft::class);
 
-        // Guard against runaway draft creation (buggy clients, automated abuse).
-        $existingCount = ApplicationDraft::where('user_id', $request->user()->id)->count();
-        if ($existingCount >= 10) {
-            return response()->json([
-                'message' => 'Draft limit reached. Please delete an existing draft before creating a new one.',
-            ], Response::HTTP_TOO_MANY_REQUESTS);
-        }
-
         $validated = $request->validate([
             'label' => ['sometimes', 'string', 'max:255'],
             // application_id is optional: blobs may exist before the
@@ -70,12 +63,47 @@ class ApplicationDraftController extends Controller
             'application_id' => ['sometimes', 'nullable', 'integer', 'exists:applications,id'],
         ]);
 
-        $draft = ApplicationDraft::create([
-            'user_id' => $request->user()->id,
-            'application_id' => $validated['application_id'] ?? null,
-            'label' => $validated['label'] ?? 'New Application',
-            'draft_data' => null,
-        ]);
+        $userId        = $request->user()->id;
+        $applicationId = $validated['application_id'] ?? null;
+
+        // Idempotent: if this (user, application) pair already has a draft
+        // (e.g. the client retried after a timeout), return the existing one
+        // rather than creating a duplicate blob.
+        if ($applicationId !== null) {
+            $existing = ApplicationDraft::where('user_id', $userId)
+                ->where('application_id', $applicationId)
+                ->first();
+            if ($existing) {
+                return response()->json(['data' => $existing], Response::HTTP_OK);
+            }
+        }
+
+        // Atomic count-check + insert inside a transaction with a pessimistic
+        // lock on the user's draft rows. Without the lock, two concurrent POST
+        // requests can both read count=9, both pass the guard, and produce 11
+        // rows — exceeding the 10-draft cap.
+        $draft = DB::transaction(function () use ($userId, $applicationId, $validated) {
+            $existingCount = ApplicationDraft::where('user_id', $userId)
+                ->lockForUpdate()
+                ->count();
+
+            if ($existingCount >= 10) {
+                return null; // Signal limit reached
+            }
+
+            return ApplicationDraft::create([
+                'user_id'        => $userId,
+                'application_id' => $applicationId,
+                'label'          => $validated['label'] ?? 'New Application',
+                'draft_data'     => null,
+            ]);
+        });
+
+        if ($draft === null) {
+            return response()->json([
+                'message' => 'Draft limit reached. Please delete an existing draft before creating a new one.',
+            ], Response::HTTP_TOO_MANY_REQUESTS);
+        }
 
         return response()->json(['data' => $draft], Response::HTTP_CREATED);
     }

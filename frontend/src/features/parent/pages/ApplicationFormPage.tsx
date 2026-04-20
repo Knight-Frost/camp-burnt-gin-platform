@@ -4881,7 +4881,19 @@ export function ApplicationFormPage() {
   }
 
   async function handleClearDraft() {
-    // Step 1: Clear local state immediately — HIPAA requires PHI is removed from
+    // Step 1: Cancel pending auto-save timers before touching the draft state.
+    // Without this, the 30s server-save timer can fire after the draft is
+    // deleted and attempt a PUT to a 404 endpoint.
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
+    if (serverSaveTimer.current) {
+      clearTimeout(serverSaveTimer.current);
+      serverSaveTimer.current = null;
+    }
+
+    // Step 2: Clear local state immediately — HIPAA requires PHI is removed from
     // the browser as soon as the user requests it, regardless of server outcome.
     sessionStorage.removeItem(draftKey);
     sessionStorage.removeItem(pendingCamperKey);
@@ -4977,6 +4989,120 @@ export function ApplicationFormPage() {
     // submit doesn't resurrect a stale version.
     persistDraft(form);
 
+    // ── initializeDraft fast path ─────────────────────────────────────────────
+    // When the user started via initializeDraftApplication(), flushSection has
+    // already flushed all camper/health/behavior/activity data to real DB rows
+    // using the correct canonical slugs and IDs. Skip steps 1–10 entirely;
+    // only handle documents, signature, consents, and finalization.
+    if (navState?.applicationId) {
+      const fastAppId = navState.applicationId;
+      try {
+        const fastDocTypeSlugs: Record<string, string> = {
+          immunization:   'immunization_record',
+          medical_exam:   'official_medical_form',
+          insurance_card: 'insurance_card',
+          cpap_waiver:    'cpap_waiver',
+          seizure_plan:   'seizure_action_plan',
+          gtube_plan:     'feeding_action_plan',
+        };
+        const fastActiveConditionals: Record<string, boolean> = {
+          cpap_waiver:  form.s4.devices.some((d) => d.device_type.includes('CPAP')),
+          seizure_plan: form.s2.has_seizures === true,
+          gtube_plan:   form.s5.g_tube === true,
+        };
+        for (const [key, slot] of Object.entries(form.s9)) {
+          if (!slot) continue;
+          if (key in fastActiveConditionals && !fastActiveConditionals[key]) continue;
+          const file = docFilesRef.current[key];
+          if (!file) continue;
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('documentable_type', 'App\\Models\\Application');
+          fd.append('documentable_id', String(fastAppId));
+          fd.append('document_type', fastDocTypeSlugs[key] ?? key);
+          if (key === 'medical_exam' && form.s2.date_of_medical_exam) {
+            fd.append('exam_date', form.s2.date_of_medical_exam);
+          }
+          await uploadDocument(fd);
+        }
+
+        const fastSigData = form.s10.signature_type === 'drawn' && form.s10.signature_data
+          ? form.s10.signature_data
+          : form.s10.signed_name;
+        await signApplication(fastAppId, form.s10.signed_name, fastSigData);
+
+        const fastGuardianName = form.s10.signed_name;
+        const fastGuardianRelationship = form.s1.g1_relationship || 'Guardian';
+        const fastSignedAt = form.s10.signed_date
+          ? new Date(form.s10.signed_date).toISOString()
+          : new Date().toISOString();
+        await storeConsents(fastAppId, [
+          { consent_type: 'general',       guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+          { consent_type: 'photos',        guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+          { consent_type: 'liability',     guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+          { consent_type: 'activity',      guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+          { consent_type: 'authorization', guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+          { consent_type: 'medication',    guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+          { consent_type: 'hipaa',         guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
+        ]);
+
+        await finalizeApplication(fastAppId);
+
+        setFinalizationErrors(null);
+        toast.dismiss(tid);
+        toast.success(t('applicant.form.submit_success'));
+        sessionStorage.removeItem(draftKey);
+        if (serverDraftId) await apiDeleteDraft(serverDraftId).catch(() => {});
+        navigate(ROUTES.PARENT_APPLICATIONS);
+
+      } catch (err: unknown) {
+        toast.dismiss(tid);
+        const fastErr = err as {
+          message?: string;
+          errors?: Record<string, string[]>;
+          missing_fields?: Array<{ key: string; label: string; severity: string }>;
+          missing_documents?: Array<{ key: string; label: string; severity: string }>;
+          missing_consents?: Array<{ key: string; label: string; severity: string }>;
+        };
+        if (fastErr.missing_fields !== undefined || fastErr.missing_documents !== undefined || fastErr.missing_consents !== undefined) {
+          const gaps = {
+            fields:    (fastErr.missing_fields    ?? []) as FinalizationGap[],
+            documents: (fastErr.missing_documents ?? []) as FinalizationGap[],
+            consents:  (fastErr.missing_consents  ?? []) as FinalizationGap[],
+          };
+          setFinalizationErrors(gaps);
+          let targetSection = 10;
+          let targetFieldKey: string | undefined;
+          if (gaps.documents.length > 0) targetSection = 9;
+          if (gaps.fields.length > 0) {
+            const sorted = [...gaps.fields].sort((a, b) =>
+              (FINALIZATION_FIELD_TO_SECTION[a.key] ?? 0) - (FINALIZATION_FIELD_TO_SECTION[b.key] ?? 0)
+            );
+            targetSection = FINALIZATION_FIELD_TO_SECTION[sorted[0].key] ?? 0;
+            targetFieldKey = sorted[0].key;
+          }
+          goToStep(targetSection);
+          requestAnimationFrame(() => {
+            const domId = targetFieldKey ? FINALIZATION_FIELD_TO_DOM_ID[targetFieldKey] : undefined;
+            const el = domId ? document.getElementById(domId) : null;
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          });
+          toast.error(t('applicant.form.finalization_incomplete'));
+          return;
+        }
+        const firstFieldError = fastErr.errors ? Object.values(fastErr.errors).flat()[0] : undefined;
+        toast.error(firstFieldError ?? fastErr.message ?? t('applicant.form.submit_error'));
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // ── Legacy waterfall (forms started without initializeDraft) ─────────────
     try {
       // ── Step 1: Create camper (reuse if already created on a prior failed attempt) ──
       let camperId: number;
@@ -5228,23 +5354,24 @@ export function ApplicationFormPage() {
       }
 
       // ── Step 9: Activity permissions ──────────────────────────────────────
-      // The form stores levels already in backend format: 'yes' | 'restricted' | 'no'.
-      // No mapping is needed — pass the level directly.
+      // activity_name MUST be the canonical slug (sports_games, camp_out, etc.)
+      // so the backend completeness engine can find these rows. The controller
+      // upserts by (camper_id, activity_name) so retries are safe.
       const activityMap: Record<keyof typeof form.s7, string> = {
-        sports_games: 'Sports & Games',
-        arts_crafts:  'Arts & Crafts',
-        nature:       'Nature Activities',
-        fine_arts:    'Fine Arts',
-        swimming:     'Swimming',
-        boating:      'Boating',
-        camp_out:     'Camp Out',
+        sports_games: 'sports_games',
+        arts_crafts:  'arts_crafts',
+        nature:       'nature',
+        fine_arts:    'fine_arts',
+        swimming:     'swimming',
+        boating:      'boating',
+        camp_out:     'camp_out',
       };
-      for (const [key, activityName] of Object.entries(activityMap)) {
+      for (const [key, slug] of Object.entries(activityMap)) {
         const entry = form.s7[key as keyof typeof form.s7];
         if (!entry.level) continue;
         await createActivityPermission({
           camper_id:         camperId,
-          activity_name:     activityName,
+          activity_name:     slug,
           permission_level:  entry.level,
           restriction_notes: entry.notes || undefined,
         });

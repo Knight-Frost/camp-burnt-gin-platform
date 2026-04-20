@@ -93,13 +93,12 @@ class ApplicationCompletenessService
      */
     private const CANONICAL_ACTIVITIES = [
         'sports_games' => 'Sports & Games',
-        'arts_crafts' => 'Arts & Crafts',
-        'nature' => 'Nature Activities',
-        'fine_arts' => 'Fine Arts',
-        'swimming' => 'Swimming',
-        'boating' => 'Boating',
-        'camping' => 'Camping',
-        'camp_out' => 'Camp Out',
+        'arts_crafts'  => 'Arts & Crafts',
+        'nature'       => 'Nature Activities',
+        'fine_arts'    => 'Fine Arts',
+        'swimming'     => 'Swimming',
+        'boating'      => 'Boating',
+        'camp_out'     => 'Camp Out',
     ];
 
     /** Valid values for ADL levels on PersonalCarePlan. */

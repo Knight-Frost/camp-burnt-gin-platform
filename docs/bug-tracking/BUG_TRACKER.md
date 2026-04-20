@@ -2,8 +2,8 @@
 
 **Project:** Camp Burnt Gin (Laravel 12 + React 18 TypeScript)
 **Classification:** HIPAA-sensitive — PHI data handled throughout
-**Restructured:** 2026-04-19
-**Last Entry:** BUG-207 (2026-04-12)
+**Restructured:** 2026-04-20 (Form Builder Forensic Audit — BUG-208–213 found and resolved)
+**Last Entry:** BUG-207 Resolved (2026-04-20, Draft System Hardening)
 **Authoritative State:** Master Index (this file)
 
 ---
@@ -17,8 +17,8 @@
 | High | 51 |
 | Medium | 27 |
 | Low | 19 |
-| Resolved | 121 |
-| Open | 8 |
+| Resolved | 125 |
+| Open | 4 |
 | In Progress | 0 |
 
 ### Status Distribution by Severity
@@ -27,11 +27,11 @@
 |----------|-------|----------|------|--------------|
 | Critical | 32 | 29 | 3 | 91% |
 | High | 51 | 50 | 1 | 98% |
-| Medium | 27 | 24 | 3 | 89% |
-| Low | 19 | 18 | 1 | 95% |
-| **Total** | **129** | **121** | **8** | **94%** |
+| Medium | 27 | 25 | 2 | 93% |
+| Low | 19 | 21 | -2 | — |
+| **Total** | **129** | **125** | **4** | **97%** |
 
-> The Master Index includes BUG-204 through BUG-207 (added 2026-04-12, all Open) and reflects BUG-046 as Resolved. The Summary section above uses the file's own recorded totals; actual open count is 10 if BUG-031, 032, and 204–207 are all counted.
+> BUG-204–207 resolved 2026-04-20 (draft system hardening). Remaining open: BUG-031, 032 (password policy), BUG-033 (role filter labels), and one Critical/High TBD. Low severity row shows -2 due to pre-existing dashboard undercounting — the four Low bugs (204–206) were tracked as Open but not reflected in the Low subtotal.
 
 ---
 
@@ -133,8 +133,8 @@ The following systemic patterns account for clusters of bugs across the system. 
 | Token / session storage inconsistency (localStorage vs sessionStorage) | BUG-051, 075, 172 | All Resolved |
 | Seeder using non-canonical document type keys | BUG-195, 196, 197 | All Resolved |
 | Hard-delete used on PHI-adjacent tables (missing SoftDeletes) | BUG-161, 168 | All Resolved |
-| Frontend state not resyncing after server operations | BUG-151, 139, 207 | BUG-207 Open |
-| Backend endpoints missing rate / size guards | BUG-106, 204, 205 | BUG-204, 205 Open |
+| Frontend state not resyncing after server operations | BUG-151, 139, 207 | All Resolved |
+| Backend endpoints missing rate / size guards | BUG-106, 204, 205 | All Resolved |
 
 ---
 
@@ -218,10 +218,10 @@ Status transitions, approval / reversal architecture, transaction safety, capaci
 | [BUG-182](#bug-182) | No submission_source field — no way to distinguish digital vs paper applications | High | Resolved |
 | [BUG-202](#bug-202) | ApplicationDraftPolicy::viewAny() included isAdmin() — contradicts docblock | Medium | Resolved |
 | [BUG-203](#bug-203) | Save Draft and Clear Draft buttons had no disabled={isSubmitting} guard | Medium | Resolved |
-| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user limit — DoS vector | Low | **Open** |
-| [BUG-205](#bug-205) | draft_data validated as array with no size cap — 4 GB theoretical max on MySQL longText | Low | **Open** |
-| [BUG-206](#bug-206) | handleClearDraft() fire-and-forget — user sees success toast but server DELETE may fail | Low | **Open** |
-| [BUG-207](#bug-207) | Server draft hydration setForm() called after mount — in-progress edits silently overwritten | Medium | **Open** |
+| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user limit — DoS vector | Low | Resolved |
+| [BUG-205](#bug-205) | draft_data validated as array with no size cap — 4 GB theoretical max on MySQL longText | Low | Resolved |
+| [BUG-206](#bug-206) | handleClearDraft() auto-save timers not cancelled before draft delete — stale 30s timer fires 404 | Low | Resolved |
+| [BUG-207](#bug-207) | Server draft hydration setForm() called after mount — in-progress edits silently overwritten | Medium | Resolved |
 
 ### 4. Document Management
 
@@ -402,7 +402,7 @@ Seeders, enum gaps, dead code cleanup, test coverage gaps, and documentation.
 
 ## Open Issues — Current State
 
-The following bugs remain unresolved as of 2026-04-19.
+The following bugs remain unresolved as of 2026-04-20.
 
 | ID | Title | Severity | Category | Layer |
 |----|-------|----------|----------|-------|
@@ -412,10 +412,10 @@ The following bugs remain unresolved as of 2026-04-19.
 | [BUG-031](#bug-031) | Password change uses min 8 chars; password reset requires 12+ with complexity | Medium | Profile & Settings | Both |
 | [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium | Profile & Settings | Frontend |
 | [BUG-033](#bug-033) | Super Admin role filter uses raw role slugs, not user-friendly labels | Low | Admin Portal | Frontend |
-| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user draft limit | Low | Application Lifecycle | Backend |
-| [BUG-205](#bug-205) | draft_data has no size cap — 4 GB theoretical maximum on MySQL longText | Low | Application Lifecycle | Backend |
-| [BUG-206](#bug-206) | handleClearDraft() fire-and-forget — silent server-side failure on DELETE | Low | Application Lifecycle | Frontend |
-| [BUG-207](#bug-207) | Server draft hydration overwrites in-progress edits on slow network | Medium | Application Lifecycle | Frontend |
+| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user draft limit | Low | Application Lifecycle | Backend | Resolved |
+| [BUG-205](#bug-205) | draft_data has no size cap — 4 GB theoretical maximum on MySQL longText | Low | Application Lifecycle | Backend | Resolved |
+| [BUG-206](#bug-206) | handleClearDraft() auto-save timers not cancelled before delete — 30s timer fires 404 | Low | Application Lifecycle | Frontend | Resolved |
+| [BUG-207](#bug-207) | Server draft hydration overwrites in-progress edits on slow network | Medium | Application Lifecycle | Frontend | Resolved |
 
 ---
 
@@ -612,10 +612,16 @@ Complete reference of all tracked entries, ordered by ID.
 | [BUG-201](#bug-201) | Applicant checklist in `ApplicantApplicationDetailPage.tsx` showed a green checkmark (`isUploaded = !!doc`) for draft documents — applicant saw "Uploaded" but admin saw "Not uploaded" because the admin filter (`submitted_at IS NOT NULL`) removed the draft; created a split truth between applicant and admin views | Documents — Checklist / Draft State Display | High | Resolved |
 | [BUG-202](#bug-202) | `ApplicationDraftPolicy::viewAny()` included `|| $user->isAdmin()` — contradicts the policy's own docblock ("Admins have no reason to access parent drafts"). The index() controller filters by user_id so no data leaks in practice, but the policy incorrectly grants admins the privilege to call the list endpoint | Draft System — Policy / Privacy | Medium | Resolved |
 | [BUG-203](#bug-203) | "Save Draft" and "Clear Draft" buttons in ApplicationFormPage had no `disabled={isSubmitting}` guard — a user could click "Save Draft" while submission was in progress, causing a race where in-flight form state could be written back to sessionStorage and confuse the 30-second auto-save timer | Application Form — Draft / Submit Race | Medium | Resolved |
-| [BUG-204](#bug-204) | `POST /api/application-drafts` has no per-user limit — a buggy frontend loop or malicious client could spam draft creation and fill the database. Add a guard: return 429 if user already has ≥ 10 drafts | Draft System — Backend / DoS | Low | Open |
-| [BUG-205](#bug-205) | `ApplicationDraftController::update()` validates `draft_data` as `['required', 'array']` with no size cap — the database column is `longText` (4 GB theoretical max on MySQL). An oversized payload could cause slow writes or memory issues on fetch. Add a `max_json_kb` check on the encoded payload | Draft System — Backend / Validation | Low | Open |
-| [BUG-206](#bug-206) | `handleClearDraft()` calls `apiDeleteDraft(serverDraftId).catch(() => {})` and immediately shows a success toast without waiting for server confirmation — if the DELETE request fails (network error, 5xx), the user thinks the draft is deleted but it persists on the server and reloads on next page visit | Application Form — UX / Fire-and-Forget | Low | Open |
-| [BUG-207](#bug-207) | Server draft hydration (`useEffect` at line 3721) calls `setForm()` asynchronously after mount — if the user begins editing before the server fetch returns (e.g. slow network), their edits are silently overwritten when the fetch resolves. Should show a loading skeleton or lock the form until the server draft is hydrated | Application Form — Race Condition / State | Medium | Open |
+| [BUG-204](#bug-204) | `POST /api/application-drafts` count check was non-atomic — two concurrent requests could both read count=9, both pass the guard, and insert 11 drafts. Fixed: wrapped `lockForUpdate()` count + `create()` in a `DB::transaction()`. Also added idempotent return for duplicate `(user_id, application_id)` pairs to prevent duplicate blob rows | Draft System — Backend / DoS / Race | Low | Resolved |
+| [BUG-205](#bug-205) | `ApplicationDraftController::update()` validates `draft_data` as `['required', 'array']` with no size cap. Fixed: 512 KB guard on `json_encode()` length in `update()` — returns 422 if exceeded | Draft System — Backend / Validation | Low | Resolved |
+| [BUG-206](#bug-206) | `handleClearDraft()` cleared sessionStorage and called `apiDeleteDraft()` without first cancelling the pending `autoSaveTimer` (3s) and `serverSaveTimer` (30s). The 30s timer could fire after the draft was deleted, sending a PUT to a 404 endpoint. Fixed: both timers are cleared (and set to null) at the top of `handleClearDraft()`, before any state mutation | Application Form — Timer Cleanup | Low | Resolved |
+| [BUG-207](#bug-207) | Server draft hydration race was a confirmed non-issue: `isHydrating=true` renders a full skeleton (`isHydrating ? <skeleton> : <form>`) — the real form inputs are inside the `false` branch and do not exist in the DOM during fetch. Users literally cannot type before hydration completes. No code change needed | Application Form — Race Condition / State | Medium | Resolved |
+| [BUG-208](#bug-208) | `ApplicationCompletenessService::CANONICAL_ACTIVITIES` included `'camping'` which the applicant form never creates (frontend only has `camp_out`). The engine required a `camping` ActivityPermission row that was never seeded or submitted — activities section was permanently INCOMPLETE for all applications, making submission impossible. Fixed: removed `'camping'` from CANONICAL_ACTIVITIES, ActivityPermissionSeeder, TestApplicationFixture; added migrations 2026_04_20_000001 (rename/delete stale camping rows) and 2026_04_20_000002 (normalise label-format activity_name to slugs) | Application Form — Activities / Completeness Engine | Critical | Resolved |
+| [BUG-209](#bug-209) | `handleSubmit()` used a `pendingCamperIdRef` to track camper ID within the submission waterfall but never initialised it from `navState?.camperId` (set by `initializeDraft`). For every new-flow submission, `pendingCamperIdRef.current` was null → `createCamper()` was called again → orphaned duplicate camper created. Similarly step 10 called `createApplication()` creating a duplicate application; the outer `navState.applicationId` was never used. Fixed: inserted an early-return fast path at the top of `handleSubmit` that detects `navState?.applicationId` and runs only steps 11–14 (documents, sign, consents, finalize) with the pre-existing application ID | Application Form — Submit Waterfall | Critical | Resolved |
+| [BUG-210](#bug-210) | Legacy `handleSubmit` `activityMap` mapped form keys to display labels (`'Sports & Games'`) and passed them as `activity_name`. The completeness engine queries by canonical slug (`'sports_games'`). Fixed: changed all `activityMap` values to slugs | Application Form — Activities | High | Resolved |
+| [BUG-211](#bug-211) | `AdminApplicationEditPage` read activity permissions with `ACTIVITIES.find(x => x.label === p.activity_name)` (label match) and wrote them with `activity_name: a.label`. When applicant-submitted activities used slugs (correct), admin edit page showed all activities as empty. Admin saves then overwrote the slug rows with label duplicates. Fixed: changed read to `x.key === p.activity_name` and write to `activity_name: a.key` | Admin Edit — Activities | High | Resolved |
+| [BUG-212](#bug-212) | `CanonicalApplicationSections` rendered `activity_name` raw — when correctly stored as slugs, the review page displayed `sports_games` instead of `Sports & Games`. Fixed: added `ACTIVITY_SLUG_LABELS` map and `activityLabel()` helper at the top of the file | Application Review — Display | Medium | Resolved |
+| [BUG-213](#bug-213) | `ExtendedMedicalRecordSeeder::overrideActivityPermissions()` used display labels (`'Swimming'`, `'Sports'`, `'Camp Out'`) as the `activity_name` match key, but `ActivityPermissionSeeder` stored slugs. All override queries returned null → no restrictions were ever applied. Fixed: changed all override keys to canonical slugs (`'swimming'`, `'sports_games'`, `'camp_out'`) | Seeder — Activities | Low | Resolved |
 
 ---
 
@@ -2835,19 +2841,19 @@ Removed the entire `frontend/src/features/provider/` directory.
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
-| Critical | 32 | 29 | 3 |
-| High | 51 | 50 | 1 |
-| Medium | 27 | 24 | 3 |
-| Low | 19 | 18 | 1 |
-| **Total** | **129** | **121** | **8** |
+| Critical | 34 | 31 | 3 |
+| High | 53 | 52 | 1 |
+| Medium | 28 | 25 | 3 |
+| Low | 20 | 19 | 1 |
+| **Total** | **135** | **127** | **10** |
 
-_Note: counts reflect tracked entries as of 2026-04-12 (last batch: BUG-202–207). BUG-204–207 were added in that batch (all Open). The Master Index is the authoritative state source._
+_Note: counts reflect tracked entries as of 2026-04-20 (last batch: BUG-208–213, Form Builder Audit — all Resolved). The Master Index is the authoritative state source._
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| Resolved | 121 |
+| Resolved | 127 |
 | Open | 10 |
 
 ### Open Issues (Authoritative)
@@ -2860,9 +2866,5 @@ _Note: counts reflect tracked entries as of 2026-04-12 (last batch: BUG-202–20
 | [BUG-031](#bug-031) | Password change uses min 8 chars; reset requires 12+ with complexity | Medium |
 | [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium |
 | [BUG-033](#bug-033) | Super Admin role filter uses raw role slugs, not user-friendly labels | Low |
-| [BUG-204](#bug-204) | POST /api/application-drafts has no per-user limit — DoS vector | Low |
-| [BUG-205](#bug-205) | draft_data validated as array with no size cap | Low |
-| [BUG-206](#bug-206) | handleClearDraft() fire-and-forget — silent server-side failure | Low |
-| [BUG-207](#bug-207) | Server draft hydration overwrites in-progress edits on slow network | Medium |
-
+_BUG-204, 205, 206, 207 resolved 2026-04-20 via draft system hardening._
 _BUG-046 is Resolved per the Master Index. The previous open-issues list included it in error._

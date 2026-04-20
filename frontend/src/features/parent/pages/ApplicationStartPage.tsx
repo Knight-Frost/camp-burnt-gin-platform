@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   ArrowRight,
@@ -262,7 +263,7 @@ export function ApplicationStartPage() {
       // Also clear any matching sessionStorage draft
       sessionStorage.removeItem(draftKey);
     } catch {
-      // Silently ignore — draft may have already been deleted
+      toast.error('Failed to delete draft. Please try again or refresh the page.');
     }
   }
 

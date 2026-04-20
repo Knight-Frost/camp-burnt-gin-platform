@@ -129,27 +129,28 @@ class ExtendedMedicalRecordSeeder extends Seeder
 
     private function overrideActivityPermissions(array $campers): void
     {
+        // Keys must be canonical slugs matching ApplicationCompletenessService::CANONICAL_ACTIVITIES.
         $overrides = [
             'ethan' => [
-                'Swimming' => [ActivityPermissionLevel::Restricted, 'Seizure risk near water. 1:1 trained lifeguard/aide required at all times during aquatic sessions. Must wear a life jacket at all times in water. No unsupervised water access under any circumstances.'],
-                'Boating' => [ActivityPermissionLevel::Restricted, 'Same seizure precautions as swimming. 1:1 support required. Life jacket mandatory. No solo or small-craft boating.'],
+                'swimming' => [ActivityPermissionLevel::Restricted, 'Seizure risk near water. 1:1 trained lifeguard/aide required at all times during aquatic sessions. Must wear a life jacket at all times in water. No unsupervised water access under any circumstances.'],
+                'boating'  => [ActivityPermissionLevel::Restricted, 'Same seizure precautions as swimming. 1:1 support required. Life jacket mandatory. No solo or small-craft boating.'],
             ],
             'sofia' => [
-                'Swimming' => [ActivityPermissionLevel::Restricted, 'Adaptive aquatics only. Two trained adaptive staff required: one in water, one poolside. Two-person lift technique required for pool entry/exit. Bladder catheterization schedule must not be disrupted by pool scheduling.'],
-                'Sports' => [ActivityPermissionLevel::Restricted, 'Wheelchair-accessible sports only. Contact sports not permitted. Walker or wheelchair use required on athletic surfaces. Spasticity precautions: avoid sudden movements or overexertion.'],
+                'swimming'     => [ActivityPermissionLevel::Restricted, 'Adaptive aquatics only. Two trained adaptive staff required: one in water, one poolside. Two-person lift technique required for pool entry/exit. Bladder catheterization schedule must not be disrupted by pool scheduling.'],
+                'sports_games' => [ActivityPermissionLevel::Restricted, 'Wheelchair-accessible sports only. Contact sports not permitted. Walker or wheelchair use required on athletic surfaces. Spasticity precautions: avoid sudden movements or overexertion.'],
             ],
             'lucas' => [
-                'Sports' => [ActivityPermissionLevel::No, 'High-impact physical activity is not medically appropriate. DMD Stage 4 — no running, jumping, or contact sports. Adaptive spectatorship and supportive role activities encouraged instead.'],
-                'Boating' => [ActivityPermissionLevel::No, 'Not appropriate — power wheelchair cannot be safely used on watercraft. Respiratory precautions also apply near water.'],
-                'Swimming' => [ActivityPermissionLevel::Restricted, 'Aquatic activities require physician clearance on a session-by-session basis. Two-person mechanical lift required for pool entry/exit. Respiratory monitoring essential.'],
-                'Camp Out' => [ActivityPermissionLevel::Restricted, 'Overnight camp-out requires BiPAP device access and electrical power. Pre-approval required from nursing director. Ensure accessible shelter and power supply are confirmed before any overnight activity.'],
+                'sports_games' => [ActivityPermissionLevel::No, 'High-impact physical activity is not medically appropriate. DMD Stage 4 — no running, jumping, or contact sports. Adaptive spectatorship and supportive role activities encouraged instead.'],
+                'boating'      => [ActivityPermissionLevel::No, 'Not appropriate — power wheelchair cannot be safely used on watercraft. Respiratory precautions also apply near water.'],
+                'swimming'     => [ActivityPermissionLevel::Restricted, 'Aquatic activities require physician clearance on a session-by-session basis. Two-person mechanical lift required for pool entry/exit. Respiratory monitoring essential.'],
+                'camp_out'     => [ActivityPermissionLevel::Restricted, 'Overnight camp-out requires BiPAP device access and electrical power. Pre-approval required from nursing director. Ensure accessible shelter and power supply are confirmed before any overnight activity.'],
             ],
             'mia' => [
-                'Camp Out' => [ActivityPermissionLevel::Restricted, 'Overnight camping permitted only in temperature-controlled shelter. Outdoor tenting not appropriate due to sickle cell heat sensitivity. Nursing check-in required before and after all overnight activities. Hydration monitoring essential.'],
-                'Sports' => [ActivityPermissionLevel::Restricted, 'Sports permitted with hydration monitoring. Max 30 minutes outdoor activity when temp > 85°F. Bring indoors at first sign of fatigue or pain. No NSAID pain relief — acetaminophen only.'],
+                'camp_out'     => [ActivityPermissionLevel::Restricted, 'Overnight camping permitted only in temperature-controlled shelter. Outdoor tenting not appropriate due to sickle cell heat sensitivity. Nursing check-in required before and after all overnight activities. Hydration monitoring essential.'],
+                'sports_games' => [ActivityPermissionLevel::Restricted, 'Sports permitted with hydration monitoring. Max 30 minutes outdoor activity when temp > 85°F. Bring indoors at first sign of fatigue or pain. No NSAID pain relief — acetaminophen only.'],
             ],
             'noah' => [
-                'Sports' => [ActivityPermissionLevel::Restricted, 'ALL sports equipment, balls, mats, and gear must be LATEX-FREE. Verify before each activity. Noah may participate fully once latex-free equipment is confirmed.'],
+                'sports_games' => [ActivityPermissionLevel::Restricted, 'ALL sports equipment, balls, mats, and gear must be LATEX-FREE. Verify before each activity. Noah may participate fully once latex-free equipment is confirmed.'],
             ],
         ];
 

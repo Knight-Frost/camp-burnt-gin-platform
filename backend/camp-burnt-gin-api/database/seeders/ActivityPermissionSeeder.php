@@ -16,7 +16,7 @@ use Illuminate\Database\Seeder;
  *
  * Canonical slugs:
  *   sports_games, arts_crafts, nature, fine_arts,
- *   swimming, boating, camping, camp_out
+ *   swimming, boating, camp_out
  */
 class ActivityPermissionSeeder extends Seeder
 {
@@ -33,7 +33,6 @@ class ActivityPermissionSeeder extends Seeder
         'fine_arts',
         'swimming',
         'boating',
-        'camping',
         'camp_out',
     ];
 

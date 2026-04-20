@@ -593,9 +593,11 @@ export function AdminApplicationEditPage() {
           setS6(s6Val); s6Init.current = { ...s6Val };
 
           // S7 — Activity permissions
+          // activity_name is stored as the canonical slug (e.g. 'sports_games'),
+          // so match by key not by label.
           const actMap = defaultActivities();
           (fc.activity_permissions ?? []).forEach(p => {
-            const a = ACTIVITIES.find(x => x.label === p.activity_name);
+            const a = ACTIVITIES.find(x => x.key === p.activity_name);
             if (a) actMap[a.key] = { id: p.id, permission_level: p.permission_level as PermLevel, restriction_notes: p.restriction_notes ?? '' };
           });
           setS7(actMap); s7Init.current = JSON.parse(JSON.stringify(actMap));
@@ -792,13 +794,14 @@ export function AdminApplicationEditPage() {
       ops.push(storePersonalCarePlan(camper.id, s6));
     }
 
-    // 11. Activity permissions
+    // 11. Activity permissions — use canonical slug as activity_name so the
+    // completeness engine (which queries by slug) can find these rows.
     for (const a of ACTIVITIES) {
       const perm = s7[a.key];
       const initPerm = s7Init.current[a.key];
       if (JSON.stringify(perm) !== JSON.stringify(initPerm) && perm.permission_level) {
         const permPayload: ActivityPermissionPayload = {
-          activity_name: a.label,
+          activity_name: a.key,
           permission_level: perm.permission_level as 'yes' | 'no' | 'restricted',
           restriction_notes: perm.restriction_notes || undefined,
         };

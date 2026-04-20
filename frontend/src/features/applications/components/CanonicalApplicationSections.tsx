@@ -1,3 +1,17 @@
+/** Maps canonical activity slugs to human-readable labels for display. */
+const ACTIVITY_SLUG_LABELS: Record<string, string> = {
+  sports_games: 'Sports & Games',
+  arts_crafts:  'Arts & Crafts',
+  nature:       'Nature Activities',
+  fine_arts:    'Fine Arts',
+  swimming:     'Swimming',
+  boating:      'Boating',
+  camp_out:     'Camp Out',
+};
+function activityLabel(name: string): string {
+  return ACTIVITY_SLUG_LABELS[name] ?? name;
+}
+
 /**
  * CanonicalApplicationSections — single source of truth for rendering a
  * submitted application in the portal UIs.
@@ -965,7 +979,7 @@ function SectionActivities({
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                  {(p.activity_name as string) || '—'}
+                  {activityLabel((p.activity_name as string) || '') || '—'}
                 </p>
                 {p.restriction_notes ? (
                   <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>

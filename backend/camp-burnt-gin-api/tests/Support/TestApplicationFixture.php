@@ -79,7 +79,7 @@ class TestApplicationFixture
         // ApplicationCompletenessService::CANONICAL_ACTIVITIES requires.
         $activities = [
             'sports_games', 'arts_crafts', 'nature', 'fine_arts',
-            'swimming', 'boating', 'camping', 'camp_out',
+            'swimming', 'boating', 'camp_out',
         ];
         $existing = $camper->activityPermissions()->pluck('activity_name')->all();
         foreach ($activities as $slug) {
