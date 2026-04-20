@@ -11,6 +11,7 @@ on:
     paths:
       - 'backend/camp-burnt-gin-api/database/migrations/**'
       - 'backend/camp-burnt-gin-api/database/seeders/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
