@@ -863,7 +863,7 @@ class ApplicationCompletenessService
      */
     private function deriveState(Application $app, bool $isComplete, array $docBreakdown): string
     {
-        if ($app->is_draft === false) {
+        if (! $app->isDraft()) {
             return 'SUBMITTED';
         }
         $hasInvalidDocs = ! empty($docBreakdown['expired']) || ! empty($docBreakdown['incomplete']);

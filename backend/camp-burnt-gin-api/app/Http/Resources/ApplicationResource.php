@@ -55,7 +55,6 @@ class ApplicationResource extends JsonResource
         return [
             'id' => $app->id,
             'status' => $app->status instanceof \BackedEnum ? $app->status->value : $app->status,
-            'is_draft' => (bool) $app->is_draft,
             'submitted_at' => $app->submitted_at?->toISOString(),
             'signed_at' => $app->signed_at?->toISOString(),
             'signature_name' => $app->signature_name,
@@ -386,7 +385,7 @@ class ApplicationResource extends JsonResource
         // Pass the application as $finalizingApplication only when it's the
         // applicant's own draft — avoids the admin-gate branch filtering out
         // draft docs that legitimately belong to this application.
-        $finalizing = $app->is_draft ? $app : null;
+        $finalizing = $app->isDraft() ? $app : null;
 
         $report = $service->checkCompliance($camper, $finalizing);
 

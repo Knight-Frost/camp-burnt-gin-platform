@@ -383,7 +383,7 @@ export function ApplicantApplicationDetailPage() {
             )}
           </p>
         </div>
-        <StatusBadge status={application.is_draft ? 'draft' : application.status} />
+        <StatusBadge status={application.status} />
       </div>
 
       {/* Card sections */}
@@ -391,7 +391,7 @@ export function ApplicantApplicationDetailPage() {
         {/* Status timeline card — always shown */}
         <div>
           <SectionCard title={t('applicant_detail.status_title')} icon={<AlertTriangle className="h-4 w-4" />}>
-            {application.is_draft ? (
+            {application.status === 'draft' ? (
               <div className="flex items-start justify-between gap-4 py-2">
                 <div className="flex items-center gap-2">
                   <Info className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
@@ -452,7 +452,7 @@ export function ApplicantApplicationDetailPage() {
       {/* What's Next — status-specific guidance. Hidden for drafts: the draft
           notice above already handles that state, and status='submitted' on
           a draft record must not render the "awaiting review" block. */}
-      {application && !application.is_draft && (
+      {application && application.status !== 'draft' && (
         <div>
           <SectionCard
             title={application.status === 'approved' ? 'You\'re In!' : 'What Happens Next'}
@@ -564,7 +564,7 @@ export function ApplicantApplicationDetailPage() {
           )}
 
           {/* Withdraw button — only visible on submitted (non-draft) applications. */}
-          {application && !application.is_draft && ['submitted', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
+          {application && application.status !== 'draft' && ['submitted', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
             <button
               onClick={handleWithdraw}
               disabled={withdrawing}

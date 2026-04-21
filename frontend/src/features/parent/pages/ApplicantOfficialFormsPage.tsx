@@ -165,8 +165,8 @@ export function ApplicantOfficialFormsPage() {
 
         // Find the best application to link uploads to.
         // Prefer a submitted application; fall back to any draft.
-        const submittedApp = apps.find((a) => !a.is_draft && a.submitted_at);
-        const draftApp = apps.find((a) => a.is_draft);
+        const submittedApp = apps.find((a) => a.status !== 'draft' && a.submitted_at);
+        const draftApp = apps.find((a) => a.status === 'draft');
         const localDraft = sessionStorage.getItem(draftKey);
 
         if (submittedApp) {

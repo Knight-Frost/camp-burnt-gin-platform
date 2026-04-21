@@ -100,8 +100,8 @@ class FamilyController extends Controller
                     ->withCount('applications')
                     ->with([
                         'applications' => fn ($q2) => $q2
-                            ->select(['id', 'camper_id', 'status', 'is_draft', 'camp_session_id', 'submitted_at', 'created_at'])
-                            ->where('is_draft', false) // drafts are not admin-visible on the families list
+                            ->select(['id', 'camper_id', 'status', 'camp_session_id', 'submitted_at', 'created_at'])
+                            ->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value) // drafts are not admin-visible on the families list
                             ->with('campSession:id,name')
                             ->latest()
                             ->limit(5), // Prevent loading hundreds of historical applications per camper on list view
@@ -120,7 +120,7 @@ class FamilyController extends Controller
         $summaryActiveApps = Application::whereIn(
             'camper_id',
             Camper::whereIn('user_id', $matchingUserIds)->select('id')
-        )->whereIn('status', $activeStatuses)->where('is_draft', false)->count();
+        )->whereIn('status', $activeStatuses)->count();
 
         $summaryMultiCamper = $applyFilters(User::query())->has('campers', '>=', 2)->count();
 
@@ -226,7 +226,7 @@ class FamilyController extends Controller
         $user->load([
             'campers' => fn ($q) => $q->with([
                 'applications' => fn ($q2) => $q2
-                    ->where('is_draft', false) // drafts are not actionable in the admin workspace
+                    ->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value) // drafts are not actionable in the admin workspace
                     ->with('campSession:id,name,start_date,end_date,is_active')
                     ->latest()
                     ->limit(50),

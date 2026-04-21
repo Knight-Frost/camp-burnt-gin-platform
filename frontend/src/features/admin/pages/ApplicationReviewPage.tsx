@@ -803,7 +803,7 @@ export function ApplicationReviewPage() {
           <ReviewPanel
             applicationId={application.id}
             currentStatus={application.status}
-            isDraft={application.is_draft === true}
+            isDraft={application.status === 'draft'}
             onReviewed={(updated) => {
               setApplication(updated);
               // Full refetch brings the canonical projection back in sync

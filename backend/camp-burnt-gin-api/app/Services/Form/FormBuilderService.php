@@ -147,7 +147,7 @@ class FormBuilderService
         $definitionId = $field->formSection->form_definition_id;
 
         $applicationCount = Application::where('form_definition_id', $definitionId)
-            ->where('is_draft', false)
+            ->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)
             ->count();
 
         if ($applicationCount > 0) {

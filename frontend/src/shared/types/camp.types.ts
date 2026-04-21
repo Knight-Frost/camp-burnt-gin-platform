@@ -61,6 +61,7 @@ export interface ComplianceStatus {
 // ---------------------------------------------------------------------------
 
 export type ApplicationStatus =
+  | 'draft'
   | 'submitted'
   | 'under_review'
   | 'approved'
@@ -188,7 +189,6 @@ export interface CanonicalValidationMeta {
 export interface CanonicalApplicationPayload {
   id: number;
   status: ApplicationStatus;
-  is_draft: boolean;
   submitted_at: string | null;
   signed_at: string | null;
   signature_name: string | null;
@@ -237,7 +237,6 @@ export interface Application {
   session_id: number;
   session?: Session;
   status: ApplicationStatus;
-  is_draft?: boolean;
   reapplied_from_id?: number | null;
   notes?: string;
   review_notes?: string;

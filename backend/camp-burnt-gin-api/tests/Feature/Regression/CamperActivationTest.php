@@ -44,7 +44,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -69,7 +68,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -97,7 +95,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -125,7 +122,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$approvedApp->id}/review", [
@@ -150,13 +146,11 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session1->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
         Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session2->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         // Reverse only the first application.
@@ -180,7 +174,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($parent)->postJson("/api/applications/{$application->id}/withdraw")
@@ -201,7 +194,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($parent)->postJson("/api/applications/{$application->id}/withdraw")
@@ -226,7 +218,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Withdrawn,
-            'is_draft' => false,
         ]);
 
         $result = app(\App\Services\Camper\ApplicationService::class)
@@ -251,7 +242,6 @@ class CamperActivationTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Rejected,
-            'is_draft' => false,
         ]);
 
         // Policy also blocks this, so we check via the service directly to

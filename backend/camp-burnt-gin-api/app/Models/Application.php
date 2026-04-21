@@ -13,11 +13,14 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 /**
  * Application model — records a camper's request to attend a specific camp session.
  *
- * The lifecycle of an application moves through several states:
- *   draft → submitted → under_review → approved / waitlisted / denied
+ * The lifecycle of an application moves through a single authoritative status field:
+ *   draft → submitted → under_review → approved / waitlisted / rejected / withdrawn
  *
  * Key design points:
- *  - is_draft lets parents save progress before final submission.
+ *  - status is the SOLE lifecycle indicator. 'draft' means the parent is still filling
+ *    out the form; 'submitted' means officially submitted for review.
+ *  - is_draft column was dropped in migration 2026_04_20_000004. status is the
+ *    sole source of truth; use isDraft() / scopeDraft() throughout.
  *  - signature_data stores the legal consent signature and is hidden from API
  *    responses to avoid exposing the raw image/base64 blob unnecessarily.
  *  - Documents (medical forms, permission slips) attach to an application via a
@@ -42,8 +45,7 @@ class Application extends Model
         'camper_id',            // Which camper this application is for.
         'camp_session_id',      // Which specific session they want to attend.
         'form_definition_id',   // FK to the form version active at submission time (nullable; null = pre-Phase 14).
-        'status',               // Current workflow state (ApplicationStatus enum).
-        'is_draft',                    // True while the parent is still filling it out.
+        'status',               // Current workflow state (ApplicationStatus enum) — single source of truth.
         'is_incomplete_at_approval',  // True when admin overrode missing-data warning on approval.
         'submitted_at',         // Timestamp when the parent officially submitted.
         'reviewed_at',          // Timestamp when an admin completed their review.
@@ -86,7 +88,6 @@ class Application extends Model
             // Automatically resolves the stored string to an ApplicationStatus enum value.
             'status' => ApplicationStatus::class,
             'submission_source' => SubmissionSource::class,
-            'is_draft' => 'boolean',
             'is_incomplete_at_approval' => 'boolean',
             'first_application' => 'boolean',
             'attended_before' => 'boolean',
@@ -222,7 +223,8 @@ class Application extends Model
      */
     public function getQueuePositionAttribute(): ?array
     {
-        if ($this->is_draft || ! $this->submitted_at) {
+        // Drafts and un-submitted applications are not in the queue.
+        if ($this->isDraft() || ! $this->submitted_at) {
             return null;
         }
 
@@ -232,7 +234,6 @@ class Application extends Model
         // Tie-break by id ASC so the result is deterministic when two apps share a timestamp.
         $ahead = Application::where('camp_session_id', $this->camp_session_id)
             ->whereIn('status', $activeStatuses)
-            ->where('is_draft', false)
             ->where(function ($q) {
                 $q->where('submitted_at', '<', $this->submitted_at)
                     ->orWhere(function ($inner) {
@@ -244,7 +245,6 @@ class Application extends Model
 
         $total = Application::where('camp_session_id', $this->camp_session_id)
             ->whereIn('status', $activeStatuses)
-            ->where('is_draft', false)
             ->count();
 
         return [
@@ -308,27 +308,25 @@ class Application extends Model
     /**
      * Determine if the application can still be edited by the parent.
      *
-     * Returns true when the application is in any of these states:
-     *   - Draft (is_draft = true): parent is still filling out the form
-     *   - Pending: submitted but awaiting admin review
-     *   - UnderReview: actively being reviewed by camp staff
-     *
-     * Allowing edits during Pending and UnderReview is intentional — parents
-     * may need to correct or add information while awaiting a decision.
+     * Delegates entirely to the ApplicationStatus enum, which defines:
+     *   - Draft: parent is still filling out the form — always editable
+     *   - Submitted / UnderReview: awaiting or in review — still editable
      * Once a final status is set (Approved, Rejected, Waitlisted, Cancelled,
      * Withdrawn) the application is locked and returns false.
      */
     public function isEditable(): bool
     {
-        return $this->is_draft || $this->status->isEditable();
+        return $this->status->isEditable();
     }
 
     /**
      * Determine if this application is still a draft (not yet submitted).
+     *
+     * Reads exclusively from status — the single source of truth.
      */
     public function isDraft(): bool
     {
-        return $this->is_draft === true;
+        return $this->status === ApplicationStatus::Draft;
     }
 
     /**
@@ -346,18 +344,27 @@ class Application extends Model
      */
     public function scopeDraft($query)
     {
-        return $query->where('is_draft', true);
+        return $query->where('status', ApplicationStatus::Draft->value);
     }
 
     /**
-     * Query scope — filter only formally submitted applications.
+     * Query scope — filter only formally submitted applications (any non-draft status).
      *
-     * Both conditions are required: is_draft must be false AND
-     * submitted_at must be set (guards against partially-updated rows).
+     * A single status check is now sufficient — status is the sole source of truth.
      */
     public function scopeSubmitted($query)
     {
-        return $query->where('is_draft', false)->whereNotNull('submitted_at');
+        return $query->where('status', ApplicationStatus::Submitted->value);
+    }
+
+    /**
+     * Query scope — filter all non-draft applications (everything visible in review queues).
+     *
+     * Use this instead of the old where('is_draft', false) pattern.
+     */
+    public function scopeNotDraft($query)
+    {
+        return $query->where('status', '!=', ApplicationStatus::Draft->value);
     }
 
     /**

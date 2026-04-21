@@ -80,7 +80,6 @@ class CamperComplianceEndpointTest extends TestCase
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
         Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);

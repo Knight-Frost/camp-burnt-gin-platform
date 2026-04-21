@@ -507,19 +507,18 @@ export function AdminApplicationsPage() {
                   ) : (
                     <p className="text-sm italic" style={{ color: 'var(--muted-foreground)' }}>
                       {/* BUG-6 FIX: 'common.draft' key doesn't exist — 'draft' lives under status_labels */}
-                      {app.is_draft ? t('status_labels.draft') : t('common.not_submitted')}
+                      {app.status === 'draft' ? t('status_labels.draft') : t('common.not_submitted')}
                     </p>
                   )}
                 </div>
 
                 {/* ── Status (2 cols) ──────────────────────────────────── */}
                 <div className="col-span-2">
-                  {app.is_draft ? (
+                  {app.status === 'draft' ? (
                     <span
                       className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full"
                       style={{ background: 'rgba(99,102,241,0.10)', color: 'rgb(99,102,241)' }}
                     >
-                      {/* BUG-7 FIX: was hardcoded English "Draft" — now uses i18n */}
                       {t('status_labels.draft')}
                     </span>
                   ) : (
@@ -533,12 +532,12 @@ export function AdminApplicationsPage() {
                   <Link
                     to={`${reviewBase}/${app.id}`}
                     className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all"
-                    style={app.is_draft
+                    style={app.status === 'draft'
                       ? { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
                       : { borderColor: 'var(--ember-orange)', color: 'var(--ember-orange)' }
                     }
                   >
-                    {app.is_draft ? t('common.view') : t('common.review')}
+                    {app.status === 'draft' ? t('common.view') : t('common.review')}
                     <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>

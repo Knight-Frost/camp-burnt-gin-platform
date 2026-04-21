@@ -42,7 +42,6 @@ class QueuedNotificationsTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         $response->assertStatus(201);
@@ -63,7 +62,7 @@ class QueuedNotificationsTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
         ]);
 
         $response->assertStatus(201);
@@ -202,7 +201,6 @@ class QueuedNotificationsTest extends TestCase
         $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         // Verify job contains the correct notifiable user
@@ -221,7 +219,6 @@ class QueuedNotificationsTest extends TestCase
         $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         // Verify job is queued on 'notifications' queue
@@ -239,13 +236,11 @@ class QueuedNotificationsTest extends TestCase
         $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper1->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper2->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         // Verify two notifications were queued
@@ -262,7 +257,6 @@ class QueuedNotificationsTest extends TestCase
         $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         // Verify job has retry settings

@@ -55,7 +55,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
             'signed_at' => now(),
@@ -82,7 +82,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $orphan = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -97,9 +97,10 @@ class FinalizeDraftCleanupTest extends TestCase
             Application::find($orphan->id),
             'same-session orphan draft must be deleted by finalize',
         );
-        $this->assertFalse(
-            (bool) Application::find($draft->id)->is_draft,
-            'finalized application must be flipped to submitted',
+        $this->assertEquals(
+            'submitted',
+            Application::find($draft->id)->status->value,
+            'finalized application must transition to submitted status',
         );
     }
 
@@ -117,7 +118,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $shell = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => null,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -148,7 +149,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $otherSessionDraft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $sessionB->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);

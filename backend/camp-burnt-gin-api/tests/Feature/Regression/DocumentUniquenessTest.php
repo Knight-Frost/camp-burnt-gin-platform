@@ -60,7 +60,6 @@ class DocumentUniquenessTest extends TestCase
         return Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);

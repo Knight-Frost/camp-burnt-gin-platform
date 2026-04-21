@@ -124,20 +124,19 @@ class ScaleSeeder extends Seeder
 
                 // ── Application ───────────────────────────────────────────────
                 $targetSession = ($c['session'] ?? 's1') === 's2' ? $s2 : $s1;
-                // 'draft' is not an ApplicationStatus enum value — it is controlled
-                // by the is_draft boolean. Treat draft entries as submitted status.
+                // 'draft' is a first-class ApplicationStatus since Phase 7.
+                $isDraft = $c['draft'] ?? false;
                 $rawStatus = $c['status'] ?? 'submitted';
-                $status = ApplicationStatus::from($rawStatus === 'draft' ? 'submitted' : $rawStatus);
+                $status = ApplicationStatus::from($isDraft ? 'draft' : $rawStatus);
 
                 $app = Application::firstOrCreate(
                     ['camper_id' => $camper->id, 'camp_session_id' => $targetSession->id],
                     [
                         'status' => $status,
-                        'is_draft' => $c['draft'] ?? false,
                         'first_application' => $c['first_app'] ?? true,
                         'attended_before' => $c['attended_before'] ?? false,
                         'notes' => $c['admin_notes'] ?? null,
-                        'submitted_at' => ($c['draft'] ?? false) ? null : now()->subDays(rand(1, 30)),
+                        'submitted_at' => $isDraft ? null : now()->subDays(rand(1, 30)),
                         'narrative_rustic_environment' => $c['narrative_rustic'] ?? null,
                         'narrative_camp_benefit' => $c['narrative_benefit'] ?? null,
                         'narrative_heat_tolerance' => $c['narrative_heat'] ?? null,

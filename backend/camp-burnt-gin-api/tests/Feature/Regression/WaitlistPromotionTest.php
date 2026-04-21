@@ -45,7 +45,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -71,7 +70,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -94,7 +92,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -116,7 +113,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -140,7 +136,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -164,7 +159,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         // Attempting Waitlisted → Waitlisted should fail as an invalid transition.
@@ -193,7 +187,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper1->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         // Try to promote a waitlisted application when the session is full.
@@ -203,7 +196,6 @@ class WaitlistPromotionTest extends TestCase
             'camper_id' => $camper2->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Waitlisted,
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$waitlisted->id}/review", [

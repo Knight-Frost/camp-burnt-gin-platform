@@ -93,7 +93,6 @@ export async function getApplicationCanonical(id: number): Promise<{
 export interface CreateApplicationPayload {
   camper_id: number;
   session_id: number;
-  is_draft?: boolean;
   narrative_rustic_environment?: string;
   narrative_staff_suggestions?: string;
   narrative_participation_concerns?: string;
@@ -134,10 +133,10 @@ export async function signApplication(
 }
 
 /**
- * Submit a saved draft application (flip is_draft → false).
- * The ApplicationController::update() endpoint handles is_draft=false + submitted_at stamping
- * when the `submit` flag is present. This is the authoritative path for promoting a
- * server-side draft application to submitted without re-running the full creation wizard.
+ * Submit a saved draft application (transitions status from 'draft' → 'submitted').
+ * The ApplicationController::update() endpoint handles the status transition and
+ * submitted_at stamping when the `submit` flag is present. This is the authoritative
+ * path for promoting a server-side draft application without re-running the full wizard.
  */
 export async function submitDraftApplication(id: number): Promise<Application> {
   const { data } = await axiosInstance.patch<ApiResponse<Application>>(
@@ -285,7 +284,7 @@ export async function getApplicationLifecycleIds(id: number): Promise<Initialize
 
 /**
  * Clone an existing terminal application into a new draft.
- * The clone shares the same camper_id, is_draft=true, and reapplied_from_id
+ * The clone shares the same camper_id, status='draft', and reapplied_from_id
  * pointing to the source application. Only terminal applications can be cloned.
  * NOTE: This endpoint is kept for administrative use. The applicant-facing
  * "Apply for a New Session" flow does not call this — it passes reapplied_from_id
@@ -383,7 +382,7 @@ export async function deleteDraft(id: number): Promise<void> {
 }
 
 /**
- * Delete an Application record that is still in draft state (is_draft = true).
+ * Delete an Application record that is still in draft state (status='draft').
  * The backend enforces this constraint via ApplicationPolicy — submitting a
  * request to delete a non-draft application will return 403.
  */

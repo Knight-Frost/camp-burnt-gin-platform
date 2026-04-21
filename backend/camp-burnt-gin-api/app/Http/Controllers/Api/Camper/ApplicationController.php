@@ -86,14 +86,10 @@ class ApplicationController extends Controller
             ]);
 
             // Filter by status enum value (e.g., "submitted", "approved").
-            // Drafts share the 'submitted' status enum value with real
-            // submitted apps — the is_draft column is what actually
-            // distinguishes them. When the admin is filtering by a status
-            // they mean the review-queue meaning, so exclude drafts here.
-            // Drafts are reached via drafts_only=true instead.
+            // 'draft' is a valid status value — passing status=draft scopes to drafts.
+            // Any other status value automatically excludes drafts since their status='draft'.
             if ($request->filled('status')) {
-                $query->where('status', $request->status)
-                    ->where('is_draft', false);
+                $query->where('status', $request->status);
             }
 
             // Narrow results to a single camp session (e.g., "Summer 2026 Week 1").
@@ -142,19 +138,22 @@ class ApplicationController extends Controller
 
             // Admin visibility rule:
             //
-            //   • default (no flag)    → submitted only (is_draft = false).
+            //   • default (no flag)    → non-draft only (status != 'draft').
             //     Drafts are incomplete work-in-progress by the applicant and
             //     should not clutter the review queue.
-            //   • include_drafts=true  → BOTH drafts and submitted. Opt-in
+            //   • include_drafts=true  → ALL statuses including draft. Opt-in
             //     escape hatch so admins can diagnose "an application already
             //     exists" situations where a draft is silently blocking.
-            //   • drafts_only=true     → drafts only. Explicit dedicated view.
+            //   • drafts_only=true     → status='draft' only. Explicit view.
             //
             // drafts_only wins over include_drafts when both are sent.
-            if ($request->boolean('drafts_only')) {
-                $query->where('is_draft', true);
-            } elseif (! $request->boolean('include_drafts')) {
-                $query->where('is_draft', false);
+            // Skip this block when a specific status was already filtered above.
+            if (! $request->filled('status')) {
+                if ($request->boolean('drafts_only')) {
+                    $query->where('status', ApplicationStatus::Draft->value);
+                } elseif (! $request->boolean('include_drafts')) {
+                    $query->where('status', '!=', ApplicationStatus::Draft->value);
+                }
             }
 
             // Dynamic sorting — only allow whitelisted columns to prevent SQL injection.
@@ -179,7 +178,6 @@ class ApplicationController extends Controller
             if ($request->filled('camp_session_id')) {
                 $queueTotal = Application::where('camp_session_id', $request->camp_session_id)
                     ->whereIn('status', ['submitted', 'under_review', 'waitlisted'])
-                    ->where('is_draft', false)
                     ->count();
             }
         } elseif ($user->isApplicant()) {
@@ -230,7 +228,7 @@ class ApplicationController extends Controller
         foreach ($applications->items() as $index => $app) {
             $arr = $app->toArray();  // triggers $appends (application_number, session) + casts
             $arr['queue_rank'] = (
-                ! $app->is_draft
+                ! $app->isDraft()
                 && $app->submitted_at !== null
                 && in_array($app->status->value, $activeStatuses)
             )
@@ -258,8 +256,8 @@ class ApplicationController extends Controller
      *
      * POST /api/applications
      *
-     * Supports draft mode for saving incomplete applications.
-     * When is_draft is false, submitted_at is stamped and notifications are sent.
+     * Creates the application as status='draft' by default.
+     * Only transitions to 'submitted' via the finalize endpoint.
      *
      * The application creation and notification queueing are wrapped in a DB
      * transaction — if the notification dispatch fails, the application record
@@ -273,8 +271,8 @@ class ApplicationController extends Controller
         $this->authorize('create', Application::class);
 
         $data = $request->validated();
-        // Default to draft mode if the client didn't explicitly pass is_draft.
-        $isDraft = $request->boolean('is_draft', false);
+        // Always create as draft — finalize() transitions to submitted.
+        $isDraft = true;
 
         // ── Duplicate-prevention upsert gate ──────────────────────────────────
         // This is the ONLY place duplicate detection runs. The FormRequest
@@ -306,13 +304,13 @@ class ApplicationController extends Controller
                     ->lockForUpdate()
                     ->get();
 
-                $draft = $rows->first(fn ($a) => $a->is_draft);
+                $draft = $rows->first(fn ($a) => $a->isDraft());
                 // "Active" = the row still occupies the slot. Status enum's
                 // isFinal() is the authority: Approved/Rejected/Cancelled/
                 // Withdrawn are final and do NOT block reapplication; anything
                 // else (Submitted/UnderReview/Waitlisted) does.
                 $activeSubmitted = $rows->first(
-                    fn ($a) => ! $a->is_draft && ! $a->status->isFinal(),
+                    fn ($a) => ! $a->isDraft() && ! $a->status->isFinal(),
                 );
 
                 if ($draft !== null) {
@@ -348,10 +346,9 @@ class ApplicationController extends Controller
             }
         }
 
-        $data['is_draft'] = $isDraft;
-        // All new applications start as Submitted regardless of what the client sends.
-        // Drafts also use Submitted as their status — the is_draft flag separates them.
-        $data['status'] = ApplicationStatus::Submitted;
+        // status is the single source of truth: always 'draft' on creation;
+        // finalize() transitions to 'submitted' after the completeness check.
+        $data['status'] = $isDraft ? ApplicationStatus::Draft : ApplicationStatus::Submitted;
 
         // Only stamp the submission timestamp when the application is actually submitted (not a draft).
         if (! $isDraft) {
@@ -612,7 +609,9 @@ class ApplicationController extends Controller
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $data['is_draft'] = false;
+            // Transition status from draft → submitted. Do not set is_draft —
+            // status is the single source of truth after Phase 3 of the refactor.
+            $data['status'] = ApplicationStatus::Submitted->value;
             $data['submitted_at'] = now();
         }
 
@@ -634,9 +633,13 @@ class ApplicationController extends Controller
             );
         }
 
-        // If is_draft just flipped from true → false, the parent needs a confirmation notification.
-        // Both the email AND the in-app inbox notification must fire — mirrors what store() does.
-        if (isset($data['is_draft']) && $data['is_draft'] === false && $application->wasChanged('is_draft')) {
+        // If status just transitioned from draft → submitted, the parent needs a confirmation
+        // notification. Both the email AND the in-app inbox notification must fire.
+        if (
+            isset($data['status'])
+            && $data['status'] === ApplicationStatus::Submitted->value
+            && $application->wasChanged('status')
+        ) {
             $application->loadMissing('camper.user');
             $this->queueNotification(
                 $application->camper->user,
@@ -676,15 +679,13 @@ class ApplicationController extends Controller
         AuditLog::logAdminAction(
             'application.deleted',
             $user,
-            "Application #{$application->id} deleted".
-                ($application->is_draft ? ' (draft)' : ' (submitted)').
-                " for camper #{$application->camper_id}",
+            "Application #{$application->id} deleted (status: {$application->status->value})"
+                ." for camper #{$application->camper_id}",
             [
                 'application_id' => $application->id,
                 'camper_id' => $application->camper_id,
                 'session_id' => $application->camp_session_id,
                 'status' => $application->status->value,
-                'is_draft' => $application->is_draft,
                 'deleted_by' => $user->id,
             ]
         );
@@ -793,7 +794,7 @@ class ApplicationController extends Controller
             // Resume an existing draft for this session if one is already on
             // file (same contract as the existing POST /applications upsert).
             $existing = Application::where('camp_session_id', $data['camp_session_id'])
-                ->where('is_draft', true)
+                ->where('status', ApplicationStatus::Draft->value)
                 ->whereHas('camper', fn ($q) => $q->where('user_id', $user->id))
                 ->lockForUpdate()
                 ->first();
@@ -837,8 +838,7 @@ class ApplicationController extends Controller
                 $application = Application::create([
                     'camper_id' => $camper->id,
                     'camp_session_id' => $data['camp_session_id'],
-                    'is_draft' => true,
-                    'status' => ApplicationStatus::Submitted,
+                    'status' => ApplicationStatus::Draft,
                     'reapplied_from_id' => $data['reapplied_from_id'] ?? null,
                 ]);
 
@@ -879,8 +879,7 @@ class ApplicationController extends Controller
             $application = Application::create([
                 'camper_id' => $camper->id,
                 'camp_session_id' => $data['camp_session_id'],
-                'is_draft' => true,
-                'status' => ApplicationStatus::Submitted,
+                'status' => ApplicationStatus::Draft,
             ]);
 
             return [
@@ -975,8 +974,10 @@ class ApplicationController extends Controller
                     ->dedupeForCamper($camper);
             }
 
+            // Transition status from draft → submitted. This is the real submission moment.
+            // submitted_at is stamped atomically here — never before, never after.
             $application->update([
-                'is_draft' => false,
+                'status' => ApplicationStatus::Submitted,
                 'submitted_at' => now(),
                 'form_definition_id' => FormDefinition::where('status', 'active')->value('id'),
             ]);
@@ -995,13 +996,12 @@ class ApplicationController extends Controller
             //     finalized and never matches a later upsert.
             //
             // Both patterns are cleaned here: for this camper, remove any
-            // OTHER is_draft=true rows whose session matches the finalized
-            // application's session OR whose session is null. Drafts for
-            // genuinely different sessions (parent applying to multiple) are
-            // preserved.
+            // OTHER draft rows whose session matches the finalized application's
+            // session OR whose session is null. Drafts for genuinely different
+            // sessions (parent applying to multiple) are preserved.
             Application::where('camper_id', $application->camper_id)
                 ->where('id', '!=', $application->id)
-                ->where('is_draft', true)
+                ->where('status', ApplicationStatus::Draft->value)
                 ->where(function ($q) use ($application) {
                     $q->where('camp_session_id', $application->camp_session_id)
                         ->orWhereNull('camp_session_id');
@@ -1303,10 +1303,10 @@ class ApplicationController extends Controller
      * Idempotent contract:
      *
      *   • Unsigned               → store the signature, return 200.
-     *   • Signed + is_draft=true → overwrite with the incoming signature.
+     *   • Signed + status=draft → overwrite with the incoming signature.
      *     The applicant is still editing, so re-signing is a legitimate
      *     action (e.g. they switched from typed to drawn).
-     *   • Signed + is_draft=false → return the existing signature. The
+     *   • Signed + status≠draft → return the existing signature. The
      *     legal record is locked but the endpoint must NOT error. The
      *     parent's submission flow retries `sign → consents → finalize`
      *     as a single unit, and a previous partial success must not

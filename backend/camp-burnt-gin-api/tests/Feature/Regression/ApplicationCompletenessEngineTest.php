@@ -114,7 +114,6 @@ class ApplicationCompletenessEngineTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now()->subDays(30),
             'signed_at' => now()->subDays(30),
@@ -158,7 +157,6 @@ class ApplicationCompletenessEngineTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
@@ -228,7 +226,6 @@ class ApplicationCompletenessEngineTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now()->subWeek(),
             'signed_at' => now()->subWeek(),
@@ -258,7 +255,7 @@ class ApplicationCompletenessEngineTest extends TestCase
 
         $app->refresh();
         $this->assertTrue(
-            $app->is_draft,
+            $app->isDraft(),
             'Revalidate must revert invalid submitted app to draft. Command output: '.$output->fetch(),
         );
         $this->assertNull($app->submitted_at, 'submitted_at must be cleared on revert');
@@ -285,7 +282,6 @@ class ApplicationCompletenessEngineTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);
@@ -293,7 +289,7 @@ class ApplicationCompletenessEngineTest extends TestCase
         $this->artisan('applications:revalidate')->assertExitCode(0);
 
         $app->refresh();
-        $this->assertFalse($app->is_draft, 'Dry run must not change is_draft');
+        $this->assertFalse($app->isDraft(), 'Dry run must not change application status');
         $this->assertNotNull($app->submitted_at, 'Dry run must not clear submitted_at');
         Notification::assertNothingSent();
         $this->assertDatabaseMissing('audit_logs', [
@@ -314,7 +310,6 @@ class ApplicationCompletenessEngineTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Approved,
             'submitted_at' => now()->subWeek(),
         ]);
@@ -323,7 +318,7 @@ class ApplicationCompletenessEngineTest extends TestCase
             ->assertExitCode(0);
 
         $app->refresh();
-        $this->assertFalse($app->is_draft);
+        $this->assertFalse($app->isDraft());
         $this->assertSame(ApplicationStatus::Approved, $app->status);
     }
 }

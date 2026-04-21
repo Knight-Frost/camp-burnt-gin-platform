@@ -24,7 +24,6 @@ class ApplicationFactory extends Factory
             'camp_session_id' => CampSession::factory(),
             'status' => ApplicationStatus::Submitted,
             'submission_source' => SubmissionSource::Digital,
-            'is_draft' => false,
             'submitted_at' => now(),
             'reviewed_at' => null,
             'reviewed_by' => null,
@@ -51,15 +50,13 @@ class ApplicationFactory extends Factory
 
     /**
      * Unsaved draft — not yet submitted; no signature.
-     * is_draft=true is the authoritative draft flag. The status defaults to
-     * Submitted per the column default (it will be overwritten on actual submission),
-     * but signature and submission timestamps are blank since the parent hasn't signed.
+     * status='draft' is the authoritative lifecycle state.
+     * Signature and submission timestamps are blank since the parent hasn't signed.
      */
     public function draft(): static
     {
         return $this->state(fn () => [
-            'is_draft' => true,
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
             'signature_name' => null,
             'signature_data' => null,

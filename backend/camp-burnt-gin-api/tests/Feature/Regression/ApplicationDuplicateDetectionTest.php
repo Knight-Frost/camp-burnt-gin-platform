@@ -36,7 +36,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -44,7 +44,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'notes' => 'updated on resume',
         ]);
 
@@ -70,7 +70,6 @@ class ApplicationDuplicateDetectionTest extends TestCase
         Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Withdrawn,
             'submitted_at' => now()->subWeek(),
         ]);
@@ -78,7 +77,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
         ]);
 
         $response->assertStatus(201);
@@ -100,7 +99,6 @@ class ApplicationDuplicateDetectionTest extends TestCase
         Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Rejected,
             'submitted_at' => now()->subWeek(),
         ]);
@@ -108,7 +106,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
         ]);
 
         $response->assertStatus(201);
@@ -123,7 +121,6 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $existing = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::UnderReview,
             'submitted_at' => now()->subDay(),
         ]);
@@ -131,7 +128,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
         ]);
 
         $response->assertStatus(409)
@@ -150,7 +147,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -158,7 +155,6 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $submitted = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);
@@ -182,7 +178,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -190,7 +186,6 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $submitted = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);
@@ -218,7 +213,7 @@ class ApplicationDuplicateDetectionTest extends TestCase
         Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -226,7 +221,6 @@ class ApplicationDuplicateDetectionTest extends TestCase
         $submitted = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => CampSession::factory()->create()->id,
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);

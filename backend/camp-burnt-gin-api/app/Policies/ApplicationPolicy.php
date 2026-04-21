@@ -86,7 +86,7 @@ class ApplicationPolicy
     public function finalize(User $user, Application $application): bool
     {
         return $user->isApplicant()
-            && $application->is_draft
+            && $application->isDraft()
             && $user->ownsCamper($application->camper);
     }
 
@@ -139,7 +139,7 @@ class ApplicationPolicy
         }
 
         if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
-            return $application->is_draft === true;
+            return $application->isDraft();
         }
 
         return false;
@@ -155,7 +155,7 @@ class ApplicationPolicy
     {
         // Draft applications have not been officially submitted — they must never
         // be approved, rejected, or otherwise acted on by reviewers.
-        return $user->isAdmin() && ! $application->is_draft;
+        return $user->isAdmin() && ! $application->isDraft();
     }
 
     /**
@@ -177,14 +177,14 @@ class ApplicationPolicy
         ];
 
         if ($user->isAdmin()) {
-            return ! $application->is_draft
-                && in_array($application->status, $terminalStatuses);
+            return ! $application->isDraft()
+                && in_array($application->status, $terminalStatuses, strict: true);
         }
 
         $camper = $application->camper;
         if ($user->isApplicant() && $camper instanceof Camper && $user->ownsCamper($camper)) {
-            return ! $application->is_draft
-                && in_array($application->status, $terminalStatuses);
+            return ! $application->isDraft()
+                && in_array($application->status, $terminalStatuses, strict: true);
         }
 
         return false;

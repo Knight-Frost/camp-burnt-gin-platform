@@ -47,7 +47,7 @@ class SendIncompleteApplicationReminders extends Command
         // Find all draft applications that are older than $days and have never been submitted.
         // chunk(50) processes 50 records at a time to prevent memory exhaustion on large datasets.
         $count = 0;
-        Application::where('is_draft', true)
+        Application::where('status', \App\Enums\ApplicationStatus::Draft->value)
             ->whereNull('submitted_at')
             ->where('created_at', '<=', now()->subDays($days))
             ->with(['camper.user', 'campSession'])

@@ -24,7 +24,7 @@ import type { ApplicationStatus } from '@/shared/types';
 /** Union of all accepted status string values. */
 type BadgeVariant =
   | ApplicationStatus
-  | 'draft'     // not an ApplicationStatus — is_draft boolean on server, kept as UI-only fallback
+  | 'draft'     // first-class ApplicationStatus since Phase 7 refactor
   | 'submitted' // included via ApplicationStatus but listed here explicitly for clarity
   | 'active'
   | 'inactive'

@@ -125,7 +125,7 @@ class ApplicationFinalizationTest extends TestCase
         $body = $response->json();
         $this->assertNotEmpty($body['missing_fields']);
         // Application must remain a draft
-        $this->assertTrue((bool) $draft->fresh()->is_draft);
+        $this->assertTrue($draft->fresh()->isDraft());
     }
 
     public function test_finalize_response_includes_structured_missing_data(): void
@@ -169,7 +169,7 @@ class ApplicationFinalizationTest extends TestCase
         $body = $response->json();
         $this->assertNotEmpty($body['missing_consents']);
         // Still a draft
-        $this->assertTrue((bool) $draft->fresh()->is_draft);
+        $this->assertTrue($draft->fresh()->isDraft());
     }
 
     // ── Successful finalization ────────────────────────────────────────────────
@@ -185,7 +185,7 @@ class ApplicationFinalizationTest extends TestCase
         $response->assertOk();
 
         $fresh = $draft->fresh();
-        $this->assertFalse((bool) $fresh->is_draft);
+        $this->assertFalse((bool) $fresh->isDraft());
         $this->assertNotNull($fresh->submitted_at);
         $this->assertEquals(ApplicationStatus::Submitted, $fresh->status);
     }
@@ -213,7 +213,7 @@ class ApplicationFinalizationTest extends TestCase
         $this->actingAs($parent)->postJson("/api/applications/{$draft->id}/finalize");
 
         $fresh = $draft->fresh();
-        $this->assertFalse((bool) $fresh->is_draft);
+        $this->assertFalse((bool) $fresh->isDraft());
         // form_definition_id is nullable if no active form exists — no error either way
     }
 
@@ -254,7 +254,7 @@ class ApplicationFinalizationTest extends TestCase
 
         // Finalization must succeed even with unverified documents
         $response->assertOk();
-        $this->assertFalse((bool) $draft->fresh()->is_draft);
+        $this->assertFalse($draft->fresh()->isDraft());
     }
 
     // ── Paper-submission completeness ──────────────────────────────────────────
@@ -273,7 +273,6 @@ class ApplicationFinalizationTest extends TestCase
 
         $draft->update([
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
-            'is_draft' => false,
             'submitted_at' => now(),
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
         ]);
@@ -389,7 +388,6 @@ class ApplicationFinalizationTest extends TestCase
         // locks that gate shut.
         [, , $draft] = $this->makeDraftWithCamper();
         $draft->update([
-            'is_draft' => false,
             'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::Digital,
         ]);
@@ -413,7 +411,6 @@ class ApplicationFinalizationTest extends TestCase
     {
         [$parent, $camper, $draft] = $this->makeDraftWithCamper();
         $draft->update([
-            'is_draft' => false,
             'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::Digital,
         ]);
@@ -454,14 +451,12 @@ class ApplicationFinalizationTest extends TestCase
         $digital = Application::factory()->create([
             'camper_id' => Camper::factory()->create(['user_id' => $parent->id])->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::Digital,
         ]);
         $paper = Application::factory()->create([
             'camper_id' => Camper::factory()->create(['user_id' => $parent->id])->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
         ]);

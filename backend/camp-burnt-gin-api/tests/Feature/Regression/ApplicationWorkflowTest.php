@@ -42,7 +42,6 @@ class ApplicationWorkflowTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         // Verify response
@@ -55,7 +54,6 @@ class ApplicationWorkflowTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted->value,
-            'is_draft' => false,
         ]);
 
         $application = Application::where('camper_id', $camper->id)->first();
@@ -82,7 +80,7 @@ class ApplicationWorkflowTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
         ]);
 
         $response->assertStatus(201);
@@ -91,7 +89,7 @@ class ApplicationWorkflowTest extends TestCase
         // Verify draft state
         $this->assertDatabaseHas('applications', [
             'camper_id' => $camper->id,
-            'is_draft' => true,
+            'status' => 'draft',
         ]);
 
         $application = Application::where('camper_id', $camper->id)->first();
@@ -134,7 +132,7 @@ class ApplicationWorkflowTest extends TestCase
         $response->assertOk();
 
         $application->refresh();
-        $this->assertFalse($application->is_draft);
+        $this->assertFalse($application->isDraft());
         $this->assertNotNull($application->submitted_at);
         Queue::assertPushed(SendNotificationJob::class);
     }
@@ -330,7 +328,6 @@ class ApplicationWorkflowTest extends TestCase
         Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'status' => \App\Enums\ApplicationStatus::Submitted,
             'submitted_at' => now()->subHour(),
         ]);
@@ -338,7 +335,6 @@ class ApplicationWorkflowTest extends TestCase
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         $response->assertStatus(409)

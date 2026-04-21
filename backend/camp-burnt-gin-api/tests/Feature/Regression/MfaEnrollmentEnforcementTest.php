@@ -136,7 +136,6 @@ class MfaEnrollmentEnforcementTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => 'submitted',
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -161,7 +160,6 @@ class MfaEnrollmentEnforcementTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => 'submitted',
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -183,7 +181,6 @@ class MfaEnrollmentEnforcementTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => 'submitted',
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [

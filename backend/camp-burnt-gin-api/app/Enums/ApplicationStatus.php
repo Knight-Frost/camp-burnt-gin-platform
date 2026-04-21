@@ -11,6 +11,9 @@ namespace App\Enums;
  */
 enum ApplicationStatus: string
 {
+    // The parent is still filling out the form — not yet officially submitted.
+    case Draft = 'draft';
+
     // The parent has fully submitted the application; nobody has looked at it yet.
     case Submitted = 'submitted';
 
@@ -39,6 +42,7 @@ enum ApplicationStatus: string
     public function label(): string
     {
         return match ($this) {
+            self::Draft => 'Draft',
             self::Submitted => 'Submitted',
             self::UnderReview => 'Under Review',
             self::Approved => 'Approved',
@@ -65,7 +69,7 @@ enum ApplicationStatus: string
             self::Rejected,
             self::Cancelled,
             self::Withdrawn,
-        ]);
+        ], strict: true);
     }
 
     /**
@@ -83,28 +87,33 @@ enum ApplicationStatus: string
      */
     public function isEditable(): bool
     {
+        // Draft: parent still filling out the form (always editable).
+        // Submitted / UnderReview: admin hasn't made a final decision yet —
+        // parents may still correct or supplement data while awaiting review.
         return in_array($this, [
+            self::Draft,
             self::Submitted,
             self::UnderReview,
-        ]);
+        ], strict: true);
     }
 
     /**
      * Returns true if the given status is a valid next state from this status.
      *
-     * This method encodes the authoritative ADMIN-level state transition rules.
-     * It is evaluated by ApplicationService before any review action is persisted.
-     * Parent-initiated withdrawal uses the separate withdrawApplication() service
-     * method and is NOT routed through canTransitionTo().
+     * This method encodes the authoritative state transition rules.
+     * Admin review transitions are enforced by ApplicationService.
+     * The applicant submit flow (draft → submitted) uses finalize() and is NOT
+     * routed through canTransitionTo() — it bypasses the admin review gate.
+     * Parent-initiated withdrawal uses withdrawApplication() and is also not routed here.
      *
-     * Transition table (admin review endpoint only):
-     *   Submitted    → UnderReview, Approved, Rejected, Waitlisted, Cancelled
-     *   UnderReview  → Approved, Rejected, Waitlisted, Cancelled, Submitted
+     * Transition table:
+     *   Draft        → Submitted (applicant submits via finalize())
+     *   Submitted    → UnderReview, Approved, Rejected, Waitlisted, Cancelled (admin)
+     *   UnderReview  → Approved, Rejected, Waitlisted, Cancelled, Submitted (admin)
      *   Approved     → Rejected (reversal), Cancelled (admin cancellation)
-     *   Rejected     → Approved (re-approval only — cannot re-open to Pending/UnderReview)
+     *   Rejected     → Approved (re-approval only — cannot re-open to UnderReview)
      *   Waitlisted   → Approved, Rejected, Cancelled
-     *   Cancelled    → UnderReview (admin reversal only — puts the application
-     *                  back in the queue so a fresh decision can be made)
+     *   Cancelled    → UnderReview (admin reversal — re-queues for fresh decision)
      *   Withdrawn    → no valid transitions (irreversible, parent-initiated)
      *
      * Self-transitions (same → same) are always invalid.
@@ -117,41 +126,38 @@ enum ApplicationStatus: string
         }
 
         return match ($this) {
+            // Applicant submit flow: draft may only move to submitted.
+            self::Draft => $new === self::Submitted,
             self::Submitted => in_array($new, [
                 self::UnderReview,
                 self::Approved,
                 self::Rejected,
                 self::Waitlisted,
                 self::Cancelled,
-            ]),
+            ], strict: true),
             self::UnderReview => in_array($new, [
                 self::Approved,
                 self::Rejected,
                 self::Waitlisted,
                 self::Cancelled,
                 self::Submitted,
-            ]),
+            ], strict: true),
             // Reversal: an approved application may only move to rejected (reversal)
             // or cancelled (admin-initiated cancellation of enrollment).
             self::Approved => in_array($new, [
                 self::Rejected,
                 self::Cancelled,
-            ]),
+            ], strict: true),
             // Re-approval only: a rejected application may only be directly re-approved.
-            // It cannot be reset to Pending or UnderReview — those transitions would allow
-            // silently bypassing the rejection record without a new formal decision.
             self::Rejected => $new === self::Approved,
             // Waitlisted applications may be promoted, declined, or cancelled.
             self::Waitlisted => in_array($new, [
                 self::Approved,
                 self::Rejected,
                 self::Cancelled,
-            ]),
-            // Admin reversal of a cancellation — the application goes back
-            // into review so a fresh decision can be made. No direct jump
-            // to Approved/Rejected; forcing UnderReview ensures an audit
-            // trail of "cancelled then re-reviewed" rather than "cancelled
-            // then silently approved."
+            ], strict: true),
+            // Admin reversal of a cancellation — forces back to UnderReview for
+            // audit trail clarity ("cancelled then re-reviewed", not "silently approved").
             self::Cancelled => $new === self::UnderReview,
             // Withdrawn is parent-initiated and permanent.
             self::Withdrawn => false,

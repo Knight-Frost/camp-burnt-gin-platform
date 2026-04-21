@@ -70,7 +70,7 @@ export function findBestSourceApp(
   const candidates = apps.filter(
     (a) =>
       a.camper_id === camperId &&
-      !a.is_draft &&
+      a.status !== 'draft' &&
       (TERMINAL_STATUSES as readonly string[]).includes(a.status)
   );
   if (candidates.length === 0) return null;
@@ -153,7 +153,7 @@ export function NewSessionModal({
         (a) =>
           a.camper_id === camper.id &&
           a.session_id === selectedSessionId &&
-          (a.is_draft || BLOCKING_STATUSES.includes(a.status))
+          (a.status === 'draft' || BLOCKING_STATUSES.includes(a.status))
       )
     : null;
 
@@ -347,7 +347,7 @@ export function NewSessionModal({
                 (a) =>
                   a.camper_id === camper.id &&
                   a.session_id === session.id &&
-                  (a.is_draft || BLOCKING_STATUSES.includes(a.status))
+                  (a.status === 'draft' || BLOCKING_STATUSES.includes(a.status))
               );
               const isSelected = selectedSessionId === session.id;
 
@@ -387,7 +387,7 @@ export function NewSessionModal({
                         style={{ color: '#b45309' }}
                       >
                         {camper.first_name} already has a{' '}
-                        {sessionConflict.is_draft ? 'draft' : sessionConflict.status}{' '}
+                        {sessionConflict.status}{' '}
                         application for this session.
                       </p>
                     )}
@@ -413,9 +413,9 @@ export function NewSessionModal({
             />
             <p style={{ color: '#92400e' }}>
               {camper.full_name} already has a{' '}
-              {duplicateApp.is_draft ? 'draft' : duplicateApp.status} application for
+              {duplicateApp.status} application for
               this session.{' '}
-              {duplicateApp.is_draft
+              {duplicateApp.status === 'draft'
                 ? 'Please continue the existing draft instead of starting a new one.'
                 : 'Please check your existing application or choose a different session.'}
             </p>

@@ -169,7 +169,6 @@ class IdorPreventionTest extends TestCase
         $response = $this->actingAs($parent1)->postJson('/api/applications', [
             'camper_id' => $camper2->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
         ]);
 
         $response->assertStatus(403);

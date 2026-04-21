@@ -117,7 +117,7 @@ class EdgeCaseSeeder extends Seeder
         // Each scenario above uses firstOrCreate() so this is idempotent — rows that already have
         // submitted_at set are not touched. Using created_at preserves the original insert timestamp.
         $affected = DB::statement(
-            'UPDATE applications SET submitted_at = created_at WHERE is_draft = 0 AND submitted_at IS NULL'
+            "UPDATE applications SET submitted_at = created_at WHERE status != 'draft' AND submitted_at IS NULL"
         );
 
         $this->command->info('EdgeCaseSeeder: 14 edge-case scenarios seeded (submitted_at backfilled).');
@@ -157,7 +157,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-001] This application has NO emergency contact. Admin UI must handle gracefully.',
@@ -219,7 +218,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-002] All behavioral flags are TRUE. Tests that admin UI renders all description fields.',
@@ -315,7 +313,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Cancelled,
-                'is_draft' => false,
                 'first_application' => false,
                 'attended_before' => true,
                 'notes' => '[EDGE CASE EC-003] Admin-cancelled after initial approval. Cancellation reason: conduct policy violation discovered post-approval. Terminal state — cannot be re-activated via normal workflow.',
@@ -375,7 +372,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Withdrawn,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-004] Parent-withdrawn during review phase. Family relocated to Georgia. Terminal state — withdrawn by parent, not admin-cancelled. Different terminal path from EC-003.',
@@ -434,7 +430,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-005] Maximum assistive devices + G-tube. Tests that admin medical view renders all device types without layout breakage.',
@@ -567,7 +562,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-006] seizure_disorder=true BUT seizure_plan is NULL. System should flag this as incomplete. Admin review should surface the inconsistency.',
@@ -656,7 +650,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-007] Parent account is_active=false. Login denied for parent. Admin must be able to view this application via families list. Tests that admin family management is not blocked by parent account status.',
@@ -718,7 +711,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'first_application' => false,
                 'attended_before' => true,
                 'notes' => '[EDGE CASE EC-008] All free-text fields filled to maximum length. Tests that admin review UI handles long text without overflow or truncation errors.',
@@ -814,7 +806,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-009] Medical record exists but ALL flags are false/null. Zero allergies, zero medications, zero diagnoses. Tests that medical UI handles completely empty records without null-pointer errors.',
@@ -878,7 +869,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'first_application' => false,
                 'attended_before' => true,
                 'notes' => '[EDGE CASE EC-010] Complex polypharmacy: 5 medications with potential interactions. Dietary notes contain contradictions (nut-free kitchen + peanut butter listed as caloric supplement). Medical staff must reconcile before approval.',
@@ -947,7 +937,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $s1->id],
             [
                 'status' => ApplicationStatus::Approved,
-                'is_draft' => false,
                 'first_application' => false,
                 'attended_before' => true,
                 'notes' => '[EDGE CASE EC-011-A] Legitimate approved application for S1.',
@@ -962,7 +951,6 @@ class EdgeCaseSeeder extends Seeder
                 ['camper_id' => $camper->id, 'camp_session_id' => $s2->id],
                 [
                     'status' => ApplicationStatus::Cancelled,
-                    'is_draft' => false,
                     'first_application' => false,
                     'attended_before' => true,
                     'notes' => '[EDGE CASE EC-011-B] This is a cancelled duplicate submission. Camper was already approved for S1. Parent attempted to submit again for S2; admin cancelled. Simulates the post-deduplication cancelled state.',
@@ -1037,7 +1025,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-012] ALL contacts require Spanish interpreter. Tests that admin UI renders interpreter flags prominently and that notification system can reach Spanish-language contacts.',
@@ -1095,7 +1082,6 @@ class EdgeCaseSeeder extends Seeder
             ['camper_id' => $camper->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-013] All form-parity health flags are true. Tests admin view renders all health fields simultaneously.',
@@ -1164,7 +1150,6 @@ class EdgeCaseSeeder extends Seeder
             [
                 'status' => ApplicationStatus::Cancelled,
                 'camp_session_id_second' => $session->id, // Same as primary — intentional
-                'is_draft' => false,
                 'first_application' => true,
                 'attended_before' => false,
                 'notes' => '[EDGE CASE EC-014] camp_session_id = camp_session_id_second (same session as both choices). Application was cancelled when this was detected. Frontend radio list should prevent this at UI level. Tests admin UI handles this without crashing.',

@@ -27,7 +27,7 @@ use Illuminate\Database\Seeder;
  *   cancelled    → Lucas Williams (S2) — draft abandoned, decided on S1 only
  *   waitlisted   → Tyler Wilson (S1) — session nearing capacity, can be promoted
  *
- * ─── DRAFT APPLICATIONS (is_draft=true, not submitted) ──────────────────────
+ * ─── DRAFT APPLICATIONS (status='draft', not submitted) ─────────────────────
  *
  *   Mia Davis (S1 2026)    — returning family, parent started but not yet submitted
  *   Henry Carter (S2 2026) — second application started after S1 approval
@@ -84,7 +84,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $ethan->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::Approved,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(20),
                 'reviewed_at' => now()->subDays(10),
                 'reviewed_by' => $admin->id,
@@ -101,7 +100,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $lily->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(5),
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -123,7 +121,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $sofia->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(14),
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -147,7 +144,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $noah->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::Rejected,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(30),
                 'reviewed_at' => now()->subDays(22),
                 'reviewed_by' => $admin->id,
@@ -163,7 +159,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $noah->id, 'camp_session_id' => $session2->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(2),
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -186,7 +181,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $ava->id, 'camp_session_id' => $session2->id],
             [
                 'status' => ApplicationStatus::Approved,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(18),
                 'reviewed_at' => now()->subDays(8),
                 'reviewed_by' => $admin->id,
@@ -202,7 +196,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $lucas->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(3),
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -214,14 +207,12 @@ class ApplicationSeeder extends Seeder
         );
 
         // D3. Lucas Williams — Cancelled, Session 2 2026
-        //     Parent started a draft for Session 2 but cancelled it — decided to
-        //     focus on Session 1 only. Tests: Cancelled status, is_draft=true with
-        //     cancelled status (draft that was explicitly cancelled, not abandoned).
+        //     Parent started an application for Session 2 but it was cancelled —
+        //     decided to focus on Session 1 only. The application was never submitted.
         Application::firstOrCreate(
             ['camper_id' => $lucas->id, 'camp_session_id' => $session2->id],
             [
                 'status' => ApplicationStatus::Cancelled,
-                'is_draft' => true,
                 'submitted_at' => null,
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -245,7 +236,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $mia->id, 'camp_session_id' => $sessionPast->id],
             [
                 'status' => ApplicationStatus::Approved,
-                'is_draft' => false,
                 'submitted_at' => '2025-04-10 10:00:00',
                 'reviewed_at' => '2025-04-20 14:00:00',
                 'reviewed_by' => $admin->id,
@@ -256,14 +246,13 @@ class ApplicationSeeder extends Seeder
             ]
         );
 
-        // E2. Mia Davis — Draft (is_draft=true), Session 1 2026
+        // E2. Mia Davis — Draft, Session 1 2026
         //     Returning applicant. Parent started the 2026 application and saved
         //     progress, but has not yet completed or submitted it.
         Application::firstOrCreate(
             ['camper_id' => $mia->id, 'camp_session_id' => $session1->id],
             [
-                'status' => ApplicationStatus::Submitted,  // status is set when submitted
-                'is_draft' => true,                         // KEY: not yet submitted
+                'status' => ApplicationStatus::Draft,  // in-progress — not yet submitted
                 'submitted_at' => null,
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -286,7 +275,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $tyler->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::Waitlisted,  // ← explicitly Waitlisted
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(25),
                 'reviewed_at' => now()->subDays(15),
                 'reviewed_by' => $admin->id,
@@ -311,7 +299,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $henry->id, 'camp_session_id' => $session1->id],
             [
                 'status' => ApplicationStatus::Approved,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(12),
                 'reviewed_at' => now()->subDays(7),
                 'reviewed_by' => $admin->id,
@@ -328,7 +315,6 @@ class ApplicationSeeder extends Seeder
             ['camper_id' => $henry->id, 'camp_session_id' => $session2->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(5),
                 'reviewed_at' => null,
                 'reviewed_by' => null,

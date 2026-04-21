@@ -75,9 +75,8 @@ export interface Application {
   id: number;
   camper_id: number;
   camp_session_id: number;
-  // 'draft' is not a status value — it is represented by the is_draft boolean.
-  status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn';
-  is_draft?: boolean;
+  // 'draft' is a first-class status value returned by the API.
+  status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'cancelled' | 'waitlisted' | 'withdrawn';
   /**
    * How this application entered the system. Drives UI treatment (paper badge,
    * relaxed completeness gate) and audit reports. See App\Enums\SubmissionSource.
@@ -489,7 +488,6 @@ export interface FamiliesResponse {
 export interface FamilyWorkspaceApplication {
   id: number;
   status: Application['status'];
-  is_draft?: boolean;
   submitted_at?: string | null;
   reviewed_at?: string | null;
   created_at: string;

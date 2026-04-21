@@ -60,7 +60,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
             'signed_at' => now(),
@@ -99,7 +99,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $finalizingDraft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $sessionA->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
             'signed_at' => now(),
@@ -112,7 +112,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $otherDraft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $sessionB->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
         ]);
@@ -153,7 +153,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => true,
+            'status' => 'draft',
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => null,
             'signed_at' => now(),

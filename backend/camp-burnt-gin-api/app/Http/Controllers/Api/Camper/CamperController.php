@@ -55,10 +55,10 @@ class CamperController extends Controller
             // Only surface campers whose families have at least one formally-submitted
             // application. Pre-submission campers are private to the family.
             // Eager-load only the non-draft applications — PHI lives in show(), not here.
-            $query = Camper::whereHas('applications', fn ($q) => $q->where('is_draft', false))
+            $query = Camper::whereHas('applications', fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value))
                 ->with([
                     'user',
-                    'applications' => fn ($q) => $q->where('is_draft', false)->with('campSession'),
+                    'applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->with('campSession'),
                 ]);
             if ($request->filled('search')) {
                 $search = $request->input('search');
@@ -219,7 +219,7 @@ class CamperController extends Controller
         // appearing as if the family has already applied.
         $camper->load([
             'user',
-            'applications' => fn ($q) => $q->where('is_draft', false)->with('campSession'),
+            'applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->with('campSession'),
             'behavioralProfile',
             'emergencyContacts',
             'medicalRecord',
@@ -436,7 +436,7 @@ class CamperController extends Controller
         // Determine if this camper has at least one previously submitted application.
         // This drives the "attended_before" and "first_application" flags in the form.
         $hasSubmitted = $camper->applications()
-            ->where('is_draft', false)
+            ->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)
             ->whereNotNull('submitted_at')
             ->exists();
 

@@ -137,7 +137,7 @@ export function SuperAdminDashboardPage() {
 
         // Recent Activity: already sorted updated_at DESC — filter noise and take top 6.
         const reviewed = recentAppsData
-          .filter((a) => !a.is_draft && a.status !== 'cancelled')
+          .filter((a) => a.status !== 'draft' && a.status !== 'cancelled')
           .slice(0, 6);
         setRecentApps(reviewed);
       })

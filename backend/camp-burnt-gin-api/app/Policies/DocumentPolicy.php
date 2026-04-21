@@ -51,7 +51,7 @@ class DocumentPolicy
         // Admins and medical staff may never view a document that is still in
         // the applicant's private staging area. Two staging signals close the
         // door: (a) the document itself has no submitted_at, OR (b) the
-        // document is attached to an Application that is still is_draft=true
+        // document is attached to an Application that is still status='draft'
         // or has no submitted_at. Either condition = staging = deny.
         $isStaging = $document->isDraft() || $this->parentApplicationIsDraft($document);
 
@@ -114,7 +114,7 @@ class DocumentPolicy
             return false;
         }
 
-        return $app->is_draft === true || $app->submitted_at === null;
+        return $app->isDraft() || $app->submitted_at === null;
     }
 
     /**

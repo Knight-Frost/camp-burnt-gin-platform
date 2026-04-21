@@ -50,7 +50,6 @@ class RevalidateApplications extends Command
         $this->newLine();
 
         $scope = Application::query()
-            ->where('is_draft', false)
             ->where('status', ApplicationStatus::Submitted)
             ->orderBy('id');
 
@@ -138,7 +137,7 @@ class RevalidateApplications extends Command
         DB::transaction(function () use ($application, $blockingIssues) {
             $previousSubmittedAt = $application->submitted_at;
 
-            $application->is_draft = true;
+            $application->status = ApplicationStatus::Draft;
             $application->submitted_at = null;
             $application->save();
 
@@ -156,11 +155,11 @@ class RevalidateApplications extends Command
                     count($blockingIssues) === 1 ? '' : 's',
                 ),
                 'old_values' => [
-                    'is_draft' => false,
+                    'status' => 'submitted',
                     'submitted_at' => $previousSubmittedAt?->toISOString(),
                 ],
                 'new_values' => [
-                    'is_draft' => true,
+                    'status' => 'draft',
                     'submitted_at' => null,
                 ],
                 'metadata' => [

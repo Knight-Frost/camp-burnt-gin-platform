@@ -41,7 +41,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$application->id}/review", [
@@ -68,7 +67,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $existingCamper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         // Attempt to approve a second application for the now-full session.
@@ -78,7 +76,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $newCamper->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$newApplication->id}/review", [
@@ -108,7 +105,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $camper1->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         // Waitlist a second application.
@@ -118,7 +114,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $camper2->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$waitlistedApp->id}/review", [
@@ -148,7 +143,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $camper1->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Approved,
-            'is_draft' => false,
         ]);
 
         // Reverse the approval.
@@ -163,7 +157,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
             'camper_id' => $camper2->id,
             'camp_session_id' => $session->id,
             'status' => ApplicationStatus::Submitted,
-            'is_draft' => false,
         ]);
 
         $response = $this->actingAs($admin)->postJson("/api/applications/{$newApp->id}/review", [
@@ -197,7 +190,6 @@ class ApplicationCapacityEnforcementTest extends TestCase
                 'camper_id' => $camper->id,
                 'camp_session_id' => $session->id,
                 'status' => $status,
-                'is_draft' => false,
             ]);
         }
 

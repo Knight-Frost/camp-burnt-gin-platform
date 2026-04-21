@@ -45,7 +45,7 @@ class DraftReviewPreventionTest extends TestCase
             ->postJson("/api/applications/{$draft->id}/review", ['status' => 'approved']);
 
         $response->assertForbidden();
-        $this->assertDatabaseHas('applications', ['id' => $draft->id, 'is_draft' => true]);
+        $this->assertDatabaseHas('applications', ['id' => $draft->id, 'status' => 'draft']);
     }
 
     public function test_admin_cannot_reject_draft_application(): void

@@ -117,7 +117,7 @@ class ApplicationService
         // Draft applications are not officially submitted and must never receive
         // review decisions. The policy layer enforces this, but we guard here too
         // so that any internal call path (e.g., admin-on-behalf) is also safe.
-        if ($application->is_draft) {
+        if ($application->isDraft()) {
             return ['success' => false, 'draft_not_reviewable' => true];
         }
 
@@ -403,8 +403,7 @@ class ApplicationService
             $draft = Application::create([
                 'camper_id' => $source->camper_id,
                 'reapplied_from_id' => $source->id,
-                'status' => \App\Enums\ApplicationStatus::Submitted,
-                'is_draft' => true,
+                'status' => \App\Enums\ApplicationStatus::Draft,
                 'form_definition_id' => \App\Models\FormDefinition::where('status', 'active')->value('id'),
             ]);
 

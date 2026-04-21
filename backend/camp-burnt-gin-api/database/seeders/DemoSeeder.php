@@ -305,7 +305,6 @@ class DemoSeeder extends Seeder
             ['camper_id' => $ethan->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Approved,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(20),
                 'reviewed_at' => now()->subDays(10),
                 'reviewed_by' => $admin->id,
@@ -321,7 +320,6 @@ class DemoSeeder extends Seeder
             ['camper_id' => $lily->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(5),
                 'reviewed_at' => null,
                 'reviewed_by' => null,
@@ -337,7 +335,6 @@ class DemoSeeder extends Seeder
             ['camper_id' => $sofia->id, 'camp_session_id' => $session->id],
             [
                 'status' => ApplicationStatus::UnderReview,
-                'is_draft' => false,
                 'submitted_at' => now()->subDays(14),
                 'reviewed_at' => now()->subDays(12),
                 'reviewed_by' => $admin->id,

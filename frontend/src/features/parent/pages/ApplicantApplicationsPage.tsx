@@ -166,7 +166,7 @@ function AppCard({
   onNewSession?: (app: Application) => void;
 }) {
   const navigate = useNavigate();
-  const isDraft = app.is_draft === true;
+  const isDraft = app.status === 'draft';
   const isTerminal = !isDraft && TERMINAL_STATUSES_SET.has(app.status);
   const [resuming, setResuming] = useState(false);
 
@@ -202,77 +202,85 @@ function AppCard({
     }
   }
 
+  // Icon + text block shared between draft and non-draft left sides.
+  const cardInner = (
+    <>
+      <div
+        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ background: isDraft ? 'rgba(234,88,12,0.10)' : 'rgba(96,165,250,0.1)' }}
+      >
+        <FileText
+          className="h-4 w-4"
+          style={{ color: isDraft ? 'var(--ember-orange)' : 'var(--night-sky-blue)' }}
+        />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+          {app.camper?.full_name ?? `Camper #${app.camper_id}`}
+        </p>
+        <div
+          className="flex items-center gap-2 text-xs mt-0.5"
+          style={{ color: 'var(--muted-foreground)' }}
+        >
+          <Calendar className="h-3 w-3" />
+          <span>{app.session?.name ?? `Session #${app.session_id}`}</span>
+          {isDraft ? (
+            <>
+              <span aria-hidden="true">&middot;</span>
+              <span>Draft – Not Submitted</span>
+            </>
+          ) : app.submitted_at ? (
+            <>
+              <span aria-hidden="true">&middot;</span>
+              <span>Submitted {format(new Date(app.submitted_at), 'MMM d, yyyy')}</span>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <li>
       <div className="flex items-center justify-between gap-4 px-6 py-4">
-        {/* The entire left side is a link to the detail page */}
-        <Link
-          to={ROUTES.PARENT_APPLICATION_DETAIL(app.id)}
-          className="flex items-center gap-4 min-w-0 flex-1 hover:bg-[var(--dash-nav-hover-bg)] rounded-lg transition-colors -mx-2 px-2 py-1"
-        >
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: isDraft ? 'rgba(234,88,12,0.10)' : 'rgba(96,165,250,0.1)' }}
+        {/* Left side: drafts open the edit form; non-drafts go to the detail page.
+            Both navigation paths must be consistent — no split behavior. */}
+        {isDraft ? (
+          <button
+            type="button"
+            onClick={() => { void handleContinueDraft(); }}
+            disabled={resuming}
+            className="flex items-center gap-4 min-w-0 flex-1 text-left hover:bg-[var(--dash-nav-hover-bg)] rounded-lg transition-colors -mx-2 px-2 py-1 disabled:opacity-60"
           >
-            <FileText
-              className="h-4 w-4"
-              style={{ color: isDraft ? 'var(--ember-orange)' : 'var(--night-sky-blue)' }}
-            />
-          </div>
-          <div className="min-w-0">
-            {/* Fall back to a generic label if the camper was not eager-loaded */}
-            <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-              {app.camper?.full_name ?? `Camper #${app.camper_id}`}
-            </p>
-            <div
-              className="flex items-center gap-2 text-xs mt-0.5"
-              style={{ color: 'var(--muted-foreground)' }}
-            >
-              <Calendar className="h-3 w-3" />
-              <span>{app.session?.name ?? `Session #${app.session_id}`}</span>
-              {isDraft ? (
-                <>
-                  <span aria-hidden="true">&middot;</span>
-                  <span>Draft – Not Submitted</span>
-                </>
-              ) : app.submitted_at ? (
-                <>
-                  <span aria-hidden="true">&middot;</span>
-                  <span>Submitted {format(new Date(app.submitted_at), 'MMM d, yyyy')}</span>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </Link>
+            {cardInner}
+          </button>
+        ) : (
+          <Link
+            to={ROUTES.PARENT_APPLICATION_DETAIL(app.id)}
+            className="flex items-center gap-4 min-w-0 flex-1 hover:bg-[var(--dash-nav-hover-bg)] rounded-lg transition-colors -mx-2 px-2 py-1"
+          >
+            {cardInner}
+          </Link>
+        )}
+
         <div className="flex items-center gap-2 flex-shrink-0">
           {isDraft ? (
-            // Draft: show Continue and Delete
-            <>
-              <Button
-                size="sm"
-                onClick={() => { void handleContinueDraft(); }}
-                disabled={resuming}
+            // Draft right side: only the delete button — the whole card already navigates to edit.
+            onDeleteDraft && (
+              <button
+                type="button"
+                onClick={() => onDeleteDraft(app)}
+                className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                title="Delete draft"
               >
-                {resuming ? 'Loading…' : 'Continue'}
-              </Button>
-              {onDeleteDraft && (
-                <button
-                  type="button"
-                  onClick={() => onDeleteDraft(app)}
-                  className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                  title="Delete draft"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </>
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )
           ) : (
-            // Submitted/reviewed: show status badge, optional "New Session" for terminal, and link to detail
+            // Non-draft right side: status badge, optional "New Session" for terminal, arrow link.
             <>
               <StatusBadge status={app.status} />
-              {/* "New Session" shortcut on terminal rows — lets the user start a
-                  reapplication directly from the list without opening the detail page. */}
               {isTerminal && onNewSession && (
                 <button
                   type="button"
@@ -385,7 +393,7 @@ function LocalDraftCard({ camperName, onDelete }: { camperName: string | null; o
 }
 
 // ApplicationDraft JSON-blob cards were removed: drafts in this list are
-// now Application rows only (is_draft=true). See the `load()` function for
+// now Application rows with status='draft'. See the `load()` function for
 // the rationale — the dual-source fetch produced the "ghost draft" bug.
 
 export function ApplicantApplicationsPage() {
@@ -396,6 +404,7 @@ export function ApplicantApplicationsPage() {
 
   // Built inside the component so labels re-compute when language changes.
   const STATUS_LABELS: Record<ApplicationStatus, string> = {
+    draft:        t('status_labels.draft'),
     submitted:    t('status_labels.submitted'),
     under_review: t('status_labels.under_review'),
     approved:     t('status_labels.approved'),
@@ -410,7 +419,7 @@ export function ApplicantApplicationsPage() {
   // View mode: 'all' shows all groups, 'active' only in-flight, 'past' only resolved
   const [view, setView]                 = useState<ViewMode>('all');
   // Specific status filter (overrides view mode when set).
-  // 'draft' is not an ApplicationStatus — it maps to the is_draft boolean on the server.
+  // 'draft' is a first-class ApplicationStatus since Phase 7 refactor.
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'draft' | ''>('');
   const [sortOrder, setSortOrder]       = useState<SortOrder>('newest');
   // Free-text search — filters by camper name (partial, case-insensitive, client-side)
@@ -467,7 +476,7 @@ export function ApplicantApplicationsPage() {
   // as separate list cards produced the "ghost draft" bug where a submitted
   // application and its pre-submit blob appeared as two distinct entries for
   // the same camper. Drafts in the list are Application rows with
-  // is_draft=true.
+  // status='draft'.
   const load = () => {
     setLoading(true);
     setError(false);
@@ -506,12 +515,11 @@ export function ApplicantApplicationsPage() {
   const filtered = useMemo(() => {
     let list = applications;
     if (statusFilter === 'draft') {
-      // Drafts are flagged via is_draft rather than having a unique status value
-      list = list.filter((a) => a.is_draft === true);
+      list = list.filter((a) => a.status === 'draft');
     } else if (statusFilter) {
-      list = list.filter((a) => a.status === statusFilter && !a.is_draft);
+      list = list.filter((a) => a.status === statusFilter);
     } else if (view === 'active') {
-      list = list.filter((a) => ACTIVE_STATUSES.includes(a.status) && !a.is_draft);
+      list = list.filter((a) => ACTIVE_STATUSES.includes(a.status) && a.status !== 'draft');
     } else if (view === 'past') {
       list = list.filter((a) => PAST_STATUSES.includes(a.status));
     }
@@ -526,11 +534,11 @@ export function ApplicantApplicationsPage() {
 
   // Pre-split the filtered list into three groups for the sectioned "all" view
   const draftApps = useMemo(
-    () => filtered.filter((a) => a.is_draft === true),
+    () => filtered.filter((a) => a.status === 'draft'),
     [filtered]
   );
   const activeApps = useMemo(
-    () => filtered.filter((a) => ACTIVE_STATUSES.includes(a.status) && !a.is_draft),
+    () => filtered.filter((a) => ACTIVE_STATUSES.includes(a.status) && a.status !== 'draft'),
     [filtered]
   );
   const pastApps = useMemo(

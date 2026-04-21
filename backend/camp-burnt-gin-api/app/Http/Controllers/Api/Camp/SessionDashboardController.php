@@ -44,9 +44,9 @@ class SessionDashboardController extends Controller
 
         // ── Application counts per status ────────────────────────────────────────
         // selectRaw + groupBy produces a flat map of status → count without loading
-        // every application row. Only count non-draft submissions.
+        // every application row. Exclude drafts — they are not in the review queue.
         $statusCounts = Application::where('camp_session_id', $session->id)
-            ->where('is_draft', false)
+            ->where('status', '!=', ApplicationStatus::Draft->value)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status');
@@ -72,7 +72,7 @@ class SessionDashboardController extends Controller
         // ── Recent applications (activity feed) ──────────────────────────────────
         // Only basic camper name is needed here — avoid eager-loading PHI.
         $recentApplications = Application::where('camp_session_id', $session->id)
-            ->where('is_draft', false)
+            ->where('status', '!=', ApplicationStatus::Draft->value)
             ->with(['camper' => fn ($q) => $q->select('id', 'first_name', 'last_name')])
             ->orderByDesc('submitted_at')
             ->take(10)
@@ -92,15 +92,15 @@ class SessionDashboardController extends Controller
             ->distinct()
             ->count('campers.user_id');
 
-        // registered_campers: distinct camper IDs with at least one non-draft application
+        // registered_campers: distinct camper IDs with at least one submitted application
         $registeredCampers = Application::where('camp_session_id', $session->id)
-            ->where('is_draft', false)
+            ->where('status', '!=', ApplicationStatus::Draft->value)
             ->distinct()
             ->count('camper_id');
 
         // multi_camper_families: families that have ≥2 registered campers for this session
         $multiCamperFamilies = Application::where('camp_session_id', $session->id)
-            ->where('is_draft', false)
+            ->where('status', '!=', ApplicationStatus::Draft->value)
             ->join('campers', 'applications.camper_id', '=', 'campers.id')
             ->selectRaw('campers.user_id')
             ->groupBy('campers.user_id')
@@ -112,7 +112,6 @@ class SessionDashboardController extends Controller
         // Pull only the columns we need — date_of_birth and gender — to avoid loading PHI.
         $approvedApps = Application::where('camp_session_id', $session->id)
             ->where('status', ApplicationStatus::Approved->value)
-            ->where('is_draft', false)
             ->with(['camper' => fn ($q) => $q->select('id', 'date_of_birth', 'gender')])
             ->get();
 
@@ -208,7 +207,7 @@ class SessionDashboardController extends Controller
         $this->authorize('view', $session);
 
         $query = Application::where('camp_session_id', $session->id)
-            ->where('is_draft', false)
+            ->where('status', '!=', ApplicationStatus::Draft->value)
             ->with(['camper.user', 'reviewer'])
             ->orderByDesc('submitted_at');
 

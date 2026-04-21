@@ -118,7 +118,7 @@ class MergeDuplicateCampers extends Command
             // Load full Camper models with their applications so we can check ambiguity.
             $ids = $group->pluck('id')->all();
             $campers = Camper::withTrashed()
-                ->with(['applications' => fn ($q) => $q->where('is_draft', false)])
+                ->with(['applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)])
                 ->whereIn('id', $ids)
                 ->orderByDesc('id')
                 ->get();

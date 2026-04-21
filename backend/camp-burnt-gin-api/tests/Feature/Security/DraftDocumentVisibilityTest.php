@@ -250,7 +250,7 @@ class DraftDocumentVisibilityTest extends TestCase
         $response->assertOk();
 
         $draft->refresh();
-        $this->assertFalse((bool) $draft->is_draft);
+        $this->assertFalse((bool) $draft->isDraft());
         $this->assertNotNull($draft->submitted_at);
 
         // Cascade touched the two live draft docs, left the archived doc alone.
@@ -277,7 +277,6 @@ class DraftDocumentVisibilityTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'is_draft' => false,
             'submitted_at' => now(),
             'status' => ApplicationStatus::Submitted,
         ]);

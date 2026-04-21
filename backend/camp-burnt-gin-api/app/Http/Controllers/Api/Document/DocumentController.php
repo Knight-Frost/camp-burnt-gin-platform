@@ -343,17 +343,14 @@ class DocumentController extends Controller
             // Non-Application docs pass unconditionally.
             $q->where('documentable_type', '!=', \App\Models\Application::class)
                 ->orWhereNull('documentable_type')
-                // Application-polymorphic docs must have a parent app that is
-                // both marked submitted (is_draft=false) AND has a submitted_at
-                // timestamp. Both checks together protect against each other:
-                // a stale is_draft flag without submitted_at, or vice versa,
-                // would still be treated as a draft.
+                // Application-polymorphic docs must have a parent app that has
+                // status != 'draft' AND has a submitted_at timestamp.
                 ->orWhereExists(function ($sub) {
                     $sub->select(\Illuminate\Support\Facades\DB::raw(1))
                         ->from('applications')
                         ->whereColumn('applications.id', 'documents.documentable_id')
                         ->where('documents.documentable_type', \App\Models\Application::class)
-                        ->where('applications.is_draft', false)
+                        ->where('applications.status', '!=', \App\Enums\ApplicationStatus::Draft->value)
                         ->whereNotNull('applications.submitted_at');
                 });
         });
@@ -463,7 +460,7 @@ class DocumentController extends Controller
         // reintroduce the leak.
         if ($document->documentable_type === \App\Models\Application::class) {
             $parentApp = \App\Models\Application::find($document->documentable_id);
-            if ($parentApp && ($parentApp->is_draft || $parentApp->submitted_at === null)) {
+            if ($parentApp && ($parentApp->isDraft() || $parentApp->submitted_at === null)) {
                 return response()->json([
                     'message' => 'This document is attached to a draft application. Submit the application itself; its documents will become visible to staff at that point.',
                     'errors' => ['document' => 'parent_application_is_draft'],

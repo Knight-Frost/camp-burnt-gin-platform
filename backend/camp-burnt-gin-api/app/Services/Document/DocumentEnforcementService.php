@@ -56,7 +56,7 @@ class DocumentEnforcementService
      * @param  Camper  $camper  The camper whose documents are being checked
      * @param  \App\Models\Application|null  $finalizingApplication
      *                                                               When the caller is the applicant's own finalize flow, the target
-     *                                                               application is still is_draft=true at the moment this check runs
+     *                                                               application is still status='draft' at the moment this check runs
      *                                                               — but its documents DO count toward its own completeness because
      *                                                               the cascade inside finalize() is about to promote them. Pass the
      *                                                               application here to include its draft docs in the counted set.
@@ -221,7 +221,7 @@ class DocumentEnforcementService
         // own finalize flow is evaluating its target application — the
         // cascade inside finalize() promotes those docs atomically.
         $appIds = $camper->applications()
-            ->where('is_draft', false)
+            ->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)
             ->whereNotNull('submitted_at')
             ->pluck('id')
             ->all();

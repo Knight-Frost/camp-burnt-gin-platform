@@ -159,7 +159,7 @@ export function AdminDashboardPage() {
 
         // Recent Activity: already sorted updated_at DESC by the backend — just take top 6.
         const recentActivity = recentAppsData
-          .filter((a) => !a.is_draft && a.status !== 'cancelled')
+          .filter((a) => a.status !== 'draft' && a.status !== 'cancelled')
           .slice(0, 6);
         setActivity(recentActivity);
       })

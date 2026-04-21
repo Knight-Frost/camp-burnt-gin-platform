@@ -352,7 +352,6 @@ class RiskAssessmentTest extends TestCase
         $parent = $this->createParent();
         $camper = Camper::factory()->for($parent, 'user')->create(['is_active' => true]);
         Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);

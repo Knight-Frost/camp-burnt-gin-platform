@@ -131,7 +131,7 @@ export function ApplicantDashboardPage() {
       });
   }, [user?.id]);
 
-  const pendingCount = applications.filter((a) => !a.is_draft && (a.status === 'submitted' || a.status === 'under_review')).length;
+  const pendingCount = applications.filter((a) => a.status === 'submitted' || a.status === 'under_review').length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
   const activityFeed = buildActivityFeed(conversations, applications, campers, documentRequests, user?.id);
@@ -351,7 +351,7 @@ export function ApplicantDashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {latestApp && <StatusBadge status={latestApp.is_draft ? 'draft' : latestApp.status} />}
+                      {latestApp && <StatusBadge status={latestApp.status} />}
 
                       {/* ── Primary reapplication entry point ──────────────────
                           Visible on every registered camper card. The modal
@@ -543,7 +543,7 @@ function buildActivityFeed(
   // "Application submitted" events since their status='submitted' is a
   // backend implementation detail, not a real submission action.
   for (const app of applications) {
-    if (app.is_draft) continue;
+    if (app.status === 'draft') continue;
     const camper = campers.find((c) => c.id === app.camper_id);
     const camperName = camper ? `${camper.first_name} ${camper.last_name}` : 'Camper';
     const sessionName = app.session?.name ?? null;

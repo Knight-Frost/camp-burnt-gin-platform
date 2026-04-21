@@ -57,7 +57,6 @@ class ApplicationApprovalEnforcementTest extends TestCase
             ->for($session, 'campSession')
             ->create([
                 'status' => ApplicationStatus::Submitted,
-                'is_draft' => false,
                 'submitted_at' => now(),
             ]);
     }

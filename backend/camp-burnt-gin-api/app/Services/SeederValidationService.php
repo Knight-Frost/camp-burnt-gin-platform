@@ -86,10 +86,10 @@ class SeederValidationService
     {
         $errors = [];
 
-        $nonDraft = Application::where('is_draft', false)->count();
+        $nonDraft = Application::where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->count();
         if ($nonDraft > 0) {
-            $errors[] = "Found {$nonDraft} application(s) with is_draft=false. "
-                .'DevSeeder must only create draft applications (is_draft=true).';
+            $errors[] = "Found {$nonDraft} application(s) with status != 'draft'. "
+                .'DevSeeder must only create draft applications (status=draft).';
         }
 
         $withSubmittedAt = Application::whereNotNull('submitted_at')->count();
@@ -125,7 +125,7 @@ class SeederValidationService
         ];
 
         foreach ($narrativeFields as $field) {
-            $count = Application::where('is_draft', true)->whereNull($field)->count();
+            $count = Application::where('status', \App\Enums\ApplicationStatus::Draft->value)->whereNull($field)->count();
             if ($count > 0) {
                 $errors[] = "Found {$count} draft application(s) with NULL {$field}. "
                     .'All narrative fields must be populated for a logically complete application.';

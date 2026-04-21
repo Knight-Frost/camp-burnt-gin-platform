@@ -77,7 +77,6 @@ class PhiAuditingTest extends TestCase
         $admin = $this->createAdmin();
         $camper = Camper::factory()->create();
         Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);

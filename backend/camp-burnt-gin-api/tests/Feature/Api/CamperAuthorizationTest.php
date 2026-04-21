@@ -67,7 +67,6 @@ class CamperAuthorizationTest extends TestCase
         $campers = Camper::factory()->count(3)->forUser($parent)->create();
         foreach ($campers as $camper) {
             Application::factory()->for($camper)->for($session, 'campSession')->create([
-                'is_draft' => false,
                 'status' => ApplicationStatus::Submitted,
                 'submitted_at' => now(),
             ]);
@@ -99,7 +98,6 @@ class CamperAuthorizationTest extends TestCase
         $camper = Camper::factory()->forUser($parent)->create();
         // Must have a submitted application for admin to access the full record.
         Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->create([
-            'is_draft' => false,
             'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);

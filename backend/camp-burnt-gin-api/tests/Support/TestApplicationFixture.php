@@ -19,7 +19,7 @@ use App\Models\Document;
  *   TestApplicationFixture::buildCamperMinimum($camper);
  *   $app = Application::factory()->create([
  *       'camper_id'         => $camper->id,
- *       'is_draft'          => true,
+ *       'status' => 'draft',
  *       'signed_at'         => now(),
  *       'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
  *       ...

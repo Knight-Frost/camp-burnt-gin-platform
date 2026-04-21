@@ -50,7 +50,7 @@ class CamperPolicy
         // submitting. super_admin follows the same rule; neither role is an exception.
         if ($user->isAdmin()) {
             return $camper->applications()
-                ->where('is_draft', false)
+                ->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)
                 ->exists();
         }
 

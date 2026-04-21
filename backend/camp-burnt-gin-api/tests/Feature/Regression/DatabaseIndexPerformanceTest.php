@@ -67,12 +67,14 @@ class DatabaseIndexPerformanceTest extends TestCase
         $this->assertContains('applications_reviewed_at_index', $indexNames);
     }
 
-    public function test_applications_is_draft_index_exists(): void
+    public function test_applications_status_index_exists(): void
     {
         $indexes = Schema::getIndexes('applications');
         $indexNames = array_column($indexes, 'name');
 
-        $this->assertContains('applications_is_draft_index', $indexNames);
+        // is_draft index was dropped in Phase 8 (migration 2026_04_20_000004).
+        // Status-based filtering is covered by the status_session composite index.
+        $this->assertContains('applications_status_session', $indexNames);
     }
 
     public function test_applications_status_session_composite_index_exists(): void
@@ -150,12 +152,11 @@ class DatabaseIndexPerformanceTest extends TestCase
 
     public function test_application_draft_filtering_works_correctly(): void
     {
-        Application::factory()->count(3)->create(['is_draft' => true]);
-        Application::factory()->count(2)->create(['is_draft' => false]);
+        Application::factory()->count(3)->draft()->create();
+        Application::factory()->count(2)->create();
 
-        // Query using draft index
-        $drafts = Application::where('is_draft', true)->get();
-        $submitted = Application::where('is_draft', false)->get();
+        $drafts = Application::draft()->get();
+        $submitted = Application::submitted()->get();
 
         $this->assertCount(3, $drafts);
         $this->assertCount(2, $submitted);

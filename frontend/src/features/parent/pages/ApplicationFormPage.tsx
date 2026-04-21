@@ -5389,14 +5389,11 @@ export function ApplicationFormPage() {
       }
 
       // ── Step 10: Create application record as a draft ────────────────────
-      // IMPORTANT: we always start as is_draft=true here so the application is
-      // invisible to the admin review queue while steps 11–13 attach documents,
-      // signature, and consents. Step 14 (finalizeApplication) atomically flips
-      // is_draft=false after running a full backend completeness check.
+      // Backend defaults status='draft'. finalizeApplication() transitions to
+      // status='submitted' after a full completeness check on step 14.
       const application = await createApplication({
         camper_id:                        camperId,
         session_id:                       Number(form.s1.session_id),
-        is_draft:                         true,
         first_application:                form.s1.first_application || undefined,
         attended_before:                  form.s1.attended_before || undefined,
         session_id_second:                form.s1.session_id_2nd !== '' ? Number(form.s1.session_id_2nd) : undefined,

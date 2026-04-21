@@ -683,7 +683,7 @@ class AuditLogSeeder extends Seeder
             'ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'meta' => ['camper_name' => 'Ava Williams', 'session_name' => 'Session 2 — Summer 2026', 'submitted_by' => 'applicant'],
             'old' => null,
-            'new' => ['status' => 'pending', 'is_draft' => false],
+            'new' => ['status' => 'submitted'],
             'at' => now()->subDays(3)->setTime(21, 10, 00),
         ]);
 

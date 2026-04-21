@@ -35,6 +35,7 @@ import { SessionHeroBanner } from '@/features/sessions/components/SessionHeroBan
 type AppStatus = FamilyCard['application_statuses'][number];
 
 const STATUS_STYLE: Record<AppStatus, { bg: string; color: string }> = {
+  draft:        { bg: 'rgba(107,114,128,0.12)', color: '#374151' },
   submitted:    { bg: 'rgba(37,99,235,0.10)',   color: '#1d4ed8' },
   under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
   approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },

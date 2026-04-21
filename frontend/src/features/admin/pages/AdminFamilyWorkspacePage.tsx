@@ -40,6 +40,7 @@ import type { FamilyWorkspace, FamilyWorkspaceCamper, FamilyWorkspaceApplication
 type AppStatus = FamilyWorkspaceApplication['status'];
 
 const STATUS_STYLE: Record<AppStatus, { bg: string; color: string }> = {
+  draft:        { bg: 'rgba(107,114,128,0.12)', color: '#374151' },
   submitted:    { bg: 'rgba(37,99,235,0.10)',   color: '#1d4ed8' },
   under_review: { bg: 'rgba(37,99,235,0.12)',   color: '#2563eb' },
   approved:     { bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
@@ -78,7 +79,7 @@ function ApplicationRow({
   applicationBase: string;
 }) {
   const { t } = useTranslation();
-  const isDraft     = application.is_draft === true;
+  const isDraft     = application.status === 'draft';
   const isTerminal  = ['cancelled', 'withdrawn'].includes(application.status);
 
   return (
@@ -141,7 +142,7 @@ function CamperCard({
   // Sort: active/review first, then approved, then terminal (cancelled/withdrawn/draft).
   const SORT_ORDER: Record<AppStatus, number> = {
     under_review: 0, submitted: 1, waitlisted: 2, approved: 3,
-    rejected: 4, cancelled: 5, withdrawn: 6,
+    rejected: 4, cancelled: 5, withdrawn: 6, draft: 7,
   };
   const sortedApps = [...camper.applications].sort(
     (a, b) => (SORT_ORDER[a.status] ?? 9) - (SORT_ORDER[b.status] ?? 9)
