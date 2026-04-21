@@ -90,7 +90,8 @@ class ReportController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'total_campers' => Camper::count(),
+                // Only campers with at least one approved application — true enrolled population.
+                'total_campers' => Camper::active()->count(),
                 // Exclude unsubmitted drafts — they are not real applications.
                 'total_applications' => Application::submitted()->count(),
                 // Full breakdown map, e.g. {"submitted": 12, "approved": 45, "rejected": 3}

@@ -52,10 +52,11 @@ class CamperController extends Controller
         if ($user->isAdmin()) {
             // Confirm this admin is allowed to list all campers via CamperPolicy.
             $this->authorize('viewAny', Camper::class);
-            // Only surface campers whose families have at least one formally-submitted
-            // application. Pre-submission campers are private to the family.
-            // Eager-load only the non-draft applications — PHI lives in show(), not here.
-            $query = Camper::whereHas('applications', fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value))
+            // Camper Directory shows only enrolled campers — children with at least one
+            // approved application (is_active=true). Children with pending or submitted
+            // applications are NOT yet campers under the domain model; they appear on
+            // the Applications and Families pages instead.
+            $query = Camper::active()
                 ->with([
                     'user',
                     'applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->with('campSession'),

@@ -115,7 +115,8 @@ class FamilyController extends Controller
         $activeStatuses = ['submitted', 'under_review', 'waitlisted', 'approved'];
         $matchingUserIds = $applyFilters(User::query())->select('id');
 
-        $summaryTotalCampers = Camper::whereIn('user_id', $matchingUserIds)->count();
+        // Count only enrolled campers (is_active=true = has approved application).
+        $summaryTotalCampers = Camper::whereIn('user_id', $matchingUserIds)->where('is_active', true)->count();
 
         $summaryActiveApps = Application::whereIn(
             'camper_id',

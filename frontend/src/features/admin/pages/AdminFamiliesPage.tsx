@@ -326,9 +326,9 @@ export function AdminFamiliesPage() {
             tooltip="Total number of family accounts created for this session."
           />
           <StatCard
-            label="Registered Campers"
+            label="Enrolled Campers"
             value={summary.total_campers}
-            tooltip="Total number of campers with submitted applications."
+            tooltip="Total children with an approved enrollment."
           />
           <StatCard
             label="Active Applications"

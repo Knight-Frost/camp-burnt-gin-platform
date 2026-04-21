@@ -361,8 +361,8 @@ export function AdminDashboardPage() {
                   {familyStats?.registered_campers ?? '—'}
                 </p>
                 <p className="text-xs mt-1.5 leading-snug flex items-center" style={{ color: 'var(--muted-foreground)' }}>
-                  Registered Campers
-                  <MetricTooltip text={`Total campers with submitted applications across ${tooltipScope}.`} />
+                  Enrolled Campers
+                  <MetricTooltip text={`Total children with an approved enrollment across ${tooltipScope}.`} />
                 </p>
               </div>
             </div>

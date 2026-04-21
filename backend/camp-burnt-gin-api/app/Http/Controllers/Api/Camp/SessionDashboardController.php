@@ -86,15 +86,18 @@ class SessionDashboardController extends Controller
             ]);
 
         // ── Family / camper registration metrics ────────────────────────────────
-        // registered_families: distinct parent accounts with any application (including drafts)
+        // registered_families: distinct parent accounts with at least one formally submitted
+        // application (drafts excluded — a draft is not a registration).
         $registeredFamilies = Application::where('camp_session_id', $session->id)
+            ->where('status', '!=', ApplicationStatus::Draft->value)
             ->join('campers', 'applications.camper_id', '=', 'campers.id')
             ->distinct()
             ->count('campers.user_id');
 
-        // registered_campers: distinct camper IDs with at least one submitted application
+        // registered_campers: enrolled campers — those with an approved application for
+        // this session. Submitted/under_review/waitlisted are not yet enrolled.
         $registeredCampers = Application::where('camp_session_id', $session->id)
-            ->where('status', '!=', ApplicationStatus::Draft->value)
+            ->where('status', ApplicationStatus::Approved->value)
             ->distinct()
             ->count('camper_id');
 

@@ -58,16 +58,16 @@ class CamperAuthorizationTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_admin_can_view_all_campers(): void
+    public function test_admin_can_view_enrolled_campers(): void
     {
         $admin = $this->createAdmin();
         $parent = $this->createParent();
         $session = CampSession::factory()->create();
-        // Admin may only see campers with at least one submitted application.
-        $campers = Camper::factory()->count(3)->forUser($parent)->create();
+        // Camper Directory shows only enrolled campers (is_active=true = approved application).
+        $campers = Camper::factory()->count(3)->active()->forUser($parent)->create();
         foreach ($campers as $camper) {
             Application::factory()->for($camper)->for($session, 'campSession')->create([
-                'status' => ApplicationStatus::Submitted,
+                'status' => ApplicationStatus::Approved,
                 'submitted_at' => now(),
             ]);
         }
@@ -78,16 +78,26 @@ class CamperAuthorizationTest extends TestCase
             ->assertJsonCount(3, 'data');
     }
 
-    public function test_admin_cannot_view_campers_without_submitted_application(): void
+    public function test_admin_cannot_view_non_enrolled_campers_in_directory(): void
     {
         $admin = $this->createAdmin();
         $parent = $this->createParent();
-        // Camper with only a draft application — must not appear in admin directory.
-        $camper = Camper::factory()->forUser($parent)->create();
-        Application::factory()->for($camper)->for(CampSession::factory()->create(), 'campSession')->draft()->create();
+        $session = CampSession::factory()->create();
+
+        // Draft-only camper — never enrolled, must not appear.
+        $draftCamper = Camper::factory()->forUser($parent)->create();
+        Application::factory()->for($draftCamper)->for($session, 'campSession')->draft()->create();
+
+        // Submitted-but-not-approved camper — pending, not yet enrolled.
+        $submittedCamper = Camper::factory()->forUser($parent)->create();
+        Application::factory()->for($submittedCamper)->for(CampSession::factory()->create(), 'campSession')->create([
+            'status' => ApplicationStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
 
         $response = $this->actingAs($admin)->getJson('/api/campers');
 
+        // Neither draft nor submitted applications qualify as enrolled — directory must be empty.
         $response->assertStatus(200)->assertJsonCount(0, 'data');
     }
 

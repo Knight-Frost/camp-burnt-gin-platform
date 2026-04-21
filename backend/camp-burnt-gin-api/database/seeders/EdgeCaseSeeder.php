@@ -116,11 +116,19 @@ class EdgeCaseSeeder extends Seeder
         // Backfill submitted_at for any non-draft application that was created above without it.
         // Each scenario above uses firstOrCreate() so this is idempotent — rows that already have
         // submitted_at set are not touched. Using created_at preserves the original insert timestamp.
-        $affected = DB::statement(
+        DB::statement(
             "UPDATE applications SET submitted_at = created_at WHERE status != 'draft' AND submitted_at IS NULL"
         );
 
-        $this->command->info('EdgeCaseSeeder: 14 edge-case scenarios seeded (submitted_at backfilled).');
+        // Backfill is_active on campers that have an approved application.
+        // EC scenarios bypass ApplicationService, so the flag must be set here to keep
+        // domain state consistent: is_active=true ↔ has approved application.
+        $approvedCamperIds = Application::where('status', ApplicationStatus::Approved)
+            ->pluck('camper_id')
+            ->unique();
+        Camper::whereIn('id', $approvedCamperIds)->update(['is_active' => true]);
+
+        $this->command->info('EdgeCaseSeeder: 14 edge-case scenarios seeded (submitted_at + is_active backfilled).');
     }
 
     // ── EC-001 ── No emergency contact ─────────────────────────────────────────
