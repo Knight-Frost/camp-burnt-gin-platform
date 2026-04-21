@@ -32,6 +32,8 @@ import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import {
   getApplications,
+  getDrafts,
+  getApplicationLifecycleIds,
   deleteApplication as apiDeleteApplication,
 } from '@/features/parent/api/applicant.api';
 import type { Application, ApplicationStatus, Camper } from '@/shared/types';
@@ -166,6 +168,39 @@ function AppCard({
   const navigate = useNavigate();
   const isDraft = app.is_draft === true;
   const isTerminal = !isDraft && TERMINAL_STATUSES_SET.has(app.status);
+  const [resuming, setResuming] = useState(false);
+
+  async function handleContinueDraft() {
+    if (resuming) return;
+    setResuming(true);
+    try {
+      // Resolve the full lifecycle state needed by ApplicationFormPage in parallel.
+      // getDrafts() finds the blob (application_id === app.id) so the form can
+      // hydrate saved data from the server draft. getApplicationLifecycleIds()
+      // provides the singleton-relation IDs for per-section flush calls.
+      const [ids, blobs] = await Promise.all([
+        getApplicationLifecycleIds(app.id),
+        getDrafts(),
+      ]);
+      const blob = blobs.find((d) => d.application_id === app.id);
+      navigate(ROUTES.PARENT_APPLICATION_NEW, {
+        state: {
+          draftId:             blob?.id,
+          applicationId:       ids.application_id,
+          camperId:            ids.camper_id,
+          medicalRecordId:     ids.medical_record_id,
+          behavioralProfileId: ids.behavioral_profile_id,
+          feedingPlanId:       ids.feeding_plan_id,
+        },
+      });
+    } catch {
+      // If lifecycle resolution fails (network error), navigate with what we know.
+      // The form will still open; section-flush calls will use the applicationId.
+      navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { applicationId: app.id } });
+    } finally {
+      setResuming(false);
+    }
+  }
 
   return (
     <li>
@@ -215,9 +250,10 @@ function AppCard({
             <>
               <Button
                 size="sm"
-                onClick={() => navigate(ROUTES.PARENT_APPLICATION_DETAIL(app.id))}
+                onClick={() => { void handleContinueDraft(); }}
+                disabled={resuming}
               >
-                Continue
+                {resuming ? 'Loading…' : 'Continue'}
               </Button>
               {onDeleteDraft && (
                 <button
@@ -657,7 +693,7 @@ export function ApplicantApplicationsPage() {
                         className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full"
                         style={{ background: 'var(--border)', color: 'var(--muted-foreground)' }}
                       >
-                        {draftApps.length + (localDraft ? 1 : 0)}
+                        {draftApps.length > 0 ? draftApps.length : (localDraft ? 1 : 0)}
                       </span>
                     </div>
                     {/* LocalDraftCard is a fallback for pre-server-draft sessionStorage drafts */}
