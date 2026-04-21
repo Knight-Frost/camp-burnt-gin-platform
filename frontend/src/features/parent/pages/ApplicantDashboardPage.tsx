@@ -14,15 +14,16 @@
  */
 
 import { useEffect, useState, type ComponentType } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin,
-  Bell, MessageSquare, CheckCircle, Clock, AlertCircle, Upload, XCircle,
+  Bell, MessageSquare, CheckCircle, Clock, AlertCircle, Upload, XCircle, Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
 
-import { getCampers, getApplications, getDrafts, getRequiredDocuments, getDocumentRequests, type ApplicationDraft, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
+import { getCampers, getApplications, getDrafts, getRequiredDocuments, getDocumentRequests, deleteCamper, type ApplicationDraft, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
 import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application } from '@/shared/types';
@@ -42,6 +43,7 @@ import { Avatar } from '@/ui/components/Avatar';
 export function ApplicantDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAppSelector((state) => state.auth.user);
 
   const [localDraftName, setLocalDraftName]     = useState<string | null | undefined>(undefined); // undefined = not yet checked
@@ -108,7 +110,10 @@ export function ApplicantDashboardPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [retryKey]);
+  // location.key changes on every navigation to this route, ensuring the camper
+  // list is always fresh — this is the primary guard against stale state after
+  // a deletion on another page (e.g. deleting a draft on ApplicationStartPage).
+  }, [retryKey, location.key]);
 
   // Load server drafts to surface a "Continue" prompt on the dashboard.
   useEffect(() => {
@@ -130,6 +135,19 @@ export function ApplicantDashboardPage() {
         } catch { setLocalDraftName(null); }
       });
   }, [user?.id]);
+
+  const TERMINAL_STATUSES = ['rejected', 'withdrawn', 'cancelled'];
+
+  async function handleDeleteCamper(camper: Camper) {
+    if (!window.confirm(`Remove ${camper.full_name} from your account?\n\nThis cannot be undone.`)) return;
+    try {
+      await deleteCamper(camper.id);
+      setCampers((prev) => prev.filter((c) => c.id !== camper.id));
+      toast.success(`${camper.full_name} has been removed.`);
+    } catch {
+      toast.error('Could not remove this camper. Please try again.');
+    }
+  }
 
   const pendingCount = applications.filter((a) => a.status === 'submitted' || a.status === 'under_review').length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
@@ -195,8 +213,17 @@ export function ApplicantDashboardPage() {
               // Multiple drafts — go to the applications list so the user can choose
               navigate(ROUTES.PARENT_APPLICATIONS);
             } else if (serverDrafts.length === 1) {
-              // Single draft — open it directly in the form
-              navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { draftId: serverDrafts[0].id } });
+              // Single draft — open it directly in the form.
+              // application_id is required by the form's lifecycle guard; include it
+              // whenever the draft blob has one (i.e. was created via initializeDraft).
+              navigate(ROUTES.PARENT_APPLICATION_NEW, {
+                state: {
+                  draftId: serverDrafts[0].id,
+                  ...(serverDrafts[0].application_id != null && {
+                    applicationId: serverDrafts[0].application_id,
+                  }),
+                },
+              });
             } else {
               navigate(ROUTES.PARENT_APPLICATION_NEW);
             }
@@ -352,6 +379,19 @@ export function ApplicantDashboardPage() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {latestApp && <StatusBadge status={latestApp.status} />}
+
+                      {/* Delete button — only when no active applications */}
+                      {camperApps.every((a) => TERMINAL_STATUSES.includes(a.status)) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCamper(camper)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          style={{ color: 'var(--muted-foreground)' }}
+                          aria-label={`Remove ${camper.full_name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
 
                       {/* ── Primary reapplication entry point ──────────────────
                           Visible on every registered camper card. The modal

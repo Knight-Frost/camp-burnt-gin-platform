@@ -45,6 +45,7 @@ import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import { Button } from '@/ui/components/Button';
 import { useAppSelector } from '@/store/hooks';
+import { toast } from 'sonner';
 
 type ViewMode = 'all' | 'active' | 'past';
 type SortOrder = 'newest' | 'oldest';
@@ -194,9 +195,10 @@ function AppCard({
         },
       });
     } catch {
-      // If lifecycle resolution fails (network error), navigate with what we know.
-      // The form will still open; section-flush calls will use the applicationId.
-      navigate(ROUTES.PARENT_APPLICATION_NEW, { state: { applicationId: app.id } });
+      // If lifecycle resolution fails, send the user to the start page rather than
+      // opening the form without singleton IDs — without camperId the form's section
+      // flush calls silently skip every write, giving the user a false sense of saving.
+      navigate(ROUTES.PARENT_APPLICATION_START);
     } finally {
       setResuming(false);
     }
@@ -374,8 +376,10 @@ function LocalDraftCard({ camperName, onDelete }: { camperName: string | null; o
         </div>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* "Continue" navigates back to the form, which re-hydrates from sessionStorage */}
-        <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_NEW)}>
+        {/* Legacy sessionStorage-only draft — redirect to start page so the user
+            gets a proper applicationId before entering the form. The sessionStorage
+            data will be merged via mergeDraft() once initialization completes. */}
+        <Button size="sm" onClick={() => navigate(ROUTES.PARENT_APPLICATION_START)}>
           Continue
         </Button>
         <button
@@ -506,9 +510,20 @@ export function ApplicantApplicationsPage() {
         await apiDeleteApplication(deleteTarget.app.id);
         setApplications((prev) => prev.filter((a) => a.id !== deleteTarget.app.id));
       }
-    } catch { /* record already gone */ }
-    setDeleteLoading(false);
-    setDeleteTarget(null);
+      setDeleteTarget(null);
+    } catch (err: unknown) {
+      const e = err as { message?: string; status?: number };
+      if (e?.status === 404 && deleteTarget?.type === 'application') {
+        // Already deleted — treat as success and clean up the list
+        setApplications((prev) => prev.filter((a) => a.id !== deleteTarget.app.id));
+        setDeleteTarget(null);
+      } else {
+        toast.error(e?.message ?? 'Could not delete application. Please try again.');
+        // Leave the modal open so the user sees the failure.
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
   }
 
   // Derive the filtered + sorted list without modifying state directly (useMemo)

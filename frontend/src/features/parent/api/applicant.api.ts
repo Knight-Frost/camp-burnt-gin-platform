@@ -26,6 +26,10 @@ export async function getCamper(id: number): Promise<Camper> {
   return data.data;
 }
 
+export async function deleteCamper(id: number): Promise<void> {
+  await axiosInstance.delete(`/campers/${id}`);
+}
+
 export interface CreateCamperPayload {
   first_name: string;
   last_name: string;
@@ -235,6 +239,8 @@ export async function initializeDraftApplication(payload: {
   first_name?: string;
   last_name?: string;
   date_of_birth?: string;
+  /** Intake channel. Applicants may only pass 'paper_self'. Defaults to 'digital'. */
+  submission_source?: 'digital' | 'paper_self';
 }): Promise<InitializeDraftResponse> {
   const { data } = await axiosInstance.post<ApiResponse<InitializeDraftResponse>>(
     '/applications/initialize-draft',
@@ -651,10 +657,10 @@ export interface UpdateCamperPayload {
   county?: string;
   needs_interpreter?: boolean;
   preferred_language?: string;
-  camper_address?: string;
-  camper_city?: string;
-  camper_state?: string;
-  camper_zip?: string;
+  applicant_address?: string;
+  applicant_city?: string;
+  applicant_state?: string;
+  applicant_zip?: string;
 }
 export async function updateCamperProfile(id: number, payload: UpdateCamperPayload): Promise<void> {
   await axiosInstance.put(`/campers/${id}`, payload);
@@ -745,6 +751,7 @@ export interface UpdateAllergyPayload {
   severity?: string;
   reaction?: string;
   treatment?: string;
+  epi_pen?: boolean;
 }
 export async function updateAllergy(id: number, payload: UpdateAllergyPayload): Promise<void> {
   await axiosInstance.put(`/allergies/${id}`, payload);
@@ -783,6 +790,10 @@ export async function updateMedication(id: number, payload: UpdateMedicationPayl
 /** Update the Application's narrative fields + sections_reviewed + admin notes. */
 export interface UpdateApplicationPayload {
   notes?: string;
+  session_id?: number;
+  session_id_second?: number | null;
+  first_application?: boolean;
+  attended_before?: boolean;
   narrative_rustic_environment?: string;
   narrative_staff_suggestions?: string;
   narrative_participation_concerns?: string;
@@ -803,7 +814,7 @@ export async function updateApplication(id: number, payload: UpdateApplicationPa
  * rows by natural key. Additional properties may be present; only the
  * ones listed here are consumed by the sync logic.
  */
-export interface ServerEmergencyContact { id: number; name?: string; relationship?: string; phone_primary?: string }
+export interface ServerEmergencyContact { id: number; name?: string; relationship?: string; phone_primary?: string; is_guardian?: boolean }
 export interface ServerDiagnosis { id: number; name?: string; notes?: string }
 export interface ServerAllergy { id: number; allergen?: string; severity?: string; reaction?: string; treatment?: string }
 export interface ServerAssistiveDevice { id: number; device_type?: string; requires_transfer_assistance?: boolean; notes?: string }
@@ -902,6 +913,17 @@ export interface Document {
 
 export async function getDocuments(): Promise<Document[]> {
   const { data } = await axiosInstance.get<{ data: Document[] }>('/documents');
+  return data.data ?? [];
+}
+
+/** Fetch only documents belonging to a specific Application. */
+export async function getApplicationDocuments(applicationId: number): Promise<Document[]> {
+  const { data } = await axiosInstance.get<{ data: Document[] }>('/documents', {
+    params: {
+      documentable_type: 'App\\Models\\Application',
+      documentable_id: applicationId,
+    },
+  });
   return data.data ?? [];
 }
 

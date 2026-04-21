@@ -35,6 +35,7 @@ import {
   initializeDraftApplication,
   getApplicationLifecycleIds,
   deleteDraft as apiDeleteDraft,
+  deleteApplication as apiDeleteApplication,
   type ApplicationDraft,
 } from '@/features/parent/api/applicant.api';
 import type { Session } from '@/shared/types';
@@ -155,7 +156,10 @@ export function ApplicationStartPage() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const userId = useAppSelector((state) => state.auth.user?.id);
-  const draftKey = `cbg_app_draft_${userId ?? 'anon'}`;
+  const draftKey         = `cbg_app_draft_${userId ?? 'anon'}`;
+  // Must match the key in ApplicationFormPage — cleared here so a failed
+  // prior submission's camper ID never bleeds into a new application.
+  const pendingCamperKey = `cbg_pending_camper_${userId ?? 'anon'}`;
 
   const [sessions, setSessions]                 = useState<Session[]>([]);
   const [selectedSession, setSelectedSession]   = useState<Session | null>(null);
@@ -192,10 +196,12 @@ export function ApplicationStartPage() {
       });
 
       const draft = await createDraft('New Application', init.application_id);
-      // Clear any stale draft from a previous application so the new form
-      // always starts empty — regardless of whether the server fetch later
-      // succeeds or fails.
+      // Clear all stale form state so the new form always starts empty.
+      // pendingCamperKey must be cleared too — a partial submission from a
+      // previous application stores a camper_id here, and leaving it would
+      // cause the new form's legacy waterfall to write against the wrong camper.
       sessionStorage.removeItem(draftKey);
+      sessionStorage.removeItem(pendingCamperKey);
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
         state: {
           language,
@@ -210,10 +216,10 @@ export function ApplicationStartPage() {
       });
     } catch {
       // Server draft creation failed — fall back to sessionStorage-only mode.
-      // Still clear stale data so a previous camper's info cannot pre-fill
-      // this new application.
+      // Clear both keys so a previous camper's info cannot pre-fill this form.
       i18n.changeLanguage(language === 'spanish' ? 'es' : 'en');
       sessionStorage.removeItem(draftKey);
+      sessionStorage.removeItem(pendingCamperKey);
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
         state: { language, sessionId: selectedSession.id },
       });
@@ -238,6 +244,9 @@ export function ApplicationStartPage() {
         return;
       }
       const ids = await getApplicationLifecycleIds(draft.application_id);
+      // Clear the pending camper from any prior failed submission so it cannot
+      // bleed into this resumed application's legacy waterfall path.
+      sessionStorage.removeItem(pendingCamperKey);
       navigate(ROUTES.PARENT_APPLICATION_NEW, {
         state: {
           draftId,
@@ -255,10 +264,22 @@ export function ApplicationStartPage() {
     }
   }
 
-  async function handleDeleteDraft(draftId: number, label: string) {
+  async function handleDeleteDraft(draftId: number, label: string, applicationId?: number | null) {
     if (!window.confirm(`Delete "${label}"?\n\nThis will permanently delete this draft application. This cannot be undone.`)) return;
     try {
       await apiDeleteDraft(draftId);
+      // If the blob is linked to a real draft Application row, delete that too so
+      // it does not appear as a dangling draft card in ApplicantApplicationsPage.
+      if (applicationId) {
+        await apiDeleteApplication(applicationId).catch((err: unknown) => {
+          // 403 = already submitted / policy block; the application stays as a
+          // permanent record (correct behavior). All other failures are re-thrown
+          // so the outer catch shows a toast — a silent swallow here means the
+          // Camper stub is never cascade-deleted and resurfaces in the dashboard.
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status !== 403) throw err;
+        });
+      }
       setServerDrafts((prev) => prev.filter((d) => d.id !== draftId));
       // Also clear any matching sessionStorage draft
       sessionStorage.removeItem(draftKey);
@@ -734,7 +755,7 @@ export function ApplicationStartPage() {
                             <Button
                               size="sm"
                               variant="secondary"
-                              onClick={() => handleDeleteDraft(draft.id, draft.label)}
+                              onClick={() => handleDeleteDraft(draft.id, draft.label, draft.application_id)}
                               aria-label={`Delete draft: ${draft.label}`}
                             >
                               <Trash2 className="h-3.5 w-3.5 text-red-500" />
