@@ -131,7 +131,7 @@ export function ApplicantDashboardPage() {
       });
   }, [user?.id]);
 
-  const pendingCount = applications.filter((a) => a.status === 'submitted' || a.status === 'under_review').length;
+  const pendingCount = applications.filter((a) => !a.is_draft && (a.status === 'submitted' || a.status === 'under_review')).length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
   const activityFeed = buildActivityFeed(conversations, applications, campers, documentRequests, user?.id);
@@ -538,8 +538,12 @@ function buildActivityFeed(
     });
   }
 
-  // Applications: most recently updated
+  // Applications: most recently updated. Drafts are excluded — they have a
+  // dedicated in-progress banner on the dashboard and must not appear as
+  // "Application submitted" events since their status='submitted' is a
+  // backend implementation detail, not a real submission action.
   for (const app of applications) {
+    if (app.is_draft) continue;
     const camper = campers.find((c) => c.id === app.camper_id);
     const camperName = camper ? `${camper.first_name} ${camper.last_name}` : 'Camper';
     const sessionName = app.session?.name ?? null;

@@ -449,8 +449,10 @@ export function ApplicantApplicationDetailPage() {
         )}
       </div>
 
-      {/* What's Next — status-specific guidance including medical form requirement */}
-      {application && (
+      {/* What's Next — status-specific guidance. Hidden for drafts: the draft
+          notice above already handles that state, and status='submitted' on
+          a draft record must not render the "awaiting review" block. */}
+      {application && !application.is_draft && (
         <div>
           <SectionCard
             title={application.status === 'approved' ? 'You\'re In!' : 'What Happens Next'}
@@ -561,8 +563,8 @@ export function ApplicantApplicationDetailPage() {
             </button>
           )}
 
-          {/* Withdraw button — only visible when the application is still withdrawable. */}
-          {application && ['submitted', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
+          {/* Withdraw button — only visible on submitted (non-draft) applications. */}
+          {application && !application.is_draft && ['submitted', 'under_review', 'approved', 'waitlisted'].includes(application.status) && (
             <button
               onClick={handleWithdraw}
               disabled={withdrawing}
