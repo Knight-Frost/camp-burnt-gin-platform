@@ -3,7 +3,7 @@
 **Project:** Camp Burnt Gin (Laravel 12 + React 18 TypeScript)
 **Classification:** HIPAA-sensitive — PHI data handled throughout
 **Restructured:** 2026-04-20 (Form Builder Forensic Audit — BUG-208–213 found and resolved)
-**Last Entry:** BUG-207 Resolved (2026-04-20, Draft System Hardening)
+**Last Entry:** BUG-246 Resolved (2026-04-21, Documents Forensic Audit)
 **Authoritative State:** Master Index (this file)
 
 ---
@@ -12,26 +12,26 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Tracked | 129 |
-| Critical | 32 |
-| High | 51 |
-| Medium | 27 |
-| Low | 19 |
-| Resolved | 125 |
-| Open | 4 |
+| Total Tracked | 151 |
+| Critical | 34 |
+| High | 55 |
+| Medium | 29 |
+| Low | 20 |
+| Resolved | 145 |
+| Open | 6 |
 | In Progress | 0 |
 
 ### Status Distribution by Severity
 
 | Severity | Total | Resolved | Open | Pct Resolved |
 |----------|-------|----------|------|--------------|
-| Critical | 32 | 29 | 3 | 91% |
-| High | 51 | 50 | 1 | 98% |
+| Critical | 34 | 31 | 3 | 91% |
+| High | 53 | 52 | 1 | 98% |
 | Medium | 27 | 25 | 2 | 93% |
 | Low | 19 | 21 | -2 | — |
-| **Total** | **129** | **125** | **4** | **97%** |
+| **Total** | **133** | **129** | **4** | **97%** |
 
-> BUG-204–207 resolved 2026-04-20 (draft system hardening). Remaining open: BUG-031, 032 (password policy), BUG-033 (role filter labels), and one Critical/High TBD. Low severity row shows -2 due to pre-existing dashboard undercounting — the four Low bugs (204–206) were tracked as Open but not reflected in the Low subtotal.
+> BUG-240–242 resolved 2026-04-20 (Application Isolation + Camper Lifecycle Forensic Audits). Remaining open: BUG-031, 032 (password policy), BUG-033 (role filter labels).
 
 ---
 
@@ -116,6 +116,10 @@ flowchart TD
 | Document Architecture | 2026-04-10 | Inline verification, paper workflow, archive system | BUG-181–191 |
 | Document Naming Audit | 2026-04-11 | Label divergence, i18n, seeder keys | BUG-192–201 |
 | Draft System Stress Test | 2026-04-12 | Policy, buttons, limits, hydration race | BUG-202–207 (202–203 resolved; 204–207 open) |
+| Paper Forms Forensic Audit | 2026-04-20 | Session selection, source classification, finalization deadlock | BUG-232–236 |
+| Paper Forms Multi-Camper Redesign | 2026-04-20 | Single-app lock, unscoped doc fetch, no "Start New" path | BUG-237–239 |
+| Application Isolation Forensic Audit | 2026-04-20 | Cross-camper idempotency, sessionStorage slot collision, pendingCamper bleed | BUG-240–241 |
+| Camper Lifecycle Forensic Audit | 2026-04-20 | Orphaned stub campers, ghost "New Camper" phantom, stale dashboard state | BUG-242 |
 
 ---
 
@@ -133,8 +137,11 @@ The following systemic patterns account for clusters of bugs across the system. 
 | Token / session storage inconsistency (localStorage vs sessionStorage) | BUG-051, 075, 172 | All Resolved |
 | Seeder using non-canonical document type keys | BUG-195, 196, 197 | All Resolved |
 | Hard-delete used on PHI-adjacent tables (missing SoftDeletes) | BUG-161, 168 | All Resolved |
-| Frontend state not resyncing after server operations | BUG-151, 139, 207 | All Resolved |
+| Frontend state not resyncing after server operations | BUG-151, 139, 207, 242 | All Resolved |
 | Backend endpoints missing rate / size guards | BUG-106, 204, 205 | All Resolved |
+| Idempotency key too broad — missing camper discriminator | BUG-234, 240 | All Resolved |
+| Orphaned stub records not cleaned up on parent deletion | BUG-242 | Resolved |
+| sessionStorage scoped to user not application — cross-app slot collision | BUG-241 | Resolved |
 
 ---
 
@@ -2835,26 +2842,241 @@ Removed the entire `frontend/src/features/provider/` directory.
 
 ---
 
+## Application Feature Forensic Audit (2026-04-20)
+
+_Bugs BUG-214 through BUG-225 found and fixed during full forensic audit of the Application feature._
+
+---
+
+### BUG-214
+
+**Title:** `submitDraftApplication()` uses PATCH but route registers only PUT
+**Module:** Backend Routes / Frontend API
+**Severity:** Critical
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `applicant.api.ts` sends `PATCH /api/applications/{id}` with `{submit: true}` to promote a draft. The router only registered `Route::put(...)`, causing 405 Method Not Allowed on every parent-initiated submission from the detail page.
+
+**Fix:** Changed route to `Route::match(['PUT', 'PATCH'], ...)` in `routes/api.php`.
+
+**Affected files:**
+- `backend/.../routes/api.php`
+
+---
+
+### BUG-215
+
+**Title:** `sections_reviewed` stripped by `UpdateApplicationRequest` — optional section attestations never persist
+**Module:** Backend Request Validation
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `stampSectionReviewed()` in `ApplicationFormPage.tsx` calls `updateApplication(id, { sections_reviewed: {...} })`. `UpdateApplicationRequest::rules()` did not include this field, so `$request->validated()` silently dropped it every call. The completeness engine's "data or reviewed" rule for equipment, behavior, diet, medications, and narratives could never be satisfied via attestation alone.
+
+**Fix:** Added `sections_reviewed` rule to `UpdateApplicationRequest`. Also added `prepareForValidation()` to map `session_id` → `camp_session_id`, and added rules for `camp_session_id`, `camp_session_id_second`, `first_application`, `attended_before`.
+
+**Affected files:**
+- `backend/.../Requests/Application/UpdateApplicationRequest.php`
+
+---
+
+### BUG-216
+
+**Title:** `camper_address` / `applicant_address` field name mismatch — applicant address cannot be updated after initial creation
+**Module:** Frontend API / Backend Validation
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `UpdateCamperPayload` used `camper_address`, `camper_city`, `camper_state`, `camper_zip`. `UpdateCamperRequest` validates `applicant_address`, `applicant_city`, `applicant_state`, `applicant_zip`. No `prepareForValidation()` alias existed. The `camper_*` variants were silently stripped by validation on every update, making the applicant's mailing address permanently locked after camper creation.
+
+**Fix:** Renamed `camper_address/city/state/zip` → `applicant_address/city/state/zip` in `UpdateCamperPayload`.
+
+**Affected files:**
+- `frontend/.../api/applicant.api.ts`
+
+---
+
+### BUG-217
+
+**Title:** Fast path never writes session_id / first_application / attended_before to the Application record
+**Module:** Frontend Form
+**Severity:** Critical
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `flushSection(case 0)` only called `updateCamperProfile()`. Session selection (`form.s1.session_id`, `session_id_2nd`) and meta flags (`first_application`, `attended_before`) are Application-model fields, not Camper fields. These were never synced to the server during section transitions. Any user who changed their session choice after initialization would submit against the initialization-time session.
+
+**Fix:** Added `updateApplication(applicationId, { session_id, session_id_second, first_application, attended_before })` call to `flushSection(case 0)`.
+
+**Affected files:**
+- `frontend/.../pages/ApplicationFormPage.tsx`
+
+---
+
+### BUG-218
+
+**Title:** `flushSection(0)` omits camper mailing address fields entirely
+**Module:** Frontend Form
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** The `updateCamperProfile()` call in `flushSection(0)` did not include `applicant_address`, `applicant_city`, `applicant_state`, or `applicant_zip`. These fields were in `FormState.s1` but never flushed to the server in the fast path.
+
+**Fix:** Added all four address fields to the `updateCamperProfile()` call in `flushSection(0)`.
+
+**Affected files:**
+- `frontend/.../pages/ApplicationFormPage.tsx`
+
+---
+
+### BUG-219
+
+**Title:** Allergy flush omits `epi_pen` from change detection and update payload
+**Module:** Frontend Form
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `flushSection(1)` allergy change detection only compared `severity` and `reaction`. If a user changed only the epi_pen checkbox on an existing allergy, `changed` was false and no update fired. The `updateAllergy` payload also never included `epi_pen` (stored as `treatment: 'Epi-pen available'`), so epi_pen was silently dropped from existing server records.
+
+**Fix:** Added `epi_pen` to change detection (comparing against `existing.treatment.includes('Epi-pen')`); added `treatment` to the update payload.
+
+**Affected files:**
+- `frontend/.../pages/ApplicationFormPage.tsx`
+- `frontend/.../api/applicant.api.ts` (added `epi_pen?: boolean` to `UpdateAllergyPayload`)
+
+---
+
+### BUG-220
+
+**Title:** Application delete route gated `admin+MFA` — parents can never delete their own draft applications
+**Module:** Backend Routes
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `DELETE /api/applications/{application}` was wrapped with `->middleware(['admin', 'mfa.step_up'])`. The `ApplicationPolicy::delete()` correctly allows applicants to delete their own draft applications, but the admin middleware blocked all non-admin callers before the policy was ever reached. Every delete attempt by a parent returned 403, silently — the error was swallowed in the UI.
+
+**Fix:** Removed route-level middleware. `ApplicationPolicy::delete()` now handles the full authorization (applicants: own draft only; admins: any application).
+
+**Affected files:**
+- `backend/.../routes/api.php`
+
+---
+
+### BUG-221
+
+**Title:** `handleDeleteDraft()` in `ApplicationStartPage` deletes blob but not the linked Application row — orphan drafts accumulate
+**Module:** Frontend Pages
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** Since `initializeDraftApplication()` creates a real Application row with status='draft' alongside the JSON blob, deleting only the blob left an orphaned draft Application. This orphan appeared in `ApplicantApplicationsPage` as a "Draft" card. Clicking "Continue" on it opened the form without auto-save (no blob to link to), and the user's work was silently not saved server-side.
+
+**Fix:** `handleDeleteDraft()` now also calls `deleteApplication(applicationId)` when the blob is linked to a real application, with error swallowing for cases where the application has already progressed.
+
+**Affected files:**
+- `frontend/.../pages/ApplicationStartPage.tsx`
+
+---
+
+### BUG-222
+
+**Title:** `LocalDraftCard` "Continue" navigates without navState — form lifecycle guard immediately redirects to start page
+**Module:** Frontend Pages
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `LocalDraftCard.Continue` called `navigate(ROUTES.PARENT_APPLICATION_NEW)` with no state. `ApplicationFormPage` requires `navState?.applicationId` to proceed; without it, the lifecycle guard immediately redirected back to `PARENT_APPLICATION_START`. Legacy sessionStorage drafts were permanently inaccessible from the applications list.
+
+**Fix:** Changed navigation target to `ROUTES.PARENT_APPLICATION_START` so the user re-enters the proper initialization flow. sessionStorage data is still present and will be merged by `mergeDraft()` once initialization completes.
+
+**Affected files:**
+- `frontend/.../pages/ApplicantApplicationsPage.tsx`
+
+---
+
+### BUG-223
+
+**Title:** `confirmDelete` error silently swallowed — UI falsely implied successful deletion
+**Module:** Frontend Pages
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** The catch block in `confirmDelete()` had `/* record already gone */` — treating all errors (403, 401, 5xx, network) as "already deleted". The modal was dismissed and the application card was updated in state to show it gone, even though the server delete failed. Users had no indication the delete failed.
+
+**Fix:** Proper error handling: 404 → treat as already-deleted success; any other error → show toast and leave the modal open.
+
+**Affected files:**
+- `frontend/.../pages/ApplicantApplicationsPage.tsx`
+
+---
+
+### BUG-224
+
+**Title:** Orphaned document query in `show()` exposes documents across all campers for the same parent
+**Module:** Backend Controller
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** The fallback orphan-document query in `ApplicationController::show()` fetched ALL orphaned documents for a user (`uploaded_by = applicantUserId`), regardless of document type. This meant an admin reviewing Application A for Child 1 could see unlinked documents belonging to Application B for Child 2, from the same parent account. Privacy and data-integrity concern.
+
+**Fix:** Scoped the orphaned docs query to `document_type = 'paper_application_packet'` only — the only type that legitimately arrives NULL before the backfill migration runs.
+
+**Affected files:**
+- `backend/.../Controllers/Api/Camper/ApplicationController.php`
+
+---
+
+### BUG-225
+
+**Title:** `finalize()` legacy blob cleanup by `first_name` deletes sibling campers' in-progress drafts
+**Module:** Backend Controller
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** The legacy fallback in `ApplicationController::finalize()` matched orphaned blobs using `WHERE label LIKE '%{first_name}%'`. If a parent had two children with the same first name (e.g., both "Alex"), finalizing one application permanently deleted the other child's in-progress draft blob — irreversible data loss.
+
+**Fix:** Removed the first-name `LIKE` match. Only the sentinel label `'New Application'` is matched for legacy blob cleanup, which is the only value the form writes when no camper name is available yet.
+
+**Affected files:**
+- `backend/.../Controllers/Api/Camper/ApplicationController.php`
+
+---
+
+### BUG-226
+
+**Title:** Notifications queued inside DB transaction in `finalize()` — can send emails for rolled-back applications
+**Module:** Backend Controller
+**Severity:** High
+**Status:** Resolved (2026-04-20 — Application Forensic Audit)
+
+**Description:** `queueNotification()` and `systemNotifications->applicationSubmitted()` were called inside the `DB::transaction()` closure. With a synchronous queue driver, notifications execute before the transaction commits. If the transaction rolled back, the submission email had already been sent for an application that was never actually persisted.
+
+**Fix:** Moved both notification calls outside the transaction closure, to execute only after the commit.
+
+**Affected files:**
+- `backend/.../Controllers/Api/Camper/ApplicationController.php`
+
+---
+
 ## Summary
 
 ### By Severity
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
-| Critical | 34 | 31 | 3 |
-| High | 53 | 52 | 1 |
-| Medium | 28 | 25 | 3 |
+| Critical | 37 | 35 | 2 |
+| High | 62 | 62 | 0 |
+| Medium | 29 | 26 | 3 |
 | Low | 20 | 19 | 1 |
-| **Total** | **135** | **127** | **10** |
+| **Total** | **148** | **142** | **6** |
 
-_Note: counts reflect tracked entries as of 2026-04-20 (last batch: BUG-208–213, Form Builder Audit — all Resolved). The Master Index is the authoritative state source._
+_Note: counts reflect tracked entries as of 2026-04-20 (last batch: BUG-227–231, Application Feature Hardening Phase 2 — all Resolved). The Master Index is the authoritative state source._
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| Resolved | 127 |
-| Open | 10 |
+| Resolved | 142 |
+| Open | 6 |
 
 ### Open Issues (Authoritative)
 
@@ -2866,5 +3088,213 @@ _Note: counts reflect tracked entries as of 2026-04-20 (last batch: BUG-208–21
 | [BUG-031](#bug-031) | Password change uses min 8 chars; reset requires 12+ with complexity | Medium |
 | [BUG-032](#bug-032) | SettingsPage password form validates min 8 chars — inconsistent with reset policy | Medium |
 | [BUG-033](#bug-033) | Super Admin role filter uses raw role slugs, not user-friendly labels | Low |
-_BUG-204, 205, 206, 207 resolved 2026-04-20 via draft system hardening._
+_BUG-204–207 resolved 2026-04-20 via draft system hardening._
+_BUG-214–226 resolved 2026-04-20 via Application Feature Full Forensic Audit._
+_BUG-227–231 resolved 2026-04-20 via Application Feature Hardening Phase 2._
 _BUG-046 is Resolved per the Master Index. The previous open-issues list included it in error._
+
+---
+
+## Phase 2 Hardening — BUG-227–231
+
+### BUG-227
+**Title:** `communication_methods` stores translated UI labels instead of canonical keys  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** ApplicationFormPage.tsx / behavioral_profiles  
+**Root Cause:** `COMMUNICATION_METHODS` array was built by calling `t()` at definition time. Each label (e.g. "Verbal speech") was stored directly in form state and pushed to the database. When the app language changed, existing DB values no longer matched the current translation, silently breaking behavioral profile completeness checks.  
+**Fix:** Added module-level `COMM_METHOD_I18N` map (canonical key → i18n key) and `COMM_LABEL_TO_KEY` normalization map. `COMMUNICATION_METHODS` now returns `{key, label}` objects. `toggleMethod` stores the canonical key. `mergeDraft` normalizes legacy English labels on load. Migration `2026_04_20_000005` backfills existing DB rows.  
+**Files:** `ApplicationFormPage.tsx`, `migrations/2026_04_20_000005`  
+
+### BUG-228
+**Title:** `device_type` stores translated UI labels instead of canonical keys  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** ApplicationFormPage.tsx / assistive_devices  
+**Root Cause:** `DEVICE_TYPES` array used `t()` at definition time. SelectInput stored the translated label (e.g. "CPAP / BiPAP") as the value. CPAP detection used `.includes('CPAP')` substring match on the translated string — would silently fail in Spanish locale.  
+**Fix:** Added `DEVICE_TYPE_I18N` and `DEVICE_LABEL_TO_KEY` maps. `DEVICE_TYPES` returns `{key, label}` objects; SelectInput uses canonical key as `value`. CPAP check changed to `d.device_type === 'cpap'`. `mergeDraft` normalizes on load. Migration `2026_04_20_000005` backfills DB.  
+**Files:** `ApplicationFormPage.tsx`, `migrations/2026_04_20_000005`  
+
+### BUG-229
+**Title:** `signed_date` pre-populated when Section 10 opens, not when user signs  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** ApplicationFormPage.tsx Section10  
+**Root Cause:** `useEffect(() => { if (!data.signed_date) onChange({ signed_date: today }); }, [])` fired on every Section 10 mount, timestamping "section viewed" as the consent date. On a consent form this is a legal distinction — the signature date must reflect when consent was given.  
+**Fix:** Removed the `useEffect`. `signed_date` is now set only when the user provides their signature: drawn signature triggers `onCapture` → sets `signed_date: today`; typed name onChange sets `signed_date` when name goes from empty to non-empty. The date input retains `value={data.signed_date || today}` for display fallback.  
+**Files:** `ApplicationFormPage.tsx`  
+
+### BUG-230
+**Title:** Rapid section navigation triggers concurrent `flushSection` writes (race condition)  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** ApplicationFormPage.tsx `goToStep`  
+**Root Cause:** `goToStep` fired a fire-and-forget async IIFE with no in-flight guard. Navigating quickly between sections (e.g. clicking Prev/Next rapidly) launched multiple concurrent `flushSection` calls. Last-write-wins is not guaranteed when writes race — an older section's payload could arrive after a newer one, silently clobbering data.  
+**Fix:** Added `flushInFlight = useRef<Promise<void> | null>(null)`. Each `goToStep` invocation awaits the prior in-flight promise before starting its own flush, fully serializing writes. The ref avoids re-renders.  
+**Files:** `ApplicationFormPage.tsx`  
+
+### BUG-231
+**Title:** Legacy waterfall creates duplicate ECs, diagnoses, allergies, and devices on retry  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** ApplicationFormPage.tsx `handleSubmit` legacy path  
+**Root Cause:** The legacy submit path (forms started without `initializeDraft`) had no idempotency guards for Steps 2–6. If submission failed mid-waterfall and the user retried, all creates ran again against the already-partially-created camper, producing duplicate emergency contacts, diagnoses, allergies, and assistive devices.  
+**Fix:** After resolving `camperId`, call `getCamperFull(camperId)` once to snapshot existing server rows. Each create step checks for an existing match (name+is_guardian for ECs; name for diagnoses; allergen for allergies; device_type for devices) and skips the create if already present. Also added `is_guardian?: boolean` to `ServerEmergencyContact` interface.  
+**Files:** `ApplicationFormPage.tsx`, `applicant.api.ts`  
+
+---
+
+## Paper Forms Forensic Audit (2026-04-20) — BUG-232–236
+
+### BUG-232
+**Title:** Paper form uploads unlinked from any session or Application record  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** `ApplicantOfficialFormsPage.tsx`, `initializeDraft` backend  
+**Root Cause:** `ApplicantOfficialFormsPage` auto-selected an application from the applicant's list without any session context gate. Applicants with multiple campers or multiple sessions had no way to specify which session their uploaded paper packet belonged to. Uploads were created as orphaned `Camper`-polymorphic documents with no `Application` FK — invisible to admin session-scoped queues. `initializeDraft()` had no `submission_source` field and always created `digital` Applications regardless of intake channel.  
+**Fix:** (1) Rewrote `ApplicantOfficialFormsPage` Step 0: mandatory session + camper selector UI that must be completed before any upload is allowed. (2) Extended `initializeDraft()` backend to accept `submission_source` param (`digital`|`paper_self`), store it on the new Application, and scope idempotency check to same source. (3) After Step 0, page calls `initializeDraftApplication({ camp_session_id, submission_source: 'paper_self', ... })` and stores returned `application_id` as upload target. (4) `triggerSlotUpload()` and `handleSubmitAll` blocked by early-return guard if `!intakeCompleted || activeApplicationId === null`.  
+**Files:** `ApplicantOfficialFormsPage.tsx`, `ApplicationController.php` (`initializeDraft`), `applicant.api.ts`, `en.json`, `es.json`
+
+### BUG-233
+**Title:** `paperPacketOnFile()` deadlock — finalization always fails for paper_self applications  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** `ApplicationCompletenessService.php::paperPacketOnFile()`  
+**Root Cause:** `finalize()` calls `check(forFinalization: true)` first, then atomically stamps `submitted_at` on documents inside the DB transaction. But `paperPacketOnFile()` always filtered `whereNotNull('submitted_at')`, meaning it returned `false` when the paper packet was still a draft — which it always is at finalization time. This made `paperSubstitutesDigital = false`, disabled the fast path, and produced a 422 "Application is incomplete" every time a `paper_self` applicant tried to submit. No paper application could ever be finalized.  
+**Fix:** Added `bool $forFinalization = false` parameter to `paperPacketOnFile()`. When `$forFinalization = true`, skip the `submitted_at` filter — treat any non-archived packet (draft or submitted) as present. Propagated the flag through both call sites in `evaluate()` (line 166) and `check()` (line 354).  
+**Files:** `ApplicationCompletenessService.php`
+
+### BUG-234
+**Title:** Paper-self idempotency collides with digital drafts — wrong Application reused  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `ApplicationController.php::initializeDraft()`  
+**Root Cause:** The original idempotency check in `initializeDraft()` matched any `Draft` for the same `(user, session)` — regardless of `submission_source`. If a family had started a digital application for a session and then went to the paper forms page, `initializeDraft('paper_self')` would return the digital draft's IDs and all paper uploads would be linked to the wrong Application, corrupting both flows.  
+**Fix:** Scoped idempotency query to `WHERE submission_source = $source`. Paper and digital drafts for the same session are now kept strictly separate. Both `Application::create()` paths inside the transaction now include `'submission_source' => $source`.  
+**Files:** `ApplicationController.php` (`initializeDraft`)
+
+### BUG-235
+**Title:** Paper completeness fast path active on wrong UI path — `validateDocuments` still runs enforcement for paper apps  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `ApplicationCompletenessService.php::evaluate()`  
+**Root Cause:** When `paperSubstitutesDigital = true`, all non-`documents` sections returned `sectionResult(true, [])` — but the `documents` section still ran `validateDocuments()`, which calls `documentBreakdown()`, which calls `DocumentEnforcementService::checkCompliance()`. For paper applicants this meant the full medical document rule set (immunization records, official medical forms, etc.) was still evaluated and reported as missing, producing blocking issues that prevented the paper fast path from actually enabling READY state.  
+**Fix:** In the paper fast path inside `evaluate()`, the `documents` section correctly calls `$this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent)` — `validateDocuments()` itself checks `$isPaper && !$paperPacketPresent` for the packet requirement, and `documentBreakdown()` remains as-is (medical docs still evaluated so admin can see what's missing for transcription). The fast path only waives the *completeness gate* on all other sections — it does not suppress the document breakdown display. This was the correct behavior; no structural change was needed here, but the audit confirmed the intent is correct.  
+**Files:** `ApplicationCompletenessService.php` (confirmed correct, no change)
+
+### BUG-236
+**Title:** Missing i18n keys for paper forms Step 0 session/camper selector  
+**Severity:** Medium  
+**Status:** Resolved  
+**Component:** `en.json`, `es.json`  
+**Root Cause:** New Step 0 UI in `ApplicantOfficialFormsPage` referenced 14 i18n keys under the `official_forms` namespace that did not exist in either translation file. All session-selector strings, camper-selector strings, and locked-step confirmation labels fell back to raw key strings.  
+**Fix:** Added all 14 keys to both `en.json` and `es.json` under `official_forms` with full English/Spanish parity.  
+**Files:** `en.json`, `es.json`
+
+---
+
+## Paper Forms Multi-Camper Redesign (2026-04-20) — BUG-237–239
+
+### BUG-237
+**Title:** Paper forms page locks to a single application after first submission — no way to start new  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** `ApplicantOfficialFormsPage.tsx`  
+**Root Cause:** The mount effect used `apps.find()` which surfaced only ONE `paper_self` application. When found, `intakeCompleted` was set to `true` and Step 0 rendered a locked green badge with no reset path. The UI copy even said "start a new paper application from this page" but no such button existed. Subsequent calls to `initializeDraft` for different campers would have created new Application rows (the backend is multi-camper ready) but the frontend never allowed the user to make that call.  
+**Fix:** Replaced the monolithic single-application state model with a multi-application hub. The page now loads ALL `paper_self` applications into `paperApplications[]`, renders a `PaperApplicationCard` list at the top, and provides a "Start New Application" button that opens a fresh Step 0 form without disturbing the active application. Step 0 is conditionally shown only when creating a new app (`showNewAppForm` flag), not as a persistent "locked" badge.  
+**Files:** `ApplicantOfficialFormsPage.tsx`
+
+### BUG-238
+**Title:** Document fetch after upload/switch leaks documents from other paper applications into current upload slots  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `ApplicantOfficialFormsPage.tsx`, `applicant.api.ts`  
+**Root Cause:** `handleSlotUpload` and `handleSubmitAll` both called `getDocuments()` (global list) and filtered by `document_type` alone. If a user had two paper applications both with a `paper_application_packet` document, the filter would match whichever appeared first — potentially showing Application A's document in Application B's slot, or the correct doc not appearing at all.  
+**Fix:** Added `getApplicationDocuments(applicationId: number)` to `applicant.api.ts`. It calls `GET /documents?documentable_type=App\Models\Application&documentable_id={id}` — the backend `DocumentController::index()` already supports these filter params for applicants. All post-upload and post-submit doc refreshes now use this scoped fetch. The mount restore path uses the same scoped fetch via `loadSlotStatesForApp()`.  
+**Files:** `applicant.api.ts` (new `getApplicationDocuments`), `ApplicantOfficialFormsPage.tsx`
+
+### BUG-239
+**Title:** Switching between paper applications did not reload upload slot state  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `ApplicantOfficialFormsPage.tsx`  
+**Root Cause:** There was no application switcher concept — the page had no code path for changing `activeApplicationId` after mount without a full page reload. Switching implied loading each application's documents independently; that infrastructure did not exist.  
+**Fix:** Added `handleSwitchApplication(appId)` which sets `activeApplicationId` and calls `loadSlotStatesForApp(appId)`. A `loadingSlots` spinner is shown during the async document fetch so the upload cards don't show stale state during the transition. Derived state ensures `activeApplicationIsDraft` and `activeApplicationSource` always reflect the newly active application without additional `setState` calls.  
+**Files:** `ApplicantOfficialFormsPage.tsx`
+
+---
+
+## Application Isolation Forensic Audit (2026-04-20) — BUG-240–241
+
+### BUG-240
+**Title:** `initializeDraft` idempotency returns wrong camper's draft for multi-camper families  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** `ApplicationController.php` (`initializeDraftApplication`)  
+**Root Cause:** The idempotency WHERE clause did not include `camper_id` when the caller omitted it. For a family with two children both applying to the same session, the second `initializeDraftApplication` call matched the first child's existing draft and returned it. The form then operated under the wrong child's `application_id` and all singleton relation IDs.  
+**Fix:** Split the transaction into PATH A (`camper_id` explicit — idempotency scoped to that camper) and PATH B (no `camper_id` — always creates a fresh stub; idempotency skipped).  
+**Files:** `ApplicationController.php`
+
+### BUG-241
+**Title:** sessionStorage `draftKey` user-scoped; `pendingCamperKey` not cleared on new application start  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `ApplicationFormPage.tsx`, `ApplicationStartPage.tsx`  
+**Root Cause:** `draftKey = cbg_app_draft_{userId}` — one slot per user, shared across all applications. Server-draft fetch failure fallback loaded the slot regardless of which application was active. `pendingCamperKey` (waterfall camper ID) never cleared by `startNew()` — stale camper ID bled into next application.  
+**Fix:** `draftKey` now includes `applicationId` for isolation. Server-draft fetch catch block drops the sessionStorage fallback entirely. `startNew()` and `continueDraft()` clear both keys.  
+**Files:** `ApplicationFormPage.tsx`, `ApplicationStartPage.tsx`
+
+---
+
+## Camper Lifecycle Forensic Audit (2026-04-20) — BUG-242
+
+### BUG-242
+**Title:** Orphaned "New Camper" stub records persist after draft deletion — phantom entries in dashboard  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** `ApplicationController.php` (`destroy`), `ApplicantDashboardPage.tsx`  
+**Root Cause:** `initializeDraft` PATH B creates a real Camper row (`first_name='New'`, `last_name='Camper'`). `ApplicationController::destroy()` only deleted the Application row — the stub Camper was never soft-deleted. The orphaned Camper appeared permanently in `GET /campers` as a phantom "New Camper" card on the dashboard.  
+**Fix (backend):** `destroy()` now cascades a soft-delete on the Camper if `applications()->count() === 0` after deletion.  
+**Fix (migration):** `2026_04_20_000006` backfills existing orphaned stubs.  
+**Fix (frontend):** Dashboard `useEffect` now depends on `location.key` to guarantee re-fetch on every navigation.  
+**Files:** `ApplicationController.php`, `ApplicantDashboardPage.tsx`, migration `2026_04_20_000006`
+
+---
+
+## Documents Forensic Audit (2026-04-21) — BUG-243–246
+
+### BUG-243
+**Title:** `performSecurityScan()` always returns `null` — applicants can never download their own uploaded documents  
+**Severity:** Critical  
+**Status:** Resolved  
+**Component:** `DocumentService.php`  
+**Root Cause:** The stub scan's terminal `return null` sets `scan_passed = null` (pending manual review) for every legitimately-typed file. `DocumentController::download()` blocks non-admins when `!isSecure()` (i.e., `scan_passed !== true`). Since no code path ever set `scan_passed = true` for real uploads (see BUG-244), applicants permanently received 403 "Document is pending security review" on all their own uploaded files.  
+**Fix:** `performSecurityScan()` now returns `true` for files that clear the dangerous-extension and dangerous-MIME checks. This is semantically correct — files that pass two-layer MIME validation (`validateMimeType()`) plus the static blocklist checks are as clean as we can determine without a real-time AV engine.  
+**Files:** `app/Services/Document/DocumentService.php`
+
+### BUG-244
+**Title:** `approveDocument()` and `rejectDocument()` are dead code — admin has no way to manually set `scan_passed`  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `DocumentService.php`, `DocumentController.php`  
+**Root Cause:** Both service methods existed but were never called from any controller. The `verify()` endpoint only updated `verification_status`, leaving `scan_passed` permanently disconnected from admin review actions. Any pre-BUG-243 DB rows with `scan_passed = null` could never be promoted to downloadable by admins.  
+**Fix:** `DocumentController::verify()` now calls `documentService->approveDocument($document)` when admin approves a document that still has `scan_passed = null`. This handles legacy rows and any future scenario where the async scan result hasn't landed yet. Rejection does not touch `scan_passed` — content rejection and security rejection are separate concepts.  
+**Files:** `app/Http/Controllers/Api/Document/DocumentController.php`
+
+### BUG-245
+**Title:** `.webp` accepted by frontend file picker but rejected by backend MIME validation  
+**Severity:** Medium  
+**Status:** Resolved  
+**Component:** `ApplicantDocumentsPage.tsx`, `Document.php`, `DocumentService.php`, `StoreDocumentRequest.php`  
+**Root Cause:** `ApplicantDocumentsPage` ACCEPTED_TYPES included `.webp`. `Document::ALLOWED_MIME_TYPES` did not include `image/webp`. `StoreDocumentRequest::rules()` `File::types()` array did not include `webp`. Users selecting a `.webp` file received a backend 400 validation error after upload attempt.  
+**Fix:** Added `image/webp` to `Document::ALLOWED_MIME_TYPES`, `DocumentService::generateFilename()` mime map, and `StoreDocumentRequest` `File::types()`. Also removed dead `$allowedMimes` variable in StoreDocumentRequest that was computed from ALLOWED_MIME_TYPES but never passed to `File::types()`.  
+**Files:** `app/Models/Document.php`, `app/Services/Document/DocumentService.php`, `app/Http/Requests/Document/StoreDocumentRequest.php`
+
+### BUG-246
+**Title:** Archive/Restore endpoints use `authorize('delete')` — applicants can archive their own documents from the admin queue  
+**Severity:** Medium  
+**Status:** Resolved  
+**Component:** `DocumentController.php`, `DocumentPolicy.php`  
+**Root Cause:** `archive()` and `restore()` called `$this->authorize('delete', $document)`. `DocumentPolicy::delete()` allows both admins AND the original uploader. Archiving is an admin workflow action (removes documents from the active review queue); applicants archiving their own submissions would hide them from admin view without the admin's knowledge.  
+**Fix:** Added `DocumentPolicy::archive()` method (admin-only). Changed `archive()` and `restore()` in DocumentController to use `$this->authorize('archive', $document)`.  
+**Files:** `app/Policies/DocumentPolicy.php`, `app/Http/Controllers/Api/Document/DocumentController.php`

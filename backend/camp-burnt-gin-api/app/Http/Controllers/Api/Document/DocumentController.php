@@ -214,6 +214,20 @@ class DocumentController extends Controller
             'verified_at' => now(),
         ]);
 
+        // Sync scan_passed with the admin's content decision.
+        //
+        // When an admin approves a document they have reviewed it and found it safe.
+        // If scan_passed is still null (stub scan: file passed static checks but was
+        // left in "pending" before the BUG-243 fix, or a future async scanner hasn't
+        // responded yet), promote it to true so the uploader can download their file.
+        //
+        // Rejection does NOT touch scan_passed — content rejection is separate from
+        // security rejection. A rejected document can still be downloaded by the
+        // uploader to understand why it was rejected.
+        if ($validated['status'] === 'approved' && $document->scan_passed === null) {
+            $this->documentService->approveDocument($document);
+        }
+
         return response()->json([
             'message' => 'Document '.$validated['status'].'.',
             // refresh() re-reads from DB so the response reflects the just-saved state
@@ -491,7 +505,7 @@ class DocumentController extends Controller
      */
     public function archive(Document $document): JsonResponse
     {
-        $this->authorize('delete', $document);
+        $this->authorize('archive', $document);
 
         $document->update(['archived_at' => now()]);
 
@@ -513,7 +527,7 @@ class DocumentController extends Controller
      */
     public function restore(Document $document): JsonResponse
     {
-        $this->authorize('delete', $document);
+        $this->authorize('archive', $document);
 
         $document->update(['archived_at' => null]);
 

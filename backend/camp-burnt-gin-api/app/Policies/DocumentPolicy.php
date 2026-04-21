@@ -141,6 +141,19 @@ class DocumentPolicy
     }
 
     /**
+     * Can the user archive or restore a document?
+     *
+     * Archiving is an admin workflow action — it removes a document from the
+     * active review queue without deleting it. Only admins may do this.
+     * Applicants may delete their own documents but must not be able to
+     * hide them from the admin queue by archiving them.
+     */
+    public function archive(User $user, Document $document): bool
+    {
+        return $user->isAdmin();
+    }
+
+    /**
      * Can the user delete a document?
      *
      * Admins can delete any document. The person who originally uploaded

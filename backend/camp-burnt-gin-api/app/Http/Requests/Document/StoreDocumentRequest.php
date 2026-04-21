@@ -63,14 +63,11 @@ class StoreDocumentRequest extends FormRequest
     public function rules(): array
     {
         $maxSize = Document::MAX_FILE_SIZE / 1024;
-        $allowedMimes = implode(',', array_map(function ($mime) {
-            return explode('/', $mime)[1];
-        }, Document::ALLOWED_MIME_TYPES));
 
         return [
             'file' => [
                 'required',
-                File::types(['pdf', 'jpeg', 'jpg', 'png', 'gif', 'doc', 'docx'])
+                File::types(['pdf', 'jpeg', 'jpg', 'png', 'gif', 'webp', 'doc', 'docx'])
                     ->max($maxSize),
             ],
             'documentable_type' => ['nullable', 'string', 'in:App\\Models\\Camper,App\\Models\\MedicalRecord,App\\Models\\Application'],

@@ -229,6 +229,7 @@ class DocumentService
             'image/png' => 'png',
             'image/x-png' => 'png',  // Normalize alternate PNG MIME type to .png extension
             'image/gif' => 'gif',
+            'image/webp' => 'webp',
             'application/msword' => 'doc',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
         ];
@@ -288,30 +289,32 @@ class DocumentService
     }
 
     /**
-     * Perform a basic security scan on an uploaded document.
+     * Perform a security scan on an uploaded document.
      *
-     * HIPAA COMPLIANCE NOTE:
-     * All uploaded files follow a quarantine-based model. New uploads start with
-     * scan_passed = null (pending review) until either this scan sets it to false
-     * (auto-rejected) or an admin manually approves it (scan_passed = true).
-     * Non-admin users cannot access pending or rejected documents.
+     * Current implementation performs two-layer static analysis:
+     *  1. Extension check: rejects known executable/script extensions
+     *  2. MIME type check: rejects known dangerous MIME types
      *
-     * Current implementation:
-     *  - Returns false for dangerous file extensions (exe, bat, sh, php, etc.)
-     *  - Returns false for dangerous MIME types (executables, scripts)
-     *  - Returns null (pending manual review) for all other files
+     * Files that reach this method have already passed MIME whitelist validation
+     * and PHP finfo magic-byte inspection in validateMimeType(). Any file that
+     * survives both those checks AND the two checks here is treated as clean.
      *
-     * For production with automated virus scanning, consider integrating:
-     *  - ClamAV (open-source antivirus engine)
-     *  - VirusTotal API (cloud-based scanning)
-     *  - AWS GuardDuty Malware Protection
-     *  - Microsoft Defender for Cloud
+     * Return values:
+     *  - false  = dangerous file detected (extension or MIME is on the blocklist)
+     *  - true   = file passed all checks — safe to serve to authorized users
+     *  - null   = reserved for future integrations (ClamAV, VirusTotal, etc.)
+     *             where a result is genuinely not yet available
      *
-     * @return bool|null false = dangerous, null = pending manual review, true = approved (manual only)
+     * To integrate a real antivirus engine, replace the `return true` at the
+     * bottom with the scanner call and return null while the scan is in flight.
+     * Update queueSecurityScan() to use a real queued job so the result is
+     * persisted asynchronously when the scanner responds.
+     *
+     * @return bool|null false = dangerous, true = clean, null = pending async result
      */
     protected function performSecurityScan(Document $document): ?bool
     {
-        // List of file extensions that should never be stored (executable/script types)
+        // Reject files with dangerous extensions (executables, scripts, server-side code)
         $dangerousExtensions = ['exe', 'bat', 'cmd', 'sh', 'php', 'js', 'vbs', 'com', 'pif', 'scr'];
         $extension = pathinfo($document->stored_filename, PATHINFO_EXTENSION);
 
@@ -319,7 +322,7 @@ class DocumentService
             return false;
         }
 
-        // List of MIME types corresponding to executable or script files
+        // Reject files whose MIME type indicates executable or script content
         $dangerousMimeTypes = [
             'application/x-executable',
             'application/x-msdownload',
@@ -333,8 +336,10 @@ class DocumentService
             return false;
         }
 
-        // File passed basic checks — return null to indicate it needs manual admin review
-        return null;
+        // File cleared both static checks. Combined with the validateMimeType() whitelist
+        // and finfo magic-byte inspection already performed at upload time, this file is
+        // as safe as we can determine without a real-time antivirus engine.
+        return true;
     }
 
     /**
