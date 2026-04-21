@@ -157,6 +157,93 @@ const FINALIZATION_FIELD_TO_DOM_ID: Record<string, string> = {
   attends_school:       'attends_school',
 };
 
+// ---------------------------------------------------------------------------
+// Canonical keys — communication methods and assistive device types
+//
+// These values are stored in the database. Never store translated UI labels.
+// ---------------------------------------------------------------------------
+
+const COMM_METHOD_KEYS = [
+  'verbal', 'aac_device', 'sign_language', 'picture_symbols',
+  'gestures', 'written', 'eye_gaze',
+] as const;
+type CommMethodKey = typeof COMM_METHOD_KEYS[number];
+
+const COMM_METHOD_I18N: Record<CommMethodKey, string> = {
+  verbal:          'applicant.form.dev_comm_verbal',
+  aac_device:      'applicant.form.dev_comm_aac',
+  sign_language:   'applicant.form.dev_comm_sign',
+  picture_symbols: 'applicant.form.dev_comm_picture',
+  gestures:        'applicant.form.dev_comm_gestures',
+  written:         'applicant.form.dev_comm_written',
+  eye_gaze:        'applicant.form.dev_comm_eye_gaze',
+};
+
+// English label strings stored before this refactor — map back to canonical keys.
+const COMM_LABEL_TO_KEY: Record<string, CommMethodKey> = {
+  'Verbal speech':   'verbal',
+  'AAC device':      'aac_device',
+  'Sign language':   'sign_language',
+  'Picture symbols': 'picture_symbols',
+  'Gestures':        'gestures',
+  'Written text':    'written',
+  'Eye gaze':        'eye_gaze',
+};
+
+const DEVICE_TYPE_KEYS = [
+  'wheelchair_manual', 'wheelchair_power', 'walker', 'crutches', 'cane',
+  'leg_brace', 'cpap', 'hearing_aid', 'cochlear', 'glasses', 'prosthetic',
+  'orthotics', 'comm_device', 'gait_trainer', 'other',
+] as const;
+type DeviceTypeKey = typeof DEVICE_TYPE_KEYS[number];
+
+const DEVICE_TYPE_I18N: Record<DeviceTypeKey, string> = {
+  wheelchair_manual: 'applicant.form.device_wheelchair_manual',
+  wheelchair_power:  'applicant.form.device_wheelchair_power',
+  walker:            'applicant.form.device_walker',
+  crutches:          'applicant.form.device_crutches',
+  cane:              'applicant.form.device_cane',
+  leg_brace:         'applicant.form.device_leg_brace',
+  cpap:              'applicant.form.device_cpap',
+  hearing_aid:       'applicant.form.device_hearing_aid',
+  cochlear:          'applicant.form.device_cochlear',
+  glasses:           'applicant.form.device_glasses',
+  prosthetic:        'applicant.form.device_prosthetic',
+  orthotics:         'applicant.form.device_orthotics',
+  comm_device:       'applicant.form.device_comm_device',
+  gait_trainer:      'applicant.form.device_gait_trainer',
+  other:             'applicant.form.s1_gender_other',
+};
+
+// English label strings stored before this refactor — map back to canonical keys.
+const DEVICE_LABEL_TO_KEY: Record<string, DeviceTypeKey> = {
+  'Wheelchair (manual)':               'wheelchair_manual',
+  'Wheelchair (power)':                'wheelchair_power',
+  'Walker':                            'walker',
+  'Crutches':                          'crutches',
+  'Cane':                              'cane',
+  'Leg brace(s)':                      'leg_brace',
+  'CPAP / BiPAP':                      'cpap',
+  'Hearing aid':                       'hearing_aid',
+  'Cochlear implant':                  'cochlear',
+  'Glasses / contacts':                'glasses',
+  'Prosthetic limb':                   'prosthetic',
+  'Orthotics / AFOs':                  'orthotics',
+  'Computerized communication device': 'comm_device',
+  'Gait trainer':                      'gait_trainer',
+  'Other':                             'other',
+};
+
+/** Normalise a communication_method value that may be a legacy English label. */
+function normCommMethod(v: string): string {
+  return COMM_LABEL_TO_KEY[v] ?? v;
+}
+
+/** Normalise a device_type value that may be a legacy English label. */
+function normDeviceType(v: string): string {
+  return DEVICE_LABEL_TO_KEY[v] ?? v;
+}
+
 /** Deep-merge a persisted draft with INITIAL_STATE so null/missing fields
  *  never override the safe string defaults (prevents .trim() on null crashes). */
 function mergeDraft(parsed: Partial<FormState>): FormState {
@@ -186,6 +273,11 @@ function mergeDraft(parsed: Partial<FormState>): FormState {
   const s4Merged: FormState['s4'] = {
     ...s4,
     section_reviewed: s4.section_reviewed || s4.devices.length > 0 || s4.mobility_notes.trim() !== '',
+    // Normalize legacy English-label strings in device_type to canonical keys.
+    devices: (s4.devices as unknown[]).map((d) => {
+      const dev = d as Record<string, unknown>;
+      return { ...dev, device_type: normDeviceType(String(dev.device_type ?? '')) };
+    }) as FormState['s4']['devices'],
   };
 
   const s5 = mergeSection(INITIAL_STATE.s5, parsed.s5);
@@ -259,6 +351,10 @@ function mergeDraft(parsed: Partial<FormState>): FormState {
                   : (attendsSchoolRaw === true || attendsSchoolRaw === false)
                     ? attendsSchoolRaw
                     : '',
+    // Normalize legacy English-label strings to canonical keys.
+    communication_methods: (s3Raw.communication_methods as unknown[])
+      .map((v) => normCommMethod(String(v)))
+      .filter((v) => (COMM_METHOD_KEYS as readonly string[]).includes(v)),
   };
 
   return {
@@ -1852,22 +1948,18 @@ function Section3({
 }) {
   const { t } = useTranslation();
 
-  const COMMUNICATION_METHODS = [
-    t('applicant.form.dev_comm_verbal'),
-    t('applicant.form.dev_comm_aac'),
-    t('applicant.form.dev_comm_sign'),
-    t('applicant.form.dev_comm_picture'),
-    t('applicant.form.dev_comm_gestures'),
-    t('applicant.form.dev_comm_written'),
-    t('applicant.form.dev_comm_eye_gaze'),
-  ];
+  // Each entry carries both the canonical DB key and its translated display label.
+  const COMMUNICATION_METHODS = COMM_METHOD_KEYS.map((key) => ({
+    key,
+    label: t(COMM_METHOD_I18N[key]),
+  }));
 
-  function toggleMethod(method: string) {
+  function toggleMethod(key: string) {
     const current = data.communication_methods;
-    if (current.includes(method)) {
-      onChange({ communication_methods: current.filter((m) => m !== method) });
+    if (current.includes(key)) {
+      onChange({ communication_methods: current.filter((m) => m !== key) });
     } else {
-      onChange({ communication_methods: [...current, method] });
+      onChange({ communication_methods: [...current, key] });
     }
   }
 
@@ -1989,13 +2081,13 @@ function Section3({
       <SectionCard>
         <SubHeading>{t('applicant.form.s3_comm_methods_heading')}</SubHeading>
         <div className="flex flex-wrap gap-2">
-          {COMMUNICATION_METHODS.map((m) => {
-            const active = data.communication_methods.includes(m);
+          {COMMUNICATION_METHODS.map(({ key, label }) => {
+            const active = data.communication_methods.includes(key);
             return (
               <button
-                key={m}
+                key={key}
                 type="button"
-                onClick={() => toggleMethod(m)}
+                onClick={() => toggleMethod(key)}
                 className="px-3 py-1.5 text-xs rounded-full border font-medium transition-all"
                 style={{
                   background: active ? 'rgba(22,163,74,0.12)' : 'var(--card)',
@@ -2003,7 +2095,7 @@ function Section3({
                   color: active ? 'var(--ember-orange)' : 'var(--muted-foreground)',
                 }}
               >
-                {m}
+                {label}
               </button>
             );
           })}
@@ -2036,23 +2128,11 @@ function Section4({
 }) {
   const { t } = useTranslation();
 
-  const DEVICE_TYPES = [
-    t('applicant.form.device_wheelchair_manual'),
-    t('applicant.form.device_wheelchair_power'),
-    t('applicant.form.device_walker'),
-    t('applicant.form.device_crutches'),
-    t('applicant.form.device_cane'),
-    t('applicant.form.device_leg_brace'),
-    t('applicant.form.device_cpap'),
-    t('applicant.form.device_hearing_aid'),
-    t('applicant.form.device_cochlear'),
-    t('applicant.form.device_glasses'),
-    t('applicant.form.device_prosthetic'),
-    t('applicant.form.device_orthotics'),
-    t('applicant.form.device_comm_device'),
-    t('applicant.form.device_gait_trainer'),
-    t('applicant.form.s1_gender_other'),
-  ];
+  // Each entry carries both the canonical DB key and its translated display label.
+  const DEVICE_TYPES = DEVICE_TYPE_KEYS.map((key) => ({
+    key,
+    label: t(DEVICE_TYPE_I18N[key]),
+  }));
 
   function addDevice() {
     onChange({ devices: [...data.devices, { device_type: '', requires_transfer: false, notes: '' }] });
@@ -2099,7 +2179,7 @@ function Section4({
                   <FieldLabel>{t('applicant.form.s4_device_type_label')}</FieldLabel>
                   <SelectInput value={d.device_type} onChange={(v) => updateDevice(i, 'device_type', v)}>
                     <option value="">{t('applicant.form.s3_select_type')}</option>
-                    {DEVICE_TYPES.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
+                    {DEVICE_TYPES.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
                   </SelectInput>
                 </div>
                 <div>
@@ -2126,7 +2206,7 @@ function Section4({
                     <Trash2 className="h-3 w-3" /> {t('applicant.form.remove')}
                   </button>
                 </div>
-                {d.device_type.includes('CPAP') && (
+                {d.device_type === 'cpap' && (
                   <div
                     className="flex items-start gap-2 rounded-lg p-3 text-xs"
                     style={{ background: 'rgba(251,191,36,0.10)', color: '#92400e', border: '1px solid rgba(251,191,36,0.30)' }}
@@ -3388,14 +3468,10 @@ function Section10({
   const { t } = useTranslation();
   const today = new Date().toISOString().split('T')[0];
 
-  // Pre-populate today's date in state so the section can mark as complete
-  // without the user needing to manually interact with the date picker.
-  useEffect(() => {
-    if (!data.signed_date) {
-      onChange({ signed_date: today });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // signed_date is only recorded when the parent actually provides their
+  // signature (drawn or typed). Pre-populating on mount would timestamp
+  // "section opened", not "signature given" — a legal distinction for
+  // a consent form.
 
   const allConsents = data.consent_general && data.consent_medical && data.consent_photo
     && data.consent_liability && data.consent_permission_activities
@@ -3463,7 +3539,7 @@ function Section10({
 
           {data.signature_type === 'drawn' ? (
             <SignaturePad
-              onCapture={(d) => onChange({ signature_data: d })}
+              onCapture={(d) => onChange({ signature_data: d, signed_date: data.signed_date || today })}
               onClear={() => onChange({ signature_data: '' })}
             />
           ) : (
@@ -3471,7 +3547,10 @@ function Section10({
               <TextInput
                 placeholder={t('applicant.form.s10_type_name_placeholder')}
                 value={data.signed_name}
-                onChange={(v) => onChange({ signed_name: v })}
+                onChange={(v) => onChange({
+                  signed_name: v,
+                  signed_date: v.trim() ? (data.signed_date || today) : data.signed_date,
+                })}
               />
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {t('applicant.form.s10_electronic_signature_note')}
@@ -3962,7 +4041,6 @@ export function ApplicationFormPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const userId = useAppSelector((state) => state.auth.user?.id);
-  const draftKey = `${DRAFT_KEY_BASE}_${userId ?? 'anon'}`;
 
   // Recompute section labels when language changes
   const sections = useMemo(() => getSections(t), [t]);
@@ -4005,6 +4083,15 @@ export function ApplicationFormPage() {
   const medicalRecordId     = navState?.medicalRecordId;
   const behavioralProfileId = navState?.behavioralProfileId;
   const feedingPlanId       = navState?.feedingPlanId;
+
+  // Application-scoped key — includes applicationId so two concurrent applications
+  // (e.g. two children in the same family) never share a sessionStorage slot.
+  // applicationId is always present when the form renders (the lifecycle guard
+  // redirects to start if absent), so the user-only fallback covers only the
+  // single render cycle before that guard fires.
+  const draftKey = applicationId
+    ? `${DRAFT_KEY_BASE}_${userId ?? 'anon'}_${applicationId}`
+    : `${DRAFT_KEY_BASE}_${userId ?? 'anon'}`;
 
   const [form, setForm] = useState<FormState>(() => {
     // Reapplication / prefill flow: when navigated here from the "Apply for a New Session"
@@ -4213,7 +4300,7 @@ export function ApplicationFormPage() {
     // parent must know their change didn't reach the server.
     switch (sectionId) {
         case 0: {
-          // Camper identity
+          // Camper identity + mailing address
           await updateCamperProfile(camperId, {
             first_name:         form.s1.camper_first_name || undefined,
             last_name:          form.s1.camper_last_name || undefined,
@@ -4224,7 +4311,24 @@ export function ApplicationFormPage() {
             county:             form.s1.county || undefined,
             needs_interpreter:  form.s1.needs_interpreter,
             preferred_language: form.s1.preferred_language || undefined,
+            applicant_address:  form.s1.camper_address || undefined,
+            applicant_city:     form.s1.camper_city || undefined,
+            applicant_state:    form.s1.camper_state || undefined,
+            applicant_zip:      form.s1.camper_zip || undefined,
           });
+
+          // Application-level meta — session selection and first-time/returning flags.
+          // These live on the Application model, not the Camper, so they must be
+          // persisted separately. Without this the fast path would always submit
+          // against the initialization-time session regardless of what the user chose.
+          if (form.s1.session_id) {
+            await updateApplication(applicationId, {
+              session_id:        Number(form.s1.session_id),
+              session_id_second: form.s1.session_id_2nd !== '' ? Number(form.s1.session_id_2nd) : null,
+              first_application: form.s1.first_application,
+              attended_before:   form.s1.attended_before,
+            });
+          }
 
           // Emergency contact — single-row natural-key diff. The form
           // currently supports one EC; if we have an existing server row,
@@ -4326,19 +4430,25 @@ export function ApplicationFormPage() {
             formAllergyKeys.add(key);
             const existing = serverAllergyByKey.get(key);
             if (existing) {
+              const formEpiPen = Boolean(a.epi_pen ?? false);
+              const serverEpiPen = (existing.treatment ?? '').includes('Epi-pen');
               const changed =
                 existing.severity !== (a.severity || 'mild')
-                || (existing.reaction ?? '') !== (a.reaction ?? '');
+                || (existing.reaction ?? '') !== (a.reaction ?? '')
+                || serverEpiPen !== formEpiPen;
               if (changed) {
                 await updateAllergy(existing.id, {
-                  severity: a.severity || 'mild',
-                  reaction: a.reaction,
+                  severity:  a.severity || 'mild',
+                  reaction:  a.reaction,
+                  epi_pen:   formEpiPen,
+                  treatment: formEpiPen ? 'Epi-pen available' : undefined,
                 });
               }
             } else {
               await createAllergy({
                 camper_id: camperId, allergen: a.allergen,
                 severity: a.severity || 'mild', reaction: a.reaction,
+                treatment: a.epi_pen ? 'Epi-pen available' : undefined,
               });
             }
           }
@@ -4686,6 +4796,9 @@ export function ApplicationFormPage() {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Separate timer for debounced server-side draft saves (30 s cadence). */
   const serverSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Serializes concurrent flushSection calls — rapid step navigation must wait
+   *  for the prior flush to settle before starting the next one. */
+  const flushInFlight = useRef<Promise<void> | null>(null);
   /**
    * Tracks the server's last-known updated_at for the draft row.
    * Sent with every PUT /application-drafts/{id} so the backend can detect
@@ -4741,17 +4854,11 @@ export function ApplicationFormPage() {
         }
       })
       .catch(() => {
-        // Fetch failed — fall back to sessionStorage if present, otherwise stay on INITIAL_STATE.
-        // The user will see an empty form and can start over, or they can navigate back and retry.
-        try {
-          const raw = sessionStorage.getItem(draftKey);
-          if (raw) {
-            const parsed = JSON.parse(raw) as FormState;
-            setForm(mergeDraft(parsed));
-          }
-        } catch {
-          /* ignore — INITIAL_STATE remains */
-        }
+        // Fetch failed — stay on INITIAL_STATE. Do NOT fall back to sessionStorage here:
+        // the sessionStorage slot is application-scoped but could contain a previous
+        // (now-cleared) write. More importantly, any write from a prior application
+        // for a different camper must never hydrate this form. The user will see an
+        // empty form and can navigate back to the start page to retry.
       })
       .finally(() => {
         // Hydration is complete (success or failure). Unblock the form and auto-save.
@@ -4873,16 +4980,27 @@ export function ApplicationFormPage() {
     // gate) reflects what the engine sees on the server. The flush is
     // async so the parent doesn't feel a pause, but the isSaving/
     // flushError state lets the UI show "Saving…" / an error banner.
+    //
+    // Rapid navigation: if a prior flush is still in-flight, wait for it
+    // to settle first so writes are fully serialized (last-write-wins).
     void (async () => {
+      if (flushInFlight.current) {
+        try { await flushInFlight.current; } catch { /* prior error already surfaced */ }
+      }
       setFlushError(null);
       setIsSaving(true);
-      try {
+      const p = (async () => {
         await flushSection(departing);
         setLastSavedAt(new Date());
+      })();
+      flushInFlight.current = p;
+      try {
+        await p;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'We couldn\'t save your changes — please check your connection and try again.';
         setFlushError(message);
       } finally {
+        if (flushInFlight.current === p) flushInFlight.current = null;
         setIsSaving(false);
         await refetchValidation();
       }
@@ -5140,70 +5258,98 @@ export function ApplicationFormPage() {
         try { sessionStorage.setItem(pendingCamperKey, JSON.stringify(camperId)); } catch { /* quota */ }
       }
 
+      // Fetch existing server-side records once so we can skip creates that
+      // already exist — prevents duplicate rows when the user retries after
+      // a partial failure (idempotency guard).
+      const existingCamper = await getCamperFull(camperId);
+      const existingECs         = existingCamper.emergency_contacts ?? [];
+      const existingDiagnoses   = existingCamper.diagnoses          ?? [];
+      const existingAllergies   = existingCamper.allergies          ?? [];
+      const existingDevices     = existingCamper.assistive_devices  ?? [];
+
       // ── Step 2a: Guardian 1 (stored as emergency contact with is_guardian=true, is_primary=true) ──
       if (form.s1.g1_name.trim()) {
-        await createEmergencyContact({
-          camper_id:            camperId,
-          name:                 form.s1.g1_name,
-          relationship:         form.s1.g1_relationship || 'Guardian',
-          phone_primary:        form.s1.g1_phone_cell || form.s1.g1_phone_home,
-          phone_secondary:      form.s1.g1_phone_home && form.s1.g1_phone_cell ? form.s1.g1_phone_home : undefined,
-          phone_work:           form.s1.g1_phone_work || undefined,
-          is_primary:           true,
-          is_authorized_pickup: true,
-          is_guardian:          true,
-          address:              form.s1.g1_address || undefined,
-          city:                 form.s1.g1_city || undefined,
-          state:                form.s1.g1_state || undefined,
-          zip:                  form.s1.g1_zip || undefined,
-        });
+        const alreadyExists = existingECs.some(
+          (ec) => ec.name === form.s1.g1_name && ec.is_guardian
+        );
+        if (!alreadyExists) {
+          await createEmergencyContact({
+            camper_id:            camperId,
+            name:                 form.s1.g1_name,
+            relationship:         form.s1.g1_relationship || 'Guardian',
+            phone_primary:        form.s1.g1_phone_cell || form.s1.g1_phone_home,
+            phone_secondary:      form.s1.g1_phone_home && form.s1.g1_phone_cell ? form.s1.g1_phone_home : undefined,
+            phone_work:           form.s1.g1_phone_work || undefined,
+            is_primary:           true,
+            is_authorized_pickup: true,
+            is_guardian:          true,
+            address:              form.s1.g1_address || undefined,
+            city:                 form.s1.g1_city || undefined,
+            state:                form.s1.g1_state || undefined,
+            zip:                  form.s1.g1_zip || undefined,
+          });
+        }
       }
 
       // ── Step 2b: Guardian 2 (is_guardian=true, is_primary=false) ─────────
       if (form.s1.g2_name.trim()) {
-        await createEmergencyContact({
-          camper_id:            camperId,
-          name:                 form.s1.g2_name,
-          relationship:         form.s1.g2_relationship || 'Guardian',
-          phone_primary:        form.s1.g2_phone_cell || form.s1.g2_phone_home,
-          phone_secondary:      form.s1.g2_phone_home && form.s1.g2_phone_cell ? form.s1.g2_phone_home : undefined,
-          phone_work:           form.s1.g2_phone_work || undefined,
-          is_primary:           false,
-          is_authorized_pickup: true,
-          is_guardian:          true,
-          address:              form.s1.g2_address || undefined,
-          city:                 form.s1.g2_city || undefined,
-          state:                form.s1.g2_state || undefined,
-          zip:                  form.s1.g2_zip || undefined,
-          primary_language:     form.s1.g2_primary_language || undefined,
-          interpreter_needed:   form.s1.g2_interpreter || undefined,
-        });
+        const alreadyExists = existingECs.some(
+          (ec) => ec.name === form.s1.g2_name && ec.is_guardian
+        );
+        if (!alreadyExists) {
+          await createEmergencyContact({
+            camper_id:            camperId,
+            name:                 form.s1.g2_name,
+            relationship:         form.s1.g2_relationship || 'Guardian',
+            phone_primary:        form.s1.g2_phone_cell || form.s1.g2_phone_home,
+            phone_secondary:      form.s1.g2_phone_home && form.s1.g2_phone_cell ? form.s1.g2_phone_home : undefined,
+            phone_work:           form.s1.g2_phone_work || undefined,
+            is_primary:           false,
+            is_authorized_pickup: true,
+            is_guardian:          true,
+            address:              form.s1.g2_address || undefined,
+            city:                 form.s1.g2_city || undefined,
+            state:                form.s1.g2_state || undefined,
+            zip:                  form.s1.g2_zip || undefined,
+            primary_language:     form.s1.g2_primary_language || undefined,
+            interpreter_needed:   form.s1.g2_interpreter || undefined,
+          });
+        }
       }
 
       // ── Step 2c: Additional emergency contact (non-guardian) ─────────────
       if (form.s1.ec_name.trim()) {
-        await createEmergencyContact({
-          camper_id:            camperId,
-          name:                 form.s1.ec_name,
-          relationship:         form.s1.ec_relationship || 'Emergency Contact',
-          phone_primary:        form.s1.ec_phone,
-          phone_secondary:      form.s1.ec_phone_home || undefined,
-          phone_work:           form.s1.ec_phone_work || undefined,
-          is_primary:           false,
-          is_authorized_pickup: false,
-          is_guardian:          false,
-          address:              form.s1.ec_address || undefined,
-          city:                 form.s1.ec_city || undefined,
-          state:                form.s1.ec_state || undefined,
-          zip:                  form.s1.ec_zip || undefined,
-          primary_language:     form.s1.ec_primary_language || undefined,
-          interpreter_needed:   form.s1.ec_interpreter || undefined,
-        });
+        const alreadyExists = existingECs.some(
+          (ec) => ec.name === form.s1.ec_name && !ec.is_guardian
+        );
+        if (!alreadyExists) {
+          await createEmergencyContact({
+            camper_id:            camperId,
+            name:                 form.s1.ec_name,
+            relationship:         form.s1.ec_relationship || 'Emergency Contact',
+            phone_primary:        form.s1.ec_phone,
+            phone_secondary:      form.s1.ec_phone_home || undefined,
+            phone_work:           form.s1.ec_phone_work || undefined,
+            is_primary:           false,
+            is_authorized_pickup: false,
+            is_guardian:          false,
+            address:              form.s1.ec_address || undefined,
+            city:                 form.s1.ec_city || undefined,
+            state:                form.s1.ec_state || undefined,
+            zip:                  form.s1.ec_zip || undefined,
+            primary_language:     form.s1.ec_primary_language || undefined,
+            interpreter_needed:   form.s1.ec_interpreter || undefined,
+          });
+        }
       }
 
       // ── Step 3: Diagnoses ─────────────────────────────────────────────────
       for (const dx of form.s2.diagnoses) {
         if (!(dx.condition ?? '').trim()) continue;
+        const alreadyExists = existingDiagnoses.some(
+          (d) => d.name === dx.condition
+        );
+        if (alreadyExists) continue;
         await createDiagnosis({
           camper_id:      camperId,
           name:           dx.condition,
@@ -5215,6 +5361,10 @@ export function ApplicationFormPage() {
       // ── Step 4: Allergies ─────────────────────────────────────────────────
       for (const al of form.s2.allergies) {
         if (!(al.allergen ?? '').trim()) continue;
+        const alreadyExists = existingAllergies.some(
+          (a) => a.allergen === al.allergen
+        );
+        if (alreadyExists) continue;
         await createAllergy({
           camper_id: camperId,
           allergen:  al.allergen,
@@ -5263,6 +5413,10 @@ export function ApplicationFormPage() {
       // ── Step 6: Assistive devices ─────────────────────────────────────────
       for (const dev of form.s4.devices) {
         if (!dev.device_type.trim()) continue;
+        const alreadyExists = existingDevices.some(
+          (d) => d.device_type === dev.device_type
+        );
+        if (alreadyExists) continue;
         await createAssistiveDevice({
           camper_id:                    camperId,
           device_type:                  dev.device_type,
