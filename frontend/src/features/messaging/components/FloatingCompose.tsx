@@ -273,6 +273,7 @@ export function FloatingCompose({ onClose, onCreated, isAdmin = false }: Floatin
   async function handleSend() {
     const plainText = bodyHtml.replace(/<[^>]*>/g, '').trim();
     if (!plainText) { toast.error('Message body is empty.'); return; }
+    if (!subject.trim()) { toast.error('Please add a subject before sending.'); return; }
     if (toRecipients.length === 0) { toast.error('Please add at least one recipient in the To field.'); return; }
 
     setSending(true);
@@ -533,7 +534,7 @@ export function FloatingCompose({ onClose, onCreated, isAdmin = false }: Floatin
                 value={subject}
                 onChange={(e) => handleSubjectChange(e.target.value)}
                 onFocus={() => setShowDropdown(false)}
-                placeholder="Subject (optional)"
+                placeholder="Subject"
                 className="flex-1 text-sm bg-transparent outline-none py-0.5"
                 style={{ color: 'var(--foreground)' }}
               />

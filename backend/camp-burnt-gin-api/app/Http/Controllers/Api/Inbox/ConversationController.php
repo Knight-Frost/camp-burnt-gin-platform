@@ -124,7 +124,7 @@ class ConversationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'subject' => 'nullable|string|max:255',
+            'subject' => 'required|string|max:255',
             'category' => 'nullable|string|in:general,medical,application,other',
             // At least one other participant is required; cap at 10 to prevent spam broadcasts
             'participant_ids' => 'required|array|min:1|max:10',
