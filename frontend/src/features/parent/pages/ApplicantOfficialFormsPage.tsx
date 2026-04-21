@@ -239,7 +239,6 @@ export function ApplicantOfficialFormsPage() {
     } finally {
       setLoadingSlots(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Initial data load ────────────────────────────────────────────────────────
