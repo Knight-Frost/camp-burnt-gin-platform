@@ -184,10 +184,13 @@ export function LinkedAccountsSection({ hasPassword, socialProviders, onUpdate }
       )}
 
       {/* ── Google link status ── */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3.5" style={{ borderColor: 'rgba(155,95,38,0.30)', background: 'rgba(0,0,0,0.06)' }}>
+      <div
+        className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3.5"
+        style={{ background: 'white', borderColor: '#e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
+      >
         <div className="flex items-center gap-3">
           {/* Google G logo */}
-          <div className="flex h-9 w-9 items-center justify-center rounded-full" style={{ background: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.18)' }}>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full" style={{ background: '#f8fafc', boxShadow: '0 1px 4px rgba(0,0,0,0.12)', border: '1px solid #e2e8f0' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -196,26 +199,29 @@ export function LinkedAccountsSection({ hasPassword, socialProviders, onUpdate }
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold" style={{ color: 'rgba(232,188,112,0.95)' }}>Google</p>
+            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Google</p>
             {isGoogleLinked && googleAccount?.provider_email ? (
-              <p className="text-xs" style={{ color: 'rgba(232,188,112,0.55)' }}>
+              <p className="text-xs" style={{ color: '#4b5563' }}>
                 {googleAccount.provider_email}
               </p>
             ) : (
-              <p className="text-xs" style={{ color: 'rgba(232,188,112,0.45)' }}>Not connected</p>
+              <p className="flex items-center gap-1 text-xs font-medium" style={{ color: '#6b7280' }}>
+                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#d1d5db' }} />
+                Not connected
+              </p>
             )}
           </div>
         </div>
 
         {isGoogleLinked ? (
           <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#4ade80' }} />
+            <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#16a34a' }} />
             <button
               type="button"
               onClick={() => void handleUnlinkGoogle()}
               disabled={unlinkLoading}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
-              style={{ background: 'rgba(220,38,38,0.14)', color: '#fca5a5', border: '1px solid rgba(220,38,38,0.28)' }}
+              style={{ background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)' }}
             >
               <Link2Off className="h-3.5 w-3.5" />
               {unlinkLoading ? 'Unlinking…' : 'Unlink'}
@@ -226,8 +232,8 @@ export function LinkedAccountsSection({ hasPassword, socialProviders, onUpdate }
             type="button"
             onClick={() => void handleLinkGoogle()}
             disabled={linkLoading}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{ background: 'rgba(66,133,244,0.14)', color: '#93c5fd', border: '1px solid rgba(66,133,244,0.28)' }}
+            className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: '#166534', boxShadow: '0 1px 3px rgba(22,101,52,0.30)' }}
           >
             <Link2 className="h-3.5 w-3.5" />
             {linkLoading ? 'Connecting…' : 'Connect'}
@@ -235,7 +241,7 @@ export function LinkedAccountsSection({ hasPassword, socialProviders, onUpdate }
         )}
       </div>
 
-      <p className="text-xs" style={{ color: 'rgba(232,188,112,0.45)' }}>
+      <p className="text-xs" style={{ color: '#6b7280' }}>
         Connected providers let you sign in without entering a password.
       </p>
     </div>
