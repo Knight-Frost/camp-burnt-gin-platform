@@ -23,12 +23,14 @@ function readPage(name: string): string {
   return readFileSync(resolve(PARENT_PAGES, name), 'utf-8');
 }
 
-// Files known to touch cbg_app_draft — confirmed by forensic audit 2026-04-02
+// Files known to touch cbg_app_draft — confirmed by forensic audit 2026-04-02.
+// ApplicantOfficialFormsPage.tsx was removed from this list after BUG-232 (2026-04-20):
+// the paper forms hub was redesigned to use server-side Application records via
+// initializeDraft(), eliminating all direct cbg_app_draft sessionStorage writes.
 const DRAFT_PAGES = [
   'ApplicationFormPage.tsx',
   'ApplicantApplicationsPage.tsx',
   'ApplicantDashboardPage.tsx',
-  'ApplicantOfficialFormsPage.tsx',
   'ApplicationStartPage.tsx',
 ];
 

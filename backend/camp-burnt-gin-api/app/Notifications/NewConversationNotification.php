@@ -40,9 +40,9 @@ class NewConversationNotification extends Notification
      * Returns a database-only instance for synchronous in-app notification.
      * The Queueable trait is present but unused — callers should use notifyNow().
      */
-    public static function forDatabase(Conversation $conversation): static
+    public static function forDatabase(Conversation $conversation): self
     {
-        $instance = new static($conversation);
+        $instance = new self($conversation);
         $instance->channelsOverride = ['database'];
 
         return $instance;
@@ -52,9 +52,9 @@ class NewConversationNotification extends Notification
      * Returns a mail-only instance intended for queued delivery via SendNotificationJob.
      * Gating on notification_preferences is handled in InboxService before dispatch.
      */
-    public static function forMail(Conversation $conversation): static
+    public static function forMail(Conversation $conversation): self
     {
-        $instance = new static($conversation);
+        $instance = new self($conversation);
         $instance->channelsOverride = ['mail'];
 
         return $instance;
@@ -106,10 +106,10 @@ class NewConversationNotification extends Notification
     private function inboxUrl(object $notifiable, int $conversationId): string
     {
         $prefix = match (true) {
-            $notifiable->isSuperAdmin()      => 'super-admin',
-            $notifiable->isAdmin()           => 'admin',
+            $notifiable->isSuperAdmin() => 'super-admin',
+            $notifiable->isAdmin() => 'admin',
             $notifiable->isMedicalProvider() => 'medical',
-            default                          => 'applicant',
+            default => 'applicant',
         };
 
         return config('app.frontend_url')."/{$prefix}/inbox?conversationId={$conversationId}";

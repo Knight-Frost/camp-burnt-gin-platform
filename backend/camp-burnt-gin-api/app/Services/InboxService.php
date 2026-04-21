@@ -136,7 +136,8 @@ class InboxService
                 //      the HTTP response or roll back the conversation transaction.
                 $participant->notifyNow(NewConversationNotification::forDatabase($conversation));
 
-                $prefs = $participant->notification_preferences ?? [];
+                /** @var array<string, mixed> $prefs */
+                $prefs = (array) ($participant->notification_preferences ?? []);
                 if ($prefs['messages'] ?? true) {
                     dispatch(new SendNotificationJob($participant, NewConversationNotification::forMail($conversation)));
                 }

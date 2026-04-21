@@ -26,7 +26,6 @@ use Illuminate\Support\Facades\URL;
  */
 class EmailVerificationNotification extends Notification
 {
-
     /**
      * Get the delivery channels for this notification.
      *

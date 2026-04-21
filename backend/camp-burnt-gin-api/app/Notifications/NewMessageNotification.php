@@ -42,9 +42,9 @@ class NewMessageNotification extends Notification
      * Returns a database-only instance for synchronous in-app notification.
      * The Queueable trait is present but unused — callers should use notifyNow().
      */
-    public static function forDatabase(Message $message, Conversation $conversation): static
+    public static function forDatabase(Message $message, Conversation $conversation): self
     {
-        $instance = new static($message, $conversation);
+        $instance = new self($message, $conversation);
         $instance->channelsOverride = ['database'];
 
         return $instance;
@@ -54,9 +54,9 @@ class NewMessageNotification extends Notification
      * Returns a mail-only instance intended for queued delivery via SendNotificationJob.
      * Gating on notification_preferences is handled inside via() when channelsOverride is null.
      */
-    public static function forMail(Message $message, Conversation $conversation): static
+    public static function forMail(Message $message, Conversation $conversation): self
     {
-        $instance = new static($message, $conversation);
+        $instance = new self($message, $conversation);
         $instance->channelsOverride = ['mail'];
 
         return $instance;
@@ -90,7 +90,7 @@ class NewMessageNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $senderName = $this->message->sender?->name ?? 'Camp Burnt Gin';
+        $senderName = $this->message->sender->name ?? 'Camp Burnt Gin';
 
         $mailMessage = (new MailMessage)
             ->subject('New Message - Camp Burnt Gin')
@@ -118,10 +118,10 @@ class NewMessageNotification extends Notification
     private function inboxUrl(object $notifiable, int $conversationId): string
     {
         $prefix = match (true) {
-            $notifiable->isSuperAdmin()    => 'super-admin',
-            $notifiable->isAdmin()         => 'admin',
+            $notifiable->isSuperAdmin() => 'super-admin',
+            $notifiable->isAdmin() => 'admin',
             $notifiable->isMedicalProvider() => 'medical',
-            default                        => 'applicant',
+            default => 'applicant',
         };
 
         return config('app.frontend_url')."/{$prefix}/inbox?conversationId={$conversationId}";
@@ -136,7 +136,7 @@ class NewMessageNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $senderName = $this->message->sender?->name ?? 'Camp Burnt Gin';
+        $senderName = $this->message->sender->name ?? 'Camp Burnt Gin';
         $senderId = $this->message->sender?->id;
         $subject = $this->conversation->subject;
         $attachments = $this->message->hasAttachments();

@@ -135,11 +135,11 @@ class SessionDashboardController extends Controller
             ->pluck('count', 'age_group');
 
         $ageGroups = [
-            '6-8'   => (int) ($ageCounts['6-8']   ?? 0),
-            '9-11'  => (int) ($ageCounts['9-11']  ?? 0),
+            '6-8' => (int) ($ageCounts['6-8'] ?? 0),
+            '9-11' => (int) ($ageCounts['9-11'] ?? 0),
             '12-14' => (int) ($ageCounts['12-14'] ?? 0),
             '15-17' => (int) ($ageCounts['15-17'] ?? 0),
-            '18+'   => (int) ($ageCounts['18+']   ?? 0),
+            '18+' => (int) ($ageCounts['18+'] ?? 0),
         ];
 
         // ── Gender distribution (enrolled only) — PHP normalisation ─────────────
