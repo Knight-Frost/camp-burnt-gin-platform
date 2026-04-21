@@ -57,9 +57,11 @@ class AuthController extends Controller
 
         // Trigger email verification notification.
         // Wrapped in try-catch so an SMTP failure does not roll back a successful registration.
+        $emailSent = true;
         try {
             $user->sendEmailVerificationNotification();
         } catch (\Throwable $e) {
+            $emailSent = false;
             Log::warning('Failed to send email verification notification', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -74,6 +76,7 @@ class AuthController extends Controller
             'data' => [
                 'user' => $this->buildUserArray($user->load('role')),
                 'token' => $token,
+                'email_sent' => $emailSent,
             ],
         ], Response::HTTP_CREATED);
     }
