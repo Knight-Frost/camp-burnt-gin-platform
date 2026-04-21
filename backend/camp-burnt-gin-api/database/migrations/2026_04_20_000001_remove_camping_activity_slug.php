@@ -20,24 +20,26 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Rename orphaned 'camping' rows (no matching 'camp_out') to 'camp_out'.
-        // Written as a subquery rather than UPDATE...JOIN so the statement runs
-        // on both MySQL (production) and SQLite (CI test suite).
-        DB::statement("
-            UPDATE activity_permissions
-            SET activity_name = 'camp_out'
-            WHERE activity_name = 'camping'
-              AND NOT EXISTS (
-                SELECT 1 FROM activity_permissions ap2
-                WHERE ap2.camper_id = activity_permissions.camper_id
-                  AND ap2.activity_name = 'camp_out'
-              )
-        ");
+        // Campers that already have a 'camp_out' row — their 'camping' row is a
+        // duplicate and must be deleted rather than renamed.
+        // Uses two queries instead of UPDATE/DELETE...JOIN so it runs on both
+        // MySQL and SQLite (Laravel CI test suite uses SQLite :memory:).
+        $camperIdsWithCampOut = DB::table('activity_permissions')
+            ->where('activity_name', 'camp_out')
+            ->pluck('camper_id');
 
-        // Delete remaining 'camping' rows (camp_out already exists for this camper)
+        if ($camperIdsWithCampOut->isNotEmpty()) {
+            DB::table('activity_permissions')
+                ->where('activity_name', 'camping')
+                ->whereIn('camper_id', $camperIdsWithCampOut)
+                ->delete();
+        }
+
+        // Orphaned 'camping' rows (no 'camp_out' partner) — rename to 'camp_out'
+        // so the camper retains their overnight-camping permission.
         DB::table('activity_permissions')
             ->where('activity_name', 'camping')
-            ->delete();
+            ->update(['activity_name' => 'camp_out']);
     }
 
     public function down(): void
