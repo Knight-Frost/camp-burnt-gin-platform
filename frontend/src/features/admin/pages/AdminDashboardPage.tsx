@@ -8,7 +8,7 @@
  *  - Recent Activity: application-based activity feed (most recently updated apps)
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText, Users, CheckCircle, Clock,
@@ -186,6 +186,49 @@ export function AdminDashboardPage() {
     window.addEventListener('realtime:message-arrived', refreshConversations);
     return () => window.removeEventListener('realtime:message-arrived', refreshConversations);
   }, [retryKey]);
+
+  // ── Silent background refresh ────────────────────────────────────────────────
+  // Called by the notification:refresh event listener when any system notification
+  // arrives (e.g. application approved/rejected). Updates stats and the Needs
+  // Attention panel in the background WITHOUT showing the loading skeleton so the
+  // dashboard doesn't flicker on every admin decision.
+  const silentRefreshStats = useCallback(() => {
+    Promise.all([
+      getReportsSummary(),
+      Promise.all([
+        getAdminApplications({ status: 'submitted',    sort: 'submitted_at', direction: 'asc', per_page: 8 }).then((r) => r.data).catch(() => [] as Application[]),
+        getAdminApplications({ status: 'under_review', sort: 'submitted_at', direction: 'asc', per_page: 8 }).then((r) => r.data).catch(() => [] as Application[]),
+      ]),
+      getAdminApplications({ sort: 'updated_at', direction: 'desc', per_page: 10 }).then((r) => r.data).catch(() => [] as Application[]),
+    ]).then(([rptSummary, [submittedApps, underReviewApps], recentAppsData]) => {
+      setSummary(rptSummary);
+
+      const seen = new Set<number>();
+      const actionable = [...submittedApps, ...underReviewApps]
+        .filter((a) => { if (seen.has(a.id)) return false; seen.add(a.id); return true; })
+        .sort((a, b) => {
+          const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+          const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+          return da - db;
+        })
+        .slice(0, 5);
+      setPendingApps(actionable);
+
+      const recentActivity = recentAppsData
+        .filter((a) => a.status !== 'draft' && a.status !== 'cancelled')
+        .slice(0, 6);
+      setActivity(recentActivity);
+    }).catch(() => { /* keep stale data on silent refresh failure */ });
+  }, []);
+
+  // Re-fetch dashboard stats whenever any system notification arrives for this
+  // admin user (e.g., new submission alert, application status changed by
+  // another admin, system events). This is the hook that makes the dashboard
+  // live without requiring a page reload.
+  useEffect(() => {
+    window.addEventListener('notification:refresh', silentRefreshStats);
+    return () => window.removeEventListener('notification:refresh', silentRefreshStats);
+  }, [silentRefreshStats]);
 
   // ── Session-scoped metrics ───────────────────────────────────────────────────
   useEffect(() => {

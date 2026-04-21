@@ -8,7 +8,7 @@
  *  - Recent Activity: real events (applications, documents), filtered and de-emphasized
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -101,7 +101,8 @@ export function SuperAdminDashboardPage() {
       getReportsSummary(),
       getDocumentRequestStats().catch(() => null),
       getSessions().catch(() => [] as CampSession[]),
-      getDocumentRequests({ page: 1 }).catch(() => ({ data: [] as DocumentRequest[] })),
+      // Fetch overdue docs server-side so we don't miss any beyond page 1.
+      getDocumentRequests({ status: 'overdue', page: 1 }).catch(() => ({ data: [] as DocumentRequest[] })),
       // Needs Attention: oldest waiting apps, fetched by status so none are missed.
       Promise.all([
         getApplications({ status: 'submitted',    sort: 'submitted_at', direction: 'asc', per_page: 6 }).then((r) => r.data).catch(() => [] as Application[]),
@@ -129,10 +130,8 @@ export function SuperAdminDashboardPage() {
           .slice(0, 4);
         setPendingApps(actionable);
 
-        // Overdue document requests for Needs Attention (from page-1 doc requests)
-        const overdueList = (docPage.data ?? [])
-          .filter((d: DocumentRequest) => d.status === 'overdue')
-          .slice(0, 2);
+        // Already filtered server-side for overdue status — take top 2 for the panel.
+        const overdueList = (docPage.data ?? []).slice(0, 2);
         setOverdueDocs(overdueList);
 
         // Recent Activity: already sorted updated_at DESC — filter noise and take top 6.
@@ -144,6 +143,50 @@ export function SuperAdminDashboardPage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [retryKey]);
+
+  // ── Silent background refresh ────────────────────────────────────────────────
+  // Re-fetches stats and pending items when a system notification arrives
+  // (e.g. application approved by another admin, new submission). Updates state
+  // without triggering the loading skeleton to avoid UI flicker.
+  const silentRefreshStats = useCallback(() => {
+    Promise.all([
+      getReportsSummary(),
+      getDocumentRequestStats().catch(() => null),
+      getDocumentRequests({ status: 'overdue', page: 1 }).catch(() => ({ data: [] as DocumentRequest[] })),
+      Promise.all([
+        getApplications({ status: 'submitted',    sort: 'submitted_at', direction: 'asc', per_page: 6 }).then((r) => r.data).catch(() => [] as Application[]),
+        getApplications({ status: 'under_review', sort: 'submitted_at', direction: 'asc', per_page: 6 }).then((r) => r.data).catch(() => [] as Application[]),
+      ]),
+      getApplications({ sort: 'updated_at', direction: 'desc', per_page: 10 }).then((r) => r.data).catch(() => [] as Application[]),
+    ]).then(([rpt, docs, docPage, [submittedApps, underReviewApps], recentAppsData]) => {
+      setSummary(rpt);
+      setDocStats(docs);
+
+      const overdueList = (docPage.data ?? []).slice(0, 2);
+      setOverdueDocs(overdueList);
+
+      const seen = new Set<number>();
+      const actionable = [...submittedApps, ...underReviewApps]
+        .filter((a) => { if (seen.has(a.id)) return false; seen.add(a.id); return true; })
+        .sort((a, b) => {
+          const da = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+          const db = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+          return da - db;
+        })
+        .slice(0, 4);
+      setPendingApps(actionable);
+
+      const reviewed = recentAppsData
+        .filter((a) => a.status !== 'draft' && a.status !== 'cancelled')
+        .slice(0, 6);
+      setRecentApps(reviewed);
+    }).catch(() => { /* keep stale data on silent refresh failure */ });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('notification:refresh', silentRefreshStats);
+    return () => window.removeEventListener('notification:refresh', silentRefreshStats);
+  }, [silentRefreshStats]);
 
   // Refresh recent conversations independently — re-runs whenever a message arrives
   // so the Recent Activity feed stays current without a full dashboard reload.

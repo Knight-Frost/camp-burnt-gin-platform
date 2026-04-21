@@ -54,6 +54,7 @@ export interface Conversation {
   created_by_id?: number;
   participants: ConversationParticipant[];
   last_message?: Message;
+  last_message_at?: string;
   unread_count: number;
   is_archived: boolean;
   archived_at?: string;

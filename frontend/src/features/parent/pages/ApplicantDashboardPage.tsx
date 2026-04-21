@@ -78,6 +78,25 @@ export function ApplicantDashboardPage() {
     return () => window.removeEventListener('realtime:message-arrived', refreshConversations);
   }, []);
 
+  // Silently re-fetch application data when a system notification arrives — this
+  // covers the case where an admin has approved/rejected/waitlisted an application.
+  // The applicant gets a NotificationCreated WebSocket event, which fires
+  // notification:refresh. Without this, the camper status badge and stat cards
+  // stay stale until the user manually reloads the page.
+  useEffect(() => {
+    function refreshApplicationData() {
+      Promise.all([
+        getApplications().catch(() => null),
+        getRequiredDocuments().catch(() => null),
+      ]).then(([appsResult, reqResult]) => {
+        if (appsResult !== null) setApplications(appsResult);
+        if (reqResult !== null) setRequiredDocs(reqResult);
+      });
+    }
+    window.addEventListener('notification:refresh', refreshApplicationData);
+    return () => window.removeEventListener('notification:refresh', refreshApplicationData);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     setError(false);
@@ -549,10 +568,19 @@ function buildActivityFeed(
 ): ActivityItem[] {
   const items: ActivityItem[] = [];
 
-  // Messages: group unread non-system conversations by sender
-  const unreadConvs = conversations.filter((c) => !c.is_system_generated && c.unread_count > 0);
+  // Messages: show conversations where a staff member sent the most recent message,
+  // active within the last 30 days. Shown regardless of read status so messages
+  // don't vanish from Recent Updates the moment the user opens the inbox.
+  const THIRTY_DAYS_AGO = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recentConvs = conversations.filter((c) => {
+    if (c.is_system_generated) return false;
+    if (!c.last_message) return false;
+    if (c.last_message.sender_id === currentUserId) return false;
+    const lastActivity = new Date(c.last_message_at ?? c.updated_at).getTime();
+    return lastActivity > THIRTY_DAYS_AGO;
+  });
   const grouped = new Map<string, Conversation[]>();
-  for (const conv of unreadConvs) {
+  for (const conv of recentConvs) {
     const senderName = getConvSenderName(conv, currentUserId);
     if (!grouped.has(senderName)) grouped.set(senderName, []);
     grouped.get(senderName)!.push(conv);
@@ -562,19 +590,20 @@ function buildActivityFeed(
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
     )[0];
     const count = convs.length;
+    const hasUnread = convs.some((c) => c.unread_count > 0);
     items.push({
       id: `msg-${latest.id}`,
       type: 'message',
       iconKey: 'message',
       title: count > 1
-        ? `${count} new messages from ${senderName}`
-        : `New message from ${senderName}`,
+        ? `${count} messages from ${senderName}`
+        : hasUnread ? `New message from ${senderName}` : `Message from ${senderName}`,
       subtitle: latest.last_message?.body
         ? truncateText(stripHtml(latest.last_message.body), 60)
         : latest.subject ?? 'Open conversation',
       timestamp: latest.updated_at,
       route: '/applicant/inbox',
-      accent: true,
+      accent: hasUnread,
     });
   }
 

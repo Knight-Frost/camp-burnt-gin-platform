@@ -245,15 +245,23 @@ export function MedicalDashboardPage() {
 
   useEffect(() => { void fetchStats(); }, [fetchStats, statsRetryKey]);
 
-  // Refresh stats automatically when a new notification arrives (e.g., a treatment
-  // was logged by another staff member, or a follow-up was updated elsewhere).
-  // This mirrors the real-time pattern used by the admin dashboard for messages.
+  // Refresh stats automatically when a system notification arrives (e.g., a
+  // follow-up was updated or a new announcement triggers a notification).
+  // Also run a 90-second interval as a backstop: medical events (treatments,
+  // incidents, clinic visits) do not generate notifications for other staff
+  // members, so the notification:refresh hook alone is insufficient when two
+  // staff members are working simultaneously. The interval guarantees the
+  // activity feed is at most 90 seconds stale even with no WebSocket events.
   useEffect(() => {
     function onNotificationRefresh() {
       setStatsRetryKey((k) => k + 1);
     }
     window.addEventListener('notification:refresh', onNotificationRefresh);
-    return () => window.removeEventListener('notification:refresh', onNotificationRefresh);
+    const interval = setInterval(() => setStatsRetryKey((k) => k + 1), 90_000);
+    return () => {
+      window.removeEventListener('notification:refresh', onNotificationRefresh);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleMarkComplete = useCallback(async (id: number) => {

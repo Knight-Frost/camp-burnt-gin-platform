@@ -111,44 +111,48 @@ class SessionDashboardController extends Controller
             ->get()
             ->count();
 
-        // ── Age and gender distribution (enrolled only) ──────────────────────────
-        // Pull only the columns we need — date_of_birth and gender — to avoid loading PHI.
-        $approvedApps = Application::where('camp_session_id', $session->id)
+        // ── Age distribution (enrolled only) — computed in SQL ──────────────────
+        // CASE WHEN in selectRaw + GROUP BY performs a single aggregation query
+        // instead of loading every enrolled camper row into PHP memory. This
+        // scales to large sessions without memory growth.
+        $approvedCamperIds = Application::where('camp_session_id', $session->id)
             ->where('status', ApplicationStatus::Approved->value)
-            ->with(['camper' => fn ($q) => $q->select('id', 'date_of_birth', 'gender')])
-            ->get();
+            ->pluck('camper_id');
 
-        $ageGroups = ['6-8' => 0, '9-11' => 0, '12-14' => 0, '15-17' => 0, '18+' => 0];
+        $ageCounts = \App\Models\Camper::whereIn('id', $approvedCamperIds)
+            ->whereNotNull('date_of_birth')
+            ->selectRaw("
+                CASE
+                    WHEN TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) <= 8  THEN '6-8'
+                    WHEN TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) <= 11 THEN '9-11'
+                    WHEN TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) <= 14 THEN '12-14'
+                    WHEN TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) <= 17 THEN '15-17'
+                    ELSE '18+'
+                END as age_group,
+                COUNT(*) as count
+            ")
+            ->groupBy('age_group')
+            ->pluck('count', 'age_group');
+
+        $ageGroups = [
+            '6-8'   => (int) ($ageCounts['6-8']   ?? 0),
+            '9-11'  => (int) ($ageCounts['9-11']  ?? 0),
+            '12-14' => (int) ($ageCounts['12-14'] ?? 0),
+            '15-17' => (int) ($ageCounts['15-17'] ?? 0),
+            '18+'   => (int) ($ageCounts['18+']   ?? 0),
+        ];
+
+        // ── Gender distribution (enrolled only) — PHP normalisation ─────────────
+        // Kept in PHP to handle mixed-case or non-standard gender values cleanly.
+        // Only gender column is fetched — no PHI loaded.
         $genderCounts = ['male' => 0, 'female' => 0, 'other' => 0, 'unknown' => 0];
+        $genderRows = \App\Models\Camper::whereIn('id', $approvedCamperIds)
+            ->selectRaw('LOWER(COALESCE(gender, "unknown")) as g')
+            ->pluck('g');
 
-        foreach ($approvedApps as $app) {
-            $camper = $app->camper;
-            if (! $camper) {
-                continue;
-            }
-
-            // Age bucketing
-            if ($camper->date_of_birth) {
-                $age = now()->diffInYears($camper->date_of_birth);
-                if ($age <= 8) {
-                    $ageGroups['6-8']++;
-                } elseif ($age <= 11) {
-                    $ageGroups['9-11']++;
-                } elseif ($age <= 14) {
-                    $ageGroups['12-14']++;
-                } elseif ($age <= 17) {
-                    $ageGroups['15-17']++;
-                } else {
-                    $ageGroups['18+']++;
-                }
-            }
-
-            // Gender bucketing — normalise to lowercase, default to unknown
-            $gender = strtolower((string) ($camper->gender ?? 'unknown'));
-            if (! array_key_exists($gender, $genderCounts)) {
-                $gender = 'other';
-            }
-            $genderCounts[$gender]++;
+        foreach ($genderRows as $g) {
+            $key = array_key_exists($g, $genderCounts) ? $g : 'other';
+            $genderCounts[$key]++;
         }
 
         return response()->json([
