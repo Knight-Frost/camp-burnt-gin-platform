@@ -44,8 +44,7 @@ class ApplicationSignIdempotencyTest extends TestCase
         $app = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
         ]);
 

@@ -93,12 +93,12 @@ class ApplicationCompletenessService
      */
     private const CANONICAL_ACTIVITIES = [
         'sports_games' => 'Sports & Games',
-        'arts_crafts'  => 'Arts & Crafts',
-        'nature'       => 'Nature Activities',
-        'fine_arts'    => 'Fine Arts',
-        'swimming'     => 'Swimming',
-        'boating'      => 'Boating',
-        'camp_out'     => 'Camp Out',
+        'arts_crafts' => 'Arts & Crafts',
+        'nature' => 'Nature Activities',
+        'fine_arts' => 'Fine Arts',
+        'swimming' => 'Swimming',
+        'boating' => 'Boating',
+        'camp_out' => 'Camp Out',
     ];
 
     /** Valid values for ADL levels on PersonalCarePlan. */
@@ -166,35 +166,22 @@ class ApplicationCompletenessService
         $paperPacketPresent = $this->paperPacketOnFile($application, $forFinalization);
         $paperSubstitutesDigital = $isPaper && $paperPacketPresent;
 
-        // Paper-self fast path: when the applicant has uploaded the signed packet,
-        // the paper forms ARE the application. All digital data-entry section
-        // requirements are waived — staff review the scanned forms and transcribe
-        // data later via Admin Edit Application. Only the documents section is
-        // evaluated so the packet-present check remains the single gate.
-        if ($paperSubstitutesDigital) {
-            $sections = [];
-            foreach (self::SECTION_KEYS as $sectionKey) {
-                $sections[$sectionKey] = match ($sectionKey) {
-                    'documents' => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
-                    default => $this->sectionResult(true, []), // waived — covered by paper packet
-                };
-            }
-        } else {
-            // Per-section validators (digital path)
-            $sections = [
-                'camper'       => $this->validateCamper($application, $paperSubstitutesDigital),
-                'health'       => $this->validateHealth($application),
-                'behavior'     => $this->validateBehavior($application),
-                'equipment'    => $this->validateEquipment($application),
-                'diet'         => $this->validateDiet($application),
-                'personal_care' => $this->validatePersonalCare($application),
-                'activities'   => $this->validateActivities($application),
-                'medications'  => $this->validateMedications($application),
-                'narratives'   => $this->validateNarratives($application),
-                'documents'    => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
-                'consents'     => $this->validateConsents($application, $paperSubstitutesDigital),
-            ];
-        }
+        // Paper packet substitutes for digital signature and consents only.
+        // Section-data fields (health, personal_care, etc.) are still evaluated
+        // so staff can see what's missing after transcription via Admin Edit.
+        $sections = [
+            'camper' => $this->validateCamper($application, $paperSubstitutesDigital),
+            'health' => $this->validateHealth($application),
+            'behavior' => $this->validateBehavior($application),
+            'equipment' => $this->validateEquipment($application),
+            'diet' => $this->validateDiet($application),
+            'personal_care' => $this->validatePersonalCare($application),
+            'activities' => $this->validateActivities($application),
+            'medications' => $this->validateMedications($application),
+            'narratives' => $this->validateNarratives($application),
+            'documents' => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
+            'consents' => $this->validateConsents($application, $paperSubstitutesDigital),
+        ];
 
         // Raw document breakdown (for UI that wants to render the four doc
         // buckets separately — matches the old contract shape).

@@ -42,7 +42,7 @@ class ApplicationDraftController extends Controller
         $drafts = ApplicationDraft::where('user_id', $request->user()->id)
             ->where(function ($q) {
                 $q->whereNotNull('application_id')
-                  ->orWhereNotNull('draft_data');
+                    ->orWhereNotNull('draft_data');
             })
             ->orderByDesc('updated_at')
             ->get(['id', 'label', 'application_id', 'created_at', 'updated_at']);
@@ -72,7 +72,7 @@ class ApplicationDraftController extends Controller
             'application_id' => ['sometimes', 'nullable', 'integer', 'exists:applications,id'],
         ]);
 
-        $userId        = $request->user()->id;
+        $userId = $request->user()->id;
         $applicationId = $validated['application_id'] ?? null;
 
         // Idempotent: if this (user, application) pair already has a draft
@@ -101,10 +101,10 @@ class ApplicationDraftController extends Controller
             }
 
             return ApplicationDraft::create([
-                'user_id'        => $userId,
+                'user_id' => $userId,
                 'application_id' => $applicationId,
-                'label'          => $validated['label'] ?? 'New Application',
-                'draft_data'     => null,
+                'label' => $validated['label'] ?? 'New Application',
+                'draft_data' => null,
             ]);
         });
 

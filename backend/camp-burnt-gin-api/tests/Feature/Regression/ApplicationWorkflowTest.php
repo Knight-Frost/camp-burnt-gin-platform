@@ -34,35 +34,34 @@ class ApplicationWorkflowTest extends TestCase
 
     public function test_complete_application_submission_workflow(): void
     {
+        // store() always creates a draft — submission happens via finalize().
+        // This test verifies the store() half of the two-phase workflow.
         $parent = $this->createParent();
         $camper = Camper::factory()->create(['user_id' => $parent->id]);
         $session = \App\Models\CampSession::factory()->create();
 
-        // Submit application
         $response = $this->actingAs($parent)->postJson('/api/applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
         ]);
 
-        // Verify response
         $response->assertStatus(201);
-        $response->assertJsonPath('message', 'Application submitted successfully.');
-        $response->assertJsonStructure(['data' => ['id', 'status', 'submitted_at']]);
+        $response->assertJsonPath('message', 'Application draft saved.');
+        $response->assertJsonStructure(['data' => ['id', 'status']]);
 
-        // Verify database state
         $this->assertDatabaseHas('applications', [
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => ApplicationStatus::Submitted->value,
+            'status' => ApplicationStatus::Draft->value,
         ]);
 
         $application = Application::where('camper_id', $camper->id)->first();
-        $this->assertNotNull($application->submitted_at);
+        $this->assertNull($application->submitted_at);
 
-        // Verify notification was queued
-        Queue::assertPushed(SendNotificationJob::class);
+        // No notification fired for a draft creation.
+        Queue::assertNotPushed(SendNotificationJob::class);
 
-        // Verify audit log was created
+        // Audit log is still created at draft creation time.
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $parent->id,
             'event_type' => AuditLog::EVENT_TYPE_PHI_ACCESS,

@@ -17,30 +17,35 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     private const LABEL_TO_SLUG = [
-        'Sports & Games'   => 'sports_games',
-        'Sports'           => 'sports_games',
-        'Arts & Crafts'    => 'arts_crafts',
+        'Sports & Games' => 'sports_games',
+        'Sports' => 'sports_games',
+        'Arts & Crafts' => 'arts_crafts',
         'Nature Activities' => 'nature',
-        'Nature'           => 'nature',
-        'Fine Arts'        => 'fine_arts',
-        'Swimming'         => 'swimming',
-        'Boating'          => 'boating',
-        'Camping'          => 'camp_out',
-        'Camp Out'         => 'camp_out',
+        'Nature' => 'nature',
+        'Fine Arts' => 'fine_arts',
+        'Swimming' => 'swimming',
+        'Boating' => 'boating',
+        'Camping' => 'camp_out',
+        'Camp Out' => 'camp_out',
     ];
 
     public function up(): void
     {
         foreach (self::LABEL_TO_SLUG as $label => $slug) {
-            // For each label-format row, if a slug-format row already exists for
-            // the same camper, delete the label duplicate. Otherwise rename it.
-            DB::statement("
-                DELETE ap FROM activity_permissions ap
-                INNER JOIN activity_permissions ap2
-                    ON ap2.camper_id = ap.camper_id AND ap2.activity_name = ?
-                WHERE ap.activity_name = ?
-            ", [$slug, $label]);
+            // Delete label-format rows for campers that already have the slug variant.
+            // Uses two queries instead of DELETE...JOIN so it runs on both MySQL and SQLite.
+            $camperIdsWithSlug = DB::table('activity_permissions')
+                ->where('activity_name', $slug)
+                ->pluck('camper_id');
 
+            if ($camperIdsWithSlug->isNotEmpty()) {
+                DB::table('activity_permissions')
+                    ->where('activity_name', $label)
+                    ->whereIn('camper_id', $camperIdsWithSlug)
+                    ->delete();
+            }
+
+            // Rename any remaining label-format rows (no slug duplicate exists) to the slug.
             DB::table('activity_permissions')
                 ->where('activity_name', $label)
                 ->update(['activity_name' => $slug]);

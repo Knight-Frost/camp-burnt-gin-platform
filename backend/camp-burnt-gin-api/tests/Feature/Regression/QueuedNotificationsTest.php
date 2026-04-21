@@ -35,16 +35,32 @@ class QueuedNotificationsTest extends TestCase
     public function test_application_submission_queues_notification(): void
     {
         $parent = $this->createParent();
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = \App\Models\CampSession::factory()->create();
-
-        // Submit application
-        $response = $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper->id,
-            'camp_session_id' => $session->id,
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
+        $camper = Camper::factory()->create([
+            'user_id' => $parent->id,
+            'first_name' => 'Alice',
+            'last_name' => 'Smith',
+            'date_of_birth' => '2010-01-01',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
         ]);
 
-        $response->assertStatus(201);
+        \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
+        \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
+
+        $application = Application::factory()->draft()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Smith',
+            'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+        ]);
+        \Tests\Support\TestApplicationFixture::attachConsents($application, 'Jane Smith');
+
+        $response = $this->actingAs($parent)->postJson("/api/applications/{$application->id}/finalize");
+
+        $response->assertOk();
 
         // Verify notification was queued (not sent synchronously)
         Queue::assertPushed(SendNotificationJob::class, function ($job) {
@@ -191,17 +207,40 @@ class QueuedNotificationsTest extends TestCase
         });
     }
 
+    private function makeFinalizeReadyApplication(mixed $parent, mixed $session): Application
+    {
+        $camper = Camper::factory()->create([
+            'user_id' => $parent->id,
+            'first_name' => 'Alice',
+            'last_name' => 'Smith',
+            'date_of_birth' => '2010-01-01',
+            'gender' => 'female',
+            'tshirt_size' => 'Youth M',
+            'county' => 'Richland',
+        ]);
+
+        \Tests\Support\TestApplicationFixture::buildCamperMinimum($camper);
+        \Tests\Support\TestApplicationFixture::attachRequiredDocuments($camper);
+
+        $application = Application::factory()->draft()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Smith',
+            'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+        ]);
+        \Tests\Support\TestApplicationFixture::attachConsents($application, 'Jane Smith');
+
+        return $application;
+    }
+
     public function test_notification_job_targets_correct_user(): void
     {
         $parent = $this->createParent();
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = \App\Models\CampSession::factory()->create();
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
+        $application = $this->makeFinalizeReadyApplication($parent, $session);
 
-        // Submit application
-        $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper->id,
-            'camp_session_id' => $session->id,
-        ]);
+        $this->actingAs($parent)->postJson("/api/applications/{$application->id}/finalize")->assertOk();
 
         // Verify job contains the correct notifiable user
         Queue::assertPushed(SendNotificationJob::class, function ($job) use ($parent) {
@@ -212,14 +251,10 @@ class QueuedNotificationsTest extends TestCase
     public function test_notification_job_uses_notifications_queue(): void
     {
         $parent = $this->createParent();
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = \App\Models\CampSession::factory()->create();
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
+        $application = $this->makeFinalizeReadyApplication($parent, $session);
 
-        // Submit application
-        $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper->id,
-            'camp_session_id' => $session->id,
-        ]);
+        $this->actingAs($parent)->postJson("/api/applications/{$application->id}/finalize")->assertOk();
 
         // Verify job is queued on 'notifications' queue
         Queue::assertPushedOn('notifications', SendNotificationJob::class);
@@ -228,20 +263,13 @@ class QueuedNotificationsTest extends TestCase
     public function test_multiple_application_submissions_queue_multiple_notifications(): void
     {
         $parent = $this->createParent();
-        $camper1 = Camper::factory()->create(['user_id' => $parent->id]);
-        $camper2 = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = \App\Models\CampSession::factory()->create();
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
 
-        // Submit two applications
-        $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper1->id,
-            'camp_session_id' => $session->id,
-        ]);
+        $app1 = $this->makeFinalizeReadyApplication($parent, $session);
+        $app2 = $this->makeFinalizeReadyApplication($parent, $session);
 
-        $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper2->id,
-            'camp_session_id' => $session->id,
-        ]);
+        $this->actingAs($parent)->postJson("/api/applications/{$app1->id}/finalize")->assertOk();
+        $this->actingAs($parent)->postJson("/api/applications/{$app2->id}/finalize")->assertOk();
 
         // Verify two notifications were queued
         Queue::assertPushed(SendNotificationJob::class, 2);
@@ -250,14 +278,10 @@ class QueuedNotificationsTest extends TestCase
     public function test_notification_job_has_retry_configuration(): void
     {
         $parent = $this->createParent();
-        $camper = Camper::factory()->create(['user_id' => $parent->id]);
-        $session = \App\Models\CampSession::factory()->create();
+        $session = CampSession::factory()->create(['is_active' => true, 'capacity' => 20]);
+        $application = $this->makeFinalizeReadyApplication($parent, $session);
 
-        // Submit application
-        $this->actingAs($parent)->postJson('/api/applications', [
-            'camper_id' => $camper->id,
-            'camp_session_id' => $session->id,
-        ]);
+        $this->actingAs($parent)->postJson("/api/applications/{$application->id}/finalize")->assertOk();
 
         // Verify job has retry settings
         Queue::assertPushed(SendNotificationJob::class, function ($job) {

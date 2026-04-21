@@ -60,8 +60,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
@@ -99,8 +98,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $finalizingDraft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $sessionA->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
@@ -112,8 +110,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $otherDraft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $sessionB->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
         ]);
 
@@ -153,8 +150,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
@@ -165,7 +161,7 @@ class ApplicationDraftLinkageTest extends TestCase
         $legacyBlob = ApplicationDraft::create([
             'user_id' => $parent->id,
             'application_id' => null,
-            'label' => 'Athena application — legacy',
+            'label' => 'New Application',
             'draft_data' => ['s1' => []],
         ]);
 

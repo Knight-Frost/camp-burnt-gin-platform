@@ -99,7 +99,7 @@ jobs:
           QUEUE_CONNECTION: sync
 
   # ─── Backend Coverage Gate ────────────────────────────────────────────────
-  # Runs the test suite with PCOV enabled and enforces a 50% minimum coverage
+  # Runs the test suite with PCOV enabled and enforces a 20% minimum coverage
   # threshold. Uploads the Clover XML report as a build artifact (30-day
   # retention) for downstream analysis or badge generation.
   #

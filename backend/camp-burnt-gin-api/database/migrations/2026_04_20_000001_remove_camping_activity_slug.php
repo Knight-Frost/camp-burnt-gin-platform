@@ -1,9 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Remove the orphaned 'camping' activity_permission rows.
@@ -22,14 +20,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Rename orphaned 'camping' rows (no matching 'camp_out') to 'camp_out'
+        // Rename orphaned 'camping' rows (no matching 'camp_out') to 'camp_out'.
+        // Written as a subquery rather than UPDATE...JOIN so the statement runs
+        // on both MySQL (production) and SQLite (CI test suite).
         DB::statement("
-            UPDATE activity_permissions ap
-            LEFT JOIN activity_permissions ap2
-                ON ap2.camper_id = ap.camper_id AND ap2.activity_name = 'camp_out'
-            SET ap.activity_name = 'camp_out'
-            WHERE ap.activity_name = 'camping'
-              AND ap2.id IS NULL
+            UPDATE activity_permissions
+            SET activity_name = 'camp_out'
+            WHERE activity_name = 'camping'
+              AND NOT EXISTS (
+                SELECT 1 FROM activity_permissions ap2
+                WHERE ap2.camper_id = activity_permissions.camper_id
+                  AND ap2.activity_name = 'camp_out'
+              )
         ");
 
         // Delete remaining 'camping' rows (camp_out already exists for this camper)

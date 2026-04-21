@@ -55,8 +55,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
@@ -82,8 +81,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $orphan = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
         ]);
 
@@ -118,8 +116,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $shell = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => null,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
         ]);
 
@@ -149,8 +146,7 @@ class FinalizeDraftCleanupTest extends TestCase
         $otherSessionDraft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $sessionB->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
         ]);
 
@@ -180,7 +176,7 @@ class FinalizeDraftCleanupTest extends TestCase
 
         $matchingBlob = ApplicationDraft::create([
             'user_id' => $parent->id,
-            'label' => 'Athena application',
+            'label' => 'New Application',
             'draft_data' => ['s1' => []],
         ]);
 

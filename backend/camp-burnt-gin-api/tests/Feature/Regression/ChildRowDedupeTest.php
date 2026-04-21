@@ -195,8 +195,7 @@ class ChildRowDedupeTest extends TestCase
         $draft = Application::factory()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => 'draft',
-            'status' => ApplicationStatus::Submitted,
+            'status' => ApplicationStatus::Draft,
             'submitted_at' => null,
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',

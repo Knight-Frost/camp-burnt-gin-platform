@@ -22,31 +22,31 @@ return new class extends Migration
     // ---------------------------------------------------------------------------
 
     private array $commMethodMap = [
-        'Verbal speech'   => 'verbal',
-        'AAC device'      => 'aac_device',
-        'Sign language'   => 'sign_language',
+        'Verbal speech' => 'verbal',
+        'AAC device' => 'aac_device',
+        'Sign language' => 'sign_language',
         'Picture symbols' => 'picture_symbols',
-        'Gestures'        => 'gestures',
-        'Written text'    => 'written',
-        'Eye gaze'        => 'eye_gaze',
+        'Gestures' => 'gestures',
+        'Written text' => 'written',
+        'Eye gaze' => 'eye_gaze',
     ];
 
     private array $deviceTypeMap = [
-        'Wheelchair (manual)'               => 'wheelchair_manual',
-        'Wheelchair (power)'                => 'wheelchair_power',
-        'Walker'                            => 'walker',
-        'Crutches'                          => 'crutches',
-        'Cane'                              => 'cane',
-        'Leg brace(s)'                      => 'leg_brace',
-        'CPAP / BiPAP'                      => 'cpap',
-        'Hearing aid'                       => 'hearing_aid',
-        'Cochlear implant'                  => 'cochlear',
-        'Glasses / contacts'                => 'glasses',
-        'Prosthetic limb'                   => 'prosthetic',
-        'Orthotics / AFOs'                  => 'orthotics',
+        'Wheelchair (manual)' => 'wheelchair_manual',
+        'Wheelchair (power)' => 'wheelchair_power',
+        'Walker' => 'walker',
+        'Crutches' => 'crutches',
+        'Cane' => 'cane',
+        'Leg brace(s)' => 'leg_brace',
+        'CPAP / BiPAP' => 'cpap',
+        'Hearing aid' => 'hearing_aid',
+        'Cochlear implant' => 'cochlear',
+        'Glasses / contacts' => 'glasses',
+        'Prosthetic limb' => 'prosthetic',
+        'Orthotics / AFOs' => 'orthotics',
         'Computerized communication device' => 'comm_device',
-        'Gait trainer'                      => 'gait_trainer',
-        'Other'                             => 'other',
+        'Gait trainer' => 'gait_trainer',
+        'Other' => 'other',
     ];
 
     public function up(): void
@@ -84,7 +84,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $reverseCommMap   = array_flip($this->commMethodMap);
+        $reverseCommMap = array_flip($this->commMethodMap);
         $reverseDeviceMap = array_flip($this->deviceTypeMap);
 
         $profiles = DB::table('behavioral_profiles')

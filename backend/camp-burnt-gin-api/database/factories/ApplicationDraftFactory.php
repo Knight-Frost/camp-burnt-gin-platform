@@ -18,7 +18,7 @@ class ApplicationDraftFactory extends Factory
         return [
             'user_id' => User::factory(),
             'label' => fake()->name(),
-            'draft_data' => null,
+            'draft_data' => ['s1' => []],
         ];
     }
 }

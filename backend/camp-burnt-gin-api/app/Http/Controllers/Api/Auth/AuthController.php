@@ -58,6 +58,7 @@ class AuthController extends Controller
         // Trigger email verification notification.
         // Wrapped in try-catch so an SMTP failure does not roll back a successful registration.
         $emailSent = true;
+
         try {
             $user->sendEmailVerificationNotification();
         } catch (\Throwable $e) {

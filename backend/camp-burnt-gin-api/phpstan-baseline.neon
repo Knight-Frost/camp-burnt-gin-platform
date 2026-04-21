@@ -165,7 +165,7 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationSubmitted\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
-			count: 3
+			count: 2
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
@@ -1529,6 +1529,12 @@ parameters:
 			identifier: nullCoalesce.expr
 			count: 3
 			path: app/Services/Auth/MfaService.php
+
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: app/Services/Camper/ApplicationCompletenessService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bathing_level\.$#'

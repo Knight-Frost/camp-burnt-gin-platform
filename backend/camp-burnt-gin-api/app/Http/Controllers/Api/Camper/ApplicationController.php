@@ -271,9 +271,6 @@ class ApplicationController extends Controller
         $this->authorize('create', Application::class);
 
         $data = $request->validated();
-        // Always create as draft — finalize() transitions to submitted.
-        $isDraft = true;
-
         // ── Duplicate-prevention upsert gate ──────────────────────────────────
         // This is the ONLY place duplicate detection runs. The FormRequest
         // intentionally does not enforce `Rule::unique` because validation
@@ -346,16 +343,10 @@ class ApplicationController extends Controller
             }
         }
 
-        // status is the single source of truth: always 'draft' on creation;
-        // finalize() transitions to 'submitted' after the completeness check.
-        $data['status'] = $isDraft ? ApplicationStatus::Draft : ApplicationStatus::Submitted;
+        // status is always 'draft' on creation; finalize() transitions to 'submitted'.
+        $data['status'] = ApplicationStatus::Draft;
 
-        // Only stamp the submission timestamp when the application is actually submitted (not a draft).
-        if (! $isDraft) {
-            $data['submitted_at'] = now();
-        }
-
-        // Wrap creation + notification in a transaction so both succeed or both fail atomically.
+        // Wrap creation in a transaction so the row and its eager-loads are consistent.
         //
         // Race-condition note: the upsert gate above holds a row-level lock
         // for the duration of its transaction, which serialises concurrent
@@ -367,30 +358,16 @@ class ApplicationController extends Controller
         // upsert-gate release → create window; that would produce two
         // historical rows, which is preferable to the old failure mode of
         // permanently locking the applicant out of reapplying.
-        $application = DB::transaction(function () use ($data, $isDraft) {
+        $application = DB::transaction(function () use ($data) {
             $application = Application::create($data);
-            // Eager-load camper and session so the notification has all the data it needs.
+            // Eager-load camper and session so downstream callers have all the data they need.
             $application->load(['camper', 'campSession']);
-
-            if (! $isDraft) {
-                // Send a confirmation email to the parent via the queue.
-                $this->queueNotification(
-                    $application->camper->user,
-                    new ApplicationSubmittedNotification($application)
-                );
-                // System inbox notification
-                $camperName = $application->camper->first_name.' '.$application->camper->last_name;
-                // Create an in-app system notification so the parent sees it in their inbox.
-                $this->systemNotifications->applicationSubmitted(
-                    $application->camper->user, $application->id, $camperName
-                );
-            }
 
             return $application;
         });
 
         return response()->json([
-            'message' => $isDraft ? 'Application draft saved.' : 'Application submitted successfully.',
+            'message' => 'Application draft saved.',
             'data' => $application,
         ], Response::HTTP_CREATED);
     }
@@ -877,24 +854,24 @@ class ApplicationController extends Controller
 
                 // No existing draft — new application for this existing camper.
                 // Top up any missing singleton relations (older campers may predate one).
-                $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+                $medicalRecord = $camper->medicalRecord ?? $camper->medicalRecord()->create([]);
                 $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
-                $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
+                $feedingPlan = $camper->feedingPlan ?? $camper->feedingPlan()->create([]);
 
                 $application = Application::create([
-                    'camper_id'          => $camper->id,
-                    'camp_session_id'    => $data['camp_session_id'],
-                    'status'             => ApplicationStatus::Draft,
-                    'submission_source'  => $source,
-                    'reapplied_from_id'  => $data['reapplied_from_id'] ?? null,
+                    'camper_id' => $camper->id,
+                    'camp_session_id' => $data['camp_session_id'],
+                    'status' => ApplicationStatus::Draft,
+                    'submission_source' => $source,
+                    'reapplied_from_id' => $data['reapplied_from_id'] ?? null,
                 ]);
 
                 return [
-                    'application_id'       => $application->id,
-                    'camper_id'            => $camper->id,
-                    'medical_record_id'    => $medicalRecord->id,
+                    'application_id' => $application->id,
+                    'camper_id' => $camper->id,
+                    'medical_record_id' => $medicalRecord->id,
                     'behavioral_profile_id' => $behavioralProfile->id,
-                    'feeding_plan_id'      => $feedingPlan->id,
+                    'feeding_plan_id' => $feedingPlan->id,
                 ];
             }
 
@@ -903,8 +880,8 @@ class ApplicationController extends Controller
             // but DO restore a soft-deleted stub rather than creating a duplicate.
             // Without this guard, every delete→restart cycle accumulates a new
             // "New Camper" phantom that resurfaces in the dashboard.
-            $firstName   = $data['first_name'] ?? 'New';
-            $lastName    = $data['last_name']  ?? 'Camper';
+            $firstName = $data['first_name'] ?? 'New';
+            $lastName = $data['last_name'] ?? 'Camper';
             $dateOfBirth = $data['date_of_birth'] ?? now()->subYears(10)->toDateString();
 
             $existingStub = \App\Models\Camper::withTrashed()
@@ -920,9 +897,9 @@ class ApplicationController extends Controller
                 $camper = $existingStub;
             } else {
                 $camper = \App\Models\Camper::create([
-                    'user_id'       => $user->id,
-                    'first_name'    => $firstName,
-                    'last_name'     => $lastName,
+                    'user_id' => $user->id,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
                     'date_of_birth' => $dateOfBirth,
                 ]);
             }
@@ -930,9 +907,9 @@ class ApplicationController extends Controller
             // Pre-create every singleton relation the form's progressive-
             // save logic writes to. Use the same idempotent pattern as PATH A:
             // if a relation already exists on a restored stub, reuse it.
-            $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+            $medicalRecord = $camper->medicalRecord ?? $camper->medicalRecord()->create([]);
             $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
-            $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
+            $feedingPlan = $camper->feedingPlan ?? $camper->feedingPlan()->create([]);
             // Personal care plan uses an idempotent updateOrCreate endpoint
             // so no stub required here. Activity permissions, diagnoses,
             // allergies, medications, assistive devices, and emergency
