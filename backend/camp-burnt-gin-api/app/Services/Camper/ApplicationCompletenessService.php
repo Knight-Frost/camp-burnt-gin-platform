@@ -163,23 +163,38 @@ class ApplicationCompletenessService
         ]);
 
         $isPaper = $this->isPaperSubmission($application);
-        $paperPacketPresent = $this->paperPacketOnFile($application);
+        $paperPacketPresent = $this->paperPacketOnFile($application, $forFinalization);
         $paperSubstitutesDigital = $isPaper && $paperPacketPresent;
 
-        // Per-section validators
-        $sections = [
-            'camper' => $this->validateCamper($application, $paperSubstitutesDigital),
-            'health' => $this->validateHealth($application),
-            'behavior' => $this->validateBehavior($application),
-            'equipment' => $this->validateEquipment($application),
-            'diet' => $this->validateDiet($application),
-            'personal_care' => $this->validatePersonalCare($application),
-            'activities' => $this->validateActivities($application),
-            'medications' => $this->validateMedications($application),
-            'narratives' => $this->validateNarratives($application),
-            'documents' => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
-            'consents' => $this->validateConsents($application, $paperSubstitutesDigital),
-        ];
+        // Paper-self fast path: when the applicant has uploaded the signed packet,
+        // the paper forms ARE the application. All digital data-entry section
+        // requirements are waived — staff review the scanned forms and transcribe
+        // data later via Admin Edit Application. Only the documents section is
+        // evaluated so the packet-present check remains the single gate.
+        if ($paperSubstitutesDigital) {
+            $sections = [];
+            foreach (self::SECTION_KEYS as $sectionKey) {
+                $sections[$sectionKey] = match ($sectionKey) {
+                    'documents' => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
+                    default => $this->sectionResult(true, []), // waived — covered by paper packet
+                };
+            }
+        } else {
+            // Per-section validators (digital path)
+            $sections = [
+                'camper'       => $this->validateCamper($application, $paperSubstitutesDigital),
+                'health'       => $this->validateHealth($application),
+                'behavior'     => $this->validateBehavior($application),
+                'equipment'    => $this->validateEquipment($application),
+                'diet'         => $this->validateDiet($application),
+                'personal_care' => $this->validatePersonalCare($application),
+                'activities'   => $this->validateActivities($application),
+                'medications'  => $this->validateMedications($application),
+                'narratives'   => $this->validateNarratives($application),
+                'documents'    => $this->validateDocuments($application, $forFinalization, $isPaper, $paperPacketPresent),
+                'consents'     => $this->validateConsents($application, $paperSubstitutesDigital),
+            ];
+        }
 
         // Raw document breakdown (for UI that wants to render the four doc
         // buckets separately — matches the old contract shape).
@@ -336,7 +351,7 @@ class ApplicationCompletenessService
 
         // Paper-without-packet surfaces as a single missing entry on the
         // `missing_documents` list, matching the legacy behaviour.
-        if ($this->isPaperSubmission($application) && ! $this->paperPacketOnFile($application)) {
+        if ($this->isPaperSubmission($application) && ! $this->paperPacketOnFile($application, $forFinalization)) {
             $missingDocs[] = [
                 'key' => 'doc_paper_application_packet',
                 'label' => 'Completed paper application packet',
@@ -705,6 +720,15 @@ class ApplicationCompletenessService
         bool $isPaper,
         bool $paperPacketPresent,
     ): array {
+        // Paper submissions substitute the entire document checklist with a
+        // scanned packet. When the packet is on file, waive universal document
+        // requirements (insurance card, immunization records) — staff review
+        // the scans and can upload discrete documents via the admin path before
+        // approving.
+        if ($isPaper && $paperPacketPresent) {
+            return $this->sectionResult(true, []);
+        }
+
         $breakdown = $this->documentBreakdown($app, $forFinalization);
         $missing = [];
 
@@ -764,6 +788,13 @@ class ApplicationCompletenessService
 
     private function documentBreakdown(Application $app, bool $forFinalization): array
     {
+        // Paper submissions with the packet on file substitute for all individual
+        // document requirements — the admin reviews the scanned packet directly.
+        // This mirrors the waiver already applied in validateDocuments().
+        if ($this->isPaperSubmission($app) && $this->paperPacketOnFile($app, $forFinalization)) {
+            return ['missing' => [], 'expired' => [], 'incomplete' => [], 'unverified' => []];
+        }
+
         $compliance = $this->documentEnforcement->checkCompliance(
             $app->camper,
             $forFinalization ? $app : null,
@@ -786,25 +817,32 @@ class ApplicationCompletenessService
         );
     }
 
-    private function paperPacketOnFile(Application $app): bool
+    private function paperPacketOnFile(Application $app, bool $forFinalization = false): bool
     {
-        $applicationPacket = $app->documents
+        // During finalization the packet is still a draft (submitted_at = null)
+        // because finalize() submits documents only after the completeness gate
+        // passes. We must treat unsubmitted drafts as present so the gate does
+        // not trap the applicant in a deadlock.
+        $collection = $app->documents
             ->where('document_type', 'paper_application_packet')
-            ->whereNotNull('submitted_at')
-            ->whereNull('archived_at')
-            ->isNotEmpty();
-
-        if ($applicationPacket) {
+            ->whereNull('archived_at');
+        if (! $forFinalization) {
+            $collection = $collection->whereNotNull('submitted_at');
+        }
+        if ($collection->isNotEmpty()) {
             return true;
         }
 
-        return \App\Models\Document::query()
+        $dbQuery = \App\Models\Document::query()
             ->where('document_type', 'paper_application_packet')
-            ->whereNotNull('submitted_at')
             ->whereNull('archived_at')
             ->where('documentable_type', \App\Models\Camper::class)
-            ->where('documentable_id', $app->camper_id)
-            ->exists();
+            ->where('documentable_id', $app->camper_id);
+        if (! $forFinalization) {
+            $dbQuery->whereNotNull('submitted_at');
+        }
+
+        return $dbQuery->exists();
     }
 
     private function submissionSourceString(Application $app): string
