@@ -15,7 +15,7 @@
  */
 
 import { useRef, useState, useMemo, useCallback, type KeyboardEvent, type ClipboardEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -73,6 +73,9 @@ export function LoginPage() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Destination preserved by ProtectedRoute when an unauthenticated user hits a guarded route.
+  const redirectTo = (location.state as { from?: string } | null)?.from ?? null;
   // ── Delight state ─────────────────────────────────────────────────────────
 
   // One tagline picked at random on mount; stable across re-renders.
@@ -146,7 +149,10 @@ export function LoginPage() {
         return;
       }
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
-      // Send the user to the dashboard that matches their primary role.
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
       const role = getPrimaryRole((user as User).roles ?? []);
       if (role) navigate(getDashboardRoute(role));
 
@@ -243,6 +249,10 @@ export function LoginPage() {
         return;
       }
       toast.success(`Welcome back, ${user.name.split(' ')[0]}.`);
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
       const mfaRole = getPrimaryRole((user as User).roles ?? []);
       if (mfaRole) navigate(getDashboardRoute(mfaRole));
     } catch (err) {

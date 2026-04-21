@@ -128,9 +128,18 @@ class InboxService
 
             foreach ($participantUsers as $participant) {
                 $this->addParticipant($conversation, $participant);
-                // Dispatch notification via queued job so a mail failure (e.g. rate-limit)
-                // cannot roll back the transaction or block the HTTP response.
-                dispatch(new SendNotificationJob($participant, new NewConversationNotification($conversation)));
+
+                // Two-channel notification split (mirrors MessageService::sendMessage):
+                //   1. Database (bell icon) — written synchronously via notifyNow() so the
+                //      notification appears immediately without a queue worker running.
+                //   2. Email — queued via SendNotificationJob so a mail failure cannot delay
+                //      the HTTP response or roll back the conversation transaction.
+                $participant->notifyNow(NewConversationNotification::forDatabase($conversation));
+
+                $prefs = $participant->notification_preferences ?? [];
+                if ($prefs['messages'] ?? true) {
+                    dispatch(new SendNotificationJob($participant, NewConversationNotification::forMail($conversation)));
+                }
             }
 
             // Write an audit log entry for HIPAA compliance and security review

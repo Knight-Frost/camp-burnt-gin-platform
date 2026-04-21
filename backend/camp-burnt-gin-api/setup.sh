@@ -154,9 +154,12 @@ if [ "$SETUP_MODE" = "--docker" ]; then
     echo ""
     info "Useful commands:"
     echo "  - View logs:        docker-compose logs -f"
+    echo "  - Worker logs:      docker-compose logs -f worker"
     echo "  - Run tests:        docker-compose exec app php artisan test"
     echo "  - Access shell:     docker-compose exec app bash"
     echo "  - Stop containers:  docker-compose down"
+    echo "  - Retry failed jobs: docker-compose exec app php artisan queue:retry all"
+    echo "  - Inspect queue:    docker-compose exec app php artisan queue:monitor notifications"
     echo ""
 
 else
@@ -190,6 +193,9 @@ else
     echo ""
     info "To start the development server:"
     echo "  php artisan serve"
+    echo ""
+    info "To process email notification jobs (required for external emails):"
+    echo "  php artisan queue:work --queue=notifications,default --tries=3"
     echo ""
     info "To run tests:"
     echo "  php artisan test"

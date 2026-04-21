@@ -34,8 +34,9 @@ if [[ ! -d "$FRONTEND_DIR" ]]; then
 fi
 
 echo "Starting Camp Burnt Gin dev servers..."
-echo "  Laravel API  → http://127.0.0.1:8000"
+echo "  Laravel API   → http://127.0.0.1:8000"
 echo "  Vite frontend → http://localhost:5173  (LAN: http://$(ipconfig getifaddr en0 2>/dev/null || echo '<LAN-IP>'):5173)"
+echo "  Queue worker  → processing notifications,default queues"
 echo ""
 
 # Start Laravel in the background (output prefixed for clarity).
@@ -45,6 +46,12 @@ echo ""
 # to the LAN IP fail with connection refused → "Network error" on the login page.
 (cd "$API_DIR" && php artisan serve --host=0.0.0.0 2>&1 | sed 's/^/[api] /') &
 
+# Start the queue worker in the background so email notifications are dispatched
+# automatically without requiring a separate terminal command.
+# Listens to "notifications" (email jobs) and "default" queues.
+# The EXIT trap above kills this process when the script exits.
+(cd "$API_DIR" && php artisan queue:work --queue=notifications,default --tries=3 --sleep=3 2>&1 | sed 's/^/[queue] /') &
+
 # Start Vite in the foreground so its interactive output is visible and
-# Ctrl+C propagates naturally. The EXIT trap above will kill the API process.
+# Ctrl+C propagates naturally. The EXIT trap above will kill both background processes.
 (cd "$FRONTEND_DIR" && npm run dev 2>&1 | sed 's/^/[web] /')

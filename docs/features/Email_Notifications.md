@@ -1,7 +1,7 @@
 # Email Notifications
 
 **Project:** Camp Burnt Gin
-**Last Updated:** 2026-04-19
+**Last Updated:** 2026-04-21
 
 ---
 
@@ -108,8 +108,10 @@ The `forMail()` factory sets `$channelsOverride = ['mail']`. If the user has dis
 - Conversation subject
 - Sender's name
 - Attachment count (if any)
-- CTA button linking to `/inbox/conversations/{id}`
+- CTA button linking to `/{role-prefix}/inbox?conversationId={id}` (role-aware — see URL generation below)
 - **Message body is never included** (HIPAA rule)
+
+**URL generation:** `NewMessageNotification::toMail()` and `NewConversationNotification::toMail()` call a private `inboxUrl(object $notifiable, int $conversationId)` helper that resolves the correct portal prefix from the recipient's role (`isSuperAdmin()` → `super-admin`, `isAdmin()` → `admin`, `isMedicalProvider()` → `medical`, default → `applicant`). The resulting URL is `{FRONTEND_URL}/{prefix}/inbox?conversationId={id}`, which lands on an existing route and triggers auto-selection of the conversation in `InboxPage` via the `?conversationId` query param.
 
 ---
 

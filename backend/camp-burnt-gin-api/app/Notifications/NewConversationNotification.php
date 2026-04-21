@@ -14,26 +14,67 @@ use Illuminate\Notifications\Notification;
  * PHI in email content. All sensitive content remains in-app only.
  *
  * HIPAA Compliance: No PHI in email body.
+ *
+ * Channel strategy (mirrors NewMessageNotification):
+ *   - Database (in-app bell): sent synchronously via notifyNow() in InboxService
+ *     so the notification appears immediately without requiring a queue worker.
+ *   - Email: queued via SendNotificationJob so mail failures cannot delay the
+ *     HTTP response or roll back the conversation transaction.
+ *
+ * Use the static factories:
+ *   - NewConversationNotification::forDatabase($conv) → ['database'] only, not Queueable
+ *   - NewConversationNotification::forMail($conv)     → ['mail'] only, Queueable
  */
 class NewConversationNotification extends Notification
 {
     use Queueable;
+
+    /** @var array<int, string>|null When set, overrides the via() logic. */
+    private ?array $channelsOverride = null;
 
     public function __construct(
         protected Conversation $conversation
     ) {}
 
     /**
+     * Returns a database-only instance for synchronous in-app notification.
+     * The Queueable trait is present but unused — callers should use notifyNow().
+     */
+    public static function forDatabase(Conversation $conversation): static
+    {
+        $instance = new static($conversation);
+        $instance->channelsOverride = ['database'];
+
+        return $instance;
+    }
+
+    /**
+     * Returns a mail-only instance intended for queued delivery via SendNotificationJob.
+     * Gating on notification_preferences is handled in InboxService before dispatch.
+     */
+    public static function forMail(Conversation $conversation): static
+    {
+        $instance = new static($conversation);
+        $instance->channelsOverride = ['mail'];
+
+        return $instance;
+    }
+
+    /**
      * Get the notification's delivery channels.
      *
-     * Respects the user's notification_preferences for messages.
-     * The database channel is always included for in-app Recent Updates.
-     * Email is gated by the user's preference (default: enabled).
+     * When channelsOverride is set (via forDatabase/forMail factories), returns
+     * exactly those channels. Otherwise falls back to prefs-based logic for
+     * any direct callers that don't use the factory pattern.
      *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
+        if ($this->channelsOverride !== null) {
+            return $this->channelsOverride;
+        }
+
         $prefs = $notifiable->notification_preferences ?? [];
         $emailEnabled = $prefs['messages'] ?? true;
 
@@ -54,8 +95,24 @@ class NewConversationNotification extends Notification
             ->line('You have been added to a new conversation.')
             ->line('Subject: '.$this->conversation->subject)
             ->line('Please log in to view the full conversation and respond.')
-            ->action('View Conversation', config('app.frontend_url').'/inbox/conversations/'.$this->conversation->id)
+            ->action('View Conversation', $this->inboxUrl($notifiable, $this->conversation->id))
             ->salutation('Camp Burnt Gin');
+    }
+
+    /**
+     * Builds the correct portal inbox URL for the given user's role.
+     * Uses ?conversationId= so the inbox auto-selects the conversation on load.
+     */
+    private function inboxUrl(object $notifiable, int $conversationId): string
+    {
+        $prefix = match (true) {
+            $notifiable->isSuperAdmin()      => 'super-admin',
+            $notifiable->isAdmin()           => 'admin',
+            $notifiable->isMedicalProvider() => 'medical',
+            default                          => 'applicant',
+        };
+
+        return config('app.frontend_url')."/{$prefix}/inbox?conversationId={$conversationId}";
     }
 
     /**

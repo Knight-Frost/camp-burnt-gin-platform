@@ -48,8 +48,17 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-password}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - MAIL_HOST=mailhog
-      - MAIL_PORT=1025
+      # Variable expansion: reads MAIL_HOST from .env (smtp.gmail.com) when set,
+      # falls back to mailhog only when .env has no MAIL_HOST entry.
+      - MAIL_HOST=${MAIL_HOST:-mailhog}
+      - MAIL_PORT=${MAIL_PORT:-1025}
+      - MAIL_MAILER=${MAIL_MAILER:-smtp}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
+      - MAIL_SCHEME=${MAIL_SCHEME:-smtp}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Camp Burnt Gin}
     volumes:
       - .:/var/www/html
       - php_vendor:/var/www/html/vendor
@@ -77,6 +86,57 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+
+  # Queue worker — processes the "notifications" queue (email dispatch, etc.)
+  # Runs php artisan queue:work as a long-lived process separate from the web server.
+  # Without this service, SendNotificationJob instances accumulate in the jobs table
+  # and email notifications are never dispatched.
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: ${BUILD_TARGET:-development}
+    container_name: camp-burnt-gin-worker
+    restart: unless-stopped
+    working_dir: /var/www/html
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - APP_URL=http://localhost:${APP_PORT:-8000}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-camp_burnt_gin}
+      - DB_USERNAME=${DB_USERNAME:-camp_user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - QUEUE_CONNECTION=database
+      # Worker uses real mail credentials from .env — does NOT route to Mailhog
+      - MAIL_MAILER=${MAIL_MAILER:-smtp}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
+      - MAIL_SCHEME=${MAIL_SCHEME:-smtp}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Camp Burnt Gin}
+    volumes:
+      - .:/var/www/html
+      - php_vendor:/var/www/html/vendor
+      - php_storage:/var/www/html/storage
+    networks:
+      - camp-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      # Wait for the app container to start (and therefore finish running migrations)
+      # before accepting jobs. Without this, queue:work can boot before the jobs
+      # table exists and crash-loop on a fresh install.
+      app:
+        condition: service_started
+    # Processes both the "notifications" queue (email jobs) and "default" queue.
+    # --max-time=3600 recycles the worker every hour to reclaim memory.
+    # --tries=3 and --sleep=3 match SendNotificationJob's own retry configuration.
+    command: php artisan queue:work --queue=notifications,default --tries=3 --sleep=3 --max-time=3600
 
   # Mailhog (Email Testing)
   mailhog:

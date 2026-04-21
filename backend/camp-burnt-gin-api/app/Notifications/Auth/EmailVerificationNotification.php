@@ -2,7 +2,6 @@
 
 namespace App\Notifications\Auth;
 
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
@@ -22,11 +21,11 @@ use Illuminate\Support\Facades\URL;
  *   4. The final URL is embedded in the email as a clickable button.
  *
  * Channel: mail only (no in-app notification needed — the user hasn't logged in yet).
- * Queue: uses Queueable so the email is dispatched asynchronously without blocking the response.
+ * Sync: intentionally NOT Queueable — sends synchronously so AuthController's try/catch
+ * accurately reflects delivery success and $emailSent reflects the actual SMTP attempt.
  */
 class EmailVerificationNotification extends Notification
 {
-    use Queueable;
 
     /**
      * Get the delivery channels for this notification.

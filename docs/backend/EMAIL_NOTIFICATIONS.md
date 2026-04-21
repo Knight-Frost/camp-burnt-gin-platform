@@ -52,6 +52,8 @@ Failures are logged with notifiable type/id, notification class, and exception m
 
 **HIPAA note:** Message body is never included in email. Users are directed to log in to read messages.
 
+**CTA URL generation:** Both classes contain a private `inboxUrl(object $notifiable, int $conversationId): string` helper. It resolves the recipient's portal prefix via role helpers (`isSuperAdmin()` / `isAdmin()` / `isMedicalProvider()`), then returns `{FRONTEND_URL}/{prefix}/inbox?conversationId={id}`. The frontend `InboxPage` reads `?conversationId` via `useSearchParams` and auto-selects the referenced conversation on mount. Do not hardcode `/inbox/conversations/:id` — that route does not exist in the frontend.
+
 ### Application Lifecycle
 
 | Class | Trigger | Preference Key | Channels |

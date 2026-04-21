@@ -176,8 +176,9 @@ export function RegisterPage() {
       } else {
         toast.success('Account created! Please check your email to verify your address.');
       }
-      // Route to the pending-verification screen — dashboard requires a verified email.
-      navigate('/verify-email?pending=true', { replace: true });
+      // Route to the pending-verification screen — pass email_sent so VerifyEmailPage
+      // can show honest messaging if SMTP failed.
+      navigate('/verify-email?pending=true', { replace: true, state: { emailSent: email_sent !== false } });
     } catch (error) {
       // Map server-side field errors back onto the form fields.
       if (isValidationError(error)) {

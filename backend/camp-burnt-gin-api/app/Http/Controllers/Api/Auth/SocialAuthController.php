@@ -158,8 +158,15 @@ class SocialAuthController extends Controller
             ]);
         }
 
-        $user = $payload['user'] ?? null;
-        assert($user instanceof User);
+        $userId = $payload['user_id'] ?? null;
+        $user = $userId ? User::find((int) $userId) : null;
+
+        if (! $user instanceof User) {
+            return response()->json(
+                ['message' => 'Authentication session expired. Please sign in with Google again.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -310,10 +317,11 @@ class SocialAuthController extends Controller
             return $this->redirectToFrontend(['code' => $code]);
         }
 
+        $resultUser = $result['user'] ?? null;
         $code = $this->socialAuthService->generateOneTimeCode([
             'action' => (string) ($result['action'] ?? 'login'),
             'mfa_required' => false,
-            'user' => $result['user'],
+            'user_id' => $resultUser instanceof User ? $resultUser->id : null,
             'token' => (string) ($result['token'] ?? ''),
         ]);
 

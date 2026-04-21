@@ -23,7 +23,7 @@
 import {
   useState, useEffect, useCallback, useRef, type ElementType, type MouseEvent,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -215,12 +215,18 @@ function FolderNav({
 export function InboxPage() {
   const { t } = useTranslation();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const bootstrapReady = useBootstrapReady();
 
   // If we arrived via a notification "View" button, hold the target ID here
   // and auto-select it once the conversation list has loaded.
+  // Source priority: URL query param (?conversationId=X) > router location.state
   const pendingConvIdRef = useRef<number | null>(
-    (location.state as { conversationId?: number } | null)?.conversationId ?? null,
+    (() => {
+      const fromQuery = searchParams.get('conversationId');
+      if (fromQuery) return parseInt(fromQuery, 10);
+      return (location.state as { conversationId?: number } | null)?.conversationId ?? null;
+    })(),
   );
   const currentUserId  = useAppSelector((s) => s.auth.user?.id);
   const userRoleName   = useAppSelector((s) => {
@@ -280,6 +286,10 @@ export function InboxPage() {
 
   // Silently re-fetches the conversation list in the background without
   // showing a loading spinner. Used after a real-time message event arrives.
+  //
+  // Also signals ThreadView to re-fetch when the active conversation has newer
+  // data — this is the only refresh path when Reverb WebSocket is unavailable
+  // and the polling fallback drives updates via 'realtime:message-arrived'.
   const silentRefreshConversations = useCallback(() => {
     if (folder === 'announcements') return;
     const token = Symbol();
@@ -289,6 +299,19 @@ export function InboxPage() {
         if (silentRefreshRef.current !== token) return;
         setConversations(res.data);
         setInboxUnread((res.meta as { unread_count?: number }).unread_count ?? 0);
+
+        // If the currently open conversation has new data (newer updated_at), update
+        // selectedConv so its metadata stays fresh AND signal ThreadView to re-fetch.
+        // Updating selectedConv here also prevents duplicate signals: on the next call,
+        // selectedConvRef.current.updated_at will already equal the fresh value.
+        const activeConv = selectedConvRef.current;
+        if (activeConv) {
+          const freshConv = res.data.find((c) => c.id === activeConv.id);
+          if (freshConv && freshConv.updated_at > activeConv.updated_at) {
+            setSelectedConv(freshConv);
+            setThreadRefreshSignal((k) => k + 1);
+          }
+        }
       })
       .catch((err) => { console.error('[InboxPage] Silent refresh failed:', err); });
   }, [folder]);

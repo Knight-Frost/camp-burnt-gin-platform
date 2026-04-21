@@ -17,12 +17,12 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import { Popover } from '@/ui/overlay/Popover';
 import { Avatar, avatarBg } from '@/ui/components/Avatar';
+import { cn } from '@/shared/utils/cn';
 import type { Conversation, InboxFolder } from '@/features/messaging/api/messaging.api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BRAND   = '#16a34a';
-const BRAND_T = 'rgba(22,163,74,0.10)';
+const BRAND = '#16a34a';
 
 function relativeTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -110,25 +110,21 @@ export function MessageRow({
   const subject  = conv.subject ?? '(No subject)';
   const lastTime = conv.last_message?.created_at ?? conv.created_at;
 
-  const rowBg = isSelected || isActive
-    ? BRAND_T
-    : isUnread ? 'rgba(22,163,74,0.03)' : 'var(--card)';
-
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={() => onClick(conv)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(conv); }}
-      className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group"
-      style={{ background: rowBg }}
-      onMouseEnter={(e) => {
-        if (!isSelected && !isActive)
-          (e.currentTarget as HTMLElement).style.background = 'var(--dash-nav-hover-bg)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = rowBg;
-      }}
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 cursor-pointer group',
+        isActive || isSelected
+          // Active/selected: green tint, no transition so the click registers instantly.
+          ? 'bg-[rgba(22,163,74,0.10)]'
+          : isUnread
+            ? 'bg-[rgba(22,163,74,0.03)] hover:bg-[var(--dash-nav-hover-bg)] transition-colors duration-150'
+            : 'bg-[var(--card)] hover:bg-[var(--dash-nav-hover-bg)] transition-colors duration-150',
+      )}
       data-testid="message-row"
     >
       {/* Checkbox — hidden until hover or selected */}

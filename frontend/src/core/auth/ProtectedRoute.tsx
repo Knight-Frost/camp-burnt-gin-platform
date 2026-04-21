@@ -37,12 +37,13 @@ export function ProtectedRoute() {
   }
 
   // Check 2: No valid session — redirect to login and remember the intended destination
-  // state.from lets LoginPage redirect back after a successful login
+  // state.from lets LoginPage redirect back after a successful login.
+  // Include location.search so query params (e.g. ?conversationId=1) survive the round-trip.
   if (!isAuthenticated) {
     return (
       <Navigate
         to={ROUTES.LOGIN}
-        state={{ from: location.pathname }}
+        state={{ from: location.pathname + location.search }}
         replace
       />
     );

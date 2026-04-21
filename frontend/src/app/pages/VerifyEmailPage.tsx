@@ -16,8 +16,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle, XCircle, Loader2, Mail, ArrowLeft } from 'lucide-react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { CheckCircle, XCircle, Loader2, Mail, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { verifyEmail, resendVerificationEmail } from '@/features/auth/api/auth.api';
@@ -31,6 +31,10 @@ type VerifyState = 'verifying' | 'success' | 'error' | 'resent' | 'pending';
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  // emailSent is passed via navigation state from RegisterPage. Defaults to true on
+  // hard refresh (location.state lost) so we don't falsely warn on a stale reload.
+  const emailSent = (location.state as { emailSent?: boolean } | null)?.emailSent ?? true;
   const [state, setState]       = useState<VerifyState>('verifying');
   const [resending, setResending] = useState(false);
   // Tracks which searchParams string was last processed.
@@ -138,7 +142,7 @@ export function VerifyEmailPage() {
 
       // ── Pending: just registered, waiting for user to check inbox ──
       case 'pending':
-        return (
+        return emailSent ? (
           <div className="flex flex-col items-center gap-5 py-4">
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
@@ -151,6 +155,24 @@ export function VerifyEmailPage() {
             </p>
             <Button onClick={handleResend} loading={resending} variant="secondary">
               Resend verification email
+            </Button>
+            <Link to={ROUTES.LOGIN} className="text-sm text-ember-orange hover:underline">
+              Back to sign in
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-5 py-4">
+            <div
+              className="flex items-center justify-center w-16 h-16 rounded-2xl"
+              style={{ background: 'rgba(245,158,11,0.10)' }}
+            >
+              <AlertTriangle className="h-8 w-8" style={{ color: '#f59e0b' }} />
+            </div>
+            <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
+              Your account was created, but we could not send the verification email. Use the button below to try again.
+            </p>
+            <Button onClick={handleResend} loading={resending}>
+              Send verification email
             </Button>
             <Link to={ROUTES.LOGIN} className="text-sm text-ember-orange hover:underline">
               Back to sign in

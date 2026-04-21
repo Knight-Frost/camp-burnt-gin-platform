@@ -3,7 +3,7 @@
 **Project:** Camp Burnt Gin (Laravel 12 + React 18 TypeScript)
 **Classification:** HIPAA-sensitive — PHI data handled throughout
 **Restructured:** 2026-04-20 (Form Builder Forensic Audit — BUG-208–213 found and resolved)
-**Last Entry:** BUG-246 Resolved (2026-04-21, Documents Forensic Audit)
+**Last Entry:** BUG-250 Resolved (2026-04-21, Email Notification Link Fix)
 **Authoritative State:** Master Index (this file)
 
 ---
@@ -12,12 +12,12 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Tracked | 151 |
+| Total Tracked | 152 |
 | Critical | 34 |
 | High | 55 |
-| Medium | 29 |
+| Medium | 30 |
 | Low | 20 |
-| Resolved | 145 |
+| Resolved | 146 |
 | Open | 6 |
 | In Progress | 0 |
 
@@ -120,6 +120,7 @@ flowchart TD
 | Paper Forms Multi-Camper Redesign | 2026-04-20 | Single-app lock, unscoped doc fetch, no "Start New" path | BUG-237–239 |
 | Application Isolation Forensic Audit | 2026-04-20 | Cross-camper idempotency, sessionStorage slot collision, pendingCamper bleed | BUG-240–241 |
 | Camper Lifecycle Forensic Audit | 2026-04-20 | Orphaned stub campers, ghost "New Camper" phantom, stale dashboard state | BUG-242 |
+| Email Verification Forensic Audit | 2026-04-21 | Queueable silences SMTP errors, false "email sent" claim, unconditional pending UI | BUG-249 |
 
 ---
 
@@ -142,6 +143,7 @@ The following systemic patterns account for clusters of bugs across the system. 
 | Idempotency key too broad — missing camper discriminator | BUG-234, 240 | All Resolved |
 | Orphaned stub records not cleaned up on parent deletion | BUG-242 | Resolved |
 | sessionStorage scoped to user not application — cross-app slot collision | BUG-241 | Resolved |
+| Failure detected server-side but signal never forwarded to UI (silent failure chain) | BUG-249 | Resolved |
 
 ---
 
@@ -3298,3 +3300,71 @@ _BUG-046 is Resolved per the Master Index. The previous open-issues list include
 **Root Cause:** `archive()` and `restore()` called `$this->authorize('delete', $document)`. `DocumentPolicy::delete()` allows both admins AND the original uploader. Archiving is an admin workflow action (removes documents from the active review queue); applicants archiving their own submissions would hide them from admin view without the admin's knowledge.  
 **Fix:** Added `DocumentPolicy::archive()` method (admin-only). Changed `archive()` and `restore()` in DocumentController to use `$this->authorize('archive', $document)`.  
 **Files:** `app/Policies/DocumentPolicy.php`, `app/Http/Controllers/Api/Document/DocumentController.php`
+
+---
+
+## Messaging / Inbox Forensic Audit — 2026-04-21
+
+### BUG-247
+**Title:** MessageRow active state requires two clicks — CSS transition masks immediate click response  
+**Severity:** Medium  
+**Status:** Resolved  
+**Component:** `MessageRow.tsx`  
+**Root Cause:** The row used `transition-colors` on the container div combined with an inline `style={{ background: rowBg }}` prop and imperative `onMouseEnter`/`onMouseLeave` DOM manipulation. When `isActive` changed from false→true on click, React applied the new background (`rgba(22,163,74,0.10)`) through the declarative style prop — but `transition-colors` animated this change over ~150ms. During that window the row appeared to still be in its inactive state, making users believe the first click didn't register and prompting a second click. The imperative hover handlers also introduced a secondary issue: the hover background set via `element.style.background` existed at the DOM layer outside React's reconciler, creating a brief conflict window on re-render.  
+**Fix:** Replaced the `style` prop and `onMouseEnter`/`onMouseLeave` handlers with pure `cn()`-based conditional Tailwind classes. Active/selected state uses a static class (`bg-[rgba(22,163,74,0.10)]`) with no transition — click response is instant. Hover states retain `transition-colors duration-150` for smooth feel. Removed now-unused `BRAND_T` constant.  
+**Files:** `frontend/src/features/messaging/components/MessageRow.tsx`
+
+### BUG-248
+**Title:** Thread view does not refresh when new messages arrive via polling fallback (Reverb WebSocket unavailable)  
+**Severity:** High  
+**Status:** Resolved  
+**Component:** `InboxPage.tsx`  
+**Root Cause:** `silentRefreshConversations()` fetches the conversation list and updates the conversation list state, but never incremented `threadRefreshSignal`. `threadRefreshSignal` was only incremented inside the `lastMessage?.key` useEffect — which runs exclusively on WebSocket events dispatched by `RealtimeContext`. When Reverb is unavailable, `RealtimeContext` polls every 10s and dispatches `realtime:message-arrived`, which triggers `silentRefreshConversations()` via an InboxPage listener. The conversation list would update (showing the new unread count) but the open thread pane would never re-fetch — new messages were invisible until the user performed a manual page refresh.  
+**Fix:** Extended `silentRefreshConversations` to check whether the active conversation's `updated_at` in the fresh API response is newer than the value held in `selectedConvRef.current`. When it is, the fix calls `setSelectedConv(freshConv)` (keeps conversation metadata in sync, and advances `selectedConvRef.current` to prevent duplicate signals on subsequent calls) and `setThreadRefreshSignal((k) => k + 1)` (triggers ThreadView to re-fetch messages). This unifies the polling and WebSocket paths: both now produce a thread refresh when a new message arrives in the open conversation.  
+**Bonus fix:** `selectedConv` and therefore ThreadView's `conversation` prop now stay in sync with fresh API data (subject, participant list, unread count) after each silent refresh.  
+**Files:** `frontend/src/features/messaging/pages/InboxPage.tsx`
+
+## Email Verification Forensic Audit (2026-04-21) — BUG-249
+
+### BUG-249
+**Title:** Verification email never sent on registration — `Queueable` notification silently queued with no worker; frontend unconditionally claims email was sent  
+**Severity:** High  
+**Status:** Resolved  
+**Components:** `EmailVerificationNotification.php`, `VerifyEmailPage.tsx`, `RegisterPage.tsx`  
+**Root Cause (3-part):**
+
+1. **Backend — false async**: `EmailVerificationNotification` used the `Queueable` trait. With `QUEUE_CONNECTION=database`, calling `$user->notify(new EmailVerificationNotification)` inserts a job row into the `jobs` table and returns immediately — SMTP delivery only happens when `php artisan queue:work` processes the job. In development (and any environment without a running queue worker) the job sits in the DB forever and the email never arrives. The `try/catch` in `AuthController::register()` was designed to catch SMTP failure, but with `Queueable` it can only catch queue insertion failure — which never fails unless the `jobs` table is missing. `$emailSent` was therefore always `true` regardless of whether mail was ever delivered.
+
+2. **Frontend `RegisterPage` — state not forwarded**: Even though `email_sent` was correctly present in the API response and `RegisterPage` already read it, the value was never passed to the next page. `navigate('/verify-email?pending=true', { replace: true })` used no navigation state, so `VerifyEmailPage` could not know whether the email was actually sent.
+
+3. **Frontend `VerifyEmailPage` — unconditional false claim**: The `pending` state always rendered "We sent a verification link to your email address" regardless of whether `email_sent` was true or false. Users who never received an email had no indication anything was wrong.
+
+**Fix:**
+- `EmailVerificationNotification.php`: Removed `use Illuminate\Bus\Queueable;` import and `use Queueable;` trait. Notification now sends synchronously — the `try/catch` in `AuthController` accurately reflects actual SMTP delivery success/failure, and `$emailSent` is now a truthful signal.
+- `RegisterPage.tsx`: Updated `navigate(...)` to pass `state: { emailSent: email_sent !== false }` so the outcome travels to `VerifyEmailPage`.
+- `VerifyEmailPage.tsx`: Added `useLocation()` to read `emailSent` from navigation state (defaults to `true` on hard refresh so stale reloads don't false-alarm). `pending` state branches: success path shows "We sent a link…" + secondary resend button; failure path shows amber `AlertTriangle` icon + "could not send — use button below" messaging with a primary-styled resend button.
+
+**Architectural note:** Removing `Queueable` is the correct fix, not switching call sites to `notifyNow()`. The trait is the declaration of capability — leaving it in place while bypassing it at call sites would create silent tech debt and break any future second call site. Verification emails are user-blocking (login is gated behind them) so synchronous send with explicit failure handling is the right posture.  
+**Files:** `backend/camp-burnt-gin-api/app/Notifications/Auth/EmailVerificationNotification.php`, `frontend/src/app/pages/RegisterPage.tsx`, `frontend/src/app/pages/VerifyEmailPage.tsx`
+
+---
+
+## Email Notification Link Fix — 2026-04-21
+
+### BUG-250
+**Title:** "View Message" email link routes to `/inbox/conversations/:id` — a non-existent frontend route — producing a 404
+**Severity:** Medium
+**Status:** Resolved
+**Components:** `NewMessageNotification.php`, `NewConversationNotification.php`, `InboxPage.tsx`
+**Root Cause (2-part):**
+
+1. **Backend — wrong URL pattern**: `NewMessageNotification::toMail()` and `NewConversationNotification::toMail()` both generated links in the form `{FRONTEND_URL}/inbox/conversations/{id}`. The frontend has no such route. All inbox routes are role-prefixed (`/applicant/inbox`, `/admin/inbox`, `/medical/inbox`, `/super-admin/inbox`). Clicking the email link hit a URL that matched no route definition, producing a 404 page.
+
+2. **Frontend — no URL deep-link support**: `InboxPage` already supported a `pendingConvIdRef` mechanism to auto-select a conversation on mount, but it only read from `location.state.conversationId` — a value set programmatically via React Router's `navigate()`. A plain URL (from an email click) cannot carry router state, so the conversation was never auto-selected even if the URL were corrected.
+
+**Fix:**
+- `NewMessageNotification.php` and `NewConversationNotification.php`: Added private `inboxUrl(object $notifiable, int $conversationId): string` method. Uses a `match` expression on the notifiable user's role helpers (`isSuperAdmin()`, `isAdmin()`, `isMedicalProvider()`) to derive the correct portal prefix, then builds `{FRONTEND_URL}/{prefix}/inbox?conversationId={id}`. Both `toMail()` methods call this helper instead of hardcoding the URL.
+- `InboxPage.tsx`: Added `useSearchParams` import. `pendingConvIdRef` initialization now checks `searchParams.get('conversationId')` first (URL query param takes priority), falling back to `location.state.conversationId`. Uses an IIFE inside `useRef()` for one-time initialization without introducing a `useState` + effect pair.
+
+**Result:** Clicking "View Message" in any notification email opens `/{role}/inbox?conversationId=X`, lands on a valid route, and auto-selects the referenced conversation in the thread pane.
+**Files:** `backend/camp-burnt-gin-api/app/Notifications/NewMessageNotification.php`, `backend/camp-burnt-gin-api/app/Notifications/NewConversationNotification.php`, `frontend/src/features/messaging/pages/InboxPage.tsx`

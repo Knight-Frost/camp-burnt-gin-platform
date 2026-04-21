@@ -90,12 +90,14 @@ class NewMessageNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $senderName = $this->message->sender?->name ?? 'Camp Burnt Gin';
+
         $mailMessage = (new MailMessage)
             ->subject('New Message - Camp Burnt Gin')
             ->greeting('Hello '.$notifiable->name.',')
             ->line('You have received a new message in a conversation.')
             ->line('Conversation: '.$this->conversation->subject)
-            ->line('From: '.$this->message->sender->name);
+            ->line('From: '.$senderName);
 
         if ($this->message->hasAttachments()) {
             $attachmentCount = $this->message->attachmentCount();
@@ -103,10 +105,26 @@ class NewMessageNotification extends Notification
         }
 
         $mailMessage->line('Please log in to view the full message and respond.')
-            ->action('View Message', config('app.frontend_url').'/inbox/conversations/'.$this->conversation->id)
+            ->action('View Message', $this->inboxUrl($notifiable, $this->conversation->id))
             ->salutation('Camp Burnt Gin');
 
         return $mailMessage;
+    }
+
+    /**
+     * Builds the correct portal inbox URL for the given user's role.
+     * Uses ?conversationId= so the inbox auto-selects the conversation on load.
+     */
+    private function inboxUrl(object $notifiable, int $conversationId): string
+    {
+        $prefix = match (true) {
+            $notifiable->isSuperAdmin()    => 'super-admin',
+            $notifiable->isAdmin()         => 'admin',
+            $notifiable->isMedicalProvider() => 'medical',
+            default                        => 'applicant',
+        };
+
+        return config('app.frontend_url')."/{$prefix}/inbox?conversationId={$conversationId}";
     }
 
     /**
@@ -118,7 +136,8 @@ class NewMessageNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $senderName = $this->message->sender->name;
+        $senderName = $this->message->sender?->name ?? 'Camp Burnt Gin';
+        $senderId = $this->message->sender?->id;
         $subject = $this->conversation->subject;
         $attachments = $this->message->hasAttachments();
         $attachNote = $attachments ? ' (includes attachment)' : '';
@@ -131,7 +150,7 @@ class NewMessageNotification extends Notification
             'conversation_id' => $this->conversation->id,
             'conversation_subject' => $subject,
             'sender_name' => $senderName,
-            'sender_id' => $this->message->sender->id,
+            'sender_id' => $senderId,
             'has_attachments' => $attachments,
             'attachment_count' => $this->message->attachmentCount(),
             'created_at' => $this->message->created_at->toIso8601String(),
