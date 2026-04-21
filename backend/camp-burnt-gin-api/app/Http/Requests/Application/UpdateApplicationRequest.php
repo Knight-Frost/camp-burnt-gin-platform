@@ -34,6 +34,20 @@ class UpdateApplicationRequest extends FormRequest
     }
 
     /**
+     * Map client-side aliases to canonical DB column names before validation.
+     * Mirrors StoreApplicationRequest so callers can use the same field names.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('session_id') && ! $this->has('camp_session_id')) {
+            $this->merge(['camp_session_id' => $this->input('session_id')]);
+        }
+        if ($this->has('session_id_second') && ! $this->has('camp_session_id_second')) {
+            $this->merge(['camp_session_id_second' => $this->input('session_id_second')]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * Narrative rules are shared between roles. Role-specific fields (`notes`,
@@ -46,6 +60,12 @@ class UpdateApplicationRequest extends FormRequest
         $isAdmin = $this->user()?->isAdmin() ?? false;
 
         $rules = [
+            // Session selection and meta — applicants may update these when editing a draft.
+            // prepareForValidation() maps session_id → camp_session_id before this runs.
+            'camp_session_id' => ['sometimes', 'nullable', 'integer', 'exists:camp_sessions,id'],
+            'camp_session_id_second' => ['sometimes', 'nullable', 'integer', 'exists:camp_sessions,id'],
+            'first_application' => ['sometimes', 'boolean'],
+            'attended_before' => ['sometimes', 'boolean'],
             // Narrative responses — writable by both admins and applicants.
             'narrative_rustic_environment' => ['nullable', 'string', 'max:5000'],
             'narrative_staff_suggestions' => ['nullable', 'string', 'max:5000'],
@@ -68,6 +88,12 @@ class UpdateApplicationRequest extends FormRequest
             // Draft-promotion flag — applicants only. Admins change status via /review.
             $rules['submit'] = ['sometimes', 'boolean'];
         }
+
+        // Optional-section attestation timestamps — both roles may mark a section
+        // as "reviewed with nothing to declare" so the completeness engine accepts
+        // the data-or-review rule. JSON object keyed by section slug, values are ISO-8601.
+        $rules['sections_reviewed'] = ['sometimes', 'nullable', 'array'];
+        $rules['sections_reviewed.*'] = ['string'];
 
         return $rules;
     }

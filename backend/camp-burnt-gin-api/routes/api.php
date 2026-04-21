@@ -558,7 +558,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::post('/initialize-draft', [ApplicationController::class, 'initializeDraft'])
             ->name('applications.initialize-draft');
         Route::get('/{application}', [ApplicationController::class, 'show'])->name('applications.show');
-        Route::put('/{application}', [ApplicationController::class, 'update'])->name('applications.update');
+        Route::match(['PUT', 'PATCH'], '/{application}', [ApplicationController::class, 'update'])->name('applications.update');
         // Sign an application (parent e-signature step)
         Route::post('/{application}/sign', [ApplicationController::class, 'sign'])->name('applications.sign');
         // Withdraw an application — parent-initiated only (no admin middleware).
@@ -570,9 +570,10 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::post('/{application}/finalize', [ApplicationController::class, 'finalize'])->name('applications.finalize');
         // Clone an application into a new reapplication draft (same camper, new session).
         Route::post('/{application}/clone', [ApplicationController::class, 'clone'])->name('applications.clone');
-        // Hard delete — admin only; step-up required (irreversible action)
+        // Delete — applicants may delete their own draft; admins may delete any application.
+        // The ApplicationPolicy::delete() gate enforces the ownership + draft-only rules for
+        // applicants. Admins additionally require MFA step-up since the action is irreversible.
         Route::delete('/{application}', [ApplicationController::class, 'destroy'])
-            ->middleware(['admin', 'mfa.step_up'])
             ->name('applications.destroy');
         // Completeness + validation report — read-only. Admin reads it
         // before approval; applicant reads it during form filling to drive

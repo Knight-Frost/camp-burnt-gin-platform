@@ -453,10 +453,15 @@ class ApplicationController extends Controller
         $camperDocs = $application->camper->documents ?? collect();
         $appDocs = $application->documents ?? collect();
         $applicantUserId = $application->camper?->user_id;
+        // Scope orphaned docs to paper_application_packet only — this is the only
+        // type that legitimately arrives with NULL documentable before the backfill
+        // migration runs. Loading all orphaned documents for a user would surface
+        // documents from sibling campers or other applications on the same account.
         $orphanedDocs = $applicantUserId
             ? \App\Models\Document::whereNull('documentable_type')
                 ->whereNull('documentable_id')
                 ->where('uploaded_by', $applicantUserId)
+                ->where('document_type', 'paper_application_packet')
                 ->whereNull('deleted_at')
                 ->get()
             : collect();
@@ -690,7 +695,32 @@ class ApplicationController extends Controller
             ]
         );
 
+        // Load the camper before deletion so we can check whether it becomes
+        // orphaned. A camper with no remaining applications has no context in
+        // the system and should be cleaned up. This is the primary path for
+        // removing "New Camper" stub records created by initializeDraft PATH B
+        // when the parent starts (and then abandons) a new application.
+        $camper = \App\Models\Camper::find($application->camper_id);
+
+        // Delete any linked draft blob BEFORE the application row is removed.
+        // The FK on application_drafts.application_id is nullOnDelete — if we
+        // delete the Application first, the DB sets application_id to NULL and
+        // the blob becomes an unreachable zombie that reappears in the dashboard.
+        // Deleting the blob first avoids the zombie entirely.
+        \App\Models\ApplicationDraft::where('application_id', $application->id)->delete();
+
         $application->delete();
+
+        // Cascade soft-delete: if this was the camper's only application, the
+        // camper record is now orphaned. Keeping it creates phantom entries in
+        // the parent's dashboard (the "New Camper" ghost). Deleting it here
+        // keeps database state consistent with what the parent sees.
+        // We do NOT enforce the policy here (the destroy() authorization above
+        // already confirmed the caller may delete this application; cascading
+        // to an orphaned camper is an internal clean-up, not a separate action).
+        if ($camper !== null && $camper->applications()->count() === 0) {
+            $camper->delete();
+        }
 
         return response()->json([
             'message' => 'Application deleted successfully.',
@@ -783,42 +813,37 @@ class ApplicationController extends Controller
             // createApplication() accepts. When present, the new draft
             // carries a pointer back to the terminal application it succeeds.
             'reapplied_from_id' => ['sometimes', 'nullable', 'integer', 'exists:applications,id'],
+            // Intake channel. Applicants may only set paper_self (they are
+            // uploading their own scanned forms). paper_admin is admin-only
+            // and is set via UpdateApplicationRequest. digital is the default.
+            'submission_source' => ['sometimes', 'nullable', 'string', 'in:digital,paper_self'],
         ]);
 
         $user = $request->user();
 
-        // Atomic: camper + application + empty medical record. Idempotent on
-        // (user_id, camp_session_id) — a second call returns the existing
-        // draft so two concurrent tab opens don't produce two drafts.
-        $result = DB::transaction(function () use ($data, $user) {
-            // Resume an existing draft for this session if one is already on
-            // file (same contract as the existing POST /applications upsert).
-            $existing = Application::where('camp_session_id', $data['camp_session_id'])
-                ->where('status', ApplicationStatus::Draft->value)
-                ->whereHas('camper', fn ($q) => $q->where('user_id', $user->id))
-                ->lockForUpdate()
-                ->first();
-            if ($existing) {
-                // Existing draft — load its singleton relation IDs so the
-                // caller (frontend form) has everything it needs to wire
-                // progressive writes without an extra round trip.
-                $camper = \App\Models\Camper::query()
-                    ->with(['medicalRecord', 'behavioralProfile', 'feedingPlan'])
-                    ->findOrFail($existing->camper_id);
+        $source = $data['submission_source'] ?? 'digital';
 
-                return [
-                    'application_id' => $existing->id,
-                    'camper_id' => $existing->camper_id,
-                    'medical_record_id' => optional($camper->medicalRecord)->id,
-                    'behavioral_profile_id' => optional($camper->behavioralProfile)->id,
-                    'feeding_plan_id' => optional($camper->feedingPlan)->id,
-                ];
-            }
-
-            // Reapplication path — reuse the existing Camper and its
-            // singleton relations. Policy check ensures the caller actually
-            // owns that Camper before we attach a new Application to it.
+        // Atomic: camper + application + singleton relations. Two paths:
+        //
+        // PATH A — camper_id provided (reapplication / known camper):
+        //   Idempotent on (camper_id, camp_session_id, submission_source). A second
+        //   call returns the existing draft for THAT specific camper. The full
+        //   idempotency key MUST include camper_id — omitting it would allow a
+        //   draft belonging to a different camper to be returned, causing cross-
+        //   camper data contamination (HIPAA risk).
+        //
+        // PATH B — no camper_id (fresh application for a new child):
+        //   Always creates a new stub. We deliberately skip idempotency here
+        //   because we cannot know which of the caller's campers they intend.
+        //   Resuming "the first draft found" without a camper discriminator is
+        //   a data-leakage vector — a parent with two children applying to the
+        //   same session would receive the wrong child's draft.
+        //
+        // Paper and digital drafts are kept separate (submission_source in key)
+        // because they represent distinct intake paths.
+        $result = DB::transaction(function () use ($data, $user, $source) {
             if (! empty($data['camper_id'])) {
+                // ── PATH A: camper_id explicitly provided ────────────────────
                 /** @var \App\Models\Camper $camper */
                 $camper = \App\Models\Camper::with([
                     'medicalRecord', 'behavioralProfile', 'feedingPlan',
@@ -829,47 +854,85 @@ class ApplicationController extends Controller
                     abort(403, 'Cannot initialize an application for a camper you do not own.');
                 }
 
-                // Top up any missing singleton relations (older campers may
-                // predate one or more of the stub-on-init rows).
-                $medicalRecord = $camper->medicalRecord ?? $camper->medicalRecord()->create([]);
+                // Idempotency: resume existing draft for THIS camper + session + source.
+                // A draft for a different camper is never returned here because camper_id
+                // is part of the WHERE clause.
+                $existing = Application::where('camper_id', $camper->id)
+                    ->where('camp_session_id', $data['camp_session_id'])
+                    ->where('status', ApplicationStatus::Draft->value)
+                    ->where('submission_source', $source)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    // Return the existing draft's IDs — caller already has the right camper.
+                    return [
+                        'application_id' => $existing->id,
+                        'camper_id' => $camper->id,
+                        'medical_record_id' => optional($camper->medicalRecord)->id,
+                        'behavioral_profile_id' => optional($camper->behavioralProfile)->id,
+                        'feeding_plan_id' => optional($camper->feedingPlan)->id,
+                    ];
+                }
+
+                // No existing draft — new application for this existing camper.
+                // Top up any missing singleton relations (older campers may predate one).
+                $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
                 $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
-                $feedingPlan = $camper->feedingPlan ?? $camper->feedingPlan()->create([]);
+                $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
 
                 $application = Application::create([
-                    'camper_id' => $camper->id,
-                    'camp_session_id' => $data['camp_session_id'],
-                    'status' => ApplicationStatus::Draft,
-                    'reapplied_from_id' => $data['reapplied_from_id'] ?? null,
+                    'camper_id'          => $camper->id,
+                    'camp_session_id'    => $data['camp_session_id'],
+                    'status'             => ApplicationStatus::Draft,
+                    'submission_source'  => $source,
+                    'reapplied_from_id'  => $data['reapplied_from_id'] ?? null,
                 ]);
 
                 return [
-                    'application_id' => $application->id,
-                    'camper_id' => $camper->id,
-                    'medical_record_id' => $medicalRecord->id,
+                    'application_id'       => $application->id,
+                    'camper_id'            => $camper->id,
+                    'medical_record_id'    => $medicalRecord->id,
                     'behavioral_profile_id' => $behavioralProfile->id,
-                    'feeding_plan_id' => $feedingPlan->id,
+                    'feeding_plan_id'      => $feedingPlan->id,
                 ];
             }
 
-            // Fresh flow — new Camper stub. The frontend fills real data in
-            // Section 1 and PATCH /campers/{id} updates this row as the
-            // parent types.
-            $camper = \App\Models\Camper::create([
-                'user_id' => $user->id,
-                'first_name' => $data['first_name'] ?? 'New',
-                'last_name' => $data['last_name'] ?? 'Camper',
-                'date_of_birth' => $data['date_of_birth'] ?? now()->subYears(10)->toDateString(),
-            ]);
+            // ── PATH B: no camper_id — fresh application for a new child ────
+            // Never resume a draft without an explicit camper discriminator,
+            // but DO restore a soft-deleted stub rather than creating a duplicate.
+            // Without this guard, every delete→restart cycle accumulates a new
+            // "New Camper" phantom that resurfaces in the dashboard.
+            $firstName   = $data['first_name'] ?? 'New';
+            $lastName    = $data['last_name']  ?? 'Camper';
+            $dateOfBirth = $data['date_of_birth'] ?? now()->subYears(10)->toDateString();
+
+            $existingStub = \App\Models\Camper::withTrashed()
+                ->where('user_id', $user->id)
+                ->where('first_name', $firstName)
+                ->where('last_name', $lastName)
+                ->whereNotNull('deleted_at')
+                ->latest('deleted_at')
+                ->first();
+
+            if ($existingStub !== null) {
+                $existingStub->restore();
+                $camper = $existingStub;
+            } else {
+                $camper = \App\Models\Camper::create([
+                    'user_id'       => $user->id,
+                    'first_name'    => $firstName,
+                    'last_name'     => $lastName,
+                    'date_of_birth' => $dateOfBirth,
+                ]);
+            }
 
             // Pre-create every singleton relation the form's progressive-
-            // save logic writes to. Creating them here means the form
-            // always PUTs against known IDs; it never has to branch on
-            // "first save / subsequent save". Empty rows satisfy the
-            // engine's "exists" checks and the per-field validators
-            // correctly fail on empty fields until the parent fills them.
-            $medicalRecord = $camper->medicalRecord()->create([]);
-            $behavioralProfile = $camper->behavioralProfile()->create([]);
-            $feedingPlan = $camper->feedingPlan()->create([]);
+            // save logic writes to. Use the same idempotent pattern as PATH A:
+            // if a relation already exists on a restored stub, reuse it.
+            $medicalRecord     = $camper->medicalRecord     ?? $camper->medicalRecord()->create([]);
+            $behavioralProfile = $camper->behavioralProfile ?? $camper->behavioralProfile()->create([]);
+            $feedingPlan       = $camper->feedingPlan       ?? $camper->feedingPlan()->create([]);
             // Personal care plan uses an idempotent updateOrCreate endpoint
             // so no stub required here. Activity permissions, diagnoses,
             // allergies, medications, assistive devices, and emergency
@@ -880,6 +943,7 @@ class ApplicationController extends Controller
                 'camper_id' => $camper->id,
                 'camp_session_id' => $data['camp_session_id'],
                 'status' => ApplicationStatus::Draft,
+                'submission_source' => $source,
             ]);
 
             return [
@@ -1017,20 +1081,18 @@ class ApplicationController extends Controller
             // cases.
             \App\Models\ApplicationDraft::where('application_id', $application->id)->delete();
 
-            // Legacy fallback: blobs written before the application_id
-            // column existed still have NULL for the FK. Match those by the
-            // camper's first_name in the label (the frontend writes it at
-            // form-start). Preserves blobs belonging to other campers the
-            // same user may be applying for.
+            // Legacy fallback: blobs written before the application_id column
+            // existed still have NULL for the FK. Delete only the "New Application"
+            // sentinel label — it is the only label the form sets when no camper
+            // name is available yet. First-name matching is intentionally removed:
+            // when a parent has multiple children with the same first name it would
+            // delete blobs for the other sibling's in-progress draft.
             /** @var \App\Models\Camper|null $camper */
             $camper = $application->camper()->first();
             if ($camper !== null) {
                 \App\Models\ApplicationDraft::where('user_id', $camper->user_id)
                     ->whereNull('application_id')
-                    ->where(function ($q) use ($camper) {
-                        $q->where('label', 'like', '%'.$camper->first_name.'%')
-                            ->orWhere('label', 'New Application');
-                    })
+                    ->where('label', 'New Application')
                     ->delete();
             }
 
@@ -1053,19 +1115,23 @@ class ApplicationController extends Controller
                 ->whereNull('archived_at')
                 ->update(['submitted_at' => $now]);
 
-            $application->loadMissing('camper.user', 'campSession');
-            $camperName = $application->camper->first_name.' '.$application->camper->last_name;
-
-            $this->queueNotification(
-                $application->camper->user,
-                new ApplicationSubmittedNotification($application)
-            );
-            $this->systemNotifications->applicationSubmitted(
-                $application->camper->user, $application->id, $camperName
-            );
-
             return $application;
         });
+
+        // Dispatch notifications AFTER the transaction commits to prevent sending
+        // emails for an application that was never actually persisted (e.g. if the
+        // transaction rolled back). Queued notifications are safe here; synchronous
+        // (sync driver) notifications should not run inside a transaction.
+        $application->loadMissing('camper.user', 'campSession');
+        $camperName = $application->camper->first_name.' '.$application->camper->last_name;
+
+        $this->queueNotification(
+            $application->camper->user,
+            new ApplicationSubmittedNotification($application)
+        );
+        $this->systemNotifications->applicationSubmitted(
+            $application->camper->user, $application->id, $camperName
+        );
 
         return response()->json([
             'message' => 'Application submitted successfully.',

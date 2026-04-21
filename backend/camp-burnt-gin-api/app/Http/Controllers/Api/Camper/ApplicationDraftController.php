@@ -34,9 +34,18 @@ class ApplicationDraftController extends Controller
     {
         $this->authorize('viewAny', ApplicationDraft::class);
 
+        // Exclude zombie blobs: application_id=NULL AND draft_data IS NULL means
+        // the blob was either (a) emptied when its application was deleted via
+        // nullOnDelete FK, or (b) created but never had form data saved. Either
+        // way there is nothing to continue — returning them causes ghost "draft
+        // applications" to appear on the dashboard with no linked camper or form.
         $drafts = ApplicationDraft::where('user_id', $request->user()->id)
+            ->where(function ($q) {
+                $q->whereNotNull('application_id')
+                  ->orWhereNotNull('draft_data');
+            })
             ->orderByDesc('updated_at')
-            ->get(['id', 'label', 'created_at', 'updated_at']);
+            ->get(['id', 'label', 'application_id', 'created_at', 'updated_at']);
 
         return response()->json(['data' => $drafts]);
     }
