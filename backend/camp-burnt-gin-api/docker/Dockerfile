@@ -65,11 +65,6 @@ COPY --chown=www-data:www-data . .
 # Install production dependencies
 RUN composer install --no-dev --no-interaction --optimize-autoloader --no-scripts
 
-# Optimize for production
-RUN php artisan config:cache || true \
-    && php artisan route:cache || true \
-    && php artisan view:cache || true
-
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \

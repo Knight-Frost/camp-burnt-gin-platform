@@ -116,7 +116,7 @@ Open your browser to **http://localhost:5173** and log in with:
 - Email: `coordinator@campburntgin.org`
 - Password: `password`
 
-The backend API runs on **http://localhost:8000**. Email is captured by Mailhog at **http://localhost:8025**.
+The backend API runs on **http://localhost:8000**. Email is captured by Mailpit at **http://localhost:8025**.
 
 ---
 
@@ -137,7 +137,7 @@ flowchart LR
     A[Browser - React App\nport 5173] -->|HTTPS + Bearer token| B[Laravel API\nport 8000]
     B --> C[(MySQL Database\nport 3306)]
     B --> D[File Storage\nlocal disk / S3]
-    B --> E[Mail Server\nSMTP / Mailhog]
+    B --> E[Mail Server\nSMTP / Mailpit]
     B --> F[Queue Worker\nBackground jobs]
 ```
 
@@ -744,7 +744,7 @@ Open `.env` in a text editor. The default values work for Docker. You do not nee
 docker-compose up -d
 ```
 
-This starts four containers: the PHP application (port 8000), MySQL database (port 3306), Redis (port 6379), and Mailhog for email testing (port 8025). The first time this runs, Docker downloads images which may take a few minutes.
+This starts four containers: the PHP application (port 8000), MySQL database (port 3306), Redis (port 6379), and Mailpit for email testing (port 8025). The first time this runs, Docker downloads images which may take a few minutes.
 
 Verify that all containers are running:
 
@@ -1376,7 +1376,7 @@ After every deployment, verify the system is working:
 2. **Login:** Open the site, log in with the admin account.
 3. **Database:** Confirm the applications list loads.
 4. **File upload:** Upload a test document and verify it appears.
-5. **Email:** Trigger a notification and verify it appears in Mailhog (dev) or your inbox (production).
+5. **Email:** Trigger a notification and verify it appears in Mailpit (dev) or your inbox (production).
 6. **Queue:** Check that `php artisan queue:monitor` shows workers running.
 
 ---
