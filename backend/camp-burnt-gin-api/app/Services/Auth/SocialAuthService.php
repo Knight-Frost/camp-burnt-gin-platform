@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\SocialAccount;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -137,17 +138,39 @@ class SocialAuthService
         }
 
         // Password verified — create the social account link.
-        SocialAccount::create([
-            'user_id' => $user->id,
-            'provider' => (string) ($pending['provider'] ?? ''),
-            'provider_id' => (string) ($pending['provider_id'] ?? ''),
-            'provider_email' => $pending['provider_email'],
-            'provider_name' => $pending['provider_name'],
-            'avatar_url' => $pending['avatar_url'],
-            'access_token' => $pending['access_token'],
-            'refresh_token' => $pending['refresh_token'],
-            'token_expires_at' => $pending['token_expires_at'],
-        ]);
+        // Guard against duplicate-key if the user double-submits or previously
+        // completed this flow: if the record already belongs to this user, treat
+        // it as a success (idempotent). If it belongs to another user, that is a
+        // conflict that should surface as a user-facing error, not a 500.
+        $existingSocial = SocialAccount::where('provider', (string) ($pending['provider'] ?? ''))
+            ->where('provider_id', (string) ($pending['provider_id'] ?? ''))
+            ->first();
+
+        if ($existingSocial && $existingSocial->user_id !== $user->id) {
+            Cache::forget("social_link_pending:{$linkToken}");
+
+            return ['success' => false, 'message' => 'This Google account is already linked to a different account.'];
+        }
+
+        if (! $existingSocial) {
+            try {
+                SocialAccount::create([
+                    'user_id' => $user->id,
+                    'provider' => (string) ($pending['provider'] ?? ''),
+                    'provider_id' => (string) ($pending['provider_id'] ?? ''),
+                    'provider_email' => $pending['provider_email'],
+                    'provider_name' => $pending['provider_name'],
+                    'avatar_url' => $pending['avatar_url'],
+                    'access_token' => $pending['access_token'],
+                    'refresh_token' => $pending['refresh_token'],
+                    'token_expires_at' => $pending['token_expires_at'],
+                ]);
+            } catch (QueryException) {
+                Cache::forget("social_link_pending:{$linkToken}");
+
+                return ['success' => false, 'message' => 'Unable to link account. Please try again.'];
+            }
+        }
 
         Cache::forget("social_link_pending:{$linkToken}");
 
@@ -281,6 +304,7 @@ class SocialAuthService
             AuditLog::logAuth('social_mfa_required', $user, ['provider' => $provider]);
 
             return [
+                'success' => true,
                 'action' => $action,
                 'mfa_required' => true,
                 'mfa_pending_token' => $mfaPendingToken,
@@ -291,6 +315,7 @@ class SocialAuthService
         AuditLog::logAuth('social_login', $user, ['provider' => $provider, 'action' => $action]);
 
         return [
+            'success' => true,
             'action' => $action,
             'mfa_required' => false,
             'user' => $user->load('role'),
