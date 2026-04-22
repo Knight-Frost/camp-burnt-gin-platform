@@ -1543,6 +1543,12 @@ parameters:
 			path: app/Services/Camper/ApplicationCompletenessService.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$insurance_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Camper/ApplicationCompletenessService.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$oral_hygiene_level\.$#'
 			identifier: property.notFound
 			count: 1
