@@ -277,6 +277,52 @@ export async function getApplicationCompleteness(id: number): Promise<Completene
 }
 
 /**
+ * Section keys accepted by the atomic-replace endpoint. Mirrors the backend
+ * ReplaceSectionRequest::ALLOWED_SECTIONS list.
+ */
+export type ReplaceSectionKey =
+  | 'camper'
+  | 'health'
+  | 'behavior'
+  | 'equipment'
+  | 'diet'
+  | 'personal_care'
+  | 'activities'
+  | 'medications'
+  | 'narratives';
+
+export interface ReplaceSectionResponse {
+  data: Application;
+  validation: import('@/shared/types').CanonicalValidationMeta;
+  section: ReplaceSectionKey;
+}
+
+/**
+ * Atomic single-section replace. The entire section's data set is replaced
+ * inside one DB transaction on the backend — either every field lands or
+ * none do. The endpoint also stamps `sections_reviewed[$key]` and
+ * `section_attestations[$key]` automatically, so the frontend no longer
+ * needs a separate stampSectionReviewed call.
+ *
+ * `attestation` is an explicit "I have nothing to declare for this section"
+ * boolean. Only meaningful for the four hybrid sections (behavior,
+ * equipment, diet, medications) — silently ignored otherwise.
+ */
+export async function replaceSection(
+  applicationId: number,
+  sectionKey: ReplaceSectionKey,
+  payload: Record<string, unknown>,
+  attestation: boolean = false,
+): Promise<ReplaceSectionResponse> {
+  const body = { ...payload, attestation };
+  const { data } = await axiosInstance.post<ReplaceSectionResponse>(
+    `/applications/${applicationId}/sections/${sectionKey}`,
+    body,
+  );
+  return data;
+}
+
+/**
  * Fetch just the lifecycle IDs (camper + singleton relations) for a given
  * application. Used by the form when resuming a draft — we only need the
  * IDs to drive progressive writes, not the full application payload.
@@ -909,6 +955,21 @@ export interface Document {
   url: string;
   /** Null = draft (not yet submitted to staff). Set = submitted and visible to admins. */
   submitted_at: string | null;
+  /**
+   * Set when the uploader has hidden this document from their own list.
+   * Applicants won't see rows with this field set (backend filters them
+   * out of /documents for applicant callers), but the field is part of
+   * the response shape for completeness.
+   */
+  applicant_hidden_at?: string | null;
+  /**
+   * Null = sitting in the applicant's "Ready to Send" queue on the
+   * Documents page. Set = pushed to an admin via the inbox messaging
+   * flow (message_document_links + the server-side stamp in
+   * MessageService::attachExistingDocuments). Frontend filters the
+   * Ready-to-Send list on this field.
+   */
+  sent_at?: string | null;
 }
 
 export async function getDocuments(): Promise<Document[]> {
@@ -1040,17 +1101,9 @@ export async function uploadDocumentRequest(id: number, file: File): Promise<Doc
 // Active Form Schema
 // ---------------------------------------------------------------------------
 
-import type { FormSchema } from '@/features/forms/types/form.types';
-
-/**
- * Fetch the currently active application form schema.
- * Returns sections, fields, options, and conditional logic rules.
- * Used by ApplicationFormPage to optionally fetch schema for future schema-driven rendering.
- */
-export async function getActiveFormSchema(): Promise<FormSchema> {
-  const { data } = await axiosInstance.get<{ data: FormSchema }>('/form/active');
-  return data.data;
-}
+// getActiveFormSchema removed 2026-04-22 alongside the form-builder UI.
+// The backend `/form/active` endpoint is preserved for the future
+// schema-driven renderer rebuild — it just has no frontend caller today.
 
 // ---------------------------------------------------------------------------
 // Official Form Templates

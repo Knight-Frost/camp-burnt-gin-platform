@@ -108,8 +108,9 @@ const RiskManagementPage        = withSuspense(lazy(() => import('@/features/med
 const SuperAdminDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/SuperAdminDashboardPage').then(m => ({ default: m.SuperAdminDashboardPage }))));
 const UserManagementPage      = withSuspense(lazy(() => import('@/features/superadmin/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage }))));
 const AuditLogPage            = withSuspense(lazy(() => import('@/features/superadmin/pages/AuditLogPage').then(m => ({ default: m.AuditLogPage }))));
-const FormDashboardPage = withSuspense(lazy(() => import('@/features/superadmin/pages/FormDashboardPage').then(m => ({ default: m.FormDashboardPage }))));
-const FormEditorPage    = withSuspense(lazy(() => import('@/features/superadmin/pages/FormEditorPage').then(m => ({ default: m.FormEditorPage }))));
+// Form Builder pages removed 2026-04-22: the schema editor was misleading
+// because it never wired through to the applicant form. Backend schema +
+// models preserved for the future schema-driven renderer rebuild.
 
 // ─── Shared pages ─────────────────────────────────────────────────────────────
 // These pages are reused across multiple portals (each portal mounts them under its own prefix)
@@ -236,11 +237,7 @@ export const router = createBrowserRouter([
           // (backend routes require admin/super_admin for PUT/DELETE) while
           // medical role gets a read-only view of the same page via /medical/risk-management.
           { path: '/admin/risk-management',     element: <RiskManagementPage /> },
-          // Form Builder is super_admin-only governance tooling. The parent RoleGuard
-          // allows admin + super_admin into this portal, so these routes add a second
-          // RoleGuard to restrict form-builder access to super_admin exclusively.
-          { path: '/admin/form-builder',        element: <RoleGuard allowedRoles={[ROLES.SUPER_ADMIN]}><FormDashboardPage /></RoleGuard> },
-          { path: '/admin/form-builder/:formId', element: <RoleGuard allowedRoles={[ROLES.SUPER_ADMIN]}><FormEditorPage /></RoleGuard> },
+          // /admin/form-builder routes removed 2026-04-22 (see comment at imports).
           { path: '/admin/inbox',               element: <InboxPage /> },
           { path: '/admin/profile',             element: <ProfilePage /> },
           { path: '/admin/settings',            element: <SettingsPage /> },
@@ -302,9 +299,7 @@ export const router = createBrowserRouter([
           // Governance-only pages (not available in the regular admin portal)
           { path: '/super-admin/users',                element: <UserManagementPage /> },
           { path: '/super-admin/audit',                element: <AuditLogPage /> },
-          // Form Builder — multi-screen workflow
-          { path: '/super-admin/form-builder',          element: <FormDashboardPage /> },
-          { path: '/super-admin/form-builder/:formId', element: <FormEditorPage /> },
+          // /super-admin/form-builder routes removed 2026-04-22 (see comment at imports).
           // Shared admin pages also mounted under super-admin prefix
           { path: '/super-admin/applications',         element: <AdminApplicationsPage /> },
           { path: '/super-admin/applications/:id',          element: <ApplicationReviewPage /> },

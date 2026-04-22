@@ -89,7 +89,7 @@ class ApplicationStatusChangedNotification extends Notification
         }
 
         return $message
-            ->action('View Application', config('app.frontend_url').'/applications/'.$this->application->id)
+            ->action('View Application', config('app.frontend_url').'/applicant/applications/'.$this->application->id)
             ->salutation('Camp Burnt Gin');
     }
 

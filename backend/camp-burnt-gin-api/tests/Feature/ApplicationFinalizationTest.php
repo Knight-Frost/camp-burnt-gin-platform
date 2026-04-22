@@ -226,6 +226,7 @@ class ApplicationFinalizationTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => \Tests\Support\TestApplicationFixture::attestedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft, 'Jane Smith');
 
@@ -275,6 +276,7 @@ class ApplicationFinalizationTest extends TestCase
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
             'submitted_at' => now(),
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => \Tests\Support\TestApplicationFixture::attestedOptionalSections(),
         ]);
 
         // Required medical documents still apply to paper apps; seed with
@@ -480,6 +482,7 @@ class ApplicationFinalizationTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => \Tests\Support\TestApplicationFixture::attestedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft, 'Jane Smith');
     }

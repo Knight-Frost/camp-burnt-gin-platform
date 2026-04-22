@@ -16,8 +16,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { CheckCircle, XCircle, Loader2, Mail, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { CheckCircle, XCircle, Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { verifyEmail, resendVerificationEmail } from '@/features/auth/api/auth.api';
@@ -26,15 +26,11 @@ import { AuthCard } from '@/features/auth/components/AuthCard';
 import { Button } from '@/ui/components/Button';
 
 // Represents every possible state the verification flow can be in.
-// 'pending' = just registered, waiting for the user to check their inbox.
+// 'pending' = just registered; the user must click the button to send the verification email.
 type VerifyState = 'verifying' | 'success' | 'error' | 'resent' | 'pending';
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
-  const location = useLocation();
-  // emailSent is passed via navigation state from RegisterPage. Defaults to true on
-  // hard refresh (location.state lost) so we don't falsely warn on a stale reload.
-  const emailSent = (location.state as { emailSent?: boolean } | null)?.emailSent ?? true;
   const [state, setState]       = useState<VerifyState>('verifying');
   const [resending, setResending] = useState(false);
   // Tracks which searchParams string was last processed.
@@ -50,7 +46,7 @@ export function VerifyEmailPage() {
     processedParams.current = paramsKey;
 
     // ?pending=true means the user just registered — skip the verify request and
-    // show the "check your inbox" screen with a resend button.
+    // show the "send verification email" screen (no email has been sent yet).
     if (searchParams.get('pending') === 'true') {
       setState('pending');
       return;
@@ -140,9 +136,10 @@ export function VerifyEmailPage() {
           </div>
         );
 
-      // ── Pending: just registered, waiting for user to check inbox ──
+      // ── Pending: just registered. We do not auto-send the verification email;
+      // the user taps the button below to send it.
       case 'pending':
-        return emailSent ? (
+        return (
           <div className="flex flex-col items-center gap-5 py-4">
             <div
               className="flex items-center justify-center w-16 h-16 rounded-2xl"
@@ -151,25 +148,7 @@ export function VerifyEmailPage() {
               <Mail className="h-8 w-8 text-ember-orange" />
             </div>
             <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
-              We sent a verification link to your email address. Click the link to activate your account, then sign in.
-            </p>
-            <Button onClick={handleResend} loading={resending} variant="secondary">
-              Resend verification email
-            </Button>
-            <Link to={ROUTES.LOGIN} className="text-sm text-ember-orange hover:underline">
-              Back to sign in
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-5 py-4">
-            <div
-              className="flex items-center justify-center w-16 h-16 rounded-2xl"
-              style={{ background: 'rgba(245,158,11,0.10)' }}
-            >
-              <AlertTriangle className="h-8 w-8" style={{ color: '#f59e0b' }} />
-            </div>
-            <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
-              Your account was created, but we could not send the verification email. Use the button below to try again.
+              Account created. Tap below to send your verification email — you'll need to verify before you can access your applications and records.
             </p>
             <Button onClick={handleResend} loading={resending}>
               Send verification email

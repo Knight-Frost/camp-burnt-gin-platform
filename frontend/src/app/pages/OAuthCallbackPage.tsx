@@ -26,15 +26,44 @@ import {
   confirmSocialLink,
   mfaVerifySocial,
   type SocialAuthSuccessData,
+  type SocialExchangeResponse,
 } from '@/features/auth/api/social.api';
+import { normalizeUser } from '@/features/auth/api/auth.api';
 import { setUser, setToken, hydrateAuth } from '@/features/auth/store/authSlice';
 import { useAppDispatch } from '@/store/hooks';
 import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getDashboardRoute } from '@/shared/constants/roles';
 import type { User } from '@/shared/types';
 import { AuthCard } from '@/features/auth/components/AuthCard';
+import { GoogleSignInButton } from '@/features/auth/components/GoogleSignInButton';
 
 const CODE_LENGTH = 6;
+
+/**
+ * Module-level cache of in-flight (and completed) OTC exchange promises.
+ *
+ * The OTC issued by /auth/google/callback is single-use and burns on first
+ * read by /auth/social/exchange. React 18 StrictMode dev mounts every
+ * component twice, which — without coordination — would either fire the
+ * exchange POST twice (the second 422s on a burned OTC and paints an
+ * error card on top of the success) or fire it only on the first mount
+ * (whose React fiber is destroyed before the response arrives, leaving
+ * the live second-mount instance stuck on the loading spinner).
+ *
+ * The fix is to share the same Promise across both mounts:
+ *
+ *   - First mount calls into here, no entry exists, so it kicks off the
+ *     network request and stores the Promise.
+ *   - Second mount calls into here, finds the cached Promise, awaits the
+ *     same one. Its setState calls (on the live fiber) actually paint.
+ *   - The dead first-mount instance also awaits and tries to setState —
+ *     React 18 silently noops setState on dead fibers, which is fine.
+ *
+ * useRef is reset across the synthetic unmount/remount, which is why this
+ * lives at module scope. Entries are tiny (string → Promise) and a session
+ * accumulates at most a handful, so no eviction needed.
+ */
+const exchangeInFlight = new Map<string, Promise<SocialExchangeResponse>>();
 
 type Phase =
   | 'loading'           // Exchanging the OTC or loading query params
@@ -83,7 +112,15 @@ export function OAuthCallbackPage() {
 
     const code = searchParams.get('code');
     if (code) {
-      void exchangeCode(code);
+      // StrictMode-safe: the first mount kicks off the network call and
+      // caches the Promise; the second mount finds the cached Promise and
+      // awaits the same one. See exchangeInFlight above.
+      let promise = exchangeInFlight.get(code);
+      if (!promise) {
+        promise = exchangeSocialCode(code);
+        exchangeInFlight.set(code, promise);
+      }
+      void exchangeCode(promise);
       return;
     }
 
@@ -92,9 +129,9 @@ export function OAuthCallbackPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function exchangeCode(code: string) {
+  async function exchangeCode(promise: Promise<SocialExchangeResponse>) {
     try {
-      const result = await exchangeSocialCode(code);
+      const result = await promise;
 
       if (result.mfa_required && result.mfa_pending_token) {
         mfaPendingToken.current = result.mfa_pending_token;
@@ -117,12 +154,16 @@ export function OAuthCallbackPage() {
   }
 
   async function finalizeAuth(data: SocialAuthSuccessData) {
+    // The social-auth endpoint returns a user with the role relation as a
+    // single `role` object (not the `roles[]` array the SPA's RBAC layer
+    // expects). normalizeUser is the same helper LoginPage uses so both
+    // login paths put the same shape into Redux.
+    const user = normalizeUser(data.user as User);
+
     sessionStorage.setItem('auth_token', data.token);
     dispatch(setToken({ token: data.token }));
-    dispatch(setUser(data.user));
+    dispatch(setUser(user));
     dispatch(hydrateAuth());
-
-    const user = data.user as User;
 
     if (!user.email_verified_at) {
       navigate('/verify-email?pending=true', { replace: true });
@@ -272,15 +313,24 @@ export function OAuthCallbackPage() {
   }
 
   if (phase === 'link_confirm') {
+    // "Expired" message means the backend's cached link-pending entry is gone.
+    // At that point no password attempt can succeed — surface a restart CTA
+    // instead of leaving the user re-submitting against a dead token.
+    const linkSessionExpired = linkError.toLowerCase().includes('expired');
+
     return (
       <AuthCard
         title="Link Account"
         subtitle={
-          <>
-            We found an existing account for{' '}
-            <span style={{ color: '#e8bd58', fontWeight: 600 }}>{maskedEmail}</span>.
-            Enter your password to link your Google account.
-          </>
+          linkSessionExpired ? (
+            <>Your linking session has expired for security. Please sign in with Google again to continue.</>
+          ) : (
+            <>
+              We found an existing account for{' '}
+              <span style={{ color: '#e8bd58', fontWeight: 600 }}>{maskedEmail}</span>.
+              Enter your password to link your Google account.
+            </>
+          )
         }
         footer={
           <button
@@ -293,6 +343,24 @@ export function OAuthCallbackPage() {
           </button>
         }
       >
+        {linkSessionExpired ? (
+          <div className="flex flex-col gap-5">
+            <div
+              role="alert"
+              className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm"
+              style={{ background: 'rgba(10,3,0,0.72)', color: '#fca5a5' }}
+            >
+              <AlertCircle style={{ width: '1.125rem', height: '1.125rem', flexShrink: 0, marginTop: '0.125rem' }} />
+              <span>
+                This link session has expired. Please try signing in with Google again.
+              </span>
+            </div>
+            <GoogleSignInButton label="Sign in with Google again" />
+            <p className="text-center text-xs" style={{ color: 'rgba(232,188,112,0.55)' }}>
+              You&apos;ll be brought right back here to finish linking your account.
+            </p>
+          </div>
+        ) : (
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <label
@@ -366,6 +434,7 @@ export function OAuthCallbackPage() {
             This will allow you to sign in with either your password or Google.
           </p>
         </div>
+        )}
       </AuthCard>
     );
   }

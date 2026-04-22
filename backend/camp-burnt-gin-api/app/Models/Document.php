@@ -6,6 +6,7 @@ use App\Enums\DocumentVerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
@@ -88,6 +89,8 @@ class Document extends Model
         'expiration_date',     // Date after which the document is considered expired.
         'archived_at',         // Null = active; timestamp = archived (soft-remove from workflow view).
         'submitted_at',        // Null = draft (visible only to uploader); timestamp = submitted to staff.
+        'applicant_hidden_at', // Null = visible to the uploader; timestamp = uploader hid it from their own list only. Admin queue is never affected.
+        'sent_at',             // Null = sitting in the applicant's "Ready to Send" queue; timestamp = pushed to an admin via the inbox messaging flow.
     ];
 
     /**
@@ -125,6 +128,8 @@ class Document extends Model
             'expiration_date' => 'date',
             'archived_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'applicant_hidden_at' => 'datetime',
+            'sent_at' => 'datetime',
         ];
     }
 
@@ -192,6 +197,23 @@ class Document extends Model
     public function message(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Message::class, 'message_id');
+    }
+
+    /**
+     * Messages that reference this document via the Phase 2 join table.
+     *
+     * Distinct from message() which is the legacy inline-attachment FK. A
+     * Document lives in the Documents module once; any number of Messages
+     * may reference it via this pivot.
+     */
+    public function attachedToMessages(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\Message::class,
+            'message_document_links',
+            'document_id',
+            'message_id'
+        )->withPivot(['id', 'attached_by', 'created_at']);
     }
 
     /**
@@ -304,5 +326,40 @@ class Document extends Model
         return $this->isVerified()
             && $this->isSecure()
             && ! $this->isExpired();
+    }
+
+    /**
+     * Has the uploader hidden this document from their own applicant view?
+     *
+     * Purely an applicant-visibility flag. Admin and medical queues ignore it.
+     */
+    public function isHiddenFromApplicant(): bool
+    {
+        return $this->applicant_hidden_at !== null;
+    }
+
+    /**
+     * Is this document safe to permanently destroy (soft-delete + file purge)?
+     *
+     * True only when the document has no downstream consumers — it was never
+     * submitted to staff, never inline-attached to a message, never referenced
+     * by a message via the Phase 2 join table, and never archived.
+     *
+     * Any other document is a compliance artifact that must be preserved.
+     * An applicant asking to "delete" one of those gets their view hidden
+     * via applicant_hidden_at; the row and file stay intact for admins.
+     *
+     * Admins can still force-destroy regardless — this method only gates the
+     * applicant-uploader pathway.
+     */
+    public function canForceDelete(): bool
+    {
+        return $this->isDraft()
+            && $this->message_id === null
+            && $this->archived_at === null
+            // Phase 2: a doc linked as a reference attachment to any message
+            // is part of that message's audit trail. Destroying it leaves
+            // the message with a dangling reference; not safe.
+            && $this->attachedToMessages()->doesntExist();
     }
 }

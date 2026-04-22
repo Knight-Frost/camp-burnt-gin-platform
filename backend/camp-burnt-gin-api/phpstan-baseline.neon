@@ -1567,7 +1567,7 @@ parameters:
 			path: app/Services/Camper/ApplicationCompletenessService.php
 
 		-
-			message: '#^Offset ''behavior''\|''diet''\|''equipment''\|''medications''\|''narratives'' on array\{\}\|string in empty\(\) does not exist\.$#'
+			message: '#^Offset ''activities''\|''behavior''\|''camper''\|''diet''\|''equipment''\|''health''\|''medications''\|''narratives''\|''personal_care'' on array\{\}\|string in empty\(\) does not exist\.$#'
 			identifier: empty.offset
 			count: 1
 			path: app/Services/Camper/ApplicationCompletenessService.php

@@ -404,57 +404,36 @@ class DocumentService
     }
 
     /**
-     * Delete a document record and its associated physical file.
+     * Soft-delete a document record.
      *
-     * The DB soft-delete always proceeds. Physical file removal is best-effort:
-     *   - If the file is missing (already cleaned up, storage migration, etc.),
-     *     log a warning and continue — the record should still be removable.
-     *   - If the file EXISTS but cannot be deleted (permissions, I/O error),
-     *     log an error and re-throw so the caller knows something is wrong.
+     * The physical file is intentionally NOT removed here. The Document model's
+     * `forceDeleting` boot hook handles file removal only when a caller opts in
+     * via `$document->forceDelete()` (or when a scheduled pruner wipes an
+     * abandoned draft). Soft-deleted documents remain recoverable with their
+     * file intact — a HIPAA-sensitive invariant: clicking "delete" must not
+     * permanently destroy compliance records.
      *
-     * This approach avoids "delete failed" errors when the file simply isn't
-     * there anymore, which is a recoverable state not worth blocking admins over.
+     * The controller decides between soft-delete (this method) and force-delete
+     * based on `Document::canForceDelete()` + the caller's role. Admins can
+     * force-delete anything; applicants can only force-delete their own
+     * pristine drafts (never submitted, never attached).
      */
     public function delete(Document $document): void
     {
-        DB::transaction(function () use ($document) {
-            // Capture file location before soft-deleting the record
-            $filePath = $document->path;
-            $disk = $document->disk;
+        $document->delete();
+    }
 
-            // Soft-delete the database record
-            $document->delete();
-
-            // Physical file removal — skip gracefully if the file is already gone
-            if (! $disk || ! $filePath) {
-                return; // No storage info on this record; nothing to clean up
-            }
-
-            try {
-                if (! Storage::disk($disk)->exists($filePath)) {
-                    // File is already absent — log and move on; don't block the delete
-                    Log::warning('Document file not found during delete (already removed or never stored)', [
-                        'document_id' => $document->id,
-                        'path' => $filePath,
-                    ]);
-
-                    return;
-                }
-
-                if (! Storage::disk($disk)->delete($filePath)) {
-                    throw new \RuntimeException('File deletion failed');
-                }
-            } catch (\RuntimeException $e) {
-                // File exists but couldn't be deleted — this is a real failure worth rolling back
-                Log::error('File deletion failed, rolling back database deletion', [
-                    'document_id' => $document->id,
-                    'path' => $filePath,
-                    'error' => $e->getMessage(),
-                ]);
-
-                // Re-throw so the transaction rolls back the soft-delete
-                throw $e;
-            }
-        });
+    /**
+     * Permanently destroy a document and its physical file.
+     *
+     * Used for pristine drafts (applicant cleaning up before submit) and for
+     * admin-initiated hard deletes. `forceDelete()` fires the model's
+     * `forceDeleting` hook which removes the file from disk. If the file
+     * removal fails, the hook logs a warning but still clears the DB row —
+     * orphaned files are better than stuck DB rows in the admin UI.
+     */
+    public function forceDelete(Document $document): void
+    {
+        $document->forceDelete();
     }
 }

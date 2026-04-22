@@ -197,6 +197,7 @@ class DraftDocumentVisibilityTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Aurora Wicker',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => \Tests\Support\TestApplicationFixture::attestedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($draft, 'Aurora');
         $this->seed(\Database\Seeders\RiskEngineSeeder::class);

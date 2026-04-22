@@ -77,7 +77,7 @@ class RejectionLetterNotification extends Notification implements ShouldQueue
         return $message
             ->line('')
             ->line('We encourage you to apply for future camp sessions. If you have any questions, please do not hesitate to contact us.')
-            ->action('View Other Sessions', config('app.frontend_url').'/sessions')
+            ->action('View Other Sessions', config('app.frontend_url').'/applicant/applications/start')
             ->line('')
             ->line('Thank you for your understanding.')
             ->salutation('Sincerely,'."\n".'Camp Burnt Gin');

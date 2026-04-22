@@ -75,6 +75,13 @@ class Application extends Model
         // completeness engine to distinguish "parent attested nothing to
         // declare" from "parent never visited the section". JSON column.
         'sections_reviewed',
+        // Per-section explicit "nothing to declare" attestations
+        // (2026_04_22_000001). Boolean per section key. Used by the hybrid
+        // completion rule for behavior/equipment/diet/medications: a section
+        // is complete when EITHER it has data OR the parent explicitly
+        // attested via this flag. Distinct from `sections_reviewed` which
+        // only records that the parent visited the section.
+        'section_attestations',
     ];
 
     /**
@@ -98,6 +105,9 @@ class Application extends Model
             // JSON map of { sectionKey: ISO8601 timestamp } — see
             // ApplicationCompletenessService for semantics.
             'sections_reviewed' => 'array',
+            // JSON map of { sectionKey: bool } — explicit "nothing to
+            // declare" attestations. See ApplicationCompletenessService.
+            'section_attestations' => 'array',
         ];
     }
 
@@ -350,11 +360,23 @@ class Application extends Model
     /**
      * Query scope — filter only formally submitted applications (any non-draft status).
      *
-     * A single status check is now sufficient — status is the sole source of truth.
+     * "Submitted" here means "the parent has finalized it" — the application has
+     * left the parent's editable draft phase. Once an application is submitted,
+     * its status may go on to under_review / approved / rejected / waitlisted /
+     * etc. — all of those are still "submitted" in the sense the dashboard cares
+     * about (they count toward Total applications, contribute to per-status
+     * breakdowns, populate the timeline).
+     *
+     * Previously this matched only the literal status='submitted' value, which
+     * meant the moment an admin approved an application it dropped out of every
+     * count query — Total applications, Approved tile, Acceptance Rate chart
+     * all read 0 even though the approval clearly happened. The intent stated
+     * in this docblock has always been "any non-draft status"; the SQL now
+     * matches the intent.
      */
     public function scopeSubmitted($query)
     {
-        return $query->where('status', ApplicationStatus::Submitted->value);
+        return $query->where('status', '!=', ApplicationStatus::Draft->value);
     }
 
     /**

@@ -164,21 +164,15 @@ export function RegisterPage() {
 
     try {
       const response = await registerUser(values);
-      const { user, token, email_sent } = response.data!;
+      const { user, token } = response.data!;
       // Persist the token so useAuthInit can restore the session on page refresh.
       sessionStorage.setItem('auth_token', token);
       dispatch(setToken({ token }));
       dispatch(setUser(user));
       // hydrateAuth ensures the Axios interceptor picks up the new token.
       dispatch(hydrateAuth());
-      if (email_sent === false) {
-        toast.warning('Account created! We could not send the verification email — use the resend button on the next screen.');
-      } else {
-        toast.success('Account created! Please check your email to verify your address.');
-      }
-      // Route to the pending-verification screen — pass email_sent so VerifyEmailPage
-      // can show honest messaging if SMTP failed.
-      navigate('/verify-email?pending=true', { replace: true, state: { emailSent: email_sent !== false } });
+      toast.success('Account created! Send your verification email on the next screen to activate your account.');
+      navigate('/verify-email?pending=true', { replace: true });
     } catch (error) {
       // Map server-side field errors back onto the form fields.
       if (isValidationError(error)) {

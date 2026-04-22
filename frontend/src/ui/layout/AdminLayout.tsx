@@ -28,7 +28,6 @@ import {
   MessageSquare,
   Settings,
   Megaphone,
-  Layout,
   User,
   ShieldAlert,
 } from 'lucide-react';
@@ -85,7 +84,7 @@ export function AdminLayout() {
     { group: gOps,    label: t('portal_nav.reports'),          to: ROUTES.ADMIN_REPORTS,       icon: BarChart3 },
     // SYSTEM — governance & configuration
     { group: gSystem, label: t('portal_nav.risk_management'),  to: '/admin/risk-management',   icon: ShieldAlert },
-    { group: gSystem, label: t('portal_nav.form_builder'),     to: ROUTES.ADMIN_FORM_BUILDER,  icon: Layout },
+    // Form Builder nav entry removed 2026-04-22 (schema editor was shelf-ware).
     { group: gSystem, label: t('portal_nav.my_profile'),       to: '/admin/profile',           icon: User },
     { group: gSystem, label: t('portal_nav.settings'),         to: '/admin/settings',          icon: Settings },
   ];

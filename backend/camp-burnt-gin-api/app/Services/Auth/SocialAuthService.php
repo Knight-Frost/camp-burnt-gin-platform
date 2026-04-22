@@ -355,7 +355,9 @@ class SocialAuthService
 
     /**
      * Store a pending link request in cache, keyed by a random token.
-     * Expires in 5 minutes — the user must complete linking in one sitting.
+     * TTL is 15 min: longer than the MFA challenge because recalling a
+     * password (and possibly opening a password manager) is a slower human
+     * action than reading a 6-digit TOTP from an authenticator already in hand.
      */
     private function storeLinkPending(string $provider, SocialiteUser $socialUser, int $userId): string
     {
@@ -374,7 +376,7 @@ class SocialAuthService
                 ? now()->addSeconds((int) $oauthUser->expiresIn)
                 : null,
             'user_id' => $userId,
-        ], now()->addMinutes(5));
+        ], now()->addMinutes(15));
 
         return $token;
     }

@@ -162,6 +162,30 @@ class DatabaseIndexPerformanceTest extends TestCase
         $this->assertCount(2, $submitted);
     }
 
+    /**
+     * Regression: the submitted() scope must count *every* non-draft status,
+     * not just the literal 'submitted' value. Before the fix the scope
+     * matched only status='submitted', so the moment an admin approved an
+     * application it disappeared from every count query — the Reports page
+     * showed Total applications=0 and Approved=0 immediately after the
+     * first approval, even though the approval clearly happened (the camper
+     * was activated, the activity log recorded it, the session enrollment
+     * counter ticked up).
+     */
+    public function test_submitted_scope_includes_every_non_draft_status(): void
+    {
+        Application::factory()->draft()->create();           // excluded
+        Application::factory()->create();                    // status=submitted, included
+        Application::factory()->underReview()->create();     // included
+        Application::factory()->approved()->create();        // included
+        Application::factory()->rejected()->create();        // included
+        Application::factory()->waitlisted()->create();      // included
+        Application::factory()->cancelled()->create();       // included
+        Application::factory()->withdrawn()->create();       // included
+
+        $this->assertSame(7, Application::submitted()->count());
+    }
+
     public function test_application_status_session_filtering_works_correctly(): void
     {
         $session1 = \App\Models\CampSession::factory()->create();

@@ -34,6 +34,7 @@ import { ROUTES } from '@/shared/constants/routes';
 import axiosInstance from '@/api/axios.config';
 import type { Application } from '@/features/admin/types/admin.types';
 import { CanonicalApplicationSections } from '@/features/applications/components/CanonicalApplicationSections';
+import { ApplicantPaperApplicationView } from '@/features/parent/components/ApplicantPaperApplicationView';
 
 // ─── Section card — reusable titled card with an icon ─────────────────────────
 
@@ -433,19 +434,33 @@ export function ApplicantApplicationDetailPage() {
           </SectionCard>
         </div>
 
-        {/* All 11 canonical sections — admin and applicant portals consume
-            the same component against the same canonical payload, so they
-            cannot show divergent truth for the same row. Role-appropriate
-            document labels and compliance messages are selected server-side. */}
+        {/* Branches on submission_source.
+              - Paper applications (paper_self / paper_admin) render the
+                dedicated ApplicantPaperApplicationView — paper banner,
+                submitted docs with View/Download, required-docs checklist,
+                and action-needed callout for rejected or expired docs.
+                The 11-section digital form is skipped because paper apps
+                have no structured section data to render against (rendering
+                it produced the "empty form" bug).
+              - Digital applications fall through to the canonical 11-section
+                view unchanged. */}
         {canonical && (
-          <CanonicalApplicationSections
-            canonical={canonical}
-            // Component-level viewer-role discriminator, not WAI-ARIA role.
-            // eslint-disable-next-line jsx-a11y/aria-role
-            role="applicant"
-            onPreviewDocument={onPreviewCanonical}
-            onDownloadDocument={onDownloadCanonical}
-          />
+          application.submission_source === 'paper_self' || application.submission_source === 'paper_admin' ? (
+            <ApplicantPaperApplicationView
+              canonical={canonical}
+              onPreviewDocument={onPreviewCanonical}
+              onDownloadDocument={onDownloadCanonical}
+            />
+          ) : (
+            <CanonicalApplicationSections
+              canonical={canonical}
+              // Component-level viewer-role discriminator, not WAI-ARIA role.
+              // eslint-disable-next-line jsx-a11y/aria-role
+              role="applicant"
+              onPreviewDocument={onPreviewCanonical}
+              onDownloadDocument={onDownloadCanonical}
+            />
+          )
         )}
       </div>
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -64,13 +65,61 @@ class Message extends Model
     }
 
     /**
-     * Get all file attachments linked to this message.
+     * Legacy inline attachments — Documents that were uploaded INTO this
+     * message (documentable_type=Message, message_id=this.id).
      *
-     * Documents are linked to a message via the message_id FK on the documents table.
+     * Kept for backward compatibility with messages created before Phase 2.
+     * New attachments go through attachedDocuments() instead, which references
+     * an existing Document without duplicating it. shapeMessage() merges
+     * both sources into a single attachments[] array in the API response.
      */
     public function attachments(): HasMany
     {
         return $this->hasMany(Document::class, 'message_id');
+    }
+
+    /**
+     * Phase 2 attachments — existing Documents referenced by this message
+     * via the message_document_links pivot.
+     *
+     * Unlike attachments(), these Documents live in the Documents module
+     * (documentable_type = Camper, Application, etc.) and the link row
+     * merely records "this message references that doc." Destroying the
+     * link leaves the Document intact.
+     */
+    public function attachedDocuments(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Document::class,
+            'message_document_links',
+            'message_id',
+            'document_id'
+        )->withPivot(['id', 'attached_by', 'created_at']);
+    }
+
+    /**
+     * Unified attachment list combining legacy inline attachments and new
+     * linked-document references. Deduped by document id so a doc that
+     * somehow exists in both sources appears only once.
+     *
+     * Callers that need a uniform "all attachments for this message" view
+     * should use this instead of attachments() or attachedDocuments()
+     * directly. shapeMessage() and accessAttachment() both use this.
+     */
+    public function allAttachments(): Collection
+    {
+        $legacy = $this->relationLoaded('attachments')
+            ? $this->attachments
+            : $this->attachments()->get();
+
+        $linked = $this->relationLoaded('attachedDocuments')
+            ? $this->attachedDocuments
+            : $this->attachedDocuments()->get();
+
+        // Later values overwrite earlier — legacy first, linked last.
+        // A doc that's both inline and linked (shouldn't happen) resolves
+        // to the linked copy, which is the one with the pivot metadata.
+        return $legacy->keyBy('id')->merge($linked->keyBy('id'))->values();
     }
 
     /**

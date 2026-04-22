@@ -65,6 +65,7 @@ class ApplicationDraftLinkageTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => TestApplicationFixture::attestedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($draft);
 
@@ -103,6 +104,7 @@ class ApplicationDraftLinkageTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => TestApplicationFixture::attestedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($finalizingDraft);
 
@@ -155,6 +157,7 @@ class ApplicationDraftLinkageTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => TestApplicationFixture::attestedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($draft);
 

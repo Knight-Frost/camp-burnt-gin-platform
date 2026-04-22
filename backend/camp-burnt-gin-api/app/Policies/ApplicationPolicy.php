@@ -123,6 +123,36 @@ class ApplicationPolicy
     }
 
     /**
+     * Can the user replace a single section's data via the atomic
+     * section-update endpoint (POST /applications/{id}/sections/{key})?
+     *
+     * Same gate as update(): admins always, applicants only on their own
+     * editable application. Drafts AND submitted-but-not-yet-reviewed
+     * applications are editable per `isEditable()` — that matches the
+     * existing PUT /applications/{id} contract.
+     *
+     * The endpoint enforces the parent's own data integrity: every replace
+     * runs in a single DB transaction, so even rapid section navigation
+     * cannot leave the database in a partial state.
+     */
+    public function replaceSection(User $user, Application $application): bool
+    {
+        // Admins always get through — they may use the endpoint via the
+        // admin edit-application flow (a single endpoint that the admin UI
+        // can later consume for atomic admin-side edits).
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Parents may replace sections on their own child's editable app.
+        if ($user->isApplicant() && $user->ownsCamper($application->camper)) {
+            return $application->isEditable();
+        }
+
+        return false;
+    }
+
+    /**
      * Can the user delete an application?
      *
      * Admins can delete any application.

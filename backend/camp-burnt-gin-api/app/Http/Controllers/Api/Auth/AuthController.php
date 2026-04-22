@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -38,46 +37,26 @@ class AuthController extends Controller
      *
      * POST /api/auth/register
      *
-     * Step-by-step:
-     *   1. Laravel validates the incoming request using RegisterRequest rules.
-     *   2. AuthService creates the User record in the database.
-     *   3. A verification email is dispatched so the user can confirm their address.
-     *   4. A Sanctum API token is minted and returned so the user is immediately logged in.
-     *   5. The new user object (with their role) and the token are returned as JSON.
+     * The verification email is NOT sent here. The user must explicitly request it
+     * from the pending-verification screen by hitting POST /api/auth/email/resend.
+     * Reason: avoids emailing typo'd addresses and keeps the user in control of
+     * when their inbox receives traffic from us.
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        // AuthService handles hashing the password and setting the default role.
         $user = $this->authService->register($request->validated());
 
-        // Audit: record account creation so the trail shows when each account was created.
         AuditLog::logAuth('register', $user, [
             'role' => $user->role?->name ?? 'applicant',
         ]);
 
-        // Trigger email verification notification.
-        // Wrapped in try-catch so an SMTP failure does not roll back a successful registration.
-        $emailSent = true;
-
-        try {
-            $user->sendEmailVerificationNotification();
-        } catch (\Throwable $e) {
-            $emailSent = false;
-            Log::warning('Failed to send email verification notification', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // Create a personal API token — the plain-text value is only available here; store it securely on the client.
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Account created successfully. Please check your email to verify your address.',
+            'message' => 'Account created successfully. Request a verification email from the next screen to activate your account.',
             'data' => [
                 'user' => $this->buildUserArray($user->load('role')),
                 'token' => $token,
-                'email_sent' => $emailSent,
             ],
         ], Response::HTTP_CREATED);
     }

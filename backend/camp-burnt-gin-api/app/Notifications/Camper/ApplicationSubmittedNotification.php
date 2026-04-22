@@ -51,7 +51,7 @@ class ApplicationSubmittedNotification extends Notification
             ->line('Camp Session: '.$this->application->campSession->name)
             ->line('Submitted: '.$this->application->submitted_at->format('F j, Y \a\t g:i A'))
             ->line('We will review your application and notify you of the decision.')
-            ->action('View Application', config('app.frontend_url').'/applications/'.$this->application->id)
+            ->action('View Application', config('app.frontend_url').'/applicant/applications/'.$this->application->id)
             ->salutation('Camp Burnt Gin');
     }
 

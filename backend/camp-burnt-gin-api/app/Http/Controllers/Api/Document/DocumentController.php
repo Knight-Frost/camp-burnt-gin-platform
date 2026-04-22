@@ -161,7 +161,12 @@ class DocumentController extends Controller
                         $inner->where('documentable_type', 'App\\Models\\Camper')
                             ->whereIn('documentable_id', $camperIds);
                     })->orWhere('uploaded_by', $user->id); // Their own uploads
-                });
+                })
+                // Applicants who "deleted" a submitted document get their view
+                // hidden via applicant_hidden_at. The record and file stay put
+                // for admin/audit purposes but must not come back in the
+                // uploader's own list.
+                ->whereNull('applicant_hidden_at');
 
             if ($documentableType) {
                 $query->where('documentable_type', $documentableType);
@@ -172,9 +177,12 @@ class DocumentController extends Controller
 
             $documents = $query->latest()->paginate(15);
         } else {
-            // Fallback: any other role sees only documents they personally uploaded
+            // Fallback: any other role sees only documents they personally uploaded.
+            // Still respect applicant_hidden_at — the fallback role is acting
+            // as the uploader from the row's perspective.
             $documents = Document::with('documentable', 'uploader')
                 ->where('uploaded_by', $user->id)
+                ->whereNull('applicant_hidden_at')
                 ->latest()
                 ->paginate(15);
         }
@@ -404,6 +412,13 @@ class DocumentController extends Controller
             'created_at' => $document->created_at,
             'archived_at' => $document->archived_at,
             'submitted_at' => $document->submitted_at,
+            // Null for admin/medical-visible rows; a timestamp only appears in
+            // an admin response when the applicant has hidden the doc from
+            // their own view. Admin UI renders a badge off this field.
+            'applicant_hidden_at' => $document->applicant_hidden_at,
+            // Null = still in the applicant's "Ready to Send" queue.
+            // Set = pushed via the inbox messaging flow (message_document_links).
+            'sent_at' => $document->sent_at,
             // Authenticated download URL — the frontend uses this to trigger the download
             'url' => url("/api/documents/{$document->id}/download"),
         ];
@@ -545,17 +560,86 @@ class DocumentController extends Controller
     }
 
     /**
-     * Delete a document and remove its associated file from storage.
+     * Delete or hide a document.
      *
-     * DocumentService::delete handles the actual file removal from disk in addition
-     * to removing the database record.
+     * One endpoint, two semantically different outcomes. The branch is driven
+     * by the combination of actor role and record state, never by a client
+     * flag — callers cannot bypass the split. The current behavior was:
+     *
+     *   applicant clicks "Delete" on a submitted insurance card
+     *     → soft-delete cascades to the admin queue
+     *     → compliance record effectively destroyed by the uploader
+     *
+     * New behavior:
+     *
+     *   Admin action, any state
+     *     → force-delete: row and file are permanently destroyed. The admin
+     *       already has ::archive() as the non-destructive option. Delete
+     *       means delete.
+     *
+     *   Applicant action, pristine draft (canForceDelete())
+     *     → force-delete: the doc was never submitted or attached, so no
+     *       system record is lost.
+     *
+     *   Applicant action, submitted / attached / archived doc
+     *     → hide: flip applicant_hidden_at so the document disappears from
+     *       the uploader's own list. Admin, medical, audit queries are
+     *       unaffected. The file and row stay intact.
+     *
+     * Every branch writes an AuditLog entry BEFORE mutating state so the
+     * trail survives even if the row itself is force-deleted.
      */
-    public function destroy(Document $document): JsonResponse
+    public function destroy(Request $request, Document $document): JsonResponse
     {
-        // DocumentPolicy::delete restricts this to admin roles or the original uploader
+        $user = $request->user();
+
+        // The non-admin uploader pathway for non-pristine documents: downgrade
+        // to hide. We authorize via the ::hide ability so a user who is not
+        // the uploader gets a clean 403 rather than a misleading "deleted"
+        // response shape.
+        if (! $user->isAdmin() && ! $document->canForceDelete()) {
+            $this->authorize('hide', $document);
+
+            if ($document->applicant_hidden_at === null) {
+                AuditLog::logPhiAccess(
+                    'document_hide',
+                    $user,
+                    $document,
+                    [
+                        'document_type' => $document->document_type,
+                        'was_submitted' => $document->submitted_at !== null,
+                    ]
+                );
+
+                $document->update(['applicant_hidden_at' => now()]);
+            }
+
+            return response()->json([
+                'message' => 'Document hidden from your view. Camp staff still have access to this record.',
+                'data' => $this->transformDocument($document->fresh()),
+            ]);
+        }
+
+        // Force-delete path: admin (any doc) or uploader of a pristine draft.
         $this->authorize('delete', $document);
 
-        $this->documentService->delete($document);
+        // Snapshot minimal metadata BEFORE the row disappears so the audit
+        // entry still points at something meaningful after force-delete runs.
+        AuditLog::logPhiAccess(
+            'document_delete',
+            $user,
+            $document,
+            [
+                'document_type' => $document->document_type,
+                'was_submitted' => $document->submitted_at !== null,
+                'was_attached_to_message' => $document->message_id !== null,
+                'actor_role' => $user->isAdmin() ? 'admin' : 'uploader',
+            ]
+        );
+
+        // forceDelete triggers the Document::forceDeleting hook which removes
+        // the physical file from disk.
+        $this->documentService->forceDelete($document);
 
         return response()->json([
             'message' => 'Document deleted successfully.',

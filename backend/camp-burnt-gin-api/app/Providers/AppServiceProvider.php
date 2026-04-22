@@ -289,6 +289,8 @@ class AppServiceProvider extends ServiceProvider
      *  - uploads:        10 req/hour — file uploads (prevents storage abuse)
      *  - sensitive:      30 req/hour — sensitive operations (password change, account deletion)
      *  - inbox-compose:  30/min (admin) or 5/min (applicant) — conversation creation
+     *  - social:         30 req/min — Google OAuth flow (lenient; OTCs and MFA
+     *                                  codes have their own TTL/burn safeguards)
      */
     protected function configureRateLimiting(): void
     {
@@ -323,12 +325,49 @@ class AppServiceProvider extends ServiceProvider
                 });
         });
 
-        // Upload limit: 10 per hour per user — prevents storage exhaustion attacks
+        // Upload limit: 30 per minute, 200 per hour per user.
+        //
+        // Previous limit (10/hour) was punishingly tight for the parent's own
+        // application flow — required documents alone is 3 uploads, and any
+        // mistaken pick + replace burns 2 more. A parent retrying a flaky
+        // upload, or testing through several apps, would hit the wall
+        // immediately. The minute-window cap (30/min) still defends against a
+        // runaway script; the hour-window cap (200) accommodates real
+        // multi-camper families and admin batch uploads.
         RateLimiter::for('uploads', function (Request $request) {
-            return Limit::perHour(10)->by($request->user()?->id ?: $request->ip())
+            $by = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinute(30)->by($by)
+                    ->response(function () {
+                        return response()->json([
+                            'message' => 'Too many uploads in a short window. Please wait a moment and try again.',
+                        ], 429);
+                    }),
+                Limit::perHour(200)->by($by)
+                    ->response(function () {
+                        return response()->json([
+                            'message' => 'Hourly upload limit exceeded. Please try again later.',
+                        ], 429);
+                    }),
+            ];
+        });
+
+        // Social / OAuth limit: 30/min, 300/hr per IP — deliberately generous.
+        // The four endpoints under this throttle are:
+        //   - /auth/{provider}/redirect    — pure URL builder, no auth surface to defend
+        //   - /auth/social/exchange         — trades a 30-second single-use OTC; the
+        //                                     OTC's own TTL + burn-on-use is the gate
+        //   - /auth/social/link-confirm     — password check during account linking
+        //   - /auth/social/mfa-verify       — 6-digit code; 30/min still leaves a
+        //                                     ~33-hour wall to exhaust the code space
+        // Previously these inherited throttle:auth (5/min, 20/hr) by accident — a
+        // user who failed MFA twice with a typo was locked out for an hour.
+        RateLimiter::for('social', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip())
                 ->response(function () {
                     return response()->json([
-                        'message' => 'Upload limit exceeded. Please try again later.',
+                        'message' => 'Too many sign-in attempts. Please wait a moment and try again.',
                     ], 429);
                 });
         });

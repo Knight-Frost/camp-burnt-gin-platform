@@ -70,7 +70,7 @@ class AcceptanceLetterNotification extends Notification implements ShouldQueue
             ->line('')
             ->line('Please review the camp information and ensure all required forms are completed before the session begins.')
             // Deep link to the specific application so the family can see their details
-            ->action('View Application Details', config('app.frontend_url').'/applications/'.$this->application->id)
+            ->action('View Application Details', config('app.frontend_url').'/applicant/applications/'.$this->application->id)
             ->line('')
             ->line('We look forward to seeing '.$this->application->camper->first_name.' at camp!')
             ->salutation('Warm regards,'."\n".'Camp Burnt Gin');

@@ -154,19 +154,62 @@ class DocumentPolicy
     }
 
     /**
-     * Can the user delete a document?
+     * Can the user PERMANENTLY destroy a document (DB row + physical file)?
      *
-     * Admins can delete any document. The person who originally uploaded
-     * a document may also remove it (they "own" what they submitted).
+     * This is the force-delete pathway. After it succeeds the record is gone
+     * forever — no admin recovery, no audit breadcrumb pointing to a row to
+     * inspect. Granting this broadly is how we lost admin visibility when an
+     * applicant clicked "Delete" on a submitted insurance card.
+     *
+     * The target invariant for Phase 1:
+     *   - Admins may force-destroy any document.
+     *   - The uploader may force-destroy ONLY a document that is still pure
+     *     applicant staging — never submitted, never attached to a message,
+     *     never archived. Document::canForceDelete() encodes that condition.
+     *   - Everyone else: deny.
+     *
+     * Non-pristine applicant documents (submitted, attached, or archived)
+     * cannot be destroyed here — the uploader's "Delete" click should route
+     * through hide() instead, which sets applicant_hidden_at without touching
+     * the record the admin sees.
+     *
      */
     public function delete(User $user, Document $document): bool
     {
-        // Admins always get through.
+        // Admin can always force delete.
         if ($user->isAdmin()) {
             return true;
         }
 
-        // The uploader may delete their own document.
+        // Only the uploader may force delete, and only when the record has no
+        // downstream consumers (see Document::canForceDelete).
+        if ($document->uploaded_by === $user->id && $document->canForceDelete()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Can the user HIDE a document from their own applicant view?
+     *
+     * Hiding sets applicant_hidden_at = now() on the row but leaves everything
+     * else untouched. Admin, medical, and audit queries are unaffected. This
+     * is what an applicant's "Delete" click translates to whenever the record
+     * is a system document they must not destroy.
+     *
+     * Only the uploader may hide their own document. Admins have no business
+     * mutating another user's applicant_hidden_at flag — they archive instead
+     * (see ::archive), which is their own non-destructive workflow tool.
+     *
+     * The gate is intentionally permissive on state: a user can hide a draft,
+     * a submitted doc, an attached doc, whatever. The rule is about
+     * ownership, not about the record's phase.
+     *
+     */
+    public function hide(User $user, Document $document): bool
+    {
+        // Uploader-only. Admins use ::archive for non-destructive cleanup.
         return $document->uploaded_by === $user->id;
     }
 }

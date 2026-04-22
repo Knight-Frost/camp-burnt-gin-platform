@@ -99,19 +99,9 @@ export const ROUTES = {
   SUPER_ADMIN_USERS: '/super-admin/users',
   // Audit log shows every action taken in the system (HIPAA requirement)
   SUPER_ADMIN_AUDIT: '/super-admin/audit',
-  // Dynamic application form management — edit sections and fields without code deploys
-  ADMIN_FORM_BUILDER: '/admin/form-builder',
-  ADMIN_FORM_STRUCTURE: (formId: number | string) =>
-    `/admin/form-builder/${formId}`,
-  ADMIN_SECTION_EDITOR: (formId: number | string, sectionId: number | string) =>
-    `/admin/form-builder/${formId}/sections/${sectionId}`,
-  SUPER_ADMIN_FORM_BUILDER: '/super-admin/form-builder',
-  // Form structure editor for a specific form definition
-  SUPER_ADMIN_FORM_STRUCTURE: (formId: number | string) =>
-    `/super-admin/form-builder/${formId}`,
-  // Section field editor — manage fields within one section
-  SUPER_ADMIN_SECTION_EDITOR: (formId: number | string, sectionId: number | string) =>
-    `/super-admin/form-builder/${formId}/sections/${sectionId}`,
+  // Form Builder routes removed 2026-04-22: the schema editor was misleading
+  // because it never wired through to the applicant form. Backend schema +
+  // models preserved for the future schema-driven renderer rebuild.
 
   // ─── Shared authenticated pages ─────────────────────────────────────────────
   // Each portal mounts these under its own prefix (e.g. /admin/inbox, /medical/inbox)

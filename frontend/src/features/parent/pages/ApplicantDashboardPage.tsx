@@ -17,13 +17,13 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Users, FileText, Plus, ArrowRight, Calendar, Megaphone, Pin,
-  Bell, MessageSquare, CheckCircle, Clock, AlertCircle, Upload, XCircle, Trash2,
+  Bell, MessageSquare, CheckCircle, Clock, AlertCircle, Upload, XCircle, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
 
-import { getCampers, getApplications, getDrafts, getRequiredDocuments, getDocumentRequests, deleteCamper, type ApplicationDraft, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
+import { getCampers, getApplications, getDrafts, getRequiredDocuments, getDocumentRequests, deleteCamper, deleteApplication, deleteDraft, type ApplicationDraft, type RequiredDocument, type DocumentRequestRecord } from '@/features/parent/api/applicant.api';
 import { getConversations, type Conversation } from '@/features/messaging/api/messaging.api';
 import { getAnnouncements, type Announcement } from '@/features/admin/api/announcements.api';
 import type { Camper, Application } from '@/shared/types';
@@ -57,6 +57,8 @@ export function ApplicantDashboardPage() {
   const [loading, setLoading]                   = useState(true);
   const [error, setError]                       = useState(false);
   const [retryKey, setRetryKey]                 = useState(0);
+  const [showDeleteDraftModal, setShowDeleteDraftModal] = useState(false);
+  const [deleteLoading, setDeleteLoading]       = useState(false);
 
   // "Apply for a New Session" modal — camper-centric entry point.
   // Stores the target camper and (when available) the best prior application
@@ -168,6 +170,50 @@ export function ApplicantDashboardPage() {
     }
   }
 
+  function handleNavigateToDraft() {
+    if (serverDrafts.length > 1) {
+      navigate(ROUTES.PARENT_APPLICATIONS);
+    } else if (serverDrafts.length === 1) {
+      navigate(ROUTES.PARENT_APPLICATION_NEW, {
+        state: {
+          draftId: serverDrafts[0].id,
+          ...(serverDrafts[0].application_id != null && {
+            applicationId: serverDrafts[0].application_id,
+          }),
+        },
+      });
+    } else {
+      navigate(ROUTES.PARENT_APPLICATION_NEW);
+    }
+  }
+
+  async function handleDeleteDraftFromDashboard() {
+    if (!serverDrafts[0]) return;
+    setDeleteLoading(true);
+    const draft = serverDrafts[0];
+    try {
+      await deleteDraft(draft.id);
+      if (draft.application_id != null) {
+        await deleteApplication(draft.application_id).catch(() => {});
+      }
+      setServerDrafts([]);
+      setLocalDraftName(null);
+      setShowDeleteDraftModal(false);
+      toast.success('Draft deleted.');
+    } catch (err: unknown) {
+      const e = err as { status?: number };
+      if (e?.status === 404) {
+        setServerDrafts([]);
+        setLocalDraftName(null);
+        setShowDeleteDraftModal(false);
+      } else {
+        toast.error('Could not delete draft. Please try again.');
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   const pendingCount = applications.filter((a) => a.status === 'submitted' || a.status === 'under_review').length;
   const pendingDocsCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter((d) => d.status === 'pending').length;
 
@@ -225,33 +271,18 @@ export function ApplicantDashboardPage() {
 
       {/* ── In-progress draft banner ─────────────────────────── */}
       {localDraftName !== undefined && localDraftName !== null && (
-        <button
-          type="button"
-          onClick={() => {
-            if (serverDrafts.length > 1) {
-              // Multiple drafts — go to the applications list so the user can choose
-              navigate(ROUTES.PARENT_APPLICATIONS);
-            } else if (serverDrafts.length === 1) {
-              // Single draft — open it directly in the form.
-              // application_id is required by the form's lifecycle guard; include it
-              // whenever the draft blob has one (i.e. was created via initializeDraft).
-              navigate(ROUTES.PARENT_APPLICATION_NEW, {
-                state: {
-                  draftId: serverDrafts[0].id,
-                  ...(serverDrafts[0].application_id != null && {
-                    applicationId: serverDrafts[0].application_id,
-                  }),
-                },
-              });
-            } else {
-              navigate(ROUTES.PARENT_APPLICATION_NEW);
-            }
-          }}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+        <div
+          className="w-full flex items-center gap-3 pl-4 pr-2 py-3 rounded-xl border"
           style={{ background: 'rgba(22,101,52,0.05)', borderColor: 'var(--ember-orange)' }}
         >
           <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
-          <div className="flex-1 min-w-0">
+
+          {/* Clickable content area — navigates to form or applications list */}
+          <button
+            type="button"
+            onClick={handleNavigateToDraft}
+            className="flex-1 min-w-0 text-left transition-colors hover:opacity-80"
+          >
             <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
               {serverDrafts.length > 1
                 ? `${serverDrafts.length} draft applications in progress`
@@ -260,14 +291,31 @@ export function ApplicantDashboardPage() {
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
               {serverDrafts.length > 1 ? 'Click to view all drafts' : 'Not yet submitted · Saved to your account'}
             </p>
-          </div>
-          <span
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
+          </button>
+
+          {/* Continue / View All pill */}
+          <button
+            type="button"
+            onClick={handleNavigateToDraft}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-opacity hover:opacity-85"
             style={{ background: 'var(--ember-orange)', color: '#fff' }}
           >
             {serverDrafts.length > 1 ? 'View all' : 'Continue'}
-          </span>
-        </button>
+          </button>
+
+          {/* Delete icon — single-draft only; multi-draft users delete from the applications page */}
+          {serverDrafts.length === 1 && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteDraftModal(true)}
+              className="p-1.5 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300 flex-shrink-0"
+              style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+              title="Delete draft"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* ── Quick Actions — moved near top ───────────────────── */}
@@ -541,6 +589,65 @@ export function ApplicantDashboardPage() {
         existingApplications={applications}
         onClose={() => setNewSessionTarget(null)}
       />
+    )}
+
+    {/* ── Delete draft confirmation modal ── */}
+    {showDeleteDraftModal && (
+      <div
+        role="button"
+        tabIndex={-1}
+        aria-label="Close dialog"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.45)' }}
+        onClick={() => setShowDeleteDraftModal(false)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setShowDeleteDraftModal(false); }}
+      >
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-draft-dialog-title"
+          className="w-full max-w-sm rounded-2xl p-6 shadow-xl flex flex-col gap-4"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+              style={{ background: 'rgba(220,38,38,0.1)' }}
+            >
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <h3 id="delete-draft-dialog-title" className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                Delete Draft Application
+              </h3>
+              <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                This will permanently delete this draft. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDeleteDraftModal(false)}
+              disabled={deleteLoading}
+              className="text-sm px-4 py-2 rounded-xl border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+              style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handleDeleteDraftFromDashboard(); }}
+              disabled={deleteLoading}
+              className="text-sm px-4 py-2 rounded-xl font-medium transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            >
+              {deleteLoading ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
     )}
   </>
   );

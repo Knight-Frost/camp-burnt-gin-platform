@@ -397,6 +397,17 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [saving, setSaving]             = useState(false);
 
+  // Inline "Add Child" fallback — opens when a selected parent has no camper
+  // on file. Posts to POST /campers with the parent's user_id set, then
+  // refreshes the children dropdown and auto-selects the new row.
+  const [isAddingChild, setIsAddingChild] = useState(false);
+  const [savingChild, setSavingChild]     = useState(false);
+  const [newChildForm, setNewChildForm]   = useState({
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+  });
+
   const [form, setForm] = useState({
     applicant_id:  '',
     camper_id:     '',   // '' = not yet chosen, 'all' = all children, numeric string = specific child
@@ -432,6 +443,9 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
     setLoadingChildren(true);
     setChildren([]);
     setForm((prev) => ({ ...prev, camper_id: '' }));
+    // Parent changed — collapse any open "Add Child" form on the previous parent.
+    setIsAddingChild(false);
+    setNewChildForm({ first_name: '', last_name: '', date_of_birth: '' });
     axiosInstance.get('/campers', { params: { user_id: Number(form.applicant_id) } })
       .then((res) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -449,11 +463,54 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
       })
       .catch(() => setChildren([]))
       .finally(() => setLoadingChildren(false));
-   
+
   }, [form.applicant_id]);
 
   function set(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  /**
+   * Create a new Camper row for the currently-selected parent, then refresh
+   * the Child dropdown and auto-select the new camper.
+   *
+   * This is the escape hatch for paper applications where a Camper might
+   * not have been pre-created — or any other scenario where an admin needs
+   * to add a child on the spot without leaving the document request flow.
+   */
+  async function handleAddChild(e: FormEvent) {
+    e.preventDefault();
+    if (!form.applicant_id) return;
+    if (!newChildForm.first_name.trim() || !newChildForm.last_name.trim() || !newChildForm.date_of_birth) return;
+
+    setSavingChild(true);
+    try {
+      const res = await axiosInstance.post('/campers', {
+        user_id: Number(form.applicant_id),
+        first_name: newChildForm.first_name.trim(),
+        last_name: newChildForm.last_name.trim(),
+        date_of_birth: newChildForm.date_of_birth,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const created = ((res.data as any)?.data ?? res.data) as { id: number; first_name: string; last_name: string } | undefined;
+      if (!created?.id) {
+        toast.error('Child created but no ID returned. Please refresh.');
+        return;
+      }
+      const newOption = { id: created.id, name: `${created.first_name} ${created.last_name}` };
+      setChildren((prev) => [...prev, newOption]);
+      setForm((prev) => ({ ...prev, camper_id: String(newOption.id) }));
+      setIsAddingChild(false);
+      setNewChildForm({ first_name: '', last_name: '', date_of_birth: '' });
+      toast.success(t('admin_extra.add_child_success', 'Child added.'));
+    } catch (err) {
+      // Surface the specific validation error when the backend returned one.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = (err as any)?.response?.data?.message ?? (err as { message?: string })?.message;
+      toast.error(msg ? `Failed to add child: ${msg}` : 'Failed to add child.');
+    } finally {
+      setSavingChild(false);
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -550,12 +607,104 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
             </p>
           </div>
 
-          {/* Child — shown as soon as a parent is selected */}
+          {/* Child — shown as soon as a parent is selected.
+              Three sub-states:
+                - loading: skeleton
+                - children exist: normal dropdown
+                - no children: inline empty state with "Add Child" fallback so
+                  admins can unblock themselves without leaving the modal.
+                  Common with paper applicants whose Camper stub was removed
+                  or never created. */}
           {form.applicant_id && (
             <div>
               <label htmlFor="doc-req-child" className={labelCls} style={labelStyle}>{t('admin_extra.doc_form_child', 'Child')} *</label>
               {loadingChildren ? (
                 <div className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
+              ) : children.length === 0 ? (
+                <div
+                  className="rounded-lg border p-3 flex flex-col gap-3"
+                  style={{ background: 'rgba(234,88,12,0.06)', borderColor: 'rgba(234,88,12,0.25)' }}
+                >
+                  <p className="text-xs" style={{ color: '#9a3412' }}>
+                    {t(
+                      'admin_extra.no_children_for_parent',
+                      "This parent has no children on file yet. Add one below to continue — you'll still need the parent's approval to collect the requested document.",
+                    )}
+                  </p>
+
+                  {!isAddingChild ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingChild(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2 self-start"
+                      style={{ color: '#9a3412' }}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {t('admin_extra.add_child_cta', 'Add Child')}
+                    </button>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder={t('admin_extra.add_child_first_name', 'First name')}
+                          value={newChildForm.first_name}
+                          onChange={(e) => setNewChildForm((p) => ({ ...p, first_name: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                          disabled={savingChild}
+                        />
+                        <input
+                          type="text"
+                          placeholder={t('admin_extra.add_child_last_name', 'Last name')}
+                          value={newChildForm.last_name}
+                          onChange={(e) => setNewChildForm((p) => ({ ...p, last_name: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                          disabled={savingChild}
+                        />
+                      </div>
+                      <input
+                        type="date"
+                        aria-label={t('admin_extra.add_child_dob', 'Date of birth')}
+                        value={newChildForm.date_of_birth}
+                        onChange={(e) => setNewChildForm((p) => ({ ...p, date_of_birth: e.target.value }))}
+                        className={inputCls}
+                        style={inputStyle}
+                        disabled={savingChild}
+                        max={new Date().toISOString().slice(0, 10)}
+                      />
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setIsAddingChild(false);
+                            setNewChildForm({ first_name: '', last_name: '', date_of_birth: '' });
+                          }}
+                          disabled={savingChild}
+                        >
+                          {t('common.cancel', 'Cancel')}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={(e) => void handleAddChild(e as unknown as FormEvent)}
+                          loading={savingChild}
+                          disabled={
+                            savingChild
+                            || !newChildForm.first_name.trim()
+                            || !newChildForm.last_name.trim()
+                            || !newChildForm.date_of_birth
+                          }
+                        >
+                          {t('admin_extra.add_child_submit', 'Add Child')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <select
                   id="doc-req-child"

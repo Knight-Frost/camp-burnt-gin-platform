@@ -471,6 +471,13 @@ export interface AdminDocument {
   archived_at: string | null;
   /** Null = draft (not yet submitted by applicant); set = submitted to staff. */
   submitted_at: string | null;
+  /**
+   * Set if the applicant has hidden the document from their own view.
+   * Does NOT affect admin access — admins always see the row. Admin UI
+   * renders a subtle indicator so reviewers know the uploader has
+   * removed the doc from their portal list.
+   */
+  applicant_hidden_at: string | null;
   url: string;
 }
 

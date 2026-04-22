@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Camp\CampSessionController;
 use App\Http\Controllers\Api\Camp\SessionDashboardController;
 use App\Http\Controllers\Api\Camper\ApplicationController;
 use App\Http\Controllers\Api\Camper\ApplicationDraftController;
+use App\Http\Controllers\Api\Camper\ApplicationSectionController;
 use App\Http\Controllers\Api\Camper\CamperController;
 use App\Http\Controllers\Api\Camper\PersonalCarePlanController;
 use App\Http\Controllers\Api\Camper\UserProfileController;
@@ -134,41 +135,55 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     // Verify an email address using the token sent in the verification email
     // No auth required — the token itself is the credential
     Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->name('verification.verify');
+});
 
-    /*
-    |--------------------------------------------------------------------------
-    | Social / OAuth Authentication Routes
-    |--------------------------------------------------------------------------
-    |
-    | GET  /auth/{provider}/redirect  → Returns the provider's authorization URL.
-    |                                   Frontend redirects the user's browser there.
-    | GET  /auth/{provider}/callback  → Provider posts back here after authorization.
-    |                                   Backend resolves identity, then redirects to SPA.
-    |
-    | The three SPA-facing exchange endpoints are public (no Sanctum token yet):
-    | POST /auth/social/exchange      → Swap a one-time code for a Sanctum token.
-    | POST /auth/social/link-confirm  → Confirm account linking with password.
-    | POST /auth/social/mfa-verify    → Complete the MFA step after social login.
-    |
-    */
+/*
+|--------------------------------------------------------------------------
+| Social / OAuth Authentication Routes
+|--------------------------------------------------------------------------
+|
+| Deliberately OUTSIDE the throttle:auth (5/min) group above — these
+| endpoints have their own throttle:social rule (30/min) because the auth
+| throttle would otherwise lock a user out after a couple of OAuth
+| round-trips. Each endpoint also has a stronger first-line defence than
+| pure rate limiting:
+|
+|   redirect      — only builds a URL string from the client_id; nothing
+|                   to brute-force.
+|   exchange      — burns the 30-second OTC on first use; replay is moot.
+|   link-confirm  — password check, but a malicious actor still needs a
+|                   live link_token issued by the provider callback.
+|   mfa-verify    — 6-digit code; the underlying mfa service applies its
+|                   own attempt counter independent of HTTP throttling.
+|
+| GET  /auth/{provider}/redirect  → Returns the provider's authorization URL.
+| GET  /auth/{provider}/callback  → Provider posts back here after authorization.
+| POST /auth/social/exchange      → Swap a one-time code for a Sanctum token.
+| POST /auth/social/link-confirm  → Confirm account linking with password.
+| POST /auth/social/mfa-verify    → Complete the MFA step after social login.
+*/
+Route::prefix('auth')->group(function () {
     Route::get('/{provider}/redirect', [SocialAuthController::class, 'redirect'])
+        ->middleware('throttle:social')
         ->name('auth.social.redirect')
         ->where('provider', 'google');
 
-    // Google redirects here — no throttle:auth middleware because the provider
-    // controls the rate at which it sends callbacks; our own throttle would reject
-    // legitimate callbacks if burst limits were hit.
     Route::post('/social/exchange', [SocialAuthController::class, 'exchange'])
+        ->middleware('throttle:social')
         ->name('auth.social.exchange');
 
     Route::post('/social/link-confirm', [SocialAuthController::class, 'linkConfirm'])
+        ->middleware('throttle:social')
         ->name('auth.social.link-confirm');
 
     Route::post('/social/mfa-verify', [SocialAuthController::class, 'mfaVerify'])
+        ->middleware('throttle:social')
         ->name('auth.social.mfa-verify');
 });
 
-// Google OAuth callback — must NOT be under throttle:auth (Google controls callback rate)
+// Google's redirect-back URL. throttle:api (60/min) — Google controls the
+// rate, but we still want a ceiling against a misconfigured provider that
+// loops endlessly.
 Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])
     ->name('auth.social.callback')
     ->where('provider', 'google')
@@ -587,6 +602,13 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         // writes. Used when resuming a draft from its application_id.
         Route::get('/{application}/lifecycle-ids', [ApplicationController::class, 'lifecycleIds'])
             ->name('applications.lifecycle-ids');
+        // Atomic single-section replace — applicant form's per-section
+        // navigation flush calls this exactly once per section. Each call
+        // runs in a single DB transaction; either every field lands or
+        // none do. Replaces the previous per-row CRUD pattern that left
+        // partial writes on flush failure.
+        Route::post('/{application}/sections/{key}', [ApplicationSectionController::class, 'replace'])
+            ->name('applications.sections.replace');
         // Approve/reject an application — admin-only; no MFA step-up (routine operational task).
         // Delete (above) retains step-up because it is irreversible.
         Route::post('/{application}/review', [ApplicationController::class, 'review'])

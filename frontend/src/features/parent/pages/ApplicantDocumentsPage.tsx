@@ -233,14 +233,26 @@ function PreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) 
 function SendDocumentModal({
   doc,
   onClose,
+  onSent,
 }: {
   doc: Document;
   onClose: () => void;
+  /**
+   * Fires with the document id after the message send succeeds. The
+   * parent page uses this to drop the doc from the "Ready to Send" list
+   * — the server-side sent_at stamp is the source of truth, but removing
+   * it locally avoids a re-fetch round-trip and keeps the UI snappy.
+   */
+  onSent?: (docId: number) => void;
 }) {
   const [admins, setAdmins]               = useState<ConversationParticipant[]>([]);
   const [selectedId, setSelectedId]       = useState<number | null>(null);
+  // Plain natural message. The filename and file type used to be crammed into
+  // the body as "Document: X / Type: Y" — a fake attachment. The actual file
+  // is now linked server-side via attached_document_ids, so the admin sees
+  // it as a real attachment card in their inbox. Nothing to embed in text.
   const [message, setMessage]             = useState(
-    `Hi, I'm sharing a document with you:\n\nDocument: ${doc.file_name}\nType: ${doc.document_type}\n\nPlease let me know if you need anything else.`
+    "Hi, I'm sharing a document with you. Please let me know if you need anything else."
   );
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [sending, setSending]             = useState(false);
@@ -264,8 +276,20 @@ function SendDocumentModal({
         participant_ids: [selectedId],
         category: 'general',
       });
-      await sendMessage(conv.id, message.trim());
-      toast.success('Document notification sent to admin.');
+      // Phase 2: the Document is linked to the message via the server-side
+      // message_document_links pivot. The admin's inbox renders it as a
+      // real attachment, not body text. The service also stamps sent_at
+      // on the Document so it drops off the applicant's Ready-to-Send list.
+      await sendMessage(
+        conv.id,
+        message.trim(),
+        undefined, // no inline file uploads — the doc already exists
+        undefined, // no explicit TO/CC/BCC — single admin recipient is implicit
+        undefined, // idempotency key auto-generated
+        [doc.id],  // attach the referenced document via its existing id
+      );
+      toast.success('Document sent to admin.');
+      onSent?.(doc.id);
       onClose();
     } catch {
       toast.error('Failed to send. Please try again.');
@@ -1066,12 +1090,21 @@ export function ApplicantDocumentsPage() {
   }
 
   async function handleDelete(doc: Document) {
-    if (!window.confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return;
+    // Submitted documents are compliance records; clicking "Delete" hides them
+    // from the applicant's view but leaves the record intact for camp staff.
+    // Drafts have never been shared, so deletion is truly permanent. The
+    // confirm copy reflects the actual outcome instead of promising one thing
+    // and doing another.
+    const isDraft = doc.submitted_at === null;
+    const confirmMsg = isDraft
+      ? `Delete "${doc.file_name}"? This cannot be undone.`
+      : `Remove "${doc.file_name}" from your documents?\n\nCamp staff already have a copy of this record and will keep it. You just won't see it here anymore.`;
+    if (!window.confirm(confirmMsg)) return;
     setDeletingId(doc.id);
     try {
       await deleteDocument(doc.id);
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-      toast.success('Document deleted.');
+      toast.success(isDraft ? 'Document deleted.' : 'Document removed from your view.');
     } catch (err) {
       const msg = (err as { message?: string })?.message;
       toast.error(msg ? `Delete failed: ${msg}` : 'Delete failed. Please try again.');
@@ -1096,7 +1129,20 @@ export function ApplicantDocumentsPage() {
     <>
       {/* Modals — rendered at root level to avoid z-index stacking issues */}
       {preview && <PreviewModal doc={preview} onClose={() => setPreview(null)} />}
-      {sendDoc  && <SendDocumentModal doc={sendDoc} onClose={() => setSendDoc(null)} />}
+      {sendDoc  && (
+        <SendDocumentModal
+          doc={sendDoc}
+          onClose={() => setSendDoc(null)}
+          onSent={(docId) => {
+            // Local mirror of the server-side sent_at stamp: flip sent_at on
+            // the matching row so the Ready-to-Send filter drops it without
+            // a network round-trip.
+            setDocuments((prev) =>
+              prev.map((d) => (d.id === docId ? { ...d, sent_at: new Date().toISOString() } : d)),
+            );
+          }}
+        />
+      )}
 
       <div className="flex flex-col gap-8 max-w-4xl">
 
@@ -1255,11 +1301,25 @@ export function ApplicantDocumentsPage() {
         {/* ── Supplementary upload ─────────────────────────────────────── */}
         <UploadArea onUpload={handleUpload} uploading={uploading} />
 
-        {/* ── My Documents ─────────────────────────────────────────────── */}
+        {/* ── Documents Ready to Send ──────────────────────────────────
+             Workflow-oriented list: shows only docs the applicant has
+             uploaded but not yet pushed to an admin via the inbox Send
+             flow (sent_at IS NULL). Uploading doesn't auto-send — the
+             applicant picks each doc and sends it explicitly.
+
+             Once a doc is sent:
+               - MessageService::attachExistingDocuments stamps sent_at
+                 server-side
+               - The local list is updated in onSent below
+               - The doc drops off this list; the admin keeps seeing it
+                 in their Documents page (admin scope ignores sent_at). */}
         <div>
-          <h3 className="font-headline font-semibold text-sm mb-3" style={{ color: 'var(--foreground)' }}>
-            My Documents
+          <h3 className="font-headline font-semibold text-sm mb-1" style={{ color: 'var(--foreground)' }}>
+            Documents Ready to Send
           </h3>
+          <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
+            Uploaded files waiting for you to send to camp staff. Once sent, they'll drop off this list.
+          </p>
           <div
             className="rounded-2xl border overflow-hidden"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
@@ -1268,15 +1328,19 @@ export function ApplicantDocumentsPage() {
               <div className="p-4"><SkeletonTable rows={4} /></div>
             ) : error ? (
               <ErrorState onRetry={load} />
-            ) : documents.length === 0 ? (
+            ) : documents.filter((d) => !d.sent_at).length === 0 ? (
               <EmptyState
-                title="No documents uploaded"
-                description="Upload your first document using the area above."
+                title={documents.length === 0 ? 'No documents uploaded' : 'Nothing ready to send'}
+                description={
+                  documents.length === 0
+                    ? 'Upload your first document using the area above.'
+                    : "All your uploaded documents have already been sent to camp staff. Upload a new one above when you need to share more."
+                }
                 icon={FileText}
               />
             ) : (
               <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {documents.map((doc) => (
+                {documents.filter((d) => !d.sent_at).map((doc) => (
                   <li key={doc.id}>
                     <div className="flex items-center justify-between gap-4 px-5 py-4">
                       <div className="flex items-center gap-3 min-w-0 flex-1">

@@ -121,6 +121,7 @@ class ApplicationWorkflowTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Smith',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => \Tests\Support\TestApplicationFixture::attestedOptionalSections(),
         ]);
 
         \Tests\Support\TestApplicationFixture::attachConsents($application, 'Jane Smith');

@@ -339,6 +339,13 @@ class SocialAuthController extends Controller
 
     private function buildUserArray(User $user): array
     {
+        // Eager-load the role relation if the caller didn't already.
+        // Without this, $user->toArray() emits no role/roles fields, and the
+        // SPA's post-login redirect (which keys off user.roles[0].name) never
+        // navigates — leaving the OAuth callback page stuck on "Signing In…".
+        // Mirrors AuthController's $user->load('role') pattern.
+        $user->loadMissing('role');
+
         $data = $user->toArray();
         $data['avatar_url'] = $user->avatar_path
             ? Storage::disk('public')->url($user->avatar_path)

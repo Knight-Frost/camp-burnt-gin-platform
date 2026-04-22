@@ -6,14 +6,17 @@ use App\Events\MessageSent;
 use App\Jobs\SendNotificationJob;
 use App\Models\AuditLog;
 use App\Models\Conversation;
+use App\Models\Document;
 use App\Models\Message;
 use App\Models\MessageRecipient;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use App\Services\Document\DocumentService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
@@ -66,15 +69,25 @@ class MessageService
      * @param  Conversation  $conversation  The conversation to send into
      * @param  User  $sender  The user sending the message
      * @param  string  $body  The message text content
-     * @param  array  $attachments  Array of UploadedFile objects (optional)
+     * @param  array  $attachments  Array of UploadedFile objects — DEPRECATED inline
+     *                              uploads (Phase 2). Use $attachedDocumentIds
+     *                              for new code; this parameter remains wired so
+     *                              in-flight callers keep working.
      * @param  string|null  $idempotencyKey  Unique key to prevent duplicate sends
      * @param  array  $recipients  TO/CC/BCC recipients: [{user_id, type}]
      *                             If empty, no message_recipients rows are created
      *                             (legacy messages without explicit recipient types)
      * @param  int|null  $parentMessageId  Message being replied to (null for new)
      * @param  string|null  $replyType  'reply' | 'reply_all' | null
+     * @param  int[]  $attachedDocumentIds  Phase 2: IDs of existing Documents to
+     *                                      reference as attachments via the
+     *                                      message_document_links pivot. Each is
+     *                                      authorized through ConversationPolicy::
+     *                                      attachDocument; failing authz rolls the
+     *                                      whole send back.
      *
      * @throws \Exception If attachment upload fails
+     * @throws AuthorizationException If $sender cannot attach one of the referenced Documents
      */
     public function sendMessage(
         Conversation $conversation,
@@ -84,7 +97,8 @@ class MessageService
         ?string $idempotencyKey = null,
         array $recipients = [],
         ?int $parentMessageId = null,
-        ?string $replyType = null
+        ?string $replyType = null,
+        array $attachedDocumentIds = []
     ): Message {
         // Generate a random UUID idempotency key if the caller didn't provide one
         if (! $idempotencyKey) {
@@ -105,6 +119,7 @@ class MessageService
             $recipients,
             $parentMessageId,
             $replyType,
+            $attachedDocumentIds,
             &$otherParticipants
         ) {
             // Idempotency check: if a message with this key was already created, return it
@@ -112,7 +127,7 @@ class MessageService
 
             if ($existingMessage) {
                 // Return the existing message — safe for the caller to treat as a success
-                return $existingMessage->load(['sender', 'attachments', 'recipients.user']);
+                return $existingMessage->load(['sender', 'attachments', 'attachedDocuments', 'recipients.user']);
             }
 
             // Create the new message record
@@ -132,11 +147,23 @@ class MessageService
                 $this->createRecipientRecords($message, $recipients);
             }
 
-            // Process and upload each attached file through DocumentService
+            // Process and upload each attached file through DocumentService.
+            // DEPRECATED path (Phase 2): new callers should pass attachedDocumentIds
+            // and upload files to /documents first. This branch remains for legacy
+            // callers until the frontend compose UI is migrated.
             if (! empty($attachments)) {
                 foreach ($attachments as $file) {
                     $this->attachFile($message, $file, $sender);
                 }
+            }
+
+            // Phase 2 pathway: reference existing Documents via the
+            // message_document_links pivot. Each attach is authorized against
+            // ConversationPolicy::attachDocument — failing authz aborts the
+            // transaction and the message (plus any earlier link rows) is
+            // never committed.
+            if (! empty($attachedDocumentIds)) {
+                $this->attachExistingDocuments($message, $attachedDocumentIds, $sender, $conversation);
             }
 
             // Bump the conversation's last_message_at so it sorts to the top of the inbox
@@ -176,12 +203,13 @@ class MessageService
                     // Log body length rather than content to avoid logging PHI in the audit table
                     'body_length' => strlen($body),
                     'attachment_count' => count($attachments),
+                    'linked_document_count' => count($attachedDocumentIds),
                     'reply_type' => $replyType,
                     'recipient_count' => count($recipients),
                 ],
                 'metadata' => [
                     'conversation_subject' => $conversation->subject,
-                    'has_attachments' => ! empty($attachments),
+                    'has_attachments' => ! empty($attachments) || ! empty($attachedDocumentIds),
                     'parent_message_id' => $parentMessageId,
                 ],
                 'ip_address' => request()->ip(),
@@ -190,7 +218,7 @@ class MessageService
             ]);
 
             // Return the message with all relationships loaded for the API response
-            return $message->load(['sender', 'attachments', 'recipients.user']);
+            return $message->load(['sender', 'attachments', 'attachedDocuments', 'recipients.user']);
         });
 
         // Broadcast real-time events after the transaction commits.
@@ -233,7 +261,8 @@ class MessageService
         Message $parentMessage,
         User $sender,
         string $body,
-        array $attachments = []
+        array $attachments = [],
+        array $attachedDocumentIds = []
     ): Message {
         // Reply only to the original message's sender (if it has one — system messages have no sender)
         $recipients = [];
@@ -257,7 +286,8 @@ class MessageService
             null,
             $recipients,
             $parentMessage->id,
-            'reply'
+            'reply',
+            $attachedDocumentIds
         );
     }
 
@@ -279,7 +309,8 @@ class MessageService
         Message $parentMessage,
         User $sender,
         string $body,
-        array $attachments = []
+        array $attachments = [],
+        array $attachedDocumentIds = []
     ): Message {
         $recipients = $this->calculateReplyAllRecipients($parentMessage, $sender);
 
@@ -302,7 +333,8 @@ class MessageService
             null,
             $recipients,
             $parentMessage->id,
-            'reply_all'
+            'reply_all',
+            $attachedDocumentIds
         );
     }
 
@@ -415,6 +447,93 @@ class MessageService
     }
 
     /**
+     * Phase 2: reference existing Documents from this message via the
+     * message_document_links pivot.
+     *
+     * Every ID is authorized through ConversationPolicy::attachDocument before
+     * the pivot row is written. Failing authorization throws
+     * AuthorizationException, which the enclosing DB transaction catches and
+     * rolls back — leaving no half-attached message in place.
+     *
+     * Unique index on (message_id, document_id) guards against duplicate
+     * rows if a client sends the same id twice in one call. We call
+     * syncWithoutDetaching which is idempotent per pair.
+     *
+     * @param  int[]  $documentIds
+     *
+     * @throws AuthorizationException When $sender may not attach one of the docs
+     */
+    protected function attachExistingDocuments(
+        Message $message,
+        array $documentIds,
+        User $sender,
+        Conversation $conversation
+    ): void {
+        // Dedupe client-side duplicates before touching the database
+        $uniqueIds = array_values(array_unique(array_map('intval', $documentIds)));
+        if (empty($uniqueIds)) {
+            return;
+        }
+
+        // Load all docs in one query. Missing IDs become a 403 further down
+        // via the authz check — we don't leak "this id doesn't exist" as a
+        // distinct signal from "you can't attach it".
+        $docs = Document::whereIn('id', $uniqueIds)->get()->keyBy('id');
+
+        foreach ($uniqueIds as $id) {
+            $document = $docs->get($id);
+
+            if (! $document || ! Gate::forUser($sender)->allows('attachDocument', [$conversation, $document])) {
+                throw new AuthorizationException(
+                    "You are not authorized to attach document {$id} to this conversation."
+                );
+            }
+
+            // Idempotent pivot insert — no duplicate rows if a client
+            // somehow calls twice with the same pair.
+            $message->attachedDocuments()->syncWithoutDetaching([
+                $document->id => [
+                    'attached_by' => $sender->id,
+                    'created_at' => now(),
+                ],
+            ]);
+
+            // Stamp sent_at so the document drops off the applicant's
+            // "Ready to Send" queue on their Documents page. Idempotent —
+            // the first send wins; subsequent links don't overwrite the
+            // original timestamp. Not scoped to applicant uploads because
+            // any caller linking a doc is by definition "sending" it
+            // within this conversation context.
+            if ($document->sent_at === null) {
+                $document->update(['sent_at' => now()]);
+            }
+
+            // Per-attachment audit entry — mirrors the attachFile() path so
+            // the same queries surface both inline uploads and link
+            // references uniformly.
+            AuditLog::create([
+                'request_id' => request()->header('X-Request-ID', \Illuminate\Support\Str::uuid()),
+                'user_id' => $sender->id,
+                'event_type' => 'message_attachment',
+                'auditable_type' => Message::class,
+                'auditable_id' => $message->id,
+                'action' => 'linked',
+                'description' => "Existing document {$document->id} linked to message {$message->id}",
+                'new_values' => [
+                    'document_id' => $document->id,
+                    'document_type' => $document->document_type,
+                ],
+                'metadata' => [
+                    'source' => 'attached_document_ids',
+                ],
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
+            ]);
+        }
+    }
+
+    /**
      * Attach a file to a message by uploading it through DocumentService.
      *
      * DocumentService handles MIME validation, safe filename generation, and
@@ -520,7 +639,7 @@ class MessageService
         int $perPage = 25
     ): LengthAwarePaginator {
         $messages = Message::where('conversation_id', $conversation->id)
-            ->with(['sender', 'attachments', 'recipients.user'])
+            ->with(['sender', 'attachments', 'attachedDocuments', 'recipients.user'])
             ->oldest()   // Chronological order for natural chat reading
             ->paginate($perPage);
 
@@ -730,8 +849,19 @@ class MessageService
      */
     public function accessAttachment(Message $message, int $documentId, User $user)
     {
-        // Verify the document belongs to this message (prevents horizontal privilege escalation)
-        $document = $message->attachments()->findOrFail($documentId);
+        // Phase 2: a document is "on" this message if it's either an inline
+        // legacy attachment (documents.message_id = message.id) OR a pivot
+        // reference via message_document_links. Check both to avoid a 404
+        // on legitimate Phase 2 attachments.
+        $document = $message->attachments()->find($documentId)
+            ?? $message->attachedDocuments()->find($documentId);
+
+        if (! $document) {
+            // Mirror the prior behaviour: tell the caller "not found" via
+            // ModelNotFoundException so the controller maps it to 404.
+            throw (new \Illuminate\Database\Eloquent\ModelNotFoundException)
+                ->setModel(Document::class, [$documentId]);
+        }
 
         // Log the attachment access — required for HIPAA audit trail
         AuditLog::create([

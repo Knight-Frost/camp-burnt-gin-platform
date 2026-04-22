@@ -36,7 +36,7 @@ import type {
  *   user.role  → plain string RoleName
  *   user.roles → Role[]
  */
-function normalizeUser(user: User & { role?: Role | string }): User {
+export function normalizeUser(user: User & { role?: Role | string }): User {
   let roleName: RoleName | null = null;
 
   // Case 1: role is a full Role object — extract the name property

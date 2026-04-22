@@ -344,6 +344,7 @@ class ApplicationApprovalEnforcementTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Parent Name',
             'sections_reviewed' => \Tests\Support\TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => \Tests\Support\TestApplicationFixture::attestedOptionalSections(),
         ]);
         \Tests\Support\TestApplicationFixture::attachConsents($this->application, 'Parent Name');
 

@@ -57,19 +57,9 @@ import {
 
 import {
   getSessions,
-  createCamper,
-  createApplication,
-  createEmergencyContact,
-  createDiagnosis,
-  createAllergy,
-  createBehavioralProfile,
-  createAssistiveDevice,
-  createFeedingPlan,
-  storeHealthProfile,
-  createPersonalCarePlan,
-  createMedication,
-  createActivityPermission,
   uploadDocument,
+  deleteDocument,
+  getApplicationDocuments,
   signApplication,
   storeConsents,
   finalizeApplication,
@@ -79,31 +69,11 @@ import {
   deleteDraft as apiDeleteDraft,
   getApplicationCompleteness,
   type CompletenessResponse,
-  updateCamperProfile,
-  updateMedicalRecord,
-  updateBehavioralProfile,
-  updateFeedingPlan,
-  updateApplication,
-  deleteEmergencyContact,
-  deleteDiagnosis,
-  deleteAllergy,
-  deleteAssistiveDevice,
-  deleteActivityPermission,
-  deleteMedication,
-  updateEmergencyContact,
-  updateDiagnosis,
-  updateAllergy,
-  updateAssistiveDevice,
-  updateActivityPermission,
-  updateMedication,
-  getCamperFull,
-  type ServerDiagnosis,
-  type ServerAllergy,
-  type ServerAssistiveDevice,
-  type ServerActivityPermission,
-  type ServerMedication,
+  replaceSection,
+  type ReplaceSectionKey,
   type CamperPrefillData,
 } from '@/features/parent/api/applicant.api';
+import { typedSignatureToPng } from '@/features/parent/utils/typedSignatureToPng';
 import type { CanonicalValidationMeta } from '@/shared/types';
 import { ROUTES } from '@/shared/constants/routes';
 import type { Session } from '@/shared/types';
@@ -267,12 +237,14 @@ function mergeDraft(parsed: Partial<FormState>): FormState {
   };
 
   const s4 = mergeSection(INITIAL_STATE.s4, parsed.s4);
-  // Backward-compatibility: drafts saved before the section_reviewed field existed will
-  // not have it set. Infer it as true when the user had already entered meaningful data,
-  // so those drafts don't suddenly appear as 'empty' after this change.
+  // NOTE: section_reviewed is the parent's explicit confirmation that they
+  // looked at this section's content for THIS year's application — it is
+  // never inferred from data presence. Silently promoting "has data" to
+  // "reviewed" let a returning applicant's prior-year Camper records
+  // phantom-complete 8 of 11 sections on a brand new draft (BUG-247).
+  // Every section_reviewed flag is now set only via explicit user action.
   const s4Merged: FormState['s4'] = {
     ...s4,
-    section_reviewed: s4.section_reviewed || s4.devices.length > 0 || s4.mobility_notes.trim() !== '',
     // Normalize legacy English-label strings in device_type to canonical keys.
     devices: (s4.devices as unknown[]).map((d) => {
       const dev = d as Record<string, unknown>;
@@ -281,25 +253,10 @@ function mergeDraft(parsed: Partial<FormState>): FormState {
   };
 
   const s5 = mergeSection(INITIAL_STATE.s5, parsed.s5);
-  const s5Merged: FormState['s5'] = {
-    ...s5,
-    section_reviewed: s5.section_reviewed || s5.g_tube || s5.special_diet
-      || s5.texture_modified || s5.fluid_restriction || s5.feeding_notes.trim() !== '',
-  };
+  const s5Merged: FormState['s5'] = { ...s5 };
 
-  // Backward-compatibility: drafts saved before section_reviewed was added to sn
-  // will not have it set. Infer it as true when the parent had already typed any
-  // narrative text, so existing drafts don't suddenly revert to 'empty'.
   const sn = mergeSection(INITIAL_STATE.sn, parsed.sn);
-  const snMerged: FormState['sn'] = {
-    ...sn,
-    section_reviewed: sn.section_reviewed || [
-      sn.narrative_rustic_environment, sn.narrative_staff_suggestions,
-      sn.narrative_participation_concerns, sn.narrative_camp_benefit,
-      sn.narrative_heat_tolerance, sn.narrative_transportation,
-      sn.narrative_additional_info, sn.narrative_emergency_protocols,
-    ].some((v) => v.trim() !== ''),
-  };
+  const snMerged: FormState['sn'] = { ...sn };
 
   // ── s2: normalize nested arrays so objects always match the expected shape ──
   // mergeSection handles top-level keys but can't fix individual items inside arrays.
@@ -414,8 +371,17 @@ interface DeviceEntry {
   notes: string;
 }
 
-/** Metadata for a user-selected document (File object stored in docFilesRef, not in state) */
-type DocSlot = { file_name: string; size: number; mime: string } | null;
+/** Metadata for a user-selected document (File object stored in docFilesRef, not in state).
+ *  documentId is set after the upload completes — see Section 9 wiring at the page level.
+ *  Knowing the backend id lets us (a) skip re-uploading at submit time, and
+ *  (b) DELETE the orphan if the parent removes or replaces the slot. */
+type DocSlot = {
+  file_name: string;
+  size: number;
+  mime: string;
+  /** Backend Document.id once upload+submit completed. Absent until then. */
+  documentId?: number;
+} | null;
 
 type SignatureType = 'drawn' | 'typed';
 
@@ -514,6 +480,12 @@ export interface FormState {
     immunizations_current: boolean | '';
     tetanus_date: string;
     date_of_medical_exam: string;
+    // Form-parity health flags (added 2026-04-22 audit; matches CYSHCN form)
+    has_contagious_illness: boolean | '';
+    contagious_illness_description: string;
+    tubes_in_ears: boolean | '';
+    has_recent_illness: boolean | '';
+    recent_illness_description: string;
   };
   /** Section 3 — Development & Behavior */
   s3: {
@@ -549,6 +521,11 @@ export interface FormState {
     classroom_type: string;
     communication_methods: string[];
     behavior_notes: string;
+    /** Explicit "I have nothing behavioral to declare" attestation. Wired
+     *  to the backend's section_attestations.behavior column. The hybrid
+     *  completion rule (data OR attestation) means an empty section with
+     *  this checked is complete; an empty section without it is not. */
+    section_reviewed: boolean;
   };
   /** Section 4 — Equipment & Mobility */
   s4: {
@@ -743,6 +720,11 @@ const INITIAL_STATE: FormState = {
     immunizations_current: '',
     tetanus_date: '',
     date_of_medical_exam: '',
+    has_contagious_illness: '',
+    contagious_illness_description: '',
+    tubes_in_ears: '',
+    has_recent_illness: '',
+    recent_illness_description: '',
   },
   s3: {
     aggression: false,
@@ -775,6 +757,7 @@ const INITIAL_STATE: FormState = {
     classroom_type: '',
     communication_methods: [],
     behavior_notes: '',
+    section_reviewed: false,
   },
   s4: {
     devices: [],
@@ -2111,6 +2094,22 @@ function Section3({
           rows={4}
         />
       </SectionCard>
+
+      <SectionCard>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 flex-shrink-0"
+            checked={data.section_reviewed}
+            onChange={(e) => onChange({ section_reviewed: e.target.checked })}
+          />
+          <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+            {t('applicant.form.s3_section_reviewed_label', {
+              defaultValue: 'I have reviewed this section and have nothing behavioral to declare for my child.',
+            })}
+          </span>
+        </label>
+      </SectionCard>
     </div>
   );
 }
@@ -3236,6 +3235,7 @@ function Section9({
   hasGtube,
   onChange,
   onFileSelect,
+  onFileRemove,
 }: {
   data: FormState['s9'];
   hasCpap: boolean;
@@ -3243,6 +3243,7 @@ function Section9({
   hasGtube: boolean;
   onChange: (patch: Partial<FormState['s9']>) => void;
   onFileSelect: (key: string, file: File, slot: DocSlot) => void;
+  onFileRemove: (key: string) => void;
 }) {
   const { t } = useTranslation();
 
@@ -3273,6 +3274,10 @@ function Section9({
   );
 
   function handleRemove(key: string) {
+    // Notify the page first so it can DELETE the backend doc before the
+    // local slot is wiped (the page reads form.s9[key].documentId from
+    // the about-to-be-cleared state to know which row to remove).
+    onFileRemove(key);
     onChange({ [key]: null } as Partial<FormState['s9']>);
   }
 
@@ -3631,17 +3636,14 @@ function StepIndicator({
     <div className="flex items-center gap-1 flex-wrap" role="navigation" aria-label="Application steps">
       {sections.map((section, i) => {
         const status = getStatus(i);
-        const isActive = i === currentStep;
-        const isComplete       = status === 'complete';
-        const isNeedsAttention = status === 'needs_attention';
-        const isPartial        = status === 'partial';
+        const isActive   = i === currentStep;
+        const isComplete = status === 'complete';
 
-        let color: string;
-        if (isActive)           color = 'var(--ember-orange)';
-        else if (isComplete)    color = '#16a34a';  // green — fully done
-        else if (isNeedsAttention) color = '#dc2626'; // red — backend rejected
-        else if (isPartial)     color = '#b45309';  // amber — started but incomplete
-        else                    color = 'var(--muted-foreground)';
+        // Binary signal: black until the backend engine reports the section
+        // as complete, then green. Active position is conveyed via font
+        // weight only — never a third color — so the only chromatic change
+        // visible to the applicant is the "complete" green.
+        const color = isComplete ? '#16a34a' : 'var(--foreground)';
 
         return (
           <Fragment key={section.id}>
@@ -3657,10 +3659,6 @@ function StepIndicator({
               style={{ fontWeight: isActive ? 600 : 400, color }}
             >
               {isComplete && !isActive && <Check className="h-3 w-3 flex-shrink-0" />}
-              {isNeedsAttention && !isActive && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-              {isPartial && !isActive && (
-                <span className="h-3 w-3 flex-shrink-0 flex items-center justify-center text-[10px]" aria-hidden>•</span>
-              )}
               {section.shortLabel}
             </button>
           </Fragment>
@@ -3780,7 +3778,10 @@ function buildSectionSummary(
     }
     case 9: {
       const { s9 } = form;
-      const hasCpap     = form.s4.devices.some((d) => d.device_type.includes('CPAP'));
+      // Post-BUG-228, device_type stores canonical keys — compare equality
+      // not substring, or the CPAP waiver row silently vanishes from the
+      // review-sheet summary even when the camper has a CPAP device.
+      const hasCpap     = form.s4.devices.some((d) => d.device_type === 'cpap');
       const hasSeizures = form.s2.has_seizures === true;
       const hasGtube    = form.s5.g_tube === true;
       const docs: [keyof typeof s9, string][] = [
@@ -4080,9 +4081,9 @@ export function ApplicationFormPage() {
   // fall back to the Submit-time waterfall only.
   const applicationId       = navState?.applicationId;
   const camperId            = navState?.camperId;
-  const medicalRecordId     = navState?.medicalRecordId;
-  const behavioralProfileId = navState?.behavioralProfileId;
-  const feedingPlanId       = navState?.feedingPlanId;
+  // medicalRecordId/behavioralProfileId/feedingPlanId removed in 2026-04-22 audit:
+  // the atomic section-replace endpoint resolves sub-records via camper_id, so
+  // the lifecycle bag no longer needs to thread them through every flush.
 
   // Application-scoped key — includes applicationId so two concurrent applications
   // (e.g. two children in the same family) never share a sessionStorage slot.
@@ -4258,12 +4259,21 @@ export function ApplicationFormPage() {
     try {
       const res: CompletenessResponse = await getApplicationCompleteness(applicationId);
       setValidation(res.validation);
-    } catch {
-      // Non-critical read; stay quiet. Submit waterfall still enforces.
+    } catch (err) {
+      // Validation drives the green pills + Submit gate. A silent failure
+      // would leave the parent looking at stale state with no signal.
+      // Surface a non-blocking toast so they know the live status is stale,
+      // but don't block them from continuing to type — the next successful
+      // refetch (after their next section save) will reconcile.
+      const message = err instanceof Error ? err.message : 'Connection lost';
+      toast.warning(t('applicant.form.validation_refresh_failed', { defaultValue: 'Could not refresh section status — your changes are saved. Status: {{message}}', message }), {
+        id: 'validation-refresh-fail',
+        duration: 4000,
+      });
     } finally {
       validationInFlight.current = false;
     }
-  }, [applicationId]);
+  }, [applicationId, t]);
 
   // Initial load
   useEffect(() => {
@@ -4280,462 +4290,343 @@ export function ApplicationFormPage() {
     9: 'documents', 10: 'consents',
   }), []);
 
-  // ── Progressive per-section flush ────────────────────────────────────────
+  // ── Atomic per-section flush ──────────────────────────────────────────
   //
-  // On every section transition the current section's in-memory form state
-  // is flushed to real backend models via the applicant.api helpers. This
-  // is what lets /completeness return meaningful live validation. For list
-  // relations (emergency contacts, diagnoses, allergies, medications,
-  // activity permissions, assistive devices) we use a natural-key diff:
-  // each form item is matched against a server row by a stable key
-  // (`activity_name` slug, lowercased allergen, etc.). Matched pairs get
-  // UPDATEd only when fields differ; unmatched form rows are CREATEd;
-  // server rows with no matching form entry are DELETEd. This keeps the
-  // audit log quiet and preserves PHI ciphertext stability.
+  // Each section maps to ONE call to POST /applications/{id}/sections/{key}
+  // — a single backend transaction that replaces the section's full data
+  // set or fails atomically. The endpoint also stamps `sections_reviewed`
+  // and `section_attestations` on success, so the frontend no longer
+  // tracks the review flag separately. Validation is included in the
+  // response, so a refetch is no longer required after each flush.
+  //
+  // This replaces the previous per-row CRUD pattern (1–15 awaits per
+  // section) which had no transaction boundary and caused partial-write
+  // corruption on flaky networks (BUG-227 sequence + 2026-04-22 audit
+  // RC-3, RC-4, RC-5).
+  //
+  // Errors propagate to the goToStep wrapper which surfaces them as the
+  // inline banner. Silent failure is not acceptable — the parent must
+  // know their change didn't reach the server.
   const flushSection = useCallback(async (sectionId: number): Promise<void> => {
     if (!applicationId || !camperId) return;
 
-    // Errors propagate to the goToStep wrapper, which surfaces them as the
-    // inline "Save failed" banner. Silent failure is not acceptable — the
-    // parent must know their change didn't reach the server.
+    type Plan = { key: ReplaceSectionKey; payload: Record<string, unknown>; attestation: boolean };
+    let plan: Plan | null = null;
+
     switch (sectionId) {
         case 0: {
-          // Camper identity + mailing address
-          await updateCamperProfile(camperId, {
-            first_name:         form.s1.camper_first_name || undefined,
-            last_name:          form.s1.camper_last_name || undefined,
-            preferred_name:     form.s1.camper_preferred_name || undefined,
-            date_of_birth:      form.s1.camper_dob || undefined,
-            gender:             form.s1.camper_gender || undefined,
-            tshirt_size:        form.s1.tshirt_size || undefined,
-            county:             form.s1.county || undefined,
-            needs_interpreter:  form.s1.needs_interpreter,
-            preferred_language: form.s1.preferred_language || undefined,
-            applicant_address:  form.s1.camper_address || undefined,
-            applicant_city:     form.s1.camper_city || undefined,
-            applicant_state:    form.s1.camper_state || undefined,
-            applicant_zip:      form.s1.camper_zip || undefined,
-          });
-
-          // Application-level meta — session selection and first-time/returning flags.
-          // These live on the Application model, not the Camper, so they must be
-          // persisted separately. Without this the fast path would always submit
-          // against the initialization-time session regardless of what the user chose.
-          if (form.s1.session_id) {
-            await updateApplication(applicationId, {
-              session_id:        Number(form.s1.session_id),
-              session_id_second: form.s1.session_id_2nd !== '' ? Number(form.s1.session_id_2nd) : null,
-              first_application: form.s1.first_application,
-              attended_before:   form.s1.attended_before,
-            });
-          }
-
-          // Emergency contact — single-row natural-key diff. The form
-          // currently supports one EC; if we have an existing server row,
-          // UPDATE it in place (preserving id + audit history); if no
-          // server row exists and the form has the minimum fields, CREATE.
-          const camper = await getCamperFull(camperId);
-          const existingEc = (camper.emergency_contacts ?? [])[0];
-          const formEcComplete =
-            Boolean(form.s1.ec_name && form.s1.ec_phone && form.s1.ec_relationship);
-
-          if (existingEc && formEcComplete) {
-            // Only PUT when something actually changed — avoid chatty
-            // writes on every section transition.
-            const changed =
-              existingEc.name          !== form.s1.ec_name
-              || existingEc.phone_primary !== form.s1.ec_phone
-              || existingEc.relationship  !== form.s1.ec_relationship;
-            if (changed) {
-              await updateEmergencyContact(existingEc.id, {
-                name:          form.s1.ec_name,
-                relationship:  form.s1.ec_relationship,
-                phone_primary: form.s1.ec_phone,
-                is_primary:    true,
-                is_authorized_pickup: true,
-              });
-            }
-          } else if (!existingEc && formEcComplete) {
-            await createEmergencyContact({
-              camper_id:            camperId,
-              name:                 form.s1.ec_name,
-              relationship:         form.s1.ec_relationship,
-              phone_primary:        form.s1.ec_phone,
-              is_primary:           true,
+          // Camper section: profile + mailing address + application meta + EC.
+          // The replacer handles emergency_contacts as full-replace (existing
+          // rows soft-deleted, new ones created). To avoid wiping the EC when
+          // the parent has only entered partial data, we OMIT emergency_contacts
+          // entirely from the payload when the form's EC fields are blank.
+          // (Sending an empty array would explicitly wipe the EC — which is the
+          // behavior we want when the parent intentionally clears the form, but
+          // not when they simply haven't typed anything yet on a fresh draft.)
+          const ecComplete = Boolean(form.s1.ec_name && form.s1.ec_phone);
+          const payload: Record<string, unknown> = {
+            first_name: form.s1.camper_first_name || null,
+            last_name: form.s1.camper_last_name || null,
+            preferred_name: form.s1.camper_preferred_name || null,
+            date_of_birth: form.s1.camper_dob || null,
+            gender: form.s1.camper_gender || null,
+            tshirt_size: form.s1.tshirt_size || null,
+            county: form.s1.county || null,
+            needs_interpreter: form.s1.needs_interpreter,
+            preferred_language: form.s1.preferred_language || null,
+            applicant_address: form.s1.camper_address || null,
+            applicant_city: form.s1.camper_city || null,
+            applicant_state: form.s1.camper_state || null,
+            applicant_zip: form.s1.camper_zip || null,
+            camp_session_id: form.s1.session_id !== '' ? Number(form.s1.session_id) : null,
+            camp_session_id_second: form.s1.session_id_2nd !== '' ? Number(form.s1.session_id_2nd) : null,
+            first_application: form.s1.first_application,
+            attended_before: form.s1.attended_before,
+          };
+          if (ecComplete) {
+            payload.emergency_contacts = [{
+              name: form.s1.ec_name,
+              relationship: form.s1.ec_relationship || null,
+              phone_primary: form.s1.ec_phone,
+              phone_secondary: form.s1.ec_phone_home || null,
+              phone_work: form.s1.ec_phone_work || null,
+              address: form.s1.ec_address || null,
+              city: form.s1.ec_city || null,
+              state: form.s1.ec_state || null,
+              zip: form.s1.ec_zip || null,
+              primary_language: form.s1.ec_primary_language || null,
+              interpreter_needed: form.s1.ec_interpreter,
+              is_primary: true,
               is_authorized_pickup: true,
-            });
-          } else if (existingEc && !formEcComplete) {
-            await deleteEmergencyContact(existingEc.id);
+            }];
           }
+          plan = { key: 'camper', payload, attestation: false };
           break;
         }
 
         case 1: {
-          // Medical record core fields + diagnoses + allergies.
-          if (medicalRecordId) {
-            await updateMedicalRecord(medicalRecordId, {
-              physician_name:          form.s2.physician_name || undefined,
-              physician_phone:         form.s2.physician_phone || undefined,
-              physician_address:       form.s2.physician_address || undefined,
-              insurance_provider:      form.s2.insurance_provider || undefined,
-              insurance_policy_number: form.s2.insurance_policy || undefined,
-              insurance_group:         form.s2.insurance_group || undefined,
-              medicaid_number:         form.s2.medicaid_number || undefined,
-              has_seizures:            form.s2.has_seizures === true,
-              last_seizure_date:       form.s2.last_seizure_date || undefined,
-              seizure_description:     form.s2.seizure_description || undefined,
-              has_neurostimulator:     form.s2.has_neurostimulator === true,
-              immunizations_current:   form.s2.immunizations_current === true,
-              tetanus_date:            form.s2.tetanus_date || undefined,
-              date_of_medical_exam:    form.s2.date_of_medical_exam || undefined,
-            });
-          }
-          // Diagnoses — natural-key diff by lowercased condition name.
-          const camper = await getCamperFull(camperId);
-          const serverDxByKey = new Map<string, ServerDiagnosis>();
-          for (const d of camper.diagnoses ?? []) {
-            if (d.name) serverDxByKey.set(d.name.toLowerCase().trim(), d);
-          }
-          const formDxKeys = new Set<string>();
-          for (const d of form.s2.diagnoses) {
-            const key = d.condition?.toLowerCase().trim();
-            if (!key) continue;
-            formDxKeys.add(key);
-            const existing = serverDxByKey.get(key);
-            if (existing) {
-              // Only update when notes actually changed
-              if ((existing.notes ?? '') !== (d.notes ?? '')) {
-                await updateDiagnosis(existing.id, { notes: d.notes });
-              }
-            } else {
-              await createDiagnosis({
-                camper_id: camperId, name: d.condition,
-                severity_level: 'mild', notes: d.notes,
-              });
-            }
-          }
-          for (const [key, srv] of serverDxByKey) {
-            if (!formDxKeys.has(key)) await deleteDiagnosis(srv.id);
-          }
-
-          // Allergies — natural-key diff by lowercased allergen.
-          const serverAllergyByKey = new Map<string, ServerAllergy>();
-          for (const a of camper.allergies ?? []) {
-            if (a.allergen) serverAllergyByKey.set(a.allergen.toLowerCase().trim(), a);
-          }
-          const formAllergyKeys = new Set<string>();
-          for (const a of form.s2.allergies) {
-            const key = a.allergen?.toLowerCase().trim();
-            if (!key) continue;
-            formAllergyKeys.add(key);
-            const existing = serverAllergyByKey.get(key);
-            if (existing) {
-              const formEpiPen = Boolean(a.epi_pen ?? false);
-              const serverEpiPen = (existing.treatment ?? '').includes('Epi-pen');
-              const changed =
-                existing.severity !== (a.severity || 'mild')
-                || (existing.reaction ?? '') !== (a.reaction ?? '')
-                || serverEpiPen !== formEpiPen;
-              if (changed) {
-                await updateAllergy(existing.id, {
-                  severity:  a.severity || 'mild',
-                  reaction:  a.reaction,
-                  epi_pen:   formEpiPen,
-                  treatment: formEpiPen ? 'Epi-pen available' : undefined,
-                });
-              }
-            } else {
-              await createAllergy({
-                camper_id: camperId, allergen: a.allergen,
-                severity: a.severity || 'mild', reaction: a.reaction,
-                treatment: a.epi_pen ? 'Epi-pen available' : undefined,
-              });
-            }
-          }
-          for (const [key, srv] of serverAllergyByKey) {
-            if (!formAllergyKeys.has(key)) await deleteAllergy(srv.id);
-          }
+          // Health: medical record core fields + diagnoses + allergies.
+          // Diagnoses and allergies are full-replace; partial rows (no
+          // condition/allergen text) are filtered out so the engine doesn't
+          // see junk entries.
+          const diagnoses = form.s2.diagnoses
+            .filter((d) => d.condition?.trim())
+            .map((d) => ({
+              name: d.condition,
+              severity_level: 'mild',
+              notes: d.notes || null,
+            }));
+          const allergies = form.s2.allergies
+            .filter((a) => a.allergen?.trim())
+            .map((a) => ({
+              allergen: a.allergen,
+              severity: a.severity || 'mild',
+              reaction: a.reaction || null,
+              treatment: a.epi_pen ? 'Epi-pen available' : null,
+            }));
+          plan = {
+            key: 'health',
+            payload: {
+              physician_name: form.s2.physician_name || null,
+              physician_phone: form.s2.physician_phone || null,
+              physician_address: form.s2.physician_address || null,
+              insurance_provider: form.s2.insurance_provider || null,
+              insurance_policy_number: form.s2.insurance_policy || null,
+              insurance_group: form.s2.insurance_group || null,
+              medicaid_number: form.s2.medicaid_number || null,
+              has_seizures: form.s2.has_seizures === true,
+              last_seizure_date: form.s2.last_seizure_date || null,
+              seizure_description: form.s2.seizure_description || null,
+              has_neurostimulator: form.s2.has_neurostimulator === true,
+              immunizations_current: form.s2.immunizations_current === true,
+              tetanus_date: form.s2.tetanus_date || null,
+              date_of_medical_exam: form.s2.date_of_medical_exam || null,
+              has_contagious_illness: form.s2.has_contagious_illness === true,
+              contagious_illness_description: form.s2.contagious_illness_description || null,
+              tubes_in_ears: form.s2.tubes_in_ears === true,
+              has_recent_illness: form.s2.has_recent_illness === true,
+              recent_illness_description: form.s2.recent_illness_description || null,
+              diagnoses,
+              allergies,
+            },
+            attestation: false,
+          };
           break;
         }
 
         case 2: {
-          // Behavioral profile
-          if (behavioralProfileId) {
-            await updateBehavioralProfile(behavioralProfileId, {
-              camper_id:                           camperId,
-              aggression:                          form.s3.aggression,
-              aggression_description:              form.s3.aggression_description,
-              self_abuse:                          form.s3.self_abuse,
-              self_abuse_description:              form.s3.self_abuse_description,
-              wandering_risk:                      form.s3.wandering,
-              wandering_description:               form.s3.wandering_description,
-              one_to_one_supervision:              form.s3.one_to_one,
-              one_to_one_description:              form.s3.one_to_one_description,
-              developmental_delay:                 form.s3.developmental_delay,
-              functioning_age_level:               form.s3.functional_age_level,
-              functional_reading:                  form.s3.functional_reading,
-              functional_writing:                  form.s3.functional_writing,
-              independent_mobility:                form.s3.independent_mobility,
-              verbal_communication:                form.s3.verbal_communication,
-              social_skills:                       form.s3.social_skills,
-              behavior_plan:                       form.s3.behavior_plan,
-              sexual_behaviors:                    form.s3.sexual_behaviors,
-              sexual_behaviors_description:        form.s3.sexual_behaviors_description,
-              interpersonal_behavior:              form.s3.interpersonal_behavior,
-              interpersonal_behavior_description:  form.s3.interpersonal_behavior_description,
-              social_emotional:                    form.s3.social_emotional,
-              social_emotional_description:        form.s3.social_emotional_description,
-              follows_instructions:                form.s3.follows_instructions,
-              follows_instructions_description:    form.s3.follows_instructions_description,
-              group_participation:                 form.s3.group_participation,
-              group_participation_description:     form.s3.group_participation_description,
-              attends_school:                      form.s3.attends_school === true,
-              classroom_type:                      form.s3.classroom_type,
-              communication_methods:               form.s3.communication_methods,
-              notes:                               form.s3.behavior_notes,
-            });
-          }
+          // Behavior — every flag + description + communication methods.
+          // Hybrid section: completeness service accepts data OR explicit
+          // attestation. We pass attestation=false for now; the explicit
+          // attestation checkbox is added in Phase E (s3.section_reviewed).
+          plan = {
+            key: 'behavior',
+            payload: {
+              aggression: form.s3.aggression,
+              aggression_description: form.s3.aggression_description || null,
+              self_abuse: form.s3.self_abuse,
+              self_abuse_description: form.s3.self_abuse_description || null,
+              wandering_risk: form.s3.wandering,
+              wandering_description: form.s3.wandering_description || null,
+              one_to_one_supervision: form.s3.one_to_one,
+              one_to_one_description: form.s3.one_to_one_description || null,
+              developmental_delay: form.s3.developmental_delay,
+              functioning_age_level: form.s3.functional_age_level || null,
+              functional_reading: form.s3.functional_reading,
+              functional_writing: form.s3.functional_writing,
+              independent_mobility: form.s3.independent_mobility,
+              verbal_communication: form.s3.verbal_communication,
+              social_skills: form.s3.social_skills,
+              behavior_plan: form.s3.behavior_plan,
+              sexual_behaviors: form.s3.sexual_behaviors,
+              sexual_behaviors_description: form.s3.sexual_behaviors_description || null,
+              interpersonal_behavior: form.s3.interpersonal_behavior,
+              interpersonal_behavior_description: form.s3.interpersonal_behavior_description || null,
+              social_emotional: form.s3.social_emotional,
+              social_emotional_description: form.s3.social_emotional_description || null,
+              follows_instructions: form.s3.follows_instructions,
+              follows_instructions_description: form.s3.follows_instructions_description || null,
+              group_participation: form.s3.group_participation,
+              group_participation_description: form.s3.group_participation_description || null,
+              attends_school: form.s3.attends_school === '' ? null : form.s3.attends_school === true,
+              classroom_type: form.s3.classroom_type || null,
+              communication_methods: form.s3.communication_methods,
+              notes: form.s3.behavior_notes || null,
+            },
+            // s3.section_reviewed is the explicit "nothing to declare"
+            // attestation checkbox. Combined with the engine's hybrid rule:
+            // empty section + checked = complete; empty section + unchecked
+            // = incomplete (parent must add data or check the box).
+            attestation: form.s3.section_reviewed === true,
+          };
           break;
         }
 
         case 3: {
-          // Equipment — sync assistive devices. The form allows parents to
-          // declare none via the section_reviewed flag, which we stamp on
-          // the Application below; devices get wiped/recreated from the
-          // in-memory list.
-          // Assistive devices — natural-key diff by lowercased device_type.
-          const camper = await getCamperFull(camperId);
-          const serverDeviceByKey = new Map<string, ServerAssistiveDevice>();
-          for (const d of camper.assistive_devices ?? []) {
-            if (d.device_type) serverDeviceByKey.set(d.device_type.toLowerCase().trim(), d);
-          }
-          const formDeviceKeys = new Set<string>();
-          for (const d of form.s4.devices) {
-            const key = d.device_type?.toLowerCase().trim();
-            if (!key) continue;
-            formDeviceKeys.add(key);
-            const existing = serverDeviceByKey.get(key);
-            if (existing) {
-              const changed =
-                (existing.requires_transfer_assistance ?? false) !== (d.requires_transfer ?? false)
-                || (existing.notes ?? '') !== (d.notes ?? '');
-              if (changed) {
-                await updateAssistiveDevice(existing.id, {
-                  requires_transfer_assistance: d.requires_transfer ?? false,
-                  notes: d.notes,
-                });
-              }
-            } else {
-              await createAssistiveDevice({
-                camper_id: camperId, device_type: d.device_type,
-                requires_transfer_assistance: d.requires_transfer ?? false,
-                notes: d.notes,
-              });
-            }
-          }
-          for (const [key, srv] of serverDeviceByKey) {
-            if (!formDeviceKeys.has(key)) await deleteAssistiveDevice(srv.id);
-          }
-          await stampSectionReviewed('equipment', form.s4.section_reviewed);
+          // Equipment — assistive devices full-replace + mobility notes.
+          // Hybrid section: s4.section_reviewed is the explicit attestation.
+          const devices = form.s4.devices
+            .filter((d) => d.device_type?.trim())
+            .map((d) => ({
+              device_type: d.device_type,
+              requires_transfer_assistance: d.requires_transfer ?? false,
+              notes: d.notes || null,
+            }));
+          plan = {
+            key: 'equipment',
+            payload: {
+              mobility_notes: form.s4.mobility_notes || null,
+              devices,
+            },
+            attestation: form.s4.section_reviewed === true,
+          };
           break;
         }
 
         case 4: {
-          // Diet / feeding plan
-          if (feedingPlanId) {
-            await updateFeedingPlan(feedingPlanId, {
-              camper_id:          camperId,
-              special_diet:       form.s5.special_diet,
-              diet_description:   form.s5.diet_description,
-              texture_modified:   form.s5.texture_modified,
-              texture_level:      form.s5.texture_level,
-              fluid_restriction:  form.s5.fluid_restriction,
-              fluid_details:      form.s5.fluid_details,
-              g_tube:             form.s5.g_tube,
-              formula:            form.s5.formula,
-              amount_per_feeding: form.s5.amount_per_feeding,
-              feedings_per_day:   form.s5.feedings_per_day ? Number(form.s5.feedings_per_day) : undefined,
-              feeding_times:      form.s5.feeding_times ? [form.s5.feeding_times] : undefined,
-              bolus_only:         form.s5.bolus_only,
-              notes:              form.s5.feeding_notes,
-            });
-          }
-          await stampSectionReviewed('diet', form.s5.section_reviewed);
+          // Diet — full feeding plan replace.
+          // Hybrid section: s5.section_reviewed is the explicit attestation.
+          plan = {
+            key: 'diet',
+            payload: {
+              special_diet: form.s5.special_diet,
+              diet_description: form.s5.diet_description || null,
+              texture_modified: form.s5.texture_modified,
+              texture_level: form.s5.texture_level || null,
+              fluid_restriction: form.s5.fluid_restriction,
+              fluid_details: form.s5.fluid_details || null,
+              g_tube: form.s5.g_tube,
+              formula: form.s5.formula || null,
+              amount_per_feeding: form.s5.amount_per_feeding || null,
+              feedings_per_day: form.s5.feedings_per_day ? Number(form.s5.feedings_per_day) : null,
+              // Defensive normalization: feeding_times may legitimately be a
+              // string (current form input) but a stale draft blob from a
+              // future schema change could carry an array. Guard against
+              // accidental [[...]] nesting that would silently corrupt the
+              // round-trip. Per code-reviewer finding 3 (2026-04-22).
+              feeding_times: Array.isArray(form.s5.feeding_times)
+                ? form.s5.feeding_times
+                : (form.s5.feeding_times ? [form.s5.feeding_times] : []),
+              bolus_only: form.s5.bolus_only,
+              notes: form.s5.feeding_notes || null,
+            },
+            attestation: form.s5.section_reviewed === true,
+          };
           break;
         }
 
         case 5: {
-          // Personal care plan — idempotent POST (updateOrCreate on backend).
-          await createPersonalCarePlan(camperId, {
-            bathing_level:         form.s6.bathing_level,
-            bathing_notes:         form.s6.bathing_notes,
-            toileting_level:       form.s6.toileting_level,
-            toileting_notes:       form.s6.toileting_notes,
-            nighttime_toileting:   form.s6.nighttime_toileting,
-            nighttime_notes:       form.s6.nighttime_notes,
-            dressing_level:        form.s6.dressing_level,
-            dressing_notes:        form.s6.dressing_notes,
-            oral_hygiene_level:    form.s6.oral_hygiene_level,
-            oral_hygiene_notes:    form.s6.oral_hygiene_notes,
-            positioning_notes:     form.s6.positioning_notes,
-            sleep_notes:           form.s6.sleep_notes,
-            falling_asleep_issues: form.s6.falling_asleep_issues,
-            sleep_walking:         form.s6.sleep_walking,
-            night_wandering:       form.s6.night_wandering,
-            bowel_control_notes:   form.s6.bowel_control_notes,
-            urinary_catheter:      form.s6.urinary_catheter,
-            irregular_bowel:       form.s6.irregular_bowel,
-            irregular_bowel_notes: form.s6.irregular_bowel_notes,
-            menstruation_support:  form.s6.menstruation_support,
-          });
+          // Personal care plan — full replace.
+          plan = {
+            key: 'personal_care',
+            payload: {
+              bathing_level: form.s6.bathing_level || null,
+              bathing_notes: form.s6.bathing_notes || null,
+              toileting_level: form.s6.toileting_level || null,
+              toileting_notes: form.s6.toileting_notes || null,
+              nighttime_toileting: form.s6.nighttime_toileting,
+              nighttime_notes: form.s6.nighttime_notes || null,
+              dressing_level: form.s6.dressing_level || null,
+              dressing_notes: form.s6.dressing_notes || null,
+              oral_hygiene_level: form.s6.oral_hygiene_level || null,
+              oral_hygiene_notes: form.s6.oral_hygiene_notes || null,
+              positioning_notes: form.s6.positioning_notes || null,
+              sleep_notes: form.s6.sleep_notes || null,
+              falling_asleep_issues: form.s6.falling_asleep_issues,
+              sleep_walking: form.s6.sleep_walking,
+              night_wandering: form.s6.night_wandering,
+              bowel_control_notes: form.s6.bowel_control_notes || null,
+              urinary_catheter: form.s6.urinary_catheter,
+              irregular_bowel: form.s6.irregular_bowel,
+              irregular_bowel_notes: form.s6.irregular_bowel_notes || null,
+              menstruation_support: form.s6.menstruation_support,
+            },
+            attestation: false,
+          };
           break;
         }
 
         case 6: {
-          // Activities — natural-key diff by activity_name slug. Each
-          // activity slot has a stable canonical slug so matching is
-          // trivial; this is the cleanest diff in the whole flush.
-          const camper = await getCamperFull(camperId);
-          const serverActivityByKey = new Map<string, ServerActivityPermission>();
-          for (const p of camper.activity_permissions ?? []) {
-            if (p.activity_name) serverActivityByKey.set(p.activity_name, p);
-          }
-          const activities: Array<[keyof typeof form.s7, string]> = [
-            ['sports_games', 'sports_games'],
-            ['arts_crafts',  'arts_crafts'],
-            ['nature',       'nature'],
-            ['fine_arts',    'fine_arts'],
-            ['swimming',     'swimming'],
-            ['boating',      'boating'],
-            ['camp_out',     'camp_out'],
+          // Activities — full replace of all 7 canonical permissions.
+          const slugs: Array<keyof typeof form.s7> = [
+            'sports_games', 'arts_crafts', 'nature', 'fine_arts',
+            'swimming', 'boating', 'camp_out',
           ];
-          const formActivityKeys = new Set<string>();
-          for (const [key, slug] of activities) {
-            const entry = form.s7[key];
-            if (!entry.level) continue;
-            formActivityKeys.add(slug);
-            const existing = serverActivityByKey.get(slug);
-            if (existing) {
-              const changed =
-                existing.permission_level !== entry.level
-                || (existing.restriction_notes ?? '') !== (entry.notes ?? '');
-              if (changed) {
-                await updateActivityPermission(existing.id, {
-                  permission_level: entry.level,
-                  restriction_notes: entry.notes,
-                });
-              }
-            } else {
-              await createActivityPermission({
-                camper_id: camperId,
+          const permissions = slugs
+            .map((slug) => {
+              const entry = form.s7[slug];
+              if (!entry.level) return null;
+              return {
                 activity_name: slug,
                 permission_level: entry.level,
-                restriction_notes: entry.notes,
-              });
-            }
-          }
-          for (const [key, srv] of serverActivityByKey) {
-            if (!formActivityKeys.has(key)) await deleteActivityPermission(srv.id);
-          }
+                restriction_notes: entry.notes || null,
+              };
+            })
+            .filter((p) => p !== null);
+          plan = {
+            key: 'activities',
+            payload: { permissions },
+            attestation: false,
+          };
           break;
         }
 
         case 7: {
-          // Medications — natural-key diff by lowercased name+dosage, so
-          // two entries for the same drug at different doses (rare but
-          // legitimate) both survive. The `no_medications` toggle still
-          // maps to sections_reviewed.medications for the engine's
-          // data-or-review rule.
-          const camper = await getCamperFull(camperId);
-          const serverMedByKey = new Map<string, ServerMedication>();
-          const medKey = (name: string | undefined | null, dosage: string | undefined | null) =>
-            `${(name ?? '').toLowerCase().trim()}|${(dosage ?? '').toLowerCase().trim()}`;
-          for (const m of camper.medications ?? []) {
-            if (m.name) serverMedByKey.set(medKey(m.name, m.dosage), m);
-          }
-          const formMedKeys = new Set<string>();
-          for (const m of form.s8.medications) {
-            if (!m.name) continue;
-            const key = medKey(m.name, m.dosage);
-            formMedKeys.add(key);
-            const existing = serverMedByKey.get(key);
-            if (existing) {
-              const changed =
-                (existing.frequency ?? '') !== (m.frequency ?? '')
-                || (existing.purpose ?? '')   !== (m.reason ?? '');
-              if (changed) {
-                await updateMedication(existing.id, {
-                  frequency: m.frequency ?? '',
-                  purpose: m.reason,
-                  prescribing_physician: m.physician,
-                });
-              }
-            } else {
-              await createMedication({
-                camper_id: camperId,
-                name: m.name,
-                dosage: m.dosage ?? '',
-                frequency: m.frequency ?? '',
-                purpose: m.reason,
-                prescribing_physician: m.physician,
-              });
-            }
-          }
-          for (const [key, srv] of serverMedByKey) {
-            if (!formMedKeys.has(key)) await deleteMedication(srv.id);
-          }
-          await stampSectionReviewed('medications', form.s8.no_medications);
+          // Medications — full replace. Hybrid section.
+          // s8.no_medications is the explicit "nothing to declare" toggle.
+          const medications = form.s8.medications
+            .filter((m) => m.name?.trim())
+            .map((m) => ({
+              name: m.name,
+              dosage: m.dosage || '',
+              frequency: m.frequency || '',
+              purpose: m.reason || null,
+              prescribing_physician: m.physician || null,
+            }));
+          plan = {
+            key: 'medications',
+            payload: { medications },
+            attestation: form.s8.no_medications === true,
+          };
           break;
         }
 
         case 8: {
-          // Narratives + narrative section-reviewed marker.
-          await updateApplication(applicationId, {
-            narrative_rustic_environment:     form.sn.narrative_rustic_environment,
-            narrative_staff_suggestions:      form.sn.narrative_staff_suggestions,
-            narrative_participation_concerns: form.sn.narrative_participation_concerns,
-            narrative_camp_benefit:           form.sn.narrative_camp_benefit,
-            narrative_heat_tolerance:         form.sn.narrative_heat_tolerance,
-            narrative_transportation:         form.sn.narrative_transportation,
-            narrative_additional_info:        form.sn.narrative_additional_info,
-            narrative_emergency_protocols:    form.sn.narrative_emergency_protocols,
-          });
-          await stampSectionReviewed('narratives', form.sn.section_reviewed);
+          // Narratives — full replace of all 8 narrative columns.
+          plan = {
+            key: 'narratives',
+            payload: {
+              narrative_rustic_environment: form.sn.narrative_rustic_environment || null,
+              narrative_staff_suggestions: form.sn.narrative_staff_suggestions || null,
+              narrative_participation_concerns: form.sn.narrative_participation_concerns || null,
+              narrative_camp_benefit: form.sn.narrative_camp_benefit || null,
+              narrative_heat_tolerance: form.sn.narrative_heat_tolerance || null,
+              narrative_transportation: form.sn.narrative_transportation || null,
+              narrative_additional_info: form.sn.narrative_additional_info || null,
+              narrative_emergency_protocols: form.sn.narrative_emergency_protocols || null,
+            },
+            attestation: false,
+          };
           break;
         }
 
-        // Sections 9 (documents) and 10 (consents) flush as part of the
-        // existing handleSubmit waterfall — uploads and the signature+
-        // consents block need the document writeback + e-signature capture
-        // only finalize() currently orchestrates. The engine reads their
-        // state from already-persisted rows (uploads hit /documents
-        // directly), so real-time feedback for these sections already
-        // works without per-transition flush.
+        // Sections 9 (documents) and 10 (consents) are not flushed via
+        // this path — uploads hit /documents directly, signature/consents
+        // are handled by handleSubmit's finalize waterfall.
         default:
           break;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applicationId, camperId, medicalRecordId, behavioralProfileId, feedingPlanId, form]);
 
-  /**
-   * Update the Application's sections_reviewed JSON. Used for optional
-   * sections where the parent can attest "nothing to declare" (equipment,
-   * diet, medications, narratives, behavior).
-   */
-  const stampSectionReviewed = useCallback(async (
-    key: 'behavior' | 'equipment' | 'diet' | 'medications' | 'narratives',
-    reviewed: boolean,
-  ) => {
-    if (!applicationId) return;
-    if (!reviewed) return;
-    try {
-      await updateApplication(applicationId, {
-        sections_reviewed: { [key]: new Date().toISOString() },
-      });
-    } catch {
-      // Non-blocking
-    }
-  }, [applicationId]);
+    if (!plan) return;
+
+    // Single atomic call. Server runs the entire section replace inside
+    // one DB::transaction; either every field lands or none do. Response
+    // includes fresh validation, used to refresh the local pill state
+    // without a second round trip.
+    const result = await replaceSection(applicationId, plan.key, plan.payload, plan.attestation);
+    setValidation(result.validation);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId, camperId, form]);
   /**
    * True while an async server draft deletion is in flight (Clear Draft action).
    * Used to disable Save/Clear buttons during the operation.
@@ -4781,10 +4672,38 @@ export function ApplicationFormPage() {
     [validation, validationKeyForStep, finalizationErrors],
   );
 
-  /** Submit is allowed only when the engine reports READY. No client-side shortcut. */
+  /**
+   * Submit is allowed when EITHER the engine reports READY OR every locally-
+   * required input is filled. The local OR is necessary because consents
+   * (s10) and the signature are persisted ONLY at submit time — the engine
+   * sees them after the fact, so without the local override the Submit
+   * button is permanently disabled even when the parent has filled
+   * everything correctly. handleSubmit() does its own backend completeness
+   * check via finalize(), so a too-eager local READY is caught there with
+   * structured per-section guidance.
+   */
   const isSubmitReady = useMemo(() => {
-    return validation?.state === 'READY';
-  }, [validation]);
+    if (validation?.state === 'READY') return true;
+    if (!validation) return false;
+    // Local readiness: every backend-validated section is_complete + s10 +
+    // signature. The engine's own per-section is_complete already accounts
+    // for hybrid sections (data OR attestation), so we can trust those.
+    const dataSectionsComplete = (
+      ['camper', 'health', 'behavior', 'equipment', 'diet', 'personal_care', 'activities', 'medications', 'narratives'] as const
+    ).every((k) => validation.sections?.[k]?.is_complete);
+    const consentsCheckedLocally =
+      form.s10.consent_general && form.s10.consent_medical && form.s10.consent_photo
+      && form.s10.consent_liability && form.s10.consent_permission_activities
+      && form.s10.consent_medication && form.s10.consent_hipaa;
+    const signatureLocally =
+      Boolean(form.s10.signed_name?.trim())
+      && (form.s10.signature_type !== 'drawn' || Boolean(form.s10.signature_data));
+    // Documents: trust the engine's view — uploads hit /documents directly
+    // and refresh validation on the next flush, so the engine catches
+    // missing docs before submit. No local shortcut for s9.
+    const docsComplete = validation.sections?.documents?.is_complete ?? false;
+    return dataSectionsComplete && consentsCheckedLocally && signatureLocally && docsComplete;
+  }, [validation, form.s10]);
 
   // NOTE: A validation-driven `getStepStatus` and `isSubmitReady` were
   // prototyped here but intentionally not wired up. Without progressive
@@ -4808,25 +4727,11 @@ export function ApplicationFormPage() {
   const serverDraftUpdatedAt = useRef<string | undefined>(undefined);
   /** Holds actual File objects for document uploads — not serialized to sessionStorage */
   const docFilesRef = useRef<Record<string, File | null>>({});
-  /**
-   * Tracks the camper ID created in step 1 of handleSubmit.
-   * If submission fails and the user retries, we reuse the same camper record
-   * instead of creating a new orphan entry.
-   *
-   * Persisted to sessionStorage so page reloads between retry attempts don't
-   * lose the reference and cause duplicate camper records to be created.
-   */
-  const pendingCamperKey = `cbg_pending_camper_${userId ?? 'anon'}`;
-  const pendingCamperIdRef = useRef<number | null>(
-    (() => {
-      try {
-        const stored = sessionStorage.getItem(pendingCamperKey);
-        return stored ? (JSON.parse(stored) as number) : null;
-      } catch {
-        return null;
-      }
-    })()
-  );
+  // pendingCamperKey + pendingCamperIdRef removed in 2026-04-22 audit:
+  // they only existed for the legacy waterfall's createCamper retry-
+  // idempotency, which no longer exists. The Camper is created upfront by
+  // initializeDraftApplication() before this page mounts, so submit-time
+  // retry idempotency for camper creation is no longer needed.
 
   // ── Load sessions ──────────────────────────────────────────────────────────
 
@@ -4866,6 +4771,53 @@ export function ApplicationFormPage() {
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Rehydrate Section 9 doc slots from the backend ───────────────────────
+  //
+  // Documents live in the database (uploaded immediately on file-select per
+  // the BUG-198/forensic-audit follow-up), but the form.s9 slot metadata is
+  // pure UI state that doesn't round-trip through the draft blob. Without
+  // this effect the slots reset to "Choose file…" on every reload, even
+  // though the engine correctly reports the section as complete (because it
+  // queries the database directly). That mismatch — green pill, empty
+  // slots — is exactly the bug the user reported.
+  //
+  // Runs once when applicationId is known and hydration has finished.
+  useEffect(() => {
+    if (!applicationId || isHydrating) return;
+    let cancelled = false;
+    // Inverse of docTypeSlugs in flushSection / handleSubmit / Section 9 wiring.
+    const slugToKey: Record<string, keyof FormState['s9']> = {
+      'immunization_record':   'immunization',
+      'official_medical_form': 'medical_exam',
+      'insurance_card':        'insurance_card',
+      'cpap_waiver':           'cpap_waiver',
+      'seizure_action_plan':   'seizure_plan',
+      'feeding_action_plan':   'gtube_plan',
+    };
+    getApplicationDocuments(applicationId)
+      .then((docs) => {
+        if (cancelled) return;
+        const patch: Partial<FormState['s9']> = {};
+        for (const doc of docs) {
+          const key = slugToKey[doc.document_type];
+          if (!key) continue;
+          patch[key] = {
+            file_name: doc.file_name || doc.original_filename || 'document',
+            size: doc.size ?? 0,
+            mime: doc.mime_type ?? 'application/pdf',
+            documentId: doc.id,
+          };
+        }
+        if (Object.keys(patch).length === 0) return;
+        // Merge into s9 — backend is the source of truth for any slot it
+        // knows about; keep local-only entries (a freshly-picked file
+        // mid-upload) untouched on the off-chance one is in flight.
+        setForm((prev) => ({ ...prev, s9: { ...prev.s9, ...patch } }));
+      })
+      .catch(() => { /* silent — engine view still drives correctness */ });
+    return () => { cancelled = true; };
+  }, [applicationId, isHydrating]);
 
   // ── Auto-save to sessionStorage (PHI must not persist across browser sessions) ──
 
@@ -5023,8 +4975,9 @@ export function ApplicationFormPage() {
     // Step 2: Clear local state immediately — HIPAA requires PHI is removed from
     // the browser as soon as the user requests it, regardless of server outcome.
     sessionStorage.removeItem(draftKey);
-    sessionStorage.removeItem(pendingCamperKey);
-    pendingCamperIdRef.current = null;
+    // Legacy `cbg_pending_camper_*` slot was used by the deleted submit-time
+    // waterfall; clean any historical entries off the user's machine.
+    try { sessionStorage.removeItem(`cbg_pending_camper_${userId ?? 'anon'}`); } catch { /* quota */ }
     setForm(INITIAL_STATE);
     setCurrentStep(0);
     // docFilesRef holds actual File objects selected for upload; they never
@@ -5055,18 +5008,70 @@ export function ApplicationFormPage() {
   }
 
   function handleSaveDraft() {
+    // Local draft always succeeds (sessionStorage write); server draft is
+    // optimistic. Defer the success toast until the server has acknowledged
+    // (or, when there's no serverDraftId, immediately) — and surface non-409
+    // server failures explicitly so the user knows the server did NOT save.
+    // Per silent-failure-hunter finding 3 (2026-04-22).
     persistDraft(form);
-    if (serverDraftId) {
-      const label = [form.s1.camper_first_name, form.s1.camper_last_name].filter(Boolean).join(' ') || 'New Application';
-      apiSaveDraft(serverDraftId, label, form as unknown as Record<string, unknown>, serverDraftUpdatedAt.current)
-        .then((newUpdatedAt) => { serverDraftUpdatedAt.current = newUpdatedAt; })
-        .catch((err: { response?: { status?: number } }) => {
-          if (err?.response?.status === 409) {
-            toast.error(t('applicant.form.draft_conflict'));
-          }
-        });
+    if (!serverDraftId) {
+      toast.success(t('applicant.form.draft_saved'));
+      return;
     }
-    toast.success(t('applicant.form.draft_saved'));
+    const label = [form.s1.camper_first_name, form.s1.camper_last_name].filter(Boolean).join(' ') || 'New Application';
+    apiSaveDraft(serverDraftId, label, form as unknown as Record<string, unknown>, serverDraftUpdatedAt.current)
+      .then((newUpdatedAt) => {
+        serverDraftUpdatedAt.current = newUpdatedAt;
+        toast.success(t('applicant.form.draft_saved'));
+      })
+      .catch((err: { response?: { status?: number }; status?: number; message?: string }) => {
+        const status = err?.response?.status ?? err?.status;
+        if (status === 409) {
+          toast.error(t('applicant.form.draft_conflict'));
+        } else {
+          console.error('[ApplicationForm] Manual draft save failed:', err);
+          toast.error(t('applicant.form.draft_save_failed', {
+            defaultValue: 'Draft could not be saved to the server. Your local copy is still intact — please retry shortly.',
+          }));
+        }
+      });
+  }
+
+  /**
+   * Persist signature + 7 consent records to the backend.
+   *
+   * Both endpoints are explicitly idempotent (sign() overwrites on draft,
+   * storeConsents uses updateOrCreate keyed on (application_id, consent_type)),
+   * so calling this from both handleRequestSubmit (pre-modal) and handleSubmit
+   * (final waterfall) is safe.
+   *
+   * Why pre-modal: the engine's validateConsents requires `signed_at` and
+   * 7 ApplicationConsent rows in the database. Without this pre-flight
+   * write, the review modal renders with the engine reporting consents
+   * INCOMPLETE (because the data still lives only in form.s10), which
+   * disables the modal's Submit button and traps the parent.
+   */
+  async function persistSignatureAndConsents(): Promise<void> {
+    if (!applicationId) return;
+    const signatureData = form.s10.signature_type === 'drawn' && form.s10.signature_data
+      ? form.s10.signature_data
+      : await typedSignatureToPng(form.s10.signed_name);
+    await signApplication(applicationId, form.s10.signed_name, signatureData);
+
+    const guardianName = form.s10.signed_name;
+    const guardianRelationship = form.s1.g1_relationship || 'Guardian';
+    const signedAt = form.s10.signed_date
+      ? new Date(form.s10.signed_date).toISOString()
+      : new Date().toISOString();
+    await storeConsents(applicationId, [
+      { consent_type: 'general',       guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+      { consent_type: 'photos',        guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+      { consent_type: 'liability',     guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+      { consent_type: 'activity',      guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+      { consent_type: 'authorization', guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+      { consent_type: 'medication',    guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+      { consent_type: 'hipaa',         guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
+    ]);
   }
 
   /**
@@ -5074,7 +5079,7 @@ export function ApplicationFormPage() {
    * otherwise navigates to the first incomplete section and reveals the
    * Issues Summary so the applicant can see exactly what still needs work.
    */
-  function handleRequestSubmit() {
+  async function handleRequestSubmit() {
     setSubmitAttempted(true);
     if (!isSubmitReady) {
       const firstIncomplete = sections.findIndex((_, i) => getStepStatus(i) !== 'complete');
@@ -5094,6 +5099,27 @@ export function ApplicationFormPage() {
       toast.error(t('applicant.form.no_session_error'));
       return;
     }
+
+    // Persist signature + consents BEFORE opening the review modal.
+    // Without this, the modal's per-section status (driven by the engine)
+    // shows Consents INCOMPLETE because the consent rows and signed_at
+    // only get written inside handleSubmit's waterfall, which runs AFTER
+    // the modal opens. That trapped the parent: every other section green,
+    // Consents red, Submit button disabled.
+    try {
+      await persistSignatureAndConsents();
+      await refetchValidation();
+    } catch (err) {
+      const errObj = err as { message?: string; errors?: Record<string, string[]> };
+      const validation = errObj.errors
+        ? Object.values(errObj.errors).flat().join(' · ')
+        : '';
+      const msg = validation || errObj.message || 'Could not save signature and consents.';
+      console.error('[consents pre-flight] failed', err);
+      toast.error(msg);
+      return;
+    }
+
     setShowReviewModal(true);
   }
 
@@ -5118,477 +5144,45 @@ export function ApplicationFormPage() {
     // submit doesn't resurrect a stale version.
     persistDraft(form);
 
-    // ── initializeDraft fast path ─────────────────────────────────────────────
-    // When the user started via initializeDraftApplication(), flushSection has
-    // already flushed all camper/health/behavior/activity data to real DB rows
-    // using the correct canonical slugs and IDs. Skip steps 1–10 entirely;
-    // only handle documents, signature, consents, and finalization.
-    if (navState?.applicationId) {
-      const fastAppId = navState.applicationId;
-      try {
-        const fastDocTypeSlugs: Record<string, string> = {
-          immunization:   'immunization_record',
-          medical_exam:   'official_medical_form',
-          insurance_card: 'insurance_card',
-          cpap_waiver:    'cpap_waiver',
-          seizure_plan:   'seizure_action_plan',
-          gtube_plan:     'feeding_action_plan',
-        };
-        const fastActiveConditionals: Record<string, boolean> = {
-          cpap_waiver:  form.s4.devices.some((d) => d.device_type.includes('CPAP')),
-          seizure_plan: form.s2.has_seizures === true,
-          gtube_plan:   form.s5.g_tube === true,
-        };
-        for (const [key, slot] of Object.entries(form.s9)) {
-          if (!slot) continue;
-          if (key in fastActiveConditionals && !fastActiveConditionals[key]) continue;
-          const file = docFilesRef.current[key];
-          if (!file) continue;
-          const fd = new FormData();
-          fd.append('file', file);
-          fd.append('documentable_type', 'App\\Models\\Application');
-          fd.append('documentable_id', String(fastAppId));
-          fd.append('document_type', fastDocTypeSlugs[key] ?? key);
-          if (key === 'medical_exam' && form.s2.date_of_medical_exam) {
-            fd.append('exam_date', form.s2.date_of_medical_exam);
-          }
-          await uploadDocument(fd);
-        }
-
-        const fastSigData = form.s10.signature_type === 'drawn' && form.s10.signature_data
-          ? form.s10.signature_data
-          : form.s10.signed_name;
-        await signApplication(fastAppId, form.s10.signed_name, fastSigData);
-
-        const fastGuardianName = form.s10.signed_name;
-        const fastGuardianRelationship = form.s1.g1_relationship || 'Guardian';
-        const fastSignedAt = form.s10.signed_date
-          ? new Date(form.s10.signed_date).toISOString()
-          : new Date().toISOString();
-        await storeConsents(fastAppId, [
-          { consent_type: 'general',       guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-          { consent_type: 'photos',        guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-          { consent_type: 'liability',     guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-          { consent_type: 'activity',      guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-          { consent_type: 'authorization', guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-          { consent_type: 'medication',    guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-          { consent_type: 'hipaa',         guardian_name: fastGuardianName, guardian_relationship: fastGuardianRelationship, guardian_signature: fastSigData, signed_at: fastSignedAt },
-        ]);
-
-        await finalizeApplication(fastAppId);
-
-        setFinalizationErrors(null);
-        toast.dismiss(tid);
-        toast.success(t('applicant.form.submit_success'));
-        sessionStorage.removeItem(draftKey);
-        if (serverDraftId) await apiDeleteDraft(serverDraftId).catch(() => {});
-        navigate(ROUTES.PARENT_APPLICATIONS);
-
-      } catch (err: unknown) {
-        toast.dismiss(tid);
-        const fastErr = err as {
-          message?: string;
-          errors?: Record<string, string[]>;
-          missing_fields?: Array<{ key: string; label: string; severity: string }>;
-          missing_documents?: Array<{ key: string; label: string; severity: string }>;
-          missing_consents?: Array<{ key: string; label: string; severity: string }>;
-        };
-        if (fastErr.missing_fields !== undefined || fastErr.missing_documents !== undefined || fastErr.missing_consents !== undefined) {
-          const gaps = {
-            fields:    (fastErr.missing_fields    ?? []) as FinalizationGap[],
-            documents: (fastErr.missing_documents ?? []) as FinalizationGap[],
-            consents:  (fastErr.missing_consents  ?? []) as FinalizationGap[],
-          };
-          setFinalizationErrors(gaps);
-          let targetSection = 10;
-          let targetFieldKey: string | undefined;
-          if (gaps.documents.length > 0) targetSection = 9;
-          if (gaps.fields.length > 0) {
-            const sorted = [...gaps.fields].sort((a, b) =>
-              (FINALIZATION_FIELD_TO_SECTION[a.key] ?? 0) - (FINALIZATION_FIELD_TO_SECTION[b.key] ?? 0)
-            );
-            targetSection = FINALIZATION_FIELD_TO_SECTION[sorted[0].key] ?? 0;
-            targetFieldKey = sorted[0].key;
-          }
-          goToStep(targetSection);
-          requestAnimationFrame(() => {
-            const domId = targetFieldKey ? FINALIZATION_FIELD_TO_DOM_ID[targetFieldKey] : undefined;
-            const el = domId ? document.getElementById(domId) : null;
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          });
-          toast.error(t('applicant.form.finalization_incomplete'));
-          return;
-        }
-        const firstFieldError = fastErr.errors ? Object.values(fastErr.errors).flat()[0] : undefined;
-        toast.error(firstFieldError ?? fastErr.message ?? t('applicant.form.submit_error'));
-      } finally {
-        setIsSubmitting(false);
-      }
+    // ── Submission gate ──────────────────────────────────────────────────
+    // The form is always created via initializeDraftApplication() before the
+    // applicant ever sees this page, so applicationId is guaranteed to be set
+    // by the lifecycle guard at component mount. The legacy waterfall that
+    // used to handle the no-applicationId case (creating Camper, EC, etc.
+    // inline at submit time) was deleted in the 2026-04-22 audit — its only
+    // remaining callers were error-recovery paths whose state was already
+    // unrecoverable.
+    if (!applicationId) {
+      toast.dismiss(tid);
+      toast.error(t('applicant.form.submit_error'));
+      setIsSubmitting(false);
+      navigate(ROUTES.PARENT_APPLICATION_START);
       return;
     }
 
-    // ── Legacy waterfall (forms started without initializeDraft) ─────────────
     try {
-      // ── Step 1: Create camper (reuse if already created on a prior failed attempt) ──
-      let camperId: number;
-      if (pendingCamperIdRef.current !== null) {
-        camperId = pendingCamperIdRef.current;
-      } else {
-        const camper = await createCamper({
-          first_name:         form.s1.camper_first_name,
-          last_name:          form.s1.camper_last_name,
-          date_of_birth:      form.s1.camper_dob,
-          gender:             form.s1.camper_gender,
-          tshirt_size:        form.s1.tshirt_size || undefined,
-          preferred_name:     form.s1.camper_preferred_name || undefined,
-          county:             form.s1.county || undefined,
-          needs_interpreter:  form.s1.needs_interpreter || undefined,
-          preferred_language: form.s1.preferred_language || undefined,
-          applicant_address:  form.s1.camper_address || undefined,
-          applicant_city:     form.s1.camper_city || undefined,
-          applicant_state:    form.s1.camper_state || undefined,
-          applicant_zip:      form.s1.camper_zip || undefined,
-        });
-        camperId = camper.id;
-        pendingCamperIdRef.current = camperId;
-        try { sessionStorage.setItem(pendingCamperKey, JSON.stringify(camperId)); } catch { /* quota */ }
-      }
-
-      // Fetch existing server-side records once so we can skip creates that
-      // already exist — prevents duplicate rows when the user retries after
-      // a partial failure (idempotency guard).
-      const existingCamper = await getCamperFull(camperId);
-      const existingECs         = existingCamper.emergency_contacts ?? [];
-      const existingDiagnoses   = existingCamper.diagnoses          ?? [];
-      const existingAllergies   = existingCamper.allergies          ?? [];
-      const existingDevices     = existingCamper.assistive_devices  ?? [];
-
-      // ── Step 2a: Guardian 1 (stored as emergency contact with is_guardian=true, is_primary=true) ──
-      if (form.s1.g1_name.trim()) {
-        const alreadyExists = existingECs.some(
-          (ec) => ec.name === form.s1.g1_name && ec.is_guardian
-        );
-        if (!alreadyExists) {
-          await createEmergencyContact({
-            camper_id:            camperId,
-            name:                 form.s1.g1_name,
-            relationship:         form.s1.g1_relationship || 'Guardian',
-            phone_primary:        form.s1.g1_phone_cell || form.s1.g1_phone_home,
-            phone_secondary:      form.s1.g1_phone_home && form.s1.g1_phone_cell ? form.s1.g1_phone_home : undefined,
-            phone_work:           form.s1.g1_phone_work || undefined,
-            is_primary:           true,
-            is_authorized_pickup: true,
-            is_guardian:          true,
-            address:              form.s1.g1_address || undefined,
-            city:                 form.s1.g1_city || undefined,
-            state:                form.s1.g1_state || undefined,
-            zip:                  form.s1.g1_zip || undefined,
-          });
-        }
-      }
-
-      // ── Step 2b: Guardian 2 (is_guardian=true, is_primary=false) ─────────
-      if (form.s1.g2_name.trim()) {
-        const alreadyExists = existingECs.some(
-          (ec) => ec.name === form.s1.g2_name && ec.is_guardian
-        );
-        if (!alreadyExists) {
-          await createEmergencyContact({
-            camper_id:            camperId,
-            name:                 form.s1.g2_name,
-            relationship:         form.s1.g2_relationship || 'Guardian',
-            phone_primary:        form.s1.g2_phone_cell || form.s1.g2_phone_home,
-            phone_secondary:      form.s1.g2_phone_home && form.s1.g2_phone_cell ? form.s1.g2_phone_home : undefined,
-            phone_work:           form.s1.g2_phone_work || undefined,
-            is_primary:           false,
-            is_authorized_pickup: true,
-            is_guardian:          true,
-            address:              form.s1.g2_address || undefined,
-            city:                 form.s1.g2_city || undefined,
-            state:                form.s1.g2_state || undefined,
-            zip:                  form.s1.g2_zip || undefined,
-            primary_language:     form.s1.g2_primary_language || undefined,
-            interpreter_needed:   form.s1.g2_interpreter || undefined,
-          });
-        }
-      }
-
-      // ── Step 2c: Additional emergency contact (non-guardian) ─────────────
-      if (form.s1.ec_name.trim()) {
-        const alreadyExists = existingECs.some(
-          (ec) => ec.name === form.s1.ec_name && !ec.is_guardian
-        );
-        if (!alreadyExists) {
-          await createEmergencyContact({
-            camper_id:            camperId,
-            name:                 form.s1.ec_name,
-            relationship:         form.s1.ec_relationship || 'Emergency Contact',
-            phone_primary:        form.s1.ec_phone,
-            phone_secondary:      form.s1.ec_phone_home || undefined,
-            phone_work:           form.s1.ec_phone_work || undefined,
-            is_primary:           false,
-            is_authorized_pickup: false,
-            is_guardian:          false,
-            address:              form.s1.ec_address || undefined,
-            city:                 form.s1.ec_city || undefined,
-            state:                form.s1.ec_state || undefined,
-            zip:                  form.s1.ec_zip || undefined,
-            primary_language:     form.s1.ec_primary_language || undefined,
-            interpreter_needed:   form.s1.ec_interpreter || undefined,
-          });
-        }
-      }
-
-      // ── Step 3: Diagnoses ─────────────────────────────────────────────────
-      for (const dx of form.s2.diagnoses) {
-        if (!(dx.condition ?? '').trim()) continue;
-        const alreadyExists = existingDiagnoses.some(
-          (d) => d.name === dx.condition
-        );
-        if (alreadyExists) continue;
-        await createDiagnosis({
-          camper_id:      camperId,
-          name:           dx.condition,
-          severity_level: 'moderate',
-          notes:          dx.notes || undefined,
-        });
-      }
-
-      // ── Step 4: Allergies ─────────────────────────────────────────────────
-      for (const al of form.s2.allergies) {
-        if (!(al.allergen ?? '').trim()) continue;
-        const alreadyExists = existingAllergies.some(
-          (a) => a.allergen === al.allergen
-        );
-        if (alreadyExists) continue;
-        await createAllergy({
-          camper_id: camperId,
-          allergen:  al.allergen,
-          severity:  al.severity || 'moderate',
-          reaction:  al.reaction || undefined,
-          treatment: al.epi_pen ? 'Epi-pen available' : undefined,
-        });
-      }
-
-      // ── Step 5: Behavioral profile ────────────────────────────────────────
-      await createBehavioralProfile({
-        camper_id:                          camperId,
-        aggression:                         form.s3.aggression === true,
-        aggression_description:             form.s3.aggression_description || undefined,
-        self_abuse:                         form.s3.self_abuse  === true,
-        self_abuse_description:             form.s3.self_abuse_description || undefined,
-        wandering_risk:                     form.s3.wandering   === true,
-        wandering_description:              form.s3.wandering_description || undefined,
-        one_to_one_supervision:             form.s3.one_to_one  === true,
-        one_to_one_description:             form.s3.one_to_one_description || undefined,
-        developmental_delay:                form.s3.developmental_delay === true,
-        functional_reading:                 form.s3.functional_reading,
-        functional_writing:                 form.s3.functional_writing,
-        independent_mobility:               form.s3.independent_mobility,
-        verbal_communication:               form.s3.verbal_communication,
-        social_skills:                      form.s3.social_skills,
-        behavior_plan:                      form.s3.behavior_plan,
-        functioning_age_level:              form.s3.functional_age_level || undefined,
-        sexual_behaviors:                   form.s3.sexual_behaviors,
-        sexual_behaviors_description:       form.s3.sexual_behaviors_description || undefined,
-        interpersonal_behavior:             form.s3.interpersonal_behavior,
-        interpersonal_behavior_description: form.s3.interpersonal_behavior_description || undefined,
-        social_emotional:                   form.s3.social_emotional,
-        social_emotional_description:       form.s3.social_emotional_description || undefined,
-        follows_instructions:               form.s3.follows_instructions,
-        follows_instructions_description:   form.s3.follows_instructions_description || undefined,
-        group_participation:                form.s3.group_participation,
-        group_participation_description:    form.s3.group_participation_description || undefined,
-        attends_school:                     (form.s3.attends_school === true || form.s3.attends_school === false) ? form.s3.attends_school : undefined,
-        classroom_type:                     form.s3.classroom_type || undefined,
-        communication_methods:              form.s3.communication_methods.length
-                                              ? form.s3.communication_methods : undefined,
-        notes: form.s3.behavior_notes || undefined,
-      });
-
-      // ── Step 6: Assistive devices ─────────────────────────────────────────
-      for (const dev of form.s4.devices) {
-        if (!dev.device_type.trim()) continue;
-        const alreadyExists = existingDevices.some(
-          (d) => d.device_type === dev.device_type
-        );
-        if (alreadyExists) continue;
-        await createAssistiveDevice({
-          camper_id:                    camperId,
-          device_type:                  dev.device_type,
-          requires_transfer_assistance: dev.requires_transfer,
-          notes:                        dev.notes || undefined,
-        });
-      }
-
-      // ── Step 7: Feeding plan ──────────────────────────────────────────────
-      if (form.s5.special_diet || form.s5.g_tube || form.s5.texture_modified || form.s5.fluid_restriction) {
-        await createFeedingPlan({
-          camper_id:          camperId,
-          special_diet:       form.s5.special_diet,
-          diet_description:   form.s5.diet_description || undefined,
-          texture_modified:   form.s5.texture_modified || undefined,
-          texture_level:      form.s5.texture_level || undefined,
-          fluid_restriction:  form.s5.fluid_restriction || undefined,
-          fluid_details:      form.s5.fluid_details || undefined,
-          g_tube:             form.s5.g_tube,
-          formula:            form.s5.formula || undefined,
-          amount_per_feeding: form.s5.amount_per_feeding || undefined,
-          feedings_per_day:   form.s5.feedings_per_day
-                                ? parseInt(form.s5.feedings_per_day, 10) : undefined,
-          feeding_times:      form.s5.feeding_times
-                                ? form.s5.feeding_times.split(',').map((t) => t.trim()).filter(Boolean)
-                                : undefined,
-          bolus_only:         form.s5.bolus_only || undefined,
-          notes:              form.s5.feeding_notes || undefined,
-        });
-      }
-
-      // ── Step 7b: Health profile (full Section 2 medical fields) ──────────
-      await storeHealthProfile(camperId, {
-        // Physician
-        physician_name:                     form.s2.physician_name || undefined,
-        physician_phone:                    form.s2.physician_phone || undefined,
-        physician_address:                  form.s2.physician_address || undefined,
-        // Insurance
-        insurance_provider:                 form.s2.insurance_provider || undefined,
-        insurance_policy:                   form.s2.insurance_policy || undefined,
-        insurance_group:                    form.s2.insurance_group || undefined,
-        medicaid_number:                    form.s2.medicaid_number || undefined,
-        // Immunization & exam
-        immunizations_current:              (form.s2.immunizations_current === true || form.s2.immunizations_current === false) ? form.s2.immunizations_current : undefined,
-        tetanus_date:                       form.s2.tetanus_date || undefined,
-        date_of_medical_exam:               form.s2.date_of_medical_exam || undefined,
-        // Seizure history
-        has_seizures:                       (form.s2.has_seizures === true || form.s2.has_seizures === false) ? form.s2.has_seizures : undefined,
-        last_seizure_date:                  form.s2.last_seizure_date || undefined,
-        seizure_description:                form.s2.seizure_description || undefined,
-        // Other health flags
-        has_neurostimulator:                (form.s2.has_neurostimulator === true || form.s2.has_neurostimulator === false) ? form.s2.has_neurostimulator : undefined,
-        // Mobility (from Section 4)
-        mobility_notes:                     form.s4.mobility_notes || undefined,
-      });
-
-      // ── Step 7c: Personal care plan (Section 6 — ADL fields) ─────────────
-      await createPersonalCarePlan(camperId, {
-        bathing_level:        form.s6.bathing_level || undefined,
-        bathing_notes:        form.s6.bathing_notes || undefined,
-        toileting_level:      form.s6.toileting_level || undefined,
-        toileting_notes:      form.s6.toileting_notes || undefined,
-        nighttime_toileting:  form.s6.nighttime_toileting || undefined,
-        nighttime_notes:      form.s6.nighttime_notes || undefined,
-        dressing_level:       form.s6.dressing_level || undefined,
-        dressing_notes:       form.s6.dressing_notes || undefined,
-        oral_hygiene_level:   form.s6.oral_hygiene_level || undefined,
-        oral_hygiene_notes:   form.s6.oral_hygiene_notes || undefined,
-        positioning_notes:    form.s6.positioning_notes || undefined,
-        sleep_notes:          form.s6.sleep_notes || undefined,
-        falling_asleep_issues:form.s6.falling_asleep_issues || undefined,
-        sleep_walking:        form.s6.sleep_walking || undefined,
-        night_wandering:      form.s6.night_wandering || undefined,
-        bowel_control_notes:  form.s6.bowel_control_notes || undefined,
-        irregular_bowel:      form.s6.irregular_bowel || undefined,
-        irregular_bowel_notes:form.s6.irregular_bowel_notes || undefined,
-        urinary_catheter:     form.s6.urinary_catheter || undefined,
-        menstruation_support: form.s6.menstruation_support || undefined,
-      });
-
-      // ── Step 8: Medications ───────────────────────────────────────────────
-      if (!form.s8.no_medications) {
-        for (const med of form.s8.medications) {
-          if (!med.name.trim()) continue;
-          await createMedication({
-            camper_id:             camperId,
-            name:                  med.name,
-            dosage:                med.dosage,
-            frequency:             med.frequency,
-            purpose:               med.reason || undefined,
-            prescribing_physician: med.physician || undefined,
-            notes: [
-              med.route         ? `Route: ${med.route}` : '',
-              med.self_admin    ? 'Self-administers' : '',
-              med.refrigeration ? 'Requires refrigeration' : '',
-              med.notes,
-            ].filter(Boolean).join('; ') || undefined,
-          });
-        }
-      }
-
-      // ── Step 9: Activity permissions ──────────────────────────────────────
-      // activity_name MUST be the canonical slug (sports_games, camp_out, etc.)
-      // so the backend completeness engine can find these rows. The controller
-      // upserts by (camper_id, activity_name) so retries are safe.
-      const activityMap: Record<keyof typeof form.s7, string> = {
-        sports_games: 'sports_games',
-        arts_crafts:  'arts_crafts',
-        nature:       'nature',
-        fine_arts:    'fine_arts',
-        swimming:     'swimming',
-        boating:      'boating',
-        camp_out:     'camp_out',
-      };
-      for (const [key, slug] of Object.entries(activityMap)) {
-        const entry = form.s7[key as keyof typeof form.s7];
-        if (!entry.level) continue;
-        await createActivityPermission({
-          camper_id:         camperId,
-          activity_name:     slug,
-          permission_level:  entry.level,
-          restriction_notes: entry.notes || undefined,
-        });
-      }
-
-      // ── Step 10: Create application record as a draft ────────────────────
-      // Backend defaults status='draft'. finalizeApplication() transitions to
-      // status='submitted' after a full completeness check on step 14.
-      const application = await createApplication({
-        camper_id:                        camperId,
-        session_id:                       Number(form.s1.session_id),
-        first_application:                form.s1.first_application || undefined,
-        attended_before:                  form.s1.attended_before || undefined,
-        session_id_second:                form.s1.session_id_2nd !== '' ? Number(form.s1.session_id_2nd) : undefined,
-        narrative_rustic_environment:     form.sn.narrative_rustic_environment || undefined,
-        narrative_staff_suggestions:      form.sn.narrative_staff_suggestions || undefined,
-        narrative_participation_concerns: form.sn.narrative_participation_concerns || undefined,
-        narrative_camp_benefit:           form.sn.narrative_camp_benefit || undefined,
-        narrative_heat_tolerance:         form.sn.narrative_heat_tolerance || undefined,
-        narrative_transportation:         form.sn.narrative_transportation || undefined,
-        narrative_additional_info:        form.sn.narrative_additional_info || undefined,
-        narrative_emergency_protocols:    form.sn.narrative_emergency_protocols || undefined,
-        // Preserve the audit trail when this is a reapplication.
-        ...(reappliedFromId ? { reapplied_from_id: reappliedFromId } : {}),
-      });
-      const applicationId = application.id;
-
-      // ── Step 11: Upload documents ─────────────────────────────────────────
-      // document_type slugs must match RequiredDocumentRuleSeeder values so
-      // DocumentEnforcementService can match uploaded docs against required rules.
-      // documentable_type is Application so both ApplicationController::show() and
-      // DocumentEnforcementService resolve them correctly when the admin reviews.
+      // ── Step 1: Upload required documents to the Application ─────────
       const docTypeSlugs: Record<string, string> = {
-        immunization:   'immunization_record',
-        medical_exam:   'official_medical_form', // must match RequiredDocumentRuleSeeder + ApplicantOfficialFormsPage
+        immunization: 'immunization_record',
+        medical_exam: 'official_medical_form',
         insurance_card: 'insurance_card',
-        cpap_waiver:    'cpap_waiver',
-        seizure_plan:   'seizure_action_plan',
-        gtube_plan:     'feeding_action_plan',
+        cpap_waiver: 'cpap_waiver',
+        seizure_plan: 'seizure_action_plan',
+        gtube_plan: 'feeding_action_plan',
       };
-      // Determine which conditional documents are actually applicable for this camper.
-      // If a condition was toggled off after a document was uploaded, the slot may
-      // still be non-null — this guard ensures we never submit documents for inactive
-      // conditions regardless of what remains in form state.
-      const activeConditionalDocs: Record<string, boolean> = {
-        cpap_waiver:  form.s4.devices.some((d) => d.device_type.includes('CPAP')),
+      const activeConditionals: Record<string, boolean> = {
+        cpap_waiver: form.s4.devices.some((d) => d.device_type.toLowerCase().includes('cpap')),
         seizure_plan: form.s2.has_seizures === true,
-        gtube_plan:   form.s5.g_tube === true,
+        gtube_plan: form.s5.g_tube === true,
       };
       for (const [key, slot] of Object.entries(form.s9)) {
         if (!slot) continue;
-        if (key in activeConditionalDocs && !activeConditionalDocs[key]) continue;
+        if (key in activeConditionals && !activeConditionals[key]) continue;
+        // Files are now uploaded immediately on selection (Section 9 wiring
+        // calls uploadDocument + submitDocument and stores the resulting
+        // documentId on the slot). Skip anything already in the backend so
+        // we don't create duplicate rows of the same document_type.
+        if (slot.documentId) continue;
         const file = docFilesRef.current[key];
         if (!file) continue;
         const fd = new FormData();
@@ -5596,71 +5190,39 @@ export function ApplicationFormPage() {
         fd.append('documentable_type', 'App\\Models\\Application');
         fd.append('documentable_id', String(applicationId));
         fd.append('document_type', docTypeSlugs[key] ?? key);
-        // pass exam date for official_medical_form so backend can set expiration_date
         if (key === 'medical_exam' && form.s2.date_of_medical_exam) {
           fd.append('exam_date', form.s2.date_of_medical_exam);
         }
-        // Upload as a draft only. The finalize() call at step 14 cascades
-        // submitted_at to every draft document attached to this application
-        // in a single atomic transaction. Submitting docs here (before
-        // finalize) would leave a window where the docs appear in the admin
-        // queue while the application is still is_draft=true — the exact
-        // leak that exposed staging PHI on /admin/documents.
+        // Upload as draft; finalize() (called at the end of handleSubmit)
+        // atomically promotes every draft-linked Application doc to
+        // submitted in one transaction. Calling submitDocument here would
+        // 422 with parent_application_is_draft.
         await uploadDocument(fd);
       }
 
-      // ── Step 12: Sign application ─────────────────────────────────────────
-      // For typed signatures the signature_data is the typed name itself.
-      // For drawn signatures it is the base64-encoded PNG captured from the canvas.
-      const signatureData = form.s10.signature_type === 'drawn' && form.s10.signature_data
-        ? form.s10.signature_data
-        : form.s10.signed_name;
-      await signApplication(applicationId, form.s10.signed_name, signatureData);
+      // ── Steps 2 & 3: Sign + 7 consent records ────────────────────────
+      // handleRequestSubmit already wrote these idempotently (sign uses
+      // overwrite-on-draft semantics, storeConsents uses updateOrCreate),
+      // but call again as a safety net for any path that reaches
+      // handleSubmit without going through the pre-submit review modal.
+      await persistSignatureAndConsents();
 
-      // ── Step 13: Store consent records ────────────────────────────────────
-      // All 7 CYSHCN consent types are persisted as separate signed records with
-      // the guardian's name, relationship, and signature. storeConsents uses
-      // updateOrCreate on the backend so this step is safe to retry.
-      const guardianSignature = signatureData;
-      const guardianName = form.s10.signed_name;
-      const guardianRelationship = form.s1.g1_relationship || 'Guardian';
-      const signedAt = form.s10.signed_date
-        ? new Date(form.s10.signed_date).toISOString()
-        : new Date().toISOString();
-
-      await storeConsents(applicationId, [
-        { consent_type: 'general',       guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-        { consent_type: 'photos',        guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-        { consent_type: 'liability',     guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-        { consent_type: 'activity',      guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-        { consent_type: 'authorization', guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-        { consent_type: 'medication',    guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-        { consent_type: 'hipaa',         guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: guardianSignature, signed_at: signedAt },
-      ]);
-
-      // ── Step 14: Finalize — the official submission gate ─────────────────
-      // Runs the full backend completeness check (camper fields, documents,
-      // consents) and atomically marks the application as submitted. If any
-      // required data is missing the endpoint returns 422 with a structured
-      // report that we use to guide the applicant back to the exact problem.
+      // ── Step 4: Finalize — backend completeness gate + atomic submit ─
       await finalizeApplication(applicationId);
 
-      // ── Success ───────────────────────────────────────────────────────────
+      // ── Success ──────────────────────────────────────────────────────
       setFinalizationErrors(null);
-      pendingCamperIdRef.current = null;
-      sessionStorage.removeItem(pendingCamperKey);
       toast.dismiss(tid);
       toast.success(t('applicant.form.submit_success'));
       sessionStorage.removeItem(draftKey);
-      // Delete the server draft now that the real application record exists
       if (serverDraftId) await apiDeleteDraft(serverDraftId).catch(() => {});
       navigate(ROUTES.PARENT_APPLICATIONS);
 
     } catch (err: unknown) {
       toast.dismiss(tid);
 
-      // Structured finalization error — the backend rejected the submission with
-      // a detailed list of what is missing. Surface section-level guidance.
+      // Structured finalize 422 — backend rejected with per-field detail.
+      // Surface section-level guidance and navigate the parent to the gap.
       const apiErr = err as {
         message?: string;
         errors?: Record<string, string[]>;
@@ -5677,8 +5239,7 @@ export function ApplicationFormPage() {
         };
         setFinalizationErrors(gaps);
 
-        // Navigate to the first section that has an error.
-        let targetSection = 10; // default to consents
+        let targetSection = 10;
         let targetFieldKey: string | undefined;
         if (gaps.documents.length > 0) targetSection = 9;
         if (gaps.fields.length > 0) {
@@ -5689,7 +5250,6 @@ export function ApplicationFormPage() {
           targetFieldKey = sorted[0].key;
         }
         goToStep(targetSection);
-        // Wait one animation frame for React to render the target section before scrolling.
         requestAnimationFrame(() => {
           const domId = targetFieldKey ? FINALIZATION_FIELD_TO_DOM_ID[targetFieldKey] : undefined;
           const el = domId ? document.getElementById(domId) : null;
@@ -5703,12 +5263,8 @@ export function ApplicationFormPage() {
         return;
       }
 
-      // Generic error (network failure, unexpected 5xx, etc.)
-      const firstFieldError = apiErr.errors
-        ? Object.values(apiErr.errors).flat()[0]
-        : undefined;
-      const msg = firstFieldError ?? apiErr.message ?? t('applicant.form.submit_error');
-      toast.error(msg);
+      const firstFieldError = apiErr.errors ? Object.values(apiErr.errors).flat()[0] : undefined;
+      toast.error(firstFieldError ?? apiErr.message ?? t('applicant.form.submit_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -5791,15 +5347,36 @@ export function ApplicationFormPage() {
               </span>
             )}
             {!isSaving && flushError && (
-              <span
-                className="flex items-center gap-1.5 text-xs"
+              <button
+                type="button"
+                onClick={() => {
+                  // True retry: re-run the flush for the section the parent
+                  // is currently editing. flushSection internally awaits
+                  // any prior in-flight promise and updates validation on
+                  // success. Per silent-failure-hunter finding 5 (2026-04-22).
+                  setFlushError(null);
+                  setIsSaving(true);
+                  void (async () => {
+                    try {
+                      await flushSection(currentStep);
+                      setLastSavedAt(new Date());
+                    } catch (err) {
+                      const message = err instanceof Error ? err.message : 'Save failed';
+                      setFlushError(message);
+                    } finally {
+                      setIsSaving(false);
+                      await refetchValidation();
+                    }
+                  })();
+                }}
+                className="flex items-center gap-1.5 text-xs underline hover:no-underline"
                 style={{ color: '#b91c1c' }}
                 role="alert"
                 title={flushError}
               >
                 <AlertCircle className="h-3 w-3" />
-                Save failed — check connection
-              </span>
+                Save failed — click to retry
+              </button>
             )}
             <Button
               onClick={handleSaveDraft}
@@ -6189,7 +5766,88 @@ export function ApplicationFormPage() {
                   hasSeizures={form.s2.has_seizures === true}
                   hasGtube={form.s5.g_tube === true}
                   onChange={(patch) => updateSection('s9', patch)}
-                  onFileSelect={(key, file) => { docFilesRef.current[key] = file; }}
+                  onFileSelect={async (key, file, slot) => {
+                    // Keep the File in the ref so the legacy submit-time
+                    // upload path still works as a fallback if the immediate
+                    // upload below fails for some reason.
+                    docFilesRef.current[key] = file;
+                    if (!applicationId || !slot) return;
+
+                    // Frontend → backend document_type slug map. Mirrors the
+                    // map in handleSubmit's submit-time upload waterfall.
+                    const docTypeSlugs: Record<string, string> = {
+                      immunization:   'immunization_record',
+                      medical_exam:   'official_medical_form',
+                      insurance_card: 'insurance_card',
+                      cpap_waiver:    'cpap_waiver',
+                      seizure_plan:   'seizure_action_plan',
+                      gtube_plan:     'feeding_action_plan',
+                    };
+
+                    // If a previous upload exists for this slot (parent is
+                    // replacing the file), remove the old backend row first
+                    // so the engine doesn't see two documents of the same
+                    // type. Best-effort — failure here doesn't block the new
+                    // upload.
+                    const existing = form.s9[key as keyof FormState['s9']];
+                    if (existing?.documentId) {
+                      try { await deleteDocument(existing.documentId); }
+                      catch { /* surface in next refetchValidation */ }
+                    }
+
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    fd.append('documentable_type', 'App\\Models\\Application');
+                    fd.append('documentable_id', String(applicationId));
+                    fd.append('document_type', docTypeSlugs[key] ?? key);
+                    if (key === 'medical_exam' && form.s2.date_of_medical_exam) {
+                      fd.append('exam_date', form.s2.date_of_medical_exam);
+                    }
+
+                    try {
+                      const doc = await uploadDocument(fd);
+                      // Intentionally NOT calling submitDocument(doc.id):
+                      //   - The backend rejects draft-linked submissions
+                      //     (DocumentController::submit guard, returns 422
+                      //     parent_application_is_draft) — that gate is
+                      //     deliberate; finalize() is the only path that
+                      //     atomically flips submitted_at on draft docs.
+                      //   - The engine still counts these uploads thanks
+                      //     to the documentBreakdown(...) fix that always
+                      //     passes $app to checkCompliance, which bypasses
+                      //     the submitted_at filter for THIS application.
+                      // So: leave as draft, the pill goes green anyway,
+                      // finalize() promotes the docs at submit time.
+                      updateSection('s9', { [key]: { ...slot, documentId: doc.id } } as Partial<FormState['s9']>);
+                      await refetchValidation();
+                    } catch (err) {
+                      // The axios response interceptor rejects with a plain
+                      // object ({ message, errors, ... }), not an Error
+                      // instance — so `err instanceof Error` is false even
+                      // when `err.message` is set. Read the field directly.
+                      const errObj = err as { message?: string; errors?: Record<string, string[]> };
+                      const validation = errObj.errors
+                        ? Object.values(errObj.errors).flat().join(' · ')
+                        : '';
+                      const msg = validation || errObj.message || 'Upload failed';
+                      // Log the raw rejection so the developer can see the
+                      // full structure in the console while we iterate.
+                      console.error('[doc upload] failed', { key, err });
+                      toast.error(`${slot.file_name}: ${msg}`);
+                      // Roll back the local slot — there's nothing in the
+                      // backend to point at, so don't pretend there is.
+                      updateSection('s9', { [key]: null } as Partial<FormState['s9']>);
+                      docFilesRef.current[key] = null;
+                    }
+                  }}
+                  onFileRemove={async (key) => {
+                    const existing = form.s9[key as keyof FormState['s9']];
+                    docFilesRef.current[key] = null;
+                    if (!existing?.documentId) return;
+                    try { await deleteDocument(existing.documentId); }
+                    catch { /* best-effort */ }
+                    if (applicationId) await refetchValidation();
+                  }}
                 />
               )}
               {currentStep === 10 && (

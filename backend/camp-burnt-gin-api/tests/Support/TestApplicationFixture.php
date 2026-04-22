@@ -92,17 +92,52 @@ class TestApplicationFixture
         }
     }
 
-    /** Timestamps for every data-or-review section the engine accepts. */
+    /**
+     * Per-application review timestamps for every data-bearing section the
+     * engine requires. Apply this to any draft fixture that is expected to
+     * pass the completeness gate — without it, sections that otherwise look
+     * complete (camper, health, personal_care, activities) now correctly
+     * report as "not yet reviewed for this application."
+     *
+     * Submitted applications don't need this set — the engine treats any
+     * non-draft application as implicitly reviewed to preserve historical
+     * records.
+     */
     public static function reviewedOptionalSections(): array
     {
         $ts = now()->toISOString();
 
         return [
+            'camper' => $ts,
+            'health' => $ts,
             'behavior' => $ts,
             'equipment' => $ts,
             'diet' => $ts,
+            'personal_care' => $ts,
+            'activities' => $ts,
             'medications' => $ts,
             'narratives' => $ts,
+        ];
+    }
+
+    /**
+     * Explicit "nothing to declare" attestations for the four hybrid
+     * sections (behavior, equipment, diet, medications). The completeness
+     * engine treats these as complete-when-empty only if the parent has
+     * affirmatively attested — separate from "did the parent visit the
+     * section". Apply alongside reviewedOptionalSections() on any draft
+     * fixture that does not provide actual behavior/diet/medication data.
+     *
+     * Submitted (non-draft) applications don't need this — the engine
+     * implicitly accepts any non-draft as attested to preserve history.
+     */
+    public static function attestedOptionalSections(): array
+    {
+        return [
+            'behavior' => true,
+            'equipment' => true,
+            'diet' => true,
+            'medications' => true,
         ];
     }
 

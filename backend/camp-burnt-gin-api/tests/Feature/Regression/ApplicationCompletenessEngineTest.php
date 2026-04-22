@@ -89,6 +89,7 @@ class ApplicationCompletenessEngineTest extends TestCase
             'signed_at' => now(),
             'signature_name' => 'Jane Parent',
             'sections_reviewed' => TestApplicationFixture::reviewedOptionalSections(),
+            'section_attestations' => TestApplicationFixture::attestedOptionalSections(),
         ]);
         TestApplicationFixture::attachConsents($app);
 
@@ -99,6 +100,207 @@ class ApplicationCompletenessEngineTest extends TestCase
         $this->assertTrue($result['is_valid']);
         $this->assertEmpty($result['blocking_issues']);
         $this->assertSame(100, $result['completion_percentage']);
+    }
+
+    // ── BUG-247: Phantom checkmarks on new draft for returning applicant ─────
+
+    /**
+     * Regression: a returning applicant who creates a brand-new draft
+     * application (against an existing Camper whose clinical relations
+     * carry over from a prior year) must NOT have any section reported
+     * as `is_complete=true` purely because that data exists on the
+     * Camper. The parent must explicitly review each section for THIS
+     * application, stamped via sections_reviewed.
+     *
+     * Before the fix: 8 of 11 sections showed is_complete=true on mount.
+     * The frontend then rendered green checkmarks next to Health,
+     * Behavior, Equipment, Diet, Personal Care, Activities, Medications,
+     * Narratives — with the parent having typed only a first/last name.
+     */
+    public function test_returning_applicant_fresh_draft_has_no_phantom_section_completeness(): void
+    {
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
+        // Camper carries over all clinical data from a prior application year.
+        TestApplicationFixture::buildCamperMinimum($camper);
+        TestApplicationFixture::attachRequiredDocuments($camper);
+
+        $session = CampSession::factory()->create(['is_active' => true]);
+        // Fresh draft — signed_at set and consents attached (so those are
+        // NOT the gating signal), but sections_reviewed is empty.
+        $app = Application::factory()->draft()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'signed_at' => now(),
+            'signature_name' => 'Jane Parent',
+            'sections_reviewed' => null,
+        ]);
+        TestApplicationFixture::attachConsents($app);
+
+        $result = $this->engine()->evaluate($app->fresh());
+
+        // Every data-bearing section must report NOT complete — the parent
+        // hasn't confirmed this year's data yet, even though the Camper has
+        // populated rows from last year's submission.
+        $reviewRequired = [
+            'camper', 'health', 'behavior', 'equipment', 'diet',
+            'personal_care', 'activities', 'medications', 'narratives',
+        ];
+        foreach ($reviewRequired as $section) {
+            $this->assertFalse(
+                $result['sections'][$section]['is_complete'],
+                "Section '{$section}' must NOT be complete before the parent stamps sections_reviewed. "
+                    .'Otherwise returning applicants see phantom green checkmarks on new drafts.'
+            );
+        }
+        // Documents and consents have been attached — they should be complete
+        // in this scenario. If either is unexpectedly false here it means the
+        // test fixture drifted or the engine regressed (e.g., documents was
+        // added to REVIEW_REQUIRED_SECTIONS by mistake).
+        $this->assertTrue(
+            $result['sections']['documents']['is_complete'],
+            'Documents section must be complete when all required docs are attached.'
+        );
+        $this->assertTrue(
+            $result['sections']['consents']['is_complete'],
+            'Consents section must be complete when all 7 consent records are attached.'
+        );
+        // State cannot be READY.
+        $this->assertNotSame('READY', $result['state']);
+        $this->assertFalse($result['is_complete']);
+    }
+
+    /**
+     * Regression: even a brand-new Camper stub with an empty FeedingPlan
+     * row (auto-created by initializeDraft PATH B) must NOT mark the diet
+     * section complete. Before the fix, the rule was `$hasData = $fp !== null`
+     * — presence of the zero-field stub was enough to flip diet to green.
+     */
+    public function test_empty_feeding_plan_stub_does_not_complete_diet_section(): void
+    {
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
+        // Auto-create an EMPTY feeding plan like initializeDraft does.
+        $camper->feedingPlan()->create([]);
+
+        $session = CampSession::factory()->create(['is_active' => true]);
+        $app = Application::factory()->draft()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+            'sections_reviewed' => null,
+        ]);
+
+        $result = $this->engine()->evaluate($app->fresh());
+
+        $this->assertFalse(
+            $result['sections']['diet']['is_complete'],
+            'Diet section must not be complete merely because a zero-field FeedingPlan stub exists.'
+        );
+    }
+
+    /**
+     * Regression: a parent who uploads every required document to their
+     * DRAFT application's polymorphic must see the Documents section
+     * report is_complete=true — without having to finalize first.
+     *
+     * Before the fix: documentBreakdown() passed `null` (not the application)
+     * to checkCompliance() unless the caller was the finalize flow. As a
+     * result, getUploadedDocuments filtered application-attached docs by
+     * `status != 'draft' AND submitted_at IS NOT NULL` and could not see
+     * the parent's draft uploads. The Documents pill stayed black until
+     * the moment of finalize, even though every required PDF was on file.
+     *
+     * The legacy test fixture attaches docs to the Camper polymorphic
+     * (always counted regardless of forFinalization) — that is why
+     * existing happy-path tests passed despite this bug. This test uses
+     * the Application polymorphic (the post-BUG-198 primary path).
+     *
+     * The docs are attached as DRAFTS (submitted_at = null) — that is
+     * the actual on-disk shape during the parent's draft phase. The
+     * DocumentController::submit endpoint forbids independently flipping
+     * submitted_at on draft-Application-linked docs (only finalize() may
+     * cascade-promote them), so the engine MUST be able to count drafts
+     * for the parent's own validation refresh.
+     */
+    public function test_documents_attached_to_draft_application_count_for_completeness(): void
+    {
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
+        $session = CampSession::factory()->create(['is_active' => true]);
+        $app = Application::factory()->draft()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+        ]);
+
+        // Attach the three universal required documents to the DRAFT
+        // application's polymorphic, deliberately as drafts — finalize()
+        // is the only path allowed to set submitted_at on these rows.
+        $types = ['official_medical_form', 'immunization_record', 'insurance_card'];
+        foreach ($types as $type) {
+            Document::create([
+                'documentable_type' => Application::class,
+                'documentable_id' => $app->id,
+                'document_type' => $type,
+                'original_filename' => $type.'.pdf',
+                'stored_filename' => $type.'.pdf',
+                'path' => 'documents/'.$type.'.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size' => 1024,
+                'uploaded_by' => $parent->id,
+                'submitted_at' => null,
+                'is_verified' => false,
+                'verification_status' => 'pending',
+                'expiration_date' => $type === 'official_medical_form' ? now()->addYear() : null,
+                'exam_date' => $type === 'official_medical_form' ? now()->subMonth() : null,
+            ]);
+        }
+
+        $result = $this->engine()->evaluate($app->fresh());
+
+        $this->assertTrue(
+            $result['sections']['documents']['is_complete'],
+            'Documents section must be complete when every required doc is '
+                .'uploaded to the draft application — even though the '
+                .'application itself is still draft. Otherwise the parent '
+                .'never sees the Documents pill go green until they finalize.'
+        );
+        $this->assertEmpty(
+            $result['documents']['missing'],
+            'No required document type should appear in the missing list.'
+        );
+    }
+
+    /**
+     * Regression: ApplicationController::update() must MERGE the
+     * sections_reviewed JSON patch with any existing map, not replace it.
+     * Before the fix, sequential PATCH calls with different section keys
+     * silently erased each other's stamps — so a parent who marked behavior
+     * reviewed, then diet reviewed, would end up with only diet stamped.
+     */
+    public function test_sections_reviewed_is_merged_across_updates(): void
+    {
+        $parent = $this->createParent();
+        $camper = Camper::factory()->forUser($parent)->create();
+        $session = CampSession::factory()->create(['is_active' => true]);
+        $app = Application::factory()->draft()->create([
+            'camper_id' => $camper->id,
+            'camp_session_id' => $session->id,
+        ]);
+
+        $this->actingAs($parent)
+            ->patchJson("/api/applications/{$app->id}", [
+                'sections_reviewed' => ['behavior' => '2026-04-21T10:00:00Z'],
+            ])->assertOk();
+
+        $this->actingAs($parent)
+            ->patchJson("/api/applications/{$app->id}", [
+                'sections_reviewed' => ['diet' => '2026-04-21T10:05:00Z'],
+            ])->assertOk();
+
+        $merged = $app->fresh()->sections_reviewed;
+
+        $this->assertSame('2026-04-21T10:00:00Z', $merged['behavior'] ?? null);
+        $this->assertSame('2026-04-21T10:05:00Z', $merged['diet'] ?? null);
     }
 
     // ── Submitted application retains SUBMITTED state even with drift ────────
@@ -140,29 +342,48 @@ class ApplicationCompletenessEngineTest extends TestCase
 
     // ── Paper app: signature+consents relaxed, section fields still required ─
 
-    public function test_paper_app_bypasses_signature_and_consents_but_still_requires_section_data(): void
+    /**
+     * Regression: paper-self submission with packet on file is fully complete.
+     *
+     * The paper UX has no UI for the parent to enter camper / health /
+     * behavior / etc. data — the whole flow is "scan the packet, upload it,
+     * done." The engine therefore short-circuits every section to complete
+     * once the packet is on file. Admin transcribes via Admin Edit
+     * Application before approval; the IncompleteApprovalModal is the
+     * "transcription hole" guard at the approval gate.
+     *
+     * Before the paper-form audit fix, this test asserted the OPPOSITE —
+     * that section data must be present even for paper apps. That contract
+     * was never deliverable in production: the paper page has no section
+     * editor, so every paper-self finalize rejected with a generic
+     * "Application is incomplete" toast. The test name and assertions were
+     * inverted to match the actual UX.
+     */
+    public function test_paper_app_with_packet_is_fully_complete(): void
     {
         $parent = $this->createParent();
+        // Bare-minimum camper — only the fields the paper Step 0 collects.
         $camper = Camper::factory()->forUser($parent)->create([
-            'first_name' => 'Athena', 'last_name' => 'Wicker',
-            'date_of_birth' => '2015-01-01', 'gender' => 'female',
-            'tshirt_size' => 'Youth M', 'county' => 'Richland',
+            'first_name' => 'Athena',
+            'last_name' => 'Wicker',
+            'date_of_birth' => '2015-01-01',
+            // Intentionally NO gender, tshirt_size, county, EC, medical record,
+            // diagnoses, etc. — the parent never had a UI for these.
+            'gender' => null,
+            'tshirt_size' => null,
+            'county' => null,
         ]);
-        $camper->emergencyContacts()->create([
-            'name' => 'Jane', 'relationship' => 'Mother', 'phone_primary' => '5555',
-        ]);
-        $camper->medicalRecord()->create([]);
 
         $session = CampSession::factory()->create(['is_active' => true]);
-        $app = Application::factory()->create([
+        $app = Application::factory()->draft()->create([
             'camper_id' => $camper->id,
             'camp_session_id' => $session->id,
-            'status' => ApplicationStatus::Submitted,
-            'submitted_at' => now(),
             'submission_source' => \App\Enums\SubmissionSource::PaperSelf,
         ]);
 
-        // Packet on file — substitutes for digital signature+consents.
+        // Packet on file as a draft (this engine path runs at finalize time
+        // before submitted_at flips on the doc — see paperPacketOnFile's
+        // $forFinalization branch).
         Document::create([
             'documentable_type' => Application::class,
             'documentable_id' => $app->id,
@@ -170,18 +391,26 @@ class ApplicationCompletenessEngineTest extends TestCase
             'original_filename' => 'packet.pdf', 'stored_filename' => 'packet.pdf',
             'path' => 'documents/packet.pdf', 'mime_type' => 'application/pdf',
             'file_size' => 1024, 'uploaded_by' => $parent->id,
-            'submitted_at' => now(), 'is_verified' => true,
-            'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
+            'submitted_at' => null,
+            'is_verified' => false,
+            'verification_status' => \App\Enums\DocumentVerificationStatus::Pending,
         ]);
 
-        $result = $this->engine()->evaluate($app->fresh());
+        $result = $this->engine()->evaluate($app->fresh(), forFinalization: true);
 
         $this->assertTrue($result['paper_substitutes_digital']);
-        // Signature + consents slot is satisfied.
-        $this->assertEmpty($result['missing_consents']);
-        // But section-field gaps still show up (no diagnoses, no ADL plan, etc.).
-        $this->assertFalse($result['sections']['health']['is_complete']);
-        $this->assertFalse($result['sections']['personal_care']['is_complete']);
+        $this->assertTrue($result['is_complete']);
+        $this->assertEmpty($result['blocking_issues']);
+        // Every section reports complete — admin will transcribe missing
+        // fields via Admin Edit before approval.
+        foreach (['camper', 'health', 'behavior', 'equipment', 'diet',
+            'personal_care', 'activities', 'medications', 'narratives',
+            'documents', 'consents'] as $section) {
+            $this->assertTrue(
+                $result['sections'][$section]['is_complete'],
+                "Section '{$section}' must be complete for a paper-self app with packet on file."
+            );
+        }
     }
 
     // ── Conditional rules fire regardless of review sentinel ─────────────────

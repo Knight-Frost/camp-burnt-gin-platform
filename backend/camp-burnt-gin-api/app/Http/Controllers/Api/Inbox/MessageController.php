@@ -104,8 +104,14 @@ class MessageController extends Controller
 
         $validated = $request->validate([
             'body' => 'required|string|max:65535',
+            // DEPRECATED inline uploads. Kept as a valid input so legacy compose
+            // UIs keep working; new code should use attached_document_ids instead.
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            // Phase 2: reference existing Documents by id. Each id is authorized
+            // through ConversationPolicy::attachDocument inside the service.
+            'attached_document_ids' => 'nullable|array|max:10',
+            'attached_document_ids.*' => 'integer|exists:documents,id',
             'idempotency_key' => 'nullable|string|max:64',
             // Optional typed recipients. Each entry must have user_id + type.
             'recipients' => 'nullable|array|max:20',
@@ -125,16 +131,26 @@ class MessageController extends Controller
                 $validated['body'],
                 $validated['attachments'] ?? [],
                 $validated['idempotency_key'] ?? null,
-                $recipients
+                $recipients,
+                null,
+                null,
+                $validated['attached_document_ids'] ?? []
             );
 
-            $message->load(['sender', 'attachments', 'recipients.user']);
+            $message->load(['sender', 'attachments', 'attachedDocuments', 'recipients.user']);
 
             return response()->json([
                 'success' => true,
                 'data' => $this->shapeMessage($message, $request->user()),
                 'message' => 'Message sent successfully',
             ], 201);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            // Attachment authorization failure — surface as 403 so the frontend
+            // can differentiate "bad file" (422) from "not allowed" (403).
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -160,6 +176,8 @@ class MessageController extends Controller
             'parent_message_id' => 'required|integer|exists:messages,id',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            'attached_document_ids' => 'nullable|array|max:10',
+            'attached_document_ids.*' => 'integer|exists:documents,id',
         ]);
 
         // Load the parent message and verify it belongs to this conversation
@@ -173,16 +191,22 @@ class MessageController extends Controller
                 $parentMessage,
                 $request->user(),
                 $validated['body'],
-                $validated['attachments'] ?? []
+                $validated['attachments'] ?? [],
+                $validated['attached_document_ids'] ?? []
             );
 
-            $message->load(['sender', 'attachments', 'recipients.user']);
+            $message->load(['sender', 'attachments', 'attachedDocuments', 'recipients.user']);
 
             return response()->json([
                 'success' => true,
                 'data' => $this->shapeMessage($message, $request->user()),
                 'message' => 'Reply sent successfully',
             ], 201);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -208,6 +232,8 @@ class MessageController extends Controller
             'parent_message_id' => 'required|integer|exists:messages,id',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|max:10240|mimes:pdf,jpeg,png,gif,doc,docx',
+            'attached_document_ids' => 'nullable|array|max:10',
+            'attached_document_ids.*' => 'integer|exists:documents,id',
         ]);
 
         $parentMessage = Message::where('id', $validated['parent_message_id'])
@@ -220,16 +246,22 @@ class MessageController extends Controller
                 $parentMessage,
                 $request->user(),
                 $validated['body'],
-                $validated['attachments'] ?? []
+                $validated['attachments'] ?? [],
+                $validated['attached_document_ids'] ?? []
             );
 
-            $message->load(['sender', 'attachments', 'recipients.user']);
+            $message->load(['sender', 'attachments', 'attachedDocuments', 'recipients.user']);
 
             return response()->json([
                 'success' => true,
                 'data' => $this->shapeMessage($message, $request->user()),
                 'message' => 'Reply All sent successfully',
             ], 201);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -252,7 +284,7 @@ class MessageController extends Controller
         Gate::authorize('view', $message);
 
         // Eager-load relationships needed to render the full message view
-        $message->load(['sender', 'attachments', 'recipients.user']);
+        $message->load(['sender', 'attachments', 'attachedDocuments', 'recipients.user']);
 
         // Mark as read — creates a MessageRead record if one doesn't already exist
         $this->messageService->markAsRead($message, $request->user());
@@ -438,8 +470,12 @@ class MessageController extends Controller
             'reply_type' => $message->reply_type,
             'created_at' => $message->created_at?->toISOString(),
             'recipients' => $recipients,
+            // Unified attachments: legacy inline (documents.message_id FK) +
+            // Phase 2 references (message_document_links). Deduped by id so
+            // the client sees a single list regardless of how each doc got
+            // attached.
             'attachments' => MessageAttachmentResource::collection(
-                $message->attachments ?? collect()
+                $message->allAttachments()
             )->resolve(),
         ];
     }

@@ -211,19 +211,25 @@ export async function getMessages(conversationId: number, params?: { page?: numb
 /**
  * Send a new message in a conversation.
  *
- * @param conversationId  Target conversation
- * @param body            HTML body
- * @param attachments     Optional files (triggers multipart upload)
- * @param recipients      Optional TO/CC/BCC entries. When sent with files, recipients are
- *                        serialised as a JSON string in `recipients_json` (FormData limitation).
+ * @param conversationId         Target conversation
+ * @param body                   HTML body
+ * @param attachments            Optional files (DEPRECATED path — triggers multipart upload).
+ *                               New code should upload to /documents first and pass IDs via
+ *                               attachedDocumentIds instead.
+ * @param recipients             Optional TO/CC/BCC entries.
+ * @param idempotencyKey         Client-generated UUID for idempotency.
+ * @param attachedDocumentIds    Phase 2: IDs of existing Documents to reference as attachments
+ *                               via the server-side message_document_links pivot. Unlike
+ *                               `attachments`, no file upload happens — the documents already
+ *                               exist in the Documents module.
  */
 export async function sendMessage(
   conversationId: number,
   body: string,
   attachments?: File[],
   recipients?: RecipientEntry[],
-  /** Client-generated UUID for idempotency — reuse the same key on retries to avoid duplicates. */
   idempotencyKey?: string,
+  attachedDocumentIds?: number[],
 ): Promise<Message> {
   // Use a provided key or generate one; passing to the server ensures retries are safe
   const key = idempotencyKey ?? (typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -237,6 +243,9 @@ export async function sendMessage(
       // FormData cannot send nested objects, so serialise recipients as JSON string
       form.append('recipients_json', JSON.stringify(recipients));
     }
+    if (attachedDocumentIds && attachedDocumentIds.length > 0) {
+      attachedDocumentIds.forEach((id) => form.append('attached_document_ids[]', String(id)));
+    }
     const { data } = await axiosInstance.post<ApiResponse<Message>>(
       `/inbox/conversations/${conversationId}/messages`,
       form,
@@ -247,6 +256,9 @@ export async function sendMessage(
   const payload: Record<string, unknown> = { body, idempotency_key: key };
   if (recipients && recipients.length > 0) {
     payload['recipients'] = recipients;
+  }
+  if (attachedDocumentIds && attachedDocumentIds.length > 0) {
+    payload['attached_document_ids'] = attachedDocumentIds;
   }
 
   const { data } = await axiosInstance.post<ApiResponse<Message>>(
@@ -266,12 +278,16 @@ export async function replyToMessage(
   parentMessageId: number,
   body: string,
   attachments?: File[],
+  attachedDocumentIds?: number[],
 ): Promise<Message> {
   if (attachments && attachments.length > 0) {
     const form = new FormData();
     form.append('body', body);
     form.append('parent_message_id', String(parentMessageId));
     attachments.forEach((file) => form.append('attachments[]', file));
+    if (attachedDocumentIds && attachedDocumentIds.length > 0) {
+      attachedDocumentIds.forEach((id) => form.append('attached_document_ids[]', String(id)));
+    }
     const { data } = await axiosInstance.post<ApiResponse<Message>>(
       `/inbox/conversations/${conversationId}/reply`,
       form,
@@ -279,9 +295,13 @@ export async function replyToMessage(
     return data.data;
   }
 
+  const payload: Record<string, unknown> = { body, parent_message_id: parentMessageId };
+  if (attachedDocumentIds && attachedDocumentIds.length > 0) {
+    payload['attached_document_ids'] = attachedDocumentIds;
+  }
   const { data } = await axiosInstance.post<ApiResponse<Message>>(
     `/inbox/conversations/${conversationId}/reply`,
-    { body, parent_message_id: parentMessageId },
+    payload,
   );
   return data.data;
 }
@@ -297,12 +317,16 @@ export async function replyAllToMessage(
   parentMessageId: number,
   body: string,
   attachments?: File[],
+  attachedDocumentIds?: number[],
 ): Promise<Message> {
   if (attachments && attachments.length > 0) {
     const form = new FormData();
     form.append('body', body);
     form.append('parent_message_id', String(parentMessageId));
     attachments.forEach((file) => form.append('attachments[]', file));
+    if (attachedDocumentIds && attachedDocumentIds.length > 0) {
+      attachedDocumentIds.forEach((id) => form.append('attached_document_ids[]', String(id)));
+    }
     const { data } = await axiosInstance.post<ApiResponse<Message>>(
       `/inbox/conversations/${conversationId}/reply-all`,
       form,
@@ -310,9 +334,13 @@ export async function replyAllToMessage(
     return data.data;
   }
 
+  const payload: Record<string, unknown> = { body, parent_message_id: parentMessageId };
+  if (attachedDocumentIds && attachedDocumentIds.length > 0) {
+    payload['attached_document_ids'] = attachedDocumentIds;
+  }
   const { data } = await axiosInstance.post<ApiResponse<Message>>(
     `/inbox/conversations/${conversationId}/reply-all`,
-    { body, parent_message_id: parentMessageId },
+    payload,
   );
   return data.data;
 }

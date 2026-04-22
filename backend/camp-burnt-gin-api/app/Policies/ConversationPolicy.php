@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Conversation;
+use App\Models\Document;
 use App\Models\User;
 
 /**
@@ -186,6 +187,49 @@ class ConversationPolicy
         }
 
         return true;
+    }
+
+    /**
+     * Can the user attach an existing Document to a message in this conversation?
+     *
+     * This gate is called once per (message, document) pair when a message
+     * is being sent with `attached_document_ids` populated. Phase 2 replaces
+     * the fake "Document: filename" text-only flow with real linkage — this
+     * policy is what prevents a client from passing arbitrary document IDs
+     * and leaking files into a conversation where the sender shouldn't have
+     * that access.
+     *
+     * The target invariant for Phase 2:
+     *
+     *   1. The sender must be able to view the conversation (they must be
+     *      a participant, or an admin). Implemented by reusing ::view.
+     *
+     *   2. The sender must be the uploader of the Document, or an admin.
+     *      Non-admins may only attach their own uploads — even if they
+     *      can technically "view" another user's doc (e.g. an admin
+     *      shared it with them), attaching someone else's file into a
+     *      new conversation is a fan-out vector we don't want.
+     *
+     *   3. No special handling for submitted vs draft vs archived docs.
+     *      If the sender owns it and can view the conversation, they may
+     *      attach it. (Archive status affects visibility in the Documents
+     *      module, not attachability.)
+     *
+     */
+    public function attachDocument(User $user, Conversation $conversation, Document $document): bool
+    {
+        // 1. Must be able to view the conversation in the first place.
+        if (! $this->view($user, $conversation)) {
+            return false;
+        }
+
+        // 2. Admins may attach any document within a conversation they view.
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // 3. Non-admins may only attach documents they uploaded themselves.
+        return $document->uploaded_by === $user->id;
     }
 
     /**

@@ -95,8 +95,6 @@ export interface AuthResponse {
   data?: {
     user: User;
     token: string;
-    /** False when SMTP failed during registration — user should use the resend button. */
-    email_sent?: boolean;
   };
 }
 

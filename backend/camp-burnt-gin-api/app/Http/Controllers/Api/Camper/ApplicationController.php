@@ -577,9 +577,31 @@ class ApplicationController extends Controller
             }
         }
 
+        // sections_reviewed is a JSON object keyed by section slug. Callers
+        // send partial patches ({ behavior: ts }) expecting a merge, but
+        // Laravel's default Model::update() REPLACES the whole JSON value —
+        // so a second patch for a different section would silently erase
+        // the first. Merge explicitly to preserve prior review stamps.
+        if (array_key_exists('sections_reviewed', $data) && is_array($data['sections_reviewed'])) {
+            $existing = $application->sections_reviewed ?? [];
+            $data['sections_reviewed'] = array_merge(
+                is_array($existing) ? $existing : [],
+                $data['sections_reviewed'],
+            );
+        }
+
         // Check if this is a "submit now" action on a previously saved draft.
         // Run the same completeness gate as finalize() — no bypass allowed.
+        // IMPORTANT: apply the sections_reviewed merge above BEFORE running
+        // the gate so a submit-in-one-request with fresh review stamps sees
+        // them rather than an empty array.
         if ($application->isDraft() && $request->has('submit') && $request->boolean('submit')) {
+            if (array_key_exists('sections_reviewed', $data)) {
+                // Flush the review stamps into the model instance so the
+                // completeness engine sees them during the pre-submit check.
+                $application->sections_reviewed = $data['sections_reviewed'];
+            }
+
             $report = $this->completenessService->check($application, forFinalization: true);
 
             if (! $report['is_complete']) {

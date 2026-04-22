@@ -45,6 +45,18 @@ class UpdateApplicationRequest extends FormRequest
         if ($this->has('session_id_second') && ! $this->has('camp_session_id_second')) {
             $this->merge(['camp_session_id_second' => $this->input('session_id_second')]);
         }
+
+        // Strip unknown keys from `sections_reviewed` before validation runs.
+        // The completeness engine only recognizes the nine canonical section
+        // slugs; any other key is noise and could pollute the JSON column.
+        if ($this->has('sections_reviewed') && is_array($this->input('sections_reviewed'))) {
+            $allowed = [
+                'camper', 'health', 'behavior', 'equipment', 'diet',
+                'personal_care', 'activities', 'medications', 'narratives',
+            ];
+            $filtered = array_intersect_key($this->input('sections_reviewed'), array_flip($allowed));
+            $this->merge(['sections_reviewed' => $filtered]);
+        }
     }
 
     /**
@@ -89,11 +101,31 @@ class UpdateApplicationRequest extends FormRequest
             $rules['submit'] = ['sometimes', 'boolean'];
         }
 
-        // Optional-section attestation timestamps — both roles may mark a section
-        // as "reviewed with nothing to declare" so the completeness engine accepts
-        // the data-or-review rule. JSON object keyed by section slug, values are ISO-8601.
+        // Per-application section-review attestation timestamps. Keyed by
+        // canonical section slug (camper, health, behavior, equipment, diet,
+        // personal_care, activities, medications, narratives) with ISO-8601
+        // datetime values. These are the completeness engine's gate for
+        // every data-bearing section — so validate strictly.
+        //
+        // - Unknown keys are rejected: without `Rule::in`, a parent could
+        //   accumulate junk keys in the JSON blob. Also prevents typos that
+        //   silently fail to satisfy the gate.
+        // - Values must parse as dates: without this, a string like "yes" or
+        //   any non-empty value satisfies `!empty($reviewed[$section])` in
+        //   the engine, letting a parent bypass every review gate in one
+        //   crafted PATCH without visiting any section.
         $rules['sections_reviewed'] = ['sometimes', 'nullable', 'array'];
-        $rules['sections_reviewed.*'] = ['string'];
+        $rules['sections_reviewed.*'] = ['string', 'date'];
+        $reviewableKeys = [
+            'camper', 'health', 'behavior', 'equipment', 'diet',
+            'personal_care', 'activities', 'medications', 'narratives',
+        ];
+        foreach ($reviewableKeys as $k) {
+            $rules["sections_reviewed.{$k}"] = ['sometimes', 'string', 'date'];
+        }
+        // Reject any unknown section keys. Laravel has no first-class "forbid
+        // unknown keys in this associative array" rule, so we validate the
+        // keyset in prepareForValidation below.
 
         return $rules;
     }

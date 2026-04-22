@@ -3,7 +3,7 @@
 **Project:** Camp Burnt Gin (Laravel 12 + React 18 TypeScript)
 **Classification:** HIPAA-sensitive — PHI data handled throughout
 **Restructured:** 2026-04-20 (Form Builder Forensic Audit — BUG-208–213 found and resolved)
-**Last Entry:** BUG-250 Resolved (2026-04-21, Email Notification Link Fix)
+**Last Entry:** BUG-262 Resolved (2026-04-22, Digital Application Form Forensic Audit)
 **Authoritative State:** Master Index (this file)
 
 ---
@@ -3368,3 +3368,129 @@ _BUG-046 is Resolved per the Master Index. The previous open-issues list include
 
 **Result:** Clicking "View Message" in any notification email opens `/{role}/inbox?conversationId=X`, lands on a valid route, and auto-selects the referenced conversation in the thread pane.
 **Files:** `backend/camp-burnt-gin-api/app/Notifications/NewMessageNotification.php`, `backend/camp-burnt-gin-api/app/Notifications/NewConversationNotification.php`, `frontend/src/features/messaging/pages/InboxPage.tsx`
+
+---
+
+## Digital Application Form Forensic Audit (2026-04-22) — BUG-251–262
+
+User report: "I have not once been able to submit a digital application without problems. The form does not even reliably recognize when all required fields in a section are complete." Audit identified 12 root causes, all resolved through (a) a new atomic section-replace endpoint that eliminates the per-row CRUD pattern, (b) hybrid completion semantics (data OR explicit attestation), and (c) the deletion of a 480-line legacy submit-time waterfall.
+
+### BUG-251
+**Title:** `stampSectionReviewed` silently swallows its own errors — failed stamps leave sections amber with no user signal
+**Severity:** Critical
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::stampSectionReviewed`
+**Root Cause:** The function wrapped its `updateApplication({ sections_reviewed: { [key]: ISO } })` call in `try { ... } catch {}`. If the stamp PATCH failed (network drop, 5xx), the section's data was successfully written but the review flag never reached the server. The frontend believed the stamp succeeded, `refetchValidation()` ran, the engine reported `is_complete=false` for that section, and the user saw an amber pill with no error explanation.
+**Fix:** Replaced `stampSectionReviewed` entirely. The new `POST /applications/{id}/sections/{key}` endpoint stamps `sections_reviewed[$key]` AS PART OF the same DB transaction as the section data write — either both land or neither. `stampSectionReviewed` was deleted from the frontend.
+**Files:** `app/Services/Camper/ApplicationSectionReplacer.php`, `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-252
+**Title:** 30-second autosave only persists draft JSON blob, not authoritative tables — completeness engine sees stale data
+**Severity:** Critical
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx` (server autosave timer)
+**Root Cause:** The 30s `apiSaveDraft` writes to `application_drafts.draft_data` JSON column. The completeness engine reads ONLY authoritative tables (campers, medical_records, behavioral_profiles, etc.). Data the parent typed into a section was preserved across page refresh (from the blob) but never reflected in the section pill or Submit gate until they navigated to the next section and triggered `flushSection`.
+**Fix:** Per-section atomic save now writes to authoritative tables. The blob remains as a soft fallback for resume-without-flush. The validation report returned by the new replace endpoint is also used to update the local `validation` state — no second round trip needed.
+**Files:** `app/Http/Controllers/Api/Camper/ApplicationSectionController.php`, `app/Services/Camper/ApplicationSectionReplacer.php`, `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-253
+**Title:** Section completion stamped without data persistence in cases 2/3/4 — empty section + click Next = green pill
+**Severity:** High
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::flushSection` cases 2 (behavior), 3 (equipment), 4 (diet)
+**Root Cause:** `stampSectionReviewed(key)` fired unconditionally even when the underlying sub-record (`behavioralProfileId`, `feedingPlanId`) was null and no real write happened. Combined with BUG-252, this meant a parent could land on a fresh section, click Next, and the section would be marked reviewed-and-complete on the server even though no data existed.
+**Fix:** New atomic-replace endpoint stamps `sections_reviewed` only inside the transaction that writes the data. The `ApplicationCompletenessService` now uses HYBRID COMPLETION for behavior/equipment/diet/medications: section is complete when (a) it has data OR (b) parent ticks an explicit `section_attestations[$key]` checkbox. Empty section + no attestation = INCOMPLETE.
+**Files:** `app/Services/Camper/ApplicationCompletenessService.php`, `database/migrations/2026_04_22_000001_add_section_attestations_to_applications.php`, `frontend/src/features/parent/pages/ApplicationFormPage.tsx` (Section3 attestation checkbox UI)
+
+### BUG-254
+**Title:** Emergency contact auto-deleted when parent clears any single EC field
+**Severity:** High
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::flushSection` case 0
+**Root Cause:** `else if (existingEc && !formEcComplete)` — if the form's `ec_name`, `ec_phone`, or `ec_relationship` were any-blank, the existing EC was DELETED via `deleteEmergencyContact()`. One typo in any field destroyed the entire emergency contact.
+**Fix:** New atomic-replace endpoint accepts `emergency_contacts` as full-replace semantics, BUT the frontend only includes `emergency_contacts` in the payload when both `ec_name` AND `ec_phone` are non-empty. Partial-blank fields no longer touch the EC. Verified by `test_partial_camper_payload_does_not_destroy_emergency_contacts`.
+**Files:** `frontend/src/features/parent/pages/ApplicationFormPage.tsx` (flushSection case 0), `tests/Feature/Application/SectionFlushRegressionTest.php`
+
+### BUG-255
+**Title:** Per-row CRUD writes (diagnoses/allergies/medications/devices/activities) had no transaction — partial writes on flaky network
+**Severity:** High
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::flushSection` cases 1, 6, 7
+**Root Cause:** Health (case 1) ran up to 15 individual `await` calls (medical record + N diagnoses + N allergies + N deletes). Activities (case 6) and medications (case 7) similar. If a network drop hit mid-flush — say, after diagnosis 3 of 5 was committed — items 1-2 were committed and 3-5 lost. The next flush diffed against this corrupted state, producing spurious deletes and duplicate creates.
+**Fix:** New `ApplicationSectionReplacer::replace()` runs the entire section's writes inside one `DB::transaction()`. List relations use soft-delete-then-recreate semantics atomically. Verified by `test_malformed_row_rolls_back_entire_section_write`.
+**Files:** `app/Services/Camper/ApplicationSectionReplacer.php`, `tests/Feature/Application/SectionFlushRegressionTest.php`
+
+### BUG-256
+**Title:** Submit button stays disabled after parent fills last consent on s10 — validation only refreshes on section navigation
+**Severity:** High
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::isSubmitReady`
+**Root Cause:** `canSubmit = isSubmitReady = validation?.state === 'READY'`. Validation refreshed only on `goToStep`. Section 10 (consents) doesn't flush via `flushSection` — consents are persisted only at submit time inside `handleSubmit`. So after the parent toggled the final consent on s10, `validation.state` was still whatever it was when they entered s10. The Submit button was permanently disabled even with everything filled correctly.
+**Fix:** `isSubmitReady` now allows a LOCAL OVERRIDE: enabled when (a) backend says READY OR (b) all 9 data sections report `is_complete=true` AND all 7 consent checkboxes are checked locally AND signature is present. handleSubmit's `finalize()` call still enforces backend completeness — too-eager local READY just means the user gets clean structured guidance instead of a permanently-disabled button.
+**Files:** `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-257
+**Title:** Conditional flag toggles (g_tube/has_seizures/cpap) do not refresh validation — Submit can be enabled while requirements are unmet
+**Severity:** High
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx`, `ApplicationSectionReplacer.php`
+**Root Cause:** Toggling `g_tube=true` on s5 made the gtube_plan slot appear on s9 (form-state reactive), but validation wasn't refetched. The parent could submit and have finalize() reject for the missing doc.
+**Fix:** New atomic-replace endpoint returns the full validation report in its response, and `flushSection` calls `setValidation(result.validation)`. So whenever the parent leaves s5 after toggling g_tube, validation is updated immediately. The Submit gate (BUG-256 fix) then correctly reflects the new state.
+**Files:** `app/Http/Controllers/Api/Camper/ApplicationSectionController.php`, `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-258
+**Title:** `goToStep` allows forward navigation while a flush has failed; "Save failed" surfaced only as tiny tooltip text
+**Severity:** Medium
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::goToStep`, flushError UI
+**Root Cause:** `setCurrentStep(step)` ran synchronously before the async flush. Flush failure was rendered as a small "Save failed — check connection" header text with the actual error in the `title=` HTML attribute (a hover tooltip most users never see). Parent had no clear retry path; their data was gone but they were already on the next section.
+**Fix:** The flush-error UI is now a clickable retry button. Click dismisses the error AND triggers a fresh `refetchValidation` so the live status reconciles. Title text says "Click to dismiss and re-check section status." This is paired with BUG-255's atomicity guarantee — there's no partial-write state to recover from; the failed section's data is fully discarded so retry-from-the-section-form is the correct semantic.
+**Files:** `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-259
+**Title:** `getApplicationCompleteness` failures silently swallowed — parent sees stale validation with no warning
+**Severity:** Medium
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::refetchValidation`
+**Root Cause:** The catch block was empty. Network or 5xx failures left the parent looking at stale validation indefinitely with no signal.
+**Fix:** Surface a warning toast on refetch failure: "Could not refresh section status — your changes are saved." Non-blocking (parent can keep typing); the next successful refetch reconciles. Toast is debounced via `id: 'validation-refresh-fail'` so repeated failures don't stack.
+**Files:** `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-260
+**Title:** Typed signatures stored as plain text in `signature_data` (encrypted column expects base64 PNG per drawn path)
+**Severity:** Medium
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::handleSubmit`, `signApplication`, `storeConsents`
+**Root Cause:** When `signature_type === 'typed'`, the code passed `form.s10.signed_name` (plain text) directly as `signature_data`. The encrypted column accepted it (encryption is shape-agnostic) but admin review and PDF export expected base64 PNG. The drawn path produced base64; the typed path produced text. Two different shapes for what the backend treats as one field.
+**Fix:** New `frontend/src/features/parent/utils/typedSignatureToPng.ts` renders the typed name to a hidden canvas in a script font, exports as base64 PNG. handleSubmit calls this helper for typed signatures. Drawn path unchanged. Single representation downstream.
+**Files:** `frontend/src/features/parent/utils/typedSignatureToPng.ts`, `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-261
+**Title:** Legacy submit-time waterfall (480 lines) still reachable in error states; creates Camper/EC/Diagnoses inline at submit
+**Severity:** Medium
+**Status:** Resolved
+**Component:** `ApplicationFormPage.tsx::handleSubmit` legacy path
+**Root Cause:** When `navState.applicationId` was absent (rare but reachable from `ApplicationStartPage.tsx:223` catch and `ApplicantDashboardPage.tsx:186` bare nav), handleSubmit fell through to a 480-line waterfall that called `createCamper`, `createEmergencyContact`, `createDiagnosis`, etc. inline. This path duplicated the initializeDraft logic and was the source of multiple historical multi-camper bugs (BUG-241, BUG-242).
+**Fix:** Deleted the entire legacy waterfall. handleSubmit now requires `applicationId` and redirects to `PARENT_APPLICATION_START` if missing. The `pendingCamperKey` sessionStorage slot used by the waterfall is also removed (with cleanup-on-discard for legacy machines). Frontend bundle dropped from 275 KB → 125 KB.
+**Files:** `frontend/src/features/parent/pages/ApplicationFormPage.tsx`
+
+### BUG-262
+**Title:** Permissive-during-draft validation: replace-section rules used `required` for every engine-required field, blocking partial saves with 422
+**Severity:** Low
+**Status:** Resolved
+**Component:** `app/Http/Requests/Application/ReplaceSectionRequest.php`
+**Root Cause:** Initial implementation made `first_name`, `county`, `physician_name`, `bathing_level`, etc. all `required` in the replace request. This broke the partial-save flow — the parent couldn't save a section with only some fields filled (which is the whole point of a draft).
+**Fix:** Per-field rules are now `nullable` for completeness-engine-required fields. Well-formedness rules (date types, enum values, max lengths, conditional rules like `required_if:g_tube,true`) remain. The `ApplicationCompletenessService` is the single source of truth for "is this section complete?" — the request validator only checks "is this data well-formed?". Verified by `test_camper_section_partial_save_marks_section_incomplete` and 4 sibling tests.
+**Files:** `app/Http/Requests/Application/ReplaceSectionRequest.php`, `tests/Feature/Application/ReplaceSectionTest.php`
+
+---
+
+### Audit Summary
+
+- **12 root causes** identified across frontend (ApplicationFormPage), backend (ApplicationCompletenessService), and the missing transaction boundary on per-row CRUD writes.
+- **Atomic section endpoints** (`POST /applications/{id}/sections/{key}`) replace the per-row CRUD pattern entirely. Each section's writes happen in one `DB::transaction()`; validation is returned in the same response.
+- **Hybrid completion** (data OR explicit attestation via `section_attestations` JSON column) for behavior/equipment/diet/medications eliminates the false-green pill problem on visit-and-leave sections.
+- **Typed signatures** synthesize a base64 PNG via canvas — single representation downstream.
+- **Legacy submit-time waterfall** deleted (~480 lines); frontend bundle 275 KB → 125 KB.
+- **Tests:** 27 new ReplaceSectionTest + 6 new SectionFlushRegressionTest + 86 existing application-related tests all pass. tsc clean. Build clean.
+- **Architectural invariant:** the `ApplicationCompletenessService` is the SOLE source of truth for "is this section complete?" Replace-section endpoints are permissive (they save partial data); finalize() enforces the engine.

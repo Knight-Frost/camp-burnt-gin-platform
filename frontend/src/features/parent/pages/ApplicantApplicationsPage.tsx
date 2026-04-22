@@ -267,18 +267,31 @@ function AppCard({
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {isDraft ? (
-            // Draft right side: only the delete button — the whole card already navigates to edit.
-            onDeleteDraft && (
+            // Draft right side: explicit Continue button + delete icon.
+            // The left side is also clickable for continue — the button here makes
+            // the action obvious without requiring users to discover the row affordance.
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onDeleteDraft(app)}
-                className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
-                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                title="Delete draft"
+                onClick={() => { void handleContinueDraft(); }}
+                disabled={resuming}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-opacity hover:opacity-85 disabled:opacity-50"
+                style={{ background: 'var(--ember-orange)', color: '#fff' }}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                {resuming ? '…' : 'Continue'}
               </button>
-            )
+              {onDeleteDraft && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteDraft(app)}
+                  className="p-2 rounded-lg border transition-colors hover:bg-red-50 hover:border-red-300"
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                  title="Delete draft"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           ) : (
             // Non-draft right side: status badge, optional "New Session" for terminal, arrow link.
             <>

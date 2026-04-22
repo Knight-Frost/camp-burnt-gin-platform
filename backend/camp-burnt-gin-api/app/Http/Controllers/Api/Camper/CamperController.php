@@ -52,15 +52,36 @@ class CamperController extends Controller
         if ($user->isAdmin()) {
             // Confirm this admin is allowed to list all campers via CamperPolicy.
             $this->authorize('viewAny', Camper::class);
-            // Camper Directory shows only enrolled campers — children with at least one
-            // approved application (is_active=true). Children with pending or submitted
-            // applications are NOT yet campers under the domain model; they appear on
-            // the Applications and Families pages instead.
-            $query = Camper::active()
-                ->with([
-                    'user',
-                    'applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->with('campSession'),
-                ]);
+
+            // Two modes, gated by the presence of the `user_id` query param:
+            //
+            //   (1) No user_id → Camper Directory view. Only enrolled campers
+            //       (children with at least one approved application, is_active=true).
+            //       Draft and pending children appear on Applications/Families instead.
+            //
+            //   (2) user_id=X → "show me this parent's children" view, used by
+            //       flows like the Request Document modal where an admin has
+            //       picked a specific parent and needs to attach the request to
+            //       one of that parent's children. A parent with only a pending
+            //       or paper application has a real Camper row but is_active=false
+            //       (no approved app yet) — requiring active() here would produce
+            //       the empty dropdown bug this block was rewritten to fix.
+            $userFilter = $request->integer('user_id');
+            if ($userFilter > 0) {
+                // Scoped to one parent — show all of their campers, enrolled or not.
+                $query = Camper::where('user_id', $userFilter)
+                    ->with([
+                        'user',
+                        'applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->with('campSession'),
+                    ]);
+            } else {
+                // Directory mode — only enrolled children.
+                $query = Camper::active()
+                    ->with([
+                        'user',
+                        'applications' => fn ($q) => $q->where('status', '!=', \App\Enums\ApplicationStatus::Draft->value)->with('campSession'),
+                    ]);
+            }
             if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {

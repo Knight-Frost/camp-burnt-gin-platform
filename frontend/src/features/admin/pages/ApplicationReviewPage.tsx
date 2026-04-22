@@ -50,6 +50,7 @@ import {
   CanonicalApplicationSections,
   type CanonicalSectionKey,
 } from '@/features/applications/components/CanonicalApplicationSections';
+import { PaperApplicationReviewView } from '@/features/admin/components/PaperApplicationReviewView';
 import type {
   CanonicalApplicationPayload,
   CanonicalDocument,
@@ -774,28 +775,46 @@ export function ApplicationReviewPage() {
 
       {/* ── Two-column layout ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: the single canonical application view. Every editable
-            section has a pencil button that routes to AdminApplicationEditPage
-            scrolled to the matching section. There is no other rendering of
-            application content on this page. */}
+        {/* Left: branches on submission_source.
+              - Paper applications (paper_self / paper_admin) render the
+                dedicated PaperApplicationReviewView — inline packet viewer,
+                required-docs checklist, supporting docs list. The 11-section
+                digital form is skipped because paper apps have no structured
+                section data to render against (rendering it was the "empty
+                form" bug the forensic audit flagged).
+              - Digital applications fall through to the canonical 11-section
+                view unchanged. */}
         <div className="lg:col-span-2">
-          <CanonicalApplicationSections
-            canonical={canonical}
-            // The `role` prop is a component-level viewer-role discriminator,
-            // not the WAI-ARIA `role` attribute. ESLint's a11y plugin can't
-            // tell the difference and flags it as an invalid ARIA role.
-            // eslint-disable-next-line jsx-a11y/aria-role
-            role="admin"
-            editable={canEdit}
-            onEditSection={handleEditSection}
-            onPreviewDocument={handlePreviewDocument}
-            onDownloadDocument={handleDownloadDocument}
-            adminDocumentActions={canEdit ? {
-              onVerify: (doc) => handleVerifyDoc(doc, 'approved'),
-              onReject: (doc) => handleVerifyDoc(doc, 'rejected'),
-              disabled: verifyingDocId !== null,
-            } : undefined}
-          />
+          {application.submission_source === 'paper_self' || application.submission_source === 'paper_admin' ? (
+            <PaperApplicationReviewView
+              canonical={canonical}
+              onPreviewDocument={handlePreviewDocument}
+              onDownloadDocument={handleDownloadDocument}
+              adminDocumentActions={canEdit ? {
+                onVerify: (doc) => handleVerifyDoc(doc, 'approved'),
+                onReject: (doc) => handleVerifyDoc(doc, 'rejected'),
+                disabled: verifyingDocId !== null,
+              } : undefined}
+            />
+          ) : (
+            <CanonicalApplicationSections
+              canonical={canonical}
+              // The `role` prop is a component-level viewer-role discriminator,
+              // not the WAI-ARIA `role` attribute. ESLint's a11y plugin can't
+              // tell the difference and flags it as an invalid ARIA role.
+              // eslint-disable-next-line jsx-a11y/aria-role
+              role="admin"
+              editable={canEdit}
+              onEditSection={handleEditSection}
+              onPreviewDocument={handlePreviewDocument}
+              onDownloadDocument={handleDownloadDocument}
+              adminDocumentActions={canEdit ? {
+                onVerify: (doc) => handleVerifyDoc(doc, 'approved'),
+                onReject: (doc) => handleVerifyDoc(doc, 'rejected'),
+                disabled: verifyingDocId !== null,
+              } : undefined}
+            />
+          )}
         </div>
 
         {/* Right: sticky review action panel. */}

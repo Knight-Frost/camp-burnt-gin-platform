@@ -57,6 +57,25 @@ export const UNIVERSAL_REQUIRED_DOC_TYPES = [
 
 export type UniversalRequiredDocType = (typeof UNIVERSAL_REQUIRED_DOC_TYPES)[number];
 
+// ─── Paper application required documents ─────────────────────────────────────
+// Distinct from UNIVERSAL_REQUIRED_DOC_TYPES because paper-review surfaces need
+// the medical-exam form in the same checklist as the universal docs. The
+// canonical digital view intentionally keeps official_medical_form out of
+// UNIVERSAL_REQUIRED_DOC_TYPES (see the comment above) — it's rendered as a
+// dedicated hardcoded row there. Paper review has no such dedicated row, so
+// the three required docs live in one unified checklist.
+//
+// Both admin PaperApplicationReviewView and applicant ApplicantPaperApplicationView
+// consume this single constant so the two surfaces cannot drift.
+
+export const PAPER_REQUIRED_DOC_TYPES = [
+  'immunization_record',
+  'insurance_card',
+  'official_medical_form',
+] as const;
+
+export type PaperRequiredDocType = (typeof PAPER_REQUIRED_DOC_TYPES)[number];
+
 // ─── Canonical document definitions ──────────────────────────────────────────
 
 export const DOCUMENT_REQUIREMENTS: Record<string, DocumentRequirement> = {

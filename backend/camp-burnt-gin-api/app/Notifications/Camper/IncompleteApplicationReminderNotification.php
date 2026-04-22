@@ -48,7 +48,7 @@ class IncompleteApplicationReminderNotification extends Notification implements 
             ->line('Camp Session: '.$this->application->campSession->name)
             ->line('Registration closes: '.$this->application->campSession->registration_closes_at?->format('F j, Y'))
             ->line('Please complete and submit your application to secure your spot.')
-            ->action('Complete Application', config('app.frontend_url').'/applications/'.$this->application->id.'/edit')
+            ->action('Complete Application', config('app.frontend_url').'/applicant/applications/'.$this->application->id)
             ->salutation('Camp Burnt Gin');
     }
 
