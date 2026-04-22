@@ -1,10 +1,10 @@
-# Camp Burnt Gin — User Guide
+# Camp Burnt Gin  -  User Guide
 
 **Version:** 3.0 | **Last Updated:** April 2026
 
 ---
 
-> This guide is written for everyone — parents, camp staff, administrators, medical personnel, and developers alike. No technical background is assumed. Where technical detail is needed, it is explained in plain language. Jump to the section that matches your role or task using the Table of Contents below.
+> This guide is written for everyone  -  parents, camp staff, administrators, medical personnel, and developers alike. No technical background is assumed. Where technical detail is needed, it is explained in plain language. Jump to the section that matches your role or task using the Table of Contents below.
 
 ---
 
@@ -17,7 +17,7 @@
 5. [Core Features](#5-core-features)
    - 5.1 [Creating an Account and Logging In](#51-creating-an-account-and-logging-in)
    - 5.2 [Two-Factor Authentication (MFA)](#52-two-factor-authentication-mfa)
-   - 5.3 [The Applicant Portal — For Parents and Guardians](#53-the-applicant-portal--for-parents-and-guardians)
+   - 5.3 [The Applicant Portal  -  For Parents and Guardians](#53-the-applicant-portal--for-parents-and-guardians)
    - 5.4 [Digital Application Form](#54-digital-application-form)
    - 5.5 [Paper Applications](#55-paper-applications)
    - 5.6 [Documents and File Uploads](#56-documents-and-file-uploads)
@@ -37,10 +37,10 @@
 7. [Medical Staff Guide](#7-medical-staff-guide)
 8. [Setup Requirements](#8-setup-requirements)
 9. [Local Development Setup](#9-local-development-setup)
-   - 9.1 [Option A — Docker (Recommended)](#91-option-a--docker-recommended)
-   - 9.2 [Option B — Local Installation (macOS)](#92-option-b--local-installation-macos)
-   - 9.3 [Option B — Local Installation (Linux)](#93-option-b--local-installation-linux)
-   - 9.4 [Option B — Local Installation (Windows)](#94-option-b--local-installation-windows)
+   - 9.1 [Option A  -  Docker (Recommended)](#91-option-a--docker-recommended)
+   - 9.2 [Option B  -  Local Installation (macOS)](#92-option-b--local-installation-macos)
+   - 9.3 [Option B  -  Local Installation (Linux)](#93-option-b--local-installation-linux)
+   - 9.4 [Option B  -  Local Installation (Windows)](#94-option-b--local-installation-windows)
    - 9.5 [Starting the Development Servers](#95-starting-the-development-servers)
    - 9.6 [Demo Accounts for Testing](#96-demo-accounts-for-testing)
 10. [Environment Configuration](#10-environment-configuration)
@@ -67,7 +67,7 @@ This platform replaces all of that with a single, organized, role-appropriate we
 
 - **Parents and guardians** can apply online, upload required documents, track their application status, and message camp staff.
 - **Camp administrators** can review applications, manage sessions, approve or reject applicants, request documents, and communicate with families.
-- **Medical staff** can access and update medical records for enrolled campers, log incidents, and track follow-ups — all within a protected, HIPAA-aware environment.
+- **Medical staff** can access and update medical records for enrolled campers, log incidents, and track follow-ups  -  all within a protected, HIPAA-aware environment.
 - **Super administrators** can manage system users, audit activity, and configure system-wide settings.
 
 ### Who This System Is For
@@ -81,7 +81,7 @@ This platform replaces all of that with a single, organized, role-appropriate we
 
 ### Privacy and Compliance
 
-This system handles Protected Health Information (PHI) — medical records and health data for minors — and is built to align with HIPAA requirements. Medical data is encrypted at rest, access is strictly role-limited, all PHI access is logged, and sessions time out automatically after periods of inactivity. These protections are non-negotiable and built into every layer of the system.
+This system handles Protected Health Information (PHI)  -  medical records and health data for minors  -  and is built to align with HIPAA requirements. Medical data is encrypted at rest, access is strictly role-limited, all PHI access is logged, and sessions time out automatically after periods of inactivity. These protections are non-negotiable and built into every layer of the system.
 
 ---
 
@@ -126,9 +126,9 @@ The backend API runs on **http://localhost:8000**. Email is captured by Mailpit 
 
 Camp Burnt Gin is divided into two main pieces of software that work together:
 
-1. **The Backend (API)** — Built with Laravel 12 (PHP). This is the engine of the system. It handles all data storage, business rules, security, email, and file management. It runs on port 8000 and communicates with the frontend over a secure API.
+1. **The Backend (API)**  -  Built with Laravel 12 (PHP). This is the engine of the system. It handles all data storage, business rules, security, email, and file management. It runs on port 8000 and communicates with the frontend over a secure API.
 
-2. **The Frontend (Web App)** — Built with React 18 (TypeScript). This is the website that users see and interact with. It runs on port 5173 in development and connects to the backend automatically.
+2. **The Frontend (Web App)**  -  Built with React 18 (TypeScript). This is the website that users see and interact with. It runs on port 5173 in development and connects to the backend automatically.
 
 Between them is a MySQL database that stores all application data, user accounts, and (encrypted) medical records.
 
@@ -146,7 +146,7 @@ flowchart LR
 1. You enter your email and password on the login page.
 2. The frontend sends those credentials to the backend API.
 3. If correct, the backend issues a secure token and returns it to the browser.
-4. The browser stores that token in session storage (it disappears when you close the tab — by design, for security).
+4. The browser stores that token in session storage (it disappears when you close the tab  -  by design, for security).
 5. Every page load and every action you take sends that token along so the system knows who you are.
 6. After 60 minutes of inactivity, the frontend automatically logs you out. After 8 hours regardless of activity, the token expires.
 
@@ -180,7 +180,7 @@ There are four roles in the system. Every account belongs to exactly one role, w
 | `medical` | `/medical/...` | Medical staff who manage health records during camp |
 | `super_admin` | `/super-admin/...` | System administrators managing accounts and configuration |
 
-> **Note:** `super_admin` inherits all `admin` capabilities. There is no separate login page per role — you log in once and the system routes you to your correct portal automatically.
+> **Note:** `super_admin` inherits all `admin` capabilities. There is no separate login page per role  -  you log in once and the system routes you to your correct portal automatically.
 
 ### Detailed Permission Table
 
@@ -252,13 +252,13 @@ When enabled, after entering your password you will be asked to enter a 6-digit 
 
 #### Disabling MFA
 
-You need both your current password and a current TOTP code to disable MFA — this prevents someone from turning off your security without having your phone.
+You need both your current password and a current TOTP code to disable MFA  -  this prevents someone from turning off your security without having your phone.
 
 #### Step-Up Verification
 
 For certain sensitive operations (such as exporting PHI data or managing system users), the system will ask you to re-enter your TOTP code even if you are already logged in. This step-up verification is cached for 15 minutes per session.
 
-### 5.3 The Applicant Portal — For Parents and Guardians
+### 5.3 The Applicant Portal  -  For Parents and Guardians
 
 When you log in as an applicant, you land on your **Dashboard**. From here you can:
 
@@ -285,27 +285,27 @@ Your dashboard shows each of your children (called "campers" in the system) and 
 
 ### 5.4 Digital Application Form
 
-The digital application form is the primary way to apply for enrollment. It is divided into sections that you complete at your own pace. Your progress is saved automatically as you go — you do not need to finish in one sitting.
+The digital application form is the primary way to apply for enrollment. It is divided into sections that you complete at your own pace. Your progress is saved automatically as you go  -  you do not need to finish in one sitting.
 
 #### The 12 Sections of the Application
 
-1. **Session Selection** — Choose which camp session you are applying for.
-2. **Camper Information** — Basic biographical details (name, date of birth, etc.).
-3. **Parent / Guardian Information** — Your contact information and home address.
-4. **Emergency Contacts** — At least one emergency contact who is not the primary guardian.
-5. **Medical Information** — Primary physician, insurance, and general health overview.
-6. **Diagnoses** — Any medical diagnoses relevant to camp participation.
-7. **Medications** — Medications the camper takes, including dosage and schedule.
-8. **Allergies** — Known allergies and reactions.
-9. **Behavioral Profile** — Information about behavioral and sensory needs.
-10. **Assistive Devices and Equipment** — Any devices the camper uses (e.g., wheelchair, AAC device).
-11. **Dietary Needs** — Special diet requirements, G-tube, or feeding plan details.
-12. **Consents and Signature** — Required consents and your electronic signature.
+1. **Session Selection**  -  Choose which camp session you are applying for.
+2. **Camper Information**  -  Basic biographical details (name, date of birth, etc.).
+3. **Parent / Guardian Information**  -  Your contact information and home address.
+4. **Emergency Contacts**  -  At least one emergency contact who is not the primary guardian.
+5. **Medical Information**  -  Primary physician, insurance, and general health overview.
+6. **Diagnoses**  -  Any medical diagnoses relevant to camp participation.
+7. **Medications**  -  Medications the camper takes, including dosage and schedule.
+8. **Allergies**  -  Known allergies and reactions.
+9. **Behavioral Profile**  -  Information about behavioral and sensory needs.
+10. **Assistive Devices and Equipment**  -  Any devices the camper uses (e.g., wheelchair, AAC device).
+11. **Dietary Needs**  -  Special diet requirements, G-tube, or feeding plan details.
+12. **Consents and Signature**  -  Required consents and your electronic signature.
 
 #### How Sections Work
 
 - Each section has a colored pill indicator at the top: green means complete, amber means incomplete or partially filled.
-- You can navigate between sections in any order — you do not have to go sequentially.
+- You can navigate between sections in any order  -  you do not have to go sequentially.
 - Sections 9–11 (behavior, equipment, diet, medications) have a "Nothing to declare" checkbox. If your child has none of those needs, check the box to mark the section complete.
 - Your data is saved each time you navigate away from a section.
 
@@ -346,7 +346,7 @@ All applicants must upload the following documents as part of their application:
 | Immunization Record | Current South Carolina immunization certificate |
 | Health Insurance Card | Front and back, or proof of coverage |
 | Medical Examination Form | Signed by the child's physician |
-| Paper Application Packet | Only for paper applications — not needed for digital |
+| Paper Application Packet | Only for paper applications  -  not needed for digital |
 
 > **Important:** Uploaded documents start as drafts. They are not visible to staff until you submit them. Look for a **Submit to Staff** button next to each document on your documents page.
 
@@ -366,7 +366,7 @@ Maximum file size: 10 MB per file.
 
 #### Document Security
 
-All uploaded files pass through a security scan before being stored. Files are stored outside the public web root and are not directly accessible via URL — all downloads go through the authenticated API.
+All uploaded files pass through a security scan before being stored. Files are stored outside the public web root and are not directly accessible via URL  -  all downloads go through the authenticated API.
 
 #### Document Lifecycle
 
@@ -398,8 +398,8 @@ The messaging system works like email within the platform. You can send messages
 
 Open a conversation thread and use the **Reply** or **Reply All** button at the bottom. The system automatically populates the correct recipients:
 
-- **Reply** — sends only to the original sender
-- **Reply All** — sends to all TO and CC recipients (BCC recipients are never revealed to Reply All)
+- **Reply**  -  sends only to the original sender
+- **Reply All**  -  sends to all TO and CC recipients (BCC recipients are never revealed to Reply All)
 
 #### Who Can Message Whom
 
@@ -412,10 +412,10 @@ Open a conversation thread and use the **Reply** or **Reply All** button at the 
 
 The system sends notifications in two ways:
 
-1. **In-app bell** — A notification bell in the top navigation bar shows unread alerts. Click it to see recent notifications.
-2. **Email** — Important events also send an email to your registered address.
+1. **In-app bell**  -  A notification bell in the top navigation bar shows unread alerts. Click it to see recent notifications.
+2. **Email**  -  Important events also send an email to your registered address.
 
-> **Privacy Note:** Emails from this system never contain sensitive health information. They only say "You have a new notification — log in to see details." This is a HIPAA-required practice to protect your information.
+> **Privacy Note:** Emails from this system never contain sensitive health information. They only say "You have a new notification  -  log in to see details." This is a HIPAA-required practice to protect your information.
 
 #### Notification Types
 
@@ -434,11 +434,11 @@ Go to **Settings** and find **Notification Preferences**. You can turn individua
 
 ### 5.9 Medical Records
 
-Medical records are only accessible by medical staff. Applicants and administrators cannot view the full medical record directly — this is intentional and required for HIPAA compliance.
+Medical records are only accessible by medical staff. Applicants and administrators cannot view the full medical record directly  -  this is intentional and required for HIPAA compliance.
 
 Medical records are created automatically when a camper's application is approved for the first time. All health data (physician name, insurance, diagnoses, medications, allergies, behavioral profile, feeding plans, assistive devices) is encrypted in the database.
 
-If an approval is reversed, the medical record is kept but deactivated — it disappears from active workflows while remaining in the system for audit and compliance purposes.
+If an approval is reversed, the medical record is kept but deactivated  -  it disappears from active workflows while remaining in the system for audit and compliance purposes.
 
 See Section 7 for the full Medical Staff Guide.
 
@@ -452,7 +452,7 @@ The calendar shows:
 
 Applicants can view calendar entries relevant to their selected session. Admins can create and manage calendar events and deadlines through the admin portal.
 
-When a deadline passes, the system can automatically enforce it — for example, closing a session to new applications once the deadline has passed.
+When a deadline passes, the system can automatically enforce it  -  for example, closing a session to new applications once the deadline has passed.
 
 ### 5.11 Reports and Exports
 
@@ -523,7 +523,7 @@ stateDiagram-v2
 When you approve an application:
 
 - The application status changes to `approved`.
-- The camper's `is_active` flag is set to `true` — they appear on operational rosters.
+- The camper's `is_active` flag is set to `true`  -  they appear on operational rosters.
 - A medical record is created (or reactivated) for the camper.
 - The parent receives an email notification and an acceptance letter.
 - Session enrollment count is incremented.
@@ -579,10 +579,10 @@ Documents can be archived to remove them from the active view without deleting t
 
 Super admins can manage all user accounts from the **Users** section of the super-admin portal.
 
-- **Create a new user** — Set their name, email, role, and initial password. Send them a welcome email.
-- **Edit a user** — Change their name, email, or role.
-- **Deactivate a user** — Prevents login without deleting their records.
-- **View audit activity** — See recent PHI access logs for any user.
+- **Create a new user**  -  Set their name, email, role, and initial password. Send them a welcome email.
+- **Edit a user**  -  Change their name, email, or role.
+- **Deactivate a user**  -  Prevents login without deleting their records.
+- **View audit activity**  -  See recent PHI access logs for any user.
 
 > **Important:** The system will not allow you to delete or demote the last active super admin account. This prevents accidental full lockout of the system.
 
@@ -596,7 +596,7 @@ Go to **Audit Log** in the super-admin portal to see a full history of PHI acces
 - The timestamp
 - Whether the access was flagged as PHI
 
-This log is immutable — entries cannot be edited or deleted.
+This log is immutable  -  entries cannot be edited or deleted.
 
 ### 6.6 Announcements
 
@@ -627,26 +627,26 @@ Medical staff have access to the `/medical/...` portal. This portal shows only h
 
 ### What Medical Staff Can Access
 
-- **Medical Records** — Full encrypted health record for each enrolled camper
-- **Diagnoses** — ICD-coded diagnoses with severity levels
-- **Medications** — Name, dosage, frequency, indication
-- **Allergies** — Substance, reaction type, severity (mild to anaphylaxis)
-- **Behavioral Profiles** — Wandering risk, aggression risk, supervision level
-- **Feeding Plans** — G-tube, special diet requirements
-- **Assistive Devices** — Device type and care instructions
-- **Activity Permissions** — Which activities the camper is cleared for
-- **Personal Care Plans** — ADL assistance needs (toileting, dressing, feeding, etc.)
+- **Medical Records**  -  Full encrypted health record for each enrolled camper
+- **Diagnoses**  -  ICD-coded diagnoses with severity levels
+- **Medications**  -  Name, dosage, frequency, indication
+- **Allergies**  -  Substance, reaction type, severity (mild to anaphylaxis)
+- **Behavioral Profiles**  -  Wandering risk, aggression risk, supervision level
+- **Feeding Plans**  -  G-tube, special diet requirements
+- **Assistive Devices**  -  Device type and care instructions
+- **Activity Permissions**  -  Which activities the camper is cleared for
+- **Personal Care Plans**  -  ADL assistance needs (toileting, dressing, feeding, etc.)
 
 ### Clinical Workflow
 
 Medical staff can create and update clinical records during a camp session:
 
-- **Treatment Logs** — Record clinical interventions with time, type, and outcome
-- **Medical Visits** — Document clinic visits with disposition (returned to activity, sent to hospital, etc.)
-- **Medical Incidents** — Log injuries or health events with severity classification
-- **Medical Follow-Ups** — Create follow-up tasks with priority and due dates
-- **Medical Restrictions** — Apply activity restrictions with date ranges and reasons
-- **Risk Assessments** — The system has a built-in risk scoring engine that evaluates a camper's medical complexity based on their profile
+- **Treatment Logs**  -  Record clinical interventions with time, type, and outcome
+- **Medical Visits**  -  Document clinic visits with disposition (returned to activity, sent to hospital, etc.)
+- **Medical Incidents**  -  Log injuries or health events with severity classification
+- **Medical Follow-Ups**  -  Create follow-up tasks with priority and due dates
+- **Medical Restrictions**  -  Apply activity restrictions with date ranges and reasons
+- **Risk Assessments**  -  The system has a built-in risk scoring engine that evaluates a camper's medical complexity based on their profile
 
 ### PHI Access Controls
 
@@ -660,10 +660,10 @@ Medical staff can create and update clinical records during a camp session:
 The risk engine produces an automated risk score for each enrolled camper based on their diagnoses, medications, allergies, and behavioral profile. This score helps medical staff prioritize attention and plan staffing levels. The score is visible on the camper's medical record dashboard.
 
 Risk levels:
-- **Low** — Minimal medical complexity; standard camp support
-- **Moderate** — Some ongoing medical needs; additional monitoring recommended
-- **High** — Significant medical complexity; dedicated medical staffing required
-- **Critical** — Extreme complexity; requires specialist review before enrollment
+- **Low**  -  Minimal medical complexity; standard camp support
+- **Moderate**  -  Some ongoing medical needs; additional monitoring recommended
+- **High**  -  Significant medical complexity; dedicated medical staffing required
+- **Critical**  -  Extreme complexity; requires specialist review before enrollment
 
 ---
 
@@ -716,9 +716,9 @@ project-root/
   docs/                     <- Project documentation
 ```
 
-> **Important:** The backend code is NOT at `backend/` — it is one level deeper at `backend/camp-burnt-gin-api/`. Keep this in mind for all commands below.
+> **Important:** The backend code is NOT at `backend/`  -  it is one level deeper at `backend/camp-burnt-gin-api/`. Keep this in mind for all commands below.
 
-### 9.1 Option A — Docker (Recommended)
+### 9.1 Option A  -  Docker (Recommended)
 
 Docker provides a fully consistent development environment that works the same on any computer. It handles PHP, MySQL, Redis, and email capture automatically.
 
@@ -790,7 +790,7 @@ Open **http://localhost:5173** in your browser.
 
 ---
 
-### 9.2 Option B — Local Installation (macOS)
+### 9.2 Option B  -  Local Installation (macOS)
 
 Use this if you prefer not to use Docker.
 
@@ -853,7 +853,7 @@ npm install
 
 ---
 
-### 9.3 Option B — Local Installation (Linux)
+### 9.3 Option B  -  Local Installation (Linux)
 
 #### Step 1: Install system dependencies
 
@@ -877,7 +877,7 @@ Then follow Steps 2–6 from the macOS instructions above.
 
 ---
 
-### 9.4 Option B — Local Installation (Windows)
+### 9.4 Option B  -  Local Installation (Windows)
 
 Windows setup is more involved. The recommended approach is to use **WSL2** (Windows Subsystem for Linux) and follow the Linux instructions above inside a WSL2 terminal. If you need a native Windows setup without WSL2, follow these steps:
 
@@ -910,15 +910,15 @@ This single command starts all three processes in one terminal window with label
 If you prefer separate terminals:
 
 ```bash
-# Terminal 1 — Laravel API
+# Terminal 1  -  Laravel API
 cd backend/camp-burnt-gin-api
 php artisan serve --host=0.0.0.0
 
-# Terminal 2 — Queue worker (required for email notifications)
+# Terminal 2  -  Queue worker (required for email notifications)
 cd backend/camp-burnt-gin-api
 php artisan queue:work --queue=notifications,default --tries=3
 
-# Terminal 3 — Frontend
+# Terminal 3  -  Frontend
 cd frontend
 npm run dev
 ```
@@ -971,7 +971,7 @@ The backend is configured through a file called `.env` inside `backend/camp-burn
 |---|---|---|---|
 | `APP_NAME` | Display name of the application | `Camp Burnt Gin API` | Set appropriately |
 | `APP_ENV` | Environment identifier | `local` | Must be `production` |
-| `APP_KEY` | Encryption key (auto-generated) | Empty | Must be set — run `php artisan key:generate` |
+| `APP_KEY` | Encryption key (auto-generated) | Empty | Must be set  -  run `php artisan key:generate` |
 | `APP_DEBUG` | Show detailed error pages | `false` | **Must be `false`** |
 | `APP_URL` | Public URL of the API | `http://localhost:8000` | Your actual API domain |
 | `FRONTEND_URL` | Public URL of the frontend | `http://localhost:5173` | Your actual frontend domain |
@@ -993,10 +993,10 @@ The backend is configured through a file called `.env` inside `backend/camp-burn
 |---|---|---|
 | `SANCTUM_EXPIRATION` | Token lifetime in minutes | `480` (8 hours). HIPAA recommends ≤30 min for PHI. |
 | `SESSION_LIFETIME` | Session timeout in minutes | `30` |
-| `SESSION_ENCRYPT` | Encrypt session data | `true` — do not change |
+| `SESSION_ENCRYPT` | Encrypt session data | `true`  -  do not change |
 | `SESSION_SECURE_COOKIE` | Require HTTPS for session cookie | `true` in production; `false` only for HTTP-only local dev |
-| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:5173,http://localhost:5174` — update for production |
-| `BCRYPT_ROUNDS` | Password hashing strength | `14` — do not lower this |
+| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:5173,http://localhost:5174`  -  update for production |
+| `BCRYPT_ROUNDS` | Password hashing strength | `14`  -  do not lower this |
 
 #### Mail
 
@@ -1027,7 +1027,7 @@ The backend is configured through a file called `.env` inside `backend/camp-burn
 | Variable | Purpose | Default |
 |---|---|---|
 | `FILESYSTEM_DISK` | Where uploaded files are stored | `local` (server disk) |
-| `AWS_*` | S3 credentials | Empty — only needed if using S3 |
+| `AWS_*` | S3 credentials | Empty  -  only needed if using S3 |
 
 #### Seeding
 
@@ -1066,7 +1066,7 @@ These go in `frontend/.env.local`:
 
 This is the deployment path that has been tested and validated against the live deployment. It uses a t2.micro instance (1 vCPU, 1 GB RAM) running Amazon Linux 2023, with the React frontend built locally and transferred to the server.
 
-> **Constraint:** Do not attempt to build the React frontend on the EC2 instance itself — it does not have enough RAM. Build it on your local machine and transfer the output.
+> **Constraint:** Do not attempt to build the React frontend on the EC2 instance itself  -  it does not have enough RAM. Build it on your local machine and transfer the output.
 
 #### Prerequisites
 
@@ -1093,7 +1093,7 @@ On AWS:
    - HTTP (port 80) from anywhere
 8. Click **Launch Instance**.
 9. Wait for status checks to show **2/2 passed**.
-10. Copy the **Public IPv4 address** — you will use it throughout.
+10. Copy the **Public IPv4 address**  -  you will use it throughout.
 
 #### Part 2: Connect to the Server
 
@@ -1107,7 +1107,7 @@ ssh -i ~/Downloads/cbg-key.pem ec2-user@YOUR_EC2_IP
 Run all of the following on the EC2 instance:
 
 ```bash
-# Add a swap file (required — t2.micro does not have enough RAM)
+# Add a swap file (required  -  t2.micro does not have enough RAM)
 sudo fallocate -l 2G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
@@ -1372,7 +1372,7 @@ npx vercel --prod
 
 After every deployment, verify the system is working:
 
-1. **Health check:** `curl http://YOUR_DOMAIN/api/health` — should return `{"status":"ok"}`
+1. **Health check:** `curl http://YOUR_DOMAIN/api/health`  -  should return `{"status":"ok"}`
 2. **Login:** Open the site, log in with the admin account.
 3. **Database:** Confirm the applications list loads.
 4. **File upload:** Upload a test document and verify it appears.
@@ -1460,11 +1460,11 @@ After setup or deployment, manually verify these key flows:
 
 | Symptom | Likely Problem |
 |---|---|
-| Blank white page after login | Frontend cannot reach the API — check `VITE_API_BASE_URL` |
-| "Unauthenticated" errors on every request | Token missing or expired — clear sessionStorage and re-login |
+| Blank white page after login | Frontend cannot reach the API  -  check `VITE_API_BASE_URL` |
+| "Unauthenticated" errors on every request | Token missing or expired  -  clear sessionStorage and re-login |
 | Email never arrives | Queue worker not running or mail not configured |
 | File upload fails with 422 | File type not allowed or file is too large |
-| Application sections always show incomplete | Section save API call failing — check browser console |
+| Application sections always show incomplete | Section save API call failing  -  check browser console |
 
 ---
 
@@ -1512,7 +1512,7 @@ php artisan serve
 
 **Fix:**
 - **Local:** Check that MySQL is running: `brew services list` (macOS) or `systemctl status mysql` (Linux)
-- **Docker:** Check `docker-compose ps` — the `mysql` container should be `Up`
+- **Docker:** Check `docker-compose ps`  -  the `mysql` container should be `Up`
 - Verify `DB_HOST`, `DB_PORT`, `DB_USERNAME`, and `DB_PASSWORD` in `.env`
 
 ---
@@ -1523,7 +1523,7 @@ php artisan serve
 
 **Fix:**
 ```bash
-# Safe for development — wipes and recreates all tables
+# Safe for development  -  wipes and recreates all tables
 php artisan migrate:fresh --seed
 
 # Check current state
@@ -1592,8 +1592,8 @@ The SANCTUM_EXPIRATION and CORS settings may not be active until the cache is re
 **Cause:** `SESSION_LIFETIME` is too short, or the database session driver is not working correctly.
 
 **Fix:**
-- Check `SESSION_LIFETIME` in `.env` (default 30 minutes — intentional for HIPAA)
-- The frontend enforces a 60-minute inactivity timeout separately — this is by design
+- Check `SESSION_LIFETIME` in `.env` (default 30 minutes  -  intentional for HIPAA)
+- The frontend enforces a 60-minute inactivity timeout separately  -  this is by design
 - If sessions are expiring much sooner than expected, check that `SESSION_DRIVER=database` and that the `sessions` table exists (`php artisan migrate:status`)
 
 ---
@@ -1670,13 +1670,13 @@ Yes. If multiple sessions are available and their portals are open, an applicant
 Your draft is saved on the server automatically each time you navigate between sections. Closing the browser does not lose your progress. However, if you close the browser without navigating away from the current section, the data on that section may not be saved yet. Always navigate to the next section before closing.
 
 **Q: Can I edit an application after submitting?**
-No — once submitted, applicants cannot edit their application. If a change is needed, contact camp staff through the messaging system.
+No  -  once submitted, applicants cannot edit their application. If a change is needed, contact camp staff through the messaging system.
 
 **Q: Can an admin edit a submitted application?**
 Yes. Admins can make changes to submitted applications on behalf of applicants from the admin portal, with a full audit trail of changes.
 
 **Q: What happens when a session reaches capacity?**
-New approvals for a full session automatically become waitlisted instead of approved. When an enrolled camper withdraws or is cancelled, the system does not automatically promote waitlisted applicants — an admin must manually approve a waitlisted application.
+New approvals for a full session automatically become waitlisted instead of approved. When an enrolled camper withdraws or is cancelled, the system does not automatically promote waitlisted applicants  -  an admin must manually approve a waitlisted application.
 
 **Q: I withdrew my application. Can I undo it?**
 No. Withdrawal is a terminal state and cannot be reversed. If you need to re-apply, contact camp staff.
@@ -1685,7 +1685,7 @@ No. Withdrawal is a terminal state and cannot be reversed. If you need to re-app
 By default, files are stored on the server's local disk inside the application's storage directory (not publicly accessible). For production deployments, S3 or another object storage service is recommended. Files are never stored in the public web root.
 
 **Q: Is medical data visible to camp coordinators?**
-No. The `admin` role has access to a medical overview section of the application (as submitted by the parent in the form), but full detailed medical records — diagnoses, medications, behavioral details — are only accessible to the `medical` role.
+No. The `admin` role has access to a medical overview section of the application (as submitted by the parent in the form), but full detailed medical records  -  diagnoses, medications, behavioral details  -  are only accessible to the `medical` role.
 
 **Q: Does the system support languages other than English?**
 Yes. The frontend supports English and Spanish via the i18next internationalization library. The language toggle is available in the app interface.
@@ -1704,12 +1704,12 @@ docker-compose exec app php artisan migrate:fresh --seed
 This is safe in development but **never do this in production.**
 
 **Q: What is the `development` seed mode versus `demo` mode?**
-- `demo` — A small, polished dataset with 5 accounts, 3 campers, and a couple of applications. Good for demos and first-time exploration.
-- `development` — A full simulation dataset with approximately 76 campers, accounts in all roles, and applications in every possible status including edge cases. Best for feature development and testing.
-- `minimal` — Only system configuration and one super admin account. This is the correct mode for bootstrapping a fresh production server.
+- `demo`  -  A small, polished dataset with 5 accounts, 3 campers, and a couple of applications. Good for demos and first-time exploration.
+- `development`  -  A full simulation dataset with approximately 76 campers, accounts in all roles, and applications in every possible status including edge cases. Best for feature development and testing.
+- `minimal`  -  Only system configuration and one super admin account. This is the correct mode for bootstrapping a fresh production server.
 
 **Q: What is the GitHub repository name?**
-The repository is a GitHub Classroom project: `WinthropUniversity/project-2025-2026-pizza-tacos`. The name is a placeholder from the Classroom setup — the actual project is Camp Burnt Gin.
+The repository is a GitHub Classroom project: `WinthropUniversity/project-2025-2026-pizza-tacos`. The name is a placeholder from the Classroom setup  -  the actual project is Camp Burnt Gin.
 
 **Q: The queue worker shows failed jobs. What do I do?**
 ```bash
@@ -1738,7 +1738,7 @@ Real-time WebSocket messaging uses Laravel Reverb. By default it is disabled (`B
 
 ### Weekly
 
-- **Review failed jobs:** `php artisan queue:failed` — investigate and retry or flush old failed jobs.
+- **Review failed jobs:** `php artisan queue:failed`  -  investigate and retry or flush old failed jobs.
 - **Check disk space:** Uploaded documents accumulate. Monitor the storage directory size.
 
 ### Before Every Deployment
@@ -1833,45 +1833,45 @@ php artisan schedule:list
 
 ## 16. Glossary
 
-**Applicant** — In this system, "applicant" refers to the parent or legal guardian who creates an account and submits applications on behalf of their child. The child being enrolled is called a "Camper."
+**Applicant**  -  In this system, "applicant" refers to the parent or legal guardian who creates an account and submits applications on behalf of their child. The child being enrolled is called a "Camper."
 
-**Application** — A formal enrollment request submitted by a parent/guardian for a specific camper to attend a specific camp session.
+**Application**  -  A formal enrollment request submitted by a parent/guardian for a specific camper to attend a specific camp session.
 
-**Camper** — A child or youth whose parent/guardian has created an account and started an application. The camper profile contains biographical information (name, date of birth). Campers become "active" when their application is approved.
+**Camper**  -  A child or youth whose parent/guardian has created an account and started an application. The camper profile contains biographical information (name, date of birth). Campers become "active" when their application is approved.
 
-**Camp Session** — A specific, scheduled instance of the camp program with defined dates and a maximum capacity.
+**Camp Session**  -  A specific, scheduled instance of the camp program with defined dates and a maximum capacity.
 
-**Compliance Check** — An automated verification that an application has all required documents uploaded, submitted, and verified before approval can proceed.
+**Compliance Check**  -  An automated verification that an application has all required documents uploaded, submitted, and verified before approval can proceed.
 
-**Draft** — An application or document that has been started but not yet submitted. Drafts are only visible to the person who created them.
+**Draft**  -  An application or document that has been started but not yet submitted. Drafts are only visible to the person who created them.
 
-**HIPAA** — The Health Insurance Portability and Accountability Act. U.S. federal law governing the privacy and security of Protected Health Information (PHI). This system is built to align with HIPAA requirements.
+**HIPAA**  -  The Health Insurance Portability and Accountability Act. U.S. federal law governing the privacy and security of Protected Health Information (PHI). This system is built to align with HIPAA requirements.
 
-**MFA / Two-Factor Authentication (2FA)** — A security feature that requires you to confirm your identity with a second method (a code from an authenticator app) in addition to your password.
+**MFA / Two-Factor Authentication (2FA)**  -  A security feature that requires you to confirm your identity with a second method (a code from an authenticator app) in addition to your password.
 
-**PHI — Protected Health Information** — Any health information that can identify a specific individual, including diagnoses, medications, insurance, and medical history. PHI is encrypted at rest in this system and strictly access-controlled.
+**PHI  -  Protected Health Information**  -  Any health information that can identify a specific individual, including diagnoses, medications, insurance, and medical history. PHI is encrypted at rest in this system and strictly access-controlled.
 
-**Policy** — In the Laravel backend, a Policy is a class that defines the rules for who can take specific actions on a resource. Every data type in the system has a corresponding Policy.
+**Policy**  -  In the Laravel backend, a Policy is a class that defines the rules for who can take specific actions on a resource. Every data type in the system has a corresponding Policy.
 
-**Queue / Queue Worker** — Background jobs (like sending emails) are placed in a queue and processed asynchronously by a "queue worker" process. If the queue worker is not running, email and notifications will not be sent.
+**Queue / Queue Worker**  -  Background jobs (like sending emails) are placed in a queue and processed asynchronously by a "queue worker" process. If the queue worker is not running, email and notifications will not be sent.
 
-**Role** — A label assigned to a user account that determines what they can see and do in the system. The four roles are: `applicant`, `admin`, `medical`, `super_admin`.
+**Role**  -  A label assigned to a user account that determines what they can see and do in the system. The four roles are: `applicant`, `admin`, `medical`, `super_admin`.
 
-**Risk Engine** — An automated scoring system that evaluates a camper's medical complexity based on their health profile. Produces a Low / Moderate / High / Critical risk level used by medical staff.
+**Risk Engine**  -  An automated scoring system that evaluates a camper's medical complexity based on their health profile. Produces a Low / Moderate / High / Critical risk level used by medical staff.
 
-**Sanctum** — The Laravel package used for API authentication. It issues secure bearer tokens that the frontend sends with every API request to prove the user's identity.
+**Sanctum**  -  The Laravel package used for API authentication. It issues secure bearer tokens that the frontend sends with every API request to prove the user's identity.
 
-**Seeding** — The process of populating the database with initial or test data. Running `php artisan db:seed` creates roles, the default admin account, and (depending on `SEED_MODE`) demo or development data.
+**Seeding**  -  The process of populating the database with initial or test data. Running `php artisan db:seed` creates roles, the default admin account, and (depending on `SEED_MODE`) demo or development data.
 
-**Soft Delete** — When a record is "soft deleted," it is marked as deleted with a timestamp but not actually removed from the database. This preserves audit history. The system uses soft deletes for all sensitive records.
+**Soft Delete**  -  When a record is "soft deleted," it is marked as deleted with a timestamp but not actually removed from the database. This preserves audit history. The system uses soft deletes for all sensitive records.
 
-**Step-Up Verification** — A prompt to re-enter your TOTP code (from your authenticator app) before performing a sensitive action, even if you are already logged in. Cached for 15 minutes.
+**Step-Up Verification**  -  A prompt to re-enter your TOTP code (from your authenticator app) before performing a sensitive action, even if you are already logged in. Cached for 15 minutes.
 
-**TOTP** — Time-based One-Time Password. The type of 6-digit code generated by authenticator apps like Google Authenticator or Authy, used for MFA.
+**TOTP**  -  Time-based One-Time Password. The type of 6-digit code generated by authenticator apps like Google Authenticator or Authy, used for MFA.
 
-**Vercel** — A cloud platform for deploying the React frontend. The frontend's `vercel.json` configuration supports one-command deployment.
+**Vercel**  -  A cloud platform for deploying the React frontend. The frontend's `vercel.json` configuration supports one-command deployment.
 
-**WebSocket / Reverb** — Technology that enables real-time updates in the inbox without refreshing the page. Powered by Laravel Reverb. Disabled by default.
+**WebSocket / Reverb**  -  Technology that enables real-time updates in the inbox without refreshing the page. Powered by Laravel Reverb. Disabled by default.
 
 ---
 
@@ -2010,7 +2010,7 @@ Use this checklist for a clean first-time local setup:
 - [ ] Install Node.js 18+ and npm
 - [ ] Copy `backend/camp-burnt-gin-api/.env.example` to `backend/camp-burnt-gin-api/.env`
 - [ ] Start Docker containers (`docker-compose up -d`) or local MySQL
-- [ ] Run `php artisan key:generate` (skip if using Docker — handled automatically)
+- [ ] Run `php artisan key:generate` (skip if using Docker  -  handled automatically)
 - [ ] Create the `camp_burnt_gin` MySQL database (skip if using Docker)
 - [ ] Run `php artisan migrate` or `php artisan migrate:fresh --seed`
 - [ ] Run `php artisan storage:link`
@@ -2077,7 +2077,7 @@ Before going live in production:
 
 **Documentation that was outdated or incorrect:**
 - Auth token storage: multiple docs referenced `localStorage`; the actual implementation uses `sessionStorage['auth_token']` (verified in code)
-- MFA enrollment enforcement: docs described `EnsureMfaEnrolled` as active; it passes through unconditionally in the current code — only step-up re-verification (`EnsureMfaStepUp`) is enforced
+- MFA enrollment enforcement: docs described `EnsureMfaEnrolled` as active; it passes through unconditionally in the current code  -  only step-up re-verification (`EnsureMfaStepUp`) is enforced
 - Super-admin form builder: referenced as a live feature; UI was removed April 22, 2026 (backend schema preserved)
 - CI coverage gate: docs described 50% minimum; effective gate is 20%
 
@@ -2086,5 +2086,5 @@ All 18 requested sections: Purpose, Quick Start, Table of Contents, System Overv
 
 **Assumptions made due to unclear codebase areas:**
 - The maximum file upload size of 10 MB was inferred from general web application standards as this value was not found explicitly in the reviewed files; the backend `StoreDocumentRequest` sets allowed MIME types but the max size limit may be set in `php.ini` or Nginx configuration.
-- The "Nothing to declare" checkbox sections (9–11) are documented based on the MEMORY.md forensic audit notes from April 22, 2026 combined with the application form documentation — these sections are behavior, equipment, diet, and medications.
+- The "Nothing to declare" checkbox sections (9–11) are documented based on the MEMORY.md forensic audit notes from April 22, 2026 combined with the application form documentation  -  these sections are behavior, equipment, diet, and medications.
 - Real-time WebSocket setup steps for Reverb were documented based on `.env.example` configuration keys; the full Reverb server configuration guide lives in the deployment documentation.
