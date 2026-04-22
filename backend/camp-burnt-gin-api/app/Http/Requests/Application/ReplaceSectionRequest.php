@@ -71,6 +71,7 @@ class ReplaceSectionRequest extends FormRequest
             'activities' => $this->activitiesRules(),
             'medications' => $this->medicationsRules(),
             'narratives' => $this->narrativesRules(),
+            default => [],
         };
 
         // Every section accepts an explicit attestation, but only the four

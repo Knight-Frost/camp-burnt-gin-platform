@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
 use App\Models\Camper;
 use App\Models\Document;
 use App\Models\User;

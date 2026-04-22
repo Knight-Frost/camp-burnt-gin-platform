@@ -1537,12 +1537,6 @@ parameters:
 			path: app/Services/Camper/ApplicationCompletenessService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$g_tube\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Camper/ApplicationCompletenessService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$has_seizures\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1550,12 +1544,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$oral_hygiene_level\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Camper/ApplicationCompletenessService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$special_diet\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Services/Camper/ApplicationCompletenessService.php

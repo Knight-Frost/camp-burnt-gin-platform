@@ -4625,7 +4625,6 @@ export function ApplicationFormPage() {
     // without a second round trip.
     const result = await replaceSection(applicationId, plan.key, plan.payload, plan.attestation);
     setValidation(result.validation);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId, camperId, form]);
   /**
    * True while an async server draft deletion is in flight (Clear Draft action).
@@ -5371,7 +5370,6 @@ export function ApplicationFormPage() {
                 }}
                 className="flex items-center gap-1.5 text-xs underline hover:no-underline"
                 style={{ color: '#b91c1c' }}
-                role="alert"
                 title={flushError}
               >
                 <AlertCircle className="h-3 w-3" />

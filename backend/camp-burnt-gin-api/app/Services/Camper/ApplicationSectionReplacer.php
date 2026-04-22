@@ -72,6 +72,7 @@ class ApplicationSectionReplacer
             // also flushes — could otherwise drop one another's keys from
             // the merged map. See code-reviewer finding 1 (2026-04-22).
             $application = Application::lockForUpdate()->findOrFail($application->id);
+            /** @var \App\Models\Camper $camper */
             $camper = $application->camper()->lockForUpdate()->firstOrFail();
 
             match ($sectionKey) {
@@ -84,6 +85,7 @@ class ApplicationSectionReplacer
                 'activities' => $this->replaceActivities($camper, $payload),
                 'medications' => $this->replaceMedications($camper, $payload),
                 'narratives' => $this->replaceNarratives($application, $payload),
+                default => null,
             };
 
             // Stamp the per-application review timestamp + attestation in a
@@ -308,7 +310,7 @@ class ApplicationSectionReplacer
         // becomes readable that wasn't already.
         $relation->delete();
 
-        $modelClass = get_class($relation->getRelated());
+        $modelClass = $relation->getRelated()::class;
 
         foreach ($rows as $row) {
             // Drop client-supplied primary keys so the new rows always have

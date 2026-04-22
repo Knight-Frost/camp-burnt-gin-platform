@@ -214,7 +214,6 @@ class ConversationPolicy
      *      If the sender owns it and can view the conversation, they may
      *      attach it. (Archive status affects visibility in the Documents
      *      module, not attachability.)
-     *
      */
     public function attachDocument(User $user, Conversation $conversation, Document $document): bool
     {

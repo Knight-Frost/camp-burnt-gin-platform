@@ -547,7 +547,9 @@ class ApplicationCompletenessService
     {
         $missing = [];
         $errors = [];
+        /** @var \App\Models\Camper|null $camper */
         $camper = $app->camper;
+        /** @var \App\Models\BehavioralProfile|null $bp */
         $bp = $camper?->behavioralProfile;
 
         // Conditional rules apply regardless of data-or-attestation path:
@@ -599,6 +601,7 @@ class ApplicationCompletenessService
     private function validateEquipment(Application $app): array
     {
         $missing = [];
+        /** @var \App\Models\Camper|null $camper */
         $camper = $app->camper;
         $devices = $camper?->assistiveDevices ?? collect();
 
@@ -613,8 +616,10 @@ class ApplicationCompletenessService
         }
 
         // Hybrid completion: data OR attestation.
+        /** @var \App\Models\MedicalRecord|null $mr */
+        $mr = $camper?->medicalRecord;
         $hasData = $devices->isNotEmpty()
-            || ! empty($camper?->medicalRecord?->mobility_notes);
+            || ($mr !== null && ! empty($mr->mobility_notes));
         if (! $hasData && ! $this->attested($app, 'equipment')) {
             $missing[] = $this->item(
                 'equipment_attestation',
@@ -633,7 +638,9 @@ class ApplicationCompletenessService
     private function validateDiet(Application $app): array
     {
         $missing = [];
+        /** @var \App\Models\Camper|null $camper */
         $camper = $app->camper;
+        /** @var \App\Models\FeedingPlan|null $fp */
         $fp = $camper?->feedingPlan;
 
         // Conditional rules — always apply when the parent has actually
@@ -982,6 +989,7 @@ class ApplicationCompletenessService
         if (! $app->isDraft()) {
             return true;
         }
+        /** @var array<string,bool> $attestations */
         $attestations = $app->section_attestations ?? [];
 
         return ! empty($attestations[$section]);
@@ -1022,7 +1030,7 @@ class ApplicationCompletenessService
                 return true;
             }
         }
-        if (! empty($bp->communication_methods) && count((array) $bp->communication_methods) > 0) {
+        if (! empty($bp->communication_methods)) {
             return true;
         }
 
@@ -1050,7 +1058,7 @@ class ApplicationCompletenessService
                 return true;
             }
         }
-        if (! empty($fp->feeding_times) && count((array) $fp->feeding_times) > 0) {
+        if (! empty($fp->feeding_times)) {
             return true;
         }
         if (! empty($fp->feedings_per_day)) {

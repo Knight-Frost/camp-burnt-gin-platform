@@ -172,7 +172,6 @@ class DocumentPolicy
      * cannot be destroyed here — the uploader's "Delete" click should route
      * through hide() instead, which sets applicant_hidden_at without touching
      * the record the admin sees.
-     *
      */
     public function delete(User $user, Document $document): bool
     {
@@ -205,7 +204,6 @@ class DocumentPolicy
      * The gate is intentionally permissive on state: a user can hide a draft,
      * a submitted doc, an attached doc, whatever. The rule is about
      * ownership, not about the record's phase.
-     *
      */
     public function hide(User $user, Document $document): bool
     {
