@@ -319,8 +319,8 @@ function ComplianceSummary({
     }
     if (validation.state === 'SUBMITTED') {
       return role === 'admin'
-        ? 'Submitted — post-submit drift detected'
-        : 'Submitted — but we noticed an issue that needs attention';
+        ? 'Submitted - some items still need your review'
+        : 'Submitted - a few things still need attention';
     }
     return role === 'admin'
       ? 'Not yet complete'
