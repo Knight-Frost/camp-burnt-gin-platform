@@ -2078,7 +2078,6 @@ Before going live in production:
 **Documentation that was outdated or incorrect:**
 - Auth token storage: multiple docs referenced `localStorage`; the actual implementation uses `sessionStorage['auth_token']` (verified in code)
 - MFA enrollment enforcement: docs described `EnsureMfaEnrolled` as active; it passes through unconditionally in the current code  -  only step-up re-verification (`EnsureMfaStepUp`) is enforced
-- Super-admin form builder: referenced as a live feature; UI was removed April 22, 2026 (backend schema preserved)
 - CI coverage gate: docs described 50% minimum; effective gate is 20%
 
 **Major sections included in this guide:**
