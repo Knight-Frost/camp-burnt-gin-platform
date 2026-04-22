@@ -36,6 +36,10 @@ class ReplaceSectionRequest extends FormRequest
     public const ALLOWED_SECTIONS = [
         'camper', 'health', 'behavior', 'equipment', 'diet',
         'personal_care', 'activities', 'medications', 'narratives',
+        // Consents is accepted so that s10 saves on section flush, the same
+        // way every other data section does — see 2026-04-23 audit. Writes
+        // ApplicationConsent rows + signed_at/signature on Application.
+        'consents',
     ];
 
     /** Sections that accept an explicit "nothing to declare" attestation. */
@@ -71,6 +75,7 @@ class ReplaceSectionRequest extends FormRequest
             'activities' => $this->activitiesRules(),
             'medications' => $this->medicationsRules(),
             'narratives' => $this->narrativesRules(),
+            'consents' => $this->consentsRules(),
             default => [],
         };
 
@@ -147,6 +152,11 @@ class ReplaceSectionRequest extends FormRequest
         // when null. Conditional rules (seizure description if has_seizures)
         // and well-formedness (date types, max lengths) ARE enforced.
         return [
+            // Insurance type is the first-class answer ('none' means the
+            // parent has explicitly said the camper has no insurance — a
+            // complete answer). The detail columns below are only required
+            // by the engine when type is 'medicaid' or 'other'.
+            'insurance_type' => ['nullable', Rule::in(['none', 'medicaid', 'other'])],
             'physician_name' => ['nullable', 'string', 'max:255'],
             'physician_phone' => ['nullable', 'string', 'max:50'],
             'physician_address' => ['nullable', 'string', 'max:255'],
@@ -330,6 +340,36 @@ class ReplaceSectionRequest extends FormRequest
             'narrative_transportation' => ['nullable', 'string', 'max:5000'],
             'narrative_additional_info' => ['nullable', 'string', 'max:5000'],
             'narrative_emergency_protocols' => ['nullable', 'string', 'max:5000'],
+        ];
+    }
+
+    /**
+     * Consents rules. Unlike the other sections, consents is all-or-nothing
+     * by design: a signed consent record is a legal artifact and partial
+     * rows make no sense. The frontend is expected to only call this when
+     * every required field is present. Validation here enforces that
+     * contract strictly — 422 on any gap.
+     */
+    private function consentsRules(): array
+    {
+        return [
+            // All 7 canonical consent types must be present.
+            'consents' => ['required', 'array', 'size:7'],
+            'consents.*.consent_type' => [
+                'required',
+                Rule::in(['general', 'photos', 'liability', 'activity', 'authorization', 'medication', 'hipaa']),
+            ],
+            // Guardian details — one set applies to every consent in this
+            // payload (the frontend supplies them uniformly from s10 state).
+            'guardian_name' => ['required', 'string', 'max:255'],
+            'guardian_relationship' => ['required', 'string', 'max:100'],
+            // The signature may be a base64 PNG (drawn) or a PNG synthesized
+            // from the typed name. Either way it's opaque to us — we just
+            // store it. Max length keeps a runaway payload from eating the DB.
+            'guardian_signature' => ['required', 'string', 'max:200000'],
+            'applicant_signature' => ['nullable', 'string', 'max:200000'],
+            // before_or_equal:now blocks forged future-dated signatures.
+            'signed_at' => ['required', 'date', 'before_or_equal:now'],
         ];
     }
 

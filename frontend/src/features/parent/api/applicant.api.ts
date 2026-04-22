@@ -289,7 +289,8 @@ export type ReplaceSectionKey =
   | 'personal_care'
   | 'activities'
   | 'medications'
-  | 'narratives';
+  | 'narratives'
+  | 'consents';
 
 export interface ReplaceSectionResponse {
   data: Application;

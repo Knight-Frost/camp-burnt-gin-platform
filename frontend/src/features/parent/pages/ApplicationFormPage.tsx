@@ -60,8 +60,6 @@ import {
   uploadDocument,
   deleteDocument,
   getApplicationDocuments,
-  signApplication,
-  storeConsents,
   finalizeApplication,
   type FinalizationGap,
   getDraft,
@@ -622,21 +620,21 @@ export interface FormState {
      *  are optional), which falsely shows a checkmark on a fresh application. */
     section_reviewed: boolean;
   };
-  /** Section 10 — Consents & Signatures */
+  /** Section 10 — Consents & Signatures.
+   *  Keys are canonical (match the backend ApplicationConsent.consent_type
+   *  enum exactly) — no ad-hoc frontend→backend mapping. */
   s10: {
-    // PDF consent #1 — General consent
-    consent_general:    boolean;
-    consent_medical:    boolean;
-    consent_photo:      boolean;
-    consent_liability:  boolean;
-    // PDF consent #4 — Permission to participate in activities
-    consent_permission_activities: boolean;
-    consent_medication: boolean;
-    consent_hipaa:      boolean;
-    signed_name:        string;
-    signed_date:        string;
-    signature_type:     SignatureType;
-    signature_data:     string; // base64 PNG (drawn) or '' (typed-only)
+    consent_general:       boolean;  // General camp participation consent
+    consent_authorization: boolean;  // Medical treatment authorization
+    consent_photos:        boolean;  // Photo / media release
+    consent_liability:     boolean;  // Release of liability
+    consent_activity:      boolean;  // Activity participation permission
+    consent_medication:    boolean;  // Medication administration consent
+    consent_hipaa:         boolean;  // HIPAA privacy acknowledgment
+    signed_name:           string;
+    signed_date:           string;
+    signature_type:        SignatureType;
+    signature_data:        string; // base64 PNG (drawn) or '' (typed-only)
   };
   /** Meta */
   meta: {
@@ -834,13 +832,13 @@ const INITIAL_STATE: FormState = {
     gtube_plan:    null,
   },
   s10: {
-    consent_general:               false,
-    consent_medical:               false,
-    consent_photo:                 false,
-    consent_liability:             false,
-    consent_permission_activities: false,
-    consent_medication:            false,
-    consent_hipaa:                 false,
+    consent_general:       false,
+    consent_authorization: false,
+    consent_photos:        false,
+    consent_liability:     false,
+    consent_activity:      false,
+    consent_medication:    false,
+    consent_hipaa:         false,
     signed_name:        '',
     signed_date:        '',
     signature_type:     'typed',
@@ -1720,7 +1718,10 @@ function Section2({
       {/* Diagnoses */}
       <SectionCard>
         <div className="flex items-center justify-between">
-          <SubHeading>{t('applicant.form.s2_diagnoses_heading')}</SubHeading>
+          <SubHeading>
+            {t('applicant.form.s2_diagnoses_heading')}
+            <span aria-hidden="true" style={{ color: 'var(--destructive)' }}> *</span>
+          </SubHeading>
           <button
             type="button"
             onClick={addDiagnosis}
@@ -1730,6 +1731,15 @@ function Section2({
             <Plus className="h-3 w-3" /> {t('applicant.form.s2_add_diagnosis')}
           </button>
         </div>
+        {/* CYSHCN eligibility requires at least one diagnosis to be recorded
+            — this is enforced by the backend completeness engine. Showing
+            the helper inline lets the parent understand why the Health
+            section stays incomplete until they add one. */}
+        <p className="text-xs mb-2" style={{ color: 'var(--muted-foreground)' }}>
+          {t('applicant.form.s2_diagnoses_required_helper', {
+            defaultValue: 'Camp Burnt Gin serves children with special health care needs — at least one diagnosis is required.',
+          })}
+        </p>
         {data.diagnoses.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
             {t('applicant.form.s2_no_diagnoses')}
@@ -3326,19 +3336,33 @@ function Section9({
 // Section 10 — Consents & Signatures
 // ---------------------------------------------------------------------------
 
-const CONSENT_DEFS: { key: keyof Pick<FormState['s10'], 'consent_general'|'consent_medical'|'consent_photo'|'consent_liability'|'consent_permission_activities'|'consent_medication'|'consent_hipaa'>; title: string; body: string }[] = [
+/**
+ * Consent definitions. The `key` is both the form-state property AND the
+ * canonical `consent_type` value stored in the backend ApplicationConsent
+ * table. Keeping them identical means no frontend→backend mapping can drift.
+ */
+type ConsentKey =
+  | 'consent_general'
+  | 'consent_authorization'
+  | 'consent_photos'
+  | 'consent_liability'
+  | 'consent_activity'
+  | 'consent_medication'
+  | 'consent_hipaa';
+
+const CONSENT_DEFS: { key: ConsentKey; title: string; body: string }[] = [
   {
     key: 'consent_general',
     title: 'General Consent',
     body: 'I hereby give consent for my child to participate in the Camp Burnt Gin program. I certify that all information provided in this application is accurate and complete to the best of my knowledge. I understand that incomplete or inaccurate information may affect my child\'s ability to attend camp.',
   },
   {
-    key: 'consent_medical',
+    key: 'consent_authorization',
     title: 'Medical Treatment Authorization',
     body: 'I authorize Camp Burnt Gin and its staff to seek and consent to emergency medical, dental, surgical, or hospital care for my child if I cannot be reached in time. I understand that every effort will be made to contact me before medical treatment is administered.',
   },
   {
-    key: 'consent_photo',
+    key: 'consent_photos',
     title: 'Photo & Media Release',
     body: 'I grant Camp Burnt Gin permission to photograph and/or record my child during camp activities. These images may be used in camp publications, website, social media, and promotional materials. No personally identifying information will be shared without additional consent.',
   },
@@ -3348,7 +3372,7 @@ const CONSENT_DEFS: { key: keyof Pick<FormState['s10'], 'consent_general'|'conse
     body: 'I acknowledge that participation in camp activities involves inherent risks. I voluntarily assume these risks and release Camp Burnt Gin, its directors, staff, and volunteers from liability for any injury, illness, or loss arising from my child\'s participation, except in cases of gross negligence.',
   },
   {
-    key: 'consent_permission_activities',
+    key: 'consent_activity',
     title: 'Permission to Participate in Camp Activities',
     body: 'I give permission for my child to participate in all standard camp activities, including but not limited to swimming, boating, sports, nature exploration, and overnight camping (if applicable), subject to the activity permissions specified in Section 7 of this application.',
   },
@@ -3478,8 +3502,8 @@ function Section10({
   // "section opened", not "signature given" — a legal distinction for
   // a consent form.
 
-  const allConsents = data.consent_general && data.consent_medical && data.consent_photo
-    && data.consent_liability && data.consent_permission_activities
+  const allConsents = data.consent_general && data.consent_authorization && data.consent_photos
+    && data.consent_liability && data.consent_activity
     && data.consent_medication && data.consent_hipaa;
 
   return (
@@ -3624,11 +3648,18 @@ function Section10({
 function StepIndicator({
   currentStep,
   getStatus,
+  getMissingSummary,
   onJump,
   sections,
 }: {
   currentStep: number;
   getStatus: (i: number) => SectionStatus;
+  /** Returns a short hover-tooltip describing why this section is incomplete,
+   *  or null if the section is complete / status unknown. The label comes
+   *  from the engine's validation.sections[key].missing[0].label — the
+   *  authoritative "first thing still missing" string. Turns the red pill
+   *  from an opaque signal into actionable guidance. */
+  getMissingSummary: (i: number) => string | null;
   onJump: (step: number) => void;
   sections: SectionDef[];
 }) {
@@ -3645,6 +3676,11 @@ function StepIndicator({
         // visible to the applicant is the "complete" green.
         const color = isComplete ? '#16a34a' : 'var(--foreground)';
 
+        const missingSummary = !isComplete ? getMissingSummary(i) : null;
+        const tooltip = missingSummary
+          ? `${section.shortLabel} — ${missingSummary}`
+          : `${section.shortLabel} — ${isActive ? 'current' : status}`;
+
         return (
           <Fragment key={section.id}>
             {i > 0 && (
@@ -3654,7 +3690,8 @@ function StepIndicator({
               type="button"
               onClick={() => onJump(i)}
               aria-current={isActive ? 'step' : undefined}
-              aria-label={`${section.shortLabel} — ${isActive ? 'current' : status}`}
+              aria-label={tooltip}
+              title={tooltip}
               className="flex items-center gap-1 text-xs transition-colors rounded px-1 py-0.5 hover:bg-[var(--dash-nav-hover-bg)]"
               style={{ fontWeight: isActive ? 600 : 400, color }}
             >
@@ -3803,8 +3840,8 @@ function buildSectionSummary(
     case 10: {
       const { s10 } = form;
       const count = [
-        s10.consent_general, s10.consent_medical, s10.consent_photo,
-        s10.consent_liability, s10.consent_permission_activities,
+        s10.consent_general, s10.consent_authorization, s10.consent_photos,
+        s10.consent_liability, s10.consent_activity,
         s10.consent_medication, s10.consent_hipaa,
       ].filter(Boolean).length;
       rows.push({ label: 'Consents signed', value: `${count} of 7` });
@@ -4387,6 +4424,10 @@ export function ApplicationFormPage() {
           plan = {
             key: 'health',
             payload: {
+              // insurance_type is the first-class answer; 'none' is complete.
+              // Empty-string sentinel means "parent hasn't picked a radio yet"
+              // and flows through as null so the engine reports it incomplete.
+              insurance_type: form.s2.insurance_type === '' ? null : form.s2.insurance_type,
               physician_name: form.s2.physician_name || null,
               physician_phone: form.s2.physician_phone || null,
               physician_address: form.s2.physician_address || null,
@@ -4610,9 +4651,60 @@ export function ApplicationFormPage() {
           break;
         }
 
-        // Sections 9 (documents) and 10 (consents) are not flushed via
-        // this path — uploads hit /documents directly, signature/consents
-        // are handled by handleSubmit's finalize waterfall.
+        case 10: {
+          // Consents + signature. Unlike other sections this is all-or-
+          // nothing by design — a partial signed consent is a legal
+          // hazard. If any required field is missing we simply DON'T
+          // flush (no-op) and the engine continues to correctly report
+          // the section as incomplete. Once everything is present we
+          // write all 7 ApplicationConsent rows + Application.signed_at
+          // + signature_name + signature_data atomically.
+          const allConsentsChecked =
+            form.s10.consent_general && form.s10.consent_authorization && form.s10.consent_photos
+            && form.s10.consent_liability && form.s10.consent_activity
+            && form.s10.consent_medication && form.s10.consent_hipaa;
+          const hasName = Boolean(form.s10.signed_name?.trim());
+          // Drawn signature: need the PNG data. Typed signature: synthesize
+          // a PNG from the typed name so the backend always gets an image.
+          const drawnData = form.s10.signature_type === 'drawn'
+            ? form.s10.signature_data
+            : '';
+          const hasDrawnIfRequired = form.s10.signature_type !== 'drawn' || Boolean(drawnData);
+
+          if (!allConsentsChecked || !hasName || !hasDrawnIfRequired) {
+            // Locally incomplete — skip the write entirely. No server
+            // noise, no phantom-partial consent rows.
+            return;
+          }
+
+          const signatureData = drawnData || await typedSignatureToPng(form.s10.signed_name);
+          const signedAt = form.s10.signed_date
+            ? new Date(form.s10.signed_date).toISOString()
+            : new Date().toISOString();
+
+          // consent_type is the form key stripped of its `consent_` prefix
+          // — a deterministic map with no ad-hoc translation. Kept in sync
+          // automatically by type.
+          const consents = CONSENT_DEFS.map((c) => ({
+            consent_type: c.key.replace(/^consent_/, ''),
+          }));
+
+          plan = {
+            key: 'consents',
+            payload: {
+              consents,
+              guardian_name: form.s10.signed_name,
+              guardian_relationship: form.s1.g1_relationship || 'Guardian',
+              guardian_signature: signatureData,
+              signed_at: signedAt,
+            },
+            attestation: false,
+          };
+          break;
+        }
+
+        // Section 9 (documents) is not flushed via this path — uploads
+        // hit /documents directly.
         default:
           break;
     }
@@ -4691,8 +4783,8 @@ export function ApplicationFormPage() {
       ['camper', 'health', 'behavior', 'equipment', 'diet', 'personal_care', 'activities', 'medications', 'narratives'] as const
     ).every((k) => validation.sections?.[k]?.is_complete);
     const consentsCheckedLocally =
-      form.s10.consent_general && form.s10.consent_medical && form.s10.consent_photo
-      && form.s10.consent_liability && form.s10.consent_permission_activities
+      form.s10.consent_general && form.s10.consent_authorization && form.s10.consent_photos
+      && form.s10.consent_liability && form.s10.consent_activity
       && form.s10.consent_medication && form.s10.consent_hipaa;
     const signatureLocally =
       Boolean(form.s10.signed_name?.trim())
@@ -5037,40 +5129,26 @@ export function ApplicationFormPage() {
   }
 
   /**
-   * Persist signature + 7 consent records to the backend.
+   * Persist signature + 7 consent records by routing through the atomic
+   * section-replace endpoint (case 10 of flushSection). A single backend
+   * transaction writes the 7 ApplicationConsent rows AND stamps
+   * Application.signed_at + signature_name + signature_data — the shape
+   * the engine's validateConsents() expects.
    *
-   * Both endpoints are explicitly idempotent (sign() overwrites on draft,
-   * storeConsents uses updateOrCreate keyed on (application_id, consent_type)),
-   * so calling this from both handleRequestSubmit (pre-modal) and handleSubmit
-   * (final waterfall) is safe.
+   * Called from both handleRequestSubmit (pre-modal, so the review modal
+   * opens with Consents already green) and handleSubmit (belt-and-
+   * suspenders before finalize). Idempotent: the replacer soft-deletes
+   * any prior consent rows and recreates them fresh, so repeat calls
+   * are safe.
    *
-   * Why pre-modal: the engine's validateConsents requires `signed_at` and
-   * 7 ApplicationConsent rows in the database. Without this pre-flight
-   * write, the review modal renders with the engine reporting consents
-   * INCOMPLETE (because the data still lives only in form.s10), which
-   * disables the modal's Submit button and traps the parent.
+   * As of 2026-04-23, the legacy /sign + /consents endpoints are no
+   * longer called from the applicant flow — replaceSection('consents')
+   * is the single write path. The legacy endpoints remain for admin
+   * tooling and tests that exercise them directly.
    */
   async function persistSignatureAndConsents(): Promise<void> {
     if (!applicationId) return;
-    const signatureData = form.s10.signature_type === 'drawn' && form.s10.signature_data
-      ? form.s10.signature_data
-      : await typedSignatureToPng(form.s10.signed_name);
-    await signApplication(applicationId, form.s10.signed_name, signatureData);
-
-    const guardianName = form.s10.signed_name;
-    const guardianRelationship = form.s1.g1_relationship || 'Guardian';
-    const signedAt = form.s10.signed_date
-      ? new Date(form.s10.signed_date).toISOString()
-      : new Date().toISOString();
-    await storeConsents(applicationId, [
-      { consent_type: 'general',       guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-      { consent_type: 'photos',        guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-      { consent_type: 'liability',     guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-      { consent_type: 'activity',      guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-      { consent_type: 'authorization', guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-      { consent_type: 'medication',    guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-      { consent_type: 'hipaa',         guardian_name: guardianName, guardian_relationship: guardianRelationship, guardian_signature: signatureData, signed_at: signedAt },
-    ]);
+    await flushSection(10);
   }
 
   /**
@@ -5128,8 +5206,8 @@ export function ApplicationFormPage() {
     const tid = toast.loading(t('applicant.form.submitting'));
 
     // Cancel the pending 30s auto-save before we start writing. If it fired in
-    // the middle of the submission waterfall it would race with createCamper /
-    // storeConsents / finalizeApplication, potentially pushing a stale draft
+    // the middle of the submission waterfall it would race with the atomic
+    // consents-flush / finalizeApplication, potentially pushing a stale draft
     // snapshot and producing a 409 Conflict mid-submit.
     if (serverSaveTimer.current) {
       clearTimeout(serverSaveTimer.current);
@@ -5200,10 +5278,9 @@ export function ApplicationFormPage() {
       }
 
       // ── Steps 2 & 3: Sign + 7 consent records ────────────────────────
-      // handleRequestSubmit already wrote these idempotently (sign uses
-      // overwrite-on-draft semantics, storeConsents uses updateOrCreate),
-      // but call again as a safety net for any path that reaches
-      // handleSubmit without going through the pre-submit review modal.
+      // Idempotent: the consents section-replace endpoint soft-deletes
+      // any prior rows and recreates them, so handleRequestSubmit's
+      // earlier call + this safety-net call are both safe.
       await persistSignatureAndConsents();
 
       // ── Step 4: Finalize — backend completeness gate + atomic submit ─
@@ -5596,6 +5673,11 @@ export function ApplicationFormPage() {
         <StepIndicator
           currentStep={currentStep}
           getStatus={(i) => getStepStatus(i)}
+          getMissingSummary={(i) => {
+            const key = validationKeyForStep[i];
+            const missing = key && validation ? validation.sections?.[key]?.missing : undefined;
+            return missing && missing.length > 0 ? missing[0].label : null;
+          }}
           onJump={goToStep}
           sections={sections}
         />

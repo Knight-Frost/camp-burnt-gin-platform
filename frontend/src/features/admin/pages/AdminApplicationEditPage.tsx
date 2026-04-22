@@ -718,6 +718,9 @@ export function AdminApplicationEditPage() {
         const corePayload: UpdateMedicalRecordPayload = {
           physician_name: s2.physician_name || undefined,
           physician_phone: s2.physician_phone || undefined,
+          // Persist the explicit insurance answer so the engine recognises
+          // "No insurance" as a valid completed state.
+          insurance_type: s2.insurance_type,
           insurance_provider: s2.insurance_type === 'other' ? s2.insurance_provider : undefined,
           insurance_policy_number: s2.insurance_type === 'other' ? s2.insurance_policy_number : undefined,
           has_seizures: s2.has_seizures,

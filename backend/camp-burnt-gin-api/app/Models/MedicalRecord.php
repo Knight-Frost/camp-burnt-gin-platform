@@ -44,6 +44,7 @@ class MedicalRecord extends Model
         'physician_phone',
         'physician_address',        // Mailing address of the attending physician.
         // Insurance
+        'insurance_type',           // Enum: 'none' | 'medicaid' | 'other'. First-class "No insurance" answer.
         'insurance_provider',
         'insurance_policy_number',
         'insurance_group',          // Insurance group or employer number.
@@ -184,14 +185,23 @@ class MedicalRecord extends Model
     }
 
     /**
-     * Determine if this camper has insurance information on file.
+     * Determine if the parent has given a usable answer to the insurance
+     * question. 'none' counts as a valid answer ("camper has no insurance");
+     * 'medicaid' and 'other' additionally need their corresponding detail
+     * field. An unanswered record (insurance_type null) is not usable.
      *
-     * Both provider AND policy number must be present — one alone is incomplete.
+     * Kept in sync with ApplicationCompletenessService::validateHealth —
+     * callers should prefer that engine, but this helper remains for
+     * dashboards and legacy call sites that want a one-liner.
      */
     public function hasInsurance(): bool
     {
-        return $this->insurance_provider !== null
-            && $this->insurance_policy_number !== null;
+        return match ($this->insurance_type) {
+            'none' => true,
+            'medicaid' => ! empty($this->medicaid_number),
+            'other' => ! empty($this->insurance_provider),
+            default => false,
+        };
     }
 
     /**

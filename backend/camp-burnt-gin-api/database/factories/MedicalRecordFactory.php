@@ -16,6 +16,21 @@ class MedicalRecordFactory extends Factory
     public function definition(): array
     {
         $hasSeizures = fake()->boolean(15);
+        $provider = fake()->randomElement([
+            'BlueCross BlueShield SC', 'Medicaid', 'United Healthcare', 'Aetna', 'Cigna', null,
+        ]);
+
+        // Derive insurance_type from the provider choice so factory rows pass
+        // the engine's insurance gate without each call site having to know
+        // about the new enum column. 'Medicaid' in the provider list shifts
+        // to the Medicaid branch; null provider → null type (unanswered, to
+        // preserve coverage of the "not yet answered" path); everything else
+        // counts as 'other'.
+        [$insuranceType, $medicaidNumber] = match (true) {
+            $provider === 'Medicaid' => ['medicaid', fake()->numerify('MCD-#########')],
+            $provider === null => [null, null],
+            default => ['other', null],
+        };
 
         return [
             'camper_id' => Camper::factory(),
@@ -27,12 +42,11 @@ class MedicalRecordFactory extends Factory
             'physician_phone' => fake()->numerify('803#######'),
             'physician_address' => fake()->optional(0.6)->streetAddress(),
             // Insurance
-            'insurance_provider' => fake()->randomElement([
-                'BlueCross BlueShield SC', 'Medicaid', 'United Healthcare', 'Aetna', 'Cigna', null,
-            ]),
-            'insurance_policy_number' => fake()->optional(0.8)->regexify('[A-Z]{3}[0-9]{9}'),
-            'insurance_group' => fake()->optional(0.6)->numerify('GRP-#####'),
-            'medicaid_number' => null,
+            'insurance_type' => $insuranceType,
+            'insurance_provider' => $insuranceType === 'medicaid' ? null : $provider,
+            'insurance_policy_number' => $insuranceType === 'other' ? fake()->optional(0.8)->regexify('[A-Z]{3}[0-9]{9}') : null,
+            'insurance_group' => $insuranceType === 'other' ? fake()->optional(0.6)->numerify('GRP-#####') : null,
+            'medicaid_number' => $medicaidNumber,
             // General health
             'special_needs' => fake()->optional(0.4)->paragraph(),
             'dietary_restrictions' => fake()->optional(0.3)->sentence(),
@@ -80,7 +94,8 @@ class MedicalRecordFactory extends Factory
     public function withMedicaid(): static
     {
         return $this->state(fn () => [
-            'insurance_provider' => 'Medicaid',
+            'insurance_type' => 'medicaid',
+            'insurance_provider' => null,
             'insurance_policy_number' => null,
             'insurance_group' => null,
             'medicaid_number' => fake()->numerify('MCD-#########'),

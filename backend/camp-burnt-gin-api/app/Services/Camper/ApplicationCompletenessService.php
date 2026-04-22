@@ -507,11 +507,27 @@ class ApplicationCompletenessService
             $missing[] = $this->item('physician_name', 'Physician name is required');
         }
 
-        // Insurance: require provider OR medicaid number. Either is
-        // sufficient proof the parent answered the insurance question.
-        $hasInsurance = ! empty($mr->insurance_provider) || ! empty($mr->medicaid_number);
-        if (! $hasInsurance) {
-            $missing[] = $this->item('insurance', 'Insurance provider or Medicaid number is required');
+        // Insurance: the parent must give an explicit answer via
+        // insurance_type. 'none' is a complete answer by itself; 'medicaid'
+        // and 'other' additionally require the matching detail field.
+        // An unanswered record (insurance_type null) is incomplete.
+        //
+        // Prior to 2026-04-23 this rule checked only insurance_provider OR
+        // medicaid_number. That made "No insurance" — a valid UI choice —
+        // indistinguishable from "parent hasn't answered yet", so the
+        // Health section could never turn green for uninsured campers.
+        $insuranceMissing = match ($mr->insurance_type) {
+            'none' => null,
+            'medicaid' => empty($mr->medicaid_number)
+                ? $this->item('medicaid_number', 'Medicaid number is required when Medicaid is selected')
+                : null,
+            'other' => empty($mr->insurance_provider)
+                ? $this->item('insurance_provider', 'Insurance provider is required for private/other insurance')
+                : null,
+            default => $this->item('insurance', 'Please answer the insurance question (No insurance, Medicaid, or Private/other)'),
+        };
+        if ($insuranceMissing !== null) {
+            $missing[] = $insuranceMissing;
         }
 
         // Conditional: has_seizures → seizure_description required.

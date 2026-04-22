@@ -50,9 +50,14 @@ class TestApplicationFixture
         }
 
         $mr = $camper->medicalRecord()->firstOrCreate([]);
-        if (empty($mr->physician_name) || empty($mr->insurance_provider)) {
+        // The engine's insurance rule (2026-04-23) requires an explicit
+        // insurance_type — 'other' with a provider is the equivalent of the
+        // pre-audit "some private insurance" state these fixtures previously
+        // represented implicitly.
+        if (empty($mr->physician_name) || empty($mr->insurance_provider) || empty($mr->insurance_type)) {
             $mr->update([
                 'physician_name' => $mr->physician_name ?: 'Dr. Test Physician',
+                'insurance_type' => $mr->insurance_type ?: 'other',
                 'insurance_provider' => $mr->insurance_provider ?: 'Test Insurance Co',
                 'insurance_policy_number' => $mr->insurance_policy_number ?: 'POL-TEST-001',
             ]);

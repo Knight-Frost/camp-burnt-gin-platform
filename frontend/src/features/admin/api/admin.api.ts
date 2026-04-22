@@ -714,6 +714,10 @@ export async function createBehavioralProfile(payload: CreateBehavioralProfilePa
 export interface UpdateMedicalRecordPayload {
   physician_name?: string;
   physician_phone?: string;
+  /** Explicit insurance answer — 'none' means the parent has declared
+   *  the camper has no insurance (a complete answer under the
+   *  2026-04-23 completeness rule). */
+  insurance_type?: 'none' | 'medicaid' | 'other';
   insurance_provider?: string;
   insurance_policy_number?: string;
   has_seizures?: boolean;

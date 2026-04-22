@@ -173,6 +173,7 @@ export interface MedicalRecord {
   physician_name?: string;
   physician_phone?: string;
   physician_address?: string;
+  insurance_type?: 'none' | 'medicaid' | 'other';
   insurance_provider?: string;
   insurance_policy_number?: string;
   insurance_group?: string;

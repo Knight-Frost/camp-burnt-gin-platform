@@ -3,6 +3,7 @@
 namespace App\Http\Requests\MedicalRecord;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Form request for updating an existing medical record.
@@ -30,6 +31,9 @@ class UpdateMedicalRecordRequest extends FormRequest
         return [
             'physician_name' => ['nullable', 'string', 'max:255'],
             'physician_phone' => ['nullable', 'string', 'max:20'],
+            // insurance_type is the first-class answer (2026-04-23 audit);
+            // details below are tied to it in the completeness engine.
+            'insurance_type' => ['nullable', Rule::in(['none', 'medicaid', 'other'])],
             'insurance_provider' => ['nullable', 'string', 'max:255'],
             'insurance_policy_number' => ['nullable', 'string', 'max:100'],
             'special_needs' => ['nullable', 'string', 'max:5000'],

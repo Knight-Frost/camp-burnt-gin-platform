@@ -3,6 +3,7 @@
 namespace App\Services\Camper;
 
 use App\Models\Application;
+use App\Models\ApplicationConsent;
 use App\Models\Camper;
 use Illuminate\Support\Facades\DB;
 
@@ -85,6 +86,7 @@ class ApplicationSectionReplacer
                 'activities' => $this->replaceActivities($camper, $payload),
                 'medications' => $this->replaceMedications($camper, $payload),
                 'narratives' => $this->replaceNarratives($application, $payload),
+                'consents' => $this->replaceConsents($application, $payload),
                 default => null,
             };
 
@@ -152,8 +154,11 @@ class ApplicationSectionReplacer
 
     private function replaceHealth(Camper $camper, array $payload): void
     {
-        // Medical record — singleton upsert.
+        // Medical record — singleton upsert. `insurance_type` is the
+        // first-class enum answer (none/medicaid/other); the detail
+        // columns flow through unchanged.
         $mrFields = array_intersect_key($payload, array_flip([
+            'insurance_type',
             'physician_name', 'physician_phone', 'physician_address',
             'insurance_provider', 'insurance_policy_number', 'insurance_group',
             'medicaid_number',
@@ -293,6 +298,55 @@ class ApplicationSectionReplacer
         if (! empty($narrativeFields)) {
             $application->update($narrativeFields);
         }
+    }
+
+    /**
+     * Replace all consent records atomically + stamp the Application's
+     * signature fields. The payload is validated upstream by
+     * ReplaceSectionRequest::consentsRules() to have exactly 7 consent
+     * entries with canonical types and a signature block.
+     *
+     * Semantics: this is an all-or-nothing legal artifact. The list-replace
+     * pattern (soft-delete existing rows, create fresh ones) keeps any prior
+     * signatures in the audit trail while making the current set the
+     * authoritative record.
+     */
+    private function replaceConsents(Application $application, array $payload): void
+    {
+        // Wipe any prior consent rows for this application. Soft-delete
+        // only — the encrypted rows remain in the DB for audit. Matches
+        // the list-relation pattern used for EC, diagnoses, etc.
+        $application->consents()->delete();
+
+        $guardianName = $payload['guardian_name'];
+        $guardianRelationship = $payload['guardian_relationship'];
+        $guardianSignature = $payload['guardian_signature'];
+        $applicantSignature = $payload['applicant_signature'] ?? null;
+        $signedAt = $payload['signed_at'];
+
+        foreach ($payload['consents'] as $consent) {
+            ApplicationConsent::create([
+                'application_id' => $application->id,
+                'consent_type' => $consent['consent_type'],
+                'guardian_name' => $guardianName,
+                'guardian_relationship' => $guardianRelationship,
+                'guardian_signature' => $guardianSignature,
+                'applicant_signature' => $applicantSignature,
+                'signed_at' => $signedAt,
+            ]);
+        }
+
+        // Stamp signature fields on the Application itself. The engine's
+        // validateConsents() requires signed_at to be non-null, and the
+        // existing PDF export + admin review UI reads signature_name +
+        // signature_data directly off the Application row. These stay in
+        // sync with the ApplicationConsent rows inside the enclosing
+        // transaction, so a crash between the two writes cannot happen.
+        $application->update([
+            'signature_name' => $guardianName,
+            'signature_data' => $guardianSignature,
+            'signed_at' => $signedAt,
+        ]);
     }
 
     /**
