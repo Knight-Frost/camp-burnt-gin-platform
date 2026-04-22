@@ -87,10 +87,6 @@ Administrators publish announcements visible to all roles. Announcements support
 
 Medical risk scoring is database-driven: `risk_factors`, `risk_rules`, and `risk_thresholds` define the scoring model. `SpecialNeedsRiskAssessmentService` computes a camper's risk score against the active rule set and maps it to a supervision level. Medical staff can add clinical recommendations and apply manual supervision-level overrides. Risk configuration is cached per-request (`risk_engine:factors`, `rules`, `thresholds` keys).
 
-### Form Builder
-
-Super administrators create, version, and publish application form schemas through a visual builder. Schemas consist of sections, fields, and field options. Published schemas are consumed by the applicant portal to render the form dynamically. Applications record the form version they were submitted against.
-
 ### Audit Logging
 
 Every PHI read and every administrative action writes a record to `audit_logs` with the acting user's ID, IP address, user agent, the model class and record ID affected, a before/after change snapshot, and a PHI access flag. The log is browsable and exportable only by super administrators, with MFA step-up required for CSV export.
