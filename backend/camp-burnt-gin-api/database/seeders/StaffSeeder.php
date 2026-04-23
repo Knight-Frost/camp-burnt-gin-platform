@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Hash;
  *   Coordinator  : admin3@campburntgin.org — Taylor Brooks
  *   Medical Dir  : medical@example.com     — Dr. Morgan Chen
  *   Nurse        : medical2@campburntgin.org — Jamie Santos RN
- *   MFA Admin    : mfa.admin.campburntgin@gmail.com — MFA-enabled, TOTP required
+ *   MFA Admin    : mfa.admin@campburntgin.org — MFA-enabled, TOTP required
  *
  * Edge-case accounts (all password: "password"):
  *   Inactive     : inactive@example.com        (is_active=false — login denied)
@@ -159,7 +159,7 @@ class StaffSeeder extends Seeder
 
         // ── MFA-enabled Admin (for MFA flow testing) ──────────────────────────
         User::firstOrCreate(
-            ['email' => 'mfa.admin.campburntgin@gmail.com'],
+            ['email' => 'mfa.admin@campburntgin.org'],
             [
                 'name' => 'Dana Forsythe',
                 'role_id' => $adminRole->id,

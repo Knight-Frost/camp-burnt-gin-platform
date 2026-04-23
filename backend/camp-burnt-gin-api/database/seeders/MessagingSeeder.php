@@ -54,7 +54,7 @@ use Illuminate\Support\Str;
  *   admin3@campburntgin.org (Taylor)      — T13, T14
  *   medical@example.com (Dr. Chen)        — T02,T04,T06,T08
  *   medical2@campburntgin.org (Jamie)     — T15
- *   mfa.admin.campburntgin@gmail.com (Dana)     — T16
+ *   mfa.admin@campburntgin.org (Dana)     — T16
  */
 class MessagingSeeder extends Seeder
 {
@@ -65,7 +65,7 @@ class MessagingSeeder extends Seeder
         $taylor = User::where('email', 'admin3@campburntgin.org')->firstOrFail();
         $medical = User::where('email', 'medical@example.com')->firstOrFail();
         $jamie = User::where('email', 'medical2@campburntgin.org')->firstOrFail();
-        $dana = User::where('email', 'mfa.admin.campburntgin@gmail.com')->firstOrFail();
+        $dana = User::where('email', 'mfa.admin@campburntgin.org')->firstOrFail();
 
         // Applicant users
         $sarah = User::where('email', 'sarah.johnson@example.com')->firstOrFail();

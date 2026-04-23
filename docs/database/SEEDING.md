@@ -71,7 +71,7 @@ php artisan db:seed --class=FullSimulationSeeder
 | admin | admin3@campburntgin.org | Taylor Brooks |
 | medical | medical@example.com | Dr. Morgan Chen |
 | medical | medical2@campburntgin.org | Jamie Santos RN |
-| admin | mfa.admin.campburntgin@gmail.com | Dana Forsythe (MFA enabled) |
+| admin | mfa.admin@campburntgin.org | Dana Forsythe (MFA enabled) |
 
 ### Applicant Accounts (password: password)
 

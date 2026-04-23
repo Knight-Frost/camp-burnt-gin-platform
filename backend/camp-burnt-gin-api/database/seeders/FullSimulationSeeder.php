@@ -223,7 +223,7 @@ class FullSimulationSeeder extends Seeder
         $this->command->line('  Coordinator : admin3@campburntgin.org        Taylor Brooks');
         $this->command->line('  Medical Dir : medical@example.com            Dr. Morgan Chen');
         $this->command->line('  Nurse       : medical2@campburntgin.org      Jamie Santos RN');
-        $this->command->line('  MFA Admin   : mfa.admin.campburntgin@gmail.com     Dana Forsythe (TOTP required)');
+        $this->command->line('  MFA Admin   : mfa.admin@campburntgin.org     Dana Forsythe (TOTP required)');
         $this->command->newLine();
 
         $this->command->line('<comment>Applicant accounts</comment> (password: password):');
