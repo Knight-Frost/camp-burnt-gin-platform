@@ -913,7 +913,7 @@ The seeder system is split into two categories:
 - Roles (admin, super_admin, applicant, medical)
 - Required document rules
 - Activity permissions
-- The primary super admin account (`admin@campburntgin.org`)
+- The primary super admin account (`admin.campburntgin@gmail.com`)
 
 **Demo data** — only seeded in non-production environments, and only if enabled.
 - Staff accounts, applicant families, campers
@@ -1138,7 +1138,7 @@ When `ENABLE_DEMO_DATA=true`, the following accounts and records are created.
 
 | Name | Email | Role | Password |
 |------|-------|------|----------|
-| Super Administrator | admin@campburntgin.org | super_admin | `ChangeThisPassword123!` |
+| Super Administrator | admin.campburntgin@gmail.com | super_admin | `ChangeThisPassword123!` |
 | Deputy Administrator | admin2@campburntgin.org | super_admin | `password` |
 | Alex Rivera | admin@example.com | admin | `password` |
 | Dr. Morgan Chen | medical@example.com | medical | `password` |

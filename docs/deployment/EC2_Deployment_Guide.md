@@ -608,7 +608,7 @@ The response code must be 200.
 curl -s -X POST http://YOUR_EC2_IP/api/auth/login \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
-  -d '{"email":"admin@campburntgin.org","password":"YOUR_SEEDED_PASSWORD"}'
+  -d '{"email":"admin.campburntgin@gmail.com","password":"YOUR_SEEDED_PASSWORD"}'
 ```
 
 A successful login returns a JSON object with `"success": true` and a `token` field. If the credentials are wrong, the response is `"Invalid credentials."` with HTTP 401.

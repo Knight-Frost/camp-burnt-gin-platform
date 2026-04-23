@@ -76,7 +76,7 @@ class MinimalSeeder extends Seeder
         // Never hardcode a credential in source code — it lives in git history forever.
         $password = env('ADMIN_BOOTSTRAP_PASSWORD') ?: \Illuminate\Support\Str::random(20);
 
-        $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org');
+        $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin.campburntgin@gmail.com');
 
         $created = User::firstOrCreate(
             ['email' => $email],
@@ -104,7 +104,7 @@ class MinimalSeeder extends Seeder
         $this->command->info('✓ Minimal seed complete — clean system ready.');
         $this->command->newLine();
         $this->command->warn('SECURITY: Change the super admin password immediately after first login!');
-        $this->command->warn('  Email: '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org'));
+        $this->command->warn('  Email: '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin.campburntgin@gmail.com'));
         $this->command->newLine();
     }
 }

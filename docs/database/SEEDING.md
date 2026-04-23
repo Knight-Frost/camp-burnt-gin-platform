@@ -42,7 +42,7 @@ php artisan db:seed --class=FullSimulationSeeder
 
 | Role | Email | Password |
 |------|-------|---------|
-| super_admin | admin@campburntgin.org | see `ADMIN_BOOTSTRAP_PASSWORD` env var |
+| super_admin | admin.campburntgin@gmail.com | see `ADMIN_BOOTSTRAP_PASSWORD` env var |
 | admin | coordinator@campburntgin.org | password |
 | medical | medical@campburntgin.org | password |
 | applicant | sarah.johnson@example.com | password |
@@ -65,13 +65,13 @@ php artisan db:seed --class=FullSimulationSeeder
 
 | Role | Email | Name |
 |------|-------|------|
-| super_admin | admin@campburntgin.org | Super Administrator (bootstrap) |
+| super_admin | admin.campburntgin@gmail.com | Super Administrator (bootstrap) |
 | super_admin | admin2@campburntgin.org | Jordan Blake |
 | admin | admin@example.com | Alex Rivera |
 | admin | admin3@campburntgin.org | Taylor Brooks |
 | medical | medical@example.com | Dr. Morgan Chen |
 | medical | medical2@campburntgin.org | Jamie Santos RN |
-| admin | mfa.admin@campburntgin.org | Dana Forsythe (MFA enabled) |
+| admin | mfa.admin.campburntgin@gmail.com | Dana Forsythe (MFA enabled) |
 
 ### Applicant Accounts (password: password)
 
@@ -126,7 +126,7 @@ Creates only:
 - Activity permission defaults (empty — no campers yet)
 - Form definition (Camp Burnt Gin Application v1)
 - Risk engine configuration
-- One super admin account (`admin@campburntgin.org`)
+- One super admin account (`admin.campburntgin@gmail.com`)
 
 No test data. Safe for production.
 

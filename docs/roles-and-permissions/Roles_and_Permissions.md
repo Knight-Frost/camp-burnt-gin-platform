@@ -411,7 +411,7 @@ php artisan migrate:fresh --seed
 
 This command:
 1. Creates all four roles (super_admin, admin, applicant, medical) via RoleSeeder
-2. Creates a default super_admin user (email: admin@campburntgin.org)
+2. Creates a default super_admin user (email: admin.campburntgin@gmail.com)
 3. Ensures idempotent seeding (safe to run multiple times)
 
 **Security Warning:** The default super_admin password must be changed immediately in production environments.

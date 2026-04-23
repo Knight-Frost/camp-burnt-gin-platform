@@ -942,7 +942,7 @@ After seeding with the default `demo` mode, these accounts are ready to use:
 
 | Role | Email | Password |
 |---|---|---|
-| Super Admin | admin@campburntgin.org | See `ADMIN_BOOTSTRAP_PASSWORD` in `.env` |
+| Super Admin | admin.campburntgin@gmail.com | See `ADMIN_BOOTSTRAP_PASSWORD` in `.env` |
 | Admin (Coordinator) | coordinator@campburntgin.org | password |
 | Medical Staff | medical@campburntgin.org | password |
 | Applicant (Parent) | sarah.johnson@example.com | password |
@@ -1034,7 +1034,7 @@ The backend is configured through a file called `.env` inside `backend/camp-burn
 | Variable | Purpose | Options |
 |---|---|---|
 | `SEED_MODE` | What data to load when seeding | `demo` (default), `development`, `minimal` |
-| `ADMIN_BOOTSTRAP_EMAIL` | Super admin account email | `admin@campburntgin.org` |
+| `ADMIN_BOOTSTRAP_EMAIL` | Super admin account email | `admin.campburntgin@gmail.com` |
 | `ADMIN_BOOTSTRAP_PASSWORD` | Super admin initial password | Set explicitly in production |
 
 #### Compliance

@@ -405,7 +405,7 @@ php artisan db:seed --class=RoleSeeder
 
 **Important:** Database seeding automatically creates:
 - Four system roles (`super_admin`, `admin`, `applicant`, `medical`) via `RoleSeeder`
-- Default super_admin user (`admin@campburntgin.org` / `ChangeThisPassword123!`)
+- Default super_admin user (`admin.campburntgin@gmail.com` / `ChangeThisPassword123!`)
 - Dynamic form definition v1 (112 fields across 10 sections) via `FormDefinitionSeeder`
 
 **Security Warning:** The default super_admin password MUST be changed immediately in production environments.

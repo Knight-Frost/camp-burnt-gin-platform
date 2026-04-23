@@ -35,7 +35,7 @@ class ExtendedAuditLogSeeder extends Seeder
     {
         $admin = User::where('email', 'admin@example.com')->firstOrFail();
         $medical = User::where('email', 'medical@example.com')->firstOrFail();
-        $super = User::where('email', 'admin@campburntgin.org')->firstOrFail();
+        $super = User::where('email', 'admin.campburntgin@gmail.com')->firstOrFail();
         $sarah = User::where('email', 'sarah.johnson@example.com')->first();
         $david = User::where('email', 'david.martinez@example.com')->first();
         $jennifer = User::where('email', 'jennifer.thompson@example.com')->first();

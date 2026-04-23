@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Hash;
  *   Tier 1 — System bootstrap (production-safe, always runs)
  *     RoleSeeder              → 4 roles (super_admin, admin, applicant, medical)
  *     System configuration    → document rules, activity permissions, form definitions, risk engine
- *     Super admin account     → admin@campburntgin.org (inline, production bootstrap)
+ *     Super admin account     → admin.campburntgin@gmail.com (inline, production bootstrap)
  *
  *   Tier 2 — People and structure (dev/staging only)
  *     StaffSeeder             → 7 staff accounts + 2 edge-case accounts (inactive, locked)
@@ -176,7 +176,7 @@ class FullSimulationSeeder extends Seeder
         // Use ADMIN_BOOTSTRAP_PASSWORD env var when set (recommended for CI/staging).
         // Generate a secure random password when unset — printed once to console.
         $password = env('ADMIN_BOOTSTRAP_PASSWORD') ?: \Illuminate\Support\Str::random(20);
-        $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org');
+        $email = env('ADMIN_BOOTSTRAP_EMAIL', 'admin.campburntgin@gmail.com');
 
         $created = User::firstOrCreate(
             ['email' => $email],
@@ -201,7 +201,7 @@ class FullSimulationSeeder extends Seeder
     {
         $this->command->newLine();
         $this->command->warn('SECURITY: Change the super admin password immediately after first login!');
-        $this->command->warn('  Email: '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org'));
+        $this->command->warn('  Email: '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin.campburntgin@gmail.com'));
         $this->command->warn('  Password: set via ADMIN_BOOTSTRAP_PASSWORD env var (or randomly generated — check above)');
         $this->command->newLine();
     }
@@ -213,17 +213,17 @@ class FullSimulationSeeder extends Seeder
         $this->command->newLine();
 
         $this->command->warn('SECURITY: Change the super admin password immediately!');
-        $this->command->warn('  '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin@campburntgin.org').' / (set via ADMIN_BOOTSTRAP_PASSWORD or randomly generated — check above)');
+        $this->command->warn('  '.env('ADMIN_BOOTSTRAP_EMAIL', 'admin.campburntgin@gmail.com').' / (set via ADMIN_BOOTSTRAP_PASSWORD or randomly generated — check above)');
         $this->command->newLine();
 
         $this->command->line('<comment>Staff accounts</comment> (password: password):');
-        $this->command->line('  Super Admin : admin@campburntgin.org         Super Administrator (bootstrap account — see ADMIN_BOOTSTRAP_PASSWORD)');
+        $this->command->line('  Super Admin : admin.campburntgin@gmail.com         Super Administrator (bootstrap account — see ADMIN_BOOTSTRAP_PASSWORD)');
         $this->command->line('  Super Admin : admin2@campburntgin.org        Jordan Blake (deputy super admin)');
         $this->command->line('  Admin       : admin@example.com              Alex Rivera');
         $this->command->line('  Coordinator : admin3@campburntgin.org        Taylor Brooks');
         $this->command->line('  Medical Dir : medical@example.com            Dr. Morgan Chen');
         $this->command->line('  Nurse       : medical2@campburntgin.org      Jamie Santos RN');
-        $this->command->line('  MFA Admin   : mfa.admin@campburntgin.org     Dana Forsythe (TOTP required)');
+        $this->command->line('  MFA Admin   : mfa.admin.campburntgin@gmail.com     Dana Forsythe (TOTP required)');
         $this->command->newLine();
 
         $this->command->line('<comment>Applicant accounts</comment> (password: password):');

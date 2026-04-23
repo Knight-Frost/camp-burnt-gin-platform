@@ -38,7 +38,7 @@ use Illuminate\Support\Str;
  *
  * ─── ACCOUNTS ───────────────────────────────────────────────────────────────
  *
- *   Super Admin : admin@campburntgin.org     ADMIN_BOOTSTRAP_PASSWORD (Admin1234! in .env)
+ *   Super Admin : admin.campburntgin@gmail.com     ADMIN_BOOTSTRAP_PASSWORD (Admin1234! in .env)
  *   Admin       : coordinator@campburntgin.org  password
  *   Medical     : medical@campburntgin.org       password
  *   Applicant 1 : sarah.johnson@example.com      password  (2 children)
@@ -388,7 +388,7 @@ class DemoSeeder extends Seeder
         $this->command->info('✓ Demo seed complete.');
         $this->command->newLine();
         $this->command->line('<comment>Accounts (all non-admin passwords: password)</comment>');
-        $this->command->line('  Super Admin : admin@campburntgin.org           (see ADMIN_BOOTSTRAP_PASSWORD in .env)');
+        $this->command->line('  Super Admin : admin.campburntgin@gmail.com           (see ADMIN_BOOTSTRAP_PASSWORD in .env)');
         $this->command->line('  Admin       : coordinator@campburntgin.org');
         $this->command->line('  Medical     : medical@campburntgin.org');
         $this->command->line('  Applicant 1 : sarah.johnson@example.com        (Ethan: approved, Lily: submitted)');

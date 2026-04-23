@@ -54,7 +54,7 @@ use Illuminate\Support\Str;
  *   admin3@campburntgin.org (Taylor)      — T13, T14
  *   medical@example.com (Dr. Chen)        — T02,T04,T06,T08
  *   medical2@campburntgin.org (Jamie)     — T15
- *   mfa.admin@campburntgin.org (Dana)     — T16
+ *   mfa.admin.campburntgin@gmail.com (Dana)     — T16
  */
 class MessagingSeeder extends Seeder
 {
@@ -65,7 +65,7 @@ class MessagingSeeder extends Seeder
         $taylor = User::where('email', 'admin3@campburntgin.org')->firstOrFail();
         $medical = User::where('email', 'medical@example.com')->firstOrFail();
         $jamie = User::where('email', 'medical2@campburntgin.org')->firstOrFail();
-        $dana = User::where('email', 'mfa.admin@campburntgin.org')->firstOrFail();
+        $dana = User::where('email', 'mfa.admin.campburntgin@gmail.com')->firstOrFail();
 
         // Applicant users
         $sarah = User::where('email', 'sarah.johnson@example.com')->firstOrFail();
@@ -277,7 +277,7 @@ class MessagingSeeder extends Seeder
             $this->addParticipant($conv, $michael, now()->subDays(5));
 
             $m1 = $this->addMessage($conv, $admin, now()->subDays(5),
-                "Dear Families,\n\nWe are excited to welcome your campers to Session 1 — Summer 2026 (June 8–12)! Here is key information as we prepare:\n\n**Arrival & Departure**\n- Arrival: Sunday June 8, 1:00–3:00 PM at the main lodge\n- Departure: Friday June 13, 10:00 AM–12:00 PM\n- All medications must be in original labeled containers at check-in\n\n**Medical Check-In**\n- Please plan 30–45 minutes at check-in for our nursing team to verify medications, equipment settings, and care plans\n- If your camper has a g-tube, insulin pump, or BiPAP, please arrive closer to 1:00 PM for priority medical check-in\n\n**What to Bring**\n- A complete medication list signed by your camper's physician\n- At least 10 days of all medications (so counselors have spare supplies for damaged or lost items)\n- All adaptive equipment including chargers, tubing, and replacement supplies\n\n**Contact During Camp**\n- Emergency: (803) 555-0100 (24-hour)\n- Medical questions: medical@campburntgin.org\n- General: admin@campburntgin.org\n\nWe can't wait to see your amazing campers!\n\nThe Camp Burnt Gin Team");
+                "Dear Families,\n\nWe are excited to welcome your campers to Session 1 — Summer 2026 (June 8–12)! Here is key information as we prepare:\n\n**Arrival & Departure**\n- Arrival: Sunday June 8, 1:00–3:00 PM at the main lodge\n- Departure: Friday June 13, 10:00 AM–12:00 PM\n- All medications must be in original labeled containers at check-in\n\n**Medical Check-In**\n- Please plan 30–45 minutes at check-in for our nursing team to verify medications, equipment settings, and care plans\n- If your camper has a g-tube, insulin pump, or BiPAP, please arrive closer to 1:00 PM for priority medical check-in\n\n**What to Bring**\n- A complete medication list signed by your camper's physician\n- At least 10 days of all medications (so counselors have spare supplies for damaged or lost items)\n- All adaptive equipment including chargers, tubing, and replacement supplies\n\n**Contact During Camp**\n- Emergency: (803) 555-0100 (24-hour)\n- Medical questions: medical@campburntgin.org\n- General: admin.campburntgin@gmail.com\n\nWe can't wait to see your amazing campers!\n\nThe Camp Burnt Gin Team");
 
             $m1->markAsReadBy($sarah);
             // Michael hasn't read it yet (unread badge)
@@ -376,7 +376,7 @@ class MessagingSeeder extends Seeder
                 camperId: $ethan->id,
                 applicationId: $appEthan?->id,
                 sessionId: $session1->id,
-                body: "Great news! Ethan Johnson's application for Session 1 — Summer 2026 has been approved.\n\nEthan's medical team has reviewed all submitted information and confirmed he is cleared for camp. You will receive a separate welcome packet with packing lists and arrival information.\n\nIf you have questions, please reply to this message or contact us at admin@campburntgin.org.",
+                body: "Great news! Ethan Johnson's application for Session 1 — Summer 2026 has been approved.\n\nEthan's medical team has reviewed all submitted information and confirmed he is cleared for camp. You will receive a separate welcome packet with packing lists and arrival information.\n\nIf you have questions, please reply to this message or contact us at admin.campburntgin@gmail.com.",
                 createdAt: now()->subDays(6),
                 readByApplicant: true,
             );
