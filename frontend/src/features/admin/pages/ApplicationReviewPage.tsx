@@ -29,15 +29,18 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
-  ArrowLeft, AlertTriangle, CheckCircle, XCircle, Clock, ListOrdered,
+  ArrowLeft, AlertTriangle, CheckCircle, XCircle, Clock, ListOrdered, Save,
 } from 'lucide-react';
 
 import {
   getApplicationCanonical,
   reviewApplication,
+  updateApplication,
   checkApplicationCompleteness,
   verifyDocument,
+  startApplicationReview,
 } from '@/features/admin/api/admin.api';
+import { format as formatDate } from 'date-fns';
 import { StatusBadge } from '@/ui/components/StatusBadge';
 import { Button } from '@/ui/components/Button';
 import { Skeletons } from '@/ui/components/Skeletons';
@@ -51,10 +54,10 @@ import {
   type CanonicalSectionKey,
 } from '@/features/applications/components/CanonicalApplicationSections';
 import { PaperApplicationReviewView } from '@/features/admin/components/PaperApplicationReviewView';
-import type {
-  CanonicalApplicationPayload,
-  CanonicalDocument,
-} from '@/shared/types';
+import { ReviewHistoryPanel } from '@/features/admin/components/review/ReviewHistoryPanel';
+import { InlineRequestDocumentButton } from '@/features/admin/components/review/InlineRequestDocumentButton';
+import type { ReviewerApplicationDocument } from '@/features/admin/api/admin.api';
+import type { CanonicalApplicationPayload } from '@/shared/types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -71,16 +74,36 @@ const TERMINAL_STATUSES = new Set<Application['status']>(['cancelled', 'withdraw
 // ReviewPanel — right-column approve/reject/waitlist/cancel
 // ---------------------------------------------------------------------------
 
+// Shape of the compliance_details payload returned in a 422 from ApplicationService
+// when DocumentEnforcementService blocks approval.
+interface ComplianceDetails {
+  missing_documents?: Array<{ document_type: string; description?: string }>;
+  expired_documents?: Array<{ document_type: string }>;
+  unverified_documents?: Array<{ document_type: string; verification_status?: string }>;
+}
+
 interface ReviewPanelProps {
   applicationId: number;
   currentStatus: Application['status'];
   isDraft: boolean;
+  /** Pre-populated from application.notes so edits persist across page loads. */
+  initialNotes?: string;
+  /** Timestamp admin first claimed the review (Phase 1 soft-claim). Null until someone clicks Start Review. */
+  reviewStartedAt?: string | null;
+  /** Timestamp final decision was recorded (approve/reject/waitlist). */
+  reviewedAt?: string | null;
   onReviewed: (updated: Application) => void;
 }
 
-function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: ReviewPanelProps) {
+function ReviewPanel({
+  applicationId, currentStatus, isDraft,
+  initialNotes = '',
+  reviewStartedAt, reviewedAt, onReviewed,
+}: ReviewPanelProps) {
   const { t } = useTranslation();
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(initialNotes);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const notesDirty = notes !== initialNotes;
   const [submitting, setSubmitting] = useState<
     'approved' | 'rejected' | 'under_review' | 'waitlisted' | 'cancelled' | null
   >(null);
@@ -89,6 +112,18 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
    *  destructive (notifies the parent, deactivates the camper on reversal
    *  from Approved), so we gate it behind an explicit confirmation. */
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+
+  async function handleSaveNotes() {
+    setSavingNotes(true);
+    try {
+      await updateApplication(applicationId, { notes });
+      toast.success('Notes saved');
+    } catch {
+      toast.error('Failed to save notes');
+    } finally {
+      setSavingNotes(false);
+    }
+  }
 
   /**
    * Non-approval actions proceed directly. Approval first checks completeness:
@@ -147,8 +182,54 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
       onReviewed(updated);
       toast.success(t('admin.review.success', { status }));
     } catch (err) {
+      // When approving, the backend may block on DocumentEnforcementService even when
+      // ApplicationCompletenessService said "complete". The 422 interceptor spreads the
+      // response body directly onto the error, so compliance_details is a top-level key.
+      // Open the override modal so the admin can see what's missing and approve anyway.
+      if (status === 'approved') {
+        const details = (err as { compliance_details?: ComplianceDetails }).compliance_details;
+        if (details) {
+          const toItem = (d: { document_type: string; description?: string }) => ({
+            key: d.document_type,
+            label: d.description ?? d.document_type,
+            severity: 'high' as const,
+          });
+          setCompletenessReport({
+            is_complete: false,
+            missing_fields: [],
+            missing_documents: (details.missing_documents ?? []).map(toItem),
+            unverified_documents: (details.unverified_documents ?? []).map(
+              (d) => ({ key: d.document_type, label: d.document_type, severity: 'high' as const }),
+            ),
+            missing_consents: [],
+          });
+          return;
+        }
+      }
       const msg = (err as { message?: string })?.message;
       toast.error(msg ?? t('admin.review.error'));
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  /**
+   * Soft-claim the review. Hits POST /applications/{id}/start-review which
+   * stamps review_started_by + review_started_at and transitions Submitted →
+   * UnderReview in one atomic call. Distinct from the legacy "Mark Under
+   * Review" path (reviewApplication with under_review) — that transitions
+   * status but doesn't record WHO opened the review, which left the review-
+   * history timeline missing its first event.
+   */
+  async function handleStartReview() {
+    setSubmitting('under_review');
+    try {
+      const updated = await startApplicationReview(applicationId);
+      onReviewed(updated);
+      toast.success('Review started.');
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ?? 'Could not start review.');
     } finally {
       setSubmitting(null);
     }
@@ -273,7 +354,11 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
           </div>
         </div>
       )}
-      <div className="glass-panel rounded-xl p-6 sticky top-6">
+      {/* Sticky was moved to the right-column container so ALL reviewer
+          panels scroll as one unit (see ApplicationReviewPage two-column
+          layout). Leaving an inner sticky here would double-pin and hide the
+          Request Document + Review History cards below it. */}
+      <div className="glass-panel rounded-xl p-6">
         <h3 className="font-headline font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
           {t('admin.review.title')}
         </h3>
@@ -283,6 +368,29 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
             {t('admin.review.current_status')}
           </p>
           <StatusBadge status={currentStatus} />
+
+          {/* Reviewer attribution.
+              review_started_at: set by /start-review (soft-claim); tells
+              reviewers "this application is being looked at" even before a
+              final decision lands.
+              reviewed_at: set on the final decision (approve/reject/waitlist).
+              Names for both live in the adjacent ReviewHistoryPanel so we
+              don't duplicate them here; timestamps alone give the reviewer
+              the "is this fresh?" signal they need. */}
+          {(reviewStartedAt || reviewedAt) && (
+            <div className="mt-2 space-y-0.5">
+              {reviewStartedAt && (
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Review started {formatDate(new Date(reviewStartedAt), 'MMM d, yyyy · h:mm a')}
+                </p>
+              )}
+              {reviewedAt && (
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Decision recorded {formatDate(new Date(reviewedAt), 'MMM d, yyyy · h:mm a')}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {isDraft ? (
@@ -338,6 +446,18 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
                   color: 'var(--foreground)',
                 }}
               />
+              <div className="flex justify-end mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveNotes()}
+                  disabled={!notesDirty || savingNotes}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+                  style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+                >
+                  <Save className="h-3 w-3" />
+                  {savingNotes ? 'Saving…' : 'Save Notes'}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -349,14 +469,17 @@ function ReviewPanel({ applicationId, currentStatus, isDraft, onReviewed }: Revi
                   >
                     {t('admin.review.pending_notice')}
                   </div>
+                  {/* "Start Review" soft-claim: stamps reviewer + timestamp
+                      and transitions Submitted → UnderReview. A different
+                      admin can still claim the application later (no lock). */}
                   <Button
-                    onClick={() => handleReview('under_review')}
+                    onClick={() => void handleStartReview()}
                     loading={submitting === 'under_review'}
                     disabled={!!submitting}
                     variant="primary"
                     icon={<Clock className="h-4 w-4" />}
                   >
-                    {t('admin.review.mark_under_review')}
+                    Start Review
                   </Button>
                 </>
               )}
@@ -503,6 +626,21 @@ export function ApplicationReviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [verifyingDocId, setVerifyingDocId] = useState<number | null>(null);
+  // Minimal shape covering both CanonicalDocument (digital flow) and
+  // ReviewerApplicationDocument (paper flow) — only id + filename needed by the modal.
+  const [rejectionTarget, setRejectionTarget] = useState<{ id: number; original_filename: string | null } | null>(null);
+
+  /**
+   * Monotonically-increasing counter that every document mutation on this
+   * page bumps. Panels that care about compliance (required-docs,
+   * reviewer-documents) subscribe via refreshKey prop and refetch when it
+   * changes. This is the "no stale UI" guarantee after a verify/reject.
+   * useState + an incrementing function is enough — a Redux store would be
+   * overkill for a handful of panels.
+   */
+  const [documentRefreshKey, setDocumentRefreshKey] = useState(0);
+  const bumpDocumentRefresh = () => setDocumentRefreshKey((n) => n + 1);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
 
   /**
    * Fetch the full canonical payload. The server returns BOTH the legacy
@@ -529,9 +667,11 @@ export function ApplicationReviewPage() {
   }, [refetch]);
 
   // Re-fetch when the admin returns from the edit page (browser back / close)
-  // so any edits they just made show up without a manual reload.
+  // so any edits they just made show up without a manual reload. Also bumps
+  // documentRefreshKey so PaperApplicationReviewView pulls fresh docs — covers
+  // the case where an applicant uploaded while the admin was on another tab.
   useEffect(() => {
-    function onFocus() { refetch(); }
+    function onFocus() { refetch(); bumpDocumentRefresh(); }
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [refetch]);
@@ -547,8 +687,12 @@ export function ApplicationReviewPage() {
     [id, isSuperAdmin, navigate],
   );
 
+  // Minimal doc shape used by all three handlers below — compatible with both
+  // CanonicalDocument (digital flow) and ReviewerApplicationDocument (paper flow).
+  type MinimalDoc = { id: number; original_filename?: string | null };
+
   /** Blob preview — opens the document inline in a new tab. */
-  async function handlePreviewDocument(doc: CanonicalDocument) {
+  async function handlePreviewDocument(doc: MinimalDoc) {
     try {
       const res = await axiosInstance.get(`/documents/${doc.id}/download`, { responseType: 'blob' });
       const url = URL.createObjectURL(res.data as Blob);
@@ -564,7 +708,7 @@ export function ApplicationReviewPage() {
   }
 
   /** Blob download — forces a save-to-disk via a temporary anchor. */
-  async function handleDownloadDocument(doc: CanonicalDocument) {
+  async function handleDownloadDocument(doc: MinimalDoc) {
     try {
       const res = await axiosInstance.get(`/documents/${doc.id}/download`, { responseType: 'blob' });
       const url = URL.createObjectURL(res.data as Blob);
@@ -580,15 +724,38 @@ export function ApplicationReviewPage() {
     }
   }
 
-  /** Inline verify / reject from the canonical Documents section. */
-  async function handleVerifyDoc(doc: CanonicalDocument, status: 'approved' | 'rejected') {
+  /** Inline approve from any document surface. Rejection gates through the reason modal. */
+  async function handleVerifyDoc(doc: MinimalDoc, status: 'approved' | 'rejected') {
+    if (status === 'rejected') {
+      setRejectionReasonText('');
+      setRejectionTarget({ id: doc.id, original_filename: doc.original_filename ?? null });
+      return;
+    }
     setVerifyingDocId(doc.id);
     try {
-      await verifyDocument(doc.id, status);
+      await verifyDocument(doc.id, 'approved');
       await refetch();
-      toast.success(status === 'approved' ? 'Document verified.' : 'Document rejected.');
+      bumpDocumentRefresh();
+      toast.success('Document approved.');
     } catch {
-      toast.error('Failed to update document status. Please try again.');
+      toast.error('Failed to approve document. Please try again.');
+    } finally {
+      setVerifyingDocId(null);
+    }
+  }
+
+  async function handleConfirmReject() {
+    if (!rejectionTarget || !rejectionReasonText.trim()) return;
+    const doc = rejectionTarget;
+    setRejectionTarget(null);
+    setVerifyingDocId(doc.id);
+    try {
+      await verifyDocument(doc.id, 'rejected', rejectionReasonText.trim());
+      await refetch();
+      bumpDocumentRefresh();
+      toast.success('Document rejected. Applicant notified and may resubmit.');
+    } catch {
+      toast.error('Failed to reject document. Please try again.');
     } finally {
       setVerifyingDocId(null);
     }
@@ -787,12 +954,13 @@ export function ApplicationReviewPage() {
         <div className="lg:col-span-2">
           {application.submission_source === 'paper_self' || application.submission_source === 'paper_admin' ? (
             <PaperApplicationReviewView
-              canonical={canonical}
-              onPreviewDocument={handlePreviewDocument}
-              onDownloadDocument={handleDownloadDocument}
+              applicationId={application.id}
+              refreshKey={documentRefreshKey}
+              onPreviewDocument={(doc: ReviewerApplicationDocument) => handlePreviewDocument(doc)}
+              onDownloadDocument={(doc: ReviewerApplicationDocument) => handleDownloadDocument(doc)}
               adminDocumentActions={canEdit ? {
-                onVerify: (doc) => handleVerifyDoc(doc, 'approved'),
-                onReject: (doc) => handleVerifyDoc(doc, 'rejected'),
+                onVerify: (doc: ReviewerApplicationDocument) => handleVerifyDoc(doc, 'approved'),
+                onReject: (doc: ReviewerApplicationDocument) => handleVerifyDoc(doc, 'rejected'),
                 disabled: verifyingDocId !== null,
               } : undefined}
             />
@@ -817,12 +985,24 @@ export function ApplicationReviewPage() {
           )}
         </div>
 
-        {/* Right: sticky review action panel. */}
-        <div>
+        {/* Right: reviewer tools sidebar.
+            The container itself is sticky on desktop with its own scroll
+            overflow, so the entire sidebar (ReviewPanel + Request Document
+            + Review History + any future panels) stays visible while the
+            reviewer reads the long left-column form. Previously ReviewPanel
+            alone was sticky, which caused the Request Document and Review
+            History cards to disappear behind it on scroll.
+            max-h uses the viewport minus the top offset so the inner
+            overflow-y-auto kicks in only when the combined panel height
+            exceeds the visible area. */}
+        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
           <ReviewPanel
             applicationId={application.id}
             currentStatus={application.status}
             isDraft={application.status === 'draft'}
+            initialNotes={application.notes ?? ''}
+            reviewStartedAt={application.review_started_at}
+            reviewedAt={application.reviewed_at}
             onReviewed={(updated) => {
               setApplication(updated);
               // Full refetch brings the canonical projection back in sync
@@ -830,8 +1010,110 @@ export function ApplicationReviewPage() {
               refetch();
             }}
           />
+
+          {/* Request a new supporting document from the applicant. */}
+          {canEdit && camper && (
+            <div
+              className="rounded-xl border px-4 py-3"
+              style={{ background: 'var(--glass-light)', borderColor: 'var(--border)' }}
+            >
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
+                Request Document
+              </p>
+              <InlineRequestDocumentButton
+                applicantId={camper.user_id}
+                camperId={camper.id}
+                applicationId={application.id}
+                camperName={camper.full_name}
+                onCreated={() => {
+                  toast.success('Document request sent to applicant.');
+                }}
+              />
+            </div>
+          )}
+
+          <ReviewHistoryPanel applicationId={application.id} />
         </div>
       </div>
+
+      {/* Rejection reason modal */}
+      {rejectionTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rejection-modal-title"
+        >
+          <button
+            type="button"
+            aria-label="Cancel"
+            onClick={() => setRejectionTarget(null)}
+            className="absolute inset-0 w-full h-full cursor-default"
+            style={{ background: 'rgba(0,0,0,0.5)' }}
+          />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+          >
+            <h2
+              id="rejection-modal-title"
+              className="text-base font-semibold mb-1"
+              style={{ color: 'var(--foreground)' }}
+            >
+              Reject Document
+            </h2>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted-foreground)' }}>
+              The applicant will be notified and can resubmit.
+              {rejectionTarget.original_filename && (
+                <span className="block mt-1 font-medium" style={{ color: 'var(--foreground)' }}>
+                  {rejectionTarget.original_filename}
+                </span>
+              )}
+            </p>
+            <div className="mb-5">
+              <label
+                htmlFor="rejection-reason"
+                className="block text-xs font-medium mb-1"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Reason <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <textarea
+                id="rejection-reason"
+                rows={3}
+                value={rejectionReasonText}
+                onChange={(e) => setRejectionReasonText(e.target.value)}
+                placeholder="Explain what the applicant needs to fix or resubmit…"
+                className="w-full rounded-lg border px-3 py-2 text-sm resize-none"
+                style={{
+                  background: 'var(--glass-light)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRejectionTarget(null)}
+                className="px-4 py-2 rounded-lg text-sm border transition-opacity hover:opacity-70"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={!rejectionReasonText.trim() || verifyingDocId !== null}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                style={{ background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}
+              >
+                Reject &amp; Notify
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

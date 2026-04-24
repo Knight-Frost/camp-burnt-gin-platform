@@ -22,7 +22,6 @@ import { toast } from 'sonner';
 import {
   Upload,
   FileText,
-  Trash2,
   Eye,
   X,
   File,
@@ -38,16 +37,20 @@ import { useTranslation } from 'react-i18next';
 
 import {
   getDocuments,
-  deleteDocument,
   uploadDocument,
+  submitDocument,
   getRequiredDocuments,
   submitCompletedDocument,
   getDocumentRequests,
   uploadDocumentRequest,
+  getCampers,
   type Document,
   type RequiredDocument,
   type DocumentRequestRecord,
 } from '@/features/parent/api/applicant.api';
+import type { Camper } from '@/shared/types';
+import { DocumentStatusBadge } from '@/ui/components/DocumentStatusBadge';
+import { resolveDocumentStatus, type DocumentUIStatus } from '@/shared/constants/documentStatuses';
 import {
   getDocumentLabel,
 } from '@/shared/constants/documentRequirements';
@@ -59,7 +62,6 @@ import {
 } from '@/features/messaging/api/messaging.api';
 import { Button } from '@/ui/components/Button';
 import { EmptyState } from '@/ui/components/EmptyState';
-import { ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import axiosInstance from '@/api/axios.config';
 import { ROLE_LABELS, type RoleName } from '@/shared/constants/roles';
@@ -67,12 +69,6 @@ import { ROLE_LABELS, type RoleName } from '@/shared/constants/roles';
 // File types accepted by the hidden <input> and the drag-and-drop zone
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png,.webp';
 
-// Converts raw byte count into a human-readable string (B / KB / MB)
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 // PDF icon is red (conventional); all other file types get a blue generic icon
 function FileIcon({ mime }: { mime: string }) {
@@ -920,8 +916,30 @@ export function ApplicantDocumentsPage() {
   const [documents,        setDocuments]        = useState<Document[]>([]);
   const [requiredDocs,     setRequiredDocs]     = useState<RequiredDocument[]>([]);
   const [documentRequests, setDocumentRequests] = useState<DocumentRequestRecord[]>([]);
+  const [campers,          setCampers]          = useState<Camper[]>([]);
   const [loading,          setLoading]          = useState(true);
-  const [error,            setError]            = useState(false);
+
+  // ── Camper tab selection ──────────────────────────────────────────────────
+  // null = "All campers" (the merged view). Persisted per-applicant in
+  // localStorage so the last-selected child survives page reloads. For
+  // single-camper families the tab strip is hidden and `activeCamperId` stays
+  // null — tabs only appear when there are 2+ campers.
+  const [activeCamperId, setActiveCamperIdRaw] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = window.localStorage.getItem('cbg_applicant_docs_active_camper');
+    if (!stored || stored === 'all') return null;
+    const n = Number(stored);
+    return Number.isFinite(n) ? n : null;
+  });
+  const setActiveCamperId = (id: number | null) => {
+    setActiveCamperIdRaw(id);
+    try {
+      window.localStorage.setItem('cbg_applicant_docs_active_camper', id === null ? 'all' : String(id));
+    } catch {
+      // localStorage may be unavailable (private mode). Tab persistence is a
+      // nice-to-have — silently degrade rather than blow up the click handler.
+    }
+  };
 
   // ── Active application — required docs are linked to this application ─────
   // We prefer a submitted (non-draft) application; fall back to any draft.
@@ -940,7 +958,6 @@ export function ApplicantDocumentsPage() {
   const [sendDoc, setSendDoc]   = useState<Document | null>(null);
 
   // ── My Documents list ─────────────────────────────────────────────────────
-  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // ── Unified task upload state ─────────────────────────────────────────────
   // Staged files: keyed by UnifiedTask.key ('req-3' or 'rdoc-7')
@@ -952,16 +969,14 @@ export function ApplicantDocumentsPage() {
   // ── Data loading ──────────────────────────────────────────────────────────
   const load = () => {
     setLoading(true);
-    setError(false);
-    Promise.allSettled([getDocuments(), getRequiredDocuments(), getDocumentRequests()])
-      .then(([docsResult, reqResult, docReqResult]) => {
+    Promise.allSettled([getDocuments(), getRequiredDocuments(), getDocumentRequests(), getCampers()])
+      .then(([docsResult, reqResult, docReqResult, campersResult]) => {
         if (docsResult.status === 'fulfilled') setDocuments(docsResult.value);
-        else setError(true);
         if (reqResult.status === 'fulfilled')   setRequiredDocs(reqResult.value);
         if (docReqResult.status === 'fulfilled')
           setDocumentRequests(Array.isArray(docReqResult.value) ? docReqResult.value : []);
+        if (campersResult.status === 'fulfilled') setCampers(campersResult.value);
       })
-      .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
 
@@ -978,8 +993,11 @@ export function ApplicantDocumentsPage() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('document_type', documentType);
-      await uploadDocument(fd);
-      toast.success('Document uploaded.');
+      const uploaded = await uploadDocument(fd);
+      // Immediately promote to submitted so admins can see it on the review page.
+      // Orphaned docs (no documentable) are not gated by the draft-application guard.
+      try { await submitDocument(uploaded.id); } catch { /* idempotent — ignore */ }
+      toast.success('Document uploaded and sent to staff.');
       load();
     } catch (err) {
       const msg = (err as { message?: string })?.message;
@@ -1089,40 +1107,56 @@ export function ApplicantDocumentsPage() {
     }
   }
 
-  async function handleDelete(doc: Document) {
-    // Submitted documents are compliance records; clicking "Delete" hides them
-    // from the applicant's view but leaves the record intact for camp staff.
-    // Drafts have never been shared, so deletion is truly permanent. The
-    // confirm copy reflects the actual outcome instead of promising one thing
-    // and doing another.
-    const isDraft = doc.submitted_at === null;
-    const confirmMsg = isDraft
-      ? `Delete "${doc.file_name}"? This cannot be undone.`
-      : `Remove "${doc.file_name}" from your documents?\n\nCamp staff already have a copy of this record and will keep it. You just won't see it here anymore.`;
-    if (!window.confirm(confirmMsg)) return;
-    setDeletingId(doc.id);
-    try {
-      await deleteDocument(doc.id);
-      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-      toast.success(isDraft ? 'Document deleted.' : 'Document removed from your view.');
-    } catch (err) {
-      const msg = (err as { message?: string })?.message;
-      toast.error(msg ? `Delete failed: ${msg}` : 'Delete failed. Please try again.');
-    } finally {
-      setDeletingId(null);
-    }
-  }
+
+  // ── Camper scoping ────────────────────────────────────────────────────────
+  // Filter each data stream to the currently-selected camper tab. `null` active
+  // id means the merged "All" view. DocumentRequests and Documents have a
+  // camper_id we can filter on; RequiredDocuments (admin-provided blank forms)
+  // currently have no camper link in the API shape, so they're shown under
+  // every tab — a later enhancement can scope them when the backend surfaces
+  // the id. Matching is explicit `=== activeCamperId` so null-camper rows
+  // (messaging attachments, unscoped uploads) only surface on "All".
+  const scopedDocumentRequests = activeCamperId === null
+    ? documentRequests
+    : documentRequests.filter((r) => r.camper_id === activeCamperId);
+  const scopedDocuments = activeCamperId === null
+    ? documents
+    : documents.filter((d) => d.camper_id === activeCamperId || d.camper_id == null);
 
   // ── Unified task list ─────────────────────────────────────────────────────
-  // Merge both data sources, sort urgently-needed tasks to the top
+  // Merge both data sources, sort urgently-needed tasks to the top.
   const unifiedTasks: UnifiedTask[] = [
-    ...documentRequests.map((r) => fromDocRequest(r, documents)),
+    ...scopedDocumentRequests.map((r) => fromDocRequest(r, documents)),
     ...requiredDocs.map((d) => fromRequiredDoc(d, documents)),
   ].sort((a, b) => TASK_STATUS_ORDER[a.status] - TASK_STATUS_ORDER[b.status]);
 
   const completedTaskCount = unifiedTasks.filter((t) => t.status === 'completed').length;
   const totalTaskCount     = unifiedTasks.length;
   const allComplete        = totalTaskCount > 0 && completedTaskCount === totalTaskCount;
+
+  // ── Submitted vs Additional ───────────────────────────────────────────────
+  // A doc has been SENT if its sent_at is set (MessageService stamps this on
+  // inbox attach). Submitted docs live on forever in the applicant's view with
+  // their current admin decision — they no longer "drop off" like they did
+  // when there was only a Ready-to-Send list. Drafts (sent_at null) go in the
+  // Additional section below.
+  const submittedDocuments = scopedDocuments.filter((d) => !!d.sent_at);
+
+  // Derive the 8-state UI status for a submitted doc. DocumentRequest matching
+  // is best-effort: if this upload came from an admin ask, surface the request
+  // overdue/reject state; otherwise resolve from document.verification_status
+  // alone. The resolver handles all combinations.
+  const statusForDocument = (doc: Document): DocumentUIStatus => {
+    const matchingRequest = documentRequests.find((r) =>
+      r.camper_id === doc.camper_id && r.document_type === doc.document_type,
+    );
+    return resolveDocumentStatus({
+      request: matchingRequest
+        ? { status: matchingRequest.status, is_overdue: matchingRequest.status === 'overdue' }
+        : undefined,
+      document: doc,
+    });
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1149,12 +1183,59 @@ export function ApplicantDocumentsPage() {
         {/* ── Page header ───────────────────────────────────────────────── */}
         <div>
           <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-            Documents
+            My Documents
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
             Respond to any documents camp staff has requested from you, and upload optional supporting files here. Your application's required documents (immunization record, insurance card, medical form) live inside the application form itself.
           </p>
         </div>
+
+        {/* ── Camper tabs ─────────────────────────────────────────────────
+             Rendered only when the account has 2+ campers. Single-camper
+             families never see the tab strip — the page is already scoped to
+             the only child. The "All" tab shows the merged view, primarily
+             useful for account-level documents (messaging attachments that
+             aren't tied to a specific child). */}
+        {campers.length >= 2 && (
+          <div
+            role="tablist"
+            aria-label="Select camper"
+            className="flex items-center gap-1 overflow-x-auto -mx-1 px-1 pb-1"
+          >
+            <button
+              role="tab"
+              type="button"
+              aria-selected={activeCamperId === null}
+              onClick={() => setActiveCamperId(null)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+              style={{
+                background: activeCamperId === null ? 'var(--ember-orange)' : 'var(--glass-medium)',
+                color: activeCamperId === null ? '#fff' : 'var(--foreground)',
+              }}
+            >
+              All campers
+            </button>
+            {campers.map((camper) => {
+              const active = activeCamperId === camper.id;
+              return (
+                <button
+                  key={camper.id}
+                  role="tab"
+                  type="button"
+                  aria-selected={active}
+                  onClick={() => setActiveCamperId(camper.id)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                  style={{
+                    background: active ? 'var(--ember-orange)' : 'var(--glass-medium)',
+                    color: active ? '#fff' : 'var(--foreground)',
+                  }}
+                >
+                  {`${camper.first_name} ${camper.last_name}`.trim()}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Required documents for the camp application (Immunization Record,
             Insurance Card, Medical Examination Form, etc.) are intentionally
@@ -1298,104 +1379,79 @@ export function ApplicantDocumentsPage() {
             )}
         </section>
 
-        {/* ── Supplementary upload ─────────────────────────────────────── */}
-        <UploadArea onUpload={handleUpload} uploading={uploading} />
-
-        {/* ── Documents Ready to Send ──────────────────────────────────
-             Workflow-oriented list: shows only docs the applicant has
-             uploaded but not yet pushed to an admin via the inbox Send
-             flow (sent_at IS NULL). Uploading doesn't auto-send — the
-             applicant picks each doc and sends it explicitly.
-
-             Once a doc is sent:
-               - MessageService::attachExistingDocuments stamps sent_at
-                 server-side
-               - The local list is updated in onSent below
-               - The doc drops off this list; the admin keeps seeing it
-                 in their Documents page (admin scope ignores sent_at). */}
+        {/* ── Submitted Documents ──────────────────────────────────────
+             Persistent history of everything the applicant has sent to camp
+             staff. Rows stay visible even after admin approves/rejects so the
+             applicant always has a record of "what did I send?" alongside the
+             current decision. A rejection surfaces the rejection reason and a
+             "Resubmit" path via the Additional Documents section below. */}
         <div>
-          <h3 className="font-headline font-semibold text-sm mb-1" style={{ color: 'var(--foreground)' }}>
-            Documents Ready to Send
+          <h3 className="font-headline font-semibold text-base mb-1" style={{ color: 'var(--foreground)' }}>
+            Submitted Documents
           </h3>
           <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
-            Uploaded files waiting for you to send to camp staff. Once sent, they'll drop off this list.
+            Files you've sent to camp staff, with their current review status. Rejected documents can be resubmitted below.
           </p>
           <div
             className="rounded-2xl border overflow-hidden"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
           >
             {loading ? (
-              <div className="p-4"><SkeletonTable rows={4} /></div>
-            ) : error ? (
-              <ErrorState onRetry={load} />
-            ) : documents.filter((d) => !d.sent_at).length === 0 ? (
+              <div className="p-4"><SkeletonTable rows={3} /></div>
+            ) : submittedDocuments.length === 0 ? (
               <EmptyState
-                title={documents.length === 0 ? 'No documents uploaded' : 'Nothing ready to send'}
-                description={
-                  documents.length === 0
-                    ? 'Upload your first document using the area above.'
-                    : "All your uploaded documents have already been sent to camp staff. Upload a new one above when you need to share more."
-                }
-                icon={FileText}
+                title="No documents submitted yet"
+                description="Once you send a document to camp staff, it will appear here with its review status."
+                icon={Send}
               />
             ) : (
               <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {documents.filter((d) => !d.sent_at).map((doc) => (
-                  <li key={doc.id}>
-                    <div className="flex items-center justify-between gap-4 px-5 py-4">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <FileIcon mime={doc.mime_type} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-                            {doc.file_name}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                            <span>{getDocumentLabel(doc.document_type, 'applicant')}</span>
-                            <span aria-hidden="true">&middot;</span>
-                            <span>{formatBytes(doc.size)}</span>
-                            <span aria-hidden="true">&middot;</span>
-                            <span>{format(new Date(doc.created_at), 'MMM d, yyyy')}</span>
+                {submittedDocuments.map((doc) => {
+                  const status = statusForDocument(doc);
+                  return (
+                    <li key={doc.id}>
+                      <div className="flex items-center justify-between gap-4 px-5 py-4">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FileIcon mime={doc.mime_type} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                              {doc.file_name}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs mt-0.5 flex-wrap" style={{ color: 'var(--muted-foreground)' }}>
+                              <DocumentStatusBadge status={status} />
+                              <span>{getDocumentLabel(doc.document_type, 'applicant')}</span>
+                              {doc.sent_at && (
+                                <>
+                                  <span aria-hidden="true">&middot;</span>
+                                  <span>Sent {format(new Date(doc.sent_at), 'MMM d, yyyy')}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPreview(doc)}
+                            className="flex items-center gap-1.5"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setPreview(doc)}
-                          className="flex items-center gap-1.5"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSendDoc(doc)}
-                          className="flex items-center gap-1.5"
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          Send
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          loading={deletingId === doc.id}
-                          disabled={deletingId === doc.id}
-                          onClick={() => void handleDelete(doc)}
-                          className="flex items-center gap-1.5"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
         </div>
+
+        {/* ── Supplementary upload ─────────────────────────────────────── */}
+        <UploadArea onUpload={handleUpload} uploading={uploading} />
+
 
       </div>
     </>

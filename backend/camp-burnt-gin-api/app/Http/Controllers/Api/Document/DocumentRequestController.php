@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\Document;
 
 use App\Enums\DocumentRequestStatus;
+use App\Enums\DocumentReviewAction;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\Camper;
+use App\Models\Document;
 use App\Models\DocumentRequest;
+use App\Models\DocumentReviewEvent;
 use App\Models\User;
 use App\Services\DeadlineService;
 use App\Services\FileUploadService;
@@ -92,34 +95,21 @@ class DocumentRequestController extends Controller
                 'due_date' => $validated['due_date'] ?? null,
             ]);
 
-            // Send system inbox notification to applicant
-            $dueDateText = $docRequest->due_date
-                ? '<p><strong>Due Date:</strong> '.$docRequest->due_date->format('F j, Y').'</p>'
-                : '';
-            $instructionsText = $validated['instructions'] ?? null
-                ? '<p><strong>Instructions:</strong> '.e($validated['instructions']).'</p>'
-                : '';
-            $camperText = $camperName
-                ? '<p><strong>Camper:</strong> '.e($camperName).'</p>'
-                : '';
-
-            $body = '<p>Camp administration has requested a document for your application.</p>'
-                  .'<p><strong>Requested Document:</strong> '.e($validated['document_type']).'</p>'
-                  .$camperText
-                  .$instructionsText
-                  .$dueDateText
-                  .'<p>Please log in to your portal and upload the requested document under <strong>Documents</strong>.</p>';
-
-            $conversation = $this->notifications->notify(
+            // Notify applicant via the named documentRequested helper so the
+            // event type constant and message format are defined in one place.
+            $conversation = $this->notifications->documentRequested(
                 recipient: $applicant,
-                eventType: 'document.requested',
-                subject: 'Document Requested: '.$validated['document_type'],
-                body: $body,
-                relatedType: DocumentRequest::class,
-                relatedId: $docRequest->id,
+                documentRequestId: $docRequest->id,
+                documentType: $validated['document_type'],
+                camperName: $camperName,
+                dueDate: $docRequest->due_date?->format('F j, Y'),
             );
 
             $docRequest->update(['conversation_id' => $conversation->id]);
+
+            // Append a "requested" review event to the timeline so admins can
+            // see the full lifecycle starting from request creation.
+            DocumentReviewEvent::recordRequested($docRequest, $admin);
 
             // ── Deadline Integration ───────────────────────────────────────────
             // When a due_date is provided, create a Deadline record that becomes the
@@ -327,6 +317,15 @@ class DocumentRequestController extends Controller
             'rejection_reason' => null,
         ]);
 
+        // Write a review event. Prefer the linked Document when present (full audit FK);
+        // fall back to the request itself for standalone uploads (no linked Document row).
+        $latestDoc = $documentRequest->latestDocument;
+        if ($latestDoc) {
+            DocumentReviewEvent::recordApproved($latestDoc, $admin);
+        } else {
+            DocumentReviewEvent::recordApprovedForRequest($documentRequest, $admin);
+        }
+
         // Update inbox thread to reflect approval
         $this->updateConversationStatus(
             $documentRequest,
@@ -357,12 +356,21 @@ class DocumentRequestController extends Controller
         );
 
         $validated = $request->validate([
-            'reason' => ['nullable', 'string', 'max:1000'],
+            'reason' => ['required', 'string', 'max:1000'],
         ]);
 
         /** @var \App\Models\User $admin */
         $admin = auth()->user();
-        $reason = $validated['reason'] ?? 'No reason provided.';
+        $reason = $validated['reason'];
+
+        // Write a review event before clearing the file. Prefer the linked Document when
+        // present; fall back to the request itself for standalone uploads.
+        $latestDoc = $documentRequest->latestDocument;
+        if ($latestDoc) {
+            DocumentReviewEvent::recordRejected($latestDoc, $admin, $reason);
+        } else {
+            DocumentReviewEvent::recordRejectedForRequest($documentRequest, $admin, $reason);
+        }
 
         // Delete the uploaded file from disk before clearing the DB reference.
         // Without this, rejected files accumulate as orphaned storage (no DB pointer to clean them up later).
@@ -371,11 +379,9 @@ class DocumentRequestController extends Controller
             Storage::disk('local')->delete($documentRequest->uploaded_document_path);
         }
 
+        // D4: flip status back to awaiting_upload so the task reappears for the applicant.
+        $documentRequest->markRejectedAndReopen($reason, $admin);
         $documentRequest->update([
-            'status' => DocumentRequestStatus::Rejected,
-            'reviewed_by_admin_id' => $admin->id,
-            'reviewed_at' => now(),
-            'rejection_reason' => $reason,
             // Clear the uploaded file so the applicant must upload a new one
             'uploaded_document_path' => null,
             'uploaded_file_name' => null,

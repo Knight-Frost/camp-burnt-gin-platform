@@ -1692,7 +1692,8 @@
   "portal_nav": {
     "dashboard": "Panel de Control",
     "applications": "Solicitudes",
-    "documents": "Documentos",
+    "documents": "Centro de Control de Documentos",
+    "my_documents": "Mis Documentos",
     "inbox": "Bandeja de Entrada",
     "announcements": "Anuncios",
     "calendar": "Calendario",
@@ -2043,7 +2044,20 @@
     "session_waitlisted": "En Lista de Espera",
     "session_rejected": "Rechazado",
     "session_cancelled": "Cancelado",
-    "session_total_submitted": "Total enviados"
+    "session_total_submitted": "Total enviados",
+    "status_missing": "Faltante",
+    "status_requested": "Solicitado",
+    "status_draft": "Borrador",
+    "status_submitted": "Enviado",
+    "status_under_review": "En Revisión",
+    "status_approved": "Aprobado",
+    "status_rejected": "Rechazado",
+    "status_overdue": "Vencido",
+    "status_awaiting_upload": "Esperando Subida",
+    "status_pending_review": "Enviado",
+    "status_processing": "Procesando",
+    "metric_total": "Total",
+    "metric_uploaded": "Enviados"
   },
   "audit_extra": {
     "all_categories": "Todas las Categorías",

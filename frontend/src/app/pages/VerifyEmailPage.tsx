@@ -133,6 +133,9 @@ export function VerifyEmailPage() {
             <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
               A new verification link has been sent to your email address.
             </p>
+            <Button onClick={handleResend} loading={resending} variant="secondary" size="sm">
+              Didn't receive it? Send again
+            </Button>
           </div>
         );
 

@@ -375,16 +375,17 @@ class DocumentRequestLifecycleTest extends TestCase
         $this->patchJson("/api/document-requests/{$req->id}/reject", [
             'reason' => 'File is illegible.',
         ])->assertOk()
-            ->assertJsonPath('status', 'rejected')
+            // D4: rejection reopens the request so applicant can resubmit immediately.
+            ->assertJsonPath('status', 'awaiting_upload')
             ->assertJsonPath('rejection_reason', 'File is illegible.');
 
         // File must be deleted from disk after rejection
         Storage::disk('local')->assertMissing('document-requests/uploads/fake.pdf');
 
-        // DB should clear the uploaded file fields
+        // DB should clear the uploaded file fields and reopen (D4).
         $this->assertDatabaseHas('document_requests', [
             'id' => $req->id,
-            'status' => 'rejected',
+            'status' => 'awaiting_upload',
             'uploaded_document_path' => null,
         ]);
     }

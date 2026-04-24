@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
@@ -71,8 +72,9 @@ class Document extends Model
     protected $fillable = [
         'documentable_type',  // Class name of the owning model (polymorphic type).
         'documentable_id',    // Primary key of the owning record (polymorphic id).
-        'message_id',         // Optional: links a document to a specific Message as an attachment.
-        'uploaded_by',        // FK to the User who uploaded the file.
+        'message_id',            // Optional: links a document to a specific Message as an attachment.
+        'document_request_id',   // Optional: the DocumentRequest that prompted this upload.
+        'uploaded_by',           // FK to the User who uploaded the file.
         'original_filename',  // The name the user gave the file — encrypted PHI.
         'stored_filename',    // UUID-based name used on disk — never exposed via API.
         'mime_type',          // MIME type validated on upload (e.g. 'application/pdf').
@@ -84,13 +86,18 @@ class Document extends Model
         'scan_passed',        // True if the scan found no threats.
         'scanned_at',         // Timestamp of the scan.
         'verification_status', // Admin review state (DocumentVerificationStatus enum).
-        'verified_by',         // FK to the admin User who approved or rejected the doc.
-        'verified_at',         // Timestamp of the verification decision.
-        'expiration_date',     // Date after which the document is considered expired.
-        'archived_at',         // Null = active; timestamp = archived (soft-remove from workflow view).
-        'submitted_at',        // Null = draft (visible only to uploader); timestamp = submitted to staff.
-        'applicant_hidden_at', // Null = visible to the uploader; timestamp = uploader hid it from their own list only. Admin queue is never affected.
-        'sent_at',             // Null = sitting in the applicant's "Ready to Send" queue; timestamp = pushed to an admin via the inbox messaging flow.
+        'verified_by',           // FK to the admin who performed security/scan verification.
+        'verified_at',           // Timestamp of the scan-verification decision.
+        'rejection_reason',      // Admin-authored reason shown to the applicant on rejection.
+        'approved_by',           // FK to the admin who approved document content.
+        'approved_at',           // Timestamp of the content-approval decision.
+        'rejected_by',           // FK to the admin who rejected document content.
+        'rejected_at',           // Timestamp of the content-rejection decision.
+        'expiration_date',       // Date after which the document is considered expired.
+        'archived_at',           // Null = active; timestamp = archived (soft-remove from workflow view).
+        'submitted_at',          // Null = draft (visible only to uploader); timestamp = submitted to staff.
+        'applicant_hidden_at',   // Null = visible to the uploader; timestamp = uploader hid it from their own list only. Admin queue is never affected.
+        'sent_at',               // Null = sitting in the applicant's "Ready to Send" queue; timestamp = pushed to an admin via the inbox messaging flow.
     ];
 
     /**
@@ -125,6 +132,8 @@ class Document extends Model
             // Maps the stored string to a DocumentVerificationStatus enum instance.
             'verification_status' => DocumentVerificationStatus::class,
             'verified_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
             'expiration_date' => 'date',
             'archived_at' => 'datetime',
             'submitted_at' => 'datetime',
@@ -180,13 +189,45 @@ class Document extends Model
     }
 
     /**
-     * Get the admin user who verified (approved or rejected) this document.
+     * Get the admin user who performed security/scan verification.
      *
      * The foreign key is 'verified_by' instead of the default 'user_id'.
      */
     public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    /**
+     * The DocumentRequest that prompted this document's upload, if any.
+     */
+    public function documentRequest(): BelongsTo
+    {
+        return $this->belongsTo(DocumentRequest::class, 'document_request_id');
+    }
+
+    /**
+     * The admin who approved this document's content.
+     */
+    public function approvedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * The admin who rejected this document's content.
+     */
+    public function rejectedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    /**
+     * All review events recorded for this document (chronological, immutable).
+     */
+    public function reviewEvents(): HasMany
+    {
+        return $this->hasMany(DocumentReviewEvent::class)->orderBy('created_at');
     }
 
     /**

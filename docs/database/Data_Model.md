@@ -889,6 +889,8 @@ The system implements 50 database tables across six functional domains.
 
 **`submitted_at` lifecycle:** Null on upload for applicant-initiated uploads. Set immediately for admin uploads and `official_medical_form` / `paper_application_packet` types. Admin document index queries filter `whereNotNull('submitted_at')` — drafts are never surfaced to admin.
 
+**`submitted_at` and compliance checks:** The `submitted_at IS NOT NULL` filter applies to admin-facing document listings only. `DocumentEnforcementService::checkCompliance()` receives the application being approved and always includes that application's documents regardless of `submitted_at`. Paper applications (`submission_source = paper_self`) that bypass the digital finalize step may have documents where `submitted_at` is null; these are still visible to the compliance gate via the application context. Do not rely on `submitted_at` as a signal that a document is "present" for compliance purposes — use `verification_status` instead.
+
 **Relationships:**
 - belongs to (polymorphic): `applications`, `campers`, `messages`, or any documentable model
 - belongs to: `users` (uploader), `users` (verifier)

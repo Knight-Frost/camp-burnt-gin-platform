@@ -11,6 +11,9 @@ use App\Http\Requests\Application\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\ApplicationConsent;
 use App\Models\AuditLog;
+use App\Models\Document;
+use App\Models\DocumentRequest;
+use App\Models\DocumentReviewEvent;
 use App\Models\FormDefinition;
 use App\Notifications\Camper\ApplicationSubmittedNotification;
 use App\Services\Camper\ApplicationCompletenessService;
@@ -1412,6 +1415,276 @@ class ApplicationController extends Controller
                 ? 'Application is already signed; existing signature preserved.'
                 : 'Application signed successfully.',
             'data' => $application->fresh(),
+        ]);
+    }
+
+    /**
+     * Return a unified review history and activity timeline for an application.
+     *
+     * Aggregates:
+     *   - Document review events for all documents attached to this application.
+     *   - Document request events for requests scoped to this application.
+     *
+     * Ordered chronologically so the frontend can render a linear timeline.
+     *
+     * GET /api/applications/{application}/review-history
+     */
+    public function reviewHistory(Request $request, Application $application): JsonResponse
+    {
+        $this->authorize('view', $application);
+
+        $events = DocumentReviewEvent::where('application_id', $application->id)
+            ->with('performer:id,name')
+            ->with('document:id,document_type,original_filename,verification_status')
+            ->with('documentRequest:id,document_type,status')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn ($event) => [
+                'id' => $event->id,
+                'action' => $event->action->value,
+                'action_label' => $event->action->label(),
+                'document_id' => $event->document_id,
+                'document_type' => $event->document?->document_type ?? $event->documentRequest?->document_type,
+                'document_request_id' => $event->document_request_id,
+                'performed_by' => $event->performer
+                    ? ['id' => $event->performer->id, 'name' => $event->performer->name]
+                    : null,
+                'reason' => $event->reason,
+                'notes' => $event->notes,
+                'created_at' => $event->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json([
+            'data' => $events,
+            'meta' => [
+                'application_id' => $application->id,
+                'reviewed_by' => $application->reviewed_by,
+                'reviewed_at' => $application->reviewed_at?->toIso8601String(),
+                'review_started_by' => $application->review_started_by,
+                'review_started_at' => $application->review_started_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * List all documents attached to an application (live, unfiltered by role).
+     *
+     * GET /api/applications/{application}/documents
+     *
+     * Returns every Document polymorphically attached to this Application —
+     * both direct attachments (documentable = Application) AND documents
+     * attached to the camper that match this application's document requests.
+     * This is what the reviewer workspace renders: it must show the
+     * full document picture for the application, not just the canonical
+     * section snapshot.
+     *
+     * Admin-only. Applicants should use /applications/{id} which returns the
+     * canonical projection appropriate for their role.
+     */
+    public function documents(Request $request, Application $application): JsonResponse
+    {
+        // ApplicationPolicy view gate + admin middleware on the route both
+        // enforce access; keeping the authorize() call makes the controller
+        // self-contained and honors the "Policy authorization on every
+        // resource endpoint" invariant from the safety gate.
+        $this->authorize('view', $application);
+
+        if (! $request->user()->isAdmin()) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Documents directly attached to this Application (paper packets,
+        // application-scoped uploads).
+        $applicationDocs = Document::with(['uploader:id,name,email', 'documentRequest'])
+            ->where('documentable_type', 'App\\Models\\Application')
+            ->where('documentable_id', $application->id)
+            ->whereNull('archived_at')
+            ->whereNotNull('submitted_at')
+            ->get();
+
+        // Documents attached to this application's CAMPER. The reviewer needs
+        // every submitted document for the child — immunization record,
+        // insurance card, medical exam, admin-requested uploads, etc. — not
+        // just the subset that happens to have a DocumentRequest row pointing
+        // at this application. Before this broadening, applicant-uploaded
+        // required docs (attached to Camper with no DocumentRequest) were
+        // invisible to the reviewer and the panel read "No documents or
+        // requests for this application yet" even when the file was in the
+        // system.
+        //
+        // Scope is camper-wide on purpose: documents that cross applications
+        // (e.g. a current immunization record uploaded for last year's app
+        // and still valid for this year's) should remain visible. If you
+        // specifically want per-application isolation, filter on
+        // document_request.application_id in a later view — the raw data
+        // stays inclusive.
+        $camperDocs = Document::with(['uploader:id,name,email', 'documentRequest'])
+            ->where('documentable_type', 'App\\Models\\Camper')
+            ->where('documentable_id', $application->camper_id)
+            ->whereNull('archived_at')
+            ->whereNotNull('submitted_at')
+            ->get();
+
+        // Orphaned documents — no documentable_type/id — uploaded by this applicant.
+        // These arrive when the applicant uses the supplementary UploadArea on the
+        // My Documents page, which has no application context. Visible once either:
+        //   - submitted_at is set (new flow: submit() called immediately on upload), OR
+        //   - sent_at is set (legacy flow: doc was attached to an inbox message first).
+        // The OR covers existing docs uploaded before the auto-submit fix was deployed.
+        $applicantUserId = $application->camper?->user_id;
+        $orphanedDocs = $applicantUserId
+            ? Document::with(['uploader:id,name,email', 'documentRequest'])
+                ->whereNull('documentable_type')
+                ->whereNull('documentable_id')
+                ->where('uploaded_by', $applicantUserId)
+                ->whereNull('archived_at')
+                ->where(function ($q) {
+                    $q->whereNotNull('submitted_at')->orWhereNotNull('sent_at');
+                })
+                ->get()
+            : collect();
+
+        $all = $applicationDocs->concat($camperDocs)->concat($orphanedDocs)
+            ->unique('id')
+            ->sortByDesc('created_at')
+            ->values();
+
+        return response()->json([
+            'data' => $all->map(fn (Document $doc) => [
+                'id' => $doc->id,
+                'document_type' => $doc->document_type,
+                'original_filename' => $doc->original_filename,
+                'mime_type' => $doc->mime_type,
+                'file_size' => $doc->file_size,
+                'verification_status' => $doc->verification_status,
+                'submitted_at' => $doc->submitted_at?->toIso8601String(),
+                'sent_at' => $doc->sent_at?->toIso8601String(),
+                'created_at' => $doc->created_at?->toIso8601String(),
+                'scan_passed' => $doc->scan_passed,
+                'rejection_reason' => $doc->rejection_reason,
+                'documentable_type' => $doc->documentable_type,
+                'documentable_id' => $doc->documentable_id,
+                'document_request_id' => $doc->document_request_id,
+                'uploader' => $doc->uploader ? [
+                    'id' => $doc->uploader->id,
+                    'name' => $doc->uploader->name,
+                    'email' => $doc->uploader->email,
+                ] : null,
+            ])->all(),
+            'meta' => [
+                'application_id' => $application->id,
+                'camper_id' => $application->camper_id,
+                'count' => $all->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * List all document requests (admin-issued asks) for an application.
+     *
+     * GET /api/applications/{application}/document-requests
+     *
+     * Returns every DocumentRequest scoped to this application, including
+     * both awaiting-upload requests (no document yet) and completed requests
+     * (document matched, possibly reviewed). The reviewer workspace uses this
+     * to render the "Requested Documents" list — entries the UI should show
+     * as Requested / Awaiting Upload / Submitted / Under Review / Approved /
+     * Rejected / Overdue depending on request.status.
+     */
+    public function documentRequests(Request $request, Application $application): JsonResponse
+    {
+        $this->authorize('view', $application);
+
+        if (! $request->user()->isAdmin()) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $requests = DocumentRequest::with([
+                'requestedByAdmin:id,name',
+                'latestDocument',
+            ])
+            ->where('application_id', $application->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'data' => $requests->map(fn (DocumentRequest $r) => [
+                'id' => $r->id,
+                'document_type' => $r->document_type,
+                'status' => $r->status,
+                'due_date' => $r->due_date?->toIso8601String(),
+                'instructions' => $r->instructions,
+                'rejection_reason' => $r->rejection_reason,
+                'created_at' => $r->created_at?->toIso8601String(),
+                'uploaded_at' => $r->uploaded_at?->toIso8601String(),
+                'uploaded_file_name' => $r->uploaded_file_name,
+                'reviewed_at' => $r->reviewed_at?->toIso8601String(),
+                'is_overdue' => $r->isOverdue(),
+                'camper_id' => $r->camper_id,
+                'requested_by' => $r->requestedByAdmin ? [
+                    'id' => $r->requestedByAdmin->id,
+                    'name' => $r->requestedByAdmin->name,
+                ] : null,
+                'latest_document_id' => $r->latestDocument?->id,
+            ])->all(),
+            'meta' => [
+                'application_id' => $application->id,
+                'count' => $requests->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * Soft-claim a review on this application.
+     *
+     * POST /api/applications/{application}/start-review
+     *
+     * Records the current admin as the active reviewer and stamps the claim
+     * time. The claim is NOT a lock — a different admin can claim it later,
+     * which overwrites these fields. The final decision (approve / reject /
+     * waitlist) writes to reviewed_by + reviewed_at, distinct columns so the
+     * UI can show "Review started by Jane · Approved by Bob" when two
+     * different admins were involved.
+     *
+     * Status transition: if the application is currently Submitted, it is
+     * advanced to UnderReview so list views and queue counters reflect that
+     * it's actively being handled. Applications already in UnderReview or
+     * further states only update the claim fields.
+     */
+    public function startReview(Request $request, Application $application): JsonResponse
+    {
+        $this->authorize('review', $application);
+
+        if ($application->isDraft()) {
+            return response()->json([
+                'message' => 'Draft applications cannot be reviewed.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $admin = $request->user();
+
+        DB::transaction(function () use ($application, $admin) {
+            $application->review_started_by = $admin->id;
+            $application->review_started_at = now();
+
+            if ($application->status === ApplicationStatus::Submitted) {
+                $application->status = ApplicationStatus::UnderReview;
+            }
+
+            $application->save();
+
+            // Append to the review-history ledger so the timeline shows
+            // "Review started by [admin] on [date]" alongside document events.
+            DocumentReviewEvent::recordApplicationEvent(
+                application: $application,
+                admin: $admin,
+                action: \App\Enums\DocumentReviewAction::ReviewStarted,
+            );
+        });
+
+        return response()->json([
+            'message' => 'Review started.',
+            'data' => $application->fresh()->load('reviewStarter:id,name'),
         ]);
     }
 }

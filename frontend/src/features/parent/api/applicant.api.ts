@@ -971,6 +971,14 @@ export interface Document {
    * Ready-to-Send list on this field.
    */
   sent_at?: string | null;
+  /** 'pending' | 'approved' | 'rejected' — admin's decision on a submitted document. */
+  verification_status?: 'pending' | 'approved' | 'rejected';
+  /** Derived camper linkage — the child this document belongs to. Null for unowned/messaging docs. */
+  camper_id?: number | null;
+  /** Human-readable name of the entity this document is attached to (usually the camper's full name). */
+  documentable_name?: string | null;
+  /** Polymorphic class path, e.g. 'App\\Models\\Camper' or 'App\\Models\\Application'. */
+  documentable_type?: string | null;
 }
 
 export async function getDocuments(): Promise<Document[]> {

@@ -54,6 +54,76 @@ export async function reviewApplication(id: number, payload: ApplicationReviewPa
   return data.data;
 }
 
+// ── Phase 1 reviewer endpoints ────────────────────────────────────────────────
+//
+// These three endpoints back the admin review workstation: live document
+// state, outstanding requests, and the soft-claim start-review signal.
+// Shapes mirror the backend ApplicationController methods at the time of
+// writing — keep them in sync when the server-side transform changes.
+
+export interface ReviewerApplicationDocument {
+  id: number;
+  document_type: string | null;
+  original_filename: string | null;
+  mime_type: string;
+  file_size: number | null;
+  verification_status: 'pending' | 'approved' | 'rejected';
+  submitted_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+  scan_passed: boolean | null;
+  rejection_reason: string | null;
+  documentable_type: string | null;
+  documentable_id: number | null;
+  document_request_id: number | null;
+  uploader: { id: number; name: string; email: string } | null;
+}
+
+export async function getApplicationDocuments(id: number): Promise<ReviewerApplicationDocument[]> {
+  const { data } = await axiosInstance.get<{ data: ReviewerApplicationDocument[] }>(
+    `/applications/${id}/documents`,
+  );
+  return data.data ?? [];
+}
+
+export interface ReviewerDocumentRequest {
+  id: number;
+  document_type: string;
+  status:
+    | 'awaiting_upload' | 'uploaded' | 'scanning' | 'under_review'
+    | 'approved'        | 'rejected' | 'overdue';
+  due_date: string | null;
+  instructions: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  uploaded_at: string | null;
+  uploaded_file_name: string | null;
+  reviewed_at: string | null;
+  is_overdue: boolean;
+  camper_id: number | null;
+  requested_by: { id: number; name: string } | null;
+  latest_document_id: number | null;
+}
+
+export async function getApplicationDocumentRequests(id: number): Promise<ReviewerDocumentRequest[]> {
+  const { data } = await axiosInstance.get<{ data: ReviewerDocumentRequest[] }>(
+    `/applications/${id}/document-requests`,
+  );
+  return data.data ?? [];
+}
+
+/**
+ * Soft-claim a review on this application. Records review_started_by +
+ * review_started_at, transitions Submitted → UnderReview. No lock — a
+ * different admin can claim later.
+ */
+export async function startApplicationReview(id: number): Promise<Application> {
+  const { data } = await axiosInstance.post<ApiResponse<Application>>(
+    `/applications/${id}/start-review`,
+  );
+  return data.data;
+}
+
 /** Pre-approval completeness check. Returns structured missing-data report for the warning modal. */
 export async function checkApplicationCompleteness(id: number): Promise<ApplicationCompleteness> {
   const { data } = await axiosInstance.get<ApiResponse<ApplicationCompleteness>>(`/applications/${id}/completeness`);
@@ -502,9 +572,38 @@ export async function restoreDocument(id: number): Promise<AdminDocument> {
   return data.data;
 }
 
-export async function verifyDocument(id: number, status: 'approved' | 'rejected'): Promise<AdminDocument> {
-  const { data } = await axiosInstance.patch<{ data: AdminDocument }>(`/documents/${id}/verify`, { status });
+export async function verifyDocument(
+  id: number,
+  status: 'approved' | 'rejected',
+  reason?: string,
+): Promise<AdminDocument> {
+  const body: Record<string, unknown> = { status };
+  if (reason) body.reason = reason;
+  const { data } = await axiosInstance.patch<{ data: AdminDocument }>(`/documents/${id}/verify`, body);
   return data.data;
+}
+
+export interface ReviewHistoryEvent {
+  id: number;
+  action: string;
+  action_label: string;
+  document_id: number | null;
+  document_type: string | null;
+  document_request_id: number | null;
+  performed_by: { id: number; name: string } | null;
+  reason: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ApplicationReviewHistory {
+  data: ReviewHistoryEvent[];
+  meta: { application_id: number; reviewed_by: number | null; reviewed_at: string | null };
+}
+
+export async function getApplicationReviewHistory(applicationId: number): Promise<ApplicationReviewHistory> {
+  const { data } = await axiosInstance.get<ApplicationReviewHistory>(`/applications/${applicationId}/review-history`);
+  return data;
 }
 
 export async function downloadAdminDocument(id: number): Promise<Blob> {

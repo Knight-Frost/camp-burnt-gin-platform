@@ -20,7 +20,7 @@
  *  - Status badges with full lifecycle colours
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FC, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FC, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -39,7 +39,6 @@ import {
   ChevronRight,
   InboxIcon,
   User,
-  FileCheck,
   Bell,
   CalendarClock,
   Trash2,
@@ -76,46 +75,20 @@ import {
 } from '@/features/admin/api/admin.api';
 import { axiosInstance } from '@/api/axios.config';
 import { Button } from '@/ui/components/Button';
+import { DocumentStatusBadge } from '@/ui/components/DocumentStatusBadge';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
 import { SkeletonTable } from '@/ui/components/Skeletons';
 import { getDocumentLabel } from '@/shared/constants/documentRequirements';
+import { mapRequestStatus } from '@/shared/constants/documentStatuses';
 
 // ── Status badge helpers ───────────────────────────────────────────────────────
 
-type StatusConfigEntry = { bg: string; color: string; icon: FC<{ className?: string }> };
-
-const STATUS_CONFIG: Record<DocumentRequestStatus, StatusConfigEntry> = {
-  awaiting_upload: { bg: 'rgba(245,158,11,0.12)', color: '#b45309',              icon: Clock       },
-  uploaded:        { bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8',              icon: FileCheck   },
-  scanning:        { bg: 'rgba(99,102,241,0.12)', color: '#4338ca',              icon: RefreshCw   },
-  under_review:    { bg: 'rgba(234,179,8,0.12)',  color: '#a16207',              icon: Eye         },
-  approved:        { bg: 'rgba(5,150,105,0.10)', color: 'var(--forest-green)',   icon: CheckCircle },
-  rejected:        { bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: XCircle     },
-  overdue:         { bg: 'rgba(239,68,68,0.12)', color: '#dc2626',               icon: AlertCircle },
-};
-
+// Thin adapter over the shared DocumentStatusBadge. Call sites pass the
+// backend DocumentRequestStatus; the shared mapper translates to the
+// canonical 8-state vocabulary so the DCC, reviewer page, and applicant page
+// never drift on wording or color (see documentStatuses.ts).
 function StatusBadge({ status }: { status: DocumentRequestStatus }) {
-  const { t } = useTranslation();
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.awaiting_upload;
-  const Icon = cfg.icon;
-  const STATUS_LABELS: Record<DocumentRequestStatus, string> = {
-    awaiting_upload: t('admin_extra.status_awaiting_upload', 'Awaiting Upload'),
-    uploaded:        t('admin_extra.status_pending_review',  'Pending Review'),
-    scanning:        t('admin_extra.status_processing',      'Processing'),
-    under_review:    t('admin_extra.status_under_review',    'Under Review'),
-    approved:        t('admin_extra.status_approved',        'Approved'),
-    rejected:        t('admin_extra.status_rejected',        'Rejected'),
-    overdue:         t('admin_extra.status_overdue',         'Overdue'),
-  };
-  return (
-    <span
-      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
-      style={{ background: cfg.bg, color: cfg.color }}
-    >
-      <Icon className="h-3 w-3" />
-      {STATUS_LABELS[status] ?? STATUS_LABELS.awaiting_upload}
-    </span>
-  );
+  return <DocumentStatusBadge status={mapRequestStatus(status)} />;
 }
 
 // ── Metric card ────────────────────────────────────────────────────────────────
@@ -2010,8 +1983,65 @@ export function AdminDocumentsPage() {
             />
           ) : (
             <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-              {requests.map((req) => (
-                <li key={req.id}>
+              {/*
+                Group requests by (camper_id, applicant_id). We sort a snapshot
+                of `requests` so reordering is purely visual — the server's
+                pagination order stays intact. A header <li> is injected
+                immediately before the first row of each new camper group.
+                No collapse on the group header: a reviewer landing on the DCC
+                wants every camper's outstanding asks visible at a glance.
+                Per-row details expand below as before.
+              */}
+              {requests
+                .slice()
+                .sort((a, b) => {
+                  const aName = (a.camper_name ?? '').toLowerCase();
+                  const bName = (b.camper_name ?? '').toLowerCase();
+                  if (aName !== bName) return aName.localeCompare(bName);
+                  return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+                })
+                .map((req, i, arr) => {
+                  const prev = i > 0 ? arr[i - 1] : null;
+                  const newGroup =
+                    !prev
+                    || (prev.camper_id ?? null) !== (req.camper_id ?? null)
+                    || prev.applicant_id !== req.applicant_id;
+                  const groupCount = newGroup
+                    ? arr.filter(
+                        (r) =>
+                          (r.camper_id ?? null) === (req.camper_id ?? null)
+                          && r.applicant_id === req.applicant_id,
+                      ).length
+                    : 0;
+                  return (
+                    <Fragment key={req.id}>
+                      {newGroup && (
+                        <li
+                          className="px-6 py-2.5 flex items-center gap-2"
+                          style={{ background: 'var(--glass-light)' }}
+                        >
+                          <User
+                            className="h-3.5 w-3.5 flex-shrink-0"
+                            style={{ color: 'var(--forest-green)' }}
+                          />
+                          <span
+                            className="text-xs font-semibold"
+                            style={{ color: 'var(--foreground)' }}
+                          >
+                            {req.camper_name ?? t('admin_extra.no_camper', 'Unassigned camper')}
+                          </span>
+                          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                            · {req.applicant_name}
+                          </span>
+                          <span
+                            className="ml-auto text-xs rounded-full px-2 py-0.5 font-medium"
+                            style={{ background: 'var(--glass-medium)', color: 'var(--muted-foreground)' }}
+                          >
+                            {groupCount} {groupCount === 1 ? 'request' : 'requests'}
+                          </span>
+                        </li>
+                      )}
+                <li>
                   {(() => {
                     const hasDetails = !!(req.instructions || req.rejection_reason);
 
@@ -2146,7 +2176,9 @@ export function AdminDocumentsPage() {
                     </div>
                   )}
                 </li>
-              ))}
+                    </Fragment>
+                  );
+                })}
             </ul>
           )}
         </div>

@@ -497,6 +497,94 @@ LimitRequestBody 12582912
 
 ---
 
+## Document Categories
+
+The system recognises three functional categories of document. These are not stored as a separate column — they are distinguished by context, ownership, and upload origin.
+
+| Category | Description | Upload path | Who uploads |
+|----------|-------------|-------------|-------------|
+| **Required** | Documents mandated by compliance rules (`RequiredDocumentRule`). Must be present, non-expired, and `verification_status = approved` before an application can be approved. Examples: `immunization_record`, `insurance_card`, `official_medical_form`. | `POST /api/documents` with `documentable_type=App\Models\Application` | Applicant (or admin on behalf) |
+| **Requested** | Admin-initiated document requests sent to a specific applicant via `DocumentRequest`. Status progresses through `awaiting_upload → uploaded → scanning → under_review → approved / rejected`. When approved, the request is counted as satisfying the corresponding required document type for the linked application. | `POST /api/document-requests/{id}/upload` | Applicant in response to a request |
+| **Supporting** | Any document uploaded to a camper, application, or other documentable that is not tied to a compliance rule. Examples: release forms, permission slips, photos. | `POST /api/documents` | Admin or applicant |
+
+---
+
+## Paper Application Document Handling
+
+Paper applications (`submission_source = paper_self`) follow a different lifecycle from digital applications and require special handling in the document compliance system.
+
+### How paper applications differ
+
+A digital application has its `submitted_at` field stamped during the online finalize step. A paper application bypasses this flow: the parent uploads a physical packet (`paper_application_packet`) via the Official Forms portal, and the application may never have `submitted_at` set on it.
+
+This means documents associated with a paper application can exist in the system but not be visible to queries that filter on `submitted_at IS NOT NULL` — which is the standard filter used to hide drafts from admin views.
+
+### How the compliance system handles it
+
+`DocumentEnforcementService::checkCompliance()` accepts an optional `Application $application` argument. When provided, `getUploadedDocuments()` merges documents from three paths:
+
+1. **Camper-scoped documents** — `Camper.documents()` (always included).
+2. **Application-scoped documents** — Documents attached to the camper's applications where `submitted_at IS NOT NULL`, **plus** all documents attached to the provided `$application` directly, even if `submitted_at` is null.
+3. **Approved DocumentRequest stubs** — For any `DocumentRequest` linked to the application's ID with `status = approved` and an uploaded file path, a synthetic `Document` object is constructed with `verification_status = approved`. This allows admin-requested documents to satisfy compliance rules without requiring a separate `documents` row.
+
+The result is that paper applications are treated as first-class citizens by the compliance engine. No document that is genuinely present and approved is invisible to the approval gate.
+
+### Fix: Document Visibility for Paper Applications (2026-04-24)
+
+**Previous issue:**
+
+`DocumentEnforcementService::checkCompliance()` was called without an application context:
+```php
+$compliance = $this->documentEnforcement->checkCompliance($application->camper);
+```
+
+`getUploadedDocuments()` built its application-scoped document set from `submitted_at IS NOT NULL` across all the camper's applications. For paper applications that had never gone through the digital finalize step, their attached documents had `submitted_at = null` and were excluded from the set. The compliance gate reported them as "missing" and blocked approval.
+
+**Current behavior:**
+
+`ApplicationService::reviewApplication()` now passes the application:
+```php
+$compliance = $this->documentEnforcement->checkCompliance($application->camper, $application);
+```
+
+The provided application is always included in Path 2, bypassing the `submitted_at` filter for that specific application only. Drafts on other applications are still filtered out. Approved `DocumentRequest` rows (Path 3) are also synthesised and included.
+
+---
+
+## Approval Validation Logic
+
+When an admin submits an approval decision, `DocumentEnforcementService::checkCompliance()` evaluates whether all required documents are satisfied before the application status is changed.
+
+### Definitions
+
+| Term | Definition |
+|------|------------|
+| **Missing** | No document with the required `document_type` exists in any of the three paths (camper docs, application docs, approved requests). |
+| **Unverified** | A document exists but `verification_status` is `pending` or `rejected`. |
+| **Approved** | A document exists and `verification_status = approved`. Expiration date (if set) has not passed. |
+
+### Outcome
+
+| Result | Condition | HTTP response |
+|--------|-----------|---------------|
+| Compliant | All required document types are Approved and non-expired | Approval proceeds |
+| Non-compliant | One or more required types are Missing or Unverified | HTTP 422; `compliance` details included in response body |
+| Override | Admin confirms `override_incomplete = true` | Approval proceeds with `incomplete_approval = true` recorded; audit log notes the override |
+
+### What counts toward compliance
+
+- Documents attached to the camper (`documentable_type = App\Models\Camper`).
+- Documents attached to any of the camper's applications where `submitted_at IS NOT NULL`.
+- Documents attached to the **current application being approved**, regardless of `submitted_at`.
+- Approved `DocumentRequest` rows for the current application (synthesised stubs).
+
+Documents that do **not** count:
+- Draft documents on other applications (`submitted_at = null` on documents not linked to the current application).
+- Archived documents (`archived_at IS NOT NULL`).
+- Expired documents (beyond `expiration_date`).
+
+---
+
 ## Cross-References
 
 For related documentation, see:
@@ -510,5 +598,5 @@ For related documentation, see:
 ---
 
 **Document Status:** Authoritative
-**Last Updated:** April 2026 (2026-04-09) — Full System Forensic Audit; added soft-delete/forceDelete file lifecycle section; added frontend MIME type restriction note; removed stale provider-link reference; added deleted_at to schema
-**Version:** 1.1.0
+**Last Updated:** April 2026 (2026-04-24) — Added Document Categories, Paper Application Document Handling, Approval Validation Logic, and fix explanation for paper application document visibility. Previous: 2026-04-09 Full System Forensic Audit.
+**Version:** 1.2.0

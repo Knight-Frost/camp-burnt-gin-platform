@@ -67,6 +67,7 @@ class SystemNotificationService
     public const DOCUMENT_UPLOADED = 'document.uploaded';
     public const DOCUMENT_APPROVED = 'document.approved';
     public const DOCUMENT_REJECTED = 'document.rejected';
+    public const DOCUMENT_OVERDUE = 'document.overdue';
 
     // ─── Category labels ──────────────────────────────────────────────────────
     // Maps event prefix → human-readable category label for the UI badge
@@ -363,6 +364,142 @@ class SystemNotificationService
             // Link to the user record for audit-trail deep linking
             relatedType: 'App\\Models\\User',
             relatedId: $recipient->id,
+        );
+    }
+
+    // ─── Document lifecycle notifications ────────────────────────────────────
+
+    /**
+     * Notify the applicant that a document has been requested.
+     * Sent when an admin creates a new DocumentRequest via the Documents page
+     * or inline from the application review page.
+     */
+    public function documentRequested(
+        User $recipient,
+        int $documentRequestId,
+        string $documentType,
+        ?string $camperName = null,
+        ?string $dueDate = null
+    ): Conversation {
+        $camperHtml = $camperName ? '<p><strong>Camper:</strong> '.e($camperName).'</p>' : '';
+        $dueDateHtml = $dueDate ? '<p><strong>Due:</strong> '.e($dueDate).'</p>' : '';
+
+        return $this->notify(
+            recipient: $recipient,
+            eventType: self::DOCUMENT_REQUESTED,
+            subject: 'Document requested: '.e($documentType),
+            body: '<p>Camp administration has requested the following document from you.</p>'
+                .'<p><strong>Document:</strong> '.e($documentType).'</p>'
+                .$camperHtml
+                .$dueDateHtml
+                .'<p>Please log in to your portal and upload the document under <strong>Documents</strong>.</p>',
+            relatedType: 'App\\Models\\DocumentRequest',
+            relatedId: $documentRequestId,
+        );
+    }
+
+    /**
+     * Notify admins/reviewers that an applicant has sent a document.
+     * Sent when an applicant clicks "Submit to Staff" (submit endpoint).
+     */
+    public function documentSent(
+        User $sender,
+        int $documentId,
+        string $documentType,
+        ?string $camperName = null
+    ): void {
+        $camperHtml = $camperName ? ' for <strong>'.e($camperName).'</strong>' : '';
+
+        // Notify all admin and super_admin users.
+        $admins = User::whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'super_admin']))
+            ->where('id', '!=', $sender->id)
+            ->get();
+
+        foreach ($admins as $admin) {
+            $this->notify(
+                recipient: $admin,
+                eventType: self::DOCUMENT_UPLOADED,
+                subject: 'New document submitted: '.e($documentType),
+                body: '<p>A new document has been submitted'.$camperHtml.' and is ready for review.</p>'
+                    .'<p><strong>Document:</strong> '.e($documentType).'</p>'
+                    .'<p>Log in to the Document Control Center or Application Review page to review it.</p>',
+                relatedType: 'App\\Models\\Document',
+                relatedId: $documentId,
+            );
+        }
+    }
+
+    /**
+     * Notify the applicant that their document was approved.
+     */
+    public function documentApproved(
+        User $recipient,
+        int $documentId,
+        string $documentType,
+        ?string $camperName = null
+    ): Conversation {
+        $camperHtml = $camperName ? ' for <strong>'.e($camperName).'</strong>' : '';
+
+        return $this->notify(
+            recipient: $recipient,
+            eventType: self::DOCUMENT_APPROVED,
+            subject: 'Document approved: '.e($documentType),
+            body: '<p>Your document <strong>'.e($documentType).'</strong>'.$camperHtml
+                .' has been <strong style="color:#16a34a">approved</strong> by camp administration.</p>'
+                .'<p>No further action is needed for this document.</p>',
+            relatedType: 'App\\Models\\Document',
+            relatedId: $documentId,
+        );
+    }
+
+    /**
+     * Notify the applicant that their document was rejected.
+     * Includes the rejection reason and instructions to resubmit.
+     */
+    public function documentRejected(
+        User $recipient,
+        int $documentId,
+        string $documentType,
+        ?string $camperName = null,
+        ?string $reason = null
+    ): Conversation {
+        $camperHtml = $camperName ? ' for <strong>'.e($camperName).'</strong>' : '';
+        $reasonHtml = $reason ? '<p><strong>Reason:</strong> '.e($reason).'</p>' : '';
+
+        return $this->notify(
+            recipient: $recipient,
+            eventType: self::DOCUMENT_REJECTED,
+            subject: 'Document rejected — action required: '.e($documentType),
+            body: '<p>Your document <strong>'.e($documentType).'</strong>'.$camperHtml
+                .' was <strong style="color:#dc2626">rejected</strong> by camp administration.</p>'
+                .$reasonHtml
+                .'<p>Please log in to your portal, upload a corrected version, and submit it again.</p>',
+            relatedType: 'App\\Models\\Document',
+            relatedId: $documentId,
+        );
+    }
+
+    /**
+     * Notify the applicant (and optionally admins) that a document request is overdue.
+     * Sent by the MarkOverdueDocumentRequests scheduled command.
+     */
+    public function documentOverdue(
+        User $recipient,
+        int $documentRequestId,
+        string $documentType,
+        ?string $camperName = null
+    ): Conversation {
+        $camperHtml = $camperName ? ' for <strong>'.e($camperName).'</strong>' : '';
+
+        return $this->notify(
+            recipient: $recipient,
+            eventType: self::DOCUMENT_OVERDUE,
+            subject: 'Overdue document: '.e($documentType),
+            body: '<p>The document <strong>'.e($documentType).'</strong>'.$camperHtml
+                .' is <strong style="color:#b45309">overdue</strong>. The due date has passed and the document has not been received.</p>'
+                .'<p>Please upload and submit the document as soon as possible to avoid delays in your application review.</p>',
+            relatedType: 'App\\Models\\DocumentRequest',
+            relatedId: $documentRequestId,
         );
     }
 

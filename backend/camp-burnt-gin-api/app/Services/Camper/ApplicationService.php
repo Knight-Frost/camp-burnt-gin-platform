@@ -158,8 +158,14 @@ class ApplicationService
             // When the admin has NOT overridden the completeness warning, enforce compliance
             // as a hard block. When $overrideIncomplete is true, the admin has already seen
             // and acknowledged the missing data via the warning modal — proceed regardless.
+            //
+            // Pass $application so getUploadedDocuments includes documents attached to this
+            // application even when applications.submitted_at IS NULL (paper applications
+            // skip the digital finalize flow and may never have submitted_at stamped).
+            // Without this, approved documents on paper applications are invisible to the
+            // compliance check and falsely appear as missing.
             if (! $overrideIncomplete) {
-                $compliance = $this->documentEnforcement->checkCompliance($application->camper);
+                $compliance = $this->documentEnforcement->checkCompliance($application->camper, $application);
                 if (! $compliance['is_compliant']) {
                     return [
                         'success' => false,
@@ -268,6 +274,34 @@ class ApplicationService
                         MedicalRecord::where('camper_id', $application->camper_id)
                             ->update(['is_active' => false]);
                     }
+                }
+
+                // Step 5a: Append to the review-history ledger so reviewers
+                // see application-level decisions interleaved with document
+                // events on the same timeline. Null when the transition is
+                // one we don't surface in the history (e.g. status-only
+                // repositioning). Event rows are immutable — never updated,
+                // only appended.
+                $historyAction = match (true) {
+                    $newStatus === ApplicationStatus::Approved   => \App\Enums\DocumentReviewAction::ApplicationApproved,
+                    $newStatus === ApplicationStatus::Rejected   => \App\Enums\DocumentReviewAction::ApplicationRejected,
+                    $newStatus === ApplicationStatus::Waitlisted => \App\Enums\DocumentReviewAction::ApplicationWaitlisted,
+                    $newStatus === ApplicationStatus::Cancelled  => \App\Enums\DocumentReviewAction::ApplicationCancelled,
+                    // Cancelled → UnderReview = reopen path. New submissions
+                    // entering UnderReview get their own ReviewStarted event
+                    // from the start-review endpoint, so we only record the
+                    // reopen case here.
+                    $newStatus === ApplicationStatus::UnderReview && $previousStatus === ApplicationStatus::Cancelled
+                        => \App\Enums\DocumentReviewAction::ApplicationReopened,
+                    default => null,
+                };
+                if ($historyAction !== null) {
+                    \App\Models\DocumentReviewEvent::recordApplicationEvent(
+                        application: $application,
+                        admin: $reviewedBy,
+                        action: $historyAction,
+                        notes: $notes,
+                    );
                 }
 
                 // Step 5: Write an immutable audit log entry for this review action.

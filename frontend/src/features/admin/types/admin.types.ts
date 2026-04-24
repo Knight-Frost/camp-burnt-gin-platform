@@ -107,8 +107,12 @@ export interface Application {
   narrative_additional_info?: string | null;
   narrative_emergency_protocols?: string | null;
   submitted_at?: string;
-  reviewed_at?: string;
+  reviewed_at?: string | null;
   reviewer_id?: number;
+  /** Phase 1 soft-claim: admin who opened the review (distinct from the final reviewed_by). */
+  review_started_by?: number | null;
+  /** Phase 1 soft-claim: timestamp the review was opened. Null until Start Review is clicked. */
+  review_started_at?: string | null;
   signed_at?: string;
   signature_name?: string;
   created_at: string;

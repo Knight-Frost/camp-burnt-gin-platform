@@ -7,7 +7,10 @@ use App\Http\Requests\Document\StoreDocumentRequest;
 use App\Models\Application;
 use App\Models\AuditLog;
 use App\Models\Document;
+use App\Models\DocumentReviewEvent;
 use App\Models\MedicalRecord;
+use App\Services\Document\DocumentMatchingService;
+use App\Services\Document\DocumentReviewService;
 use App\Services\Document\DocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,7 +51,9 @@ class DocumentController extends Controller
      * Inject DocumentService via constructor for file storage operations.
      */
     public function __construct(
-        protected DocumentService $documentService
+        protected DocumentService $documentService,
+        protected DocumentReviewService $reviewService,
+        protected DocumentMatchingService $matchingService,
     ) {}
 
     /**
@@ -212,34 +217,21 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', 'string', 'in:approved,rejected'],
+            // Reason is required when rejecting — surfaces to applicant and review timeline.
+            'reason' => ['required_if:status,rejected', 'nullable', 'string', 'max:2000'],
         ]);
 
-        $document->update([
-            // DocumentVerificationStatus is a backed enum; ::from() converts the string safely
-            'verification_status' => \App\Enums\DocumentVerificationStatus::from($validated['status']),
-            // Record who made the verification decision for the audit trail
-            'verified_by' => $request->user()->id,
-            'verified_at' => now(),
-        ]);
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
 
-        // Sync scan_passed with the admin's content decision.
-        //
-        // When an admin approves a document they have reviewed it and found it safe.
-        // If scan_passed is still null (stub scan: file passed static checks but was
-        // left in "pending" before the BUG-243 fix, or a future async scanner hasn't
-        // responded yet), promote it to true so the uploader can download their file.
-        //
-        // Rejection does NOT touch scan_passed — content rejection is separate from
-        // security rejection. A rejected document can still be downloaded by the
-        // uploader to understand why it was rejected.
-        if ($validated['status'] === 'approved' && $document->scan_passed === null) {
-            $this->documentService->approveDocument($document);
-        }
+        $updated = match ($validated['status']) {
+            'approved' => $this->reviewService->approve($document, $admin),
+            'rejected' => $this->reviewService->reject($document, $admin, $validated['reason'] ?? 'No reason provided.'),
+        };
 
         return response()->json([
             'message' => 'Document '.$validated['status'].'.',
-            // refresh() re-reads from DB so the response reflects the just-saved state
-            'data' => $this->transformDocument($document->refresh()),
+            'data' => $this->transformDocument($updated),
         ]);
     }
 
@@ -397,6 +389,20 @@ class DocumentController extends Controller
             ? $rawStatus
             : 'pending'; // Default to "pending" for any unrecognised legacy values
 
+        // Resolve the camper this document belongs to so the applicant UI can
+        // tab/group documents per child without having to follow the
+        // documentable polymorph on the client. For Camper-type documents the
+        // answer is trivially the documentable_id; for Application-type the
+        // answer requires a join to the application's camper. Unowned documents
+        // (messaging-only, etc.) have null. No PHI leak — this only returns an
+        // id and name the caller is already authorized to see via the
+        // index/show gates.
+        $resolvedCamperId = match ($document->documentable_type) {
+            'App\\Models\\Camper' => $document->documentable_id,
+            'App\\Models\\Application' => optional($document->documentable)->camper_id,
+            default => null,
+        };
+
         return [
             'id' => $document->id,
             'file_name' => $fileName,
@@ -409,6 +415,13 @@ class DocumentController extends Controller
             'uploaded_by_name' => $document->uploader?->name,
             // Human-readable name of the entity this document is attached to (e.g., camper name)
             'documentable_name' => $this->resolveDocumentableName($document),
+            'documentable_type' => $document->documentable_type,
+            'documentable_id' => $document->documentable_id,
+            // Derived camper linkage — see $resolvedCamperId above. Null for
+            // documents that don't belong to a specific child (e.g. messaging
+            // attachments, paper packets not yet matched). Used client-side for
+            // the camper-tab filter on the applicant documents page.
+            'camper_id' => $resolvedCamperId,
             'created_at' => $document->created_at,
             'archived_at' => $document->archived_at,
             'submitted_at' => $document->submitted_at,
@@ -505,6 +518,10 @@ class DocumentController extends Controller
             $document,
             ['document_type' => $document->document_type]
         );
+
+        // Match to originating request, advance request status, record timeline event,
+        // and notify admins that a new document is ready for review.
+        $this->reviewService->recordSent($document->fresh(), $user);
 
         return response()->json([
             'message' => 'Document submitted to staff.',
@@ -644,5 +661,32 @@ class DocumentController extends Controller
         return response()->json([
             'message' => 'Document deleted successfully.',
         ]);
+    }
+
+    /**
+     * Return the chronological review event history for a single document.
+     *
+     * GET /api/documents/{document}/review-history
+     */
+    public function reviewHistory(Request $request, Document $document): JsonResponse
+    {
+        $this->authorize('view', $document);
+
+        $events = $document->reviewEvents()
+            ->with('performer:id,name,email')
+            ->get()
+            ->map(fn ($event) => [
+                'id' => $event->id,
+                'action' => $event->action->value,
+                'action_label' => $event->action->label(),
+                'performed_by' => $event->performer
+                    ? ['id' => $event->performer->id, 'name' => $event->performer->name]
+                    : null,
+                'reason' => $event->reason,
+                'notes' => $event->notes,
+                'created_at' => $event->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json(['data' => $events]);
     }
 }

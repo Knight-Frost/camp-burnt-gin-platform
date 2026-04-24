@@ -3,7 +3,7 @@
 **Project:** Camp Burnt Gin (Laravel 12 + React 18 TypeScript)
 **Classification:** HIPAA-sensitive — PHI data handled throughout
 **Restructured:** 2026-04-20 (Form Builder Forensic Audit — BUG-208–213 found and resolved)
-**Last Entry:** BUG-262 Resolved (2026-04-22, Digital Application Form Forensic Audit)
+**Last Entry:** BUG-270 Resolved (2026-04-23, Document Review & Lifecycle Upgrade)
 **Authoritative State:** Master Index (this file)
 
 ---
@@ -12,12 +12,12 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Tracked | 152 |
+| Total Tracked | 160 |
 | Critical | 34 |
-| High | 55 |
-| Medium | 30 |
-| Low | 20 |
-| Resolved | 146 |
+| High | 57 |
+| Medium | 34 |
+| Low | 21 |
+| Resolved | 154 |
 | Open | 6 |
 | In Progress | 0 |
 
@@ -26,12 +26,12 @@
 | Severity | Total | Resolved | Open | Pct Resolved |
 |----------|-------|----------|------|--------------|
 | Critical | 34 | 31 | 3 | 91% |
-| High | 53 | 52 | 1 | 98% |
-| Medium | 27 | 25 | 2 | 93% |
-| Low | 19 | 21 | -2 | — |
-| **Total** | **133** | **129** | **4** | **97%** |
+| High | 55 | 54 | 1 | 98% |
+| Medium | 31 | 29 | 2 | 94% |
+| Low | 20 | 20 | 0 | 100% |
+| **Total** | **140** | **134** | **6** | **96%** |
 
-> BUG-240–242 resolved 2026-04-20 (Application Isolation + Camper Lifecycle Forensic Audits). Remaining open: BUG-031, 032 (password policy), BUG-033 (role filter labels).
+> BUG-263–270 resolved 2026-04-23 (Document Review & Lifecycle Upgrade). Remaining open: BUG-031, 032 (password policy), BUG-033 (role filter labels).
 
 ---
 
@@ -3494,3 +3494,105 @@ User report: "I have not once been able to submit a digital application without 
 - **Legacy submit-time waterfall** deleted (~480 lines); frontend bundle 275 KB → 125 KB.
 - **Tests:** 27 new ReplaceSectionTest + 6 new SectionFlushRegressionTest + 86 existing application-related tests all pass. tsc clean. Build clean.
 - **Architectural invariant:** the `ApplicationCompletenessService` is the SOLE source of truth for "is this section complete?" Replace-section endpoints are permissive (they save partial data); finalize() enforces the engine.
+
+---
+
+## Document Review & Lifecycle Upgrade (2026-04-23)
+
+### BUG-263
+**Title:** `DocumentController::verify()` sent no rejection reason to applicant and backend silently 422'd
+**Severity:** High
+**Status:** Resolved
+**Component:** `DocumentController.php`, `admin.api.ts`, `ApplicationReviewPage.tsx`
+**Root Cause:** `verifyDocument(id, 'rejected')` sent only `{status: 'rejected'}`. The updated backend FormRequest made `reason` required for rejections, causing a 422 that the frontend swallowed with a generic toast. Admin had no way to communicate why a document was rejected.
+**Fix:** `verifyDocument` now accepts optional `reason?: string`. `handleVerifyDoc` in `ApplicationReviewPage` gates rejection through a reason modal (sets `rejectionTarget` state); `handleConfirmReject` passes the required reason to the API. Backend validation is now satisfied and applicants receive a meaningful rejection message.
+**Files:** `frontend/src/features/admin/api/admin.api.ts`, `frontend/src/features/admin/pages/ApplicationReviewPage.tsx`
+
+---
+
+### BUG-264
+**Title:** Document rejection was terminal — applicant had no resubmission path
+**Severity:** High
+**Status:** Resolved
+**Component:** `DocumentRequestController.php`, `DocumentRequest.php`
+**Root Cause:** `reject()` set `status = 'rejected'` on the DocumentRequest as a terminal state. No mechanism existed for applicants to resubmit; a new admin-initiated request was required after every rejection, creating unnecessary admin overhead and an asymmetric experience.
+**Fix (D4):** Rejection now calls `markRejectedAndReopen()` which flips status back to `awaiting_upload`, stores the `rejection_reason`, and records `reviewed_by`/`reviewed_at`. The same request ID persists, the applicant is notified, and they can resubmit against the existing request. `DocumentRequestLifecycleTest::test_admin_can_reject_uploaded_document_with_reason` updated to assert `awaiting_upload` post-rejection.
+**Files:** `app/Http/Controllers/Api/Document/DocumentRequestController.php`, `app/Models/DocumentRequest.php`
+
+---
+
+### BUG-265
+**Title:** No immutable audit ledger for document review events
+**Severity:** High
+**Status:** Resolved
+**Component:** New: `document_review_events` table, `DocumentReviewEvent` model, migrations
+**Root Cause:** All document review actions (approve, reject, request, submit) left no durable record. Admin review decisions existed only as status column updates. HIPAA audit requirements for access-control decisions on PHI-adjacent documents were not met.
+**Fix:** New `document_review_events` table (immutable — `created_at` only, no `updated_at`, no soft-deletes). Static factory helpers `recordApproved()`, `recordRejected()`, `recordSent()`, `recordOverdue()`, `recordRequested()`. Every review action in `DocumentReviewService`, `DocumentRequestController`, and `MarkOverdueDocumentRequests` now appends an event row. New API endpoints expose the timeline: `GET /documents/{id}/review-history` and `GET /applications/{id}/review-history`.
+**Files:** `database/migrations/2026_04_23_000003_create_document_review_events_table.php`, `app/Models/DocumentReviewEvent.php`, `app/Enums/DocumentReviewAction.php`, `app/Services/Document/DocumentReviewService.php`, `tests/Feature/DocumentReviewEventTest.php` (13 tests)
+
+---
+
+### BUG-266
+**Title:** Uploaded documents never auto-linked to their originating DocumentRequest FK
+**Severity:** Medium
+**Status:** Resolved
+**Component:** New: `DocumentMatchingService`, `document_request_id` FK on documents
+**Root Cause:** `documents` had no FK to `document_requests`. When applicants uploaded in response to a request, the document sat unlinked. Admin had to manually correlate the upload to the request. Cross-camper contamination risk: no enforcement that a document only matched its own camper's requests.
+**Fix:** New `document_request_id` nullable FK (SET NULL on delete) on `documents` table. `DocumentMatchingService::matchAndLink()` runs on every `recordSent()` call with a 3-level priority: (1) explicit FK already present, (2) exact (camper+application+type) scope match, (3) camper-only scope match. NEVER matches across camper boundaries. Backfill migration `2026_04_23_000004` links existing uploaded documents to their open requests.
+**Files:** `database/migrations/2026_04_23_000002_add_request_and_review_fields_to_documents.php`, `app/Services/Document/DocumentMatchingService.php`
+
+---
+
+### BUG-267
+**Title:** `documents:mark-overdue` referenced in schedule comment but command did not exist
+**Severity:** Medium
+**Status:** Resolved
+**Component:** New: `app/Console/Commands/MarkOverdueDocumentRequests.php`
+**Root Cause:** `routes/console.php` had a comment referencing overdue detection but no command class existed. Document requests past their `due_date` never transitioned to `overdue` status and applicants were never notified.
+**Fix:** New `MarkOverdueDocumentRequests` Artisan command. Idempotent: checks `document_review_events` for an existing `overdue` action before re-flipping or re-notifying. Supports `--dry-run`. Scheduled daily at 08:00 via `routes/console.php`. `SystemNotificationService::documentOverdue()` delivers inbox notification to applicant.
+**Files:** `app/Console/Commands/MarkOverdueDocumentRequests.php`, `routes/console.php`
+
+---
+
+### BUG-268
+**Title:** Admin review page had no inline document request capability
+**Severity:** Medium
+**Status:** Resolved
+**Component:** New: `InlineRequestDocumentButton.tsx`, `ApplicationReviewPage.tsx`
+**Root Cause:** The only way to request a document from an applicant was via the global AdminDocumentsPage, which required navigating away from the review context and re-entering the applicant/camper/application manually from a combobox. Mid-review document requests were impractical.
+**Fix:** New `InlineRequestDocumentButton` component pre-fills `applicantId`, `camperId`, `applicationId`, and `camperName` from the review page context. Appears in the right-column sidebar of `ApplicationReviewPage`. Renders as a small button when closed; opens as a centered modal with document type selector, instructions, and optional due date.
+**Files:** `frontend/src/features/admin/components/review/InlineRequestDocumentButton.tsx`, `frontend/src/features/admin/pages/ApplicationReviewPage.tsx`
+
+---
+
+### BUG-269
+**Title:** Admin review page had no review event timeline
+**Severity:** Medium
+**Status:** Resolved
+**Component:** New: `ReviewHistoryPanel.tsx`, `ApplicationReviewPage.tsx`
+**Root Cause:** Admins reviewing an application had no visibility into prior review actions (who approved what, when a document was requested, when it was rejected with what reason). Context was entirely lost between reviewer sessions. Escalation and handoff between staff were impossible without a paper trail.
+**Fix:** New `ReviewHistoryPanel` component fetches `GET /applications/{id}/review-history`, renders a collapsible chronological timeline with per-action icons, performer names, timestamps, and reason text. Placed in the right-column sidebar below `ReviewPanel`. `getApplicationReviewHistory()` API function + `ReviewHistoryEvent` / `ApplicationReviewHistory` types added to `admin.api.ts`.
+**Files:** `frontend/src/features/admin/components/review/ReviewHistoryPanel.tsx`, `frontend/src/features/admin/api/admin.api.ts`
+
+---
+
+### BUG-270
+**Title:** AdminDocumentsPage "Documents" nav label and heading did not reflect Document Control Center scope
+**Severity:** Low
+**Status:** Resolved
+**Component:** `en.json`, `es.json`, `AdminDocumentsPage.tsx`
+**Root Cause:** Nav label, page heading, and tab structure used the legacy generic "Documents" label from Phase 1. The page now manages full document request lifecycle, overdue detection, and review queues — the old name undersold its scope. No dedicated "Review Queue" tab existed to surface pending documents needing review.
+**Fix:** `portal_nav.documents` updated to "Document Control Center" (EN) / "Centro de Control de Documentos" (ES). Page heading and subheading updated. New "Review Queue" third tab reuses the existing uploads table state pipeline with `verification_status: 'pending'` hardcoded; shows a context banner and hides the archive/status filters since the queue is always active+pending. "All Uploads" tab renamed from "Uploaded Documents".
+**Files:** `frontend/src/i18n/en.json`, `frontend/src/i18n/es.json`, `frontend/src/features/admin/pages/AdminDocumentsPage.tsx`
+
+---
+
+### Audit Summary — Document Review & Lifecycle Upgrade (2026-04-23)
+
+- **8 architectural gaps** identified and resolved across the document lifecycle system.
+- **New state machine**: documents move through a trackable lifecycle; every transition appends an immutable `document_review_events` row.
+- **D4 (resubmission)**: rejection reopens the same request (`awaiting_upload`) rather than terminating it — no orphaned request IDs, no admin overhead to re-request.
+- **Cross-camper isolation enforced**: `DocumentMatchingService` never matches documents across camper boundaries.
+- **Overdue automation live**: `documents:mark-overdue` runs daily at 08:00, idempotent (checks existing events before re-notifying).
+- **Admin reviewer workstation**: right column now contains `ReviewPanel` + `InlineRequestDocumentButton` + `ReviewHistoryPanel` — full context without navigation.
+- **Tests:** 13 new `DocumentReviewEventTest` + 25 `DocumentRequestLifecycleTest` (D4 assertion updated) all pass. 122 total Document-group tests passing. tsc clean. Build 5.88s.

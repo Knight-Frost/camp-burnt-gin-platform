@@ -2,9 +2,12 @@
 
 namespace App\Services\Document;
 
+use App\Enums\DocumentRequestStatus;
+use App\Enums\DocumentVerificationStatus;
 use App\Models\Application;
 use App\Models\Camper;
 use App\Models\Document;
+use App\Models\DocumentRequest;
 use App\Models\RequiredDocumentRule;
 use App\Services\Medical\SpecialNeedsRiskAssessmentService;
 use Illuminate\Support\Collection;
@@ -236,7 +239,42 @@ class DocumentEnforcementService
         }
         $appDocs = count($appIds) > 0 ? $appDocsQuery->get() : collect();
 
-        return $camperDocs->merge($appDocs)->unique('id')->values();
+        $merged = $camperDocs->merge($appDocs)->unique('id')->values();
+
+        // Path 3: approved DocumentRequests.
+        // DocumentRequest uploads store only a file path on the request row and never
+        // create a Document record. Query the approved requests linked to the same
+        // application IDs and synthesise stub Document objects so they satisfy the
+        // isVerified() / isExpired() interface the finders below rely on.
+        // Stubs are appended after unique('id') because they have no id — merging
+        // before would coalesce all of them into a single row via the uniqueness key.
+        if (count($appIds) > 0) {
+            $coveredByStubs = $merged->pluck('document_type')->flip();
+
+            DocumentRequest::whereIn('application_id', $appIds)
+                ->where('status', DocumentRequestStatus::Approved)
+                ->whereNotNull('uploaded_document_path')
+                ->pluck('document_type')
+                ->unique()
+                ->each(function (string $type) use (&$merged, $coveredByStubs) {
+                    // Skip if the document table already has a row for this type;
+                    // the real Document row is authoritative when both exist.
+                    if ($coveredByStubs->has($type)) {
+                        return;
+                    }
+
+                    $stub = new Document([
+                        'document_type'       => $type,
+                        'verification_status' => DocumentVerificationStatus::Approved,
+                        'submitted_at'        => now(),
+                        'expiration_date'     => null,
+                        'archived_at'         => null,
+                    ]);
+                    $merged->push($stub);
+                });
+        }
+
+        return $merged;
     }
 
     /**

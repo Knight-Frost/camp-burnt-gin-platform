@@ -1692,7 +1692,8 @@
   "portal_nav": {
     "dashboard": "Dashboard",
     "applications": "Applications",
-    "documents": "Documents",
+    "documents": "Document Control Center",
+    "my_documents": "My Documents",
     "inbox": "Inbox",
     "announcements": "Announcements",
     "calendar": "Calendar",
@@ -2043,7 +2044,20 @@
     "session_waitlisted": "Waitlisted",
     "session_rejected": "Rejected",
     "session_cancelled": "Cancelled",
-    "session_total_submitted": "Total submitted"
+    "session_total_submitted": "Total submitted",
+    "status_missing": "Missing",
+    "status_requested": "Requested",
+    "status_draft": "Draft",
+    "status_submitted": "Submitted",
+    "status_under_review": "Under Review",
+    "status_approved": "Approved",
+    "status_rejected": "Rejected",
+    "status_overdue": "Overdue",
+    "status_awaiting_upload": "Awaiting Upload",
+    "status_pending_review": "Submitted",
+    "status_processing": "Processing",
+    "metric_total": "Total",
+    "metric_uploaded": "Submitted"
   },
   "audit_extra": {
     "all_categories": "All Categories",

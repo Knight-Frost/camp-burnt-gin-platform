@@ -504,8 +504,17 @@ class MessageService
             // original timestamp. Not scoped to applicant uploads because
             // any caller linking a doc is by definition "sending" it
             // within this conversation context.
+            $docUpdates = [];
             if ($document->sent_at === null) {
-                $document->update(['sent_at' => now()]);
+                $docUpdates['sent_at'] = now();
+            }
+            // Promote to submitted so admin visibility queries (submitted_at IS NOT NULL)
+            // surface it on the application review page. Idempotent — never overwrites.
+            if ($document->submitted_at === null) {
+                $docUpdates['submitted_at'] = now();
+            }
+            if (!empty($docUpdates)) {
+                $document->update($docUpdates);
             }
 
             // Per-attachment audit entry — mirrors the attachFile() path so

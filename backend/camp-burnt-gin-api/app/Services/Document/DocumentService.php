@@ -268,24 +268,32 @@ class DocumentService
     }
 
     /**
-     * Queue a security scan to run asynchronously after the HTTP response is sent.
+     * Run the security scan and stamp the result on the document.
      *
-     * Using afterResponse() means the user doesn't wait for the scan before
-     * receiving their upload confirmation. The document remains in "pending review"
-     * state (scan_passed = null) until the scan completes.
+     * The current `performSecurityScan()` is a synchronous stub (extension +
+     * MIME blocklist, microseconds) so the scan runs inline. This closes a
+     * race where the uploader's own preview request could hit the server
+     * before an `afterResponse()`-dispatched scan completed — their Document
+     * still had `is_scanned = false`, `isSecure()` returned false, and the
+     * download endpoint returned 403. Running inline means by the time the
+     * upload response ships, the document is already marked scanned.
+     *
+     * When a real async AV engine (ClamAV, VirusTotal) is introduced, wrap
+     * this body back in `dispatch(...)->afterResponse()` — the call site
+     * (`queueSecurityScan`) stays the same — and have the scanner poll/stamp
+     * later. The Document row staying in `is_scanned = false` until the real
+     * scan finishes is then the correct behavior (admin-only preview until
+     * cleared), which is what the original design intended.
      */
     protected function queueSecurityScan(Document $document): void
     {
-        dispatch(function () use ($document) {
-            $scanPassed = $this->performSecurityScan($document);
+        $scanPassed = $this->performSecurityScan($document);
 
-            // Update the document record with the scan result
-            $document->update([
-                'is_scanned' => true,
-                'scan_passed' => $scanPassed,
-                'scanned_at' => now(),
-            ]);
-        })->afterResponse();
+        $document->update([
+            'is_scanned' => true,
+            'scan_passed' => $scanPassed,
+            'scanned_at' => now(),
+        ]);
     }
 
     /**

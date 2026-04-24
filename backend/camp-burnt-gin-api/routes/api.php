@@ -365,6 +365,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         // Submit: applicant promotes a draft upload to submitted state (visible to admins)
         Route::patch('/{document}/submit', [DocumentController::class, 'submit'])->name('documents.submit');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+        Route::get('/{document}/review-history', [DocumentController::class, 'reviewHistory'])->name('documents.review-history');
     });
 
     /*
@@ -614,6 +615,24 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::post('/{application}/review', [ApplicationController::class, 'review'])
             ->middleware('admin')
             ->name('applications.review');
+        Route::get('/{application}/review-history', [ApplicationController::class, 'reviewHistory'])
+            ->name('applications.review-history');
+        // Admin-only: live list of Documents attached to the application (plus
+        // camper-scoped docs matched to this application's requests). Powers the
+        // reviewer workspace's document panel.
+        Route::get('/{application}/documents', [ApplicationController::class, 'documents'])
+            ->middleware('admin')
+            ->name('applications.documents');
+        // Admin-only: DocumentRequest rows admins have issued for this application.
+        // Drives the "Requested Documents" list on the reviewer workspace.
+        Route::get('/{application}/document-requests', [ApplicationController::class, 'documentRequests'])
+            ->middleware('admin')
+            ->name('applications.document-requests');
+        // Admin-only soft-claim: records review_started_by/_at and transitions
+        // Submitted→UnderReview. No lock — overridable by any admin.
+        Route::post('/{application}/start-review', [ApplicationController::class, 'startReview'])
+            ->middleware('admin')
+            ->name('applications.start-review');
     });
 
     /*

@@ -242,6 +242,10 @@ export interface Application {
   review_notes?: string;
   reviewed_by?: number;
   reviewed_at?: string;
+  /** Soft-claim: admin who opened the review. Distinct from reviewed_by (final decision). */
+  review_started_by?: number | null;
+  /** Timestamp when review was opened. Null until an admin clicks Start Review. */
+  review_started_at?: string | null;
   signed_at?: string;
   signature_name?: string;
   submitted_at?: string;

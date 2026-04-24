@@ -225,6 +225,27 @@ Admins see all sessions with no filter.
 - Unscanned files cannot be downloaded by non-admin users
 - Scan failures quarantine file
 
+### Document Compliance (Approval Gate)
+
+Before an application can be approved, `DocumentEnforcementService::checkCompliance()` verifies that all required documents are present, approved, and non-expired.
+
+**Required document sources checked:**
+1. Documents attached to the camper (`documentable_type = App\Models\Camper`)
+2. Documents attached to any of the camper's submitted applications
+3. Documents attached to the specific application being approved (always included, even if `submitted_at` is null)
+4. Approved `DocumentRequest` rows linked to the application (counted as satisfying the corresponding type)
+
+**Paper application behavior:** Paper applications may not have `submitted_at` set because they bypass the digital finalize step. The compliance checker always includes the current application's documents regardless of `submitted_at`, so paper application documents are never invisible to the approval gate.
+
+**Compliance states:**
+- `missing` — no document exists for a required type
+- `unverified` — document exists but `verification_status` is not `approved`
+- `approved` — document exists with `verification_status = approved` and non-expired
+
+Non-compliant results return HTTP 422. Admins may override with `override_incomplete = true`, which is recorded in the audit log.
+
+See `docs/features/File_Uploads.md` — Approval Validation Logic for complete details.
+
 ---
 
 ## Notification Business Rules
@@ -347,4 +368,4 @@ awaiting_upload → overdue (when due_date passes without upload)
 ---
 
 **Document Status:** Complete and authoritative
-**Last Updated:** April 2026
+**Last Updated:** April 2026 (2026-04-24) — Added Document Compliance subsection to Document Upload Rules; clarified paper application compliance behavior.

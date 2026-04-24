@@ -1,7 +1,7 @@
 # Application, Camper, and Medical Record Workflow Specification
 
 **System:** Camp Burnt Gin
-**Date:** 2026-03-24
+**Date:** 2026-04-24 (last updated; original: 2026-03-24)
 **Status:** Authoritative — this document supersedes all prior descriptions of the approval, reversal, and re-approval workflows.
 
 ---
@@ -252,9 +252,29 @@ All of the following must be satisfied before an approval is processed:
 | Reviewer holds `admin` or `super_admin` role | `ApplicationPolicy::review()` |
 | State transition is valid (see transition table) | `ApplicationStatus::canTransitionTo()` in `ApplicationService` |
 | Camp session is not at or over capacity | `CampSession::isAtCapacity()` in `ApplicationService` |
-| All required documents are present, non-expired, and verified | `DocumentEnforcementService::checkCompliance()` in `ApplicationService` |
+| All required documents are present, non-expired, and verified | `DocumentEnforcementService::checkCompliance($camper, $application)` in `ApplicationService` |
 
 If any precondition fails, the service returns a failure result and the application is not modified.
+
+#### Document Compliance and Paper Applications
+
+`ApplicationService` passes the `$application` instance to `DocumentEnforcementService::checkCompliance()`. This is required to correctly evaluate paper applications.
+
+**Why this matters:** Paper applications follow a different lifecycle from digital applications. A digital application has `submitted_at` stamped on it during the finalize step. A paper application (`submission_source = paper_self`) may never have `submitted_at` set because it bypasses the digital finalize flow. If the compliance check relied solely on camper-level and globally submitted documents, approved documents attached to a paper application would appear as missing and block approval incorrectly.
+
+**What `getUploadedDocuments()` does with the application context:**
+
+The method merges documents from three sources before evaluating compliance:
+
+| Path | Source | Description |
+|------|--------|-------------|
+| Path 1 | `Camper.documents()` | Documents attached directly to the camper |
+| Path 2 | `Application.documents()` | Documents attached to any of the camper's submitted applications (`submitted_at IS NOT NULL`) |
+| Path 3 | `DocumentRequest` (approved) | Approved document requests linked to the application's IDs — synthesized as stub Document objects so they satisfy the `isVerified()` interface |
+
+When an `Application` is provided, the current application's documents are **always included** in Path 2, regardless of `submitted_at`. This ensures paper application documents that were never explicitly submitted are still visible to the compliance check.
+
+Stubs from Path 3 are never co-merged with real Document rows (unique deduplication is done on id before stubs are appended). If both a real Document row and an approved DocumentRequest exist for the same `document_type`, the real Document row is authoritative.
 
 ### Process
 
@@ -565,6 +585,8 @@ Audit log entries are never modified after creation (`UPDATED_AT = null`).
 | Approve a cancelled application | Blocked by `canTransitionTo()`. Cancelled is irreversible. Returns 422. |
 | Approve when session is at capacity | Blocked by capacity gate before transaction. Returns 422 with session capacity details. |
 | Approve when documents are missing/expired | Blocked by compliance gate before transaction. Returns 422 with compliance details. |
+| Approve a paper application with documents that have no `submitted_at` | Allowed. `DocumentEnforcementService` receives the application context; application-scoped documents are always included regardless of `submitted_at`. Documents are not invisible to the compliance check. |
+| Approve a paper application where docs were submitted via a `DocumentRequest` | Allowed. `DocumentEnforcementService` synthesises stub Document objects from approved `DocumentRequest` rows for the same application IDs. These stubs count as present and verified for compliance purposes. |
 | Approve → Reject → Approve (single session) | Works correctly. Re-approval activates camper and reactivates existing medical record via `firstOrCreate`. No duplicates. |
 | Approve Session A → Reject Session A (camper also approved for Session B) | Camper and medical record remain `is_active = true` because Session B is still approved. |
 | Approve Session A → Reject Session A → Reject Session B | First reversal leaves camper active (Session B). Second reversal deactivates camper and medical record. |

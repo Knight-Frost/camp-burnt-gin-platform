@@ -6,6 +6,8 @@ use App\Enums\DocumentRequestStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -80,6 +82,22 @@ class DocumentRequest extends Model
         return $this->belongsTo(Conversation::class, 'conversation_id');
     }
 
+    /**
+     * All documents uploaded in response to this request (newest last).
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class, 'document_request_id')->orderBy('created_at');
+    }
+
+    /**
+     * The most recently uploaded document for this request.
+     */
+    public function latestDocument(): HasOne
+    {
+        return $this->hasOne(Document::class, 'document_request_id')->latestOfMany('created_at');
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     /**
@@ -100,5 +118,45 @@ class DocumentRequest extends Model
         }
 
         return $this->status->canUpload() && $this->due_date->isPast();
+    }
+
+    /**
+     * Record the admin's rejection decision and reopen the request for resubmission.
+     *
+     * Decision D4: rejecting a document does not close the request — the same
+     * DocumentRequest flips back to awaiting_upload so the applicant sees the
+     * task reappear immediately without a new admin re-request action.
+     */
+    public function markRejectedAndReopen(string $reason, User $admin): void
+    {
+        $this->update([
+            'status' => DocumentRequestStatus::AwaitingUpload,
+            'rejection_reason' => $reason,
+            'reviewed_by_admin_id' => $admin->id,
+            'reviewed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Advance status to Approved and record the reviewing admin.
+     */
+    public function markApproved(User $admin): void
+    {
+        $this->update([
+            'status' => DocumentRequestStatus::Approved,
+            'reviewed_by_admin_id' => $admin->id,
+            'reviewed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Advance status to UnderReview when a document is sent by the applicant.
+     */
+    public function markUnderReview(): void
+    {
+        if ($this->status === DocumentRequestStatus::AwaitingUpload
+            || $this->status === DocumentRequestStatus::Overdue) {
+            $this->update(['status' => DocumentRequestStatus::UnderReview]);
+        }
     }
 }

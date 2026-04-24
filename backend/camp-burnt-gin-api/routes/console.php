@@ -48,3 +48,10 @@ Schedule::command('documents:prune-drafts --days=30')
     ->at('02:30')
     ->withoutOverlapping()
     ->description('Soft-delete abandoned applicant draft documents older than 30 days');
+
+// Document overdue detection: flip document requests past their due date to
+// Overdue status and notify applicants once per request.
+Schedule::command('documents:mark-overdue')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->description('Mark overdue document requests and notify applicants');

@@ -50,6 +50,8 @@ class Application extends Model
         'submitted_at',         // Timestamp when the parent officially submitted.
         'reviewed_at',          // Timestamp when an admin completed their review.
         'reviewed_by',          // FK to the User who performed the review.
+        'review_started_at',    // Soft-claim timestamp when an admin opened the review (distinct from reviewed_at, which is the final decision).
+        'review_started_by',    // FK to the User who opened the review. No lock — another admin can take over.
         'notes',                // Admin notes visible only internally.
         'signature_data',       // Raw signature image/data — hidden from API output.
         'signature_name',       // Typed name accompanying the signature.
@@ -101,6 +103,7 @@ class Application extends Model
             // Carbon datetime objects for easy comparison and formatting.
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'review_started_at' => 'datetime',
             'signed_at' => 'datetime',
             // JSON map of { sectionKey: ISO8601 timestamp } — see
             // ApplicationCompletenessService for semantics.
@@ -146,6 +149,20 @@ class Application extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /**
+     * Document requests admins have issued against this application.
+     *
+     * These are staff-initiated asks for a specific document (e.g. "please upload
+     * the current immunization record"). The relation is scoped by application_id,
+     * which `DocumentRequest` writes at request-creation time in `InlineRequestDocumentButton`.
+     * A request may or may not yet have a matching Document attached (it's attached
+     * by `DocumentMatchingService` when the applicant uploads).
+     */
+    public function documentRequests(): HasMany
+    {
+        return $this->hasMany(DocumentRequest::class, 'application_id');
     }
 
     /**
@@ -271,6 +288,19 @@ class Application extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * The admin who most recently opened (claimed) the review.
+     *
+     * Soft claim — reviewStarter may differ from the final reviewer. Distinct
+     * columns let the UI show "Being reviewed by Jane" while a decision is
+     * still pending, and "Approved by Bob" once finalized, even when those are
+     * different people.
+     */
+    public function reviewStarter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'review_started_by');
     }
 
     /**
