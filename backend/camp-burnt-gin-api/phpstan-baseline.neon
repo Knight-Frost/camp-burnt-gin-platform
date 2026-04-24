@@ -105,7 +105,7 @@ parameters:
 		-
 			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
 			identifier: method.nonObject
-			count: 4
+			count: 3
 			path: app/Http/Controllers/Api/Camp/SessionDashboardController.php
 
 		-
@@ -166,6 +166,12 @@ parameters:
 			message: '#^Parameter \#1 \$recipient of method App\\Services\\SystemNotificationService\:\:applicationSubmitted\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 2
+			path: app/Http/Controllers/Api/Camper/ApplicationController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>document_type" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
 			path: app/Http/Controllers/Api/Camper/ApplicationController.php
 
 		-
@@ -241,12 +247,6 @@ parameters:
 			path: app/Http/Controllers/Api/Document/DocumentController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Document/DocumentController.php
-
-		-
 			message: '#^Dead catch \- Exception is never thrown in the try block\.$#'
 			identifier: catch.neverThrown
 			count: 1
@@ -259,26 +259,8 @@ parameters:
 			path: app/Http/Controllers/Api/Document/DocumentRequestController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Document/DocumentRequestController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$last_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Api/Document/DocumentRequestController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Api/Document/DocumentRequestController.php
-
-		-
-			message: '#^Parameter \$recipient of method App\\Services\\SystemNotificationService\:\:notify\(\) expects App\\Models\\User, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/Api/Document/DocumentRequestController.php
 
@@ -708,11 +690,6 @@ parameters:
 			count: 1
 			path: app/Http/Resources/ApplicationDocumentResource.php
 
-		-
-			message: '#^Cannot call method toISOString\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Resources/ApplicationDocumentResource.php
 
 		-
 			message: '#^Using nullsafe property access on non\-nullable type string\. Use \-\> instead\.$#'
@@ -1049,6 +1026,12 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 2
 			path: app/Models/Document.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/DocumentReviewEvent.php
 
 		-
 			message: '#^Cannot call method isPast\(\) on string\.$#'
@@ -2025,7 +2008,7 @@ parameters:
 		-
 			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
 			identifier: method.nonObject
-			count: 4
+			count: 1
 			path: app/Services/System/ReportService.php
 
 		-

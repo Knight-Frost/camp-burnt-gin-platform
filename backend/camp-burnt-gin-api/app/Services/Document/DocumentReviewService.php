@@ -170,11 +170,17 @@ class DocumentReviewService
     private function resolveCamperName(Document $document): ?string
     {
         if ($document->documentable_type === 'App\Models\Camper') {
-            return $document->documentable?->full_name;
+            /** @var \App\Models\Camper|null $camper */
+            $camper = $document->documentable;
+
+            return $camper?->full_name;
         }
 
         if ($document->documentable_type === 'App\Models\Application') {
-            return $document->documentable?->camper?->full_name;
+            /** @var \App\Models\Application|null $app */
+            $app = $document->documentable;
+
+            return $app?->camper?->full_name;
         }
 
         return null;

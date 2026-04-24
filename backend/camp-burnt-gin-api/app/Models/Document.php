@@ -31,6 +31,9 @@ use Illuminate\Support\Facades\Storage;
  *  5. Documents with an expiration_date become invalid after that date,
  *     prompting re-upload (e.g. annual physician clearance forms).
  *
+ * @property \Carbon\Carbon|null $submitted_at
+ * @property \Carbon\Carbon|null $sent_at
+ * @property-read DocumentRequest|null $documentRequest
  * @property-read User|null $uploader
  * @property-read \Illuminate\Database\Eloquent\Collection<int, DocumentReviewEvent> $reviewEvents
  */
@@ -227,6 +230,8 @@ class Document extends Model
 
     /**
      * All review events recorded for this document (chronological, immutable).
+     *
+     * @return HasMany<DocumentReviewEvent, $this>
      */
     public function reviewEvents(): HasMany
     {

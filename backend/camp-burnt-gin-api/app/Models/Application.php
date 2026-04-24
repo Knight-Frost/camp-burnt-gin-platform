@@ -31,6 +31,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property ApplicationStatus $status
  * @property SubmissionSource|null $submission_source
  * @property Camper|null $camper
+ * @property \Carbon\Carbon|null $reviewed_at
+ * @property \Carbon\Carbon|null $review_started_at
  */
 class Application extends Model
 {
