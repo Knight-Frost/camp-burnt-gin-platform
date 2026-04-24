@@ -30,6 +30,9 @@ use Illuminate\Support\Facades\Storage;
  *  4. An admin must verify the document before isValid() returns true.
  *  5. Documents with an expiration_date become invalid after that date,
  *     prompting re-upload (e.g. annual physician clearance forms).
+ *
+ * @property-read User|null $uploader
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, DocumentReviewEvent> $reviewEvents
  */
 class Document extends Model
 {

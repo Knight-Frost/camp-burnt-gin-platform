@@ -4,8 +4,11 @@ namespace App\Console\Commands;
 
 use App\Enums\DocumentRequestStatus;
 use App\Enums\DocumentReviewAction;
-use App\Models\DocumentReviewEvent;
+use App\Models\Camper;
+use App\Models\Document;
 use App\Models\DocumentRequest;
+use App\Models\DocumentReviewEvent;
+use App\Models\User;
 use App\Services\SystemNotificationService;
 use Illuminate\Console\Command;
 
@@ -70,13 +73,19 @@ class MarkOverdueDocumentRequests extends Command
             if (! $alreadyNotified) {
                 // Record the overdue event (performed_by = null = system-generated).
                 // document is nullable — pass latestDocument if present, null otherwise.
-                DocumentReviewEvent::recordOverdue($request, $request->latestDocument);
+                /** @var Document|null $latestDoc */
+                $latestDoc = $request->latestDocument;
+                DocumentReviewEvent::recordOverdue($request, $latestDoc);
 
                 // Notify the applicant.
-                if ($request->applicant) {
-                    $camperName = $request->camper?->full_name;
+                /** @var User|null $applicant */
+                $applicant = $request->applicant;
+                if ($applicant) {
+                    /** @var Camper|null $camper */
+                    $camper = $request->camper;
+                    $camperName = $camper?->full_name;
                     $this->notifications->documentOverdue(
-                        $request->applicant,
+                        $applicant,
                         $request->id,
                         $request->document_type,
                         $camperName,

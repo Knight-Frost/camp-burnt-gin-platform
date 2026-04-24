@@ -1439,7 +1439,7 @@ class ApplicationController extends Controller
             ->with('documentRequest:id,document_type,status')
             ->orderBy('created_at')
             ->get()
-            ->map(fn ($event) => [
+            ->map(fn (DocumentReviewEvent $event) => [
                 'id' => $event->id,
                 'action' => $event->action->value,
                 'action_label' => $event->action->label(),
@@ -1451,7 +1451,7 @@ class ApplicationController extends Controller
                     : null,
                 'reason' => $event->reason,
                 'notes' => $event->notes,
-                'created_at' => $event->created_at?->toIso8601String(),
+                'created_at' => $event->created_at->toIso8601String(),
             ]);
 
         return response()->json([
@@ -1544,6 +1544,7 @@ class ApplicationController extends Controller
                 ->get()
             : collect();
 
+        /** @var \Illuminate\Support\Collection<int, Document> $all */
         $all = $applicationDocs->concat($camperDocs)->concat($orphanedDocs)
             ->unique('id')
             ->sortByDesc('created_at')
@@ -1600,9 +1601,9 @@ class ApplicationController extends Controller
         }
 
         $requests = DocumentRequest::with([
-                'requestedByAdmin:id,name',
-                'latestDocument',
-            ])
+            'requestedByAdmin:id,name',
+            'latestDocument',
+        ])
             ->where('application_id', $application->id)
             ->orderByDesc('created_at')
             ->get();

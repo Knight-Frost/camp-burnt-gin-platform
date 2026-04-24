@@ -264,11 +264,11 @@ class DocumentEnforcementService
                     }
 
                     $stub = new Document([
-                        'document_type'       => $type,
+                        'document_type' => $type,
                         'verification_status' => DocumentVerificationStatus::Approved,
-                        'submitted_at'        => now(),
-                        'expiration_date'     => null,
-                        'archived_at'         => null,
+                        'submitted_at' => now(),
+                        'expiration_date' => null,
+                        'archived_at' => null,
                     ]);
                     $merged->push($stub);
                 });

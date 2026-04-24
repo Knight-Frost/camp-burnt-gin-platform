@@ -227,6 +227,7 @@ class DocumentController extends Controller
         $updated = match ($validated['status']) {
             'approved' => $this->reviewService->approve($document, $admin),
             'rejected' => $this->reviewService->reject($document, $admin, $validated['reason'] ?? 'No reason provided.'),
+            default => throw new \InvalidArgumentException("Unexpected status: {$validated['status']}"),
         };
 
         return response()->json([
@@ -675,7 +676,7 @@ class DocumentController extends Controller
         $events = $document->reviewEvents()
             ->with('performer:id,name,email')
             ->get()
-            ->map(fn ($event) => [
+            ->map(fn (DocumentReviewEvent $event) => [
                 'id' => $event->id,
                 'action' => $event->action->value,
                 'action_label' => $event->action->label(),
@@ -684,7 +685,7 @@ class DocumentController extends Controller
                     : null,
                 'reason' => $event->reason,
                 'notes' => $event->notes,
-                'created_at' => $event->created_at?->toIso8601String(),
+                'created_at' => $event->created_at->toIso8601String(),
             ]);
 
         return response()->json(['data' => $events]);

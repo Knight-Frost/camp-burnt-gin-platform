@@ -513,7 +513,7 @@ class MessageService
             if ($document->submitted_at === null) {
                 $docUpdates['submitted_at'] = now();
             }
-            if (!empty($docUpdates)) {
+            if (! empty($docUpdates)) {
                 $document->update($docUpdates);
             }
 

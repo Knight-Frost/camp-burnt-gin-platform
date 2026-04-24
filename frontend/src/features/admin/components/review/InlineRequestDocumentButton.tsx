@@ -155,10 +155,11 @@ export function InlineRequestDocumentButton({
 
         {/* Document type */}
         <div className="mb-3">
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+          <label htmlFor="req-doc-type" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
             Document Type <span style={{ color: '#dc2626' }}>*</span>
           </label>
           <select
+            id="req-doc-type"
             value={form.document_type}
             onChange={(e) => set('document_type', e.target.value)}
             required
@@ -174,10 +175,11 @@ export function InlineRequestDocumentButton({
 
         {form.document_type === 'other' && (
           <div className="mb-3">
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+            <label htmlFor="req-custom-doc-type" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
               Specify Document Type <span style={{ color: '#dc2626' }}>*</span>
             </label>
             <input
+              id="req-custom-doc-type"
               type="text"
               value={form.custom_document_type}
               onChange={(e) => set('custom_document_type', e.target.value)}
@@ -191,10 +193,11 @@ export function InlineRequestDocumentButton({
 
         {/* Instructions */}
         <div className="mb-3">
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+          <label htmlFor="req-instructions" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
             Instructions <span style={{ color: 'var(--muted-foreground)' }}>(optional)</span>
           </label>
           <textarea
+            id="req-instructions"
             value={form.instructions}
             onChange={(e) => set('instructions', e.target.value)}
             rows={2}
@@ -206,10 +209,11 @@ export function InlineRequestDocumentButton({
 
         {/* Due date */}
         <div className="mb-5">
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
+          <label htmlFor="req-due-date" className="block text-xs font-medium mb-1" style={{ color: 'var(--foreground)' }}>
             Due Date <span style={{ color: 'var(--muted-foreground)' }}>(optional)</span>
           </label>
           <input
+            id="req-due-date"
             type="date"
             value={form.due_date}
             onChange={(e) => set('due_date', e.target.value)}

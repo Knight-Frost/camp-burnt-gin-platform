@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Document;
 
 use App\Enums\DocumentRequestStatus;
-use App\Enums\DocumentReviewAction;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\Camper;

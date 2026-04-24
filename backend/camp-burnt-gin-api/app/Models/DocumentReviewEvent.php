@@ -14,6 +14,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * document, queryable by document, request, application, or camper.
  *
  * Immutable: no updated_at, no soft deletes. Corrections appear as new events.
+ *
+ * @property int $id
+ * @property DocumentReviewAction $action
+ * @property \Carbon\Carbon $created_at
+ * @property int|null $document_id
+ * @property int|null $document_request_id
+ * @property int|null $application_id
+ * @property int|null $camper_id
+ * @property int|null $performed_by
+ * @property string|null $reason
+ * @property string|null $notes
+ * @property array|null $metadata
+ * @property-read Document|null $document
+ * @property-read DocumentRequest|null $documentRequest
+ * @property-read Application|null $application
+ * @property-read Camper|null $camper
+ * @property-read User|null $performer
  */
 class DocumentReviewEvent extends Model
 {

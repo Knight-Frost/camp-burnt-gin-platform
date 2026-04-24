@@ -283,16 +283,15 @@ class ApplicationService
                 // repositioning). Event rows are immutable — never updated,
                 // only appended.
                 $historyAction = match (true) {
-                    $newStatus === ApplicationStatus::Approved   => \App\Enums\DocumentReviewAction::ApplicationApproved,
-                    $newStatus === ApplicationStatus::Rejected   => \App\Enums\DocumentReviewAction::ApplicationRejected,
+                    $newStatus === ApplicationStatus::Approved => \App\Enums\DocumentReviewAction::ApplicationApproved,
+                    $newStatus === ApplicationStatus::Rejected => \App\Enums\DocumentReviewAction::ApplicationRejected,
                     $newStatus === ApplicationStatus::Waitlisted => \App\Enums\DocumentReviewAction::ApplicationWaitlisted,
-                    $newStatus === ApplicationStatus::Cancelled  => \App\Enums\DocumentReviewAction::ApplicationCancelled,
+                    $newStatus === ApplicationStatus::Cancelled => \App\Enums\DocumentReviewAction::ApplicationCancelled,
                     // Cancelled → UnderReview = reopen path. New submissions
                     // entering UnderReview get their own ReviewStarted event
                     // from the start-review endpoint, so we only record the
                     // reopen case here.
-                    $newStatus === ApplicationStatus::UnderReview && $previousStatus === ApplicationStatus::Cancelled
-                        => \App\Enums\DocumentReviewAction::ApplicationReopened,
+                    $newStatus === ApplicationStatus::UnderReview && $previousStatus === ApplicationStatus::Cancelled => \App\Enums\DocumentReviewAction::ApplicationReopened,
                     default => null,
                 };
                 if ($historyAction !== null) {

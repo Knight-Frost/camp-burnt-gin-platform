@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Each request is linked to an inbox conversation so the applicant receives
  * notifications and status updates in their inbox.
+ *
+ * @property-read User|null $applicant
+ * @property-read Camper|null $camper
+ * @property-read User|null $requestedByAdmin
+ * @property-read Document|null $latestDocument
  */
 class DocumentRequest extends Model
 {
