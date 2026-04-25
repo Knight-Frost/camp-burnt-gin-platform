@@ -460,7 +460,7 @@ function ReviewPanel({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2" data-guide-anchor="admin-review.decision-buttons">
               {currentStatus === 'submitted' && (
                 <>
                   <div
@@ -855,7 +855,7 @@ export function ApplicationReviewPage() {
       )}
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="mb-6">
+      <div className="mb-6" data-guide-anchor="admin-review.header-stat-cards">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
@@ -951,7 +951,7 @@ export function ApplicationReviewPage() {
                 form" bug the forensic audit flagged).
               - Digital applications fall through to the canonical 11-section
                 view unchanged. */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2" data-guide-anchor="admin-review.sections-list">
           {application.submission_source === 'paper_self' || application.submission_source === 'paper_admin' ? (
             <PaperApplicationReviewView
               applicationId={application.id}
@@ -995,7 +995,7 @@ export function ApplicationReviewPage() {
             max-h uses the viewport minus the top offset so the inner
             overflow-y-auto kicks in only when the combined panel height
             exceeds the visible area. */}
-        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1" data-guide-anchor="admin-review.review-panel">
           <ReviewPanel
             applicationId={application.id}
             currentStatus={application.status}
@@ -1016,6 +1016,7 @@ export function ApplicationReviewPage() {
             <div
               className="rounded-xl border px-4 py-3"
               style={{ background: 'var(--glass-light)', borderColor: 'var(--border)' }}
+              data-guide-anchor="admin-review.request-document"
             >
               <p className="text-xs font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
                 Request Document

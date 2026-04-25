@@ -390,7 +390,7 @@ export function ApplicantApplicationDetailPage() {
       {/* Card sections */}
       <div className="flex flex-col gap-5">
         {/* Status timeline card — always shown */}
-        <div>
+        <div data-guide-anchor="detail.status-card">
           <SectionCard title={t('applicant_detail.status_title')} icon={<AlertTriangle className="h-4 w-4" />}>
             {application.status === 'draft' ? (
               <div className="flex items-start justify-between gap-4 py-2">
@@ -553,7 +553,7 @@ export function ApplicantApplicationDetailPage() {
       )}
 
       {/* Footer — back navigation + conditional withdraw button */}
-      <div className="flex items-center justify-between gap-3 pt-2">
+      <div data-guide-anchor="detail.footer-actions" className="flex items-center justify-between gap-3 pt-2">
         <button
           onClick={() => navigate(ROUTES.PARENT_APPLICATIONS)}
           className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"

@@ -1,0 +1,149 @@
+{
+  "guide": {
+    "superAdmin": {
+      "userManagement": {
+        "title": "Cuentas de usuario",
+        "summary": "Cree cuentas, asigne roles y desactive usuarios.",
+        "steps": {
+          "user_list": {
+            "title": "Ver todas las cuentas",
+            "summary": "Todas las cuentas de usuario aparecen en esta lista. Use el campo de búsqueda y el filtro de roles para encontrar la cuenta que necesita.",
+            "details": "La lista muestra el nombre, correo electrónico, rol y estado de la cuenta de cada usuario. Las cuentas inactivas aparecen en gris. De forma predeterminada solo se muestran las cuentas activas; active el filtro para incluir las inactivas."
+          },
+          "role_dropdown": {
+            "title": "Cambiar el rol de un usuario",
+            "summary": "Encuentre al usuario y seleccione un nuevo rol en el menú desplegable. Los cambios de rol tienen efecto inmediato; los permisos del usuario se actualizan en su próxima acción.",
+            "details": "Sea cuidadoso al cambiar roles. Otorgar acceso de administrador o superadministrador le da a ese usuario acceso amplio a los datos de los solicitantes y a la configuración del sistema.",
+            "severity": "warning"
+          },
+          "deactivate": {
+            "title": "Desactivar un usuario",
+            "summary": "Desactivar a un usuario le impide iniciar sesión. Sus datos e historial se conservan. Haga clic en Reactivar en la misma fila para restablecer el acceso.",
+            "details": "La desactivación es la forma recomendada de retirar el acceso a un miembro del personal que ya no trabaja en el proyecto. La eliminación definitiva no está disponible para cuentas que han interactuado con datos de solicitantes."
+          },
+          "create_account": {
+            "title": "Crear una cuenta nueva",
+            "summary": "Haga clic en \"+ Crear Cuenta\" para agregar a un miembro del personal directamente. Ingrese su nombre, correo electrónico y rol. Recibirá una contraseña temporal por correo.",
+            "details": "Las cuentas nuevas están activas de inmediato. Pida al nuevo miembro del personal que inicie sesión y cambie su contraseña antes de su primera sesión."
+          },
+          "cant_modify_self": {
+            "title": "No puede modificar su propia cuenta",
+            "summary": "Por seguridad, no puede cambiar su propio rol ni desactivar su propia cuenta desde esta página.",
+            "details": "Si necesita cambiar su propio acceso, pida a otro superadministrador que realice el cambio. Esto evita bloqueos accidentales."
+          }
+        },
+        "faq": {
+          "admin_vs_super": {
+            "question": "¿Cuál es la diferencia entre administrador y superadministrador?",
+            "answer": "Los administradores pueden revisar solicitudes, gestionar documentos y acceder a informes. Los superadministradores también pueden gestionar cuentas de usuario, ver el registro de auditoría y cambiar la configuración del sistema. Otorgue el rol de superadministrador solo a las personas que realmente lo necesiten."
+          },
+          "deactivate_reversible": {
+            "question": "¿La desactivación es reversible?",
+            "answer": "Sí. Haga clic en Reactivar en la fila del usuario para restablecer el acceso de inmediato. Todos sus datos e historial permanecen intactos."
+          }
+        },
+        "hint": {
+          "inactive_accounts": {
+            "message": "{{count}} cuenta(s) inactiva(s). Revíselas periódicamente para confirmar que es intencional.",
+            "cta": "Ver inactivos"
+          }
+        }
+      },
+      "auditLog": {
+        "title": "Registro de auditoría",
+        "summary": "Cada acción sensible queda registrada para cumplir con los requisitos de HIPAA.",
+        "steps": {
+          "what_logs": {
+            "title": "Qué se registra",
+            "summary": "El registro de auditoría registra cada inicio de sesión, cada acceso a información de salud protegida y cada cambio en un registro: quién lo hizo, cuándo y qué cambió.",
+            "details": "Permite búsqueda por usuario, tipo de acción y rango de fechas. Use los filtros para encontrar eventos específicos rápidamente."
+          },
+          "compliance": {
+            "title": "Requisito de cumplimiento HIPAA",
+            "summary": "HIPAA exige que el acceso a la información de salud protegida quede registrado y se conserve. Este registro cumple ese requisito.",
+            "details": "El registro no puede desactivarse. Si detecta brechas o errores en él, contacte de inmediato a su responsable de cumplimiento HIPAA.",
+            "severity": "warning"
+          },
+          "investigate": {
+            "title": "Investigar accesos",
+            "summary": "Use los filtros de usuario, acción y fecha en conjunto para investigar posibles accesos no autorizados o actividad inusual.",
+            "details": "Por ejemplo, filtre por un usuario específico y un rango de fechas para ver todas las acciones que realizó. Exporte los resultados filtrados para compartirlos con su equipo de cumplimiento."
+          },
+          "retention": {
+            "title": "Retención de registros",
+            "summary": "Las entradas del registro de auditoría se conservan durante el período de retención legalmente requerido y no pueden ser eliminadas por ningún usuario.",
+            "details": "El período de retención está definido por las políticas de HIPAA de su organización. Contacte a su administrador de sistemas si tiene preguntas sobre la configuración de retención."
+          }
+        },
+        "faq": {
+          "delete_entry": {
+            "question": "¿Puedo eliminar una entrada del registro de auditoría?",
+            "answer": "No. Las entradas de auditoría son inmutables; ningún usuario, incluidos los superadministradores, puede modificarlas ni eliminarlas. Este es un requisito de HIPAA."
+          },
+          "who_can_see": {
+            "question": "¿Quién puede ver el registro de auditoría?",
+            "answer": "Solo los superadministradores tienen acceso al registro de auditoría. Los administradores y otros roles no pueden verlo."
+          }
+        },
+        "hint": {
+          "use_filters": {
+            "message": "Use los filtros de arriba para investigar usuarios, acciones o rangos de fechas específicos."
+          }
+        }
+      },
+      "dashboard": {
+        "title": "Su panel de superadministrador",
+        "summary": "Vista completa del sistema: solicitudes, sesiones, actividad de usuarios y lo que requiere su atención.",
+        "steps": {
+          "overview": {
+            "title": "Tarjetas de estadísticas del sistema",
+            "summary": "Las tarjetas muestran totales en todas las sesiones y roles: total de solicitudes, revisiones pendientes, aceptadas y rechazadas.",
+            "details": "Como superadministrador, usted ve los totales de todo el sistema, no solo de una sesión. Use el filtro de sesión para acotar la vista."
+          },
+          "needs_attention": {
+            "title": "Lista de elementos que requieren atención",
+            "summary": "Las solicitudes pendientes más antiguas aparecen aquí primero, para que ningún solicitante espere demasiado.",
+            "details": "Esta lista es la misma que ve su equipo de administradores. Puede acceder directamente a cualquier solicitud desde aquí."
+          },
+          "sessions_carousel": {
+            "title": "Tarjetas de capacidad de sesión",
+            "summary": "Las tarjetas de sesión muestran la inscripción frente a la capacidad con advertencias de color al 80% y al 100%.",
+            "details": "Una tarjeta roja indica que la sesión está llena. Puede ajustar la capacidad de la sesión desde la página de Sesiones."
+          },
+          "user_management_link": {
+            "title": "Acceso directo a gestión de usuarios",
+            "summary": "Su panel incluye un enlace rápido a Gestión de Usuarios para que pueda llegar sin navegar por la barra lateral.",
+            "details": "Si necesita desactivar un usuario rápidamente, este acceso directo le ahorra varios clics."
+          },
+          "audit_log_link": {
+            "title": "Acceso directo al registro de auditoría",
+            "summary": "Un enlace directo al Registro de Auditoría aparece en el panel de superadministrador para acceder rápidamente a los registros de cumplimiento.",
+            "details": "Agregue el URL del registro de auditoría a sus favoritos si lo consulta con frecuencia para revisiones de cumplimiento."
+          }
+        },
+        "faq": {
+          "oldest_first": {
+            "question": "¿Qué significa \"más antiguo primero\" en Requiere Atención?",
+            "answer": "Las solicitudes se ordenan por fecha de envío, con la fecha más antigua en la parte superior. Esto muestra a los solicitantes que han esperado más tiempo para que sean revisados primero."
+          },
+          "red_session": {
+            "question": "¿Por qué aparece una tarjeta de sesión en rojo?",
+            "answer": "La tarjeta se vuelve roja cuando los solicitantes inscritos alcanzan la capacidad total de la sesión. No se pueden agregar más solicitantes aprobados sin aumentar el límite de capacidad o incluirlos en la lista de espera."
+          }
+        },
+        "hint": {
+          "overdue_pending": {
+            "message": "{{count}} solicitud(es) pendiente(s); la más antigua ha esperado {{days}} día(s).",
+            "cta": "Revisar ahora"
+          },
+          "pending_exists": {
+            "message": "{{count}} solicitud(es) esperando revisión."
+          },
+          "all_caught_up": {
+            "message": "No hay solicitudes pendientes. Está al día."
+          }
+        }
+      }
+    }
+  }
+}

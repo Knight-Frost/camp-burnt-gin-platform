@@ -1,0 +1,130 @@
+{
+  "guide": {
+    "shared": {
+      "profile": {
+        "title": "Your profile",
+        "summary": "Update your contact info, set up MFA, and manage emergency contacts.",
+        "steps": {
+          "contact_info": {
+            "title": "Contact information",
+            "summary": "Update your name, email, phone number, and address here. Click Save when you are done.",
+            "details": "Your email address is used for notifications and password resets. Keep it current so you do not miss important messages."
+          },
+          "avatar": {
+            "title": "Profile photo",
+            "summary": "Upload a profile photo. JPG or PNG, up to 2 MB.",
+            "details": "Your photo is optional. It appears next to your name in messages and in the admin user list."
+          },
+          "mfa": {
+            "title": "Multi-Factor Authentication",
+            "summary": "Enable MFA for extra security. This adds a second login step using a code from your phone. Highly recommended for admin and medical accounts.",
+            "details": "After enabling MFA, you will be asked to scan a QR code with an authenticator app. Each time you log in, you will enter a 6-digit code from the app. If you lose access to your authenticator, contact a super admin."
+          },
+          "emergency_contacts": {
+            "title": "Emergency contacts",
+            "summary": "Add at least one emergency contact. The first contact you add becomes your primary.",
+            "details": "Emergency contacts are only used if camp staff need to reach someone on your behalf — for example, in a medical situation. They are not displayed publicly."
+          }
+        },
+        "faq": {
+          "what_is_mfa": {
+            "question": "What is MFA?",
+            "answer": "MFA stands for Multi-Factor Authentication. It adds a second step to your login: after your password, you enter a 6-digit code from an authenticator app on your phone. This way, even if someone learns your password, they cannot log in without your phone."
+          },
+          "why_emergency_contact": {
+            "question": "Why do I need an emergency contact?",
+            "answer": "In case camp staff need to reach someone on your behalf — for example, if there is a medical situation and you are unreachable. At least one contact is strongly recommended."
+          }
+        },
+        "hint": {
+          "mfa_disabled": {
+            "message": "MFA is disabled. Set it up to protect your account."
+          }
+        }
+      },
+      "settings": {
+        "title": "App settings",
+        "summary": "Adjust language, notifications, and accessibility preferences.",
+        "steps": {
+          "language": {
+            "title": "Language",
+            "summary": "Change between English and Spanish using the language toggle in the header or from this page.",
+            "details": "The language setting applies to all pages in the portal. Some content submitted by staff may remain in the original language."
+          },
+          "notifications": {
+            "title": "Notifications",
+            "summary": "Choose which events send you a notification: application updates, announcements, messages, and deadlines.",
+            "details": "You can turn individual notification types on or off. Turning off a notification type means you will not receive an alert for those events — check the portal manually to stay up to date."
+          },
+          "accessibility": {
+            "title": "Accessibility",
+            "summary": "Adjust font size, enable high contrast mode, or reduce motion if animations bother you.",
+            "details": "These settings apply only to your account and are saved across sessions. If you use a screen reader, the portal supports standard ARIA attributes throughout."
+          },
+          "delete_account": {
+            "title": "Delete account",
+            "summary": "Permanently deletes your account and all associated data. This cannot be undone.",
+            "details": "If you delete your account, your applications, documents, and message history are also removed. Contact camp staff before deleting if you have submitted applications or documents that may still be needed."
+          }
+        },
+        "faq": {
+          "change_password": {
+            "question": "Where can I change my password?",
+            "answer": "Go to your Profile page and look for the Security section. You can update your password there at any time."
+          },
+          "notification_not_arriving": {
+            "question": "Why is my notification not arriving?",
+            "answer": "First check that the notification type is enabled in this Settings page. If it is enabled, check your email spam folder. If you still have trouble, contact camp staff."
+          }
+        }
+      },
+      "inbox": {
+        "title": "Your inbox",
+        "summary": "Read messages, reply, and stay on top of conversations.",
+        "steps": {
+          "reading": {
+            "title": "Reading messages",
+            "summary": "Click any conversation to open it. Unread conversations are bolded in the list.",
+            "details": "Once you open a thread it is marked as read automatically. You can mark a message unread again from the thread actions menu."
+          },
+          "reply": {
+            "title": "Replying",
+            "summary": "Type in the box at the bottom of the conversation and click Send. Use Reply to respond to the original sender, or Reply All to include everyone in the thread.",
+            "details": "Reply All excludes BCC recipients — they will not be notified of your reply, which is by design to preserve privacy."
+          },
+          "compose": {
+            "title": "Composing a new message",
+            "summary": "Click \"+ New Message\" to start a new conversation. Search for recipients by name or email address.",
+            "details": "You can add multiple recipients. Use the To field for primary recipients. CC is for others who should be kept informed but do not need to act."
+          },
+          "mark_important_starred": {
+            "title": "Organizing your inbox",
+            "summary": "Star, mark important, or archive conversations to keep your inbox tidy. Archived threads can be unarchived at any time.",
+            "details": "Starred threads appear in the Starred folder. Important affects sort order. Archiving moves the thread out of the inbox without deleting it."
+          },
+          "attachments": {
+            "title": "Attachments",
+            "summary": "Drag a file into the compose window, or click the paperclip icon. PDFs and images (JPG, PNG) are supported.",
+            "details": "Attachments are uploaded when you send. There is no preview before sending. Make sure you are attaching the right file before clicking Send."
+          }
+        },
+        "faq": {
+          "star_vs_important": {
+            "question": "What is the difference between Star and Important?",
+            "answer": "Star is a personal bookmark — it moves the thread to your Starred folder for quick access. Important affects the sort order so high-priority threads surface near the top of your inbox. You can apply both."
+          },
+          "unarchive": {
+            "question": "Can I un-archive a thread?",
+            "answer": "Yes. Open the Archived folder, find the thread, and click Unarchive. The thread moves back to your inbox."
+          }
+        },
+        "hint": {
+          "unread_messages": {
+            "message": "You have {{count}} unread message(s).",
+            "cta": "View messages"
+          }
+        }
+      }
+    }
+  }
+}

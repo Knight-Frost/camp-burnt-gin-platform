@@ -263,15 +263,16 @@ export function ApplicantDashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label={t('applicant.dashboard.stat_campers')} value={campers.length} icon={Users} delay={0} />
-          <StatCard label={t('applicant.dashboard.stat_applications')} value={applications.length} icon={FileText} color="var(--night-sky-blue)" delay={0.1} />
-          <StatCard label={t('applicant.dashboard.stat_pending')} value={pendingCount} icon={Calendar} color="var(--warm-amber)" delay={0.2} />
+          <div data-guide-anchor="dashboard.campers-card"><StatCard label={t('applicant.dashboard.stat_campers')} value={campers.length} icon={Users} delay={0} /></div>
+          <div data-guide-anchor="dashboard.applications-card"><StatCard label={t('applicant.dashboard.stat_applications')} value={applications.length} icon={FileText} color="var(--night-sky-blue)" delay={0.1} /></div>
+          <div data-guide-anchor="dashboard.pending-card"><StatCard label={t('applicant.dashboard.stat_pending')} value={pendingCount} icon={Calendar} color="var(--warm-amber)" delay={0.2} /></div>
         </div>
       )}
 
       {/* ── In-progress draft banner ─────────────────────────── */}
       {localDraftName !== undefined && localDraftName !== null && (
         <div
+          data-guide-anchor="dashboard.draft-banner"
           className="w-full flex items-center gap-3 pl-4 pr-2 py-3 rounded-xl border"
           style={{ background: 'rgba(22,101,52,0.05)', borderColor: 'var(--ember-orange)' }}
         >
@@ -324,7 +325,7 @@ export function ApplicantDashboardPage() {
           {t('applicant.dashboard.quick_actions')}
         </h3>
         <div className="flex flex-wrap gap-2">
-          <Button as={Link} to={ROUTES.PARENT_APPLICATION_START} variant="primary" size="sm">
+          <Button data-guide-anchor="dashboard.start-application" as={Link} to={ROUTES.PARENT_APPLICATION_START} variant="primary" size="sm">
             <Plus className="h-4 w-4" />
             {t('applicant.dashboard.new_application')}
           </Button>
@@ -505,7 +506,7 @@ export function ApplicantDashboardPage() {
       </div>
 
       {/* ── Recent Activity — interactive, navigable feed ─────── */}
-      <div>
+      <div data-guide-anchor="dashboard.activity-feed">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
             {t('applicant.dashboard.recent_updates')}

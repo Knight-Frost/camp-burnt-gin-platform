@@ -5412,12 +5412,12 @@ export function ApplicationFormPage() {
           </div>
           <div className="flex items-center gap-3">
             {isSaving && (
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              <span data-guide-anchor="form.save-indicator" className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 <RefreshCw className="h-3 w-3 animate-spin" /> {t('applicant.form.saving')}
               </span>
             )}
             {!isSaving && !flushError && lastSavedAt && (
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              <span data-guide-anchor="form.save-indicator" className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 <Save className="h-3 w-3" />
                 {t('applicant.form.saved_at', { time: lastSavedAt.toLocaleTimeString(i18n.language === 'es' ? 'es-ES' : 'en-US', { hour: 'numeric', minute: '2-digit' }) })}
               </span>
@@ -5670,20 +5670,22 @@ export function ApplicationFormPage() {
         )}
 
         {/* ── Step indicator ────────────────────────────── */}
-        <StepIndicator
-          currentStep={currentStep}
-          getStatus={(i) => getStepStatus(i)}
-          getMissingSummary={(i) => {
-            const key = validationKeyForStep[i];
-            const missing = key && validation ? validation.sections?.[key]?.missing : undefined;
-            return missing && missing.length > 0 ? missing[0].label : null;
-          }}
-          onJump={goToStep}
-          sections={sections}
-        />
+        <div data-guide-anchor="form.section-nav">
+          <StepIndicator
+            currentStep={currentStep}
+            getStatus={(i) => getStepStatus(i)}
+            getMissingSummary={(i) => {
+              const key = validationKeyForStep[i];
+              const missing = key && validation ? validation.sections?.[key]?.missing : undefined;
+              return missing && missing.length > 0 ? missing[0].label : null;
+            }}
+            onJump={goToStep}
+            sections={sections}
+          />
+        </div>
 
         {/* ── Section content ─────────────────────────── */}
-        <div className="mt-12">
+        <div data-guide-anchor="form.section-content" className="mt-12">
           <div>
               <div className="mb-8">
                 <p
@@ -5959,6 +5961,7 @@ export function ApplicationFormPage() {
 
         {/* ── Step navigation ──────────────────────────── */}
         <div
+          data-guide-anchor="form.submit-area"
           className="flex items-center justify-between mt-16 pt-8 border-t"
           style={{ borderColor: 'var(--border)' }}
         >

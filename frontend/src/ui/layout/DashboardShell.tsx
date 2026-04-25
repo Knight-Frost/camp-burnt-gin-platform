@@ -40,6 +40,7 @@ import {
 import { MfaWarningBanner } from '@/ui/components/MfaWarningBanner';
 import { MfaRequiredModal } from '@/ui/components/MfaRequiredModal';
 import { MfaStepUpModal } from '@/ui/components/MfaStepUpModal';
+import { GuidePanel } from '@/features/guides/components/GuidePanel';
 // MessagingCountProvider is now mounted at the AppProviders level (providers.tsx)
 // so it covers ALL portals including applicant and medical. No longer needed here.
 
@@ -157,6 +158,8 @@ function ShellInner({
       {/* Shown when MFA is enrolled but step-up verification is required.
           Prompts for a TOTP code and retries the blocked request on success. */}
       <MfaStepUpModal />
+
+      <GuidePanel />
     </div>
   );
 }

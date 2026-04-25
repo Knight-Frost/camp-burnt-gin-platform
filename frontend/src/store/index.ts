@@ -15,12 +15,14 @@
 
 import { configureStore } from '@reduxjs/toolkit';
 import { authReducer } from '@/features/auth/store/authSlice';
+import { guideReducer } from '@/features/guides';
 import { phiProtectionMiddleware } from './middleware/phiProtection';
 
 export const store = configureStore({
   reducer: {
     // auth slice: holds the logged-in user, token, MFA state, etc.
     auth: authReducer,
+    guide: guideReducer,
   },
   middleware: (getDefaultMiddleware) =>
     // Append our custom HIPAA middleware after Redux Toolkit's built-in ones

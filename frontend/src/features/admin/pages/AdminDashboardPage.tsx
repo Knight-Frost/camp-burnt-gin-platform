@@ -377,7 +377,7 @@ export function AdminDashboardPage() {
             {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} lines={1} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-guide-anchor="admin-dashboard.stat-cards">
             {/* Registered Families */}
             <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,0,0,0.05)' }}>
@@ -446,18 +446,20 @@ export function AdminDashboardPage() {
       </section>
 
       {/* ── 2. Sessions ──────────────────────────────────────── */}
+      <div data-guide-anchor="admin-dashboard.sessions-carousel">
       <SessionsCarousel
         sessions={sessionCards}
         sessionDetailRoute={ROUTES.ADMIN_SESSION_DETAIL}
         manageRoute={ROUTES.ADMIN_SESSIONS}
         loading={loading}
       />
+      </div>
 
       {/* ── 3 + 4. Two-column grid: Needs Attention + Recent Activity ── */}
       <div className="grid lg:grid-cols-5 gap-6">
 
         {/* ── 3. Needs Attention (3/5 width) ────────────────── */}
-        <section className="lg:col-span-3">
+        <section className="lg:col-span-3" data-guide-anchor="admin-dashboard.needs-attention">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" style={{ color: '#d97706' }} />
@@ -559,7 +561,7 @@ export function AdminDashboardPage() {
         </section>
 
         {/* ── 4. Recent Activity (2/5 width) ────────────────── */}
-        <section className="lg:col-span-2">
+        <section className="lg:col-span-2" data-guide-anchor="admin-dashboard.recent-activity">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />

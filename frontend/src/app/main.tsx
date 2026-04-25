@@ -11,6 +11,8 @@
 
 // Initialize i18n translations before anything renders so no text is missing
 import '@/i18n';
+// Side-effect import: every guide content module self-registers on load
+import '@/features/guides/content';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppProviders } from './providers';

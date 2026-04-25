@@ -32,6 +32,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { getNotifications } from '@/features/admin/api/notifications.api';
 import { NotificationPanel } from '@/ui/components/NotificationPanel';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
+import { GuideButton } from '@/features/guides/components/GuideButton';
 import { Avatar } from '@/ui/components/Avatar';
 import { ROUTES } from '@/shared/constants/routes';
 import { getPrimaryRole, getProfileRoute } from '@/shared/constants/roles';
@@ -139,6 +140,8 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
         <div className="flex-1 flex items-center justify-end gap-1">
           {/* Language toggle switches between English and Spanish */}
           <LanguageToggle />
+
+          <GuideButton />
 
           {/* Settings gear icon — navigates to the role-specific settings page */}
           <Link

@@ -1,0 +1,135 @@
+{
+  "guide": {
+    "medical": {
+      "dashboard": {
+        "title": "Medical portal home",
+        "summary": "Find your campers, log treatments, and track follow-ups.",
+        "steps": {
+          "overview": {
+            "title": "Quick links",
+            "summary": "From here you can jump to camper records, the treatment log, incidents, and follow-ups.",
+            "details": "Each card on the dashboard links directly to the section you need. The counts update as new activity comes in."
+          },
+          "directory": {
+            "title": "Camp Medical Directory",
+            "summary": "The Camp Medical Directory lists every camper who has a medical record for the current session.",
+            "details": "Use the search bar to find a camper by name. Click any row to open their full medical record."
+          },
+          "treatments_log": {
+            "title": "Logging treatments",
+            "summary": "Click \"Record Treatment\" to log a medication given, vitals checked, or any medical visit. This is required for HIPAA compliance.",
+            "details": "Every interaction with a camper that involves a medical assessment, medication, or clinical procedure must be logged here. Incomplete logs create compliance gaps."
+          },
+          "follow_ups": {
+            "title": "Follow-ups",
+            "summary": "The Follow-Ups section shows treatments that were flagged for a follow-up review.",
+            "details": "A treatment can be flagged at the time of logging. Check this section at the start and end of each shift to make sure nothing is missed."
+          },
+          "phi_handling": {
+            "title": "Handling PHI",
+            "summary": "PHI (Protected Health Information) is sensitive. Never share, screenshot, or print a camper's medical record.",
+            "details": "All access to medical information is logged. Sharing PHI outside the system — by screenshot, email, or verbal disclosure — is a HIPAA violation. If you believe a breach has occurred, notify a supervisor immediately."
+          }
+        },
+        "faq": {
+          "why_log_every_treatment": {
+            "question": "Why must I log every treatment?",
+            "answer": "HIPAA requires complete, accurate medical records for every camper. Missing entries can create legal and compliance issues for the camp. Log every interaction, even routine ones like dispensing a scheduled medication."
+          },
+          "see_all_campers": {
+            "question": "Can I see all campers?",
+            "answer": "You can see all campers who have a medical record assigned to your current camp session. Campers from other sessions or camps you are not assigned to are not accessible."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": "Use the Directory to find a camper, then click their record to log a treatment."
+          }
+        }
+      },
+      "camperRecord": {
+        "title": "Camper medical record",
+        "summary": "Review the camper's medical info, log treatments, and view incidents.",
+        "steps": {
+          "sections_overview": {
+            "title": "Record sections",
+            "summary": "This record covers diagnoses, allergies, medications, devices, emergency contacts, treatment history, and incidents.",
+            "details": "Each section is collapsible. Expand the section you need. Critical alerts (like severe allergies) are pinned near the top so they are always visible."
+          },
+          "log_treatment": {
+            "title": "Recording a treatment",
+            "summary": "Click \"Record Treatment\" to log a medication given, vitals checked, or any visit to the medical station.",
+            "details": "Entries are timestamped and attributed to your account. You cannot delete a logged treatment — only add a correction if needed."
+          },
+          "incidents": {
+            "title": "Incidents",
+            "summary": "An incident is any accident, fall, or unplanned medical event. Log it within 24 hours.",
+            "details": "Common examples: a camper falls and skins their knee, a bee sting, a minor head bump. Logging promptly protects the camper and the camp."
+          },
+          "emergency_view": {
+            "title": "Emergency view",
+            "summary": "Click \"Emergency\" to see emergency contact info, critical diagnoses, and severe allergies on one screen.",
+            "details": "This view is designed for urgent situations where you need key information quickly. Keep it bookmarked during your shift."
+          },
+          "no_share": {
+            "title": "Never share this record",
+            "summary": "Never screenshot, photograph, or share the contents of this record. PHI must stay in the system.",
+            "details": "This includes forwarding information by text, email, or printed paper. If you need to transfer a camper to another provider, use the official transfer process only."
+          }
+        },
+        "faq": {
+          "mistake_on_log": {
+            "question": "What if I made a mistake on a treatment log?",
+            "answer": "Log a correction entry explaining what was wrong and what the correct information is. Never try to delete or overwrite the original. The original entry and your correction both remain on record."
+          },
+          "parent_access": {
+            "question": "Can the camper's parent see this record?",
+            "answer": "Parents can see selected fields like diagnoses and allergies, but they do not have access to all clinical notes, treatment logs, or internal assessments. Clinical documentation is for authorized staff only."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": "Log treatments here as they happen. Do not wait until end of day."
+          }
+        }
+      },
+      "treatments": {
+        "title": "Treatment log",
+        "summary": "Browse and search all treatments across all campers.",
+        "steps": {
+          "global_log": {
+            "title": "All treatments",
+            "summary": "Every treatment logged for any camper in the current session appears here, sorted with the newest first.",
+            "details": "This is useful for shift handoffs and for reviewing what has happened across the camp today."
+          },
+          "search": {
+            "title": "Searching and filtering",
+            "summary": "Filter by camper name, date range, or treatment type using the controls at the top.",
+            "details": "For example, you can filter by \"today\" and \"medication dispensed\" to get a quick count of all meds given on your shift."
+          },
+          "edit_correction": {
+            "title": "Correcting a record",
+            "summary": "Click \"Add Correction\" on any entry to add an amendment. Original entries cannot be deleted.",
+            "details": "The original record and your correction both remain visible. Your correction is timestamped and attributed to your account."
+          },
+          "export": {
+            "title": "Exporting records",
+            "summary": "Click Export to download the current filtered view as a CSV file for records or audits.",
+            "details": "Exported files contain PHI. Handle them according to your camp's data handling policy. Do not leave exported files on shared drives or send them by unsecured email."
+          }
+        },
+        "faq": {
+          "no_delete": {
+            "question": "Why can I not delete a treatment record?",
+            "answer": "HIPAA prohibits deletion of medical records. You can add a correction entry to note what was wrong, but the original must remain on file."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,360 @@
+{
+  "guide": {
+    "admin": {
+      "dashboard": {
+        "title": "Su panel de administrador",
+        "summary": "Controle las solicitudes, sesiones y los elementos que requieren su atención.",
+        "steps": {
+          "overview": {
+            "title": "Tarjetas de estadísticas",
+            "summary": "Las cuatro tarjetas superiores muestran el total de solicitudes, las pendientes (enviadas y sin revisar aún), las aceptadas y las rechazadas para la sesión activa.",
+            "details": "Los números se actualizan cada vez que cambia el estado de una solicitud. Úselos como revisión rápida antes de examinar solicitudes individuales."
+          },
+          "needs_attention": {
+            "title": "Lista de elementos que requieren atención",
+            "summary": "Esta lista muestra las solicitudes que han esperado más tiempo sin una decisión, comenzando por la fecha de envío más antigua.",
+            "details": "Priorizar las solicitudes más antiguas garantiza que ningún solicitante espere un tiempo excesivo. Haga clic en cualquier fila para acceder directamente a esa revisión."
+          },
+          "sessions_carousel": {
+            "title": "Tarjetas de capacidad de sesión",
+            "summary": "Cada tarjeta de sesión muestra la inscripción actual frente a la capacidad total. La barra se vuelve amarilla al alcanzar el 80% y roja al llegar al 100%.",
+            "details": "Una tarjeta roja indica que la sesión está llena. Los nuevos solicitantes que elijan esa sesión serán incluidos automáticamente en la lista de espera."
+          },
+          "recent_activity": {
+            "title": "Registro de actividad reciente",
+            "summary": "El registro muestra las seis solicitudes actualizadas más recientemente para que pueda retomar el trabajo donde lo dejó.",
+            "details": "Cada entrada muestra el nombre del solicitante, el nombre del campista y el último cambio de estado. Haga clic en la entrada para abrir esa solicitud."
+          },
+          "jump_to_review": {
+            "title": "Ir directamente a una revisión",
+            "summary": "Haga clic en cualquier tarjeta de solicitud (en Requiere Atención o en Actividad Reciente) para ir directamente a la página de revisión de esa solicitud.",
+            "details": "No es necesario navegar primero a la lista de Solicitudes. Cualquier tarjeta del panel es un enlace directo."
+          },
+          "inbox_badge": {
+            "title": "Distintivo de bandeja de entrada y notificaciones",
+            "summary": "El ícono de campana en la barra de navegación muestra un distintivo con la cantidad de mensajes no leídos y notificaciones del sistema pendientes.",
+            "details": "Haga clic en la campana para ver un resumen, o haga clic en Bandeja de entrada en la barra lateral para abrir la lista completa de mensajes."
+          }
+        },
+        "faq": {
+          "oldest_first": {
+            "question": "¿Qué significa \"más antiguo primero\" en Requiere Atención?",
+            "answer": "Las solicitudes se ordenan por fecha de envío, con la fecha más antigua en la parte superior. Esto muestra a los solicitantes que han esperado más tiempo para que sean revisados primero."
+          },
+          "red_session": {
+            "question": "¿Por qué aparece una tarjeta de sesión en rojo?",
+            "answer": "La tarjeta se vuelve roja cuando los solicitantes inscritos alcanzan la capacidad total de la sesión. No se pueden agregar más solicitantes aprobados sin aumentar el límite de capacidad o incluirlos en la lista de espera."
+          }
+        },
+        "hint": {
+          "overdue_pending": {
+            "message": "{{count}} solicitud(es) pendiente(s); la más antigua ha esperado {{days}} día(s).",
+            "cta": "Revisar ahora"
+          },
+          "pending_exists": {
+            "message": "{{count}} solicitud(es) esperando revisión."
+          },
+          "all_caught_up": {
+            "message": "No hay solicitudes pendientes. Está al día."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido del panel",
+          "steps": {
+            "stat-cards": {
+              "title": "Resumen de la sesión",
+              "body": "Estas cuatro tarjetas muestran familias registradas, campistas inscritos, solicitudes activas y familias con varios campistas para la sesión seleccionada. Use el selector de sesión para cambiar entre sesiones."
+            },
+            "needs-attention": {
+              "title": "Requiere atención",
+              "body": "Esta lista muestra las solicitudes que han esperado más tiempo sin una decisión, comenzando por la más antigua. Haga clic en cualquier fila para abrir esa solicitud directamente."
+            },
+            "sessions-carousel": {
+              "title": "Capacidad de las sesiones",
+              "body": "Cada tarjeta de sesión muestra la inscripción frente a la capacidad. La barra se vuelve amarilla al 80% y roja al 100%; una sesión llena incluye automáticamente a los nuevos solicitantes en la lista de espera."
+            },
+            "recent-activity": {
+              "title": "Actividad reciente",
+              "body": "El registro muestra las seis solicitudes y mensajes de bandeja de entrada actualizados más recientemente para que pueda retomar el trabajo donde lo dejó."
+            }
+          }
+        }
+      },
+      "applicationReview": {
+        "title": "Revisión de una solicitud",
+        "summary": "Apruebe, rechace o solicite más documentos desde un solo lugar.",
+        "steps": {
+          "sections_overview": {
+            "title": "Las 11 secciones en una sola vista",
+            "summary": "La página muestra todas las secciones de la solicitud: información del campista, contactos de emergencia, historial médico, comportamiento, dieta, equipo, medicamentos, comunicación, consentimientos legales, firma y documentos.",
+            "details": "Haga clic en el ícono de lápiz junto a cualquier campo para editarlo en nombre del solicitante. Los cambios se guardan de inmediato y el solicitante no recibe una notificación a menos que usted envíe un mensaje."
+          },
+          "start_review": {
+            "title": "Iniciar una revisión",
+            "summary": "Haga clic en \"Iniciar Revisión\" para reclamar esta solicitud de forma provisional. Otros administradores pueden ver que usted ha comenzado, lo que evita trabajo duplicado.",
+            "details": "Iniciar una revisión cambia el estado de Enviada a En Revisión. No es un bloqueo: otro administrador puede abrir y completar la revisión si es necesario."
+          },
+          "request_documents": {
+            "title": "Solicitar documentos",
+            "summary": "Use el botón \"Solicitar Documento\" para pedirle al solicitante un archivo específico. Recibirá una notificación y un mensaje en la bandeja de entrada con sus instrucciones.",
+            "details": "Puede incluir instrucciones al crear la solicitud, como especificar qué páginas de un formulario se necesitan. La solicitud aparece en la página de Documentos del solicitante."
+          },
+          "verify_documents": {
+            "title": "Verificar documentos",
+            "summary": "Los botones Verificar y Rechazar aparecen junto a cada documento cargado. Haga clic en Verificar para aprobarlo, o en Rechazar para abrir un modal con el motivo.",
+            "details": "El motivo de rechazo se envía al solicitante para que sepa exactamente qué corregir antes de volver a cargar. Un documento debe verificarse para que cuente en la lista de documentos requeridos."
+          },
+          "approve": {
+            "title": "Aprobar la solicitud",
+            "summary": "Haga clic en Aprobar cuando todos los campos y documentos requeridos estén presentes. El distintivo \"Listo\" junto al botón de aprobación confirma la completitud.",
+            "details": "Al aprobar, el estado de la solicitud cambia a Aprobada, el campista queda inscrito en la sesión seleccionada y el solicitante recibe una notificación. Esta acción es significativa: confirme que toda la información sea correcta antes de aprobar.",
+            "severity": "warning"
+          },
+          "reject_or_waitlist": {
+            "title": "Rechazar o incluir en lista de espera",
+            "summary": "Rechazar es una decisión final y notifica al solicitante de inmediato. Lista de espera mantiene la solicitud activa en caso de que se abra un lugar.",
+            "details": "Ambas acciones generan un mensaje automático en la bandeja de entrada del solicitante. Si rechaza, incluya un motivo claro para que el solicitante comprenda lo ocurrido.",
+            "severity": "warning"
+          }
+        },
+        "faq": {
+          "after_approve": {
+            "question": "¿Qué sucede después de aprobar?",
+            "answer": "El estado de la solicitud cambia a Aprobada, el campista queda inscrito en la sesión seleccionada y el solicitante recibe una notificación con los próximos pasos."
+          },
+          "undo_approval": {
+            "question": "¿Puedo deshacer una aprobación?",
+            "answer": "Sí. Revertir una aprobación devuelve la solicitud al estado En Revisión. Úselo si aprobó por error. El solicitante recibe una notificación del cambio de estado."
+          },
+          "missing_document": {
+            "question": "¿Qué hago si falta un documento?",
+            "answer": "Use \"Solicitar Documento\" para pedirle al solicitante el archivo específico. Recibirá un mensaje en la bandeja de entrada con sus instrucciones y un enlace para cargar directamente en esa solicitud."
+          }
+        },
+        "hint": {
+          "claim_reminder": {
+            "message": "Haga clic en \"Iniciar Revisión\" para reclamar esta solicitud e indicar a otros administradores que usted la está revisando.",
+            "cta": "Iniciar revisión"
+          },
+          "items_missing": {
+            "message": "Faltan {{count}} elemento(s) antes de que esta solicitud esté lista para aprobarse."
+          },
+          "ready_to_decide": {
+            "message": "Todo parece completo. Listo para Aprobar, Rechazar o incluir en Lista de Espera."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de revisión de solicitud",
+          "steps": {
+            "header-stat-cards": {
+              "title": "Solicitud de un vistazo",
+              "body": "El encabezado muestra el nombre del campista, el distintivo de estado actual, el número de solicitud, la fecha de envío y la posición en la cola de revisión."
+            },
+            "sections-list": {
+              "title": "Las 11 secciones",
+              "body": "Aquí se muestra cada sección de la solicitud: información del campista, contactos de emergencia, historial médico, comportamiento, dieta, equipo, medicamentos, comunicación, consentimientos, firma y documentos. Haga clic en el ícono de lápiz para editar cualquier sección."
+            },
+            "review-panel": {
+              "title": "Herramientas del revisor",
+              "body": "Este panel es el centro de control para todas las acciones de revisión. Agregue notas internas y luego use los botones de estado para registrar su decisión."
+            },
+            "decision-buttons": {
+              "title": "Tomar una decisión",
+              "body": "Haga clic en \"Iniciar Revisión\" para reclamar la solicitud. Cuando esté satisfecho con lo que ve, use Aprobar, Rechazar o Lista de Espera para registrar su decisión final."
+            },
+            "request-document": {
+              "title": "Solicitar un documento",
+              "body": "Use este panel para pedirle al solicitante un documento específico. Recibirá una notificación en la bandeja de entrada con sus instrucciones y podrá cargar directamente en la solicitud."
+            }
+          }
+        }
+      },
+      "documentQueue": {
+        "title": "Centro de Control de Documentos",
+        "summary": "Controle todas las solicitudes de documentos, verifique las cargas y resuelva los elementos vencidos.",
+        "steps": {
+          "metric_cards": {
+            "title": "Tarjetas de métricas",
+            "summary": "Las tarjetas superiores muestran la cantidad de solicitudes de documentos en cada estado: pendiente de carga, cargado, en revisión, aprobado, rechazado, vencido y completado.",
+            "details": "Use las tarjetas de métricas para identificar dónde se acumula el trabajo. Una cantidad alta de vencidos generalmente significa que los solicitantes necesitan un recordatorio o una extensión del plazo."
+          },
+          "review_queue": {
+            "title": "Pestaña de Cola de Revisión",
+            "summary": "Cambie a la pestaña Cola de Revisión para ver las cargas que esperan su revisión. Haga clic en una fila para verificar o rechazar el documento.",
+            "details": "Los documentos en la cola de revisión fueron enviados por solicitantes y esperan que un administrador los examine. Revise esta lista con regularidad para evitar retrasos."
+          },
+          "create_request": {
+            "title": "Crear una solicitud de documento",
+            "summary": "Haga clic en \"Crear Solicitud\" para pedirle a un solicitante específico un documento. Puede agregar instrucciones y una fecha límite.",
+            "details": "El solicitante recibe una notificación y un mensaje en la bandeja de entrada. La solicitud aparece en su página de Documentos con sus instrucciones."
+          },
+          "overdue": {
+            "title": "Gestionar elementos vencidos",
+            "summary": "Las solicitudes vencidas necesitan una extensión de plazo o un recordatorio al solicitante. No deje los elementos vencidos sin atender, ya que bloquean el proceso de revisión.",
+            "details": "Un elemento vencido significa que el solicitante no cumplió con la fecha límite. Envíe un recordatorio si no ha respondido, o extienda el plazo si es razonable darle más tiempo.",
+            "severity": "warning"
+          },
+          "reminder_extend": {
+            "title": "Acciones Recordar y Extender",
+            "summary": "\"Recordar\" envía al solicitante una notificación indicando que su solicitud de documento sigue pendiente. \"Extender\" pospone la fecha de vencimiento.",
+            "details": "Use Recordar primero. Si el solicitante indica que necesita más tiempo, use Extender para actualizar el plazo. Ambas acciones quedan registradas en el historial de la solicitud."
+          }
+        },
+        "faq": {
+          "awaiting_vs_under_review": {
+            "question": "¿Cuál es la diferencia entre \"pendiente de carga\" y \"en revisión\"?",
+            "answer": "Pendiente de carga significa que el solicitante aún no ha subido nada. En revisión significa que subió un archivo y está esperando que usted lo verifique o rechace."
+          },
+          "cancel_request": {
+            "question": "¿Puedo cancelar una solicitud de documento?",
+            "answer": "Sí. Encuentre la solicitud en la lista y haga clic en el botón de cancelar en su fila. El solicitante recibe una notificación de que la solicitud fue cancelada."
+          }
+        },
+        "hint": {
+          "overdue_count": {
+            "message": "{{count}} solicitud(es) de documento están vencidas y requieren atención.",
+            "cta": "Ver vencidos"
+          },
+          "uploaded_waiting": {
+            "message": "{{count}} documento(s) han sido cargados y esperan revisión.",
+            "cta": "Abrir cola de revisión"
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido del Centro de Control de Documentos",
+          "steps": {
+            "metric-cards": {
+              "title": "Estado de un vistazo",
+              "body": "Cada tarjeta muestra cuántas solicitudes de documentos se encuentran en ese estado. Haga clic en una tarjeta para filtrar la tabla inferior a ese estado de forma inmediata."
+            },
+            "tabs": {
+              "title": "Dos pestañas, dos vistas",
+              "body": "\"Solicitudes de Documentos\" muestra las solicitudes iniciadas por administradores y su ciclo de vida. \"Documentos Cargados\" muestra todos los archivos que los solicitantes han enviado para revisión."
+            },
+            "requests-table": {
+              "title": "Tabla de solicitudes",
+              "body": "Cada fila muestra el solicitante, el tipo de documento, el estado y la fecha límite. Use los botones de acción en la fila para aprobar, rechazar, recordar o ampliar el plazo."
+            },
+            "create-request": {
+              "title": "Crear una solicitud",
+              "body": "Haga clic aquí para pedirle a un solicitante específico un documento. Puede agregar instrucciones y una fecha límite; el solicitante recibirá una notificación en la bandeja de entrada de inmediato."
+            }
+          }
+        }
+      },
+      "reports": {
+        "title": "Informes",
+        "summary": "Consulte métricas clave y descargue informes en CSV para sus registros.",
+        "steps": {
+          "stat_cards": {
+            "title": "Estadísticas generales",
+            "summary": "Las tarjetas superiores muestran el total de campistas, la cantidad de aceptados, rechazados y la tasa de aceptación para la selección actual.",
+            "details": "Estos números se actualizan al cambiar el filtro de sesión. Úselos como resumen rápido antes de exportar un CSV detallado."
+          },
+          "charts": {
+            "title": "Gráficos",
+            "summary": "La página incluye un gráfico de barras de solicitudes por estado, un gráfico circular de distribución de aceptación, un gráfico de líneas de solicitudes en el tiempo y barras horizontales de inscripción por sesión.",
+            "details": "Los gráficos son ayudas visuales. Para cifras exactas, genere una exportación CSV; los gráficos redondean las cifras para mayor legibilidad."
+          },
+          "export_csv": {
+            "title": "Exportar un CSV",
+            "summary": "Hay cinco tipos de informes disponibles para descargar: Todas las Solicitudes, Solo Aceptadas, Solo Rechazadas, Etiquetas de Correo y Etiquetas de Identificación.",
+            "details": "Haga clic en el botón de exportación del tipo de informe que necesite. El CSV se descarga en la carpeta de descargas predeterminada de su navegador. Puede abrirlo en cualquier hoja de cálculo."
+          },
+          "mailing_labels": {
+            "title": "Informe de Etiquetas de Correo",
+            "summary": "El CSV de Etiquetas de Correo formatea los nombres y direcciones de los solicitantes para imprimir en hojas de etiquetas adhesivas estándar.",
+            "details": "Las columnas coinciden con plantillas comunes de etiquetas (por ejemplo, Avery 5160). Importe el CSV en su software de etiquetas e imprima."
+          },
+          "id_labels": {
+            "title": "Informe de Etiquetas de Identificación",
+            "summary": "El CSV de Etiquetas de Identificación incluye el nombre de cada campista y la información de su contacto de emergencia para imprimir credenciales de campamento.",
+            "details": "Revise los campos de contacto de emergencia en cada solicitud antes de imprimir las etiquetas para asegurarse de que la información esté actualizada."
+          }
+        },
+        "faq": {
+          "real_time": {
+            "question": "¿Los informes se actualizan en tiempo real?",
+            "answer": "Sí. Cada exportación CSV refleja la base de datos en vivo en el momento en que la genera. Actualice la página o haga clic en el botón de exportación nuevamente para obtener los datos más recientes."
+          },
+          "csv_location": {
+            "question": "¿Dónde se guardan los archivos CSV?",
+            "answer": "Los archivos se descargan en la carpeta de descargas predeterminada de su navegador. Verifique la carpeta Descargas de su sistema operativo o la sección de descargas de su navegador."
+          }
+        },
+        "hint": {
+          "export_tip": {
+            "message": "Genere un informe haciendo clic en uno de los botones de exportación debajo de los gráficos."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de informes",
+          "steps": {
+            "stat-cards": {
+              "title": "Cifras clave",
+              "body": "Estas tarjetas resumen el total de campistas, la cantidad de aceptados, la cantidad de rechazados y la tasa de aceptación en todas las sesiones."
+            },
+            "charts-grid": {
+              "title": "Análisis visual",
+              "body": "Cuatro gráficos: solicitudes por estado, dona de tasa de aceptación, tendencia mensual de envíos e inscripción por sesión. Pase el cursor sobre cualquier punto para ver las cifras exactas."
+            },
+            "export-buttons": {
+              "title": "Exportar informes",
+              "body": "Haga clic en cualquier botón para descargar un CSV. Hay cinco tipos disponibles: Todas las Solicitudes, Aceptadas, Rechazadas, Etiquetas de Correo y Etiquetas de Identificación. Los archivos se guardan en la carpeta de descargas de su navegador."
+            }
+          }
+        }
+      },
+      "sessions": {
+        "title": "Sesiones de campamento",
+        "summary": "Cree, edite y controle la capacidad de las sesiones del campamento.",
+        "steps": {
+          "session_cards": {
+            "title": "Tarjetas de sesión",
+            "summary": "Cada tarjeta muestra el nombre de la sesión, el rango de fechas, la capacidad total y el número de inscripciones actuales.",
+            "details": "Las sesiones se listan en orden de fecha, la más próxima primero. Haga clic en una tarjeta para abrir la página de detalle de la sesión con métricas de inscripción y la lista completa de solicitantes."
+          },
+          "create_session": {
+            "title": "Crear una sesión",
+            "summary": "Haga clic en \"+ Crear Sesión\" para agregar una nueva sesión de campamento. Ingrese el nombre, las fechas de inicio y fin, y la capacidad.",
+            "details": "Las sesiones son inmediatamente visibles para los solicitantes en el formulario de solicitud una vez creadas. Establezca una capacidad realista; podrá ajustarla más adelante."
+          },
+          "capacity_warning": {
+            "title": "Advertencias de capacidad",
+            "summary": "La barra de inscripción de una sesión se vuelve amarilla al alcanzar el 80% de su capacidad y roja al llegar al 100%. Controle las sesiones llenas para evitar overbooking.",
+            "details": "Al 100%, los nuevos solicitantes que seleccionen esa sesión serán incluidos automáticamente en la lista de espera. Puede aumentar el límite de capacidad para aceptar más solicitantes."
+          },
+          "archive_vs_delete": {
+            "title": "Archivar versus eliminar",
+            "summary": "Archivar oculta una sesión de las listas activas pero conserva todos sus datos e inscripciones intactos. Eliminar es permanente y no se puede deshacer.",
+            "details": "Use Archivar para sesiones anteriores que ya no necesita que aparezcan en los menús desplegables activos. Solo elimine una sesión creada por error y sin inscripciones.",
+            "severity": "warning"
+          },
+          "view_dashboard": {
+            "title": "Panel de la sesión",
+            "summary": "Haga clic en \"Ver Panel\" en una tarjeta de sesión para ver las métricas exclusivas de esa sesión: solicitudes por estado, progreso de inscripción y actividad reciente.",
+            "details": "El panel de sesión es útil cuando ejecuta varias sesiones simultáneamente y desea enfocarse en una a la vez."
+          }
+        },
+        "faq": {
+          "archive_effect": {
+            "question": "¿Qué hace archivar una sesión?",
+            "answer": "Archivar oculta la sesión de las listas activas y del selector de sesiones visible para los solicitantes. Todos los solicitantes inscritos y los datos de las solicitudes se conservan. Puede restaurar una sesión en cualquier momento."
+          },
+          "capacity_after_enrollment": {
+            "question": "¿Puedo cambiar la capacidad después de que comienzan las inscripciones?",
+            "answer": "Sí. Puede aumentar o disminuir la capacidad en cualquier momento. Los solicitantes inscritos no se ven afectados; conservan su lugar aunque reduzca la capacidad por debajo del número actual de inscritos."
+          }
+        },
+        "hint": {
+          "sessions_full": {
+            "message": "{{count}} sesión(es) están llenas. Los nuevos solicitantes serán incluidos en la lista de espera para esas sesiones."
+          },
+          "sessions_near_capacity": {
+            "message": "{{count}} sesión(es) se están acercando a su capacidad (80% o más ocupadas)."
+          }
+        }
+      }
+    }
+  }
+}

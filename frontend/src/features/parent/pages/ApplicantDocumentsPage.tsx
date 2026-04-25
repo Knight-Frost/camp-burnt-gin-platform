@@ -1252,7 +1252,7 @@ export function ApplicantDocumentsPage() {
         {/* ── Task panel — Documents Requested From You ─────────────────── */}
         {/* Always rendered — admins can create requests at any time and users
             need a stable place to look. Hidden section = hidden expectation. */}
-        <section>
+        <section data-guide-anchor="documents.requested-section">
 
           {/* Section header */}
           <div className="flex items-center gap-2 mb-1">
@@ -1385,7 +1385,7 @@ export function ApplicantDocumentsPage() {
              applicant always has a record of "what did I send?" alongside the
              current decision. A rejection surfaces the rejection reason and a
              "Resubmit" path via the Additional Documents section below. */}
-        <div>
+        <div data-guide-anchor="documents.submitted-section">
           <h3 className="font-headline font-semibold text-base mb-1" style={{ color: 'var(--foreground)' }}>
             Submitted Documents
           </h3>
@@ -1450,7 +1450,9 @@ export function ApplicantDocumentsPage() {
         </div>
 
         {/* ── Supplementary upload ─────────────────────────────────────── */}
-        <UploadArea onUpload={handleUpload} uploading={uploading} />
+        <div data-guide-anchor="documents.upload-area">
+          <UploadArea onUpload={handleUpload} uploading={uploading} />
+        </div>
 
 
       </div>

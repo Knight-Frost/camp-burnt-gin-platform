@@ -1595,6 +1595,7 @@ export function AdminDocumentsPage() {
               size="sm"
               onClick={() => setShowRequestModal(true)}
               className="flex items-center gap-1.5"
+              data-guide-anchor="admin-documents.create-request-button"
             >
               <Plus className="h-4 w-4" />
               {t('admin_extra.request_document_button', 'Request Document')}
@@ -1603,7 +1604,7 @@ export function AdminDocumentsPage() {
         </div>
 
         {/* ── Tabs ──────────────────────────────────────────────────── */}
-        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)' }}>
+        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)' }} data-guide-anchor="admin-documents.tabs">
           {(['requests', 'uploads'] as const).map((tabKey) => (
             <button
               key={tabKey}
@@ -1895,7 +1896,7 @@ export function AdminDocumentsPage() {
 
         {/* ── Metrics bar ─────────────────────────────────────────── */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3" data-guide-anchor="admin-documents.metric-cards">
             <MetricCard label={t('admin_extra.metric_total',          'Total')}          value={stats.total}           active={statusFilter === ''}               onClick={() => handleMetricClick('')} />
             <MetricCard label={t('admin_extra.status_awaiting_upload','Awaiting Upload')} value={stats.awaiting_upload} active={statusFilter === 'awaiting_upload'} onClick={() => handleMetricClick('awaiting_upload')} />
             <MetricCard label={t('admin_extra.metric_uploaded',        'Uploaded')}        value={stats.uploaded}        active={statusFilter === 'uploaded'}        onClick={() => handleMetricClick('uploaded')} />
@@ -1945,7 +1946,7 @@ export function AdminDocumentsPage() {
         </div>
 
         {/* ── Requests table ───────────────────────────────────────── */}
-        <div className="glass-data rounded-2xl overflow-hidden">
+        <div className="glass-data rounded-2xl overflow-hidden" data-guide-anchor="admin-documents.requests-table">
 
           {/* Table header */}
           <div

@@ -1,0 +1,130 @@
+{
+  "guide": {
+    "shared": {
+      "profile": {
+        "title": "Su perfil",
+        "summary": "Actualice su información de contacto, configure la autenticación multifactor y gestione sus contactos de emergencia.",
+        "steps": {
+          "contact_info": {
+            "title": "Información de contacto",
+            "summary": "Actualice aquí su nombre, correo electrónico, número de teléfono y dirección. Haga clic en Guardar cuando termine.",
+            "details": "Su dirección de correo electrónico se usa para notificaciones y restablecimiento de contraseña. Manténgala actualizada para no perderse mensajes importantes."
+          },
+          "avatar": {
+            "title": "Foto de perfil",
+            "summary": "Suba una foto de perfil. JPG o PNG, hasta 2 MB.",
+            "details": "La foto es opcional. Aparece junto a su nombre en los mensajes y en la lista de usuarios del administrador."
+          },
+          "mfa": {
+            "title": "Autenticación Multifactor",
+            "summary": "Active la autenticación multifactor para mayor seguridad. Agrega un segundo paso al inicio de sesión usando un código de su teléfono. Muy recomendado para cuentas de administrador y médico.",
+            "details": "Después de activar la autenticación multifactor, deberá escanear un código QR con una aplicación autenticadora. Cada vez que inicie sesión, ingresará un código de 6 dígitos de la aplicación. Si pierde acceso a su autenticador, contacte a un superadministrador."
+          },
+          "emergency_contacts": {
+            "title": "Contactos de emergencia",
+            "summary": "Agregue al menos un contacto de emergencia. El primer contacto que agregue se convierte en el principal.",
+            "details": "Los contactos de emergencia solo se usan si el personal del campamento necesita comunicarse con alguien en su nombre — por ejemplo, en una situación médica. No se muestran públicamente."
+          }
+        },
+        "faq": {
+          "what_is_mfa": {
+            "question": "¿Qué es la autenticación multifactor?",
+            "answer": "La autenticación multifactor agrega un segundo paso al inicio de sesión: después de su contraseña, ingresa un código de 6 dígitos de una aplicación autenticadora en su teléfono. De esta manera, aunque alguien conozca su contraseña, no puede iniciar sesión sin su teléfono."
+          },
+          "why_emergency_contact": {
+            "question": "¿Por qué necesito un contacto de emergencia?",
+            "answer": "En caso de que el personal del campamento necesite comunicarse con alguien en su nombre — por ejemplo, si hay una situación médica y usted no está disponible. Se recomienda firmemente tener al menos un contacto."
+          }
+        },
+        "hint": {
+          "mfa_disabled": {
+            "message": "La autenticación multifactor está desactivada. Configúrela para proteger su cuenta."
+          }
+        }
+      },
+      "settings": {
+        "title": "Configuración de la aplicación",
+        "summary": "Ajuste el idioma, las notificaciones y las preferencias de accesibilidad.",
+        "steps": {
+          "language": {
+            "title": "Idioma",
+            "summary": "Cambie entre inglés y español usando el selector de idioma en el encabezado o desde esta página.",
+            "details": "La configuración de idioma se aplica a todas las páginas del portal. Algunos contenidos enviados por el personal pueden permanecer en el idioma original."
+          },
+          "notifications": {
+            "title": "Notificaciones",
+            "summary": "Elija qué eventos le envían una notificación: actualizaciones de solicitudes, anuncios, mensajes y plazos.",
+            "details": "Puede activar o desactivar tipos individuales de notificaciones. Desactivar un tipo de notificación significa que no recibirá alertas para esos eventos — revise el portal manualmente para mantenerse al día."
+          },
+          "accessibility": {
+            "title": "Accesibilidad",
+            "summary": "Ajuste el tamaño de fuente, active el modo de alto contraste o reduzca el movimiento si las animaciones le molestan.",
+            "details": "Estos ajustes se aplican solo a su cuenta y se guardan entre sesiones. Si usa un lector de pantalla, el portal admite atributos ARIA estándar en todo el sitio."
+          },
+          "delete_account": {
+            "title": "Eliminar cuenta",
+            "summary": "Elimina permanentemente su cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+            "details": "Si elimina su cuenta, sus solicitudes, documentos e historial de mensajes también se eliminan. Contacte al personal del campamento antes de eliminar su cuenta si ha enviado solicitudes o documentos que aún puedan ser necesarios."
+          }
+        },
+        "faq": {
+          "change_password": {
+            "question": "¿Dónde puedo cambiar mi contraseña?",
+            "answer": "Vaya a su página de Perfil y busque la sección de Seguridad. Puede actualizar su contraseña allí en cualquier momento."
+          },
+          "notification_not_arriving": {
+            "question": "¿Por qué no llega mi notificación?",
+            "answer": "Primero verifique que el tipo de notificación esté habilitado en esta página de Configuración. Si está habilitado, revise la carpeta de spam de su correo electrónico. Si el problema persiste, contacte al personal del campamento."
+          }
+        }
+      },
+      "inbox": {
+        "title": "Su bandeja de entrada",
+        "summary": "Lea mensajes, responda y manténgase al día con las conversaciones.",
+        "steps": {
+          "reading": {
+            "title": "Leer mensajes",
+            "summary": "Haga clic en cualquier conversación para abrirla. Las conversaciones no leídas aparecen en negrita en la lista.",
+            "details": "Una vez que abre un hilo, se marca como leído automáticamente. Puede volver a marcarlo como no leído desde el menú de acciones del hilo."
+          },
+          "reply": {
+            "title": "Responder",
+            "summary": "Escriba en el cuadro de la parte inferior de la conversación y haga clic en Enviar. Use Responder para contestar al remitente original, o Responder a todos para incluir a todos en el hilo.",
+            "details": "Responder a todos excluye a los destinatarios en CCO — no serán notificados de su respuesta, lo cual es intencional para preservar la privacidad."
+          },
+          "compose": {
+            "title": "Redactar un nuevo mensaje",
+            "summary": "Haga clic en \"+ Nuevo Mensaje\" para iniciar una nueva conversación. Busque destinatarios por nombre o dirección de correo electrónico.",
+            "details": "Puede agregar múltiples destinatarios. Use el campo Para los destinatarios principales. CC es para otros que deben estar informados pero no necesitan actuar."
+          },
+          "mark_important_starred": {
+            "title": "Organizar su bandeja de entrada",
+            "summary": "Marque con estrella, marque como importante o archive conversaciones para mantener ordenada su bandeja de entrada. Los hilos archivados pueden desarchivarse en cualquier momento.",
+            "details": "Los hilos marcados con estrella aparecen en la carpeta Destacados. Importante afecta el orden de clasificación. Archivar mueve el hilo fuera de la bandeja de entrada sin eliminarlo."
+          },
+          "attachments": {
+            "title": "Archivos adjuntos",
+            "summary": "Arrastre un archivo a la ventana de redacción o haga clic en el ícono de clip. Se admiten PDF e imágenes (JPG, PNG).",
+            "details": "Los archivos adjuntos se suben al enviar. No hay vista previa antes de enviar. Asegúrese de adjuntar el archivo correcto antes de hacer clic en Enviar."
+          }
+        },
+        "faq": {
+          "star_vs_important": {
+            "question": "¿Cuál es la diferencia entre Estrella e Importante?",
+            "answer": "La estrella es un marcador personal — mueve el hilo a su carpeta de Destacados para acceso rápido. Importante afecta el orden de clasificación para que los hilos de alta prioridad aparezcan cerca de la parte superior de su bandeja. Puede aplicar ambos."
+          },
+          "unarchive": {
+            "question": "¿Puedo desarchivar un hilo?",
+            "answer": "Sí. Abra la carpeta Archivados, encuentre el hilo y haga clic en Desarchivar. El hilo vuelve a su bandeja de entrada."
+          }
+        },
+        "hint": {
+          "unread_messages": {
+            "message": "Tiene {{count}} mensaje(s) no leído(s).",
+            "cta": "Ver mensajes"
+          }
+        }
+      }
+    }
+  }
+}

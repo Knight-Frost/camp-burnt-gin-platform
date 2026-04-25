@@ -1,0 +1,337 @@
+{
+  "guide": {
+    "applicant": {
+      "dashboard": {
+        "title": "Su panel principal",
+        "summary": "Un resumen rápido de sus solicitudes, documentos y mensajes.",
+        "steps": {
+          "overview": {
+            "title": "Lo que verá aquí",
+            "summary": "Su panel muestra sus campistas, sus solicitudes, tareas de documentos y mensajes recientes.",
+            "details": "Cada tarjeta de la página le permite ir directamente a esa sección. Los números se actualizan en tiempo real a medida que su solicitud avanza en el proceso de revisión."
+          },
+          "start_application": {
+            "title": "Iniciar una nueva solicitud",
+            "summary": "Haga clic en \"Solicitar ahora\" o \"Nueva solicitud\" para comenzar una solicitud para un campista.",
+            "details": "Puede solicitar para más de un campista. Cada campista tiene su propia solicitud separada."
+          },
+          "continue_draft": {
+            "title": "Continuar un borrador guardado",
+            "summary": "Su trabajo se guarda automáticamente, por lo que puede cerrar la página y volver en cualquier momento. Haga clic en una tarjeta de borrador para continuar donde lo dejó.",
+            "details": "Los borradores son privados — el personal del campamento no puede ver un borrador hasta que usted lo envíe."
+          },
+          "document_tasks": {
+            "title": "Tareas de documentos",
+            "summary": "Si el personal del campamento ha solicitado un documento, aparecerá una alerta de \"Documentos pendientes\" aquí. Haga clic en ella para ir directamente a la página de carga.",
+            "details": "Los documentos requeridos (registros de vacunación, tarjetas de seguro y formularios de examen médico) también aparecen en la página de Documentos."
+          },
+          "inbox_link": {
+            "title": "Revisar sus mensajes",
+            "summary": "Haga clic en \"Bandeja de entrada\" en la barra lateral o busque en la sección de Actividad reciente para ver mensajes del personal del campamento.",
+            "details": "Toda la comunicación con el campamento ocurre a través de la bandeja de entrada para que haya un registro de cada conversación."
+          }
+        },
+        "faq": {
+          "pending_meaning": {
+            "question": "¿Qué significa \"Pendiente\"?",
+            "answer": "Pendiente significa que su solicitud ha sido enviada y está esperando que un miembro del personal la revise. No se requiere ninguna acción de su parte — nos comunicaremos con usted si falta algo."
+          },
+          "multiple_campers": {
+            "question": "¿Puedo solicitar para más de un campista?",
+            "answer": "Sí. Inicie una nueva solicitud para cada campista. Cada solicitud se rastrea por separado para que nada se confunda."
+          },
+          "previous_year": {
+            "question": "¿Por qué no veo la solicitud del año pasado?",
+            "answer": "Las solicitudes anteriores se archivan una vez que la sesión termina. Su panel actual muestra solo solicitudes activas o recientes. Comuníquese con el personal del campamento si necesita una copia de una solicitud anterior."
+          }
+        },
+        "hint": {
+          "documents_waiting": {
+            "message": "Tiene {{count}} solicitud(es) de documentos pendiente(s) de carga.",
+            "cta": "Abrir documentos"
+          },
+          "draft_in_progress": {
+            "message": "Tiene un borrador de solicitud en progreso.",
+            "cta": "Continuar solicitud"
+          },
+          "no_applications": {
+            "message": "¡Bienvenido/a! Comience su primera solicitud cuando esté listo/a.",
+            "cta": "Iniciar solicitud"
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido del panel",
+          "steps": {
+            "campers": {
+              "title": "Sus campistas",
+              "body": "Esta tarjeta muestra cuántos campistas están registrados en su cuenta. Cada campista puede tener su propia solicitud separada."
+            },
+            "pending": {
+              "title": "Solicitudes pendientes",
+              "body": "Esta tarjeta muestra las solicitudes enviadas que están esperando la revisión de un miembro del personal. No se requiere ninguna acción mientras una solicitud está pendiente."
+            },
+            "draft": {
+              "title": "Borrador en progreso",
+              "body": "Cuando tiene un borrador de solicitud en progreso, aparece un banner aquí. Haga clic en Continuar para retomar exactamente donde lo dejó."
+            },
+            "start-application": {
+              "title": "Iniciar una solicitud",
+              "body": "Haga clic en este botón para comenzar una nueva solicitud para un campista. Puede solicitar para varios campistas — cada uno tiene su propia solicitud."
+            },
+            "activity": {
+              "title": "Actividad reciente",
+              "body": "Sus mensajes más recientes, actualizaciones de solicitudes y solicitudes de documentos aparecen aquí. Haga clic en cualquier fila para ir directamente a ese elemento."
+            }
+          }
+        }
+      },
+      "applicationForm": {
+        "title": "Completar la solicitud",
+        "summary": "Cómo completar cada sección, guardar su progreso y enviar cuando esté listo/a.",
+        "steps": {
+          "sections_overview": {
+            "title": "Resumen de las secciones",
+            "summary": "La solicitud tiene 11 secciones. La barra lateral muestra su progreso e indica qué secciones aún necesitan atención.",
+            "details": "No tiene que terminar en una sola sesión. Vuelva cuando quiera — su trabajo se guarda automáticamente."
+          },
+          "autosave": {
+            "title": "Su trabajo se guarda automáticamente",
+            "summary": "Cada pocos segundos sus respuestas se guardan. Puede cerrar la página y volver a su borrador sin perder nada.",
+            "details": "Verá un pequeño indicador \"Guardado\" cerca de la parte superior de la página después de cada guardado automático."
+          },
+          "section_complete": {
+            "title": "Cuándo una sección se vuelve verde",
+            "summary": "Una sección se vuelve verde cuando todos los campos requeridos están completos. Para secciones como comportamiento, equipo, dieta y medicamentos, también puede marcar \"Nada que declarar\" para completarlas.",
+            "details": "\"Nada que declarar\" significa que usted confirma que no hay nada que reportar sobre ese tema — no que lo haya omitido."
+          },
+          "documents": {
+            "title": "Cargar documentos",
+            "summary": "La sección 11 es donde carga los documentos requeridos. También puede cargarlos más tarde desde la página de Documentos si no los tiene disponibles.",
+            "details": "Los documentos requeridos incluyen un registro de vacunación, tarjeta de seguro y formulario de examen médico. Los tres deben estar en el expediente antes de que su solicitud pueda ser completamente aprobada."
+          },
+          "signature": {
+            "title": "Agregar su firma",
+            "summary": "La sección 10 solicita su firma. Puede dibujarla con el ratón o el dedo, o simplemente escribir su nombre — cualquiera de las dos opciones es aceptada.",
+            "details": "El nombre escrito se convierte automáticamente en una imagen de firma. No necesita ningún software especial."
+          },
+          "submit": {
+            "title": "Enviar su solicitud",
+            "summary": "Una vez que todas las secciones estén en verde, el botón Enviar se activa. Haga clic en él para enviar su solicitud al personal del campamento. No podrá editar una solicitud después de enviarla.",
+            "details": "Si necesita hacer cambios después de enviarla, puede retirar la solicitud e iniciar una nueva."
+          }
+        },
+        "faq": {
+          "yellow_section": {
+            "question": "¿Puedo enviar si una sección sigue en amarillo?",
+            "answer": "No. Todas las secciones deben mostrar verde antes de que el botón Enviar se active. Revise la barra lateral para ver qué secciones aún necesitan información."
+          },
+          "nothing_to_declare": {
+            "question": "¿Qué significa \"Nada que declarar\"?",
+            "answer": "Significa que usted confirma que el tema no aplica a su campista. Por ejemplo, marcar \"Nada que declarar\" en la sección de Medicamentos significa que su campista no toma medicamentos regulares."
+          },
+          "edit_after_submit": {
+            "question": "¿Puedo hacer cambios después de enviar?",
+            "answer": "No, las solicitudes enviadas están bloqueadas. Si necesita hacer una corrección, comuníquese con el personal del campamento o retire la solicitud y envíe una nueva."
+          }
+        },
+        "hint": {
+          "section_in_progress": {
+            "message": "Está en la Sección {{section}} de 11."
+          }
+        }
+      },
+      "documents": {
+        "title": "Sus documentos",
+        "summary": "Cargue documentos requeridos y solicitados, y haga seguimiento de su estado.",
+        "steps": {
+          "two_kinds": {
+            "title": "Dos tipos de documentos",
+            "summary": "Los documentos requeridos son necesarios para todos los solicitantes. Los documentos solicitados son aquellos que un miembro del personal le ha pedido específicamente.",
+            "details": "Ambos tipos aparecen en esta página. Los documentos requeridos tienen espacios designados (registro de vacunación, tarjeta de seguro, formulario de examen médico). Los documentos solicitados aparecen como tarjetas con las instrucciones del personal."
+          },
+          "upload_required": {
+            "title": "Cargar documentos requeridos",
+            "summary": "Haga clic en el espacio del documento que desea cargar y luego seleccione un archivo de su dispositivo.",
+            "details": "Los tipos de archivo aceptados son PDF, JPG, PNG y WebP. Si el archivo es demasiado grande o del tipo incorrecto, verá un mensaje de error."
+          },
+          "upload_requested": {
+            "title": "Responder a una solicitud de documento",
+            "summary": "Cuando un miembro del personal solicita un documento específico, aparece una tarjeta aquí. Haga clic en \"Cargar\" en esa tarjeta para adjuntar su archivo.",
+            "details": "La tarjeta muestra cualquier instrucción que el miembro del personal haya incluido, como qué página de un formulario usar o qué información debe ser visible."
+          },
+          "submit_to_staff": {
+            "title": "Enviar un documento para revisión",
+            "summary": "Después de cargar, un documento comienza como borrador. Haga clic en el botón naranja \"Enviar al personal\" para mandarlo a revisión.",
+            "details": "Los documentos permanecen como borradores hasta que usted los envíe. El personal no puede ver un documento en borrador, así que asegúrese de hacer clic en Enviar cuando esté listo/a."
+          },
+          "status": {
+            "title": "Estados de los documentos",
+            "summary": "Pendiente significa que fue enviado y está esperando revisión. Aprobado significa que fue aceptado. Rechazado significa que hubo un problema — se muestra la razón y puede volver a cargarlo.",
+            "details": "Si un documento es rechazado, lea la razón que aparece en la tarjeta. Las razones más comunes incluyen una foto borrosa, una imagen recortada que omite información importante, o un documento vencido."
+          }
+        },
+        "faq": {
+          "file_types": {
+            "question": "¿Qué tipos de archivo puedo cargar?",
+            "answer": "Puede cargar archivos PDF, JPG, PNG y WebP. Si tiene un documento físico, tome una foto clara con su teléfono y cargue la imagen."
+          },
+          "rejected_document": {
+            "question": "¿Por qué fue rechazado mi documento?",
+            "answer": "La razón del rechazo aparece en la tarjeta del documento. Las razones más comunes son una foto demasiado pequeña o borrosa para leer, o una imagen que recorta parte del documento. Vuelva a tomar la foto con buena iluminación y cárguela de nuevo."
+          }
+        },
+        "hint": {
+          "requests_awaiting": {
+            "message": "Tiene {{count}} solicitud(es) de documentos pendiente(s) de carga.",
+            "cta": "Cargar ahora"
+          },
+          "documents_rejected": {
+            "message": "{{count}} documento(s) fueron rechazados. Vuelva a cargarlos para continuar.",
+            "cta": "Ver documentos"
+          },
+          "documents_pending": {
+            "message": "{{count}} documento(s) requerido(s) aún deben ser cargados.",
+            "cta": "Cargar documentos"
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de documentos",
+          "steps": {
+            "requested": {
+              "title": "Documentos solicitados",
+              "body": "Cuando un miembro del personal le pide un documento específico, aparece aquí como una tarjeta de tarea. Cargue su archivo y haga clic en Enviar para responder."
+            },
+            "submitted": {
+              "title": "Documentos enviados",
+              "body": "Los archivos que ya ha enviado al personal del campamento aparecen aquí. Puede ver el estado actual de revisión — pendiente, aprobado o rechazado — para cada uno."
+            },
+            "upload": {
+              "title": "Cargas adicionales",
+              "body": "Use esta área para cargar documentos adicionales que no fueron solicitados específicamente — por ejemplo, una tarjeta de seguro secundaria o una carta de un médico."
+            }
+          }
+        }
+      },
+      "applicationDetail": {
+        "title": "Su solicitud",
+        "summary": "Haga seguimiento del estado de su solicitud y lo que sucede a continuación.",
+        "steps": {
+          "status_meaning": {
+            "title": "Qué significa el estado",
+            "summary": "Borrador significa que no fue enviada. Enviada significa que el campamento la recibió. En revisión significa que un miembro del personal la está revisando. Aprobada o Rechazada es la decisión final. En lista de espera significa que no hay un lugar disponible ahora.",
+            "details": "Retirada significa que usted canceló la solicitud. Si la retira, puede volver a solicitar para la misma u otra sesión."
+          },
+          "submitted_what_next": {
+            "title": "Después de enviar",
+            "summary": "Una vez enviada, un miembro del personal revisará su solicitud. Esto puede tardar algunos días dependiendo de la época del año.",
+            "details": "Recibirá un mensaje en su bandeja de entrada cuando haya una actualización. Esté atento/a a su bandeja de entrada y asegúrese de que sus documentos estén cargados."
+          },
+          "under_review": {
+            "title": "En revisión",
+            "summary": "En revisión significa que un miembro del personal ha abierto su solicitud y la está procesando. Pueden enviarle un mensaje para solicitar documentos adicionales.",
+            "details": "No necesita hacer nada mientras su solicitud está en revisión, a menos que el personal se comunique con usted."
+          },
+          "approved": {
+            "title": "Aprobada",
+            "summary": "Su solicitud ha sido aprobada. Revise su bandeja de entrada para ver un mensaje con los próximos pasos, incluyendo el pago y los detalles de llegada.",
+            "details": "La aprobación significa que su campista tiene un lugar confirmado. Siga las instrucciones del mensaje para completar la inscripción."
+          },
+          "withdraw": {
+            "title": "Retirar una solicitud",
+            "summary": "Puede retirar una solicitud en cualquier momento antes de que sea aprobada. Una vez retirada, no se puede deshacer — tendría que iniciar una nueva solicitud.",
+            "details": "Comuníquese con el personal del campamento si desea retirar la solicitud después de la aprobación. Los retiros después de la aprobación se manejan caso por caso."
+          }
+        },
+        "faq": {
+          "review_time": {
+            "question": "¿Cuánto tiempo tarda la revisión?",
+            "answer": "Los tiempos de revisión varían según la época del año y la cantidad de solicitudes en cola. Revise su bandeja de entrada para actualizaciones — el personal le enviará un mensaje si necesita algo."
+          },
+          "waitlisted": {
+            "question": "¿Qué pasa si estoy en lista de espera?",
+            "answer": "Estar en lista de espera significa que no hay un lugar disponible ahora, pero usted está en la fila. Si otro solicitante se retira, es posible que se le ofrezca un lugar. Recibirá una notificación por mensaje en su bandeja de entrada si eso ocurre."
+          }
+        },
+        "hint": {
+          "draft_not_submitted": {
+            "message": "Su solicitud está guardada como borrador. Envíela cuando esté listo/a."
+          },
+          "awaiting_review": {
+            "message": "Su solicitud fue enviada y está esperando revisión."
+          },
+          "under_review": {
+            "message": "Un miembro del personal está revisando su solicitud."
+          },
+          "approved": {
+            "message": "¡Aprobada! Revise su bandeja de entrada para ver los próximos pasos.",
+            "cta": "Abrir bandeja de entrada"
+          },
+          "rejected": {
+            "message": "Su solicitud no fue aceptada. Consulte la sección de notas para ver los detalles."
+          },
+          "waitlisted": {
+            "message": "Está en lista de espera. Le enviaremos un mensaje si se abre un lugar."
+          },
+          "withdrawn": {
+            "message": "Esta solicitud ha sido retirada."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de la solicitud",
+          "steps": {
+            "status": {
+              "title": "Estado de la solicitud",
+              "body": "Esta tarjeta muestra en qué etapa del proceso de revisión se encuentra su solicitud. La línea de tiempo avanza de Enviada a En revisión a Aprobada a medida que el personal la procesa."
+            },
+            "actions": {
+              "title": "Acciones disponibles",
+              "body": "Estos botones le permiten retirar una solicitud o solicitar una nueva sesión. La opción de retirar solo aparece para solicitudes que aún están activas."
+            }
+          }
+        }
+      },
+      "inbox": {
+        "title": "Su bandeja de entrada",
+        "summary": "Lea mensajes del personal del campamento y responda a las solicitudes de documentos.",
+        "steps": {
+          "reading": {
+            "title": "Leer un mensaje",
+            "summary": "Haga clic en cualquier fila de la bandeja de entrada para abrir la conversación. Los mensajes aparecen en orden cronológico.",
+            "details": "Los mensajes no leídos están resaltados. Una vez que abre un hilo, se marca como leído automáticamente."
+          },
+          "reply": {
+            "title": "Responder al personal del campamento",
+            "summary": "Escriba su respuesta en el cuadro en la parte inferior de la conversación y haga clic en Enviar.",
+            "details": "Las respuestas van directamente al miembro del personal que envió el mensaje original. Puede adjuntar un documento a su respuesta si es necesario."
+          },
+          "archive": {
+            "title": "Archivar un hilo",
+            "summary": "Para organizar su bandeja de entrada, seleccione un hilo y haga clic en Archivar. Los hilos archivados se mueven a la carpeta Archivados y pueden encontrarse allí en cualquier momento.",
+            "details": "Archivar un hilo no lo elimina y no afecta su solicitud. Es solo una forma de mantener su bandeja de entrada ordenada."
+          },
+          "document_requests_in_inbox": {
+            "title": "Solicitudes de documentos en mensajes",
+            "summary": "Algunos mensajes incluyen un enlace para cargar un documento. Haga clic en el enlace del mensaje para ir directamente a la página de carga de esa solicitud.",
+            "details": "Estos mensajes se envían cuando un miembro del personal necesita un archivo específico de usted. Cargar a través del enlace conecta su archivo con la solicitud correcta automáticamente."
+          }
+        },
+        "faq": {
+          "system_messages": {
+            "question": "¿Por qué un mensaje está marcado como \"Sistema\"?",
+            "answer": "Los mensajes del sistema son notificaciones automáticas — por ejemplo, una confirmación cuando cambia el estado de su solicitud o un recordatorio sobre un plazo próximo. No es necesario responder a los mensajes del sistema."
+          },
+          "direct_email": {
+            "question": "¿Puedo contactar al personal del campamento por correo electrónico?",
+            "answer": "Por favor use la bandeja de entrada para que toda la comunicación esté registrada en un solo lugar. Esto facilita que el personal le ayude y mantiene un registro de cada conversación."
+          }
+        },
+        "hint": {
+          "unread_messages": {
+            "message": "Tiene {{count}} mensaje(s) no leído(s).",
+            "cta": "Ver mensajes"
+          }
+        }
+      }
+    }
+  }
+}

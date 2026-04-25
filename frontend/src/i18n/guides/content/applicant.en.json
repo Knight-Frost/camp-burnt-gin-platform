@@ -1,0 +1,337 @@
+{
+  "guide": {
+    "applicant": {
+      "dashboard": {
+        "title": "Your dashboard",
+        "summary": "Quick overview of your applications, documents, and messages.",
+        "steps": {
+          "overview": {
+            "title": "What you see here",
+            "summary": "Your dashboard shows your campers, your applications, document tasks, and recent messages.",
+            "details": "Each card on the page lets you jump straight to that section. The numbers update live as your application moves through review."
+          },
+          "start_application": {
+            "title": "Starting a new application",
+            "summary": "Click \"Apply Now\" or \"New Application\" to begin an application for a camper.",
+            "details": "You can apply for more than one camper. Each camper gets their own separate application."
+          },
+          "continue_draft": {
+            "title": "Continuing a saved draft",
+            "summary": "Your work auto-saves, so you can close the page and come back anytime. Click a draft card to pick up where you left off.",
+            "details": "Drafts are private — camp staff cannot see a draft until you submit it."
+          },
+          "document_tasks": {
+            "title": "Document tasks",
+            "summary": "If camp staff have requested a document, a \"Pending Documents\" alert will appear here. Click it to go straight to the upload page.",
+            "details": "Required documents (immunization records, insurance cards, and medical exam forms) also appear on the Documents page."
+          },
+          "inbox_link": {
+            "title": "Checking your messages",
+            "summary": "Click \"Inbox\" in the sidebar or look in the Recent Activity section to see messages from camp staff.",
+            "details": "All communication with camp happens through the inbox so there is a record of every conversation."
+          }
+        },
+        "faq": {
+          "pending_meaning": {
+            "question": "What does \"Pending\" mean?",
+            "answer": "Pending means your application has been submitted and is waiting for a staff member to review it. No action is needed on your part — we will reach out if anything is missing."
+          },
+          "multiple_campers": {
+            "question": "Can I apply for more than one camper?",
+            "answer": "Yes. Start a new application for each camper. Each application is tracked separately so nothing gets mixed up."
+          },
+          "previous_year": {
+            "question": "Why don't I see last year's application?",
+            "answer": "Previous applications are archived once the session is over. Your current dashboard shows only active or recent applications. Contact camp staff if you need a copy of an old application."
+          }
+        },
+        "hint": {
+          "documents_waiting": {
+            "message": "You have {{count}} document request(s) waiting to upload.",
+            "cta": "Open documents"
+          },
+          "draft_in_progress": {
+            "message": "You have an application draft in progress.",
+            "cta": "Continue application"
+          },
+          "no_applications": {
+            "message": "Welcome! Start your first application when you are ready.",
+            "cta": "Start application"
+          }
+        },
+        "walkthrough": {
+          "title": "Dashboard tour",
+          "steps": {
+            "campers": {
+              "title": "Your campers",
+              "body": "This card shows how many campers are registered on your account. Each camper can have their own separate application."
+            },
+            "pending": {
+              "title": "Pending applications",
+              "body": "This card counts applications that are submitted and waiting for a staff member to review. No action is needed while an application is pending."
+            },
+            "draft": {
+              "title": "In-progress draft",
+              "body": "When you have a draft application in progress, a banner appears here. Click Continue to pick up right where you left off."
+            },
+            "start-application": {
+              "title": "Start an application",
+              "body": "Click this button to begin a new application for a camper. You can apply for multiple campers — each gets their own application."
+            },
+            "activity": {
+              "title": "Recent activity",
+              "body": "Your most recent messages, application updates, and document requests appear here. Click any row to go directly to that item."
+            }
+          }
+        }
+      },
+      "applicationForm": {
+        "title": "Filling out the application",
+        "summary": "How to complete each section, save your progress, and submit when ready.",
+        "steps": {
+          "sections_overview": {
+            "title": "Sections at a glance",
+            "summary": "The application has 11 sections. The sidebar shows your progress and highlights which sections still need attention.",
+            "details": "You do not have to finish in one sitting. Come back anytime — your work is saved automatically."
+          },
+          "autosave": {
+            "title": "Your work saves automatically",
+            "summary": "Every few seconds your answers are saved. You can close the page and come back to your draft without losing anything.",
+            "details": "You will see a small \"Saved\" indicator near the top of the page after each automatic save."
+          },
+          "section_complete": {
+            "title": "When a section turns green",
+            "summary": "A section turns green when all required fields are filled. For sections like behavior, equipment, diet, and medications, you can also check \"Nothing to declare\" to mark them complete.",
+            "details": "\"Nothing to declare\" means you are confirming that there is nothing to report for that topic — not that you skipped it."
+          },
+          "documents": {
+            "title": "Uploading documents",
+            "summary": "Section 11 is where you upload required documents. You can also upload them later from the Documents page if you do not have them ready.",
+            "details": "Required documents include an immunization record, insurance card, and medical exam form. All three must be on file before your application can be fully approved."
+          },
+          "signature": {
+            "title": "Adding your signature",
+            "summary": "Section 10 asks for your signature. You can draw it with your mouse or finger, or just type your name — either option is accepted.",
+            "details": "The typed name is converted to a signed image automatically. You do not need any special software."
+          },
+          "submit": {
+            "title": "Submitting your application",
+            "summary": "Once all sections are green, the Submit button becomes active. Click it to send your application to camp staff. You cannot edit an application after submitting.",
+            "details": "If you need to make changes after submitting, you can withdraw the application and start a new one."
+          }
+        },
+        "faq": {
+          "yellow_section": {
+            "question": "Can I submit if a section is still yellow?",
+            "answer": "No. All sections must show green before the Submit button becomes active. Check the sidebar to see which sections still need information."
+          },
+          "nothing_to_declare": {
+            "question": "What does \"Nothing to declare\" mean?",
+            "answer": "It means you are confirming that the topic does not apply to your camper. For example, checking \"Nothing to declare\" in the Medications section means your camper takes no regular medications."
+          },
+          "edit_after_submit": {
+            "question": "Can I make changes after submitting?",
+            "answer": "No, submitted applications are locked. If you need to make a correction, contact camp staff or withdraw the application and submit a new one."
+          }
+        },
+        "hint": {
+          "section_in_progress": {
+            "message": "You are on Section {{section}} of 11."
+          }
+        }
+      },
+      "documents": {
+        "title": "Your documents",
+        "summary": "Upload required and requested documents, and track their status.",
+        "steps": {
+          "two_kinds": {
+            "title": "Two kinds of documents",
+            "summary": "Required documents are needed for every applicant. Requested documents are ones that a staff member has specifically asked you to provide.",
+            "details": "Both types appear on this page. Required documents have named slots (immunization record, insurance card, medical exam form). Requested documents appear as cards with the staff member's instructions."
+          },
+          "upload_required": {
+            "title": "Uploading required documents",
+            "summary": "Click the slot for the document you want to upload, then choose a file from your device.",
+            "details": "Accepted file types are PDF, JPG, PNG, and WebP. If the file is too large or the wrong type, you will see an error message."
+          },
+          "upload_requested": {
+            "title": "Responding to a document request",
+            "summary": "When a staff member requests a specific document, a card appears here. Click \"Upload\" on that card to attach your file.",
+            "details": "The card shows any instructions the staff member included, such as which page of a form to use or what information should be visible."
+          },
+          "submit_to_staff": {
+            "title": "Submitting a document for review",
+            "summary": "After uploading, a document starts as a draft. Click the orange \"Submit to Staff\" button to send it for review.",
+            "details": "Documents stay as drafts until you submit them. Staff cannot see a draft document, so make sure to click Submit when you are ready."
+          },
+          "status": {
+            "title": "Document statuses",
+            "summary": "Pending means it has been submitted and is waiting for review. Approved means it is accepted. Rejected means there was a problem — the reason is shown and you can re-upload.",
+            "details": "If a document is rejected, read the reason shown on the card. Common reasons include a blurry photo, a cropped image that cut off important information, or an expired document."
+          }
+        },
+        "faq": {
+          "file_types": {
+            "question": "What file types can I upload?",
+            "answer": "You can upload PDF, JPG, PNG, and WebP files. If you have a physical document, take a clear photo with your phone and upload the image."
+          },
+          "rejected_document": {
+            "question": "Why was my document rejected?",
+            "answer": "The rejection reason is shown on the document card. The most common reasons are a photo that is too small or blurry to read, or an image that cuts off part of the document. Re-take the photo in good lighting and re-upload."
+          }
+        },
+        "hint": {
+          "requests_awaiting": {
+            "message": "You have {{count}} document request(s) awaiting upload.",
+            "cta": "Upload now"
+          },
+          "documents_rejected": {
+            "message": "{{count}} document(s) were rejected. Re-upload to continue.",
+            "cta": "View documents"
+          },
+          "documents_pending": {
+            "message": "{{count}} required document(s) still need to be uploaded.",
+            "cta": "Upload documents"
+          }
+        },
+        "walkthrough": {
+          "title": "Documents tour",
+          "steps": {
+            "requested": {
+              "title": "Documents requested from you",
+              "body": "When a staff member asks for a specific document, it appears here as a task card. Upload your file and click Submit to respond."
+            },
+            "submitted": {
+              "title": "Submitted documents",
+              "body": "Files you have already sent to camp staff appear here. You can see the current review status — pending, approved, or rejected — for each one."
+            },
+            "upload": {
+              "title": "Additional uploads",
+              "body": "Use this area to upload any extra documents that were not specifically requested — for example, a secondary insurance card or a letter from a doctor."
+            }
+          }
+        }
+      },
+      "applicationDetail": {
+        "title": "Your application",
+        "summary": "Track your application's status and what happens next.",
+        "steps": {
+          "status_meaning": {
+            "title": "What the status means",
+            "summary": "Draft means not submitted. Submitted means received by camp. Under Review means a staff member is looking at it. Approved or Rejected is the final decision. Waitlisted means there is no open spot right now.",
+            "details": "Withdrawn means you cancelled the application yourself. If you withdraw, you can apply again for the same or a different session."
+          },
+          "submitted_what_next": {
+            "title": "After you submit",
+            "summary": "Once submitted, a staff member will review your application. This can take a few days depending on the time of year.",
+            "details": "You will receive a message in your inbox when there is an update. Keep an eye on your inbox and make sure your documents are uploaded."
+          },
+          "under_review": {
+            "title": "Under review",
+            "summary": "Under review means a staff member has opened your application and is working through it. They may message you to ask for additional documents.",
+            "details": "You do not need to do anything while your application is under review unless staff reach out."
+          },
+          "approved": {
+            "title": "Approved",
+            "summary": "Your application has been approved. Check your inbox for a message with next steps, including payment and arrival details.",
+            "details": "Approval means your camper has a confirmed spot. Follow any instructions in the message to complete enrollment."
+          },
+          "withdraw": {
+            "title": "Withdrawing an application",
+            "summary": "You can withdraw an application at any time before it is approved. Once withdrawn, it cannot be undone — you would need to start a new application.",
+            "details": "Contact camp staff if you want to withdraw after approval. Staff withdrawals are handled case by case."
+          }
+        },
+        "faq": {
+          "review_time": {
+            "question": "How long does review take?",
+            "answer": "Review times vary depending on the time of year and how many applications are in queue. Check your inbox for updates — staff will message you if they need anything."
+          },
+          "waitlisted": {
+            "question": "What happens if I am waitlisted?",
+            "answer": "Being waitlisted means there is no open spot right now, but you are in line. If another applicant withdraws, you may be offered a spot. You will be notified by inbox message if that happens."
+          }
+        },
+        "hint": {
+          "draft_not_submitted": {
+            "message": "Your application is saved as a draft. Submit it when you are ready."
+          },
+          "awaiting_review": {
+            "message": "Your application is submitted and awaiting review."
+          },
+          "under_review": {
+            "message": "A staff member is reviewing your application."
+          },
+          "approved": {
+            "message": "Approved! Check your inbox for next steps.",
+            "cta": "Open inbox"
+          },
+          "rejected": {
+            "message": "Your application was not accepted. See the notes section for details."
+          },
+          "waitlisted": {
+            "message": "You are on the waitlist. We will message you if a spot opens up."
+          },
+          "withdrawn": {
+            "message": "This application has been withdrawn."
+          }
+        },
+        "walkthrough": {
+          "title": "Application tour",
+          "steps": {
+            "status": {
+              "title": "Status timeline",
+              "body": "This card shows where your application is in the review process. The timeline moves from Submitted to Under Review to Approved as staff work through it."
+            },
+            "actions": {
+              "title": "Actions",
+              "body": "These buttons let you withdraw an application or apply for a new session. The withdraw option is only shown for applications that are still active."
+            }
+          }
+        }
+      },
+      "inbox": {
+        "title": "Your inbox",
+        "summary": "Read messages from camp staff and reply to document requests.",
+        "steps": {
+          "reading": {
+            "title": "Reading a message",
+            "summary": "Click any row in the inbox list to open the conversation. Messages appear in chronological order.",
+            "details": "Unread messages are highlighted. Once you open a thread it is marked as read automatically."
+          },
+          "reply": {
+            "title": "Replying to camp staff",
+            "summary": "Type your reply in the box at the bottom of the conversation and click Send.",
+            "details": "Replies go directly to the staff member who sent the original message. You can attach a document to your reply if needed."
+          },
+          "archive": {
+            "title": "Archiving a thread",
+            "summary": "To clean up your inbox, select a thread and click Archive. Archived threads move to the Archived folder and can be found there at any time.",
+            "details": "Archiving a thread does not delete it and does not affect your application. It is just a way to keep your inbox tidy."
+          },
+          "document_requests_in_inbox": {
+            "title": "Document requests in messages",
+            "summary": "Some messages include a link to upload a document. Click the link in the message to go straight to the upload page for that request.",
+            "details": "These messages are sent when a staff member needs a specific file from you. Uploading through the link connects your file to the right request automatically."
+          }
+        },
+        "faq": {
+          "system_messages": {
+            "question": "Why is a message marked \"System\"?",
+            "answer": "System messages are automatic notifications — for example, a confirmation when your application status changes or a reminder about an upcoming deadline. You do not need to reply to system messages."
+          },
+          "direct_email": {
+            "question": "Can I contact camp staff by email instead?",
+            "answer": "Please use the inbox so that all communication is tracked in one place. This makes it easier for staff to help you and keeps a record of every conversation."
+          }
+        },
+        "hint": {
+          "unread_messages": {
+            "message": "You have {{count}} unread message(s).",
+            "cta": "View messages"
+          }
+        }
+      }
+    }
+  }
+}

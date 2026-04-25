@@ -17,33 +17,65 @@
  */
 
 import i18n from 'i18next';
-// initReactI18next wires i18next into React so components can use useTranslation()
 import { initReactI18next } from 'react-i18next';
-// Translation dictionaries — each key maps to a translated string
-import en from './en.json';
-import es from './es.json';
+import enBase from './en.json';
+import esBase from './es.json';
+import enGuides from './guides/en.json';
+import esGuides from './guides/es.json';
+import enGuidesApplicant from './guides/content/applicant.en.json';
+import esGuidesApplicant from './guides/content/applicant.es.json';
+import enGuidesAdmin from './guides/content/admin.en.json';
+import esGuidesAdmin from './guides/content/admin.es.json';
+import enGuidesSuperAdmin from './guides/content/superAdmin.en.json';
+import esGuidesSuperAdmin from './guides/content/superAdmin.es.json';
+import enGuidesMedical from './guides/content/medical.en.json';
+import esGuidesMedical from './guides/content/medical.es.json';
+import enGuidesShared from './guides/content/shared.en.json';
+import esGuidesShared from './guides/content/shared.es.json';
+import enGuidesGlossary from './guides/content/glossary.en.json';
+import esGuidesGlossary from './guides/content/glossary.es.json';
 
-// Read the persisted language choice, defaulting to English
+// Each content file contributes a different sub-namespace under `guide.*`
+// (guide.applicant, guide.admin, guide.glossary, etc.) so a shallow merge of
+// the second-level `guide` object is collision-free.
+const en = {
+  ...enBase,
+  guide: {
+    ...enGuides.guide,
+    ...enGuidesApplicant.guide,
+    ...enGuidesAdmin.guide,
+    ...enGuidesSuperAdmin.guide,
+    ...enGuidesMedical.guide,
+    ...enGuidesShared.guide,
+    ...enGuidesGlossary.guide,
+  },
+};
+const es = {
+  ...esBase,
+  guide: {
+    ...esGuides.guide,
+    ...esGuidesApplicant.guide,
+    ...esGuidesAdmin.guide,
+    ...esGuidesSuperAdmin.guide,
+    ...esGuidesMedical.guide,
+    ...esGuidesShared.guide,
+    ...esGuidesGlossary.guide,
+  },
+};
+
 const savedLanguage = localStorage.getItem('language') ?? 'en';
-
-// Set <html lang=""> on initial load for accessibility tools like screen readers
 document.documentElement.lang = savedLanguage;
 
 i18n
-  // Connect i18next to React
   .use(initReactI18next)
   .init({
     resources: {
-      // Each resource maps a language code to its translation dictionary
       en: { translation: en },
       es: { translation: es },
     },
-    // Active language — loaded from storage so the user's choice persists across sessions
     lng: savedLanguage,
-    // If a translation key is missing in the active language, fall back to English
     fallbackLng: 'en',
     interpolation: {
-      // React already handles XSS escaping, so disable i18next's escaping to avoid double-encoding
       escapeValue: false,
     },
   });

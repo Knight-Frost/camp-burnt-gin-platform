@@ -1,0 +1,135 @@
+{
+  "guide": {
+    "medical": {
+      "dashboard": {
+        "title": "Inicio del portal médico",
+        "summary": "Encuentre a sus campistas, registre tratamientos y realice el seguimiento de casos pendientes.",
+        "steps": {
+          "overview": {
+            "title": "Accesos rápidos",
+            "summary": "Desde aquí puede acceder a los expedientes de campistas, el registro de tratamientos, incidentes y seguimientos.",
+            "details": "Cada tarjeta del panel enlaza directamente a la sección correspondiente. Los contadores se actualizan a medida que llega nueva actividad."
+          },
+          "directory": {
+            "title": "Directorio Médico del Campamento",
+            "summary": "El Directorio Médico del Campamento lista a todos los campistas que tienen un expediente médico para la sesión actual.",
+            "details": "Use la barra de búsqueda para encontrar a un campista por nombre. Haga clic en cualquier fila para abrir su expediente médico completo."
+          },
+          "treatments_log": {
+            "title": "Registro de tratamientos",
+            "summary": "Haga clic en \"Registrar Tratamiento\" para documentar un medicamento administrado, signos vitales revisados o cualquier visita médica. Esto es obligatorio para el cumplimiento de HIPAA.",
+            "details": "Toda interacción con un campista que implique una evaluación médica, medicamento o procedimiento clínico debe registrarse aquí. Los registros incompletos generan brechas de cumplimiento."
+          },
+          "follow_ups": {
+            "title": "Seguimientos",
+            "summary": "La sección de Seguimientos muestra los tratamientos marcados para revisión posterior.",
+            "details": "Un tratamiento puede marcarse en el momento del registro. Revise esta sección al inicio y al final de cada turno para asegurarse de que no quede nada pendiente."
+          },
+          "phi_handling": {
+            "title": "Manejo de PHI",
+            "summary": "La PHI (Información de Salud Protegida) es sensible. Nunca comparta, tome capturas de pantalla ni imprima el expediente médico de un campista.",
+            "details": "Todo acceso a información médica queda registrado. Compartir PHI fuera del sistema —mediante captura de pantalla, correo electrónico o divulgación verbal— constituye una violación de HIPAA. Si cree que se ha producido una brecha, notifique a un supervisor de inmediato."
+          }
+        },
+        "faq": {
+          "why_log_every_treatment": {
+            "question": "¿Por qué debo registrar cada tratamiento?",
+            "answer": "HIPAA exige expedientes médicos completos y precisos para cada campista. La falta de entradas puede generar problemas legales y de cumplimiento para el campamento. Registre cada interacción, incluso las rutinarias como administrar un medicamento programado."
+          },
+          "see_all_campers": {
+            "question": "¿Puedo ver a todos los campistas?",
+            "answer": "Puede ver a todos los campistas que tienen un expediente médico asignado a su sesión de campamento actual. Los campistas de otras sesiones o campamentos a los que no está asignado no son accesibles."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": "Use el Directorio para encontrar a un campista y luego haga clic en su expediente para registrar un tratamiento."
+          }
+        }
+      },
+      "camperRecord": {
+        "title": "Expediente médico del campista",
+        "summary": "Revise la información médica del campista, registre tratamientos y consulte incidentes.",
+        "steps": {
+          "sections_overview": {
+            "title": "Secciones del expediente",
+            "summary": "Este expediente incluye diagnósticos, alergias, medicamentos, dispositivos, contactos de emergencia, historial de tratamientos e incidentes.",
+            "details": "Cada sección es colapsable. Expanda la sección que necesite. Las alertas críticas (como alergias graves) aparecen fijadas cerca de la parte superior para que estén siempre visibles."
+          },
+          "log_treatment": {
+            "title": "Registrar un tratamiento",
+            "summary": "Haga clic en \"Registrar Tratamiento\" para documentar un medicamento administrado, signos vitales revisados o cualquier visita al puesto médico.",
+            "details": "Las entradas se registran con marca de tiempo y se atribuyen a su cuenta. No puede eliminar un tratamiento registrado; solo puede agregar una corrección si es necesario."
+          },
+          "incidents": {
+            "title": "Incidentes",
+            "summary": "Un incidente es cualquier accidente, caída o evento médico no planificado. Regístrelo dentro de las 24 horas.",
+            "details": "Ejemplos comunes: un campista se cae y se raspa la rodilla, una picadura de abeja, un golpe leve en la cabeza. Registrar prontamente protege al campista y al campamento."
+          },
+          "emergency_view": {
+            "title": "Vista de emergencia",
+            "summary": "Haga clic en \"Emergencia\" para ver los contactos de emergencia, diagnósticos críticos y alergias graves en una sola pantalla.",
+            "details": "Esta vista está diseñada para situaciones urgentes donde necesita información clave rápidamente. Téngala marcada durante su turno."
+          },
+          "no_share": {
+            "title": "Nunca comparta este expediente",
+            "summary": "Nunca tome capturas de pantalla, fotografíe ni comparta el contenido de este expediente. La PHI debe permanecer en el sistema.",
+            "details": "Esto incluye reenviar información por mensaje de texto, correo electrónico o papel impreso. Si necesita transferir a un campista a otro proveedor, utilice únicamente el proceso oficial de transferencia."
+          }
+        },
+        "faq": {
+          "mistake_on_log": {
+            "question": "¿Qué hago si cometí un error en un registro de tratamiento?",
+            "answer": "Registre una entrada de corrección explicando qué fue incorrecto y cuál es la información correcta. Nunca intente eliminar ni sobreescribir la entrada original. Tanto la entrada original como su corrección quedan en el expediente."
+          },
+          "parent_access": {
+            "question": "¿Puede el padre o tutor del campista ver este expediente?",
+            "answer": "Los padres o tutores pueden ver campos seleccionados como diagnósticos y alergias, pero no tienen acceso a todas las notas clínicas, registros de tratamientos ni evaluaciones internas. La documentación clínica es solo para personal autorizado."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": "Registre los tratamientos aquí a medida que ocurran. No espere hasta el final del día."
+          }
+        }
+      },
+      "treatments": {
+        "title": "Registro de tratamientos",
+        "summary": "Explore y busque todos los tratamientos de todos los campistas.",
+        "steps": {
+          "global_log": {
+            "title": "Todos los tratamientos",
+            "summary": "Aquí aparecen todos los tratamientos registrados para cualquier campista en la sesión actual, ordenados del más reciente al más antiguo.",
+            "details": "Esto es útil para los cambios de turno y para revisar lo que ha ocurrido en todo el campamento durante el día."
+          },
+          "search": {
+            "title": "Búsqueda y filtrado",
+            "summary": "Filtre por nombre del campista, rango de fechas o tipo de tratamiento usando los controles de la parte superior.",
+            "details": "Por ejemplo, puede filtrar por \"hoy\" y \"medicamento administrado\" para obtener un recuento rápido de todos los medicamentos dados en su turno."
+          },
+          "edit_correction": {
+            "title": "Corregir un registro",
+            "summary": "Haga clic en \"Agregar Corrección\" en cualquier entrada para añadir una enmienda. Las entradas originales no pueden eliminarse.",
+            "details": "El registro original y su corrección quedan visibles. Su corrección lleva marca de tiempo y se atribuye a su cuenta."
+          },
+          "export": {
+            "title": "Exportar registros",
+            "summary": "Haga clic en Exportar para descargar la vista filtrada actual como archivo CSV para registros o auditorías.",
+            "details": "Los archivos exportados contienen PHI. Manéjelos según la política de manejo de datos de su campamento. No deje archivos exportados en unidades compartidas ni los envíe por correo electrónico no seguro."
+          }
+        },
+        "faq": {
+          "no_delete": {
+            "question": "¿Por qué no puedo eliminar un registro de tratamiento?",
+            "answer": "HIPAA prohíbe la eliminación de expedientes médicos. Puede agregar una entrada de corrección para indicar qué fue incorrecto, pero el original debe permanecer en el expediente."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        }
+      }
+    }
+  }
+}

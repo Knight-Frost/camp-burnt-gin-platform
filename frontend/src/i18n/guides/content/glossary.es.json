@@ -1,0 +1,98 @@
+{
+  "guide": {
+    "glossary": {
+      "application": {
+        "term": "Solicitud",
+        "definition": "Una solicitud para enviar a su campista al campamento. Cada campista necesita su propia solicitud para cada sesión del campamento."
+      },
+      "applicant": {
+        "term": "Solicitante",
+        "definition": "Un padre o tutor que está completando o ha enviado una solicitud de campamento en nombre de un campista."
+      },
+      "camper": {
+        "term": "Campista",
+        "definition": "El niño o niña que asistirá al campamento. Cada campista tiene su propio expediente y puede tener solicitudes separadas para diferentes sesiones."
+      },
+      "draft": {
+        "term": "Borrador",
+        "definition": "Una solicitud que ha comenzado pero aún no ha enviado. Los borradores son privados — el personal del campamento no puede verlos hasta que los envíe."
+      },
+      "submitted": {
+        "term": "Enviada",
+        "definition": "Una solicitud que ha terminado y enviado al personal del campamento para su revisión. Una vez enviada, no puede editar la solicitud directamente."
+      },
+      "under_review": {
+        "term": "En Revisión",
+        "definition": "Un miembro del personal del campamento ha abierto su solicitud y la está revisando activamente. No se requiere ninguna acción de su parte a menos que el personal se comunique con usted."
+      },
+      "approved": {
+        "term": "Aprobada",
+        "definition": "Su solicitud fue aceptada y su campista tiene un lugar confirmado. Revise su bandeja de entrada para conocer los próximos pasos del personal del campamento."
+      },
+      "rejected": {
+        "term": "Rechazada",
+        "definition": "Su solicitud no fue aceptada. El motivo generalmente se muestra en los detalles de la solicitud. Puede aplicar para una sesión diferente."
+      },
+      "waitlisted": {
+        "term": "En Lista de Espera",
+        "definition": "Su solicitud está en espera porque no hay lugares disponibles en este momento. Si otro solicitante se retira, puede ofrecérsele un lugar y será notificado por mensaje en su bandeja de entrada."
+      },
+      "withdrawn": {
+        "term": "Retirada",
+        "definition": "Usted canceló su propia solicitud. Una solicitud retirada no puede reactivarse — necesitaría iniciar una nueva solicitud."
+      },
+      "required_document": {
+        "term": "Documento Requerido",
+        "definition": "Un documento que todo solicitante debe proporcionar. Los documentos requeridos incluyen un registro de vacunación, tarjeta de seguro y formulario de examen médico. Su solicitud no puede aprobarse completamente sin ellos."
+      },
+      "requested_document": {
+        "term": "Documento Solicitado",
+        "definition": "Un documento que un miembro del personal del campamento le ha pedido específicamente que proporcione. Los documentos solicitados aparecen como tarjetas en su página de Documentos con instrucciones del personal."
+      },
+      "mfa": {
+        "term": "Autenticación Multifactor (MFA)",
+        "definition": "Un paso adicional de inicio de sesión que utiliza un código de su teléfono además de su contraseña. La autenticación multifactor hace que su cuenta sea mucho más difícil de vulnerar, incluso si su contraseña es robada."
+      },
+      "medical_provider": {
+        "term": "Proveedor Médico",
+        "definition": "Una enfermera, médico o miembro del personal médico del campamento que tiene acceso a los expedientes médicos de los campistas y registros de tratamientos a través del portal médico."
+      },
+      "paper_application": {
+        "term": "Solicitud en Papel",
+        "definition": "Una solicitud enviada subiendo formularios escaneados en papel en lugar de completar el formulario en línea. Las solicitudes en papel pasan por el mismo proceso de revisión que las digitales."
+      },
+      "digital_application": {
+        "term": "Solicitud Digital",
+        "definition": "Una solicitud completada directamente en el formulario en línea. Todas las secciones se completan en el navegador y se envían electrónicamente."
+      },
+      "hipaa": {
+        "term": "HIPAA",
+        "definition": "La Ley de Portabilidad y Responsabilidad del Seguro Médico — una ley federal que protege la privacidad de la información médica. El sistema cumple con las reglas de HIPAA y registra todo acceso a expedientes médicos."
+      },
+      "admin": {
+        "term": "Administrador",
+        "definition": "Un miembro del personal del campamento que revisa solicitudes, gestiona expedientes de campistas, envía mensajes a las familias y supervisa el flujo de trabajo de solicitudes."
+      },
+      "super_admin": {
+        "term": "Superadministrador",
+        "definition": "Un administrador con privilegios adicionales, incluyendo la gestión de cuentas de usuario, la visualización del registro de auditoría del sistema y el ajuste de permisos de acceso."
+      },
+      "session": {
+        "term": "Sesión",
+        "definition": "Una semana o período específico del campamento — por ejemplo, Semana 3 (14-21 de junio). Cada solicitud está vinculada a una sesión en particular. Puede solicitar más de una sesión."
+      },
+      "inbox": {
+        "term": "Bandeja de Entrada",
+        "definition": "El centro de mensajería dentro del portal donde tiene lugar toda la comunicación entre los solicitantes y el personal del campamento. Los mensajes aquí crean un registro permanente."
+      },
+      "archived": {
+        "term": "Archivado",
+        "definition": "Un hilo de mensajes o sesión que ha sido guardado pero no eliminado. Los elementos archivados se pueden encontrar en la carpeta de Archivados y restaurar en cualquier momento."
+      },
+      "phi": {
+        "term": "PHI (Información de Salud Protegida)",
+        "definition": "Cualquier información que identifica a una persona y está relacionada con su salud, condiciones médicas o tratamiento. La PHI está protegida por HIPAA y nunca debe compartirse fuera del sistema."
+      }
+    }
+  }
+}

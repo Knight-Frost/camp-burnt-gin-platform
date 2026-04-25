@@ -1,0 +1,360 @@
+{
+  "guide": {
+    "admin": {
+      "dashboard": {
+        "title": "Your admin dashboard",
+        "summary": "Track applications, sessions, and what needs your attention.",
+        "steps": {
+          "overview": {
+            "title": "Stat cards at a glance",
+            "summary": "The four cards at the top show total applications, pending (submitted and not yet reviewed), accepted, and rejected counts for the active session.",
+            "details": "Numbers update whenever an application status changes. Use them as a quick pulse check before diving into individual reviews."
+          },
+          "needs_attention": {
+            "title": "Needs Attention list",
+            "summary": "This list surfaces the applications that have been waiting longest without a decision — oldest submission date first.",
+            "details": "Prioritizing the oldest applications helps ensure no applicant waits an unreasonable amount of time. Click any row to jump straight to that review."
+          },
+          "sessions_carousel": {
+            "title": "Session capacity cards",
+            "summary": "Each session card shows current enrollment versus total capacity. The bar turns yellow when a session reaches 80% full and red when it reaches 100%.",
+            "details": "A red card means the session is at capacity. New applicants selecting that session will be waitlisted automatically."
+          },
+          "recent_activity": {
+            "title": "Recent activity feed",
+            "summary": "The activity feed shows the six most recently updated applications so you can quickly pick up where you left off.",
+            "details": "Each entry shows the applicant name, camper name, and the last status change. Click the entry to open that application."
+          },
+          "jump_to_review": {
+            "title": "Jumping straight to a review",
+            "summary": "Click any application card — in Needs Attention or Recent Activity — to go directly to that application's review page.",
+            "details": "You do not need to navigate to the Applications list first. Any card on the dashboard is a direct link."
+          },
+          "inbox_badge": {
+            "title": "Inbox and notification badge",
+            "summary": "The bell icon in the navigation bar shows a badge with the count of unread inbox messages and pending system notifications.",
+            "details": "Click the bell to see a summary, or click Inbox in the sidebar to open the full message list."
+          }
+        },
+        "faq": {
+          "oldest_first": {
+            "question": "What does \"oldest first\" mean for Needs Attention?",
+            "answer": "Applications are sorted by submission date with the earliest date at the top. This surfaces the applicants who have been waiting the longest so they are reviewed first."
+          },
+          "red_session": {
+            "question": "Why is a session card red?",
+            "answer": "The card turns red when enrolled applicants equal the session's total capacity. No new approved applicants can be added without increasing the capacity limit or waitlisting."
+          }
+        },
+        "hint": {
+          "overdue_pending": {
+            "message": "{{count}} pending application(s); the oldest has waited {{days}} day(s).",
+            "cta": "Review now"
+          },
+          "pending_exists": {
+            "message": "{{count}} application(s) waiting for review."
+          },
+          "all_caught_up": {
+            "message": "No pending applications. You are caught up."
+          }
+        },
+        "walkthrough": {
+          "title": "Dashboard tour",
+          "steps": {
+            "stat-cards": {
+              "title": "Session overview",
+              "body": "These four cards show registered families, enrolled campers, active applications, and multi-camper families for the selected session. Use the session selector to switch between sessions."
+            },
+            "needs-attention": {
+              "title": "Needs Attention",
+              "body": "This list shows applications that have waited the longest without a decision — oldest first. Click any row to open that application directly."
+            },
+            "sessions-carousel": {
+              "title": "Session capacity",
+              "body": "Each session card shows enrollment versus capacity. The bar turns yellow at 80% and red at 100% — a full session automatically waitlists new applicants."
+            },
+            "recent-activity": {
+              "title": "Recent activity",
+              "body": "The feed shows the six most recently updated applications and inbox messages so you can pick up where you left off."
+            }
+          }
+        }
+      },
+      "applicationReview": {
+        "title": "Reviewing an application",
+        "summary": "Approve, reject, or request more documents from one place.",
+        "steps": {
+          "sections_overview": {
+            "title": "All 11 sections in one view",
+            "summary": "The page shows every section of the application — camper info, emergency contacts, medical history, behavior, diet, equipment, medications, communication, legal consents, signature, and documents.",
+            "details": "Click the pencil icon next to any field to edit it on behalf of the applicant. Changes are saved immediately and the applicant is not notified unless you send a message."
+          },
+          "start_review": {
+            "title": "Starting a review",
+            "summary": "Click \"Start Review\" to soft-claim this application. Other admins can see that you have started, which prevents duplicate review work.",
+            "details": "Starting a review transitions the status from Submitted to Under Review. It is not a lock — another admin can still open and complete the review if needed."
+          },
+          "request_documents": {
+            "title": "Requesting documents",
+            "summary": "Use the \"Request Document\" button to ask the applicant for a specific file. They receive a notification and an inbox message with your instructions.",
+            "details": "You can attach instructions when creating the request, such as specifying which pages of a form are needed. The request appears in the applicant's Documents page."
+          },
+          "verify_documents": {
+            "title": "Verifying documents",
+            "summary": "Inline Verify and Reject buttons appear next to each uploaded document. Click Verify to approve it, or Reject to open a reason modal.",
+            "details": "The rejection reason is sent to the applicant so they know exactly what to fix before re-uploading. A document must be verified before it counts toward the required documents checklist."
+          },
+          "approve": {
+            "title": "Approving the application",
+            "summary": "Click Approve when all required fields and documents are present. The \"Ready\" badge next to the approve button confirms completeness.",
+            "details": "Approving sets the application status to Approved, enrolls the camper in the selected session, and sends the applicant a notification. This action is significant — confirm all information is correct before approving.",
+            "severity": "warning"
+          },
+          "reject_or_waitlist": {
+            "title": "Rejecting or waitlisting",
+            "summary": "Reject is a final decision and notifies the applicant immediately. Waitlist holds the application — the camper may move up if a spot opens.",
+            "details": "Both actions trigger an automatic inbox message to the applicant. If you reject, include a clear reason so the applicant understands what happened.",
+            "severity": "warning"
+          }
+        },
+        "faq": {
+          "after_approve": {
+            "question": "What happens after I approve?",
+            "answer": "The application status changes to Approved, the camper is enrolled in the selected session, and the applicant receives a notification with next steps."
+          },
+          "undo_approval": {
+            "question": "Can I undo an approval?",
+            "answer": "Yes. Reversing an approval returns the application to Under Review status. Use this if you approved in error. The applicant is notified of the status change."
+          },
+          "missing_document": {
+            "question": "What if a document is missing?",
+            "answer": "Use \"Request Document\" to ask the applicant for the specific file. They receive an inbox message with your instructions and a link to upload directly to that request."
+          }
+        },
+        "hint": {
+          "claim_reminder": {
+            "message": "Click \"Start Review\" to claim this application and let other admins know you are reviewing it.",
+            "cta": "Start review"
+          },
+          "items_missing": {
+            "message": "{{count}} item(s) still missing before this application is ready to approve."
+          },
+          "ready_to_decide": {
+            "message": "Everything looks complete. Ready to Approve, Reject, or Waitlist."
+          }
+        },
+        "walkthrough": {
+          "title": "Application review tour",
+          "steps": {
+            "header-stat-cards": {
+              "title": "Application at a glance",
+              "body": "The header shows the camper name, current status badge, application number, submission date, and position in the review queue."
+            },
+            "sections-list": {
+              "title": "All 11 sections",
+              "body": "Every section of the application is shown here — camper info, emergency contacts, medical history, behavior, diet, equipment, medications, communication, consents, signature, and documents. Click the pencil icon to edit any section."
+            },
+            "review-panel": {
+              "title": "Reviewer tools",
+              "body": "This panel is the control center for every review action. Add internal notes, then use the status buttons below to record your decision."
+            },
+            "decision-buttons": {
+              "title": "Making a decision",
+              "body": "Click \"Start Review\" to claim the application. Once you are satisfied with what you see, use Approve, Reject, or Waitlist to record your final decision."
+            },
+            "request-document": {
+              "title": "Request a document",
+              "body": "Use this panel to ask the applicant for a specific document. They receive an inbox notification with your instructions and can upload directly to the request."
+            }
+          }
+        }
+      },
+      "documentQueue": {
+        "title": "Document Control Center",
+        "summary": "Track all document requests, verify uploads, and resolve overdue items.",
+        "steps": {
+          "metric_cards": {
+            "title": "Metric cards",
+            "summary": "The cards at the top show how many document requests are in each state: awaiting upload, uploaded, under review, approved, rejected, overdue, and completed.",
+            "details": "Use the metric cards to spot where work is piling up. A high overdue count usually means applicants need a reminder or a deadline extension."
+          },
+          "review_queue": {
+            "title": "Review Queue tab",
+            "summary": "Switch to the Review Queue tab to see uploads that are waiting for your review. Click a row to verify or reject the document.",
+            "details": "Documents in the review queue have been submitted by applicants and are waiting for an admin to look at them. Work through this list regularly to avoid delays."
+          },
+          "create_request": {
+            "title": "Creating a document request",
+            "summary": "Click \"Create Request\" to ask a specific applicant for a document. You can add instructions and a due date.",
+            "details": "The applicant receives a notification and an inbox message. The request shows up in their Documents page with your instructions."
+          },
+          "overdue": {
+            "title": "Handling overdue items",
+            "summary": "Overdue requests either need a deadline extension or a reminder to the applicant. Do not leave overdue items stale — they block the review process.",
+            "details": "An overdue item means the applicant missed the due date. Send a reminder if they have not responded, or extend the deadline if more time is reasonable.",
+            "severity": "warning"
+          },
+          "reminder_extend": {
+            "title": "Remind and Extend actions",
+            "summary": "\"Remind\" sends the applicant a notification that their document request is still outstanding. \"Extend\" pushes the due date forward.",
+            "details": "Use Remind first. If the applicant responds that they need more time, use Extend to update the deadline. Both actions are logged in the request history."
+          }
+        },
+        "faq": {
+          "awaiting_vs_under_review": {
+            "question": "What is the difference between \"awaiting upload\" and \"under review\"?",
+            "answer": "Awaiting upload means the applicant has not uploaded anything yet. Under review means they uploaded a file and it is waiting for you to verify or reject it."
+          },
+          "cancel_request": {
+            "question": "Can I cancel a document request?",
+            "answer": "Yes. Find the request in the list and click the cancel button on its row. The applicant is notified that the request has been cancelled."
+          }
+        },
+        "hint": {
+          "overdue_count": {
+            "message": "{{count}} document request(s) are overdue and need attention.",
+            "cta": "View overdue"
+          },
+          "uploaded_waiting": {
+            "message": "{{count}} document(s) have been uploaded and are waiting for review.",
+            "cta": "Open review queue"
+          }
+        },
+        "walkthrough": {
+          "title": "Document Control Center tour",
+          "steps": {
+            "metric-cards": {
+              "title": "Status at a glance",
+              "body": "Each card shows how many document requests are in that state. Click a card to filter the table below to that status instantly."
+            },
+            "tabs": {
+              "title": "Two tabs, two views",
+              "body": "\"Document Requests\" shows admin-initiated requests and their lifecycle. \"Uploaded Documents\" shows all files applicants have submitted for review."
+            },
+            "requests-table": {
+              "title": "Requests table",
+              "body": "Each row shows the applicant, document type, status, and due date. Use the action buttons on a row to approve, reject, remind, or extend the deadline."
+            },
+            "create-request": {
+              "title": "Create a request",
+              "body": "Click here to ask a specific applicant for a document. You can add instructions and a due date — the applicant receives an inbox notification immediately."
+            }
+          }
+        }
+      },
+      "reports": {
+        "title": "Reports",
+        "summary": "View key metrics and download CSV reports for your records.",
+        "steps": {
+          "stat_cards": {
+            "title": "Top-level stats",
+            "summary": "The cards at the top show total campers, accepted count, rejected count, and acceptance rate for the current selection.",
+            "details": "These numbers update when you change the session filter. Use them as a quick summary before exporting a detailed CSV."
+          },
+          "charts": {
+            "title": "Charts",
+            "summary": "The page includes a bar chart of applications by status, a pie chart showing acceptance distribution, a line chart of applications over time, and horizontal bars for enrollment per session.",
+            "details": "Charts are visual aids. For exact numbers, generate a CSV export — the charts round figures for readability."
+          },
+          "export_csv": {
+            "title": "Exporting a CSV",
+            "summary": "Five report types are available to download: All Applications, Accepted Only, Rejected Only, Mailing Labels, and ID Labels.",
+            "details": "Click the export button for the report type you need. The CSV downloads to your browser's default downloads folder. You can open it in any spreadsheet application."
+          },
+          "mailing_labels": {
+            "title": "Mailing Labels report",
+            "summary": "The Mailing Labels CSV formats applicant names and mailing addresses for printing on standard adhesive label sheets.",
+            "details": "The columns match common label-sheet templates (for example, Avery 5160). Import the CSV into your label software and print."
+          },
+          "id_labels": {
+            "title": "ID Labels report",
+            "summary": "The ID Labels CSV includes each camper's name and their emergency contact information for printing camp ID badges.",
+            "details": "Review the emergency contact fields on each application before printing ID labels to make sure the information is current."
+          }
+        },
+        "faq": {
+          "real_time": {
+            "question": "Are reports updated in real time?",
+            "answer": "Yes. Each CSV export reflects the live database at the moment you generate it. Refresh the page or click the export button again to get the latest data."
+          },
+          "csv_location": {
+            "question": "Where do CSV files go?",
+            "answer": "Files download to your browser's default downloads folder. Check your operating system's Downloads folder or the downloads section of your browser."
+          }
+        },
+        "hint": {
+          "export_tip": {
+            "message": "Generate a report by clicking one of the export buttons below the charts."
+          }
+        },
+        "walkthrough": {
+          "title": "Reports tour",
+          "steps": {
+            "stat-cards": {
+              "title": "Key numbers",
+              "body": "These cards summarize total campers, accepted count, rejected count, and acceptance rate across all sessions."
+            },
+            "charts-grid": {
+              "title": "Visual analytics",
+              "body": "Four charts: applications by status, acceptance rate donut, monthly submission trend, and enrollment per session. Hover over any data point for exact figures."
+            },
+            "export-buttons": {
+              "title": "Export reports",
+              "body": "Click any button to download a CSV. Five types are available: All Applications, Accepted, Rejected, Mailing Labels, and ID Labels. Files save to your browser's downloads folder."
+            }
+          }
+        }
+      },
+      "sessions": {
+        "title": "Camp sessions",
+        "summary": "Create, edit, and monitor camp session capacity.",
+        "steps": {
+          "session_cards": {
+            "title": "Session cards",
+            "summary": "Each card shows a session name, date range, total capacity, and current enrollment count.",
+            "details": "Sessions are listed in date order, earliest first. Click a card to open the session detail page with enrollment metrics and a full applicant list."
+          },
+          "create_session": {
+            "title": "Creating a session",
+            "summary": "Click \"+ Create Session\" to add a new camp session. Fill in the name, start and end dates, and capacity.",
+            "details": "Sessions are immediately visible to applicants on the application form once created. Set a realistic capacity — you can adjust it later."
+          },
+          "capacity_warning": {
+            "title": "Capacity warnings",
+            "summary": "A session's enrollment bar turns yellow when it reaches 80% of capacity and red when it reaches 100%. Watch for full sessions to avoid overbooking.",
+            "details": "At 100%, new applicants selecting that session will be waitlisted automatically. You can increase the capacity limit to accept more applicants."
+          },
+          "archive_vs_delete": {
+            "title": "Archive versus delete",
+            "summary": "Archive hides a session from active lists but keeps all its data and enrollments intact. Delete is permanent and cannot be undone.",
+            "details": "Use Archive for past sessions you no longer need to appear in active dropdowns. Only delete a session that was created in error and has no enrollments.",
+            "severity": "warning"
+          },
+          "view_dashboard": {
+            "title": "Session dashboard",
+            "summary": "Click \"View Dashboard\" on a session card to see session-scoped metrics: applications by status, enrollment progress, and recent activity for that session only.",
+            "details": "The session dashboard is useful when you are running multiple sessions simultaneously and want to focus on one at a time."
+          }
+        },
+        "faq": {
+          "archive_effect": {
+            "question": "What does archiving a session do?",
+            "answer": "Archiving hides the session from active lists and the applicant-facing session selector. All enrolled applicants and application data are preserved. You can restore a session at any time."
+          },
+          "capacity_after_enrollment": {
+            "question": "Can I change capacity after enrollment starts?",
+            "answer": "Yes. You can increase or decrease the capacity at any time. Existing enrolled applicants are not affected — they keep their spots even if you reduce the capacity below the current enrolled count."
+          }
+        },
+        "hint": {
+          "sessions_full": {
+            "message": "{{count}} session(s) are at capacity. New applicants will be waitlisted for those sessions."
+          },
+          "sessions_near_capacity": {
+            "message": "{{count}} session(s) are approaching capacity (80% or more full)."
+          }
+        }
+      }
+    }
+  }
+}

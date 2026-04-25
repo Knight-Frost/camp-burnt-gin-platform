@@ -56,6 +56,7 @@
 15. [Maintenance and Operational Notes](#15-maintenance-and-operational-notes)
 16. [Glossary](#16-glossary)
 17. [Appendix](#17-appendix)
+18. [In-App Help](#18-in-app-help)
 
 ---
 
@@ -2060,6 +2061,40 @@ Before going live in production:
 | Security | `docs/security/Security.md` | Security architecture and controls |
 | Messaging | `docs/features/Messaging.md` | Gmail-style messaging system details |
 | Medical Records | `docs/features/Medical_Records.md` | Medical records feature specification |
+
+---
+
+## 18. In-App Help
+
+Every page in the Camp Burnt Gin portal has a built-in Help button. It appears as a small book icon in the top navigation bar, on the right side next to the language toggle. It is available on every page for every role — parents, administrators, medical staff, and super administrators.
+
+### What the Help button does
+
+Click the Help button to open the Help panel on the right side of the screen. The panel automatically shows guidance for the page you are currently on. You do not need to navigate to a separate help site or search for the page by name.
+
+Inside the panel you will find:
+
+- **A plain-language summary** of what the page is for.
+- **Step-by-step guidance** covering the main tasks on that page. Each step can be expanded to read more detail.
+- **A Frequently Asked Questions section** with answers to the most common questions for that page.
+- **A smart hint** that checks your current account data and surfaces the most relevant next action (for example, a reminder that a document upload is waiting for your attention).
+- **A "Take the tour" button** (when available) that starts a guided walkthrough — a step-by-step overlay that highlights the actual controls on the page one at a time and explains what each one does.
+
+### The Help Center
+
+At the bottom of the Help panel there is a link to the full Help Center. The Help Center opens a larger window where you can:
+
+- Search for help on any topic by typing a word or phrase.
+- Browse all available guides organized by the section of the portal they cover.
+- Look up terms in the **Glossary**, which explains the meaning of status labels, document types, and other system-specific terms used throughout the portal.
+
+### Closing the Help panel
+
+Click the X button in the top-right corner of the panel to close it, or press the Escape key on your keyboard. Closing the panel does not lose your place on the page.
+
+### Language support
+
+The Help panel and all guide content are available in both English and Spanish. The language displayed matches the language you have selected in the portal's language toggle.
 
 ---
 

@@ -111,6 +111,10 @@ export const ROUTES = {
   MEDICAL_INBOX: '/medical/inbox',
   APPLICANT_INBOX: '/applicant/inbox',
   PROFILE: '/profile',
+  APPLICANT_SETTINGS: '/applicant/settings',
+  ADMIN_SETTINGS: '/admin/settings',
+  MEDICAL_SETTINGS: '/medical/settings',
+  SUPER_ADMIN_SETTINGS: '/super-admin/settings',
 
   // ─── Error pages ────────────────────────────────────────────────────────────
   FORBIDDEN: '/forbidden',

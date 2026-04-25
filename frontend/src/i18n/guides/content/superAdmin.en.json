@@ -1,0 +1,149 @@
+{
+  "guide": {
+    "superAdmin": {
+      "userManagement": {
+        "title": "User accounts",
+        "summary": "Create accounts, assign roles, and deactivate users.",
+        "steps": {
+          "user_list": {
+            "title": "Viewing all accounts",
+            "summary": "All user accounts appear in this list. Use the search field and the role filter to narrow down to the account you need.",
+            "details": "The list shows each user's name, email, role, and account status. Inactive accounts are grayed out. By default only active accounts are shown — toggle the filter to include inactive ones."
+          },
+          "role_dropdown": {
+            "title": "Changing a user's role",
+            "summary": "Find the user and select a new role from the role dropdown. Role changes take effect immediately — the user's permissions update on their next action.",
+            "details": "Be deliberate when changing roles. Granting admin or super_admin access gives that user broad access to applicant data and system configuration.",
+            "severity": "warning"
+          },
+          "deactivate": {
+            "title": "Deactivating a user",
+            "summary": "Deactivating a user prevents them from signing in. Their data and history are preserved. Click Reactivate on the same row to restore access.",
+            "details": "Deactivation is the preferred way to remove access for a staff member who has left. Hard-deletion is not available for accounts that have interacted with applicant data."
+          },
+          "create_account": {
+            "title": "Creating a new account",
+            "summary": "Click \"+ Create Account\" to add a staff member directly. Enter their name, email, and role. They receive a temporary password by email.",
+            "details": "New accounts are active immediately. Ask the new staff member to sign in and change their password before their first session."
+          },
+          "cant_modify_self": {
+            "title": "You cannot modify your own account",
+            "summary": "For safety, you cannot change your own role or deactivate your own account from this page.",
+            "details": "If you need to change your own access, ask another super-admin to make the change. This prevents accidental lock-outs."
+          }
+        },
+        "faq": {
+          "admin_vs_super": {
+            "question": "What is the difference between admin and super_admin?",
+            "answer": "Admins can review applications, manage documents, and access reports. Super admins can also manage user accounts, view the audit log, and change system configuration. Grant super_admin only to people who genuinely need that access."
+          },
+          "deactivate_reversible": {
+            "question": "Is deactivation reversible?",
+            "answer": "Yes. Click Reactivate on the user's row to restore sign-in access immediately. All their data and history are intact."
+          }
+        },
+        "hint": {
+          "inactive_accounts": {
+            "message": "{{count}} inactive account(s). Review periodically to confirm they are intentional.",
+            "cta": "View inactive"
+          }
+        }
+      },
+      "auditLog": {
+        "title": "Audit log",
+        "summary": "Every sensitive action is recorded for HIPAA compliance.",
+        "steps": {
+          "what_logs": {
+            "title": "What gets recorded",
+            "summary": "The audit log records every sign-in, every access to protected health information, and every record change — who did it, when, and what changed.",
+            "details": "Searchable by user, action type, and date range. Use the filters to find specific events quickly."
+          },
+          "compliance": {
+            "title": "HIPAA compliance requirement",
+            "summary": "HIPAA requires that access to protected health information be logged and retained. This log satisfies that requirement.",
+            "details": "The log cannot be disabled. If you notice gaps or errors in the log, contact your HIPAA compliance officer immediately.",
+            "severity": "warning"
+          },
+          "investigate": {
+            "title": "Investigating access",
+            "summary": "Use the user, action, and date filters together to investigate suspected unauthorized access or unusual activity.",
+            "details": "For example, filter by a specific user and date range to see every action they took. Export the filtered results to share with your compliance team."
+          },
+          "retention": {
+            "title": "Log retention",
+            "summary": "Audit log entries are kept for the legally required retention period and cannot be deleted by any user.",
+            "details": "The retention period is set by your organization's HIPAA policies. Contact your system administrator if you have questions about retention settings."
+          }
+        },
+        "faq": {
+          "delete_entry": {
+            "question": "Can I delete an audit log entry?",
+            "answer": "No. Audit entries are immutable — no user, including super-admins, can modify or delete them. This is a HIPAA requirement."
+          },
+          "who_can_see": {
+            "question": "Who can see the audit log?",
+            "answer": "Only super-admins have access to the audit log. Admins and other roles cannot view it."
+          }
+        },
+        "hint": {
+          "use_filters": {
+            "message": "Use the filters above to investigate specific users, actions, or date ranges."
+          }
+        }
+      },
+      "dashboard": {
+        "title": "Your super-admin dashboard",
+        "summary": "A full-system view: applications, sessions, user activity, and what needs your attention.",
+        "steps": {
+          "overview": {
+            "title": "System-wide stat cards",
+            "summary": "The stat cards show totals across all sessions and roles: total applications, pending reviews, accepted, and rejected.",
+            "details": "As a super-admin you see counts across the entire system, not just a single session. Use the session filter to narrow the view."
+          },
+          "needs_attention": {
+            "title": "Needs Attention list",
+            "summary": "The oldest pending applications appear here first. Longest-waiting applicants are surfaced so no one waits too long.",
+            "details": "This list is the same one your admin team sees. You can jump to any application directly from here."
+          },
+          "sessions_carousel": {
+            "title": "Session capacity cards",
+            "summary": "Session cards show enrollment versus capacity with color warnings at 80% and 100%.",
+            "details": "A red card means the session is full. You can adjust session capacity from the Sessions page."
+          },
+          "user_management_link": {
+            "title": "User management shortcut",
+            "summary": "Your dashboard includes a quick link to User Management so you can get there without navigating through the sidebar.",
+            "details": "If you need to deactivate a user quickly, this shortcut saves a few clicks."
+          },
+          "audit_log_link": {
+            "title": "Audit log shortcut",
+            "summary": "A direct link to the Audit Log appears on the super-admin dashboard for fast access to compliance records.",
+            "details": "Bookmark the audit log URL if you access it frequently for compliance reviews."
+          }
+        },
+        "faq": {
+          "oldest_first": {
+            "question": "What does \"oldest first\" mean for Needs Attention?",
+            "answer": "Applications are sorted by submission date with the earliest date at the top. This surfaces the applicants who have been waiting the longest so they are reviewed first."
+          },
+          "red_session": {
+            "question": "Why is a session card red?",
+            "answer": "The card turns red when enrolled applicants equal the session's total capacity. No new approved applicants can be added without increasing the capacity limit or waitlisting."
+          }
+        },
+        "hint": {
+          "overdue_pending": {
+            "message": "{{count}} pending application(s); the oldest has waited {{days}} day(s).",
+            "cta": "Review now"
+          },
+          "pending_exists": {
+            "message": "{{count}} application(s) waiting for review."
+          },
+          "all_caught_up": {
+            "message": "No pending applications. You are caught up."
+          }
+        }
+      }
+    }
+  }
+}

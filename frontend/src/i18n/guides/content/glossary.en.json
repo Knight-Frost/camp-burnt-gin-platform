@@ -1,0 +1,98 @@
+{
+  "guide": {
+    "glossary": {
+      "application": {
+        "term": "Application",
+        "definition": "A request to send your camper to camp. Each camper needs their own application for each camp session."
+      },
+      "applicant": {
+        "term": "Applicant",
+        "definition": "A parent or guardian who is filling out or has submitted a camp application on behalf of a camper."
+      },
+      "camper": {
+        "term": "Camper",
+        "definition": "The child who will be attending camp. Each camper has their own record and can have separate applications for different sessions."
+      },
+      "draft": {
+        "term": "Draft",
+        "definition": "An application you have started but not yet submitted. Drafts are private — camp staff cannot see them until you submit."
+      },
+      "submitted": {
+        "term": "Submitted",
+        "definition": "An application you have finished and sent to camp staff for review. Once submitted, you cannot edit the application directly."
+      },
+      "under_review": {
+        "term": "Under Review",
+        "definition": "A camp staff member has opened your application and is actively reviewing it. No action is needed from you unless staff reach out."
+      },
+      "approved": {
+        "term": "Approved",
+        "definition": "Your application was accepted and your camper has a confirmed spot. Check your inbox for next steps from camp staff."
+      },
+      "rejected": {
+        "term": "Rejected",
+        "definition": "Your application was not accepted. The reason is usually shown in the application details. You may be able to apply again for a different session."
+      },
+      "waitlisted": {
+        "term": "Waitlisted",
+        "definition": "Your application is on hold because there are no open spots right now. If another applicant withdraws, you may be offered a spot and will be notified by inbox message."
+      },
+      "withdrawn": {
+        "term": "Withdrawn",
+        "definition": "You cancelled your own application. A withdrawn application cannot be un-withdrawn — you would need to start a new application."
+      },
+      "required_document": {
+        "term": "Required Document",
+        "definition": "A document that every applicant must provide. Required documents include an immunization record, insurance card, and medical exam form. Your application cannot be fully approved without them."
+      },
+      "requested_document": {
+        "term": "Requested Document",
+        "definition": "A document that a camp staff member has specifically asked you to provide. Requested documents appear as cards on your Documents page with instructions from the staff member."
+      },
+      "mfa": {
+        "term": "MFA (Multi-Factor Authentication)",
+        "definition": "An extra login step that uses a code from your phone in addition to your password. MFA makes your account much harder to break into, even if your password is stolen."
+      },
+      "medical_provider": {
+        "term": "Medical Provider",
+        "definition": "A camp nurse, doctor, or medical staff member who has access to camper medical records and treatment logs through the Medical portal."
+      },
+      "paper_application": {
+        "term": "Paper Application",
+        "definition": "An application submitted by uploading scanned paper forms instead of filling out the online form. Paper applications go through the same review process as digital ones."
+      },
+      "digital_application": {
+        "term": "Digital Application",
+        "definition": "An application filled out directly in the online form. All sections are completed in the browser and submitted electronically."
+      },
+      "hipaa": {
+        "term": "HIPAA",
+        "definition": "The Health Insurance Portability and Accountability Act — a federal law that protects the privacy of medical information. The system follows HIPAA rules and logs all access to medical records."
+      },
+      "admin": {
+        "term": "Admin",
+        "definition": "A camp staff member who reviews applications, manages camper records, sends messages to families, and oversees the application workflow."
+      },
+      "super_admin": {
+        "term": "Super Admin",
+        "definition": "An admin with additional privileges, including managing user accounts, viewing the system audit log, and adjusting access permissions."
+      },
+      "session": {
+        "term": "Session",
+        "definition": "A specific week or period of camp — for example, Week 3 (June 14-21). Each application is tied to a particular session. You can apply for more than one session."
+      },
+      "inbox": {
+        "term": "Inbox",
+        "definition": "The messaging center inside the portal where all communication between applicants and camp staff takes place. Messages here create a permanent record."
+      },
+      "archived": {
+        "term": "Archived",
+        "definition": "A message thread or session that has been put aside but not deleted. Archived items can be found in the Archived folder and restored at any time."
+      },
+      "phi": {
+        "term": "PHI (Protected Health Information)",
+        "definition": "Any information that identifies a person and relates to their health, medical conditions, or treatment. PHI is protected by HIPAA and must never be shared outside the system."
+      }
+    }
+  }
+}

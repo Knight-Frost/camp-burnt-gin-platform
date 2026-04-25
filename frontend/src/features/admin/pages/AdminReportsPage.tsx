@@ -155,7 +155,7 @@ export function AdminReportsPage() {
           {[1,2,3,4].map((i) => <SkeletonCard key={i} lines={1} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-guide-anchor="admin-reports.stat-cards">
           {[
             { label: t('admin_extra.chart_campers'),  value: summary?.total_campers ?? 0, color: '#3b82f6' },
             { label: t('admin_extra.chart_accepted'), value: accepted,                    color: '#16a34a' },
@@ -179,7 +179,7 @@ export function AdminReportsPage() {
 
       {/* Charts grid — only shown after data is loaded (avoids Recharts rendering on null data). */}
       {!loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-guide-anchor="admin-reports.charts-grid">
           {/* Applications by status — vertical bar chart */}
           <div>
             <ChartCard title={t('admin_extra.chart_by_status')}>
@@ -307,7 +307,7 @@ export function AdminReportsPage() {
       )}
 
       {/* CSV export buttons */}
-      <div>
+      <div data-guide-anchor="admin-reports.export-buttons">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
           <h3 className="font-headline font-semibold text-base" style={{ color: 'var(--foreground)' }}>
