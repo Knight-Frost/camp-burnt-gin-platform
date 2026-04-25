@@ -4,7 +4,7 @@ import type { SmartHint } from '@/features/guides';
 registerGuide({
   id: 'admin.reports',
   role: ['admin', 'super_admin'],
-  routeKeys: ['ADMIN_REPORTS'],
+  routeKeys: ['ADMIN_REPORTS', 'SUPER_ADMIN_REPORTS'],
   titleKey: 'guide.admin.reports.title',
   summaryKey: 'guide.admin.reports.summary',
   smartHints: true,

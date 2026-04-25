@@ -331,6 +331,64 @@
             "cta": "Ver mensajes"
           }
         }
+      },
+      "paperForms": {
+        "title": "Formularios de solicitud en papel",
+        "summary": "Cómo descargar, completar y subir los formularios de solicitud en papel para el campamento.",
+        "walkthrough": {
+          "title": "Recorrido de formularios en papel",
+          "steps": {
+            "hero": {
+              "title": "Proceso de solicitud en papel",
+              "body": "Esta página le guía para enviar una solicitud en papel: descargue los formularios en blanco, imprímelos y complétalos, luego suba copias escaneadas para que el personal los revise."
+            },
+            "steps-area": {
+              "title": "Flujo de cuatro pasos",
+              "body": "El proceso tiene cuatro pasos: registre a su campista y sesión, descargue los formularios en blanco, suba sus escaneos completados y luego envíe todo al personal."
+            }
+          }
+        },
+        "steps": {
+          "what_is_paper": {
+            "title": "¿Qué es una solicitud en papel?",
+            "summary": "Una solicitud en papel le permite completar los formularios del campamento a mano en lugar de en línea.",
+            "details": "Algunas familias prefieren los formularios en papel, o un médico puede necesitar completar una sección médica por escrito. Esta página gestiona todo ese proceso, desde la descarga de los formularios en blanco hasta la carga de sus copias firmadas."
+          },
+          "getting_started": {
+            "title": "Primeros pasos (Paso 0)",
+            "summary": "Seleccione la sesión del campamento y el campista para quien está solicitando.",
+            "details": "Antes de poder acceder a los formularios, debe vincular esta solicitud a una sesión y campista específicos. Si su campista ya está en el sistema, selecciónelo de la lista. Si es un nuevo campista, ingrese su nombre y fecha de nacimiento para crear su registro."
+          },
+          "download_forms": {
+            "title": "Descargar formularios en blanco (Paso 1)",
+            "summary": "Descargue los formularios oficiales, imprímelos y complétalos a mano.",
+            "details": "El paquete principal incluye el formulario de solicitud y el historial médico. Los formularios complementarios (exención de CPAP, plan de acción para convulsiones, plan de alimentación con sonda G) solo son necesarios si aplican a su campista. Imprima, complete y firme todos los formularios relevantes antes de continuar."
+          },
+          "upload_forms": {
+            "title": "Subir formularios completados (Paso 2)",
+            "summary": "Escanee o fotografíe sus formularios completados y súbalos aquí.",
+            "details": "Cada formulario tiene su propio espacio de carga. Puede subir un PDF, JPG o PNG. El paquete de solicitud y el formulario médico son obligatorios; los espacios complementarios son opcionales. Subir guarda su archivo pero aún no notifica al personal."
+          },
+          "submit": {
+            "title": "Enviar para revisión (Paso 3)",
+            "summary": "Haga clic en Enviar para entregar sus formularios subidos al personal del campamento.",
+            "details": "Una vez que todos los formularios requeridos estén subidos, use el botón Enviar para enviarlos formalmente a revisión. El personal no verá sus cargas hasta que los envíe. Después de enviar, aún puede subir formularios opcionales adicionales que serán revisados junto con su solicitud."
+          }
+        },
+        "faq": {
+          "why_paper": {
+            "question": "¿Puedo cambiar a la solicitud en línea?",
+            "answer": "Sí. La solicitud digital en línea está en la página de Solicitudes. La ruta en papel es una alternativa; no tiene que elegir uno u otro para todos los campistas. Cada solicitud puede usar un método de envío diferente."
+          },
+          "multiple_campers": {
+            "question": "¿Puedo enviar formularios en papel para más de un campista?",
+            "answer": "Sí. Cada campista necesita su propia solicitud. Use el botón \"Iniciar nueva solicitud\" para comenzar una segunda solicitud en papel, luego cambie entre ellas usando las tarjetas de solicitud en la parte superior de la página."
+          },
+          "upload_vs_submit": {
+            "question": "¿Cuál es la diferencia entre subir y enviar?",
+            "answer": "Subir guarda su archivo en nuestro sistema pero lo mantiene como borrador; el personal no puede verlo todavía. Enviar manda todas sus cargas al personal para revisión. Debe hacer clic en Enviar después de subir para que su solicitud avance."
+          }
+        }
       }
     }
   }

@@ -43,8 +43,10 @@ import { getUnreadCount } from '@/features/messaging/api/messaging.api';
 // ─── Context shape ────────────────────────────────────────────────────────────
 
 interface MessagingCountContextValue {
-  /** Authoritative count of unread inbox messages for the logged-in user. */
+  /** Unread count across regular (non-system) inbox conversations. */
   unreadMessageCount: number;
+  /** Whether there are any unread messages in system-generated threads. */
+  unreadSystemCount: number;
   /**
    * Manually trigger a re-fetch of the count from the server.
    * Prefer dispatching 'messaging:unread-changed' over calling this directly
@@ -55,6 +57,7 @@ interface MessagingCountContextValue {
 
 const MessagingCountContext = createContext<MessagingCountContextValue>({
   unreadMessageCount: 0,
+  unreadSystemCount: 0,
   refreshUnreadCount: () => {},
 });
 
@@ -62,6 +65,7 @@ const MessagingCountContext = createContext<MessagingCountContextValue>({
 
 export function MessagingCountProvider({ children }: { children: ReactNode }) {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [unreadSystemCount, setUnreadSystemCount] = useState(0);
 
   // Monotonic counter that increments on every fetch attempt. The closure
   // captures the version at call time; if a newer fetch has started by the
@@ -73,10 +77,11 @@ export function MessagingCountProvider({ children }: { children: ReactNode }) {
   const refreshUnreadCount = useCallback(() => {
     const version = ++fetchVersionRef.current;
     getUnreadCount()
-      .then((count) => {
+      .then(({ total, system }) => {
         // Only apply if no newer fetch has started since this one was triggered.
         if (fetchVersionRef.current === version) {
-          setUnreadMessageCount(count);
+          setUnreadMessageCount(total);
+          setUnreadSystemCount(system);
         }
       })
       .catch(() => {}); // Non-critical — badge simply won't update on failure.
@@ -93,7 +98,7 @@ export function MessagingCountProvider({ children }: { children: ReactNode }) {
   }, [refreshUnreadCount]);
 
   return (
-    <MessagingCountContext.Provider value={{ unreadMessageCount, refreshUnreadCount }}>
+    <MessagingCountContext.Provider value={{ unreadMessageCount, unreadSystemCount, refreshUnreadCount }}>
       {children}
     </MessagingCountContext.Provider>
   );

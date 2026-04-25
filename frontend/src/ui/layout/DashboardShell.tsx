@@ -56,9 +56,17 @@ interface DashboardShellProps {
  * Converts a URL path segment into a readable title.
  * e.g. "/admin/medical-records" → "Medical Records"
  * Takes only the last segment so parent path parts are ignored.
+ *
+ * Some pages need a non-derived title (e.g. "documents" → "Document Control Center").
+ * Add overrides to ROUTE_SEGMENT_TITLES below.
  */
+const ROUTE_SEGMENT_TITLES: Record<string, string> = {
+  documents: 'Document Control Center',
+};
+
 function deriveTitleFromPath(pathname: string): string {
   const segment = pathname.split('/').filter(Boolean).pop() ?? 'dashboard';
+  if (ROUTE_SEGMENT_TITLES[segment]) return ROUTE_SEGMENT_TITLES[segment];
   return segment
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -139,12 +147,12 @@ function ShellInner({
           </div>
         ) : (
           <main
-            className="flex-1 overflow-y-auto px-6 pb-6 lg:px-8 lg:pb-8"
+            className="flex-1 overflow-y-auto px-6 pt-6 pb-6 lg:px-8 lg:pt-8 lg:pb-8"
             id="main-content"
             tabIndex={-1}
             style={{ background: 'var(--dash-main-bg)', overscrollBehavior: 'none' }}
           >
-            <div key={location.pathname}>
+            <div key={location.pathname} className="min-h-full">
               {children}
             </div>
           </main>

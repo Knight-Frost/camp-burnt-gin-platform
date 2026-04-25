@@ -45,6 +45,23 @@
           "general": {
             "message": "Use el Directorio para encontrar a un campista y luego haga clic en su expediente para registrar un tratamiento."
           }
+        },
+        "walkthrough": {
+          "title": "Recorrido del panel",
+          "steps": {
+            "stats": {
+              "title": "Sus cifras",
+              "body": "Estas tarjetas le dan un vistazo rápido de campistas, alergias, medicamentos, restricciones y formularios pendientes."
+            },
+            "quick-actions": {
+              "title": "Acciones frecuentes",
+              "body": "Acceda directamente al directorio de campistas, registre un nuevo tratamiento o abra cualquier área de acción desde aquí."
+            },
+            "follow-ups": {
+              "title": "Seguimientos pendientes",
+              "body": "Los seguimientos abiertos aparecen aquí para que no se olvide ninguno. Márquelos como completados cuando finalice la atención."
+            }
+          }
         }
       },
       "camperRecord": {
@@ -91,6 +108,27 @@
           "general": {
             "message": "Registre los tratamientos aquí a medida que ocurran. No espere hasta el final del día."
           }
+        },
+        "walkthrough": {
+          "title": "Recorrido del expediente del campista",
+          "steps": {
+            "quick-nav": {
+              "title": "Acciones rápidas",
+              "body": "Vaya al registro de tratamientos, documentos, incidentes, visitas o evaluación de riesgo de este campista sin salir del expediente."
+            },
+            "safety-flags": {
+              "title": "Alertas de seguridad",
+              "body": "Las alertas críticas aparecen en la parte superior. Léalas antes de brindar atención. Haga clic en cualquier alerta para ir a su sección."
+            },
+            "allergies": {
+              "title": "Alergias",
+              "body": "Las alergias y su gravedad se listan aquí. Las que ponen en riesgo la vida aparecen resaltadas en rojo."
+            },
+            "medications": {
+              "title": "Medicamentos",
+              "body": "Los medicamentos activos, dosis y horarios aparecen aquí para que pueda confirmar qué administrar."
+            }
+          }
         }
       },
       "treatments": {
@@ -127,6 +165,19 @@
         "hint": {
           "general": {
             "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido del registro de tratamientos",
+          "steps": {
+            "add-button": {
+              "title": "Registrar un tratamiento",
+              "body": "Haga clic aquí para comenzar una nueva entrada. Cada tratamiento debe registrarse para mantener un expediente legal de atención."
+            },
+            "history": {
+              "title": "Historial de tratamientos",
+              "body": "Todas las entradas anteriores aparecen aquí, las más recientes primero. Haga clic en una tarjeta para ver los detalles completos."
+            }
           }
         }
       }

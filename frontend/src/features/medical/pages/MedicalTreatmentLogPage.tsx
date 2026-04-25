@@ -679,7 +679,7 @@ export function MedicalTreatmentLogPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-4" data-guide-anchor="medical-treatments.header">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div
@@ -778,7 +778,7 @@ export function MedicalTreatmentLogPage() {
           description={hasCamper ? t('medical.treatments.empty_desc') : t('medical.treatments.global_empty_desc')}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" data-guide-anchor="medical-treatments.history">
           {logs.map((log) => (
             <div key={log.id}>
               <LogEntry log={log} />

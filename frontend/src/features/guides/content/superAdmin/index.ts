@@ -1,3 +1,9 @@
 import './dashboard';
 import './userManagement';
 import './auditLog';
+import './applications';
+import './families';
+import './campers';
+import './announcements';
+import './calendar';
+import './deadlines';

@@ -147,7 +147,18 @@ function PageGuideContent({ guide }: { guide: NonNullable<ReturnType<typeof useG
       {guide.walkthrough && (
         <button
           type="button"
-          onClick={() => dispatch(startWalkthrough({ walkthroughId: guide.walkthrough!.id }))}
+          onClick={() => {
+            const steps = guide.walkthrough!.steps;
+            const found = steps.filter((s) =>
+              s.anchorId
+                ? document.querySelector(`[data-guide-anchor="${CSS.escape(s.anchorId)}"]`)
+                : false,
+            ).length;
+            if (steps.length > 0 && found / steps.length < 0.3) {
+              return;
+            }
+            dispatch(startWalkthrough({ walkthroughId: guide.walkthrough!.id }));
+          }}
           className="w-full inline-flex items-center justify-center gap-2 mb-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90"
           style={{ background: 'var(--ember-orange)', color: '#fff' }}
         >

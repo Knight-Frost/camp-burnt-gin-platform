@@ -527,6 +527,14 @@ export const getAdminApplications = getApplications;
 
 // ─── Documents (admin inbox) ──────────────────────────────────────────────────
 
+export interface LatestReviewEventSummary {
+  id: number;
+  action: string;
+  action_label: string;
+  performed_by_name: string | null;
+  created_at: string;
+}
+
 export interface AdminDocument {
   id: number;
   file_name: string;
@@ -537,6 +545,9 @@ export interface AdminDocument {
   verification_status: 'pending' | 'approved' | 'rejected';
   uploaded_by_name: string | null;
   documentable_name: string | null;
+  application_id: number | null;
+  requested_by_name: string | null;
+  latest_review_event: LatestReviewEventSummary | null;
   created_at: string;
   archived_at: string | null;
   /** Null = draft (not yet submitted by applicant); set = submitted to staff. */
@@ -557,9 +568,50 @@ export async function getAdminDocuments(params?: {
   verification_status?: string;
   documentable_type?: string;
   include_archived?: boolean;
+  camper_id?: number;
+  /** @deprecated Use application_number for CBG-YYYY-NNN string matching instead */
+  application_id?: number;
+  application_number?: string;
+  date_field?: 'created_at' | 'updated_at' | 'submitted_at' | 'due_date';
+  from?: string;
+  to?: string;
 }): Promise<PaginatedResponse<AdminDocument>> {
   const { data } = await axiosInstance.get<PaginatedResponse<AdminDocument>>('/documents', { params });
   return data;
+}
+
+export interface BulkActionResponse {
+  successful: number[];
+  failed: { id: number; reason: string }[];
+}
+
+export async function bulkApproveDocuments(documentIds: number[]): Promise<BulkActionResponse> {
+  const { data } = await axiosInstance.post<BulkActionResponse>('/documents/bulk/approve', { document_ids: documentIds });
+  return data;
+}
+
+export async function bulkRejectDocuments(documentIds: number[], reason: string): Promise<BulkActionResponse> {
+  const { data } = await axiosInstance.post<BulkActionResponse>('/documents/bulk/reject', { document_ids: documentIds, reason });
+  return data;
+}
+
+export async function bulkRemindDocumentRequests(documentRequestIds: number[]): Promise<BulkActionResponse> {
+  const { data } = await axiosInstance.post<BulkActionResponse>('/document-requests/bulk/remind', { document_request_ids: documentRequestIds });
+  return data;
+}
+
+export async function overrideDocument(id: number, status: 'approved' | 'rejected', reason?: string): Promise<AdminDocument> {
+  const body: Record<string, unknown> = { status };
+  if (reason) body.reason = reason;
+  const { data } = await axiosInstance.post<{ data: AdminDocument }>(`/documents/${id}/override`, body);
+  return data.data;
+}
+
+export async function reopenDocument(id: number, reason?: string): Promise<AdminDocument> {
+  const body: Record<string, unknown> = {};
+  if (reason) body.reason = reason;
+  const { data } = await axiosInstance.post<{ data: AdminDocument }>(`/documents/${id}/reopen`, body);
+  return data.data;
 }
 
 export async function archiveDocument(id: number): Promise<AdminDocument> {
@@ -713,9 +765,15 @@ export const getDocumentRequestStats = async (): Promise<DocumentRequestStats> =
 export const getDocumentRequests = async (params?: {
   applicant_id?: number;
   camper_id?: number;
+  /** @deprecated Use application_number for CBG-YYYY-NNN string matching instead */
+  application_id?: number;
+  application_number?: string;
+  date_field?: 'created_at' | 'updated_at' | 'submitted_at' | 'due_date';
   status?: string;
   search?: string;
   page?: number;
+  from?: string;
+  to?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }): Promise<{ data: DocumentRequest[]; meta: any }> => {
   const { data } = await axiosInstance.get('/document-requests', { params });

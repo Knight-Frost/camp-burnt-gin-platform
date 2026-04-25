@@ -203,6 +203,7 @@ function FamilyCardItem({ family, detailBase }: { family: FamilyCard; detailBase
       <div
         className="px-5 py-3 border-t"
         style={{ borderColor: 'var(--border)' }}
+        data-guide-anchor="super-admin-families.open-family"
       >
         <Link
           to={`${detailBase}/${family.id}`}
@@ -344,7 +345,7 @@ export function AdminFamiliesPage() {
       )}
 
       {/* Filter row */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-6" data-guide-anchor="super-admin-families.search-bar">
         {/* Search */}
         <div
           className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm rounded-lg px-3 py-2 border"
@@ -424,7 +425,7 @@ export function AdminFamiliesPage() {
       ) : (
         <>
           {/* Family cards grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-guide-anchor="super-admin-families.family-table">
             {response.data.map((family) => (
               <FamilyCardItem key={family.id} family={family} detailBase={detailBase} />
             ))}

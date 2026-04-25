@@ -99,6 +99,19 @@ export const ROUTES = {
   SUPER_ADMIN_USERS: '/super-admin/users',
   // Audit log shows every action taken in the system (HIPAA requirement)
   SUPER_ADMIN_AUDIT: '/super-admin/audit',
+  SUPER_ADMIN_APPLICATIONS: '/super-admin/applications',
+  SUPER_ADMIN_APPLICATION_DETAIL: (id: number | string) => `/super-admin/applications/${id}`,
+  SUPER_ADMIN_FAMILIES: '/super-admin/families',
+  SUPER_ADMIN_FAMILY_DETAIL: (userId: number | string) => `/super-admin/families/${userId}`,
+  SUPER_ADMIN_CAMPERS: '/super-admin/campers',
+  SUPER_ADMIN_CAMPER_DETAIL: (id: number | string) => `/super-admin/campers/${id}`,
+  SUPER_ADMIN_SESSIONS: '/super-admin/sessions',
+  SUPER_ADMIN_SESSION_DETAIL: (id: number | string) => `/super-admin/sessions/${id}`,
+  SUPER_ADMIN_REPORTS: '/super-admin/reports',
+  SUPER_ADMIN_ANNOUNCEMENTS: '/super-admin/announcements',
+  SUPER_ADMIN_CALENDAR: '/super-admin/calendar',
+  SUPER_ADMIN_DEADLINES: '/super-admin/deadlines',
+  SUPER_ADMIN_DOCUMENTS: '/super-admin/documents',
   // Form Builder routes removed 2026-04-22: the schema editor was misleading
   // because it never wired through to the applicant form. Backend schema +
   // models preserved for the future schema-driven renderer rebuild.

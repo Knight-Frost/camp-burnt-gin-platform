@@ -31,10 +31,12 @@ import { DashboardShell } from './DashboardShell';
 import { ROUTES } from '@/shared/constants/routes';
 import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 
 export function ApplicantLayout() {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
+  const { unreadSystemCount } = useUnreadMessageCount();
 
   // Check the normalized roles array first; fall back to the flat role string as a safety net.
   const isApplicant = Boolean(
@@ -57,7 +59,7 @@ export function ApplicantLayout() {
     // key for their sidebars — see AdminLayout and SuperAdminLayout.
     { group: t('portal_nav.group_my_portal'),     label: t('portal_nav.my_documents'),  to: ROUTES.PARENT_DOCUMENTS,     icon: FolderOpen },
     { group: t('portal_nav.group_my_portal'),     label: t('portal_nav.official_forms'), to: ROUTES.PARENT_FORMS,         icon: FileDown },
-    { group: t('portal_nav.group_communication'), label: t('portal_nav.inbox'),         to: '/applicant/inbox',          icon: MessageSquare },
+    { group: t('portal_nav.group_communication'), label: t('portal_nav.inbox'),         to: '/applicant/inbox',          icon: MessageSquare, dot: unreadSystemCount > 0 },
     { group: t('portal_nav.group_communication'), label: t('portal_nav.announcements'), to: ROUTES.PARENT_ANNOUNCEMENTS, icon: Megaphone },
     { group: t('portal_nav.group_operations'),    label: t('portal_nav.calendar'),      to: ROUTES.PARENT_CALENDAR,      icon: CalendarDays },
     { group: t('portal_nav.group_account'),       label: t('portal_nav.profile'),       to: '/applicant/profile',        icon: User },

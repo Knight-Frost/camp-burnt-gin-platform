@@ -47,6 +47,23 @@
             "message": "{{count}} cuenta(s) inactiva(s). Revíselas periódicamente para confirmar que es intencional.",
             "cta": "Ver inactivos"
           }
+        },
+        "walkthrough": {
+          "title": "Recorrido por la gestión de usuarios",
+          "steps": {
+            "create-button": {
+              "title": "Agregar un miembro",
+              "body": "Haga clic aquí para crear una cuenta de administrador, médico o superadministrador. El nuevo usuario recibe la contraseña por correo electrónico."
+            },
+            "filter-bar": {
+              "title": "Buscar un usuario",
+              "body": "Busque por nombre o correo, o use el filtro de roles para acotar la lista. Active \"Mostrar inactivos\" para incluir cuentas desactivadas."
+            },
+            "user-table": {
+              "title": "Cambiar roles o desactivar",
+              "body": "Use el menú de rol para cambiar el acceso de alguien. Use el ícono a la derecha para activar o desactivar su cuenta."
+            }
+          }
         }
       },
       "auditLog": {
@@ -88,6 +105,27 @@
         "hint": {
           "use_filters": {
             "message": "Use los filtros de arriba para investigar usuarios, acciones o rangos de fechas específicos."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por el registro de auditoría",
+          "steps": {
+            "summary-strip": {
+              "title": "Resumen del día",
+              "body": "La franja de resumen diario muestra lo que ha ocurrido recientemente, para que pueda detectar actividad inusual sin revisar cada entrada."
+            },
+            "search-bar": {
+              "title": "Búsqueda rápida",
+              "body": "Escriba un nombre, acción o recurso para encontrar eventos coincidentes al instante."
+            },
+            "toolbar": {
+              "title": "Filtrar y exportar",
+              "body": "Use Filtros para acotar eventos por usuario, categoría o rango de fechas. Exporte los resultados filtrados como CSV o JSON para registros de cumplimiento."
+            },
+            "timeline": {
+              "title": "Cronología de eventos",
+              "body": "Todos los eventos registrados aparecen aquí, del más reciente al más antiguo. Haga clic en cualquier fila para ver los detalles completos."
+            }
           }
         }
       },
@@ -141,6 +179,354 @@
           },
           "all_caught_up": {
             "message": "No hay solicitudes pendientes. Está al día."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por el panel",
+          "steps": {
+            "stats": {
+              "title": "Totales del sistema",
+              "body": "Estas tarjetas muestran totales en todo el sistema, por cada sesión y rol. Empiece aquí para ver el estado general del campamento."
+            },
+            "sessions": {
+              "title": "Capacidad de sesiones",
+              "body": "Cada tarjeta muestra la inscripción frente a la capacidad. La barra se vuelve amarilla al 80% y roja cuando la sesión está llena."
+            },
+            "needs-attention": {
+              "title": "Requiere atención",
+              "body": "Las solicitudes pendientes más antiguas aparecen aquí, para que ningún solicitante espere demasiado. Haga clic en cualquier fila para abrirla."
+            },
+            "recent-activity": {
+              "title": "Actividad reciente",
+              "body": "Las últimas actualizaciones de solicitudes y mensajes aparecen aquí para que pueda retomar donde lo dejó."
+            }
+          }
+        }
+      },
+      "applications": {
+        "title": "Lista de solicitudes",
+        "summary": "Vea, busque y filtre todas las solicitudes del campamento en cada sesión.",
+        "steps": {
+          "overview": {
+            "title": "Lo que ve aquí",
+            "summary": "Esta página lista todas las solicitudes enviadas a Camp Burnt Gin. Cada fila muestra el nombre del campista, la sesión, la fecha de envío y el estado actual.",
+            "details": "Como superadministrador, usted ve todas las solicitudes sin importar la sesión o el administrador asignado. Use los controles de búsqueda y filtro para acotar la lista antes de abrir registros individuales."
+          },
+          "status_filter": {
+            "title": "Filtrar por estado",
+            "summary": "El filtro de estado le permite centrarse en una etapa específica: borrador, enviada, en revisión, aprobada, rechazada o en lista de espera.",
+            "details": "Seleccionar \"Enviada\" muestra todas las solicitudes que han sido enviadas por un padre pero que aún no han sido reclamadas para revisión. Este es el punto de partida más común para el trabajo diario de su equipo."
+          },
+          "session_filter": {
+            "title": "Filtrar por sesión",
+            "summary": "Acote la lista a una sola sesión del campamento usando el menú de sesión. Útil cuando se gestiona la inscripción de una sesión a la vez.",
+            "details": "Cuando no se selecciona ninguna sesión, las solicitudes de todas las sesiones aparecen juntas ordenadas por fecha de envío. Combine el filtro de sesión con el de estado para ver, por ejemplo, todas las solicitudes aprobadas de la Sesión 2."
+          },
+          "review_link": {
+            "title": "Abrir una solicitud",
+            "summary": "Haga clic en cualquier fila para abrir la página completa de revisión de esa solicitud.",
+            "details": "La página de revisión muestra cada sección de la solicitud, los documentos del campista y los controles de decisión. Desde allí puede aprobar, rechazar o poner en lista de espera."
+          }
+        },
+        "faq": {
+          "what_is_submitted": {
+            "question": "¿Qué significa una solicitud \"enviada\"?",
+            "answer": "Enviada significa que el padre completó el formulario y lo envió al personal. La solicitud está esperando a que un administrador la abra e inicie el proceso de revisión."
+          },
+          "what_does_pending_mean": {
+            "question": "¿Qué significa \"en revisión\"?",
+            "answer": "En revisión significa que un administrador abrió la solicitud y la revisión está en progreso. La solicitud permanece en este estado hasta que se tome una decisión final: aprobar, rechazar o poner en lista de espera."
+          },
+          "can_super_admin_approve": {
+            "question": "¿Puede un superadministrador aprobar solicitudes directamente?",
+            "answer": "Sí. Los superadministradores tienen las mismas capacidades de revisión y decisión que los administradores. Abra cualquier solicitud y use los botones de decisión para aprobar, rechazar o poner en lista de espera."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por la lista de solicitudes",
+          "steps": {
+            "search-bar": {
+              "title": "Buscar un campista",
+              "body": "Escriba un nombre de campista, correo del padre o ID de solicitud para saltar directamente a ese registro."
+            },
+            "status-filter": {
+              "title": "Filtrar por estado",
+              "body": "Use este menú para mostrar solo las solicitudes en una etapa específica. Empiece con \"Enviada\" para encontrar todo lo que espera revisión."
+            },
+            "table": {
+              "title": "Filas de solicitudes",
+              "body": "Cada fila es una solicitud. La insignia de estado muestra en qué etapa del proceso de revisión se encuentra. Haga clic en cualquier fila para abrir la página completa."
+            },
+            "session-filter": {
+              "title": "Filtrar por sesión",
+              "body": "Seleccione una sesión en este menú para concentrar la lista en un grupo de campistas a la vez."
+            }
+          }
+        }
+      },
+      "families": {
+        "title": "Familias",
+        "summary": "Explore las cuentas de padres y los campistas y solicitudes vinculados a cada familia.",
+        "steps": {
+          "what_is_a_family": {
+            "title": "¿Qué es un registro de familia?",
+            "summary": "Un registro de familia representa la cuenta de un padre o tutor. Agrupa a todos los campistas registrados bajo esa cuenta y todas las solicitudes que han enviado.",
+            "details": "Las familias se crean automáticamente cuando un padre se registra. Cada familia tiene un titular de cuenta principal cuya información de contacto se muestra en la parte superior del espacio de trabajo."
+          },
+          "viewing_family": {
+            "title": "Abrir el espacio de trabajo de una familia",
+            "summary": "Haga clic en cualquier fila de la tabla de familias para abrir el espacio de trabajo completo de esa familia.",
+            "details": "El espacio de trabajo es el lugar central para ver todo sobre una familia: su información de contacto, sus campistas y cada solicitud que han enviado en todas las sesiones."
+          },
+          "linked_campers": {
+            "title": "Campistas de la familia",
+            "summary": "La sección de Campistas lista a cada niño registrado bajo esta cuenta. Haga clic en el nombre de un campista para ver su registro completo.",
+            "details": "Una familia puede tener uno o varios campistas. Cada campista tiene su propio perfil, historial médico e historial de solicitudes. Puede navegar directamente a cualquiera de estos desde el espacio de trabajo familiar."
+          },
+          "linked_applications": {
+            "title": "Solicitudes de esta familia",
+            "summary": "Todas las solicitudes enviadas por esta cuenta — en todos los campistas y sesiones — aparecen en la sección de Solicitudes.",
+            "details": "Esta vista facilita ver el historial completo de las interacciones de una familia con el campamento: a qué sesiones aplicaron, qué solicitudes fueron aprobadas y si alguna aún está en revisión."
+          }
+        },
+        "faq": {
+          "what_makes_a_family": {
+            "question": "¿Qué crea un registro de familia?",
+            "answer": "Un registro de familia se crea automáticamente cuando un padre o tutor se registra para obtener una cuenta. Todos los perfiles de campistas y solicitudes creados bajo esa cuenta se agrupan en la misma familia."
+          },
+          "can_merge_families": {
+            "question": "¿Puedo fusionar dos registros de familia?",
+            "answer": "La fusión de familias no está disponible en la versión actual. Si dos tutores del mismo hogar tienen cuentas separadas, aparecerán como registros de familia distintos. Contacte a su administrador de sistemas si se necesita una fusión."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por la lista de familias",
+          "steps": {
+            "search-bar": {
+              "title": "Buscar una familia",
+              "body": "Busque por nombre o correo electrónico del padre para localizar rápidamente la cuenta que necesita."
+            },
+            "family-table": {
+              "title": "Filas de familias",
+              "body": "Cada fila es una cuenta de padre. Las columnas muestran el nombre del titular, su correo, la cantidad de campistas y cuándo enviaron su última solicitud."
+            },
+            "open-family": {
+              "title": "Abrir el espacio de trabajo",
+              "body": "Haga clic en cualquier fila para abrir el espacio de trabajo de esa familia, donde puede ver todos sus campistas y solicitudes en un solo lugar."
+            }
+          }
+        }
+      },
+      "campers": {
+        "title": "Campistas",
+        "summary": "Explore todos los perfiles de campistas, busque por nombre y abra registros individuales.",
+        "steps": {
+          "what_is_a_camper_record": {
+            "title": "¿Qué es un registro de campista?",
+            "summary": "Un registro de campista almacena el perfil personal y médico de un niño. Se crea cuando un padre inicia su primera solicitud y persiste en todas las sesiones futuras.",
+            "details": "El registro del campista es independiente de la solicitud. El registro contiene información permanente del perfil; las solicitudes capturan la solicitud de inscripción específica del año. Un campista puede tener múltiples solicitudes en diferentes sesiones."
+          },
+          "search_filter": {
+            "title": "Buscar y filtrar",
+            "summary": "Use la barra de búsqueda para encontrar un campista por nombre. También puede filtrar por sesión para ver solo los campistas inscritos en un programa específico.",
+            "details": "La búsqueda es un filtro en tiempo real: los resultados se actualizan a medida que escribe. Esta es la forma más rápida de localizar a un niño específico cuando conoce su nombre pero no su ID de solicitud."
+          },
+          "camper_detail_link": {
+            "title": "Abrir un registro de campista",
+            "summary": "Haga clic en cualquier fila para abrir la página de detalles completa del campista, con su perfil, historial médico e historial de solicitudes.",
+            "details": "La página de detalles del campista también enlaza al registro del portal médico de ese niño si existe. Use esta vista cuando necesite una imagen completa de un campista en todas las sesiones."
+          },
+          "medical_flag": {
+            "title": "Bandera de riesgo médico",
+            "summary": "Los campistas con necesidades médicas elevadas o banderas sin resolver están marcados en la tabla. Revise los campistas marcados antes de aprobar sus solicitudes.",
+            "details": "Una bandera indica que el equipo médico o el sistema ha señalado una condición que requiere atención del personal. Las banderas se establecen desde el portal médico y son visibles aquí para que los administradores estén al tanto antes de tomar decisiones de inscripción.",
+            "severity": "warning"
+          }
+        },
+        "faq": {
+          "camper_vs_applicant": {
+            "question": "¿Cuál es la diferencia entre un campista y un solicitante?",
+            "answer": "Un campista es el niño que asiste al campamento; tiene un perfil permanente que lleva su información personal y médica a través de los años. Un solicitante se refiere a la cuenta del padre o tutor que envía solicitudes en nombre del campista."
+          },
+          "risk_flag": {
+            "question": "¿Qué indica la bandera de riesgo?",
+            "answer": "La bandera de riesgo la establece el equipo médico para indicar que un campista tiene una condición que requiere consideración especial antes de la inscripción. No bloquea automáticamente la aprobación; un administrador sigue tomando la decisión final, pero invita a una revisión más detallada."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por la lista de campistas",
+          "steps": {
+            "search-bar": {
+              "title": "Buscar un campista",
+              "body": "Escriba el nombre de un campista para filtrar la lista al instante. Los nombres parciales funcionan; no necesita escribir el nombre completo."
+            },
+            "camper-table": {
+              "title": "Filas de campistas",
+              "body": "Cada fila es un campista. Las columnas muestran su nombre, edad, familia vinculada, historial de sesiones y cualquier bandera médica activa."
+            },
+            "camper-detail": {
+              "title": "Abrir el registro completo",
+              "body": "Haga clic en cualquier fila para abrir la página de detalles del campista con su perfil completo, historial de solicitudes y resumen médico."
+            }
+          }
+        }
+      },
+      "announcements": {
+        "title": "Anuncios",
+        "summary": "Cree, programe y fije anuncios para padres, personal o personal médico.",
+        "steps": {
+          "creating_announcements": {
+            "title": "Crear un anuncio",
+            "summary": "Haga clic en \"+ Nuevo Anuncio\" para abrir el formulario de redacción. Ingrese un título y cuerpo de texto, luego elija quién debe verlo.",
+            "details": "Los anuncios aparecen en el feed de notificaciones del portal para cada usuario en la audiencia seleccionada. Mantenga el título claro y conciso; es lo primero que ven los usuarios antes de expandir el mensaje."
+          },
+          "targeting_roles": {
+            "title": "Dirigir por rol",
+            "summary": "El selector de audiencia le permite enviar a todos los usuarios o limitar el anuncio a roles específicos: solicitantes, administradores, médicos o superadministradores.",
+            "details": "Elija la audiencia más específica apropiada para el mensaje. Un recordatorio sobre registros de vacunación debe ir solo a los solicitantes; un aviso de mantenimiento del sistema puede ir a todos los roles."
+          },
+          "scheduling": {
+            "title": "Programar un anuncio futuro",
+            "summary": "Establezca una fecha y hora de publicación para enviar el anuncio en el futuro. El formulario no aparecerá a los usuarios hasta la hora programada.",
+            "details": "La programación es útil para recordatorios vinculados a plazos. Por ejemplo, programe un recordatorio de registro de sesión para que salga una semana antes del plazo y se active automáticamente."
+          },
+          "pinning": {
+            "title": "Fijar un anuncio",
+            "summary": "Los anuncios fijados aparecen en la parte superior del feed para su audiencia objetivo hasta que los desancle.",
+            "details": "Use el fijado para información crítica y urgente que todo usuario en la audiencia debe ver, como el cierre del campamento o una actualización de procedimientos de emergencia. Desancle cuando la información ya no sea vigente."
+          }
+        },
+        "faq": {
+          "who_sees_announcements": {
+            "question": "¿Quién ve un anuncio?",
+            "answer": "Solo los usuarios cuyo rol coincide con la audiencia seleccionada ven el anuncio. Un anuncio dirigido a \"solicitante\" aparecerá en el feed del panel de cada padre, pero no en los portales de administradores ni médicos."
+          },
+          "can_delete": {
+            "question": "¿Puedo eliminar un anuncio?",
+            "answer": "Sí. Abra el anuncio desde la lista y use la opción Eliminar. La eliminación lo quita de todos los feeds de inmediato. Si desea conservar el registro pero dejar de mostrarlo, desanclar y dejar sin publicar es una opción más suave."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por los anuncios",
+          "steps": {
+            "compose-button": {
+              "title": "Crear un anuncio",
+              "body": "Haga clic aquí para abrir el formulario de redacción. Agregue un título, cuerpo de texto y elija su audiencia antes de guardar."
+            },
+            "audience-selector": {
+              "title": "Elegir su audiencia",
+              "body": "Seleccione qué roles verán este anuncio. Puede dirigirse a un rol o a todos los usuarios a la vez."
+            },
+            "publish-button": {
+              "title": "Publicar o programar",
+              "body": "Haga clic en Publicar para enviar de inmediato, o establezca una fecha y hora futuras para programar el anuncio automáticamente."
+            }
+          }
+        }
+      },
+      "calendar": {
+        "title": "Calendario",
+        "summary": "Vea todas las sesiones del campamento, plazos de solicitud y fechas clave en un solo lugar.",
+        "steps": {
+          "what_appears": {
+            "title": "Qué aparece en el calendario",
+            "summary": "El calendario muestra sesiones del campamento, plazos de solicitud y eventos personalizados creados por el personal. Todos los tipos de eventos están codificados por colores para una identificación rápida.",
+            "details": "Los eventos de sesión abarcan varios días para mostrar el período completo del campamento. Los eventos de plazos aparecen como marcadores de un solo día. Use la leyenda en la parte superior de la página para identificar cada color."
+          },
+          "session_events": {
+            "title": "Eventos de sesión",
+            "summary": "Cada sesión del campamento aparece como un bloque de varios días que cubre sus fechas de inicio y fin. Haga clic en el bloque para ir a la página de detalles de esa sesión.",
+            "details": "Los eventos de sesión se agregan automáticamente cuando crea una sesión desde la página de Sesiones. No necesita agregarlos al calendario manualmente; se sincronizan de inmediato."
+          },
+          "deadlines_on_calendar": {
+            "title": "Plazos en el calendario",
+            "summary": "Los plazos creados en la página de Plazos aparecen aquí como eventos de un solo día en su fecha de vencimiento.",
+            "details": "Ver los plazos en el calendario junto a las sesiones le ayuda a detectar conflictos, como un plazo de documentos que cae el primer día de una sesión, sin tiempo para resolver los elementos faltantes."
+          },
+          "navigation": {
+            "title": "Navegar por el calendario",
+            "summary": "Use los botones de flecha para moverse entre meses. Cambie entre vistas de mes, semana y lista usando el selector de vista en la barra de herramientas.",
+            "details": "La vista de lista suele ser más fácil para períodos con muchos eventos: muestra cada evento cronológicamente en una tabla en lugar de distribuirlos espacialmente en una cuadrícula."
+          }
+        },
+        "faq": {
+          "can_add_events": {
+            "question": "¿Puedo agregar eventos personalizados al calendario?",
+            "answer": "Sí. Use el botón \"+ Agregar Evento\" para crear entradas personalizadas. Pueden ser notas internas, reuniones del personal o cualquier fecha que desee visible en el calendario del campamento."
+          },
+          "sessions_auto_added": {
+            "question": "¿Las fechas de sesión se agregan automáticamente?",
+            "answer": "Sí. Cuando crea o edita una sesión en la página de Sesiones, sus fechas se reflejan automáticamente en el calendario. No necesita crear un evento de calendario separado para cada sesión."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por el calendario",
+          "steps": {
+            "month-view": {
+              "title": "Vista de mes",
+              "body": "La vista predeterminada muestra el mes completo. Los bloques de sesión y los marcadores de plazos aparecen aquí para que pueda ver todo el cronograma de un vistazo."
+            },
+            "event-click": {
+              "title": "Hacer clic en un evento",
+              "body": "Haga clic en cualquier evento para ver sus detalles o navegar directamente al registro de sesión o plazo relacionado."
+            },
+            "filter-bar": {
+              "title": "Filtrar por tipo de evento",
+              "body": "Use el filtro de tipo para mostrar solo sesiones, solo plazos o solo eventos personalizados. Esto reduce el desorden visual cuando un mes está muy ocupado."
+            }
+          }
+        }
+      },
+      "deadlines": {
+        "title": "Plazos",
+        "summary": "Cree y gestione plazos de inscripción que notifican a padres y personal automáticamente.",
+        "steps": {
+          "what_is_a_deadline": {
+            "title": "¿Qué es un plazo?",
+            "summary": "Un plazo es una fecha con nombre que el sistema rastrea y sobre la que notifica a los usuarios. Ejemplos incluyen fechas límite de envío de solicitudes, fechas de vencimiento de documentos y plazos de pago.",
+            "details": "Los plazos son distintos de las fechas de sesión. Una sesión tiene fechas fijas de inicio y fin; un plazo es una fecha definida por el personal que activa notificaciones y aparece en el calendario. Una sesión puede tener múltiples plazos."
+          },
+          "creating_deadlines": {
+            "title": "Crear un plazo",
+            "summary": "Haga clic en \"+ Nuevo Plazo\" para abrir el formulario. Ingrese un nombre, fecha de vencimiento y opcionalmente una descripción y tiempo de notificación.",
+            "details": "El campo de nombre es lo que aparece en las notificaciones y en el calendario. Use nombres claros y orientados a la acción como \"Plazo de Solicitud — Sesión 1\" en lugar de etiquetas genéricas."
+          },
+          "deadline_types": {
+            "title": "Tipos de plazo",
+            "summary": "Puede categorizar los plazos como solicitud, documento, pago o general. El tipo determina la plantilla de notificación y qué usuarios son el objetivo.",
+            "details": "Los plazos de solicitud se dirigen a las cuentas de los solicitantes. Los plazos de documentos se dirigen a los solicitantes con solicitudes de documentos pendientes. Los plazos de pago están reservados para la integración de facturación futura y actualmente generan un recordatorio general."
+          },
+          "notifications": {
+            "title": "Notificaciones automáticas",
+            "summary": "El sistema envía notificaciones a la audiencia correspondiente en los intervalos que configure: por ejemplo, 7 días antes y 1 día antes de la fecha de vencimiento.",
+            "details": "Las notificaciones se envían como mensajes dentro de la aplicación y como correos electrónicos si el usuario tiene activadas las notificaciones por correo. Puede previsualizar la plantilla de notificación desde la página de detalles del plazo antes de que se active."
+          }
+        },
+        "faq": {
+          "who_gets_notified": {
+            "question": "¿Quién recibe una notificación cuando se acerca un plazo?",
+            "answer": "La audiencia depende del tipo de plazo. Los plazos de solicitud y documentos notifican a todas las cuentas de solicitantes activos que tienen una solicitud o solicitud de documento pendiente. Los plazos para el personal notifican a los usuarios de administración y médicos. También puede agregar usuarios específicos a la lista de notificación al crear el plazo."
+          },
+          "edit_after_creating": {
+            "question": "¿Puedo editar un plazo después de crearlo?",
+            "answer": "Sí. Abra el plazo desde la lista y use el botón Editar. Puede cambiar el nombre, la fecha, la descripción y los intervalos de notificación. Si el plazo ya ha enviado algunas notificaciones, esas notificaciones pasadas no se reenvían; solo se ven afectadas las notificaciones futuras programadas."
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido por los plazos",
+          "steps": {
+            "create-button": {
+              "title": "Agregar un plazo",
+              "body": "Haga clic aquí para abrir el formulario de nuevo plazo. Asígnele un nombre claro, establezca la fecha de vencimiento y elija el tiempo de notificación."
+            },
+            "deadline-form": {
+              "title": "Completar los detalles",
+              "body": "Ingrese el nombre del plazo, la fecha de vencimiento, el tipo y con cuántos días de anticipación desea que salgan los recordatorios. El tipo determina quién recibe la notificación."
+            },
+            "deadline-list": {
+              "title": "Gestionar plazos existentes",
+              "body": "Todos los plazos activos aparecen aquí. Haga clic en cualquier fila para editarlo, ver su historial de notificaciones o eliminarlo."
+            }
           }
         }
       }

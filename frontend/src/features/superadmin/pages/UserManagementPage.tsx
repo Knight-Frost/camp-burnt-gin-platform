@@ -207,6 +207,7 @@ export function UserManagementPage() {
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{ background: 'var(--ember-orange)', color: '#ffffff' }}
+          data-guide-anchor="super-admin-users.create-button"
         >
           <UserPlus className="h-4 w-4" />
           {t('create_user.title')}
@@ -214,7 +215,7 @@ export function UserManagementPage() {
       </div>
 
       {/* Filter bar: text search + role dropdown */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6" data-guide-anchor="super-admin-users.filter-bar">
         <div
           className="flex items-center gap-2 flex-1 max-w-sm rounded-lg px-3 py-2 border"
           style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -276,6 +277,7 @@ export function UserManagementPage() {
           {/* User table */}
           <div
             className="glass-data rounded-xl overflow-hidden"
+            data-guide-anchor="super-admin-users.user-table"
           >
             {/* Column header row */}
             <div

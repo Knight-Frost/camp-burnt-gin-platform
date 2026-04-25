@@ -630,7 +630,7 @@ export function ApplicantOfficialFormsPage() {
       <div className="flex flex-col gap-6 max-w-5xl">
 
         {/* ── Hero banner ─────────────────────────────────────────────────── */}
-        <div className="relative flex flex-col justify-end rounded-2xl overflow-hidden" style={{ minHeight: 200 }}>
+        <div data-guide-anchor="applicant-paper-forms.hero" className="relative flex flex-col justify-end rounded-2xl overflow-hidden" style={{ minHeight: 200 }}>
           <HeroSlideshow initialIndex={3} />
           <div className="relative z-10 px-6 py-7 lg:px-8 lg:py-8">
             <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 'clamp(1.6rem, 3vw, 2.25rem)', fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.15, textShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
@@ -643,7 +643,7 @@ export function ApplicantOfficialFormsPage() {
         </div>
 
         {/* ── Steps ───────────────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-8">
+        <div data-guide-anchor="applicant-paper-forms.steps-area" className="flex flex-col gap-8">
 
         {/* ── Application Manager Panel ────────────────────────────────────── */}
         {hasAnyPaperApp && (

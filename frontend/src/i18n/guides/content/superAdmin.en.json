@@ -47,6 +47,23 @@
             "message": "{{count}} inactive account(s). Review periodically to confirm they are intentional.",
             "cta": "View inactive"
           }
+        },
+        "walkthrough": {
+          "title": "User management tour",
+          "steps": {
+            "create-button": {
+              "title": "Add a staff member",
+              "body": "Click here to create a new admin, medical, or super-admin account. The new user receives a password by email."
+            },
+            "filter-bar": {
+              "title": "Find a user",
+              "body": "Search by name or email, or use the role filter to narrow the list. Toggle \"Show inactive\" to include deactivated accounts."
+            },
+            "user-table": {
+              "title": "Change roles or deactivate",
+              "body": "Use the role dropdown to change someone's access. Use the icon on the right to activate or deactivate their account."
+            }
+          }
         }
       },
       "auditLog": {
@@ -88,6 +105,27 @@
         "hint": {
           "use_filters": {
             "message": "Use the filters above to investigate specific users, actions, or date ranges."
+          }
+        },
+        "walkthrough": {
+          "title": "Audit log tour",
+          "steps": {
+            "summary-strip": {
+              "title": "Today at a glance",
+              "body": "The daily summary strip shows what has happened recently, so you can spot unusual activity without scanning every entry."
+            },
+            "search-bar": {
+              "title": "Quick search",
+              "body": "Type a name, action, or resource to find matching events instantly."
+            },
+            "toolbar": {
+              "title": "Filter and export",
+              "body": "Use Filters to narrow events by user, category, or date range. Export the filtered results as CSV or JSON for compliance records."
+            },
+            "timeline": {
+              "title": "Event timeline",
+              "body": "Every recorded event appears here, newest first. Click any row to expand the full details and context."
+            }
           }
         }
       },
@@ -141,6 +179,354 @@
           },
           "all_caught_up": {
             "message": "No pending applications. You are caught up."
+          }
+        },
+        "walkthrough": {
+          "title": "Dashboard tour",
+          "steps": {
+            "stats": {
+              "title": "System totals",
+              "body": "These cards show system-wide totals across every session and role. Start here to see the pulse of the whole camp."
+            },
+            "sessions": {
+              "title": "Session capacity",
+              "body": "Each card shows enrollment versus capacity. The bar turns yellow at 80% and red when the session is full."
+            },
+            "needs-attention": {
+              "title": "Needs Attention",
+              "body": "The oldest pending applications surface here, so no applicant waits too long. Click any row to open it."
+            },
+            "recent-activity": {
+              "title": "Recent activity",
+              "body": "The latest application updates and messages appear here so you can pick up where you left off."
+            }
+          }
+        }
+      },
+      "applications": {
+        "title": "Applications list",
+        "summary": "View, search, and filter all camp applications across every session.",
+        "steps": {
+          "overview": {
+            "title": "What you see here",
+            "summary": "This page lists every application submitted to Camp Burnt Gin. Each row shows the camper name, session, submission date, and current status.",
+            "details": "As a super-admin you see all applications regardless of session or reviewing admin. Use the search and filter controls to narrow the list before opening individual records."
+          },
+          "status_filter": {
+            "title": "Filtering by status",
+            "summary": "The status filter lets you focus on a specific stage: draft, submitted, under review, approved, rejected, or waitlisted.",
+            "details": "Selecting \"Submitted\" shows every application that has been sent by a parent but not yet claimed for review. This is the most common starting point for your admin team's daily triage."
+          },
+          "session_filter": {
+            "title": "Filtering by session",
+            "summary": "Narrow the list to a single camp session using the session dropdown. Useful when managing enrollment for one session at a time.",
+            "details": "When no session is selected, applications from all sessions appear together sorted by submission date. Combine the session filter with the status filter to see, for example, all approved applications for Session 2."
+          },
+          "review_link": {
+            "title": "Opening an application",
+            "summary": "Click any row to open the full application review page for that camper.",
+            "details": "The review page shows every section of the application, the camper's documents, and the decision controls. You can approve, reject, or waitlist from that page."
+          }
+        },
+        "faq": {
+          "what_is_submitted": {
+            "question": "What does a \"submitted\" application mean?",
+            "answer": "Submitted means the parent has completed the form and sent it to staff. The application is waiting for an admin to open it and begin the review process."
+          },
+          "what_does_pending_mean": {
+            "question": "What does \"under review\" mean?",
+            "answer": "Under review means an admin has opened the application and the review is in progress. The application stays in this state until a final decision (approve, reject, or waitlist) is made."
+          },
+          "can_super_admin_approve": {
+            "question": "Can a super-admin approve applications directly?",
+            "answer": "Yes. Super-admins have all the same review and decision capabilities as admins. Open any application and use the decision buttons to approve, reject, or waitlist."
+          }
+        },
+        "walkthrough": {
+          "title": "Applications list tour",
+          "steps": {
+            "search-bar": {
+              "title": "Search for a camper",
+              "body": "Type a camper name, parent email, or application ID to jump to a specific record instantly."
+            },
+            "status-filter": {
+              "title": "Filter by status",
+              "body": "Use this dropdown to show only applications at a specific stage. Start with \"Submitted\" to find everything waiting for review."
+            },
+            "table": {
+              "title": "Application rows",
+              "body": "Each row is a single application. The status badge shows where it is in the review process. Click any row to open the full review page."
+            },
+            "session-filter": {
+              "title": "Filter by session",
+              "body": "Select a session from this dropdown to focus the list on one group of campers at a time."
+            }
+          }
+        }
+      },
+      "families": {
+        "title": "Families",
+        "summary": "Browse parent accounts and the campers and applications linked to each family.",
+        "steps": {
+          "what_is_a_family": {
+            "title": "What is a family record?",
+            "summary": "A family record represents one parent or guardian account. It groups all campers registered by that account and all applications they have submitted.",
+            "details": "Families are created automatically when a parent registers. Each family has one primary account holder whose contact information is shown at the top of the workspace."
+          },
+          "viewing_family": {
+            "title": "Opening a family workspace",
+            "summary": "Click any row in the families table to open the full workspace for that family. The workspace shows the account holder's details at the top.",
+            "details": "The workspace is the central place to see everything about a family: their contact information, their campers, and every application they have submitted across all sessions."
+          },
+          "linked_campers": {
+            "title": "Campers in the family",
+            "summary": "The Campers section lists every child registered under this account. Click a camper's name to view their full record.",
+            "details": "A family may have one or many campers. Each camper has their own profile, medical record, and application history. You can navigate directly to any of these from the family workspace."
+          },
+          "linked_applications": {
+            "title": "Applications from this family",
+            "summary": "All applications submitted by this account — across all campers and all sessions — appear in the Applications section.",
+            "details": "This view makes it easy to see the full history of a family's interactions with the camp: which sessions they applied to, which applications were approved, and whether any are still under review."
+          }
+        },
+        "faq": {
+          "what_makes_a_family": {
+            "question": "What creates a family record?",
+            "answer": "A family record is created automatically when a parent or guardian registers for an account. All camper profiles and applications created under that account are grouped into the same family."
+          },
+          "can_merge_families": {
+            "question": "Can I merge two family records?",
+            "answer": "Merging families is not supported in the current version. If two guardians from the same household have separate accounts, they will appear as separate family records. Contact your system administrator if a merge is needed."
+          }
+        },
+        "walkthrough": {
+          "title": "Families list tour",
+          "steps": {
+            "search-bar": {
+              "title": "Find a family",
+              "body": "Search by parent name or email address to locate the account you need quickly."
+            },
+            "family-table": {
+              "title": "Family rows",
+              "body": "Each row is one parent account. The columns show the account holder's name, email, number of campers, and when they last submitted an application."
+            },
+            "open-family": {
+              "title": "Open the workspace",
+              "body": "Click any row to open that family's workspace where you can see all their campers and applications in one place."
+            }
+          }
+        }
+      },
+      "campers": {
+        "title": "Campers",
+        "summary": "Browse all camper profiles, search by name, and open individual records.",
+        "steps": {
+          "what_is_a_camper_record": {
+            "title": "What is a camper record?",
+            "summary": "A camper record stores the personal and medical profile for one child. It is created when a parent starts their first application and persists across all future sessions.",
+            "details": "The camper record is separate from the application. The record holds permanent profile information; applications capture the year-specific enrollment request. One camper can have multiple applications across different sessions."
+          },
+          "search_filter": {
+            "title": "Searching and filtering",
+            "summary": "Use the search bar to find a camper by name. You can also filter by session to see only campers enrolled in a specific program.",
+            "details": "The search is a live filter — results update as you type. This is the fastest way to locate a specific child when you know their name but not their application ID."
+          },
+          "camper_detail_link": {
+            "title": "Opening a camper record",
+            "summary": "Click any row to open the full camper detail page. From there you can view their profile, medical history, and application history.",
+            "details": "The camper detail page also links to the medical portal record for that child if one exists. Use this view when you need a complete picture of a camper across all sessions."
+          },
+          "medical_flag": {
+            "title": "Medical risk flag",
+            "summary": "Campers with elevated medical needs or unresolved flags are marked in the table. Review flagged campers before approving their applications.",
+            "details": "A flag indicates that the medical team or system has noted a condition requiring staff attention. Flags are set from the medical portal and visible here so admins are aware before making enrollment decisions.",
+            "severity": "warning"
+          }
+        },
+        "faq": {
+          "camper_vs_applicant": {
+            "question": "What is the difference between a camper and an applicant?",
+            "answer": "A camper is the child attending camp — they have a persistent profile that carries their personal and medical information across years. An applicant refers to the parent or guardian account that submits applications on the camper's behalf."
+          },
+          "risk_flag": {
+            "question": "What does the risk flag indicate?",
+            "answer": "The risk flag is set by the medical team to indicate that a camper has a condition that requires special consideration before enrollment. It does not automatically block approval — an admin still makes the final decision — but it prompts a closer review."
+          }
+        },
+        "walkthrough": {
+          "title": "Campers list tour",
+          "steps": {
+            "search-bar": {
+              "title": "Find a camper",
+              "body": "Type a camper's name to filter the list instantly. Partial names work — you don't need to type the full name."
+            },
+            "camper-table": {
+              "title": "Camper rows",
+              "body": "Each row is one camper. The columns show their name, age, linked family, session history, and any active medical flag."
+            },
+            "camper-detail": {
+              "title": "Open the full record",
+              "body": "Click any row to open the camper detail page with their full profile, application history, and medical summary."
+            }
+          }
+        }
+      },
+      "announcements": {
+        "title": "Announcements",
+        "summary": "Create, schedule, and pin announcements for parents, staff, or medical personnel.",
+        "steps": {
+          "creating_announcements": {
+            "title": "Creating an announcement",
+            "summary": "Click \"+ New Announcement\" to open the compose form. Enter a title and body text, then choose who should see it.",
+            "details": "Announcements appear in the portal notification feed for every user in the targeted audience. Keep the title clear and concise — it is the first thing users see before they expand the message."
+          },
+          "targeting_roles": {
+            "title": "Targeting by role",
+            "summary": "The audience selector lets you send to all users, or limit the announcement to specific roles: applicants, admin, medical, or super-admin.",
+            "details": "Choose the narrowest audience appropriate for the message. A reminder about immunization records should go only to applicants; a system maintenance notice may go to all roles."
+          },
+          "scheduling": {
+            "title": "Scheduling a future announcement",
+            "summary": "Set a publish date and time to send the announcement in the future. The form will not appear to users until the scheduled time.",
+            "details": "Scheduling is useful for reminders tied to deadlines. For example, schedule a session registration reminder to go out one week before the deadline so you set it up in advance and it fires automatically."
+          },
+          "pinning": {
+            "title": "Pinning an announcement",
+            "summary": "Pinned announcements appear at the top of the feed for their target audience until you unpin them.",
+            "details": "Use pinning for critical, time-sensitive information that every user in the audience must see — such as a camp closure or an emergency procedure update. Unpin when the information is no longer current."
+          }
+        },
+        "faq": {
+          "who_sees_announcements": {
+            "question": "Who sees an announcement?",
+            "answer": "Only users whose role matches the targeted audience see the announcement. An announcement targeted at \"applicant\" will appear on every parent's dashboard feed but not on admin or medical portals."
+          },
+          "can_delete": {
+            "question": "Can I delete an announcement?",
+            "answer": "Yes. Open the announcement from the list and use the Delete option. Deleting removes it from all feeds immediately. If you want to preserve the record but stop showing it, unpinning and leaving it unpublished is a softer option."
+          }
+        },
+        "walkthrough": {
+          "title": "Announcements tour",
+          "steps": {
+            "compose-button": {
+              "title": "Create an announcement",
+              "body": "Click here to open the compose form. Add a title, body text, and choose your target audience before saving."
+            },
+            "audience-selector": {
+              "title": "Choose your audience",
+              "body": "Select which roles will see this announcement. You can target one role or all users at once."
+            },
+            "publish-button": {
+              "title": "Publish or schedule",
+              "body": "Click Publish to send immediately, or set a future date and time to schedule the announcement to go out automatically."
+            }
+          }
+        }
+      },
+      "calendar": {
+        "title": "Calendar",
+        "summary": "See all camp sessions, application deadlines, and key dates in one place.",
+        "steps": {
+          "what_appears": {
+            "title": "What appears on the calendar",
+            "summary": "The calendar shows camp sessions, application deadlines, and any custom events created by staff. All event types are color-coded for quick identification.",
+            "details": "Session events span multiple days to show the full camp period. Deadline events appear as single-day markers. Use the legend at the top of the page to identify each color."
+          },
+          "session_events": {
+            "title": "Session events",
+            "summary": "Each camp session appears as a multi-day block covering its start and end dates. Click the block to jump to that session's detail page.",
+            "details": "Session events are added automatically when you create a session from the Sessions page. You do not need to add them to the calendar manually — they sync immediately."
+          },
+          "deadlines_on_calendar": {
+            "title": "Deadlines on the calendar",
+            "summary": "Deadlines created on the Deadlines page appear here as single-day events on their due date.",
+            "details": "Seeing deadlines on the calendar alongside sessions helps you spot conflicts — for example, a document deadline that falls on the first day of a session, leaving no time to resolve missing items."
+          },
+          "navigation": {
+            "title": "Navigating the calendar",
+            "summary": "Use the arrow buttons to move between months. Switch between month, week, and list views using the view selector in the toolbar.",
+            "details": "The list view is often easier for dense periods — it shows every event chronologically in a table rather than laying them out spatially on a grid."
+          }
+        },
+        "faq": {
+          "can_add_events": {
+            "question": "Can I add custom events to the calendar?",
+            "answer": "Yes. Use the \"+ Add Event\" button to create custom entries. These can be internal notes, staff meetings, or any date you want visible on the camp calendar."
+          },
+          "sessions_auto_added": {
+            "question": "Are session dates added automatically?",
+            "answer": "Yes. When you create or edit a session on the Sessions page, its dates are automatically reflected on the calendar. You do not need to create a separate calendar event for each session."
+          }
+        },
+        "walkthrough": {
+          "title": "Calendar tour",
+          "steps": {
+            "month-view": {
+              "title": "Month view",
+              "body": "The default view shows the full month. Session blocks and deadline markers appear here so you can see the whole schedule at a glance."
+            },
+            "event-click": {
+              "title": "Click an event",
+              "body": "Click any event to see its details or navigate directly to the related session or deadline record."
+            },
+            "filter-bar": {
+              "title": "Filter by event type",
+              "body": "Use the type filter to show only sessions, only deadlines, or only custom events. This reduces visual clutter when a month is busy."
+            }
+          }
+        }
+      },
+      "deadlines": {
+        "title": "Deadlines",
+        "summary": "Create and manage enrollment deadlines that notify parents and staff automatically.",
+        "steps": {
+          "what_is_a_deadline": {
+            "title": "What is a deadline?",
+            "summary": "A deadline is a named date that the system tracks and notifies users about. Examples include application submission cutoffs, document due dates, and payment deadlines.",
+            "details": "Deadlines are distinct from session dates. A session has fixed start and end dates; a deadline is a staff-defined date that triggers notifications and appears on the calendar. One session can have multiple deadlines."
+          },
+          "creating_deadlines": {
+            "title": "Creating a deadline",
+            "summary": "Click \"+ New Deadline\" to open the deadline form. Enter a name, due date, and optionally a description and notification timing.",
+            "details": "The name field is what appears in notifications and on the calendar. Use clear, actionable names like \"Application Deadline — Session 1\" rather than generic labels."
+          },
+          "deadline_types": {
+            "title": "Deadline types",
+            "summary": "You can categorize deadlines as application, document, payment, or general. The type determines the notification template and which users are targeted.",
+            "details": "Application deadlines target applicant accounts. Document deadlines target applicants who have pending document requests. Payment deadlines are reserved for future billing integration and currently generate a general reminder."
+          },
+          "notifications": {
+            "title": "Automatic notifications",
+            "summary": "The system sends notifications to the relevant audience at the intervals you configure: for example, 7 days before and 1 day before the due date.",
+            "details": "Notifications are sent as in-app messages and as emails if the user has email notifications enabled. You can preview the notification template from the deadline detail page before the deadline fires."
+          }
+        },
+        "faq": {
+          "who_gets_notified": {
+            "question": "Who gets notified when a deadline approaches?",
+            "answer": "The audience depends on the deadline type. Application and document deadlines notify all active applicant accounts that have a pending application or document request. Staff deadlines notify admin and medical users. You can also add specific users to the notification list when creating the deadline."
+          },
+          "edit_after_creating": {
+            "question": "Can I edit a deadline after creating it?",
+            "answer": "Yes. Open the deadline from the list and use the Edit button. You can change the name, date, description, and notification intervals. If the deadline has already fired some notifications, those past notifications are not re-sent — only future scheduled notifications are affected."
+          }
+        },
+        "walkthrough": {
+          "title": "Deadlines tour",
+          "steps": {
+            "create-button": {
+              "title": "Add a deadline",
+              "body": "Click here to open the new deadline form. Give it a clear name, set the due date, and choose the notification timing."
+            },
+            "deadline-form": {
+              "title": "Fill in the details",
+              "body": "Enter the deadline name, due date, type, and how many days in advance you want reminders to go out. The type determines who receives the notification."
+            },
+            "deadline-list": {
+              "title": "Manage existing deadlines",
+              "body": "All active deadlines appear here. Click any row to edit it, view its notification history, or delete it."
+            }
           }
         }
       }

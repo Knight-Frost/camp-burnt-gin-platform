@@ -767,7 +767,7 @@ export function MedicalRecordPage() {
             consistent height. Wraps onto a second row on narrow viewports
             rather than line-breaking inside individual buttons. */}
         <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-2 justify-end">
+          <div className="flex flex-wrap items-center gap-2 justify-end" data-guide-anchor="medical-record.quick-nav">
             <Link
               to={`/medical/records/${id}/treatments`}
               className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-90"
@@ -874,7 +874,7 @@ export function MedicalRecordPage() {
           const activeFlags = flags.filter((f) => f.active);
 
           return (
-            <div className="mb-6 rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'rgba(220,38,38,0.30)' }}>
+            <div className="mb-6 rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'rgba(220,38,38,0.30)' }} data-guide-anchor="medical-record.safety-flags">
               {/* Panel header */}
               <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'rgba(220,38,38,0.08)' }}>
                 <AlertOctagon className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--destructive)' }} />
@@ -939,7 +939,7 @@ export function MedicalRecordPage() {
         <div className="space-y-4">
 
           {/* Allergies — icon turns red if any allergy is life-threatening */}
-          <div id="section-allergies">
+          <div id="section-allergies" data-guide-anchor="medical-record.allergies">
             <MedSection
               title={t('medical.record.allergies')}
               icon={<AlertTriangle className="h-3.5 w-3.5" />}
@@ -970,7 +970,7 @@ export function MedicalRecordPage() {
           </div>
 
           {/* Medications */}
-          <div>
+          <div data-guide-anchor="medical-record.medications">
             <MedSection
               title={t('medical.record.medications')}
               icon={<Pill className="h-3.5 w-3.5" />}

@@ -33,10 +33,12 @@ import { getDashboardRoute, getPrimaryRole } from '@/shared/constants/roles';
 import type { NavItem } from './DashboardSidebar';
 import { MedicalSessionProvider } from '@/features/medical/context/MedicalSessionContext';
 import { MedicalSessionIndicator } from '@/features/medical/components/MedicalSessionIndicator';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 
 export function MedicalLayout() {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
+  const { unreadSystemCount } = useUnreadMessageCount();
 
   const hasAccess = Boolean(
     user?.roles?.some((r) => ['medical', 'admin', 'super_admin'].includes(r.name)) ||
@@ -66,7 +68,7 @@ export function MedicalLayout() {
 
     // Communication
     { label: t('portal_nav.announcements'),          to: ROUTES.MEDICAL_ANNOUNCEMENTS,   icon: Megaphone },
-    { label: t('portal_nav.inbox'),                  to: '/medical/inbox',                icon: Inbox },
+    { label: t('portal_nav.inbox'),                  to: '/medical/inbox',                icon: Inbox, dot: unreadSystemCount > 0 },
 
     // Account
     { label: t('portal_nav.profile'),               to: '/medical/profile',              icon: User },

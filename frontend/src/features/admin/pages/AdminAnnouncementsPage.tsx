@@ -193,7 +193,7 @@ export function AdminAnnouncementsPage() {
               Create, schedule, and manage announcements for applicants and staff.
             </p>
           </div>
-          <Button variant="primary" size="sm" onClick={openCreate}>
+          <Button data-guide-anchor="super-admin-announcements.compose-button" variant="primary" size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             New Announcement
           </Button>
@@ -300,7 +300,7 @@ export function AdminAnnouncementsPage() {
                 <label htmlFor="ann-body" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_body_label')} *</label>
                 <textarea id="ann-body" style={{ ...inputStyle(), height: 96, resize: 'none' }} placeholder={t('admin_extra.ann_body_label')} value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} />
               </div>
-              <div>
+              <div data-guide-anchor="super-admin-announcements.audience-selector">
                 <label htmlFor="ann-audience" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>{t('admin_extra.ann_audience_label')}</label>
                 <select id="ann-audience" style={inputStyle()} value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value as CreateAnnouncementPayload['audience'] }))}>
                   {Object.entries(AUDIENCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -326,7 +326,7 @@ export function AdminAnnouncementsPage() {
 
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button variant="primary" size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
+              <Button data-guide-anchor="super-admin-announcements.publish-button" variant="primary" size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving…' : editing ? 'Save Changes' : 'Create'}
               </Button>
             </div>

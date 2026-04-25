@@ -21,8 +21,10 @@
  */
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FC, type FormEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   FileText,
   Plus,
@@ -38,7 +40,6 @@ import {
   ChevronLeft,
   ChevronRight,
   InboxIcon,
-  User,
   Bell,
   CalendarClock,
   Trash2,
@@ -48,14 +49,17 @@ import {
   ArchiveRestore,
   Shield,
   ZoomIn,
+  Filter,
+  CloudUpload,
+  FileCheck,
+  ExternalLink,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 import {
   getDocumentRequestStats,
   getDocumentRequests,
   createDocumentRequest,
-  approveDocumentRequest,
   rejectDocumentRequest,
   cancelDocumentRequest,
   remindDocumentRequest,
@@ -63,23 +67,28 @@ import {
   requestDocumentReupload,
   getUsers,
   getAdminDocuments,
-  verifyDocument,
   downloadAdminDocument,
   deleteDocument,
   archiveDocument,
   restoreDocument,
+  bulkRemindDocumentRequests,
+  overrideDocument,
+  reopenDocument,
+  getCampers,
   type AdminDocument,
   type DocumentRequest,
   type DocumentRequestStats,
   type DocumentRequestStatus,
 } from '@/features/admin/api/admin.api';
 import { axiosInstance } from '@/api/axios.config';
+import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/ui/components/Button';
+import { Avatar, avatarBg } from '@/ui/components/Avatar';
 import { DocumentStatusBadge } from '@/ui/components/DocumentStatusBadge';
 import { EmptyState, ErrorState } from '@/ui/components/EmptyState';
-import { SkeletonTable } from '@/ui/components/Skeletons';
 import { getDocumentLabel } from '@/shared/constants/documentRequirements';
 import { mapRequestStatus } from '@/shared/constants/documentStatuses';
+import { ROUTES } from '@/shared/constants/routes';
 
 // ── Status badge helpers ───────────────────────────────────────────────────────
 
@@ -95,32 +104,120 @@ function StatusBadge({ status }: { status: DocumentRequestStatus }) {
 
 function MetricCard({
   label,
+  subtitle,
   value,
   active,
   onClick,
+  icon: Icon,
+  dotBg,
+  dotFg,
 }: {
   label: string;
+  subtitle: string;
   value: number;
   active: boolean;
   onClick: () => void;
+  icon: FC<{ className?: string; style?: CSSProperties }>;
+  dotBg: string;
+  dotFg: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-1 rounded-xl p-4 border text-left transition-colors"
+      className="flex flex-col gap-2.5 rounded-xl p-3.5 border text-left transition-all"
       style={{
-        background: active ? 'var(--ember-orange)' : 'var(--card)',
-        borderColor: active ? 'var(--ember-orange)' : 'var(--border)',
-        color: active ? '#fff' : 'var(--foreground)',
+        background: active ? 'rgba(34,197,94,0.08)' : 'var(--card)',
+        borderColor: active ? 'rgba(34,197,94,0.30)' : 'var(--border)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        color: 'var(--foreground)',
       }}
+      onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }}
+      onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; }}
     >
-      <span className="text-2xl font-bold font-headline">{value}</span>
-      <span className="text-xs font-medium" style={{ color: active ? 'rgba(255,255,255,0.8)' : 'var(--muted-foreground)' }}>
-        {label}
-      </span>
+      <div className="flex items-center gap-2.5">
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: dotBg }}
+        >
+          <Icon className="h-4 w-4" style={{ color: dotFg }} />
+        </div>
+        <span className="text-xl font-semibold font-headline leading-none" style={{ color: 'var(--foreground)' }}>
+          {value}
+        </span>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-medium leading-snug" style={{ color: 'var(--foreground)' }}>
+          {label}
+        </span>
+        <span className="text-xs leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+          {subtitle}
+        </span>
+      </div>
     </button>
   );
+}
+
+// ── Numbered pagination ────────────────────────────────────────────────────────
+
+function PageNumbers({
+  page,
+  lastPage,
+  onPageChange,
+}: {
+  page: number;
+  lastPage: number;
+  onPageChange: (p: number) => void;
+}) {
+  // Build page window: first, last, current ± 1, with ellipsis gaps
+  const pages: (number | '...')[] = [];
+  if (lastPage <= 7) {
+    for (let i = 1; i <= lastPage; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('...');
+    for (let i = Math.max(2, page - 1); i <= Math.min(lastPage - 1, page + 1); i++) pages.push(i);
+    if (page < lastPage - 2) pages.push('...');
+    pages.push(lastPage);
+  }
+  return (
+    <div className="flex items-center gap-1">
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`ellipsis-${i}`} className="px-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>…</span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPageChange(p)}
+            className="min-w-[32px] h-8 px-2 rounded-md text-sm font-medium transition-colors"
+            style={{
+              background: p === page ? 'var(--ember-orange)' : 'transparent',
+              color: p === page ? '#fff' : 'var(--foreground)',
+            }}
+          >
+            {p}
+          </button>
+        ),
+      )}
+    </div>
+  );
+}
+
+// ── Relative-time helper ──────────────────────────────────────────────────────
+// Returns a short human text + a CSS color hint for the status line in rows.
+
+function relativeFromNow(dateString: string | null | undefined, status?: string): { text: string; color: string } {
+  if (!dateString) return { text: '—', color: 'var(--muted-foreground)' };
+  const date = new Date(dateString);
+  const diffMs = date.getTime() - Date.now();
+  const overdue = diffMs < 0;
+  const dist = formatDistanceToNow(date, { addSuffix: false });
+
+  if (status === 'approved') return { text: `Approved ${dist} ago`, color: 'var(--forest-green)' };
+  if (status === 'rejected') return { text: `Rejected ${dist} ago`, color: '#6b7280' };
+  if (overdue) return { text: `${dist} overdue`, color: '#dc2626' };
+  return { text: `${dist} left`, color: '#d97706' };
 }
 
 // ── Document type → human-readable label ──────────────────────────────────────
@@ -254,9 +351,9 @@ function ParentCombobox({
         tabIndex={0}
         className="flex items-center rounded-lg border text-sm px-3 min-h-[42px] cursor-text gap-2"
         style={{
-          background: 'var(--input)',
-          borderColor: open ? 'var(--ember-orange)' : 'var(--border)',
-          boxShadow: open ? '0 0 0 1px var(--ember-orange)' : 'none',
+          background: open ? 'rgba(34,197,94,0.08)' : 'var(--input)',
+          borderColor: open ? 'rgba(34,197,94,0.30)' : 'var(--border)',
+          boxShadow: 'none',
           color: 'var(--foreground)',
           opacity: disabled ? 0.5 : 1,
         }}
@@ -509,8 +606,8 @@ function RequestDocumentModal({ onClose, onCreated }: RequestDocumentModalProps)
     }
   }
 
-  const inputCls = 'rounded-lg px-3 py-2.5 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)] w-full';
-  const inputStyle = { background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' };
+  const inputCls = 'rounded-lg px-3 py-2.5 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)] w-full';
+  const inputStyle = { borderColor: 'var(--border)', color: 'var(--foreground)' };
   const labelCls = 'text-xs font-medium block mb-1';
   const labelStyle = { color: 'var(--muted-foreground)' };
 
@@ -844,8 +941,8 @@ function RejectModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. File is unreadable, wrong document type…"
-              className="rounded-lg px-3 py-2.5 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)] w-full resize-none"
-              style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              className="rounded-lg px-3 py-2.5 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)] w-full resize-none"
+              style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
             />
           </div>
           <div
@@ -882,12 +979,31 @@ function OverflowMenu({ items }: { items: OverflowMenuItem[] }) {
   function handleToggle() {
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      setMenuPos({
-        position: 'fixed',
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-        zIndex: 9999,
-      });
+      // Estimate height: each item ~34px, tiny container padding
+      const estimatedHeight = items.length * 34 + 4;
+      const MENU_WIDTH = 200;
+      const MARGIN = 8;
+
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceRight = window.innerWidth - rect.left;
+
+      const pos: CSSProperties = { position: 'fixed', zIndex: 9999 };
+
+      // Vertical: open upward when there isn't enough room below
+      if (spaceBelow < estimatedHeight + MARGIN) {
+        pos.bottom = window.innerHeight - rect.top + 4;
+      } else {
+        pos.top = rect.bottom + 4;
+      }
+
+      // Horizontal: right-align to button when space allows, else left-align
+      if (spaceRight >= MENU_WIDTH + MARGIN) {
+        pos.right = window.innerWidth - rect.right;
+      } else {
+        pos.left = Math.max(MARGIN, rect.right - MENU_WIDTH);
+      }
+
+      setMenuPos(pos);
     }
     setOpen((v) => !v);
   }
@@ -985,8 +1101,8 @@ function ExtendDeadlineModal({
     }
   }
 
-  const inputCls = 'rounded-lg px-3 py-2.5 text-sm border outline-none focus:ring-1 focus:ring-[var(--ember-orange)] w-full';
-  const inputStyle = { background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' };
+  const inputCls = 'rounded-lg px-3 py-2.5 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)] w-full';
+  const inputStyle = { borderColor: 'var(--border)', color: 'var(--foreground)' };
 
   return (
     <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
@@ -1061,10 +1177,243 @@ function CancelConfirmModal({
   );
 }
 
+// ── Override Modal ─────────────────────────────────────────────────────────────
+
+function OverrideModal({
+  doc,
+  onClose,
+  onDone,
+}: {
+  doc: AdminDocument;
+  onClose: () => void;
+  onDone: (updated: AdminDocument) => void;
+}) {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState<'approved' | 'rejected'>('approved');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function handleConfirm(e: FormEvent) {
+    e.preventDefault();
+    if (status === 'rejected' && !reason.trim()) return;
+    setSaving(true);
+    try {
+      const updated = await overrideDocument(doc.id, status, reason.trim() || undefined);
+      toast.success(t('admin_extra.override_success', 'Decision overridden'));
+      onDone(updated);
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((err as any)?.response?.status === 403) {
+        toast.error(t('admin_extra.override_forbidden', 'You do not have permission to perform this action.'));
+      } else {
+        toast.error('Override failed.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const currentStatusLabel = doc.verification_status === 'approved'
+    ? t('admin_extra.status_approved', 'Approved')
+    : t('admin_extra.status_rejected', 'Rejected');
+
+  return (
+    <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
+      <div role="presentation" className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{t('admin_extra.override_title', 'Override decision')}</p>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"><X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} /></button>
+        </div>
+        <form onSubmit={(e) => void handleConfirm(e)} className="p-5 flex flex-col gap-4">
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            {t('admin_extra.override_body', 'This document was {{currentStatus}}. Set its status to:').replace('{{currentStatus}}', currentStatusLabel)}
+          </p>
+          <div className="flex gap-2">
+            {(['approved', 'rejected'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium border transition-colors"
+                style={{
+                  background: status === s ? (s === 'approved' ? 'rgba(5,150,105,0.12)' : 'rgba(239,68,68,0.12)') : 'var(--card)',
+                  borderColor: status === s ? (s === 'approved' ? 'var(--forest-green)' : '#dc2626') : 'var(--border)',
+                  color: status === s ? (s === 'approved' ? 'var(--forest-green)' : '#dc2626') : 'var(--muted-foreground)',
+                }}
+              >
+                {s === 'approved' ? t('admin_extra.bulk_approve', 'Approve') : t('admin_extra.bulk_reject', 'Reject')}
+              </button>
+            ))}
+          </div>
+          <div>
+            <label htmlFor="override-reason" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              {status === 'rejected' ? `${t('admin_extra.bulk_reject_reason_label', 'Reason for rejection')} *` : 'Reason (optional)'}
+            </label>
+            <textarea
+              id="override-reason"
+              rows={3}
+              required={status === 'rejected'}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason for this decision override…"
+              className="rounded-lg px-3 py-2.5 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)] w-full resize-none"
+              style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
+          <p className="text-xs px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.10)', color: '#b45309' }}>
+            {t('admin_extra.override_audit_warning', 'This action is logged in the audit log.')}
+          </p>
+          <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+            <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{t('common.cancel', 'Cancel')}</button>
+            <button
+              type="submit"
+              disabled={saving || (status === 'rejected' && !reason.trim())}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-40"
+              style={{ background: 'var(--ember-orange)' }}
+            >
+              {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin inline" /> : t('admin_extra.override_confirm', 'Confirm override')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Reopen Modal ──────────────────────────────────────────────────────────────
+
+function ReopenModal({
+  doc,
+  onClose,
+  onDone,
+}: {
+  doc: AdminDocument;
+  onClose: () => void;
+  onDone: (updated: AdminDocument) => void;
+}) {
+  const { t } = useTranslation();
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function handleConfirm(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const updated = await reopenDocument(doc.id, reason.trim() || undefined);
+      toast.success(t('admin_extra.reopen_success', 'Document reopened'));
+      onDone(updated);
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((err as any)?.response?.status === 403) {
+        toast.error(t('admin_extra.override_forbidden', 'You do not have permission to perform this action.'));
+      } else {
+        toast.error('Reopen failed.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div role="button" tabIndex={0} aria-label="Close" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}>
+      <div role="presentation" className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--card)' }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{t('admin_extra.reopen_title', 'Reopen for review')}</p>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"><X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} /></button>
+        </div>
+        <form onSubmit={(e) => void handleConfirm(e)} className="p-5 flex flex-col gap-4">
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('admin_extra.reopen_body', 'This document will return to the Submitted queue for review.')}</p>
+          <div>
+            <label htmlFor="reopen-reason" className="text-xs font-medium block mb-1" style={{ color: 'var(--muted-foreground)' }}>Reason (optional)</label>
+            <textarea
+              id="reopen-reason"
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason for reopening…"
+              className="rounded-lg px-3 py-2.5 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)] w-full resize-none"
+              style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+            />
+          </div>
+          <p className="text-xs px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.10)', color: '#b45309' }}>
+            {t('admin_extra.override_audit_warning', 'This action is logged in the audit log.')}
+          </p>
+          <div className="flex items-center justify-end gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+            <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{t('common.cancel', 'Cancel')}</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-40" style={{ background: 'var(--ember-orange)' }}>
+              {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin inline" /> : t('admin_extra.reopen_confirm', 'Reopen')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
+
+// ── URL persistence helpers ────────────────────────────────────────────────────
+//
+// Maps between the filter state and URL query string so refreshing the page
+// preserves active filters. Only non-empty values are written to the URL.
+
+type DateFieldType = 'submitted_at' | 'updated_at' | 'due_date';
+type TabType = 'requests' | 'submitted' | 'reviewed';
+
+interface AdvancedFiltersState {
+  camperId: string;
+  applicationNumber: string;  // String-not-number to match backend's CBG-YYYY-NNN format
+  dateField: DateFieldType;
+  from: string;
+  to: string;
+}
+
+const DEFAULT_ADV_FILTERS: AdvancedFiltersState = {
+  camperId: '',
+  applicationNumber: '',
+  dateField: 'updated_at',
+  from: '',
+  to: '',
+};
+
+function readFiltersFromUrl(sp: URLSearchParams): {
+  tab: TabType;
+  search: string;
+  uploadsSearch: string;
+  statusFilter: string;
+  uploadsStatusFilter: string;
+  page: number;
+  uploadsPage: number;
+  advancedFilters: AdvancedFiltersState;
+} {
+  const tab = (sp.get('tab') ?? 'requests') as TabType;
+  return {
+    tab,
+    search: sp.get('search') ?? '',
+    uploadsSearch: sp.get('uploadsSearch') ?? '',
+    statusFilter: sp.get('statusFilter') ?? '',
+    uploadsStatusFilter: sp.get('uploadsStatusFilter') ?? (tab === 'submitted' ? 'pending' : 'approved'),
+    page: Number(sp.get('page') ?? '1') || 1,
+    uploadsPage: Number(sp.get('uploadsPage') ?? '1') || 1,
+    advancedFilters: {
+      camperId: sp.get('camperId') ?? '',
+      applicationNumber: sp.get('applicationNumber') ?? '',
+      dateField: (sp.get('dateField') as DateFieldType) ?? 'updated_at',
+      from: sp.get('from') ?? '',
+      to: sp.get('to') ?? '',
+    },
+  };
+}
 
 export function AdminDocumentsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const user = useAppSelector((state) => state.auth.user);
+  const isSuperAdmin = user?.role === 'super_admin';
+
+  // Read initial state from URL params on first mount (initializer functions avoid hydration flicker)
+  const urlInit = readFiltersFromUrl(searchParams);
 
   const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
     { label: t('admin_extra.status_all',            'All'),             value: '' },
@@ -1078,32 +1427,31 @@ export function AdminDocumentsPage() {
   ];
 
   // ── Tab ─────────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<'requests' | 'uploads'>('requests');
+  const [tab, setTab] = useState<TabType>(() => urlInit.tab);
 
   // ── Document Requests state ──────────────────────────────────────────────────
   const [stats, setStats]             = useState<DocumentRequestStats | null>(null);
   const [requests, setRequests]       = useState<DocumentRequest[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);
-  const [page, setPage]               = useState(1);
+  const [page, setPage]               = useState(() => urlInit.page);
   const [lastPage, setLastPage]       = useState(1);
   const [total, setTotal]             = useState(0);
 
   // Filters
-  const [search, setSearch]           = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch]           = useState(() => urlInit.search);
+  const [statusFilter, setStatusFilter] = useState(() => urlInit.statusFilter);
 
   // ── Uploaded Documents state ─────────────────────────────────────────────────
   const [uploads, setUploads]                 = useState<AdminDocument[]>([]);
   const [uploadsLoading, setUploadsLoading]   = useState(false);
   const [uploadsError, setUploadsError]       = useState(false);
-  const [uploadsPage, setUploadsPage]         = useState(1);
+  const [uploadsPage, setUploadsPage]         = useState(() => urlInit.uploadsPage);
   const [uploadsLastPage, setUploadsLastPage] = useState(1);
   const [uploadsTotal, setUploadsTotal]       = useState(0);
-  const [uploadsSearch, setUploadsSearch]     = useState('');
-  const [uploadsDebouncedSearch, setUploadsDebouncedSearch] = useState('');
-  const [uploadsStatusFilter, setUploadsStatusFilter] = useState('');
-  const [verifyingId, setVerifyingId]         = useState<number | null>(null);
+  const [uploadsSearch, setUploadsSearch]     = useState(() => urlInit.uploadsSearch);
+  const [uploadsDebouncedSearch, setUploadsDebouncedSearch] = useState(() => urlInit.uploadsSearch);
+  const [uploadsStatusFilter, setUploadsStatusFilter] = useState(() => urlInit.uploadsStatusFilter);
   // Whether the uploads tab is showing the archived view
   const [showArchived, setShowArchived]       = useState(false);
   // Per-row action loading for archive/restore/delete
@@ -1112,10 +1460,14 @@ export function AdminDocumentsPage() {
   const [deletingId, setDeletingId]           = useState<number | null>(null);
   // Delete confirmation modal target
   const [deleteTarget, setDeleteTarget]       = useState<AdminDocument | null>(null);
-  // Preview modal target + authenticated blob URL
+  // Preview modal target + authenticated blob URL (Submitted Documents tab)
   const [previewDoc, setPreviewDoc]           = useState<AdminDocument | null>(null);
   const [previewBlobUrl, setPreviewBlobUrl]   = useState<string | null>(null);
   const [previewLoading, setPreviewLoading]   = useState(false);
+  // Preview modal for Document Requests tab
+  const [previewReq, setPreviewReq]           = useState<DocumentRequest | null>(null);
+  const [previewReqBlobUrl, setPreviewReqBlobUrl] = useState<string | null>(null);
+  const [previewReqLoading, setPreviewReqLoading] = useState(false);
   const uploadsSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal state
@@ -1125,7 +1477,6 @@ export function AdminDocumentsPage() {
   const [cancelTarget, setCancelTarget]         = useState<DocumentRequest | null>(null);
 
   // Per-row action loading
-  const [approvingId, setApprovingId]   = useState<number | null>(null);
   const [remindingId, setRemindingId]   = useState<number | null>(null);
   const [reuploadingId, setReuploadingId] = useState<number | null>(null);
 
@@ -1137,6 +1488,103 @@ export function AdminDocumentsPage() {
       if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
+  }
+
+  // ── Per-page ─────────────────────────────────────────────────────────────────
+  const [perPage, setPerPage] = useState(10);
+
+  // ── Camper filter dropdown (for filter panel) ────────────────────────────────
+  const [camperOptions, setCamperOptions]               = useState<{ id: number; name: string }[]>([]);
+  const [camperDropdownSearch, setCamperDropdownSearch] = useState('');
+  const [camperDropdownOpen, setCamperDropdownOpen]     = useState(false);
+  const [datePickerOpen, setDatePickerOpen]             = useState(false);
+
+  // Load camper list once for the filter dropdown
+  useEffect(() => {
+    getCampers({ page: 1 })
+      .then((r) => setCamperOptions((r.data ?? []).map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}` }))))
+      .catch(() => {});
+  }, []);
+
+  // ── Advanced filters ─────────────────────────────────────────────────────────
+  const [showFilters, setShowFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>(() => urlInit.advancedFilters);
+  const [debouncedAdvFilters, setDebouncedAdvFilters] = useState<AdvancedFiltersState>(() => urlInit.advancedFilters);
+  const advFilterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasActiveFilters = !!(advancedFilters.camperId || advancedFilters.applicationNumber || advancedFilters.from || advancedFilters.to);
+
+  function setAdvFilter(field: keyof AdvancedFiltersState, value: string) {
+    setAdvancedFilters((prev) => ({ ...prev, [field]: value }));
+  }
+
+  useEffect(() => {
+    if (advFilterTimer.current) clearTimeout(advFilterTimer.current);
+    advFilterTimer.current = setTimeout(() => {
+      setDebouncedAdvFilters({ ...advancedFilters });
+      setPage(1);
+      setUploadsPage(1);
+    }, 300);
+    return () => { if (advFilterTimer.current) clearTimeout(advFilterTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advancedFilters.camperId, advancedFilters.applicationNumber, advancedFilters.dateField, advancedFilters.from, advancedFilters.to]);
+
+  function clearAdvancedFilters() {
+    setAdvancedFilters(DEFAULT_ADV_FILTERS);
+  }
+
+  // ── Multi-select / Bulk (requests only — no bulk approve/reject) ──────────────
+  const [requestsSelected, setRequestsSelected] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading]           = useState(false);
+
+  function toggleSelectRequest(id: number) {
+    setRequestsSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  function toggleSelectAllRequests() {
+    if (requestsSelected.size === requests.length) {
+      setRequestsSelected(new Set());
+    } else {
+      setRequestsSelected(new Set(requests.map((r) => r.id)));
+    }
+  }
+
+  async function handleBulkRemind() {
+    const ids = Array.from(requestsSelected);
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await bulkRemindDocumentRequests(ids);
+      const ok = res.successful.length;
+      const fail = res.failed.length;
+      if (fail === 0) {
+        toast.success(`Reminder sent to ${ok} request${ok !== 1 ? 's' : ''}`);
+      } else {
+        toast.warning(`Reminder sent to ${ok} of ${ids.length} — ${fail} failed`);
+      }
+      setRequestsSelected(new Set());
+    } catch {
+      toast.error('Bulk remind failed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  // ── Override / Reopen modals ─────────────────────────────────────────────────
+  const [overrideTarget, setOverrideTarget] = useState<AdminDocument | null>(null);
+  const [reopenTarget, setReopenTarget]     = useState<AdminDocument | null>(null);
+
+  function handleOverrideDone(updated: AdminDocument) {
+    setUploads((prev) => prev.map((d) => d.id === updated.id ? updated : d));
+    setOverrideTarget(null);
+    loadUploads();
+    getDocumentRequestStats().then(setStats).catch(() => {});
+  }
+
+  function handleReopenDone(updated: AdminDocument) {
+    setUploads((prev) => prev.map((d) => d.id === updated.id ? updated : d));
+    setReopenTarget(null);
+    loadUploads();
+    getDocumentRequestStats().then(setStats).catch(() => {});
   }
 
   // Debounced search
@@ -1161,6 +1609,11 @@ export function AdminDocumentsPage() {
         status: statusFilter || undefined,
         search: debouncedSearch || undefined,
         page,
+        camper_id: debouncedAdvFilters.camperId ? Number(debouncedAdvFilters.camperId) : undefined,
+        application_number: debouncedAdvFilters.applicationNumber || undefined, // String-not-number to match backend's CBG-YYYY-NNN format
+        date_field: debouncedAdvFilters.dateField,
+        from: debouncedAdvFilters.from || undefined,
+        to: debouncedAdvFilters.to || undefined,
       }),
     ])
       .then(([s, r]) => {
@@ -1171,7 +1624,7 @@ export function AdminDocumentsPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [statusFilter, debouncedSearch, page]);
+  }, [statusFilter, debouncedSearch, page, debouncedAdvFilters]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1186,7 +1639,7 @@ export function AdminDocumentsPage() {
   }, [uploadsSearch]);
 
   const loadUploads = useCallback(() => {
-    if (tab !== 'uploads') return;
+    if (tab !== 'submitted' && tab !== 'reviewed') return;
     setUploadsLoading(true);
     setUploadsError(false);
     getAdminDocuments({
@@ -1194,6 +1647,11 @@ export function AdminDocumentsPage() {
       search: uploadsDebouncedSearch || undefined,
       verification_status: uploadsStatusFilter || undefined,
       include_archived: showArchived || undefined,
+      camper_id: debouncedAdvFilters.camperId ? Number(debouncedAdvFilters.camperId) : undefined,
+      application_number: debouncedAdvFilters.applicationNumber || undefined, // String-not-number to match backend's CBG-YYYY-NNN format
+      date_field: debouncedAdvFilters.dateField,
+      from: debouncedAdvFilters.from || undefined,
+      to: debouncedAdvFilters.to || undefined,
     })
       .then((r) => {
         setUploads(r.data);
@@ -1202,9 +1660,21 @@ export function AdminDocumentsPage() {
       })
       .catch(() => setUploadsError(true))
       .finally(() => setUploadsLoading(false));
-  }, [tab, uploadsPage, uploadsDebouncedSearch, uploadsStatusFilter, showArchived]);
+  }, [tab, uploadsPage, uploadsDebouncedSearch, uploadsStatusFilter, showArchived, debouncedAdvFilters]);
 
   useEffect(() => { loadUploads(); }, [loadUploads]);
+
+  // When the tab switches between submitted/reviewed, derive the status filter
+  // automatically so the user never sees a stale filter from the previous tab.
+  useEffect(() => {
+    if (tab === 'submitted') {
+      setUploadsStatusFilter('pending');
+      setUploadsPage(1);
+    } else if (tab === 'reviewed') {
+      setUploadsStatusFilter('approved');
+      setUploadsPage(1);
+    }
+  }, [tab]);
 
   // Fetch the file as an authenticated blob whenever the preview modal opens.
   // Iframes and <img> tags make bare browser requests with no Authorization header,
@@ -1237,18 +1707,28 @@ export function AdminDocumentsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewDoc]);
 
-  async function handleVerifyDocument(doc: AdminDocument, status: 'approved' | 'rejected') {
-    setVerifyingId(doc.id);
-    try {
-      const updated = await verifyDocument(doc.id, status);
-      setUploads((prev) => prev.map((d) => d.id === doc.id ? updated : d));
-      toast.success(`Document ${status}.`);
-    } catch {
-      toast.error('Action failed.');
-    } finally {
-      setVerifyingId(null);
+  // Same blob-fetch pattern for Document Request previews.
+  useEffect(() => {
+    if (!previewReq?.download_url) {
+      if (previewReqBlobUrl) {
+        URL.revokeObjectURL(previewReqBlobUrl);
+        setPreviewReqBlobUrl(null);
+      }
+      return;
     }
-  }
+    let cancelled = false;
+    setPreviewReqLoading(true);
+    const path = previewReq.download_url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api/, '');
+    axiosInstance.get<Blob>(path, { responseType: 'blob' })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setPreviewReqBlobUrl(URL.createObjectURL(data));
+      })
+      .catch(() => { if (!cancelled) setPreviewReqBlobUrl(null); })
+      .finally(() => { if (!cancelled) setPreviewReqLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewReq]);
 
   async function handleDownloadUpload(doc: AdminDocument) {
     try {
@@ -1316,21 +1796,6 @@ export function AdminDocumentsPage() {
     setPage(1);
   }
 
-  async function handleApprove(req: DocumentRequest) {
-    setApprovingId(req.id);
-    try {
-      const updated = await approveDocumentRequest(req.id);
-      setRequests((prev) => prev.map((r) => r.id === req.id ? updated : r));
-      toast.success('Document approved.');
-      // Refresh stats
-      getDocumentRequestStats().then(setStats).catch(() => {});
-    } catch {
-      toast.error('Approval failed.');
-    } finally {
-      setApprovingId(null);
-    }
-  }
-
   function handleRejected(updated: DocumentRequest) {
     setRequests((prev) => prev.map((r) => r.id === updated.id ? updated : r));
     setRejectTarget(null);
@@ -1364,9 +1829,10 @@ export function AdminDocumentsPage() {
     setRemindingId(req.id);
     try {
       await remindDocumentRequest(req.id);
-      toast.success('Reminder sent to applicant.');
-    } catch {
-      toast.error('Failed to send reminder.');
+      toast.success('Reminder sent successfully.');
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ?? 'Failed to send reminder.');
     } finally {
       setRemindingId(null);
     }
@@ -1406,14 +1872,73 @@ export function AdminDocumentsPage() {
   }
 
   // Status → action rules
-  const canReview = (status: DocumentRequestStatus) =>
-    status === 'uploaded' || status === 'under_review';
-
   const canRemind = (status: DocumentRequestStatus) =>
-    status === 'awaiting_upload' || status === 'overdue';
+    status === 'awaiting_upload' || status === 'uploaded' || status === 'overdue';
 
   const canReupload = (status: DocumentRequestStatus) =>
     status === 'rejected';
+
+  // ── URL persistence — debounced write of filter state to query string ────────
+  const urlSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (urlSyncTimer.current) clearTimeout(urlSyncTimer.current);
+    urlSyncTimer.current = setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        const set = (k: string, v: string) => { if (v) next.set(k, v); else next.delete(k); };
+        set('tab', tab);
+        set('search', tab === 'requests' ? search : '');
+        set('uploadsSearch', tab !== 'requests' ? uploadsSearch : '');
+        set('statusFilter', statusFilter);
+        set('uploadsStatusFilter', uploadsStatusFilter);
+        set('page', page > 1 ? String(page) : '');
+        set('uploadsPage', uploadsPage > 1 ? String(uploadsPage) : '');
+        set('camperId', advancedFilters.camperId);
+        set('applicationNumber', advancedFilters.applicationNumber);
+        set('dateField', advancedFilters.dateField !== 'updated_at' ? advancedFilters.dateField : '');
+        set('from', advancedFilters.from);
+        set('to', advancedFilters.to);
+        return next;
+      }, { replace: true });
+    }, 400);
+    return () => { if (urlSyncTimer.current) clearTimeout(urlSyncTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, search, uploadsSearch, statusFilter, uploadsStatusFilter, page, uploadsPage, advancedFilters]);
+
+  // ── Date type label helper ────────────────────────────────────────────────────
+  function dateFieldLabel(field: DateFieldType): string {
+    if (field === 'submitted_at') return t('admin_extra.filter_date_submitted', 'Submitted Date');
+    if (field === 'due_date')    return t('admin_extra.filter_date_due', 'Due Date');
+    return t('admin_extra.filter_date_activity', 'Last Activity');
+  }
+
+  // ── Derived filter display values ─────────────────────────────────────────
+  const selectedCamper = camperOptions.find((c) => String(c.id) === advancedFilters.camperId);
+  const filteredCamperOptions = camperDropdownSearch.trim()
+    ? camperOptions.filter((c) => c.name.toLowerCase().includes(camperDropdownSearch.toLowerCase()))
+    : camperOptions;
+  const dateRangeLabel = advancedFilters.from || advancedFilters.to
+    ? [advancedFilters.from, advancedFilters.to].filter(Boolean).join(' – ')
+    : t('admin_extra.filter_date_range', 'Date Range');
+  const hasAnyFilter = hasActiveFilters || !!statusFilter || !!search || !!uploadsSearch;
+
+  // Active status filter for the unified filter panel — maps to the active tab's filter
+  const activeStatusFilter = tab === 'requests' ? statusFilter : uploadsStatusFilter;
+  function setActiveStatusFilter(v: string) {
+    if (tab === 'requests') { setStatusFilter(v); setPage(1); }
+    else { setUploadsStatusFilter(v); setUploadsPage(1); }
+  }
+
+  // ── "Clear all" full reset ────────────────────────────────────────────────────
+  function handleClearAllFilters() {
+    clearAdvancedFilters();
+    setStatusFilter('');
+    setUploadsStatusFilter(tab === 'submitted' ? 'pending' : 'approved');
+    setSearch('');
+    setUploadsSearch('');
+    setPage(1);
+    setUploadsPage(1);
+  }
 
   return (
     <>
@@ -1443,6 +1968,20 @@ export function AdminDocumentsPage() {
           req={cancelTarget}
           onClose={() => setCancelTarget(null)}
           onConfirm={handleCancel}
+        />
+      )}
+      {overrideTarget && (
+        <OverrideModal
+          doc={overrideTarget}
+          onClose={() => setOverrideTarget(null)}
+          onDone={handleOverrideDone}
+        />
+      )}
+      {reopenTarget && (
+        <ReopenModal
+          doc={reopenTarget}
+          onClose={() => setReopenTarget(null)}
+          onDone={handleReopenDone}
         />
       )}
 
@@ -1578,19 +2117,116 @@ export function AdminDocumentsPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-6 max-w-6xl">
+      {/* ── Document Request preview modal ──────────────────────────────────── */}
+      {previewReq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="w-full max-w-3xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--card)', boxShadow: 'var(--shadow-lg)', maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 overflow-hidden">
+                <FileText className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
+                <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                  {previewReq.uploaded_file_name ?? previewReq.document_type}
+                </span>
+                {previewReq.camper_name && (
+                  <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    — {previewReq.camper_name}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  title="Download"
+                  onClick={() => void handleDownload(previewReq)}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+                  style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewReq(null)}
+                  className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden" style={{ minHeight: 400 }}>
+              {previewReqLoading ? (
+                <div className="flex items-center justify-center h-full p-8" style={{ color: 'var(--muted-foreground)' }}>
+                  <RefreshCw className="h-6 w-6 animate-spin opacity-50" />
+                </div>
+              ) : !previewReqBlobUrl ? (
+                <div className="flex flex-col items-center justify-center gap-3 p-8" style={{ color: 'var(--muted-foreground)' }}>
+                  <AlertCircle className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">Could not load preview.</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownload(previewReq)}
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl border font-medium"
+                    style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download instead
+                  </button>
+                </div>
+              ) : /\.pdf$/i.test(previewReq.uploaded_file_name ?? '') ? (
+                <iframe
+                  src={previewReqBlobUrl}
+                  title={previewReq.uploaded_file_name ?? 'document'}
+                  className="w-full"
+                  style={{ border: 'none', height: '70vh' }}
+                />
+              ) : /\.(jpe?g|png|gif|webp|svg)$/i.test(previewReq.uploaded_file_name ?? '') ? (
+                <div className="flex items-center justify-center p-4 h-full" style={{ background: 'var(--dash-bg)' }}>
+                  <img
+                    src={previewReqBlobUrl}
+                    alt={previewReq.uploaded_file_name ?? 'document'}
+                    className="max-w-full max-h-full object-contain rounded-lg"
+                    style={{ maxHeight: '65vh' }}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 p-8" style={{ color: 'var(--muted-foreground)' }}>
+                  <FileText className="h-12 w-12 opacity-40" />
+                  <p className="text-sm">Preview not available for this file type.</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownload(previewReq)}
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl border font-medium"
+                    style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download to view
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* ── Header ──────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex flex-col gap-5 max-w-6xl">
+
+        {/* ═══════════════════════════════════════════════════════════
+            Zone 1 — Header: title/subtitle left | request button right
+        ════════════════════════════════════════════════════════════ */}
+        <div className="flex items-start justify-between gap-4">
+          {/* LEFT: title + subtitle */}
           <div>
-            <h2 className="text-xl font-headline font-semibold" style={{ color: 'var(--foreground)' }}>
-              {t('admin_extra.documents_heading', 'Documents')}
+            <h2 className="text-2xl font-headline font-semibold leading-tight" style={{ color: 'var(--foreground)' }}>
+              {t('admin_extra.documents_heading', 'Document Control Center')}
             </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              {t('admin_extra.documents_subheading', 'Manage document requests and review applicant-uploaded files.')}
+            <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              {t('admin_extra.documents_subheading', 'Manage document requests, submissions, and system-wide document activity.')}
             </p>
           </div>
-          {tab === 'requests' && (
+
+          {/* RIGHT: Request Document button (anchor preserved) */}
+          <div className="flex-shrink-0">
             <Button
               size="sm"
               onClick={() => setShowRequestModal(true)}
@@ -1600,620 +2236,791 @@ export function AdminDocumentsPage() {
               <Plus className="h-4 w-4" />
               {t('admin_extra.request_document_button', 'Request Document')}
             </Button>
-          )}
+          </div>
         </div>
 
-        {/* ── Tabs ──────────────────────────────────────────────────── */}
-        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)' }} data-guide-anchor="admin-documents.tabs">
-          {(['requests', 'uploads'] as const).map((tabKey) => (
+        {/* ═══════════════════════════════════════════════════════════
+            Zone 2 — Metric cards
+        ════════════════════════════════════════════════════════════ */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4" data-guide-anchor="admin-documents.metric-cards">
+            <MetricCard label={t('admin_extra.status_overdue','Overdue')}                subtitle={t('admin_extra.subtitle_overdue','Needs attention')}        value={stats.overdue}         active={statusFilter === 'overdue'}         onClick={() => handleMetricClick('overdue')}          icon={AlertCircle} dotBg="rgba(220,38,38,0.10)"   dotFg="#dc2626" />
+            <MetricCard label={t('admin_extra.status_awaiting_upload','Awaiting Upload')} subtitle={t('admin_extra.subtitle_awaiting_upload','Action needed')}  value={stats.awaiting_upload} active={statusFilter === 'awaiting_upload'} onClick={() => handleMetricClick('awaiting_upload')}  icon={CloudUpload}  dotBg="rgba(245,158,11,0.10)"  dotFg="#d97706" />
+            <MetricCard label={t('admin_extra.metric_uploaded','Submitted')}             subtitle={t('admin_extra.subtitle_submitted','Waiting review')}      value={stats.uploaded}        active={statusFilter === 'uploaded'}        onClick={() => handleMetricClick('uploaded')}         icon={FileCheck}   dotBg="rgba(37,99,235,0.10)"   dotFg="#2563eb" />
+            <MetricCard label={t('admin_extra.status_under_review','Under Review')}      subtitle={t('admin_extra.subtitle_under_review','In progress')}       value={stats.under_review}    active={statusFilter === 'under_review'}    onClick={() => handleMetricClick('under_review')}     icon={Clock}       dotBg="rgba(124,58,237,0.10)"  dotFg="#7c3aed" />
+            <MetricCard label={t('admin_extra.status_approved','Approved')}              subtitle={t('admin_extra.subtitle_approved','Completed')}            value={stats.approved}        active={statusFilter === 'approved'}        onClick={() => handleMetricClick('approved')}         icon={CheckCircle} dotBg="rgba(22,163,74,0.10)"   dotFg="var(--forest-green)" />
+            <MetricCard label={t('admin_extra.status_rejected','Rejected')}              subtitle={t('admin_extra.subtitle_rejected','Returned')}             value={stats.rejected}        active={statusFilter === 'rejected'}        onClick={() => handleMetricClick('rejected')}         icon={XCircle}     dotBg="rgba(107,114,128,0.10)" dotFg="#6b7280" />
+            <MetricCard label={t('admin_extra.metric_total','Total')}                   subtitle={t('admin_extra.subtitle_total','Across all statuses')}   value={stats.total}           active={statusFilter === ''}               onClick={() => handleMetricClick('')}                 icon={FileText}    dotBg="rgba(107,114,128,0.10)" dotFg="#6b7280" />
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            Zone 5 — Bulk action bar (Requests tab only, Send Reminder)
+        ════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {tab === 'requests' && requestsSelected.size > 0 && (
+            <motion.div
+              key="bulk-requests"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="flex items-center justify-between px-4 py-2.5 rounded-2xl"
+              style={{ background: 'rgba(234,88,12,0.08)', border: '1px solid rgba(234,88,12,0.25)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+            >
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                {requestsSelected.size} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={bulkLoading}
+                  onClick={() => void handleBulkRemind()}
+                  className="px-3 py-1.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-60"
+                  style={{ background: 'var(--ember-orange)', color: '#fff' }}
+                >
+                  {bulkLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin inline" /> : t('admin_extra.bulk_remind', 'Send Reminder')}
+                </button>
+                <button type="button" onClick={() => setRequestsSelected(new Set())} className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ color: 'var(--muted-foreground)' }}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ═══════════════════════════════════════════════════════════
+            Zone 3 — Combined row: [Filters] [Search ~320px] …… [Tabs]
+        ════════════════════════════════════════════════════════════ */}
+        <div className="flex items-center justify-between gap-4 flex-wrap" data-guide-anchor="admin-documents.search-filters">
+          {/* Left group: Filters + Search */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Filters button */}
             <button
-              key={tabKey}
               type="button"
-              onClick={() => setTab(tabKey)}
-              className="px-4 py-1.5 text-sm font-medium rounded-lg transition-colors"
+              onClick={() => setShowFilters((v) => !v)}
+              className="inline-flex items-center gap-2 h-12 px-4 rounded-lg text-sm font-medium border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
               style={{
-                background: tab === tabKey ? 'var(--card)' : 'transparent',
-                color: tab === tabKey ? 'var(--foreground)' : 'var(--muted-foreground)',
-                boxShadow: tab === tabKey ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)',
               }}
             >
-              {tabKey === 'requests' ? t('admin_extra.tab_requests', 'Document Requests') : t('admin_extra.tab_uploads', 'Uploaded Documents')}
+              <Filter className="h-4 w-4" />
+              {t('admin_extra.filters_button', 'Filters')}
             </button>
-          ))}
-        </div>
 
-        {tab === 'uploads' && (
-          <>
-            {/* ── Uploads: archive toggle + search bar ────────────── */}
-            <div className="flex flex-col gap-3">
-              {/* Archive mode toggle */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowArchived(false); setUploadsPage(1); }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
-                  style={{
-                    background: !showArchived ? 'var(--ember-orange)' : 'var(--card)',
-                    borderColor: !showArchived ? 'var(--ember-orange)' : 'var(--border)',
-                    color: !showArchived ? '#fff' : 'var(--muted-foreground)',
-                  }}
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Active
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowArchived(true); setUploadsPage(1); }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
-                  style={{
-                    background: showArchived ? 'var(--ember-orange)' : 'var(--card)',
-                    borderColor: showArchived ? 'var(--ember-orange)' : 'var(--border)',
-                    color: showArchived ? '#fff' : 'var(--muted-foreground)',
-                  }}
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                  Archived
-                </button>
-                {showArchived && (
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                    Archived documents are hidden from the active workflow. Use Restore to bring them back.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-                <input
-                  type="text"
-                  placeholder="Search by uploader name…"
-                  value={uploadsSearch}
-                  onChange={(e) => setUploadsSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
-                  style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                {[
-                  { label: t('admin_extra.status_all',      'All'),      value: '' },
-                  { label: t('admin_extra.status_pending',  'Pending'),  value: 'pending' },
-                  { label: t('admin_extra.status_approved', 'Approved'), value: 'approved' },
-                  { label: t('admin_extra.status_rejected', 'Rejected'), value: 'rejected' },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => { setUploadsStatusFilter(opt.value); setUploadsPage(1); }}
-                    className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors"
-                    style={{
-                      background: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--card)',
-                      borderColor: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--border)',
-                      color: uploadsStatusFilter === opt.value ? '#fff' : 'var(--foreground)',
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            </div>{/* end outer flex column (search + archive toggle) */}
-
-            {/* ── Uploads table ───────────────────────────────────── */}
-            <div className="glass-data rounded-2xl overflow-hidden">
-              <div
-                className="hidden md:grid gap-x-3 px-6 py-3 border-b text-xs font-semibold uppercase tracking-wide"
+            {/* Search input — fixed medium width, wires to the active tab's search state */}
+            <div className="relative w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: 'var(--muted-foreground)' }} />
+              <input
+                type="text"
+                placeholder={t('admin_extra.header_search_placeholder', 'Search camper, parent, or document…')}
+                value={tab === 'requests' ? search : uploadsSearch}
+                onChange={(e) => tab === 'requests' ? setSearch(e.target.value) : setUploadsSearch(e.target.value)}
+                className="w-full h-12 pl-10 pr-4 rounded-lg border text-base outline-none transition-colors focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]"
                 style={{
-                  gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 120px 90px 140px',
                   borderColor: 'var(--border)',
-                  color: 'var(--muted-foreground)',
-                  background: 'var(--dash-bg)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Right group: Tabs anchored above the table */}
+          <div className="flex items-center" data-guide-anchor="admin-documents.tabs">
+            {([
+              { key: 'requests',  label: t('admin_extra.tab_requests',  'Document Requests') },
+              { key: 'submitted', label: t('admin_extra.tab_submitted', 'Submitted Documents') },
+              { key: 'reviewed',  label: t('admin_extra.tab_reviewed',  'Reviewed / Processed') },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className="px-3 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap"
+                style={{
+                  color: tab === key ? 'var(--foreground)' : 'var(--muted-foreground)',
+                  borderColor: tab === key ? 'var(--ember-orange)' : 'transparent',
                 }}
               >
-                <span>{t('admin_extra.doc_col_file', 'File')}</span>
-                <span>{t('admin_extra.doc_col_uploaded_by', 'Uploaded By')}</span>
-                <span>{t('admin_extra.doc_col_type', 'Document Type')}</span>
-                <span title="Real-time antivirus scan result for this file">{t('admin_extra.doc_col_security', 'Security')}</span>
-                <span>{t('admin_extra.doc_col_status', 'Status')}</span>
-                <span className="text-right">{t('admin_extra.doc_col_actions', 'Actions')}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Filter inline panel — slides open when showFilters is true */}
+        {showFilters && (
+          <div className="rounded-xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+
+            {/* Status dropdown */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                {t('admin_extra.filter_status', 'Status')}
+              </label>
+              <select
+                value={activeStatusFilter}
+                onChange={(e) => setActiveStatusFilter(e.target.value)}
+                className="rounded-lg h-12 px-4 text-base border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]"
+                style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              >
+                {STATUS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Camper dropdown with inline search */}
+            <div className="flex flex-col gap-1 relative">
+              <label className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                {t('admin_extra.filter_camper', 'Camper')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setCamperDropdownOpen((v) => !v)}
+                className="flex items-center justify-between rounded-lg h-12 px-4 text-base border outline-none text-left"
+                style={{ background: 'var(--input)', borderColor: camperDropdownOpen ? 'var(--forest-green)' : 'var(--border)', color: 'var(--foreground)' }}
+              >
+                <span className="truncate">{selectedCamper ? selectedCamper.name : 'All Campers'}</span>
+                <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${camperDropdownOpen ? 'rotate-90' : ''}`} style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+              {camperDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+                  <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                    <input
+                      type="text"
+                      placeholder="Filter campers…"
+                      value={camperDropdownSearch}
+                      onChange={(e) => setCamperDropdownSearch(e.target.value)}
+                      className="w-full h-12 px-4 text-base rounded-lg outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]"
+                      style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                      autoFocus
+                    />
+                  </div>
+                  <ul className="max-h-48 overflow-y-auto">
+                    <li>
+                      <button type="button" onMouseDown={() => { setAdvFilter('camperId', ''); setCamperDropdownOpen(false); setCamperDropdownSearch(''); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ color: !advancedFilters.camperId ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}>
+                        All Campers
+                      </button>
+                    </li>
+                    {filteredCamperOptions.map((c) => (
+                      <li key={c.id}>
+                        <button type="button" onMouseDown={() => { setAdvFilter('camperId', String(c.id)); setCamperDropdownOpen(false); setCamperDropdownSearch(''); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ color: advancedFilters.camperId === String(c.id) ? 'var(--ember-orange)' : 'var(--foreground)' }}>
+                          {c.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Date filter — combined date-type selector + range popover so the user
+                always sees which column the From/To bounds apply to. Popover trigger
+                reads "<Date Field> · From – To" (e.g. "Submitted Date · Apr 1 – Apr 24"). */}
+            <div className="flex flex-col gap-1 relative">
+              <label className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                {t('admin_extra.filter_date', 'Filter by date')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setDatePickerOpen((v) => !v)}
+                className="flex items-center justify-between rounded-lg h-12 px-4 text-base border outline-none text-left"
+                style={{ background: 'var(--input)', borderColor: datePickerOpen ? 'var(--forest-green)' : 'var(--border)', color: (advancedFilters.from || advancedFilters.to) ? 'var(--foreground)' : 'var(--muted-foreground)' }}
+              >
+                <span className="truncate">
+                  {(advancedFilters.from || advancedFilters.to)
+                    ? `${dateFieldLabel(advancedFilters.dateField)} · ${dateRangeLabel}`
+                    : t('admin_extra.filter_date_placeholder', 'Filter by date…')}
+                </span>
+                <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${datePickerOpen ? 'rotate-90' : ''}`} style={{ color: 'var(--muted-foreground)' }} />
+              </button>
+              {datePickerOpen && (
+                <div className="absolute top-full left-0 z-20 mt-1 rounded-xl border p-3 flex flex-col gap-3" style={{ background: 'var(--card)', borderColor: 'var(--border)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 240 }}>
+                  {/* Date-type selector at the top so the From/To below are visually subordinate to it */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+                      {t('admin_extra.filter_date_type', 'Filter on')}
+                    </label>
+                    <select
+                      value={advancedFilters.dateField}
+                      onChange={(e) => setAdvFilter('dateField', e.target.value)}
+                      className="rounded-lg h-10 px-3 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]"
+                      style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                    >
+                      <option value="submitted_at">{t('admin_extra.filter_date_submitted', 'Submitted Date')}</option>
+                      <option value="updated_at">{t('admin_extra.filter_date_activity', 'Last Activity')}</option>
+                      {tab === 'requests' && (
+                        <option value="due_date">{t('admin_extra.filter_date_due', 'Due Date')}</option>
+                      )}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                      {t('admin_extra.filter_from_dynamic', 'From')} {dateFieldLabel(advancedFilters.dateField)}
+                    </label>
+                    <input type="date" value={advancedFilters.from} onChange={(e) => setAdvFilter('from', e.target.value)} className="rounded-lg h-10 px-3 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]" style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                      {t('admin_extra.filter_to_dynamic', 'To')} {dateFieldLabel(advancedFilters.dateField)}
+                    </label>
+                    <input type="date" value={advancedFilters.to} onChange={(e) => setAdvFilter('to', e.target.value)} className="rounded-lg h-10 px-3 text-sm border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]" style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    {(advancedFilters.from || advancedFilters.to) ? (
+                      <button type="button" onClick={() => { setAdvFilter('from', ''); setAdvFilter('to', ''); }} className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                        {t('admin_extra.filter_clear_dates', 'Clear dates')}
+                      </button>
+                    ) : <span />}
+                    <button type="button" onClick={() => setDatePickerOpen(false)} className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: 'var(--ember-orange)', color: '#fff' }}>
+                      {t('admin_extra.filter_done', 'Done')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Application Number input */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                {t('admin_extra.filter_application', 'Application Number')}
+              </label>
+              <input
+                type="text"
+                placeholder={t('admin_extra.filter_application_placeholder', 'e.g. CBG-2026-001')}
+                value={advancedFilters.applicationNumber}
+                onChange={(e) => setAdvFilter('applicationNumber', e.target.value)}
+                className="rounded-lg h-12 px-4 text-base border outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]"
+                style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+
+            {/* Archived toggle — only on submitted/reviewed tabs */}
+            {(tab === 'submitted' || tab === 'reviewed') && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>View</label>
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => { setShowArchived(false); setUploadsPage(1); }} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border font-medium transition-colors" style={{ background: !showArchived ? 'var(--ember-orange)' : 'var(--card)', borderColor: !showArchived ? 'var(--ember-orange)' : 'var(--border)', color: !showArchived ? '#fff' : 'var(--muted-foreground)' }}>
+                    <FileText className="h-3.5 w-3.5" />Active
+                  </button>
+                  <button type="button" onClick={() => { setShowArchived(true); setUploadsPage(1); }} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border font-medium transition-colors" style={{ background: showArchived ? 'var(--ember-orange)' : 'var(--card)', borderColor: showArchived ? 'var(--ember-orange)' : 'var(--border)', color: showArchived ? '#fff' : 'var(--muted-foreground)' }}>
+                    <Archive className="h-3.5 w-3.5" />Archived
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Reviewed tab status pills — keep them accessible inside filter panel */}
+            {tab === 'reviewed' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>Decision</label>
+                <div className="flex items-center gap-1.5">
+                  {[{ label: t('admin_extra.status_approved','Approved'), value: 'approved' }, { label: t('admin_extra.status_rejected','Rejected'), value: 'rejected' }].map((opt) => (
+                    <button key={opt.value} type="button" onClick={() => { setUploadsStatusFilter(opt.value); setUploadsPage(1); }} className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors" style={{ background: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--card)', borderColor: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--border)', color: uploadsStatusFilter === opt.value ? '#fff' : 'var(--foreground)' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            </div>{/* end grid */}
+
+            {/* Clear all — below grid so it doesn't consume a column track */}
+            {hasAnyFilter && (
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="text-xs font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                >
+                  {t('admin_extra.filter_clear_all', 'Clear all filters')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            Active filter chips strip
+        ════════════════════════════════════════════════════════════ */}
+        {(() => {
+          // Build the list of active chips
+          const activeSearch = tab === 'requests' ? search : uploadsSearch;
+          const activeStatusVal = tab === 'requests' ? statusFilter : uploadsStatusFilter;
+          // Human label for the active status value
+          const statusLabel = STATUS_FILTER_OPTIONS.find((o) => o.value === activeStatusVal)?.label ?? activeStatusVal;
+          // Human label for date range prefix
+          const datePrefixLabel = dateFieldLabel(advancedFilters.dateField);
+
+          type Chip = { key: string; label: string; onClear: () => void };
+          const chips: Chip[] = [];
+
+          if (activeStatusVal) {
+            chips.push({
+              key: 'status',
+              label: `${t('admin_extra.chip_status', 'Status')}: ${statusLabel}`,
+              onClear: () => setActiveStatusFilter(''),
+            });
+          }
+          if (advancedFilters.camperId && selectedCamper) {
+            chips.push({
+              key: 'camper',
+              label: `${t('admin_extra.chip_camper', 'Camper')}: ${selectedCamper.name}`,
+              onClear: () => setAdvFilter('camperId', ''),
+            });
+          }
+          if (advancedFilters.applicationNumber) {
+            chips.push({
+              key: 'appNumber',
+              label: `${t('admin_extra.chip_application', 'Application')}: ${advancedFilters.applicationNumber}`,
+              onClear: () => setAdvFilter('applicationNumber', ''),
+            });
+          }
+          if (advancedFilters.from || advancedFilters.to) {
+            const rangeText = [advancedFilters.from, advancedFilters.to].filter(Boolean).join(' – ');
+            chips.push({
+              key: 'dateRange',
+              label: `${datePrefixLabel}: ${rangeText}`,
+              onClear: () => { setAdvFilter('from', ''); setAdvFilter('to', ''); },
+            });
+          }
+          if (activeSearch) {
+            chips.push({
+              key: 'search',
+              label: `${t('admin_extra.chip_search', 'Search')}: "${activeSearch}"`,
+              onClear: () => tab === 'requests' ? setSearch('') : setUploadsSearch(''),
+            });
+          }
+
+          if (chips.length === 0) return null;
+
+          return (
+            <div className="flex items-center flex-wrap gap-2">
+              {chips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs"
+                  style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                >
+                  {chip.label}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${chip.key} filter`}
+                    onClick={chip.onClear}
+                    className="flex-shrink-0 rounded hover:bg-[var(--dash-nav-hover-bg)] transition-colors ml-0.5"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="text-xs font-medium px-2 py-1 rounded-md transition-colors hover:bg-[var(--dash-nav-hover-bg)]"
+                style={{ color: 'var(--muted-foreground)' }}
+              >
+                {t('admin_extra.filter_clear_all', 'Clear all filters')}
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* ═══════════════════════════════════════════════════════════
+            Submitted / Reviewed tab content
+        ════════════════════════════════════════════════════════════ */}
+        {(tab === 'submitted' || tab === 'reviewed') && (
+          <>
+            {/* Uploads table */}
+            <div className="overflow-x-auto">
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+
+              {/* Sticky header row */}
+              <div className="grid items-center gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(80px, 0.6fr)', borderColor: 'var(--border)', background: 'var(--dash-bg)', color: 'var(--muted-foreground)' }}>
+                <span className="min-w-0">{t('admin_extra.col_camper_parent','Camper / Parent')}</span>
+                <span className="min-w-0">{t('admin_extra.col_document','Document')}</span>
+                <span>{t('admin_extra.doc_col_status','Status')}</span>
+                <span>{t('admin_extra.doc_col_last_activity','Last Activity')}</span>
+                <span className="text-right">{t('admin_extra.doc_col_actions','Actions')}</span>
               </div>
 
               {uploadsLoading ? (
-                <div className="p-4"><SkeletonTable rows={5} /></div>
+                <div className="p-4"><div className="h-64 flex items-center justify-center" style={{ color: 'var(--muted-foreground)' }}><RefreshCw className="h-5 w-5 animate-spin opacity-40" /></div></div>
               ) : uploadsError ? (
                 <ErrorState onRetry={loadUploads} />
               ) : uploads.length === 0 ? (
                 <EmptyState
-                  title={t('admin_extra.empty_no_uploads', 'No uploaded documents')}
-                  description={uploadsSearch || uploadsStatusFilter ? t('admin_extra.empty_no_filter_match', 'No documents match your filters.') : t('admin_extra.empty_uploads_hint', 'Applicants have not uploaded any documents yet.')}
+                  title={tab === 'submitted' ? t('admin_extra.empty_no_submitted','No submitted documents awaiting review') : t('admin_extra.empty_no_reviewed','No reviewed documents yet')}
+                  description={uploadsSearch || uploadsStatusFilter ? t('admin_extra.empty_no_filter_match','No documents match your filters.') : tab === 'submitted' ? t('admin_extra.empty_submitted_hint','Documents appear here as soon as applicants submit them.') : t('admin_extra.empty_reviewed_hint','Approved and rejected documents appear here.')}
                   icon={FileText}
                 />
               ) : (
                 <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                  {uploads.map((doc) => (
-                    <li key={doc.id} className="hidden md:grid gap-x-3 px-6 py-3 items-center"
-                      style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 120px 90px 140px' }}>
+                  {uploads.map((doc) => {
+                    const camperName = doc.documentable_name ?? doc.uploaded_by_name ?? '—';
+                    const parentName = doc.uploaded_by_name ?? '—';
+                    const docSize = doc.size != null
+                      ? (doc.size < 1024 * 1024 ? `${(doc.size / 1024).toFixed(0)} KB` : `${(doc.size / 1024 / 1024).toFixed(1)} MB`)
+                      : null;
+                    const dateRef = doc.submitted_at ?? doc.created_at;
+                    const { text: relText, color: relColor } = relativeFromNow(dateRef, doc.verification_status);
 
-                      {/* File name + linked entity */}
-                      <div className="flex flex-col gap-0.5 overflow-hidden">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
-                          <span className="text-sm font-medium truncate" title={doc.file_name} style={{ color: 'var(--foreground)' }}>
-                            {doc.file_name}
+                    // Context-aware overflow menu for document rows
+                    const docOverflowItems: OverflowMenuItem[] = [];
+                    docOverflowItems.push({ label: t('admin_extra.menu_view_document','View Document'), icon: ZoomIn, onClick: () => setPreviewDoc(doc) });
+                    docOverflowItems.push({ label: t('admin_extra.menu_download','Download'), icon: Download, onClick: () => void handleDownloadUpload(doc) });
+                    if (doc.application_id) {
+                      docOverflowItems.push({
+                        label: t('admin_extra.menu_open_application','Open Application'),
+                        icon: ExternalLink,
+                        onClick: () => navigate(isSuperAdmin ? ROUTES.SUPER_ADMIN_APPLICATION_EDIT(doc.application_id!) : ROUTES.ADMIN_APPLICATION_DETAIL(doc.application_id!)),
+                      });
+                    }
+                    if (!showArchived) {
+                      docOverflowItems.push({ label: t('admin_extra.menu_archive','Archive'), icon: Archive, onClick: () => void handleArchiveDoc(doc), disabled: archivingId === doc.id });
+                    } else {
+                      docOverflowItems.push({ label: t('admin_extra.menu_restore','Restore'), icon: ArchiveRestore, onClick: () => void handleRestoreDoc(doc), disabled: restoringId === doc.id });
+                    }
+                    if (isSuperAdmin && doc.verification_status !== 'pending') {
+                      docOverflowItems.push({ label: t('admin_extra.menu_override','Override decision'), icon: Shield, onClick: () => setOverrideTarget(doc) });
+                      docOverflowItems.push({ label: t('admin_extra.menu_reopen','Reopen for review'), icon: RotateCcw, onClick: () => setReopenTarget(doc) });
+                    }
+                    docOverflowItems.push({ label: t('admin_extra.menu_delete','Delete'), icon: Trash2, onClick: () => setDeleteTarget(doc), danger: true, disabled: deletingId === doc.id });
+
+                    return (
+                      <li key={doc.id} className="group grid items-center gap-4 px-5 py-4 border-b last:border-b-0 hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(80px, 0.6fr)' }}>
+
+                        {/* Col 1: avatar + people */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar name={camperName} size="sm" fallbackColor={avatarBg(camperName)} />
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>{camperName}</span>
+                            <span className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
+                              {t('admin_extra.uploaded_by_label','Uploaded by:')} {parentName}
+                            </span>
+                            {doc.requested_by_name && (
+                              <span className="text-[11px] truncate" style={{ color: 'var(--muted-foreground)' }} title={doc.requested_by_name}>
+                                Requested by: {doc.requested_by_name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Col 2: document */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(234,88,12,0.08)' }}>
+                            <FileText className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{formatDocumentType(doc.document_type)}</span>
+                            {docSize && <span className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>{doc.mime_type?.split('/')[1]?.toUpperCase() ?? 'FILE'} · {docSize}</span>}
+                          </div>
+                        </div>
+
+                        {/* Col 3: status badge */}
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium self-start"
+                            style={{ background: doc.verification_status === 'approved' ? 'rgba(5,150,105,0.10)' : doc.verification_status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', color: doc.verification_status === 'approved' ? 'var(--forest-green)' : doc.verification_status === 'rejected' ? '#dc2626' : '#b45309' }}>
+                            {doc.verification_status === 'approved' ? <CheckCircle className="h-3 w-3" /> : doc.verification_status === 'rejected' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                            {doc.verification_status === 'approved' ? t('admin_extra.status_approved','Approved') : doc.verification_status === 'rejected' ? t('admin_extra.status_rejected','Rejected') : t('admin_extra.status_pending','Pending')}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium self-start"
+                            title={doc.scan_passed === true ? 'Antivirus scan passed' : doc.scan_passed === false ? 'Antivirus scan failed' : 'Scan pending'}
+                            style={{ background: doc.scan_passed === true ? 'rgba(5,150,105,0.10)' : doc.scan_passed === false ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', color: doc.scan_passed === true ? 'var(--forest-green)' : doc.scan_passed === false ? '#dc2626' : '#b45309' }}>
+                            {doc.scan_passed === true ? <><Shield className="h-3 w-3" />{t('admin_extra.scan_passed','Clean')}</> : doc.scan_passed === false ? <><XCircle className="h-3 w-3" />{t('admin_extra.scan_failed','Threat')}</> : <><Clock className="h-3 w-3" />{t('admin_extra.scan_pending','Scanning')}</>}
                           </span>
                         </div>
-                        {doc.documentable_name && (
-                          <span className="text-xs pl-5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                            {doc.documentable_name}
+
+                        {/* Col 4: last activity date */}
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm whitespace-nowrap" style={{ color: 'var(--foreground)' }}>
+                            {dateRef ? format(new Date(dateRef), 'MMM d, yyyy') : '—'}
                           </span>
-                        )}
-                      </div>
+                          <span className="text-xs" style={{ color: relColor }}>{relText}</span>
+                        </div>
 
-                      {/* Uploaded by */}
-                      <span className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>
-                        {doc.uploaded_by_name ?? '—'}
-                      </span>
-
-                      {/* Document type — human-readable label */}
-                      <span className="text-sm truncate" title={doc.document_type ?? undefined} style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDocumentType(doc.document_type)}
-                      </span>
-
-                      {/* Security scan (real antivirus result) */}
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
-                        title={doc.scan_passed === true ? 'Antivirus scan passed — no threats detected' : doc.scan_passed === false ? 'Antivirus scan failed — file blocked for download' : 'Antivirus scan pending'}
-                        style={{
-                          background: doc.scan_passed === true ? 'rgba(5,150,105,0.10)' : doc.scan_passed === false ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
-                          color: doc.scan_passed === true ? 'var(--forest-green)' : doc.scan_passed === false ? '#dc2626' : '#b45309',
-                        }}>
-                        {doc.scan_passed === true
-                          ? <><Shield className="h-3 w-3" />{t('admin_extra.scan_passed', 'Clean')}</>
-                          : doc.scan_passed === false
-                          ? <><XCircle className="h-3 w-3" />{t('admin_extra.scan_failed', 'Threat')}</>
-                          : <><Clock className="h-3 w-3" />{t('admin_extra.scan_pending', 'Scanning')}</>
-                        }
-                      </span>
-
-                      {/* Verification / review status */}
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium w-fit"
-                        style={{
-                          background: doc.verification_status === 'approved' ? 'rgba(5,150,105,0.10)' : doc.verification_status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
-                          color: doc.verification_status === 'approved' ? 'var(--forest-green)' : doc.verification_status === 'rejected' ? '#dc2626' : '#b45309',
-                        }}>
-                        {doc.verification_status === 'approved' ? <CheckCircle className="h-3 w-3" /> : doc.verification_status === 'rejected' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                        {doc.verification_status === 'approved' ? t('admin_extra.status_approved', 'Approved') : doc.verification_status === 'rejected' ? t('admin_extra.status_rejected', 'Rejected') : t('admin_extra.status_pending', 'Pending')}
-                      </span>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-end gap-0.5">
-                        {/* Preview (PDF or image) */}
-                        <button
-                          type="button"
-                          title="Preview"
-                          onClick={() => setPreviewDoc(doc)}
-                          className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
-                          style={{ color: 'var(--muted-foreground)' }}
-                        >
-                          <ZoomIn className="h-4 w-4" />
-                        </button>
-                        {/* Download */}
-                        <button
-                          type="button"
-                          title="Download"
-                          onClick={() => void handleDownloadUpload(doc)}
-                          className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors"
-                          style={{ color: 'var(--muted-foreground)' }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        {/* Approve / Reject (only while pending review) */}
-                        {doc.verification_status === 'pending' && (
-                          <>
-                            <button
-                              type="button"
-                              title="Approve"
-                              disabled={verifyingId === doc.id}
-                              onClick={() => void handleVerifyDocument(doc, 'approved')}
-                              className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
-                              style={{ color: 'var(--forest-green)' }}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              title="Reject"
-                              disabled={verifyingId === doc.id}
-                              onClick={() => void handleVerifyDocument(doc, 'rejected')}
-                              className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
-                              style={{ color: '#dc2626' }}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                        {/* Archive or Restore */}
-                        {!showArchived ? (
-                          <button
-                            type="button"
-                            title="Archive — removes from active view without deleting"
-                            disabled={archivingId === doc.id}
-                            onClick={() => void handleArchiveDoc(doc)}
-                            className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
-                            style={{ color: 'var(--muted-foreground)' }}
-                          >
-                            <Archive className="h-4 w-4" />
+                        {/* Col 5: actions */}
+                        <div className="flex items-center gap-0.5 justify-end">
+                          <button type="button" title="Preview" onClick={() => setPreviewDoc(doc)} className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ color: 'var(--muted-foreground)' }}>
+                            <ZoomIn className="h-4 w-4" />
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            title="Restore to active view"
-                            disabled={restoringId === doc.id}
-                            onClick={() => void handleRestoreDoc(doc)}
-                            className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
-                            style={{ color: 'var(--forest-green)' }}
-                          >
-                            <ArchiveRestore className="h-4 w-4" />
-                          </button>
-                        )}
-                        {/* Delete — requires confirmation */}
-                        <button
-                          type="button"
-                          title="Delete permanently"
-                          disabled={deletingId === doc.id}
-                          onClick={() => setDeleteTarget(doc)}
-                          className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40"
-                          style={{ color: '#dc2626' }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                          <OverflowMenu items={docOverflowItems} />
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
+            </div>
 
-            {/* ── Uploads pagination ──────────────────────────────── */}
-            {uploadsLastPage > 1 && (
-              <div className="flex items-center justify-between">
+            {/* Uploads pagination — numbered */}
+            {(uploadsLastPage > 1 || uploadsTotal > 0) && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                   {uploadsTotal} document{uploadsTotal !== 1 ? 's' : ''}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Button variant="ghost" size="sm" disabled={uploadsPage <= 1} onClick={() => setUploadsPage((p) => p - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{uploadsPage} / {uploadsLastPage}</span>
+                  <PageNumbers page={uploadsPage} lastPage={uploadsLastPage} onPageChange={setUploadsPage} />
                   <Button variant="ghost" size="sm" disabled={uploadsPage >= uploadsLastPage} onClick={() => setUploadsPage((p) => p + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
+                  <select
+                    value={perPage}
+                    onChange={(e) => { setPerPage(Number(e.target.value)); setUploadsPage(1); }}
+                    className="rounded-lg px-2 py-1.5 text-xs border outline-none"
+                    style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    {[5, 10, 25, 50].map((n) => <option key={n} value={n}>{n} per page</option>)}
+                  </select>
                 </div>
               </div>
             )}
           </>
         )}
 
-        {tab === 'requests' && (<>
+        {/* ═══════════════════════════════════════════════════════════
+            Requests tab content
+        ════════════════════════════════════════════════════════════ */}
+        {tab === 'requests' && (
+          <>
+            {/* Requests table — strict CSS grid layout */}
+            <div className="overflow-x-auto">
+            <div className="rounded-2xl overflow-hidden" data-guide-anchor="admin-documents.requests-table" style={{ border: '1px solid var(--border)', background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
 
-        {/* ── Metrics bar ─────────────────────────────────────────── */}
-        {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3" data-guide-anchor="admin-documents.metric-cards">
-            <MetricCard label={t('admin_extra.metric_total',          'Total')}          value={stats.total}           active={statusFilter === ''}               onClick={() => handleMetricClick('')} />
-            <MetricCard label={t('admin_extra.status_awaiting_upload','Awaiting Upload')} value={stats.awaiting_upload} active={statusFilter === 'awaiting_upload'} onClick={() => handleMetricClick('awaiting_upload')} />
-            <MetricCard label={t('admin_extra.metric_uploaded',        'Uploaded')}        value={stats.uploaded}        active={statusFilter === 'uploaded'}        onClick={() => handleMetricClick('uploaded')} />
-            <MetricCard label={t('admin_extra.status_under_review',    'Under Review')}    value={stats.under_review}    active={statusFilter === 'under_review'}    onClick={() => handleMetricClick('under_review')} />
-            <MetricCard label={t('admin_extra.status_approved',        'Approved')}        value={stats.approved}        active={statusFilter === 'approved'}        onClick={() => handleMetricClick('approved')} />
-            <MetricCard label={t('admin_extra.status_rejected',        'Rejected')}        value={stats.rejected}        active={statusFilter === 'rejected'}        onClick={() => handleMetricClick('rejected')} />
-            <MetricCard label={t('admin_extra.status_overdue',         'Overdue')}         value={stats.overdue}         active={statusFilter === 'overdue'}         onClick={() => handleMetricClick('overdue')} />
-          </div>
-        )}
+              {/* Sticky header */}
+              <div className="grid items-center gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide" style={{ gridTemplateColumns: '40px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(80px, 0.6fr)', borderColor: 'var(--border)', background: 'var(--dash-bg)', color: 'var(--muted-foreground)' }}>
+                <div>
+                  <input type="checkbox" aria-label="Select all requests" checked={requestsSelected.size > 0 && requestsSelected.size === requests.length} onChange={toggleSelectAllRequests} className="h-4 w-4 rounded cursor-pointer" style={{ accentColor: 'var(--ember-orange)' }} />
+                </div>
+                <span className="min-w-0">{t('admin_extra.col_camper_parent','Camper / Parent')}</span>
+                <span className="min-w-0">{t('admin_extra.col_document','Document')}</span>
+                <span data-guide-anchor="admin-documents.status-column">{t('admin_extra.doc_col_status','Status')}</span>
+                <span>{t('admin_extra.col_due_date','Due Date')}</span>
+                <span data-guide-anchor="admin-documents.last-activity-column">{t('admin_extra.col_last_activity','Last Activity')}</span>
+                <span className="text-right" data-guide-anchor="admin-documents.actions-column">{t('admin_extra.doc_col_actions','Actions')}</span>
+              </div>
 
-        {/* ── Search + filter bar ──────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-              style={{ color: 'var(--muted-foreground)' }}
-            />
-            <input
-              type="text"
-              placeholder="Search applicant, camper, or document type…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-1 focus:ring-[var(--ember-orange)]"
-              style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
-            />
-          </div>
+              {loading ? (
+                <div className="p-4"><div className="h-64 flex items-center justify-center" style={{ color: 'var(--muted-foreground)' }}><RefreshCw className="h-5 w-5 animate-spin opacity-40" /></div></div>
+              ) : error ? (
+                <ErrorState onRetry={load} />
+              ) : requests.length === 0 ? (
+                statusFilter || debouncedSearch ? (
+                  <EmptyState title={t('admin_extra.empty_no_requests','No document requests')} description={t('admin_extra.empty_no_filter_match','No requests match your filters.')} icon={FileText} />
+                ) : (
+                  <EmptyState
+                    title={t('admin_extra.empty_no_activity','No document activity yet')}
+                    description={t('admin_extra.empty_activity_hint',"Use 'Request Document' to initiate document workflows.")}
+                    icon={FileText}
+                    action={{ label: t('admin_extra.request_document_button','Request Document'), onClick: () => setShowRequestModal(true) }}
+                  />
+                )
+              ) : (
+                <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                  {requests
+                    .slice()
+                    .sort((a, b) => {
+                      const aName = (a.camper_name ?? '').toLowerCase();
+                      const bName = (b.camper_name ?? '').toLowerCase();
+                      if (aName !== bName) return aName.localeCompare(bName);
+                      return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+                    })
+                    .map((req) => {
+                      const hasDetails = !!(req.instructions || req.rejection_reason);
+                      const awaitingOrOverdue = canRemind(req.status);
+                      const camperDisplayName = req.camper_name ?? req.applicant_name ?? '—';
+                      const { text: relText, color: relColor } = relativeFromNow(req.due_date ?? req.created_at, req.status === 'approved' ? 'approved' : req.status === 'rejected' ? 'rejected' : undefined);
 
-          {/* Status filter pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {STATUS_FILTER_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { setStatusFilter(opt.value); setPage(1); }}
-                className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors"
-                style={{
-                  background: statusFilter === opt.value ? 'var(--ember-orange)' : 'var(--card)',
-                  borderColor: statusFilter === opt.value ? 'var(--ember-orange)' : 'var(--border)',
-                  color: statusFilter === opt.value ? '#fff' : 'var(--foreground)',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Requests table ───────────────────────────────────────── */}
-        <div className="glass-data rounded-2xl overflow-hidden" data-guide-anchor="admin-documents.requests-table">
-
-          {/* Table header */}
-          <div
-            className="hidden md:grid gap-x-3 px-6 py-3 border-b text-xs font-semibold uppercase tracking-wide"
-            style={{
-              gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 140px 100px 80px',
-              borderColor: 'var(--border)',
-              color: 'var(--muted-foreground)',
-              background: 'var(--dash-bg)',
-            }}
-          >
-            <span>{t('admin_extra.doc_form_parent', 'Parent / Guardian')}</span>
-            <span>{t('admin_extra.doc_form_child', 'Child')}</span>
-            <span>{t('admin_extra.col_document', 'Document')}</span>
-            <span>{t('admin_extra.doc_col_status', 'Status')}</span>
-            <span>{t('admin_extra.col_due_date', 'Due Date')}</span>
-            <span className="text-right">{t('admin_extra.doc_col_actions', 'Actions')}</span>
-          </div>
-
-          {loading ? (
-            <div className="p-4">
-              <SkeletonTable rows={6} />
-            </div>
-          ) : error ? (
-            <ErrorState onRetry={load} />
-          ) : requests.length === 0 ? (
-            <EmptyState
-              title={t('admin_extra.empty_no_requests', 'No document requests')}
-              description={
-                statusFilter || debouncedSearch
-                  ? t('admin_extra.empty_no_filter_match', 'No requests match your filters.')
-                  : t('admin_extra.empty_requests_hint', 'Click "Request Document" to create the first request.')
-              }
-              icon={FileText}
-            />
-          ) : (
-            <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
-              {/*
-                Group requests by (camper_id, applicant_id). We sort a snapshot
-                of `requests` so reordering is purely visual — the server's
-                pagination order stays intact. A header <li> is injected
-                immediately before the first row of each new camper group.
-                No collapse on the group header: a reviewer landing on the DCC
-                wants every camper's outstanding asks visible at a glance.
-                Per-row details expand below as before.
-              */}
-              {requests
-                .slice()
-                .sort((a, b) => {
-                  const aName = (a.camper_name ?? '').toLowerCase();
-                  const bName = (b.camper_name ?? '').toLowerCase();
-                  if (aName !== bName) return aName.localeCompare(bName);
-                  return (b.created_at ?? '').localeCompare(a.created_at ?? '');
-                })
-                .map((req, i, arr) => {
-                  const prev = i > 0 ? arr[i - 1] : null;
-                  const newGroup =
-                    !prev
-                    || (prev.camper_id ?? null) !== (req.camper_id ?? null)
-                    || prev.applicant_id !== req.applicant_id;
-                  const groupCount = newGroup
-                    ? arr.filter(
-                        (r) =>
-                          (r.camper_id ?? null) === (req.camper_id ?? null)
-                          && r.applicant_id === req.applicant_id,
-                      ).length
-                    : 0;
-                  return (
-                    <Fragment key={req.id}>
-                      {newGroup && (
-                        <li
-                          className="px-6 py-2.5 flex items-center gap-2"
-                          style={{ background: 'var(--glass-light)' }}
-                        >
-                          <User
-                            className="h-3.5 w-3.5 flex-shrink-0"
-                            style={{ color: 'var(--forest-green)' }}
-                          />
-                          <span
-                            className="text-xs font-semibold"
-                            style={{ color: 'var(--foreground)' }}
-                          >
-                            {req.camper_name ?? t('admin_extra.no_camper', 'Unassigned camper')}
-                          </span>
-                          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                            · {req.applicant_name}
-                          </span>
-                          <span
-                            className="ml-auto text-xs rounded-full px-2 py-0.5 font-medium"
-                            style={{ background: 'var(--glass-medium)', color: 'var(--muted-foreground)' }}
-                          >
-                            {groupCount} {groupCount === 1 ? 'request' : 'requests'}
-                          </span>
-                        </li>
-                      )}
-                <li>
-                  {(() => {
-                    const hasDetails = !!(req.instructions || req.rejection_reason);
-
-                    const btnCls = 'p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors disabled:opacity-40';
-
-                    // Inline actions — max 2 icons to keep column at 80px
-                    const inlineActions = canReview(req.status) ? (
-                      <>
-                        <button type="button" title="Approve"
-                          disabled={approvingId === req.id}
-                          onClick={() => void handleApprove(req)}
-                          className={btnCls}
-                          style={{ color: 'var(--forest-green)' }}>
-                          <CheckCircle className="h-4 w-4" />
-                        </button>
-                        <button type="button" title="Reject"
-                          onClick={() => setRejectTarget(req)}
-                          className={btnCls}
-                          style={{ color: '#dc2626' }}>
-                          <XCircle className="h-4 w-4" />
-                        </button>
-                      </>
-                    ) : hasDetails ? (
-                      <button type="button"
-                        title={expandedRows.has(req.id) ? 'Hide details' : 'View details'}
-                        onClick={() => toggleExpand(req.id)}
-                        className={btnCls}
-                        style={{ color: expandedRows.has(req.id) ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}>
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    ) : null;
-
-                    // Overflow menu items
-                    const overflowItems: OverflowMenuItem[] = (() => {
-                      const items: OverflowMenuItem[] = [];
-                      if (canReview(req.status)) {
-                        if (req.download_url) items.push({ label: 'Download file', icon: Download, onClick: () => void handleDownload(req) });
-                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
-                      } else if (req.status === 'approved') {
-                        if (req.download_url) items.push({ label: 'Download file', icon: Download, onClick: () => void handleDownload(req) });
-                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
-                      } else if (canReupload(req.status)) {
-                        items.push({ label: 'Request resubmission', icon: RotateCcw, onClick: () => void handleReupload(req), disabled: reuploadingId === req.id });
-                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
-                      } else if (canRemind(req.status)) {
-                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
-                        items.push({ label: 'Send reminder', icon: Bell, onClick: () => void handleRemind(req), disabled: remindingId === req.id });
-                        items.push({ label: 'Extend deadline', icon: CalendarClock, onClick: () => setExtendTarget(req) });
-                        items.push({ label: 'Cancel request', icon: Trash2, onClick: () => setCancelTarget(req), danger: true });
-                      } else if (req.status === 'scanning') {
-                        if (hasDetails) items.push({ label: 'View details', icon: Eye, onClick: () => toggleExpand(req.id) });
+                      // Context-aware overflow menu for request rows
+                      const overflowItems: OverflowMenuItem[] = [];
+                      if (req.download_url) {
+                        overflowItems.push({ label: t('admin_extra.menu_view_document','View Document'), icon: Eye, onClick: () => setPreviewReq(req) });
+                        overflowItems.push({ label: t('admin_extra.menu_download','Download'), icon: Download, onClick: () => void handleDownload(req) });
                       }
-                      return items;
-                    })();
+                      if (req.application_id) {
+                        overflowItems.push({
+                          label: t('admin_extra.menu_open_review','Open Review Page'),
+                          icon: ExternalLink,
+                          onClick: () => navigate(isSuperAdmin ? ROUTES.SUPER_ADMIN_APPLICATION_EDIT(req.application_id!) : ROUTES.ADMIN_APPLICATION_DETAIL(req.application_id!)),
+                        });
+                      }
+                      if (canRemind(req.status)) {
+                        overflowItems.push({ label: t('admin_extra.menu_send_reminder','Send Reminder'), icon: Bell, onClick: () => void handleRemind(req), disabled: remindingId === req.id });
+                        overflowItems.push({ label: t('admin_extra.doc_extend_deadline','Extend Deadline'), icon: CalendarClock, onClick: () => setExtendTarget(req) });
+                        overflowItems.push({ label: t('admin_extra.doc_cancel_request','Cancel Request'), icon: Trash2, onClick: () => setCancelTarget(req), danger: true });
+                      }
+                      if (canReupload(req.status)) {
+                        overflowItems.push({ label: t('admin_extra.request_resubmission','Request Resubmission'), icon: RotateCcw, onClick: () => void handleReupload(req), disabled: reuploadingId === req.id });
+                      }
+                      if (hasDetails) {
+                        overflowItems.push({ label: t('admin_extra.view_details','View Details'), icon: Eye, onClick: () => toggleExpand(req.id) });
+                      }
 
-                    return (
-                      <div
-                        className="hidden md:grid gap-x-3 px-6 py-3 items-center"
-                        style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 140px 100px 80px' }}
-                      >
-                        {/* Applicant */}
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'rgba(22,101,52,0.10)' }}>
-                            <User className="h-3 w-3" style={{ color: 'var(--forest-green)' }} />
-                          </div>
-                          <span className="text-sm font-medium truncate" title={req.applicant_name}
-                            style={{ color: 'var(--foreground)' }}>
-                            {req.applicant_name}
-                          </span>
-                        </div>
+                      return (
+                        <Fragment key={req.id}>
+                          {/* Row — strict 7-column grid */}
+                          <li className="group grid items-center gap-4 px-5 py-4 border-b last:border-b-0 hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ gridTemplateColumns: '40px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(80px, 0.6fr)' }}>
+                            {/* Col 1: Checkbox */}
+                            <div>
+                              <input
+                                type="checkbox"
+                                aria-label={`Select ${req.document_type}`}
+                                checked={requestsSelected.has(req.id)}
+                                onChange={() => toggleSelectRequest(req.id)}
+                                className="h-4 w-4 rounded cursor-pointer transition-opacity"
+                                style={{ accentColor: 'var(--ember-orange)', opacity: requestsSelected.has(req.id) || requestsSelected.size > 0 ? 1 : 0 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                                onMouseLeave={(e) => { if (!requestsSelected.has(req.id) && requestsSelected.size === 0) e.currentTarget.style.opacity = '0'; }}
+                              />
+                            </div>
 
-                        {/* Camper */}
-                        <span className="text-sm truncate overflow-hidden" title={req.camper_name ?? undefined}
-                          style={{ color: 'var(--muted-foreground)' }}>
-                          {req.camper_name ?? '—'}
-                        </span>
+                            {/* Col 2: Camper / Parent */}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar name={camperDisplayName} size="sm" fallbackColor={avatarBg(camperDisplayName)} />
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>{req.camper_name ?? req.applicant_name}</span>
+                                <span className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>Parent: {req.applicant_name}</span>
+                                {req.requested_by_name && (
+                                  <span className="text-[11px] truncate" style={{ color: 'var(--muted-foreground)' }} title={req.requested_by_name}>
+                                    Requested by: {req.requested_by_name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                        {/* Document — fixed-width icon container so text always starts at same position */}
-                        <div className="flex items-center overflow-hidden min-w-0">
-                          <span className="flex items-center justify-center flex-shrink-0" style={{ width: 20 }}>
-                            <FileText className="h-3.5 w-3.5" style={{ color: 'var(--ember-orange)' }} />
-                          </span>
-                          <span className="text-sm font-medium truncate ml-1.5" title={req.document_type}
-                            style={{ color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
-                            {req.document_type}
-                          </span>
-                        </div>
+                            {/* Col 3: Document */}
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(234,88,12,0.08)' }}>
+                                <FileText className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>{req.document_type}</span>
+                                {req.uploaded_file_name && (
+                                  <span className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>{req.uploaded_file_name}</span>
+                                )}
+                              </div>
+                            </div>
 
-                        {/* Status */}
-                        <div className="overflow-hidden">
-                          <StatusBadge status={req.status} />
-                        </div>
+                            {/* Col 4: Status badge */}
+                            <div>
+                              <StatusBadge status={req.status} />
+                            </div>
 
-                        {/* Due date */}
-                        <span className="text-sm whitespace-nowrap" style={{ color: 'var(--muted-foreground)' }}>
-                          {req.due_date ? format(new Date(req.due_date), 'MMM d, yyyy') : '—'}
-                        </span>
+                            {/* Col 5: Due date */}
+                            <div className="flex flex-col items-start">
+                              <span className="text-sm whitespace-nowrap" style={{ color: 'var(--foreground)' }}>
+                                {req.due_date ? format(new Date(req.due_date), 'MMM d, yyyy') : '—'}
+                              </span>
+                              {req.due_date && <span className="text-xs" style={{ color: relColor }}>{relText}</span>}
+                            </div>
 
-                        {/* Actions — fixed 80px column, always right-aligned so icons anchor to the right edge */}
-                        <div className="flex items-center justify-end gap-0.5 w-full">
-                          {inlineActions}
-                          <OverflowMenu items={overflowItems} />
-                        </div>
-                      </div>
-                    );
-                  })()}
+                            {/* Col 6: Last activity */}
+                            <div className="flex flex-col items-start">
+                              {(() => {
+                                const ref = req.reviewed_at ?? req.uploaded_at ?? req.created_at;
+                                if (!ref) return <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>—</span>;
+                                const verb =
+                                  req.status === 'approved' ? t('admin_extra.activity_approved','Approved')
+                                  : req.status === 'rejected' ? t('admin_extra.activity_rejected','Rejected')
+                                  : req.status === 'under_review' ? t('admin_extra.activity_under_review','Under review')
+                                  : (req.status === 'uploaded' || req.status === 'scanning') ? t('admin_extra.activity_submitted','Submitted')
+                                  : t('admin_extra.activity_requested','Requested');
+                                return (
+                                  <>
+                                    <span className="text-sm whitespace-nowrap" style={{ color: 'var(--foreground)' }}>
+                                      {format(new Date(ref), 'MMM d, yyyy')}
+                                    </span>
+                                    <span className="text-xs whitespace-nowrap" style={{ color: 'var(--muted-foreground)' }}>
+                                      {verb} {formatDistanceToNow(new Date(ref), { addSuffix: true })}
+                                    </span>
+                                  </>
+                                );
+                              })()}
+                            </div>
 
-                  {/* Mobile fallback */}
-                  <div className="md:hidden px-4 py-3 flex flex-col gap-1">
-                    <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{req.applicant_name}</span>
-                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{req.document_type}</span>
-                    <StatusBadge status={req.status} />
-                  </div>
+                            {/* Col 7: Actions */}
+                            <div className="flex items-center gap-0.5 justify-end">
+                              {/* Awaiting/overdue: Bell is always-visible primary action */}
+                              {awaitingOrOverdue && (
+                                <button type="button" title="Send reminder" disabled={remindingId === req.id} onClick={() => void handleRemind(req)} className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ color: req.status === 'overdue' ? '#dc2626' : 'var(--ember-orange)' }}>
+                                  <Bell className="h-4 w-4" />
+                                </button>
+                              )}
+                              {/* View details toggle — for rows with instructions/rejection */}
+                              {!awaitingOrOverdue && hasDetails && (
+                                <button type="button" title={expandedRows.has(req.id) ? 'Hide details' : 'View details'} onClick={() => toggleExpand(req.id)} className="p-1 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors" style={{ color: expandedRows.has(req.id) ? 'var(--ember-orange)' : 'var(--muted-foreground)' }}>
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              )}
+                              <OverflowMenu items={overflowItems} />
+                            </div>
+                          </li>
 
-                  {/* Instructions / rejection reason (collapsible secondary row) */}
-                  {expandedRows.has(req.id) && (req.instructions || req.rejection_reason) && (
-                    <div
-                      className="px-6 pb-4 pt-1 text-xs rounded-b-lg border-t mx-0"
-                      style={{ background: 'var(--dash-bg)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
-                    >
-                      {req.rejection_reason && (
-                        <p className="font-medium" style={{ color: '#dc2626' }}>
-                          <strong>{t('admin_extra.doc_rejection_reason', 'Rejection reason:')}</strong> {req.rejection_reason}
-                        </p>
-                      )}
-                      {req.instructions && (
-                        <p className={req.rejection_reason ? 'mt-1' : ''}>
-                          <strong style={{ color: 'var(--foreground)' }}>{t('admin_extra.instructions_label', 'Instructions:')}</strong> {req.instructions}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </li>
-                    </Fragment>
-                  );
-                })}
-            </ul>
-          )}
-        </div>
+                          {/* Instructions / rejection detail row */}
+                          {expandedRows.has(req.id) && (req.instructions || req.rejection_reason) && (
+                            <li className="px-5 pb-4 pt-1 text-xs border-t" style={{ background: 'var(--dash-bg)', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
+                              {req.rejection_reason && (
+                                <p className="font-medium" style={{ color: '#dc2626' }}>
+                                  <strong>{t('admin_extra.doc_rejection_reason','Rejection reason:')}</strong> {req.rejection_reason}
+                                </p>
+                              )}
+                              {req.instructions && (
+                                <p className={req.rejection_reason ? 'mt-1' : ''}>
+                                  <strong style={{ color: 'var(--foreground)' }}>{t('admin_extra.instructions_label','Instructions:')}</strong> {req.instructions}
+                                </p>
+                              )}
+                            </li>
+                          )}
 
-        {/* ── Pagination ───────────────────────────────────────────── */}
-        {lastPage > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              {total} request{total !== 1 ? 's' : ''}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                {page} / {lastPage}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={page >= lastPage}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+                          {/* Mobile fallback */}
+                          <li className="md:hidden px-4 py-3 flex flex-col gap-1" style={{ display: 'none' }}>
+                            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{req.applicant_name}</span>
+                            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{req.document_type}</span>
+                            <StatusBadge status={req.status} />
+                          </li>
+                        </Fragment>
+                      );
+                    })}
+                </ul>
+              )}
             </div>
-          </div>
+            </div>
+
+            {/* Requests pagination — numbered */}
+            {(lastPage > 1 || total > 0) && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  {total} request{total !== 1 ? 's' : ''}
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <PageNumbers page={page} lastPage={lastPage} onPageChange={setPage} />
+                  <Button variant="ghost" size="sm" disabled={page >= lastPage} onClick={() => setPage((p) => p + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <select
+                    value={perPage}
+                    onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+                    className="rounded-lg px-2 py-1.5 text-xs border outline-none"
+                    style={{ background: 'var(--input)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    {[5, 10, 25, 50].map((n) => <option key={n} value={n}>{n} per page</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+          </>
         )}
-        </>)}
       </div>
     </>
   );

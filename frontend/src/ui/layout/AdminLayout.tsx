@@ -45,7 +45,7 @@ export function AdminLayout() {
   const user = useAppSelector((state) => state.auth.user);
 
   // Consume from shared context — no independent fetch, no duplicate event listeners.
-  const { unreadMessageCount } = useUnreadMessageCount();
+  const { unreadMessageCount, unreadSystemCount } = useUnreadMessageCount();
 
   // Accept both normalized roles array and legacy flat role string.
   const hasAccess = Boolean(
@@ -75,7 +75,7 @@ export function AdminLayout() {
     { group: gPrimary, label: t('portal_nav.camper_directory'), to: ROUTES.ADMIN_CAMPERS,       icon: Users },
     { group: gPrimary, label: t('portal_nav.camp_sessions'),     to: ROUTES.ADMIN_SESSIONS,      icon: CalendarDays },
     // COMMUNICATION
-    { group: gComm,   label: t('portal_nav.inbox'),            to: '/admin/inbox',             icon: MessageSquare, badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
+    { group: gComm,   label: t('portal_nav.inbox'),            to: '/admin/inbox',             icon: MessageSquare, badge: unreadMessageCount > 0 ? unreadMessageCount : undefined, dot: unreadSystemCount > 0 },
     { group: gComm,   label: t('portal_nav.announcements'),    to: ROUTES.ADMIN_ANNOUNCEMENTS, icon: Megaphone },
     { group: gComm,   label: t('portal_nav.documents'),        to: ROUTES.ADMIN_DOCUMENTS,     icon: FolderOpen },
     // OPERATIONS

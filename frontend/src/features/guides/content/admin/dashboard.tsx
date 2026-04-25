@@ -5,8 +5,8 @@ import type { SmartHint } from '@/features/guides';
 
 registerGuide({
   id: 'admin.dashboard',
-  role: ['admin', 'super_admin'],
-  routeKeys: ['ADMIN_DASHBOARD', 'SUPER_ADMIN_DASHBOARD'],
+  role: 'admin',
+  routeKeys: ['ADMIN_DASHBOARD'],
   titleKey: 'guide.admin.dashboard.title',
   summaryKey: 'guide.admin.dashboard.summary',
   smartHints: true,
@@ -148,4 +148,3 @@ export function AdminDashboardHint() {
 }
 
 registerSmartHintResolver('ADMIN_DASHBOARD', AdminDashboardHint);
-registerSmartHintResolver('SUPER_ADMIN_DASHBOARD', AdminDashboardHint);

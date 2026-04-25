@@ -224,20 +224,24 @@
           "title": "Recorrido del Centro de Control de Documentos",
           "steps": {
             "metric-cards": {
-              "title": "Estado de un vistazo",
-              "body": "Cada tarjeta muestra cuántas solicitudes de documentos se encuentran en ese estado. Haga clic en una tarjeta para filtrar la tabla inferior a ese estado de forma inmediata."
+              "title": "Resumen de documentos",
+              "body": "Estas tarjetas muestran lo que necesita atención: elementos vencidos, cargas pendientes y documentos completados. Empiece aquí para entender rápidamente el estado del sistema."
             },
-            "tabs": {
-              "title": "Dos pestañas, dos vistas",
-              "body": "\"Solicitudes de Documentos\" muestra las solicitudes iniciadas por administradores y su ciclo de vida. \"Documentos Cargados\" muestra todos los archivos que los solicitantes han enviado para revisión."
+            "search-filters": {
+              "title": "Buscar documentos",
+              "body": "Use la búsqueda y los filtros para localizar documentos por campista, padre o solicitud. Filtre los resultados para centrarse solo en lo que importa."
             },
-            "requests-table": {
-              "title": "Tabla de solicitudes",
-              "body": "Cada fila muestra el solicitante, el tipo de documento, el estado y la fecha límite. Use los botones de acción en la fila para aprobar, rechazar, recordar o ampliar el plazo."
+            "status-column": {
+              "title": "Estado del documento",
+              "body": "Cada documento muestra su estado actual. 'Enviado' significa que está listo, mientras que 'Vencido' requiere atención."
             },
-            "create-request": {
-              "title": "Crear una solicitud",
-              "body": "Haga clic aquí para pedirle a un solicitante específico un documento. Puede agregar instrucciones y una fecha límite; el solicitante recibirá una notificación en la bandeja de entrada de inmediato."
+            "actions-column": {
+              "title": "Tomar acción",
+              "body": "Abra el menú para ver, descargar o enviar recordatorios. Las acciones están agrupadas aquí para mantener la página organizada."
+            },
+            "last-activity-column": {
+              "title": "Seguimiento de actividad",
+              "body": "Vea cuándo se enviaron o actualizaron los documentos para mantenerse al tanto del progreso."
             }
           }
         }

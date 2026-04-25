@@ -48,7 +48,6 @@ interface Filters {
   page: number;
   sort: SortKey;
   direction: 'asc' | 'desc';
-  include_drafts: boolean;
 }
 
 export function AdminApplicationsPage() {
@@ -155,7 +154,6 @@ export function AdminApplicationsPage() {
     page: 1,
     sort: 'submitted_at',
     direction: 'asc',
-    include_drafts: false,
   });
   const [retryKey, setRetryKey] = useState(0);
   const [searchInput, setSearchInput] = useState('');
@@ -184,7 +182,6 @@ export function AdminApplicationsPage() {
   const setStatus = (s: string)    => setFilters((f) => ({ ...f, status: s, page: 1 }));
   const setSource = (s: SourceFilter) => setFilters((f) => ({ ...f, submission_source: s, page: 1 }));
   const setPage   = (p: number)    => setFilters((f) => ({ ...f, page: p }));
-  const setIncludeDrafts = (v: boolean) => setFilters((f) => ({ ...f, include_drafts: v, page: 1 }));
   function toggleSort(col: SortKey) {
     setFilters((f) => ({
       ...f, page: 1, sort: col,
@@ -204,13 +201,6 @@ export function AdminApplicationsPage() {
           search:             filters.search || undefined,
           status:             !isDraft && filters.status !== 'all' ? filters.status : undefined,
           drafts_only:        isDraft || undefined,
-          // Opt-in "Include drafts" flag only applies to the default
-          // (no-status-filter) view. When the admin has picked a specific
-          // status or the dedicated Draft filter, this flag is a no-op so
-          // we omit it to keep the wire payload minimal.
-          include_drafts:     !isDraft && filters.status === 'all' && filters.include_drafts
-                              ? true
-                              : undefined,
           camp_session_id:    workspaceSessionId,
           submission_source:  filters.submission_source !== 'all' ? filters.submission_source : undefined,
           sort:               filters.sort,
@@ -265,7 +255,7 @@ export function AdminApplicationsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6" data-guide-anchor="super-admin-applications.search-bar">
         <div
           className="flex items-center gap-2 flex-1 rounded-lg px-3 py-2 border"
           style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -280,6 +270,7 @@ export function AdminApplicationsPage() {
           />
         </div>
         <div
+          data-guide-anchor="super-admin-applications.status-filter"
           className="flex items-center gap-2 rounded-lg px-3 py-2 border"
           style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
         >
@@ -301,6 +292,7 @@ export function AdminApplicationsPage() {
             digital queue so intake workflows and staffing can be planned
             separately. */}
         <div
+          data-guide-anchor="super-admin-applications.session-filter"
           className="flex items-center gap-2 rounded-lg px-3 py-2 border"
           style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
         >
@@ -319,32 +311,6 @@ export function AdminApplicationsPage() {
           </select>
         </div>
 
-        {/* Include-drafts toggle.
-            Drafts are incomplete, not-yet-submitted applications. They stay
-            out of the default review queue so the queue reflects real work.
-            This opt-in toggle exists for one specific use case: diagnosing
-            "application already exists" errors where the blocker turns out
-            to be a stuck draft. Only visible in the default (All Statuses)
-            view; hiding it when a specific status is selected keeps the UI
-            honest about what the toggle actually does. */}
-        {filters.status === 'all' && (
-          <label
-            className="flex items-center gap-2 rounded-lg px-3 py-2 border cursor-pointer select-none"
-            style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
-            title="Include in-progress drafts from applicants. Off by default so the review queue only surfaces actionable work."
-          >
-            <input
-              type="checkbox"
-              checked={filters.include_drafts}
-              onChange={(e) => setIncludeDrafts(e.target.checked)}
-              className="cursor-pointer"
-              aria-label="Include draft applications"
-            />
-            <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-              Include drafts
-            </span>
-          </label>
-        )}
       </div>
 
       {/* Table */}
@@ -365,7 +331,7 @@ export function AdminApplicationsPage() {
         />
       ) : (
         <>
-          <div className="glass-data rounded-xl overflow-hidden">
+          <div className="glass-data rounded-xl overflow-hidden" data-guide-anchor="super-admin-applications.table">
             {/* Column headers
                 Grid: Q#(1) | Camper(2) | Session(3) | Submitted(3) | Status(2) | Action(1) = 12 */}
             <div

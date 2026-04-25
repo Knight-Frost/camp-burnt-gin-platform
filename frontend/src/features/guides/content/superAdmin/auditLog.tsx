@@ -8,6 +8,16 @@ registerGuide({
   titleKey: 'guide.superAdmin.auditLog.title',
   summaryKey: 'guide.superAdmin.auditLog.summary',
   smartHints: true,
+  walkthrough: {
+    id: 'walkthrough.superAdmin.audit-log',
+    titleKey: 'guide.superAdmin.auditLog.walkthrough.title',
+    steps: [
+      { id: 'summary-strip', anchorId: 'super-admin-audit.summary-strip', titleKey: 'guide.superAdmin.auditLog.walkthrough.steps.summary-strip.title', bodyKey: 'guide.superAdmin.auditLog.walkthrough.steps.summary-strip.body', position: 'bottom' },
+      { id: 'search-bar',    anchorId: 'super-admin-audit.search-bar',    titleKey: 'guide.superAdmin.auditLog.walkthrough.steps.search-bar.title',    bodyKey: 'guide.superAdmin.auditLog.walkthrough.steps.search-bar.body',    position: 'bottom' },
+      { id: 'toolbar',       anchorId: 'super-admin-audit.toolbar',       titleKey: 'guide.superAdmin.auditLog.walkthrough.steps.toolbar.title',       bodyKey: 'guide.superAdmin.auditLog.walkthrough.steps.toolbar.body',       position: 'left' },
+      { id: 'timeline',      anchorId: 'super-admin-audit.timeline',      titleKey: 'guide.superAdmin.auditLog.walkthrough.steps.timeline.title',      bodyKey: 'guide.superAdmin.auditLog.walkthrough.steps.timeline.body',      position: 'top' },
+    ],
+  },
   steps: [
     {
       id: 'what_logs',

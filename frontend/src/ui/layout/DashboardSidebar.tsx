@@ -52,6 +52,8 @@ export interface NavItem {
   group?: string;
   /** Optional unread count badge — renders an orange pill next to the label. */
   badge?: number;
+  /** Green dot — indicates unread system messages without showing a count. */
+  dot?: boolean;
 }
 
 interface DashboardSidebarProps {
@@ -231,6 +233,14 @@ export const DashboardSidebar = memo(function DashboardSidebar({ navItems, pinne
                       >
                         {item.badge > 99 ? '99+' : item.badge}
                       </span>
+                    )}
+                    {/* System unread dot — green, appears when system messages are unread */}
+                    {item.dot && (
+                      <span
+                        className="relative z-10 w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: '#22c55e', marginLeft: item.badge ? 4 : 'auto' }}
+                        aria-label="Unread system message"
+                      />
                     )}
                   </>
                 )}

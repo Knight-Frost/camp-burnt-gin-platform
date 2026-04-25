@@ -1427,7 +1427,7 @@ export function AuditLogPage() {
         </div>
 
         {/* Export and filter toolbar */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-guide-anchor="super-admin-audit.toolbar">
           <button
             type="button"
             onClick={() => void handleExport('csv')}
@@ -1479,19 +1479,22 @@ export function AuditLogPage() {
 
       {/* Intelligence Summary Strip — always visible once data loads */}
       {!loading && !error && (
-        <IntelligenceSummaryStrip
-          entries={entries}
-          totalEvents={meta?.total}
-          isFiltered={!!(filters.search || hasActiveFilters)}
-          onShowToday={handleShowToday}
-          isTodayActive={isTodayActive}
-        />
+        <div data-guide-anchor="super-admin-audit.summary-strip">
+          <IntelligenceSummaryStrip
+            entries={entries}
+            totalEvents={meta?.total}
+            isFiltered={!!(filters.search || hasActiveFilters)}
+            onShowToday={handleShowToday}
+            isTodayActive={isTodayActive}
+          />
+        </div>
       )}
 
       {/* Search bar */}
       <div
         className="flex items-center gap-2 rounded-lg px-3 py-2 border mb-3"
         style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
+        data-guide-anchor="super-admin-audit.search-bar"
       >
         <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
         <input
@@ -1646,7 +1649,7 @@ export function AuditLogPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2" data-guide-anchor="super-admin-audit.timeline">
           {entries.map((entry) => (
             <AuditEntryRow key={entry.id} entry={entry} />
           ))}

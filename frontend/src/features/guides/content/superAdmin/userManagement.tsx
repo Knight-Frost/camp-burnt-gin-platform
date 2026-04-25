@@ -11,6 +11,15 @@ registerGuide({
   titleKey: 'guide.superAdmin.userManagement.title',
   summaryKey: 'guide.superAdmin.userManagement.summary',
   smartHints: true,
+  walkthrough: {
+    id: 'walkthrough.superAdmin.user-management',
+    titleKey: 'guide.superAdmin.userManagement.walkthrough.title',
+    steps: [
+      { id: 'create-button', anchorId: 'super-admin-users.create-button', titleKey: 'guide.superAdmin.userManagement.walkthrough.steps.create-button.title', bodyKey: 'guide.superAdmin.userManagement.walkthrough.steps.create-button.body', position: 'bottom' },
+      { id: 'filter-bar',    anchorId: 'super-admin-users.filter-bar',    titleKey: 'guide.superAdmin.userManagement.walkthrough.steps.filter-bar.title',    bodyKey: 'guide.superAdmin.userManagement.walkthrough.steps.filter-bar.body',    position: 'bottom' },
+      { id: 'user-table',    anchorId: 'super-admin-users.user-table',    titleKey: 'guide.superAdmin.userManagement.walkthrough.steps.user-table.title',    bodyKey: 'guide.superAdmin.userManagement.walkthrough.steps.user-table.body',    position: 'top' },
+    ],
+  },
   steps: [
     {
       id: 'user_list',

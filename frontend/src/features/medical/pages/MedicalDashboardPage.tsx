@@ -339,7 +339,7 @@ export function MedicalDashboardPage() {
           </button>
         </div>
       ) : stats ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" data-guide-anchor="medical-dashboard.stats">
           <div>
             <StatCard label={t('medical.dashboard.stats.total_campers')} value={stats.campers.total} icon={Users} color="var(--ember-orange)" delay={0} />
           </div>
@@ -359,7 +359,7 @@ export function MedicalDashboardPage() {
       ) : null}
 
       {/* ── SECTION 3: Quick Actions ─────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" data-guide-anchor="medical-dashboard.quick-actions">
         <Link
           to={ROUTES.MEDICAL_DIRECTORY}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors hover:opacity-90"
@@ -491,7 +491,7 @@ export function MedicalDashboardPage() {
             </Link>
           </div>
 
-          <div className="glass-panel rounded-2xl overflow-hidden">
+          <div className="glass-panel rounded-2xl overflow-hidden" data-guide-anchor="medical-dashboard.follow-ups">
             {statsLoading ? (
               <div className="p-4"><ActivitySkeleton /></div>
             ) : statsError ? (

@@ -44,6 +44,7 @@ import { getAnnouncements, type Announcement } from '@/features/admin/api/announ
 import { format } from 'date-fns';
 import { useAppSelector } from '@/store/hooks';
 import { useBootstrapReady } from '@/shared/hooks/useBootstrapReady';
+import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 import { useRealtime } from '@/features/realtime/RealtimeContext';
 import { MessageRow } from '@/features/messaging/components/MessageRow';
 import { ThreadView } from '@/features/messaging/components/ThreadView';
@@ -93,13 +94,14 @@ function BulkButton({ icon: Icon, title, onClick, destructive }: {
 // ─── FolderNav ────────────────────────────────────────────────────────────────
 
 function FolderNav({
-  collapsed, onToggle, folder, onFolderChange, inboxUnread,
+  collapsed, onToggle, folder, onFolderChange, inboxUnread, systemUnread,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   folder: InboxFolder;
   onFolderChange: (f: InboxFolder) => void;
   inboxUnread: number;
+  systemUnread: number;
 }) {
   const { t } = useTranslation();
 
@@ -155,9 +157,10 @@ function FolderNav({
           if (item === 'divider') {
             return <div key={`div-${i}`} className="my-1 mx-2 border-t" style={{ borderColor: 'var(--border)' }} />;
           }
-          const Icon    = item.icon;
-          const active  = folder === item.id;
-          const badge   = item.id === 'inbox' && inboxUnread > 0 ? inboxUnread : 0;
+          const Icon       = item.icon;
+          const active     = folder === item.id;
+          const badge      = item.id === 'inbox' && inboxUnread > 0 ? inboxUnread : 0;
+          const systemDot  = item.id === 'system' && systemUnread > 0;
 
           return (
             <button
@@ -177,11 +180,18 @@ function FolderNav({
             >
               <div className="relative flex-shrink-0">
                 <Icon className="h-4 w-4" style={{ color: active ? BRAND : 'var(--muted-foreground)' }} />
-                {/* Collapsed badge dot */}
+                {/* Collapsed unread indicators */}
                 {collapsed && badge > 0 && (
                   <span
                     className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
                     style={{ background: BRAND }}
+                  />
+                )}
+                {collapsed && systemDot && (
+                  <span
+                    className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
+                    style={{ background: '#22c55e' }}
+                    aria-label="Unread system message"
                   />
                 )}
               </div>
@@ -199,6 +209,13 @@ function FolderNav({
                     >
                       {badge > 99 ? '99+' : badge}
                     </span>
+                  )}
+                  {systemDot && (
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: '#22c55e' }}
+                      aria-label="Unread system message"
+                    />
                   )}
                 </>
               )}
@@ -234,6 +251,7 @@ export function InboxPage() {
     return u?.roles?.[0]?.name ?? (typeof u?.role === 'string' ? u.role : '') ?? '';
   });
   const isAdmin = ['admin', 'super_admin'].includes(userRoleName);
+  const { unreadSystemCount } = useUnreadMessageCount();
 
   // ── Persisted UI state
   const [leftCollapsed, setLeftCollapsed] = useState<boolean>(() => {
@@ -856,6 +874,7 @@ export function InboxPage() {
         folder={folder}
         onFolderChange={changeFolder}
         inboxUnread={inboxUnread}
+        systemUnread={unreadSystemCount}
       />
 
       {/* ── Center pane: conversation list ─────────────────────────────────── */}

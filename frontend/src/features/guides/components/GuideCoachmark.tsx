@@ -15,12 +15,10 @@ interface Props {
   onSkip: () => void;
 }
 
-const TOOLTIP_WIDTH = 320;
-// Conservative height estimate used for fit-checking and clamping. Real bubble
-// content varies; if it exceeds this, the bottom edge may still clip slightly.
+const TOOLTIP_WIDTH      = 320;
 const TOOLTIP_HEIGHT_EST = 240;
-const TOOLTIP_OFFSET = 16;
-const VIEWPORT_PADDING = 12;
+const TOOLTIP_OFFSET     = 16;
+const VIEWPORT_PADDING   = 12;
 
 type CardinalPosition = 'top' | 'bottom' | 'left' | 'right';
 
@@ -35,10 +33,10 @@ function spaceAround(rect: AnchorRectShape) {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
   return {
-    top: rect.top,
+    top:    rect.top,
     bottom: vh - (rect.top + rect.height),
-    left: rect.left,
-    right: vw - (rect.left + rect.width),
+    left:   rect.left,
+    right:  vw - (rect.left + rect.width),
   };
 }
 
@@ -58,10 +56,10 @@ function pickPosition(
     return preferred;
   }
   const space = spaceAround(rect);
-  const max = Math.max(space.bottom, space.top, space.right, space.left);
+  const max   = Math.max(space.bottom, space.top, space.right, space.left);
   if (max === space.bottom) return 'bottom';
-  if (max === space.top) return 'top';
-  if (max === space.right) return 'right';
+  if (max === space.top)    return 'top';
+  if (max === space.right)  return 'right';
   return 'left';
 }
 
@@ -73,26 +71,26 @@ function tooltipStyle(
   let left: number;
   switch (position) {
     case 'top':
-      top = rect.top - TOOLTIP_OFFSET - TOOLTIP_HEIGHT_EST;
+      top  = rect.top - TOOLTIP_OFFSET - TOOLTIP_HEIGHT_EST;
       left = rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2;
       break;
     case 'bottom':
-      top = rect.top + rect.height + TOOLTIP_OFFSET;
+      top  = rect.top + rect.height + TOOLTIP_OFFSET;
       left = rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2;
       break;
     case 'left':
-      top = rect.top + rect.height / 2 - TOOLTIP_HEIGHT_EST / 2;
+      top  = rect.top + rect.height / 2 - TOOLTIP_HEIGHT_EST / 2;
       left = rect.left - TOOLTIP_OFFSET - TOOLTIP_WIDTH;
       break;
     case 'right':
-      top = rect.top + rect.height / 2 - TOOLTIP_HEIGHT_EST / 2;
+      top  = rect.top + rect.height / 2 - TOOLTIP_HEIGHT_EST / 2;
       left = rect.left + rect.width + TOOLTIP_OFFSET;
       break;
   }
-  const maxTop = window.innerHeight - TOOLTIP_HEIGHT_EST - VIEWPORT_PADDING;
-  const maxLeft = window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_PADDING;
+  const maxTop  = window.innerHeight - TOOLTIP_HEIGHT_EST - VIEWPORT_PADDING;
+  const maxLeft = window.innerWidth  - TOOLTIP_WIDTH      - VIEWPORT_PADDING;
   return {
-    top: Math.max(VIEWPORT_PADDING, Math.min(top, maxTop)),
+    top:  Math.max(VIEWPORT_PADDING, Math.min(top,  maxTop)),
     left: Math.max(VIEWPORT_PADDING, Math.min(left, maxLeft)),
   };
 }
@@ -105,58 +103,36 @@ export function GuideCoachmark({
   onNext,
   onSkip,
 }: Props) {
-  const { t } = useTranslation();
-  const rect = useAnchorElement(step.anchorId);
+  const { t }              = useTranslation();
+  const { rect, searching } = useAnchorElement(step.anchorId);
   const isFirst = currentIndex === 0;
-  const isLast = currentIndex === totalSteps - 1;
+  const isLast  = currentIndex === totalSteps - 1;
 
-  // Scroll the anchor into the center of the viewport whenever the step
-  // changes, so the spotlight is always visible and the tour feels guided.
+  // Scroll anchor into view whenever the step changes.
   useEffect(() => {
     if (!step.anchorId) return;
     const el = document.querySelector(`[data-guide-anchor="${CSS.escape(step.anchorId)}"]`);
     if (el && typeof (el as HTMLElement).scrollIntoView === 'function') {
-      (el as HTMLElement).scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+      (el as HTMLElement).scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     }
   }, [step.id, step.anchorId]);
 
-  if (!rect) {
-    return (
-      <div className="fixed inset-0 z-[700] flex items-center justify-center pointer-events-none">
-        <div
-          className="pointer-events-auto rounded-2xl p-5 max-w-sm"
-          style={{
-            background: 'var(--popover)',
-            boxShadow: 'var(--shadow-card-prominent)',
-          }}
-        >
-          <p className="text-sm" style={{ color: 'var(--foreground)' }}>
-            {t('guide.walkthrough_anchor_missing')}
-          </p>
-          <div className="flex justify-end gap-2 mt-4">
-            <button
-              type="button"
-              onClick={onSkip}
-              className="px-3 py-1.5 text-sm rounded-lg"
-              style={{ color: 'var(--muted-foreground)' }}
-            >
-              {t('guide.skip')}
-            </button>
-            <button
-              type="button"
-              onClick={onNext}
-              className="px-3 py-1.5 text-sm rounded-lg"
-              style={{ background: 'var(--ember-orange)', color: '#fff' }}
-            >
-              {t('guide.walkthrough_continue')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // When the anchor search has finished and the element was not found, silently
+  // advance to the next step rather than showing an error dialog.
+  useEffect(() => {
+    if (!searching && !rect) {
+      const id = setTimeout(onNext, 0);
+      return () => clearTimeout(id);
+    }
+  }, [searching, rect, onNext]);
 
-  const position = pickPosition(rect, step.position);
+  // While still searching, render nothing so the UI doesn't flash.
+  if (searching) return null;
+
+  // If anchor wasn't found, render nothing — the useEffect above fires onNext.
+  if (!rect) return null;
+
+  const position      = pickPosition(rect, step.position);
   const positionStyle = tooltipStyle(rect, position);
 
   return (
@@ -166,12 +142,12 @@ export function GuideCoachmark({
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="fixed pointer-events-none z-[699]"
         style={{
-          top: rect.top - 4,
-          left: rect.left - 4,
-          width: rect.width + 8,
-          height: rect.height + 8,
+          top:          rect.top  - 4,
+          left:         rect.left - 4,
+          width:        rect.width  + 8,
+          height:       rect.height + 8,
           borderRadius: '12px',
-          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.55)',
+          boxShadow:    '0 0 0 9999px rgba(0, 0, 0, 0.55)',
         }}
         aria-hidden="true"
       />
@@ -184,9 +160,9 @@ export function GuideCoachmark({
         aria-describedby={`coachmark-body-${step.id}`}
         className="fixed z-[700] rounded-2xl p-4"
         style={{
-          width: TOOLTIP_WIDTH,
+          width:      TOOLTIP_WIDTH,
           background: 'var(--popover)',
-          boxShadow: 'var(--shadow-card-prominent)',
+          boxShadow:  'var(--shadow-card-prominent)',
           ...positionStyle,
         }}
       >

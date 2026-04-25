@@ -236,7 +236,7 @@ export function AdminCalendarPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Calendar grid (takes 2 of 3 columns) */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2" data-guide-anchor="super-admin-calendar.month-view">
           <div className="glass-panel rounded-2xl overflow-hidden">
             {/* Month navigation bar */}
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -284,7 +284,7 @@ export function AdminCalendarPage() {
             {loading ? (
               <div className="p-6"><SkeletonCard lines={4} /></div>
             ) : (
-              <div className="grid grid-cols-7">
+              <div className="grid grid-cols-7" data-guide-anchor="super-admin-calendar.event-click">
                 {/* Leading empty cells to align day 1 with the correct weekday column. */}
                 {Array.from({ length: startWeekday }).map((_, i) => (
                   <div key={`e-${i}`} className="h-20 border-b border-r" style={{ borderColor: 'var(--border)', background: 'rgba(0,0,0,0.01)' }} />
@@ -363,7 +363,7 @@ export function AdminCalendarPage() {
         </div>
 
         {/* Right: Upcoming events sidebar */}
-        <div>
+        <div data-guide-anchor="super-admin-calendar.filter-bar">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" style={{ color: 'var(--ember-orange)' }} />

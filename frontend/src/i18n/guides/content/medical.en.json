@@ -45,6 +45,23 @@
           "general": {
             "message": "Use the Directory to find a camper, then click their record to log a treatment."
           }
+        },
+        "walkthrough": {
+          "title": "Dashboard tour",
+          "steps": {
+            "stats": {
+              "title": "Your numbers",
+              "body": "These cards give you a quick pulse on campers, allergies, medications, restrictions, and missing forms."
+            },
+            "quick-actions": {
+              "title": "Common actions",
+              "body": "Jump straight to the camper directory, log a new treatment, or open any of the action areas from here."
+            },
+            "follow-ups": {
+              "title": "Pending follow-ups",
+              "body": "Open follow-ups live here so nothing gets forgotten. Mark them complete when the care is finished."
+            }
+          }
         }
       },
       "camperRecord": {
@@ -91,6 +108,27 @@
           "general": {
             "message": "Log treatments here as they happen. Do not wait until end of day."
           }
+        },
+        "walkthrough": {
+          "title": "Camper record tour",
+          "steps": {
+            "quick-nav": {
+              "title": "Quick actions",
+              "body": "Jump to this camper's treatment log, documents, incidents, visits, or risk assessment without leaving the record."
+            },
+            "safety-flags": {
+              "title": "Key safety flags",
+              "body": "Critical flags surface at the top — read these before giving care. Click any flag to jump to its section."
+            },
+            "allergies": {
+              "title": "Allergies",
+              "body": "Allergies and severity are listed here. Life-threatening ones are highlighted in red."
+            },
+            "medications": {
+              "title": "Medications",
+              "body": "Active medications, dosages, and timing appear here so you can confirm what to administer."
+            }
+          }
         }
       },
       "treatments": {
@@ -127,6 +165,19 @@
         "hint": {
           "general": {
             "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Treatment log tour",
+          "steps": {
+            "add-button": {
+              "title": "Log a treatment",
+              "body": "Click here to start a new entry. Every treatment must be logged to keep a legal record of care."
+            },
+            "history": {
+              "title": "Treatment history",
+              "body": "Every past entry appears here, newest first. Click a card to expand the full details."
+            }
           }
         }
       }

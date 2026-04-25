@@ -345,9 +345,9 @@ export async function replyAllToMessage(
   return data.data;
 }
 
-export async function getUnreadCount(): Promise<number> {
-  const { data } = await axiosInstance.get<{ success: boolean; unread_count: number }>('/inbox/messages/unread-count');
-  return data.unread_count ?? 0;
+export async function getUnreadCount(): Promise<{ total: number; system: number }> {
+  const { data } = await axiosInstance.get<{ success: boolean; unread_count: number; system_unread_count: number }>('/inbox/messages/unread-count');
+  return { total: data.unread_count ?? 0, system: data.system_unread_count ?? 0 };
 }
 
 export async function searchInboxUsers(query: string): Promise<ConversationParticipant[]> {

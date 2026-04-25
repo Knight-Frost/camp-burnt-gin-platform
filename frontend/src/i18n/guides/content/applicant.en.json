@@ -331,6 +331,64 @@
             "cta": "View messages"
           }
         }
+      },
+      "paperForms": {
+        "title": "Paper Application Forms",
+        "summary": "How to download, complete, and upload paper application forms for camp.",
+        "walkthrough": {
+          "title": "Paper Forms Walkthrough",
+          "steps": {
+            "hero": {
+              "title": "Paper application process",
+              "body": "This page guides you through submitting a paper application — download blank forms, print and complete them, then upload scanned copies for staff review."
+            },
+            "steps-area": {
+              "title": "Four-step workflow",
+              "body": "The process has four steps: register your camper and session, download the blank forms, upload your completed scans, then submit everything to staff."
+            }
+          }
+        },
+        "steps": {
+          "what_is_paper": {
+            "title": "What is a paper application?",
+            "summary": "A paper application lets you complete camp forms by hand instead of online.",
+            "details": "Some families prefer paper forms, or a doctor may need to complete a medical section in writing. This page manages that entire process — from downloading the blank forms to uploading your signed copies."
+          },
+          "getting_started": {
+            "title": "Getting started (Step 0)",
+            "summary": "Select the camp session and the camper you are applying for.",
+            "details": "Before you can access the forms, you need to link this application to a specific session and camper. If your camper is already in the system, select them from the list. If this is a new camper, enter their name and date of birth to create their record."
+          },
+          "download_forms": {
+            "title": "Download blank forms (Step 1)",
+            "summary": "Download the official forms, print them, and fill them in by hand.",
+            "details": "The main packet includes the application form and medical health history. Supplemental forms (CPAP waiver, seizure action plan, G-tube feeding plan) are only needed if they apply to your camper. Print, complete, and sign all relevant forms before moving on."
+          },
+          "upload_forms": {
+            "title": "Upload completed forms (Step 2)",
+            "summary": "Scan or photograph your completed forms and upload them here.",
+            "details": "Each form has its own upload slot. You can upload a PDF, JPG, or PNG. The Application Packet and Medical Form are required — supplemental slots are optional and only appear if relevant. Uploading saves your file but does not notify staff yet."
+          },
+          "submit": {
+            "title": "Submit for review (Step 3)",
+            "summary": "Click Submit to send your uploaded forms to camp staff.",
+            "details": "Once all required forms are uploaded, use the Submit button to formally send them for review. Staff will not see your uploads until you submit. After submitting, you can still upload additional optional forms — they will be reviewed alongside your application."
+          }
+        },
+        "faq": {
+          "why_paper": {
+            "question": "Can I switch to the online application instead?",
+            "answer": "Yes. The online digital application is on the Applications page. The paper route is an alternative — you do not have to choose one or the other for all campers. Each application can use a different submission method."
+          },
+          "multiple_campers": {
+            "question": "Can I submit paper forms for more than one camper?",
+            "answer": "Yes. Each camper needs their own application. Use the \"Start New Application\" button to begin a second paper application, then switch between them using the application cards at the top of the page."
+          },
+          "upload_vs_submit": {
+            "question": "What is the difference between uploading and submitting?",
+            "answer": "Uploading saves your file to our system but keeps it as a draft — staff cannot see it yet. Submitting sends all your uploads to staff for review. You must click Submit after uploading for your application to move forward."
+          }
+        }
       }
     }
   }

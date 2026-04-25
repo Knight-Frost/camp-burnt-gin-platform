@@ -10,6 +10,16 @@ registerGuide({
   titleKey: 'guide.medical.camperRecord.title',
   summaryKey: 'guide.medical.camperRecord.summary',
   smartHints: true,
+  walkthrough: {
+    id: 'walkthrough.medical.camper-record',
+    titleKey: 'guide.medical.camperRecord.walkthrough.title',
+    steps: [
+      { id: 'quick-nav',     anchorId: 'medical-record.quick-nav',     titleKey: 'guide.medical.camperRecord.walkthrough.steps.quick-nav.title',     bodyKey: 'guide.medical.camperRecord.walkthrough.steps.quick-nav.body',     position: 'bottom' },
+      { id: 'safety-flags',  anchorId: 'medical-record.safety-flags',  titleKey: 'guide.medical.camperRecord.walkthrough.steps.safety-flags.title',  bodyKey: 'guide.medical.camperRecord.walkthrough.steps.safety-flags.body',  position: 'bottom' },
+      { id: 'allergies',     anchorId: 'medical-record.allergies',     titleKey: 'guide.medical.camperRecord.walkthrough.steps.allergies.title',     bodyKey: 'guide.medical.camperRecord.walkthrough.steps.allergies.body',     position: 'top' },
+      { id: 'medications',   anchorId: 'medical-record.medications',   titleKey: 'guide.medical.camperRecord.walkthrough.steps.medications.title',   bodyKey: 'guide.medical.camperRecord.walkthrough.steps.medications.body',   position: 'top' },
+    ],
+  },
   steps: [
     {
       id: 'sections_overview',

@@ -118,7 +118,7 @@ export function AdminCampersPage() {
       </div>
 
       {/* Filter row — search only; session scoping is handled by the workspace context */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6" data-guide-anchor="super-admin-campers.search-bar">
         <div
           className="flex items-center gap-2 flex-1 rounded-lg px-3 py-2 border max-w-sm"
           style={{ background: 'var(--input)', borderColor: 'var(--border)' }}
@@ -154,6 +154,7 @@ export function AdminCampersPage() {
         <>
           <div
             className="glass-data rounded-xl overflow-hidden"
+            data-guide-anchor="super-admin-campers.camper-table"
           >
             {/* Column headers — Name | DOB | Parent/Guardian | Status | Risk | Action */}
             <div
@@ -247,7 +248,7 @@ export function AdminCampersPage() {
                 </div>
 
                 {/* View button */}
-                <div className="col-span-1 flex justify-end">
+                <div className="col-span-1 flex justify-end" data-guide-anchor="super-admin-campers.camper-detail">
                   <Link
                     to={`${camperBase}/${camper.id}`}
                     className="text-xs px-2.5 py-1 rounded border transition-colors"

@@ -10,6 +10,15 @@ registerGuide({
   titleKey: 'guide.medical.dashboard.title',
   summaryKey: 'guide.medical.dashboard.summary',
   smartHints: true,
+  walkthrough: {
+    id: 'walkthrough.medical.dashboard',
+    titleKey: 'guide.medical.dashboard.walkthrough.title',
+    steps: [
+      { id: 'stats',         anchorId: 'medical-dashboard.stats',         titleKey: 'guide.medical.dashboard.walkthrough.steps.stats.title',         bodyKey: 'guide.medical.dashboard.walkthrough.steps.stats.body',         position: 'bottom' },
+      { id: 'quick-actions', anchorId: 'medical-dashboard.quick-actions', titleKey: 'guide.medical.dashboard.walkthrough.steps.quick-actions.title', bodyKey: 'guide.medical.dashboard.walkthrough.steps.quick-actions.body', position: 'bottom' },
+      { id: 'follow-ups',    anchorId: 'medical-dashboard.follow-ups',    titleKey: 'guide.medical.dashboard.walkthrough.steps.follow-ups.title',    bodyKey: 'guide.medical.dashboard.walkthrough.steps.follow-ups.body',    position: 'right' },
+    ],
+  },
   steps: [
     {
       id: 'overview',

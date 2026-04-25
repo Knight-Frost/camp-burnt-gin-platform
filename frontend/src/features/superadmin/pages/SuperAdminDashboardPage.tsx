@@ -298,7 +298,7 @@ export function SuperAdminDashboardPage() {
             {[1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} lines={1} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3" data-guide-anchor="super-admin-dashboard.stats">
 
             {/* Total */}
             <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
@@ -370,18 +370,20 @@ export function SuperAdminDashboardPage() {
       </section>
 
       {/* ── 2. Sessions ──────────────────────────────────────── */}
-      <SessionsCarousel
-        sessions={sessionCards}
-        sessionDetailRoute={(id) => `/super-admin/sessions/${id}`}
-        manageRoute="/super-admin/sessions"
-        loading={loading}
-      />
+      <div data-guide-anchor="super-admin-dashboard.sessions">
+        <SessionsCarousel
+          sessions={sessionCards}
+          sessionDetailRoute={(id) => `/super-admin/sessions/${id}`}
+          manageRoute="/super-admin/sessions"
+          loading={loading}
+        />
+      </div>
 
       {/* ── 3 + 4. Two-column grid ────────────────────────────── */}
       <div className="grid lg:grid-cols-5 gap-6">
 
         {/* ── 3. Needs Attention (3/5) ──────────────────────── */}
-        <section className="lg:col-span-3">
+        <section className="lg:col-span-3" data-guide-anchor="super-admin-dashboard.needs-attention">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" style={{ color: '#d97706' }} />
@@ -496,7 +498,7 @@ export function SuperAdminDashboardPage() {
         </section>
 
         {/* ── 4. Recent Activity (2/5) ──────────────────────── */}
-        <section className="lg:col-span-2">
+        <section className="lg:col-span-2" data-guide-anchor="super-admin-dashboard.recent-activity">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />

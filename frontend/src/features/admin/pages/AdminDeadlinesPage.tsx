@@ -268,7 +268,7 @@ export function AdminDeadlinesPage() {
             {t('deadlines.page_subtitle')}
           </p>
         </div>
-        <Button onClick={() => { setCreateForm(DEFAULT_CREATE); setModalMode('create'); }}>
+        <Button data-guide-anchor="super-admin-deadlines.create-button" onClick={() => { setCreateForm(DEFAULT_CREATE); setModalMode('create'); }}>
           <Plus size={16} style={{ marginRight: '6px' }} /> {t('deadlines.new_deadline_btn')}
         </Button>
       </div>
@@ -313,6 +313,7 @@ export function AdminDeadlinesPage() {
       </div>
 
       {/* ── Deadline list ──────────────────────────────────────────────────── */}
+      <div data-guide-anchor="super-admin-deadlines.deadline-list">
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
@@ -338,6 +339,7 @@ export function AdminDeadlinesPage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* ── Create Modal ───────────────────────────────────────────────────── */}
       {modalMode === 'create' && (

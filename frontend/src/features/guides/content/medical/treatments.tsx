@@ -7,6 +7,14 @@ registerGuide({
   titleKey: 'guide.medical.treatments.title',
   summaryKey: 'guide.medical.treatments.summary',
   smartHints: true,
+  walkthrough: {
+    id: 'walkthrough.medical.treatments',
+    titleKey: 'guide.medical.treatments.walkthrough.title',
+    steps: [
+      { id: 'add-button', anchorId: 'medical-treatments.header',  titleKey: 'guide.medical.treatments.walkthrough.steps.add-button.title', bodyKey: 'guide.medical.treatments.walkthrough.steps.add-button.body', position: 'bottom' },
+      { id: 'history',    anchorId: 'medical-treatments.history', titleKey: 'guide.medical.treatments.walkthrough.steps.history.title',    bodyKey: 'guide.medical.treatments.walkthrough.steps.history.body',    position: 'top' },
+    ],
+  },
   steps: [
     {
       id: 'global_log',

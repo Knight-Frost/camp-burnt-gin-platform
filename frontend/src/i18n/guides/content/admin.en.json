@@ -224,20 +224,24 @@
           "title": "Document Control Center tour",
           "steps": {
             "metric-cards": {
-              "title": "Status at a glance",
-              "body": "Each card shows how many document requests are in that state. Click a card to filter the table below to that status instantly."
+              "title": "Document Overview",
+              "body": "These cards show what needs attention — overdue items, pending uploads, and completed documents. Start here to quickly understand system status."
             },
-            "tabs": {
-              "title": "Two tabs, two views",
-              "body": "\"Document Requests\" shows admin-initiated requests and their lifecycle. \"Uploaded Documents\" shows all files applicants have submitted for review."
+            "search-filters": {
+              "title": "Find Documents",
+              "body": "Use search and filters to locate documents by camper, parent, or application. Narrow results to focus only on what matters."
             },
-            "requests-table": {
-              "title": "Requests table",
-              "body": "Each row shows the applicant, document type, status, and due date. Use the action buttons on a row to approve, reject, remind, or extend the deadline."
+            "status-column": {
+              "title": "Document Status",
+              "body": "Each document shows its current status. 'Submitted' means it's ready, while 'Overdue' needs attention."
             },
-            "create-request": {
-              "title": "Create a request",
-              "body": "Click here to ask a specific applicant for a document. You can add instructions and a due date — the applicant receives an inbox notification immediately."
+            "actions-column": {
+              "title": "Take Action",
+              "body": "Open the menu to view, download, or send reminders. Actions are grouped here to keep the page clean."
+            },
+            "last-activity-column": {
+              "title": "Track Activity",
+              "body": "See when documents were submitted or updated to stay on top of progress."
             }
           }
         }
