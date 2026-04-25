@@ -49,4 +49,13 @@ enum DocumentRequestStatus: string
             default => false,
         };
     }
+
+    /** Whether an admin reminder is meaningful for this status. */
+    public function canRemind(): bool
+    {
+        return match ($this) {
+            self::AwaitingUpload, self::Uploaded, self::Overdue => true,
+            default => false,
+        };
+    }
 }

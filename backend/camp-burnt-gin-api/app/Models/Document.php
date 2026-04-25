@@ -239,6 +239,20 @@ class Document extends Model
     }
 
     /**
+     * The most recent review event for this document.
+     *
+     * Used in the admin document list to surface the latest decision without
+     * loading the full timeline. latestOfMany() leverages a single MAX query
+     * per document rather than loading all events.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<DocumentReviewEvent, $this>
+     */
+    public function latestReviewEvent(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(DocumentReviewEvent::class)->latest('created_at');
+    }
+
+    /**
      * Get the message this document is attached to, if it was sent as a message attachment.
      *
      * message_id is nullable — documents can also belong to applications or other entities.

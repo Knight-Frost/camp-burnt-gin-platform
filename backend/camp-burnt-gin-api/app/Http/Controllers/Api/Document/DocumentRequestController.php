@@ -196,6 +196,38 @@ class DocumentRequestController extends Controller
             });
         }
 
+        // Slice 2: application_id and date range filters
+        if ($request->filled('application_id')) {
+            $query->where('application_id', (int) $request->input('application_id'));
+        }
+
+        // Extension A: application_number partial-match.
+        // application_number is a computed accessor, not a real column — reconstruct in SQL.
+        if ($request->filled('application_number')) {
+            $pattern = '%' . $request->input('application_number') . '%';
+            $expr = $this->applicationNumberSqlExpression();
+            $query->whereHas('application', function ($q) use ($pattern, $expr) {
+                $q->whereRaw($expr . ' LIKE ?', [$pattern]);
+            });
+        }
+
+        // Extension B: date_field selector — allowed columns on document_requests table only.
+        // due_date is available on document_requests; submitted_at is NOT (no such column here).
+        // Silently falls back to created_at for unknown/invalid values (permissive — no 422).
+        $allowedDateFields = ['created_at', 'updated_at', 'due_date'];
+        $dateField = in_array($request->input('date_field'), $allowedDateFields, true)
+            ? $request->input('date_field')
+            : 'created_at';
+        $qualifiedField = 'document_requests.' . $dateField;
+
+        if ($request->filled('from')) {
+            $query->where($qualifiedField, '>=', $request->input('from').' 00:00:00');
+        }
+
+        if ($request->filled('to')) {
+            $query->where($qualifiedField, '<=', $request->input('to').' 23:59:59');
+        }
+
         $paginated = $query->paginate(20);
 
         return response()->json([
@@ -445,27 +477,64 @@ class DocumentRequestController extends Controller
         $this->authorize('update', $documentRequest);
 
         abort_unless(
-            $documentRequest->status->canUpload(),
+            $documentRequest->status->canRemind(),
             422,
-            'Reminders can only be sent for requests awaiting an upload.'
+            'Reminders can only be sent for active document requests.'
         );
 
-        /** @var \App\Models\User $applicant */
-        $applicant = $documentRequest->applicant;
-
-        $dueDateText = $documentRequest->due_date
-            ? '<p><strong>Due Date:</strong> '.$documentRequest->due_date->format('F j, Y').'</p>'
-            : '';
-
-        $this->updateConversationStatus(
-            $documentRequest,
-            'Reminder: Document Upload Required',
-            '<p>This is a reminder that camp administration is still awaiting the document <strong>'.e($documentRequest->document_type).'</strong>.</p>'
-            .$dueDateText
-            .'<p>Please log in and upload the document at your earliest convenience.</p>'
-        );
+        $this->sendReminder($documentRequest, auth()->user());
 
         return response()->json(['message' => 'Reminder sent.']);
+    }
+
+    /**
+     * Admin: send reminders for multiple document requests in one request.
+     *
+     * POST /api/document-requests/bulk/remind
+     */
+    public function bulkRemind(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', DocumentRequest::class);
+
+        $validated = $request->validate([
+            'document_request_ids' => ['required', 'array', 'max:100'],
+            'document_request_ids.*' => ['integer', 'exists:document_requests,id'],
+        ]);
+
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        $successful = [];
+        $failed = [];
+
+        foreach ($validated['document_request_ids'] as $id) {
+            try {
+                $documentRequest = DocumentRequest::findOrFail($id);
+                $this->authorize('update', $documentRequest);
+
+                if (! $documentRequest->status->canRemind()) {
+                    $failed[] = [
+                        'id' => $id,
+                        'reason' => 'Request is not in a remindable state.',
+                    ];
+                    continue;
+                }
+
+                $this->sendReminder($documentRequest, $admin);
+                $successful[] = $id;
+            } catch (\Throwable $e) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                        ? 'Not authorized'
+                        : $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'successful' => $successful,
+            'failed' => $failed,
+        ]);
     }
 
     /**
@@ -748,6 +817,51 @@ class DocumentRequestController extends Controller
         }
 
         return $base;
+    }
+
+    /**
+     * Send a reminder message to the applicant for a single document request.
+     *
+     * Extracted from remind() so bulkRemind() can call the same logic without duplication.
+     */
+    private function sendReminder(DocumentRequest $documentRequest, User $admin): void
+    {
+        $isUploaded = $documentRequest->status === DocumentRequestStatus::Uploaded
+            || $documentRequest->status === DocumentRequestStatus::Scanning;
+
+        if ($isUploaded) {
+            $subject = 'Document Received — Review in Progress';
+            $body = '<p>Thank you for submitting your document <strong>'.e($documentRequest->document_type).'</strong>.</p>'
+                .'<p>Camp administration has received it and will complete the review shortly. No further action is required from you at this time.</p>';
+        } else {
+            $dueDateText = $documentRequest->due_date
+                ? '<p><strong>Due Date:</strong> '.$documentRequest->due_date->format('F j, Y').'</p>'
+                : '';
+            $subject = 'Reminder: Document Upload Required';
+            $body = '<p>This is a reminder that camp administration is still awaiting the document <strong>'.e($documentRequest->document_type).'</strong>.</p>'
+                .$dueDateText
+                .'<p>Please log in and upload the document at your earliest convenience.</p>';
+        }
+
+        $this->updateConversationStatus($documentRequest, $subject, $body);
+    }
+
+    /**
+     * Return the driver-appropriate SQL expression for the computed application_number.
+     *
+     * MySQL:  CONCAT('CBG-', YEAR(applications.created_at), '-', LPAD(applications.id, 3, '0'))
+     * SQLite: 'CBG-' || strftime('%Y', applications.created_at) || '-' || printf('%03d', applications.id)
+     *
+     * SQLite is used in the test environment; MySQL is production.
+     * Both expressions produce the same string: CBG-YYYY-NNN.
+     */
+    private function applicationNumberSqlExpression(): string
+    {
+        if (\Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite') {
+            return "'CBG-' || strftime('%Y', applications.created_at) || '-' || printf('%03d', applications.id)";
+        }
+
+        return "CONCAT('CBG-', YEAR(applications.created_at), '-', LPAD(applications.id, 3, '0'))";
     }
 
     /**

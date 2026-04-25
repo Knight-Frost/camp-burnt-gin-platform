@@ -354,6 +354,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     Route::prefix('documents')->group(function () {
         Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
         Route::post('/', [DocumentController::class, 'store'])->middleware('throttle:uploads')->name('documents.store');
+        // Bulk actions — must be registered before /{document} wildcard routes
+        Route::middleware(['role:admin,super_admin'])->group(function () {
+            Route::post('/bulk/approve', [DocumentController::class, 'bulkApprove'])->name('documents.bulk-approve');
+            Route::post('/bulk/reject', [DocumentController::class, 'bulkReject'])->name('documents.bulk-reject');
+        });
         Route::get('/{document}', [DocumentController::class, 'show'])->name('documents.show');
         // Downloads are throttled at 30/hour to limit PHI data exfiltration
         Route::get('/{document}/download', [DocumentController::class, 'download'])->middleware('throttle:sensitive')->name('documents.download');
@@ -366,6 +371,11 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::patch('/{document}/submit', [DocumentController::class, 'submit'])->name('documents.submit');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
         Route::get('/{document}/review-history', [DocumentController::class, 'reviewHistory'])->name('documents.review-history');
+        // Super-admin override + reopen (decision correction)
+        Route::middleware(['role:admin,super_admin'])->group(function () {
+            Route::post('/{document}/override', [DocumentController::class, 'override'])->name('documents.override');
+            Route::post('/{document}/reopen', [DocumentController::class, 'reopen'])->name('documents.reopen');
+        });
     });
 
     /*
@@ -412,6 +422,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
     // Document Requests — Admin side
     Route::middleware(['role:admin,super_admin'])->group(function () {
         Route::get('/document-requests/stats', [DocumentRequestController::class, 'stats']);
+        Route::post('/document-requests/bulk/remind', [DocumentRequestController::class, 'bulkRemind'])->name('document-requests.bulk-remind');
         Route::get('/document-requests', [DocumentRequestController::class, 'index']);
         Route::post('/document-requests', [DocumentRequestController::class, 'store']);
         Route::get('/document-requests/{documentRequest}', [DocumentRequestController::class, 'show']);

@@ -68,6 +68,9 @@ enum DocumentReviewAction: string
     // Admin reopened a cancelled application back to under_review.
     case ApplicationReopened = 'application_reopened';
 
+    // Super-admin reset a decided document back to pending for re-review.
+    case Reopened = 'reopened';
+
     public function label(): string
     {
         return match ($this) {
@@ -88,6 +91,7 @@ enum DocumentReviewAction: string
             self::ApplicationWaitlisted => 'Application waitlisted',
             self::ApplicationCancelled => 'Application cancelled',
             self::ApplicationReopened => 'Application reopened',
+            self::Reopened => 'Reopened for review',
         };
     }
 
@@ -95,7 +99,7 @@ enum DocumentReviewAction: string
     {
         return match ($this) {
             self::Approved, self::Rejected, self::Viewed, self::UnderReview,
-            self::Requested, self::ReRequested, self::NoteAdded,
+            self::Requested, self::ReRequested, self::NoteAdded, self::Reopened,
             self::ReviewStarted, self::ApplicationApproved, self::ApplicationRejected,
             self::ApplicationWaitlisted, self::ApplicationCancelled, self::ApplicationReopened => true,
             default => false,

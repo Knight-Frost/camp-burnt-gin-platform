@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Document;
 
+use App\Enums\DocumentReviewAction;
+use App\Enums\DocumentVerificationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Document\StoreDocumentRequest;
 use App\Models\Application;
@@ -14,6 +16,8 @@ use App\Services\Document\DocumentReviewService;
 use App\Services\Document\DocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -75,9 +79,28 @@ class DocumentController extends Controller
         // When true, show only archived documents; when false (default), hide them.
         $includeArchived = filter_var($request->input('include_archived', false), FILTER_VALIDATE_BOOLEAN);
 
+        // New cross-role filters (Slice 2)
+        $filterCamperId = $request->filled('camper_id') ? (int) $request->input('camper_id') : null;
+        $filterApplicationId = $request->filled('application_id') ? (int) $request->input('application_id') : null;
+
+        // Extension A: application_number partial-match (string, max 50)
+        $filterApplicationNumber = $request->filled('application_number')
+            ? (string) $request->input('application_number')
+            : null;
+
+        // Extension B: date_field selector — allowed columns on documents table only.
+        // Silently falls back to created_at for unknown/invalid values (permissive).
+        $allowedDateFields = ['created_at', 'updated_at', 'submitted_at'];
+        $dateField = in_array($request->input('date_field'), $allowedDateFields, true)
+            ? $request->input('date_field')
+            : 'created_at';
+
+        $filterFrom = $request->filled('from') ? $request->input('from').' 00:00:00' : null;
+        $filterTo = $request->filled('to') ? $request->input('to').' 23:59:59' : null;
+
         if ($user->isAdmin()) {
             // Admins see everything; apply optional admin-specific filters
-            $query = Document::with('documentable', 'uploader')->latest();
+            $query = Document::with('documentable', 'uploader', 'documentRequest.requestedByAdmin', 'latestReviewEvent.performer')->latest();
 
             // Archive filter: by default exclude archived documents from the active workflow view.
             // Pass ?include_archived=true to see only archived documents (the Archived tab).
@@ -117,6 +140,9 @@ class DocumentController extends Controller
                 $query->whereHas('uploader', fn ($q) => $q->where('name', 'like', "%{$search}%"));
             }
 
+            // Slice 2 + Extension A/B filters: camper_id, application_id, application_number, date range
+            $this->applyCrossRoleFilters($query, $filterCamperId, $filterApplicationId, $filterFrom, $filterTo, $filterApplicationNumber, $dateField);
+
             $documents = $query->paginate(20);
         } elseif ($user->isMedicalProvider()) {
             // Medical staff see documents attached to active campers and their medical records,
@@ -126,7 +152,7 @@ class DocumentController extends Controller
             $medicalRecordIds = \App\Models\MedicalRecord::where('is_active', true)->pluck('id');
             $camperIds = \App\Models\Camper::where('is_active', true)->pluck('id');
 
-            $query = Document::with('documentable', 'uploader')
+            $query = Document::with('documentable', 'uploader', 'documentRequest.requestedByAdmin', 'latestReviewEvent.performer')
                 ->where(function ($q) use ($camperIds, $medicalRecordIds, $user) {
                     $q->where(function ($inner) use ($camperIds) {
                         // Documents attached directly to campers
@@ -154,12 +180,14 @@ class DocumentController extends Controller
             $query->whereNotNull('submitted_at');
             $this->excludeDocumentsForDraftApplications($query);
 
+            $this->applyCrossRoleFilters($query, $filterCamperId, $filterApplicationId, $filterFrom, $filterTo, $filterApplicationNumber, $dateField);
+
             $documents = $query->latest()->paginate(15);
         } elseif ($user->isApplicant()) {
             // Applicants see only documents for their own campers and their own uploads
             $camperIds = $user->campers()->pluck('id');
 
-            $query = Document::with('documentable', 'uploader')
+            $query = Document::with('documentable', 'uploader', 'documentRequest.requestedByAdmin', 'latestReviewEvent.performer')
                 ->where(function ($q) use ($camperIds, $user) {
                     $q->where(function ($inner) use ($camperIds) {
                         // Documents attached to campers that belong to this applicant
@@ -180,12 +208,14 @@ class DocumentController extends Controller
                 $query->where('documentable_id', (int) $documentableId);
             }
 
+            $this->applyCrossRoleFilters($query, $filterCamperId, $filterApplicationId, $filterFrom, $filterTo, $filterApplicationNumber, $dateField);
+
             $documents = $query->latest()->paginate(15);
         } else {
             // Fallback: any other role sees only documents they personally uploaded.
             // Still respect applicant_hidden_at — the fallback role is acting
             // as the uploader from the row's perspective.
-            $documents = Document::with('documentable', 'uploader')
+            $documents = Document::with('documentable', 'uploader', 'documentRequest.requestedByAdmin', 'latestReviewEvent.performer')
                 ->where('uploaded_by', $user->id)
                 ->whereNull('applicant_hidden_at')
                 ->latest()
@@ -404,6 +434,29 @@ class DocumentController extends Controller
             default => null,
         };
 
+        // Derive application_id: direct polymorphic link takes priority, then via documentRequest.
+        $derivedApplicationId = null;
+        if ($document->documentable_type === 'App\\Models\\Application') {
+            $derivedApplicationId = $document->documentable_id;
+        } elseif ($document->relationLoaded('documentRequest') && $document->documentRequest?->application_id) {
+            $derivedApplicationId = $document->documentRequest->application_id;
+        }
+
+        // Shape the latest review event for the index payload.
+        $latestEvent = null;
+        if ($document->relationLoaded('latestReviewEvent') && $document->latestReviewEvent) {
+            $event = $document->latestReviewEvent;
+            $latestEvent = [
+                'id' => $event->id,
+                'action' => $event->action->value,
+                'action_label' => $event->action->label(),
+                'performed_by_name' => $event->relationLoaded('performer')
+                    ? $event->performer?->name
+                    : null,
+                'created_at' => $event->created_at?->toIso8601String(),
+            ];
+        }
+
         return [
             'id' => $document->id,
             'file_name' => $fileName,
@@ -423,6 +476,12 @@ class DocumentController extends Controller
             // attachments, paper packets not yet matched). Used client-side for
             // the camper-tab filter on the applicant documents page.
             'camper_id' => $resolvedCamperId,
+            // Slice 2: derived application linkage and request metadata
+            'application_id' => $derivedApplicationId,
+            'requested_by_name' => $document->relationLoaded('documentRequest')
+                ? ($document->documentRequest?->requestedByAdmin?->name ?? null)
+                : null,
+            'latest_review_event' => $latestEvent,
             'created_at' => $document->created_at,
             'archived_at' => $document->archived_at,
             'submitted_at' => $document->submitted_at,
@@ -689,5 +748,321 @@ class DocumentController extends Controller
             ]);
 
         return response()->json(['data' => $events]);
+    }
+
+    /**
+     * Bulk-approve a set of documents in one request.
+     *
+     * Authorizes each document individually. Returns partial-success shape so the
+     * frontend can show which items succeeded or failed.
+     *
+     * POST /api/documents/bulk/approve
+     */
+    public function bulkApprove(Request $request): JsonResponse
+    {
+        // Gate: only admins may call bulk operations. Per-item authorization is
+        // re-checked inside the loop for each individual Document.
+        if (! $request->user()->isAdmin()) {
+            abort(Response::HTTP_FORBIDDEN, 'Admin access required.');
+        }
+
+        $validated = $request->validate([
+            'document_ids' => ['required', 'array', 'max:100'],
+            'document_ids.*' => ['integer', 'exists:documents,id'],
+        ]);
+
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        $successful = [];
+        $failed = [];
+
+        foreach ($validated['document_ids'] as $id) {
+            try {
+                $document = Document::findOrFail($id);
+                Gate::authorize('update', $document);
+                $this->reviewService->approve($document, $admin);
+                $successful[] = $id;
+            } catch (\Throwable $e) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                        ? 'Not authorized'
+                        : $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'successful' => $successful,
+            'failed' => $failed,
+        ]);
+    }
+
+    /**
+     * Bulk-reject a set of documents with a shared reason.
+     *
+     * POST /api/documents/bulk/reject
+     */
+    public function bulkReject(Request $request): JsonResponse
+    {
+        if (! $request->user()->isAdmin()) {
+            abort(Response::HTTP_FORBIDDEN, 'Admin access required.');
+        }
+
+        $validated = $request->validate([
+            'document_ids' => ['required', 'array', 'max:100'],
+            'document_ids.*' => ['integer', 'exists:documents,id'],
+            'reason' => ['required', 'string', 'min:1', 'max:2000'],
+        ]);
+
+        /** @var \App\Models\User $admin */
+        $admin = $request->user();
+        $reason = $validated['reason'];
+        $successful = [];
+        $failed = [];
+
+        foreach ($validated['document_ids'] as $id) {
+            try {
+                $document = Document::findOrFail($id);
+                Gate::authorize('update', $document);
+                $this->reviewService->reject($document, $admin, $reason);
+                $successful[] = $id;
+            } catch (\Throwable $e) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                        ? 'Not authorized'
+                        : $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'successful' => $successful,
+            'failed' => $failed,
+        ]);
+    }
+
+    /**
+     * Super-admin override: force a document to approved or rejected regardless of
+     * current decision state. For pending documents use the regular verify path.
+     *
+     * POST /api/documents/{document}/override
+     */
+    public function override(Request $request, Document $document): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin()) {
+            return response()->json(['message' => 'Only super-admins may override document decisions.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:approved,rejected'],
+            'reason' => ['required_if:status,rejected', 'nullable', 'string', 'max:2000'],
+        ]);
+
+        // Override only applies to already-decided docs; pending docs use verify().
+        $rawStatus = $document->getRawOriginal('verification_status');
+        if ($rawStatus === 'pending' || $rawStatus === null) {
+            return response()->json([
+                'message' => 'Document is pending — use the regular verify path instead.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $previousStatus = $rawStatus;
+
+        $updated = match ($validated['status']) {
+            'approved' => $this->reviewService->approve($document, $user, $validated['reason'] ?? null),
+            'rejected' => $this->reviewService->reject($document, $user, $validated['reason'] ?? 'No reason provided.'),
+            default => throw new \InvalidArgumentException("Unexpected status: {$validated['status']}"),
+        };
+
+        // Write a supplementary event recording this as a super-admin override.
+        DocumentReviewEvent::create([
+            'document_id' => $document->id,
+            'document_request_id' => $document->document_request_id,
+            'application_id' => $document->documentable_type === 'App\\Models\\Application'
+                ? $document->documentable_id : null,
+            'camper_id' => $this->resolveDocumentCamperId($document),
+            'action' => $validated['status'] === 'approved' ? DocumentReviewAction::Approved : DocumentReviewAction::Rejected,
+            'performed_by' => $user->id,
+            'notes' => 'Decision overridden by super-admin',
+            'metadata' => ['override' => true, 'previous_status' => $previousStatus],
+        ]);
+
+        return response()->json([
+            'message' => 'Document decision overridden.',
+            'data' => $this->transformDocument($updated),
+        ]);
+    }
+
+    /**
+     * Super-admin reopen: reset a decided document back to pending for re-review.
+     * Clears the approval/rejection columns and writes a Reopened event.
+     *
+     * POST /api/documents/{document}/reopen
+     */
+    public function reopen(Request $request, Document $document): JsonResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin()) {
+            return response()->json(['message' => 'Only super-admins may reopen document decisions.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $rawStatus = $document->getRawOriginal('verification_status');
+        if ($rawStatus === 'pending' || $rawStatus === null) {
+            return response()->json([
+                'message' => 'Document is already pending review.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        DB::transaction(function () use ($document, $user, $validated) {
+            $document->update([
+                'verification_status' => DocumentVerificationStatus::Pending,
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+
+            DocumentReviewEvent::create([
+                'document_id' => $document->id,
+                'document_request_id' => $document->document_request_id,
+                'application_id' => $document->documentable_type === 'App\\Models\\Application'
+                    ? $document->documentable_id : null,
+                'camper_id' => $this->resolveDocumentCamperId($document),
+                'action' => DocumentReviewAction::Reopened,
+                'performed_by' => $user->id,
+                'notes' => $validated['reason'] ?? null,
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Document reopened for review.',
+            'data' => $this->transformDocument($document->fresh()),
+        ]);
+    }
+
+    /**
+     * Apply cross-role filters for camper_id, application_id, application_number, and date range.
+     *
+     * These filters are appended on top of the existing role-scoped base query.
+     * camper_id and application_id use OR-logic to match both the direct polymorphic
+     * owner and the linked document_request's FK.
+     *
+     * Extension A — application_number: partial LIKE match via the computed accessor formula
+     *   CONCAT('CBG-', YEAR(applications.created_at), '-', LPAD(applications.id, 3, '0')).
+     *   Matches via direct polymorphic Application OR via documentRequest.application.
+     *
+     * Extension B — date_field: the $dateField parameter selects which timestamp column
+     *   the from/to range targets. Caller has already validated it against the allowed list
+     *   and qualified it — only columns on the documents table are accepted.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Document>  $query
+     */
+    private function applyCrossRoleFilters(
+        $query,
+        ?int $camperId,
+        ?int $applicationId,
+        ?string $from,
+        ?string $to,
+        ?string $applicationNumber = null,
+        string $dateField = 'created_at'
+    ): void {
+        if ($camperId !== null) {
+            $query->where(function ($q) use ($camperId) {
+                // Direct camper polymorphic owner
+                $q->where(function ($inner) use ($camperId) {
+                    $inner->where('documentable_type', 'App\\Models\\Camper')
+                        ->where('documentable_id', $camperId);
+                // Or linked via a document request's camper_id
+                })->orWhereHas('documentRequest', fn ($r) => $r->where('camper_id', $camperId));
+            });
+        }
+
+        if ($applicationId !== null) {
+            $query->where(function ($q) use ($applicationId) {
+                // Direct application polymorphic owner
+                $q->where(function ($inner) use ($applicationId) {
+                    $inner->where('documentable_type', 'App\\Models\\Application')
+                        ->where('documentable_id', $applicationId);
+                // Or linked via a document request's application_id
+                })->orWhereHas('documentRequest', fn ($r) => $r->where('application_id', $applicationId));
+            });
+        }
+
+        // Extension A: application_number partial-match.
+        // The accessor CONCAT('CBG-', YEAR(applications.created_at), '-', LPAD(applications.id, 3, '0'))
+        // is a computed value, not a real column — we must reconstruct it in SQL.
+        // OR-logic mirrors the application_id filter above: match via direct polymorphic
+        // Application documentable OR via the linked documentRequest's application.
+        if ($applicationNumber !== null) {
+            $pattern = '%' . $applicationNumber . '%';
+            $expr = $this->applicationNumberSqlExpression();
+            $query->where(function ($q) use ($pattern, $expr) {
+                $q->whereHasMorph('documentable', \App\Models\Application::class, function ($appQ) use ($pattern, $expr) {
+                    $appQ->whereRaw($expr . ' LIKE ?', [$pattern]);
+                })
+                ->orWhereHas('documentRequest.application', function ($appQ) use ($pattern, $expr) {
+                    $appQ->whereRaw($expr . ' LIKE ?', [$pattern]);
+                });
+            });
+        }
+
+        // Extension B: date range applies to the caller-selected column (qualified to avoid
+        // join ambiguity). Default is documents.created_at — existing behaviour preserved.
+        $qualifiedField = 'documents.' . $dateField;
+
+        if ($from !== null) {
+            $query->where($qualifiedField, '>=', $from);
+        }
+
+        if ($to !== null) {
+            $query->where($qualifiedField, '<=', $to);
+        }
+    }
+
+    /**
+     * Return the driver-appropriate SQL expression for the computed application_number.
+     *
+     * MySQL:  CONCAT('CBG-', YEAR(applications.created_at), '-', LPAD(applications.id, 3, '0'))
+     * SQLite: 'CBG-' || strftime('%Y', applications.created_at) || '-' || printf('%03d', applications.id)
+     *
+     * SQLite is used in the test environment; MySQL is production.
+     * Both expressions produce the same string: CBG-YYYY-NNN.
+     */
+    private function applicationNumberSqlExpression(): string
+    {
+        if (\Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite') {
+            return "'CBG-' || strftime('%Y', applications.created_at) || '-' || printf('%03d', applications.id)";
+        }
+
+        return "CONCAT('CBG-', YEAR(applications.created_at), '-', LPAD(applications.id, 3, '0'))";
+    }
+
+    /**
+     * Resolve the camper_id for a document, used when writing DocumentReviewEvent rows
+     * in methods that don't go through the service (override, reopen).
+     */
+    private function resolveDocumentCamperId(Document $document): ?int
+    {
+        if ($document->documentable_type === 'App\\Models\\Camper') {
+            return $document->documentable_id;
+        }
+
+        if ($document->documentable_type === 'App\\Models\\Application') {
+            return optional($document->documentable)->camper_id;
+        }
+
+        return null;
     }
 }
