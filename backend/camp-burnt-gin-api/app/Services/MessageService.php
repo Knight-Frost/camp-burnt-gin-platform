@@ -797,6 +797,26 @@ class MessageService
     }
 
     /**
+     * Get the count of unread messages in system-generated threads for a user.
+     *
+     * Mirrors getUnreadMessageCount() but targets is_system_generated = true threads
+     * so the sidebar can show a green dot when automated notifications arrive.
+     */
+    public function getSystemUnreadCount(User $user): int
+    {
+        return Message::whereHas('conversation', function ($query) use ($user) {
+            $query->forUser($user)
+                ->active()
+                ->systemGenerated()
+                ->whereHas('participantRecords', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->whereNull('trashed_at');
+                });
+        })
+            ->unreadBy($user)
+            ->count();
+    }
+
+    /**
      * Get the unread message count for a specific conversation and user.
      *
      * Used to show the unread count badge on a specific conversation row.

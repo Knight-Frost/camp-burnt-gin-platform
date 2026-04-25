@@ -310,6 +310,7 @@ class MessageController extends Controller
         return response()->json([
             'success' => true,
             'unread_count' => $count,
+            'system_unread_count' => $this->messageService->getSystemUnreadCount($request->user()),
         ]);
     }
 
