@@ -204,10 +204,10 @@ class DocumentRequestController extends Controller
         // Extension A: application_number partial-match.
         // application_number is a computed accessor, not a real column — reconstruct in SQL.
         if ($request->filled('application_number')) {
-            $pattern = '%' . $request->input('application_number') . '%';
+            $pattern = '%'.$request->input('application_number').'%';
             $expr = $this->applicationNumberSqlExpression();
             $query->whereHas('application', function ($q) use ($pattern, $expr) {
-                $q->whereRaw($expr . ' LIKE ?', [$pattern]);
+                $q->whereRaw($expr.' LIKE ?', [$pattern]);
             });
         }
 
@@ -218,7 +218,7 @@ class DocumentRequestController extends Controller
         $dateField = in_array($request->input('date_field'), $allowedDateFields, true)
             ? $request->input('date_field')
             : 'created_at';
-        $qualifiedField = 'document_requests.' . $dateField;
+        $qualifiedField = 'document_requests.'.$dateField;
 
         if ($request->filled('from')) {
             $query->where($qualifiedField, '>=', $request->input('from').' 00:00:00');

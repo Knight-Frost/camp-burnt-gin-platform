@@ -453,7 +453,7 @@ class DocumentController extends Controller
                 'performed_by_name' => $event->relationLoaded('performer')
                     ? $event->performer?->name
                     : null,
-                'created_at' => $event->created_at?->toIso8601String(),
+                'created_at' => $event->created_at->toIso8601String(),
             ];
         }
 
@@ -479,7 +479,7 @@ class DocumentController extends Controller
             // Slice 2: derived application linkage and request metadata
             'application_id' => $derivedApplicationId,
             'requested_by_name' => $document->relationLoaded('documentRequest')
-                ? ($document->documentRequest?->requestedByAdmin?->name ?? null)
+                ? ($document->documentRequest?->requestedByAdmin->name ?? null)
                 : null,
             'latest_review_event' => $latestEvent,
             'created_at' => $document->created_at,
@@ -984,7 +984,7 @@ class DocumentController extends Controller
                 $q->where(function ($inner) use ($camperId) {
                     $inner->where('documentable_type', 'App\\Models\\Camper')
                         ->where('documentable_id', $camperId);
-                // Or linked via a document request's camper_id
+                    // Or linked via a document request's camper_id
                 })->orWhereHas('documentRequest', fn ($r) => $r->where('camper_id', $camperId));
             });
         }
@@ -995,7 +995,7 @@ class DocumentController extends Controller
                 $q->where(function ($inner) use ($applicationId) {
                     $inner->where('documentable_type', 'App\\Models\\Application')
                         ->where('documentable_id', $applicationId);
-                // Or linked via a document request's application_id
+                    // Or linked via a document request's application_id
                 })->orWhereHas('documentRequest', fn ($r) => $r->where('application_id', $applicationId));
             });
         }
@@ -1006,21 +1006,21 @@ class DocumentController extends Controller
         // OR-logic mirrors the application_id filter above: match via direct polymorphic
         // Application documentable OR via the linked documentRequest's application.
         if ($applicationNumber !== null) {
-            $pattern = '%' . $applicationNumber . '%';
+            $pattern = '%'.$applicationNumber.'%';
             $expr = $this->applicationNumberSqlExpression();
             $query->where(function ($q) use ($pattern, $expr) {
                 $q->whereHasMorph('documentable', \App\Models\Application::class, function ($appQ) use ($pattern, $expr) {
-                    $appQ->whereRaw($expr . ' LIKE ?', [$pattern]);
+                    $appQ->whereRaw($expr.' LIKE ?', [$pattern]);
                 })
-                ->orWhereHas('documentRequest.application', function ($appQ) use ($pattern, $expr) {
-                    $appQ->whereRaw($expr . ' LIKE ?', [$pattern]);
-                });
+                    ->orWhereHas('documentRequest.application', function ($appQ) use ($pattern, $expr) {
+                        $appQ->whereRaw($expr.' LIKE ?', [$pattern]);
+                    });
             });
         }
 
         // Extension B: date range applies to the caller-selected column (qualified to avoid
         // join ambiguity). Default is documents.created_at — existing behaviour preserved.
-        $qualifiedField = 'documents.' . $dateField;
+        $qualifiedField = 'documents.'.$dateField;
 
         if ($from !== null) {
             $query->where($qualifiedField, '>=', $from);

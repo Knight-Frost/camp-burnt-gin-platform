@@ -1924,7 +1924,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<TRelatedModel of Illuminate\\Database\\Eloquent\\Model\>\:\:forUser\(\)\.$#'
 			identifier: method.notFound
-			count: 1
+			count: 2
 			path: app/Services/MessageService.php
 
 		-

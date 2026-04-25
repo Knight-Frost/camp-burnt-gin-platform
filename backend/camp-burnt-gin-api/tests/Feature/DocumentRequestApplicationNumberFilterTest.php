@@ -51,19 +51,19 @@ class DocumentRequestApplicationNumberFilterTest extends TestCase
     private function makeRequestForApplication(string $createdAt): array
     {
         $application = Application::factory()->create([
-            'camper_id'  => $this->camper->id,
-            'status'     => ApplicationStatus::Submitted,
+            'camper_id' => $this->camper->id,
+            'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
         ]);
 
         $docRequest = DocumentRequest::factory()->create([
-            'applicant_id'           => $this->applicant->id,
-            'application_id'         => $application->id,
-            'camper_id'              => $this->camper->id,
-            'requested_by_admin_id'  => $this->admin->id,
-            'status'                 => DocumentRequestStatus::AwaitingUpload,
+            'applicant_id' => $this->applicant->id,
+            'application_id' => $application->id,
+            'camper_id' => $this->camper->id,
+            'requested_by_admin_id' => $this->admin->id,
+            'status' => DocumentRequestStatus::AwaitingUpload,
         ]);
 
         return [$application, $docRequest];
@@ -85,7 +85,7 @@ class DocumentRequestApplicationNumberFilterTest extends TestCase
         $expectedNumber = sprintf('CBG-%s-%03d', $year, $app2026->id);
 
         Sanctum::actingAs($this->admin);
-        $response = $this->getJson('/api/document-requests?application_number=' . urlencode($expectedNumber));
+        $response = $this->getJson('/api/document-requests?application_number='.urlencode($expectedNumber));
 
         $response->assertOk();
         $ids = collect($response->json('data'))->pluck('id')->all();
@@ -145,11 +145,11 @@ class DocumentRequestApplicationNumberFilterTest extends TestCase
 
         // A second request on the same application but with a different status
         $reqUploaded = DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
-            'application_id'        => $app2026->id,
-            'camper_id'             => $this->camper->id,
+            'applicant_id' => $this->applicant->id,
+            'application_id' => $app2026->id,
+            'camper_id' => $this->camper->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => DocumentRequestStatus::Uploaded,
+            'status' => DocumentRequestStatus::Uploaded,
         ]);
 
         // A request for a completely different year

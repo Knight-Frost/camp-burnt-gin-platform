@@ -2395,7 +2395,6 @@ export function AdminDocumentsPage() {
                       onChange={(e) => setCamperDropdownSearch(e.target.value)}
                       className="w-full h-12 px-4 text-base rounded-lg outline-none focus:bg-[rgba(34,197,94,0.08)] bg-[var(--input)]"
                       style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
-                      autoFocus
                     />
                   </div>
                   <ul className="max-h-48 overflow-y-auto">
@@ -2500,7 +2499,7 @@ export function AdminDocumentsPage() {
             {/* Archived toggle — only on submitted/reviewed tabs */}
             {(tab === 'submitted' || tab === 'reviewed') && (
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>View</label>
+                <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>View</span>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => { setShowArchived(false); setUploadsPage(1); }} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border font-medium transition-colors" style={{ background: !showArchived ? 'var(--ember-orange)' : 'var(--card)', borderColor: !showArchived ? 'var(--ember-orange)' : 'var(--border)', color: !showArchived ? '#fff' : 'var(--muted-foreground)' }}>
                     <FileText className="h-3.5 w-3.5" />Active
@@ -2515,7 +2514,7 @@ export function AdminDocumentsPage() {
             {/* Reviewed tab status pills — keep them accessible inside filter panel */}
             {tab === 'reviewed' && (
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>Decision</label>
+                <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>Decision</span>
                 <div className="flex items-center gap-1.5">
                   {[{ label: t('admin_extra.status_approved','Approved'), value: 'approved' }, { label: t('admin_extra.status_rejected','Rejected'), value: 'rejected' }].map((opt) => (
                     <button key={opt.value} type="button" onClick={() => { setUploadsStatusFilter(opt.value); setUploadsPage(1); }} className="text-xs px-3 py-2 rounded-lg border font-medium transition-colors" style={{ background: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--card)', borderColor: uploadsStatusFilter === opt.value ? 'var(--ember-orange)' : 'var(--border)', color: uploadsStatusFilter === opt.value ? '#fff' : 'var(--foreground)' }}>

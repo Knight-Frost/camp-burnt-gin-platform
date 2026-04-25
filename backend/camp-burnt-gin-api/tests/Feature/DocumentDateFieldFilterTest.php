@@ -56,30 +56,30 @@ class DocumentDateFieldFilterTest extends TestCase
     private function makeSubmittedDocument(array $overrides = []): Document
     {
         $application = Application::factory()->create([
-            'camper_id'    => $this->camper->id,
-            'status'       => ApplicationStatus::Submitted,
+            'camper_id' => $this->camper->id,
+            'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);
 
         // Extract timestamp overrides that Eloquent won't respect via create().
-        $createdAt   = $overrides['created_at'] ?? null;
-        $updatedAt   = $overrides['updated_at'] ?? null;
+        $createdAt = $overrides['created_at'] ?? null;
+        $updatedAt = $overrides['updated_at'] ?? null;
         $submittedAt = $overrides['submitted_at'] ?? now()->toDateTimeString();
 
         $doc = Document::create([
             'documentable_type' => Application::class,
-            'documentable_id'   => $application->id,
-            'document_type'     => 'supplementary',
+            'documentable_id' => $application->id,
+            'document_type' => 'supplementary',
             'original_filename' => 'proof.pdf',
-            'stored_filename'   => 'stored_' . uniqid() . '.pdf',
-            'path'              => 'documents/test/stored.pdf',
-            'mime_type'         => 'application/pdf',
-            'file_size'         => 1024,
-            'disk'              => 'local',
-            'uploaded_by'       => $this->applicant->id,
-            'is_scanned'        => true,
-            'scan_passed'       => true,
-            'submitted_at'      => $submittedAt,
+            'stored_filename' => 'stored_'.uniqid().'.pdf',
+            'path' => 'documents/test/stored.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 1024,
+            'disk' => 'local',
+            'uploaded_by' => $this->applicant->id,
+            'is_scanned' => true,
+            'scan_passed' => true,
+            'submitted_at' => $submittedAt,
         ]);
 
         // Now force-write the timestamp columns that Eloquent does not respect via create().
@@ -137,15 +137,15 @@ class DocumentDateFieldFilterTest extends TestCase
     {
         // Document submitted in March but created in January
         $docSubmittedInRange = $this->makeSubmittedDocument([
-            'created_at'   => '2026-01-10 10:00:00',
-            'updated_at'   => '2026-01-10 10:00:00',
+            'created_at' => '2026-01-10 10:00:00',
+            'updated_at' => '2026-01-10 10:00:00',
             'submitted_at' => '2026-03-15 10:00:00',
         ]);
 
         // Document submitted in January (outside March range)
         $docSubmittedOutOfRange = $this->makeSubmittedDocument([
-            'created_at'   => '2026-01-10 10:00:00',
-            'updated_at'   => '2026-01-10 10:00:00',
+            'created_at' => '2026-01-10 10:00:00',
+            'updated_at' => '2026-01-10 10:00:00',
             'submitted_at' => '2026-01-10 10:00:00',
         ]);
 
@@ -213,33 +213,33 @@ class DocumentDateFieldFilterTest extends TestCase
     public function test_date_field_due_date_filters_document_requests_by_due_date(): void
     {
         $application = Application::factory()->create([
-            'camper_id'    => $this->camper->id,
-            'status'       => ApplicationStatus::Submitted,
+            'camper_id' => $this->camper->id,
+            'status' => ApplicationStatus::Submitted,
             'submitted_at' => now(),
         ]);
 
         // Request with due_date within the query range (March)
         $reqDueInRange = DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
-            'application_id'        => $application->id,
-            'camper_id'             => $this->camper->id,
+            'applicant_id' => $this->applicant->id,
+            'application_id' => $application->id,
+            'camper_id' => $this->camper->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => DocumentRequestStatus::AwaitingUpload,
-            'due_date'              => '2026-03-20',
-            'created_at'            => '2026-01-05 08:00:00',
-            'updated_at'            => '2026-01-05 08:00:00',
+            'status' => DocumentRequestStatus::AwaitingUpload,
+            'due_date' => '2026-03-20',
+            'created_at' => '2026-01-05 08:00:00',
+            'updated_at' => '2026-01-05 08:00:00',
         ]);
 
         // Request with due_date outside the query range (January)
         $reqDueOutOfRange = DocumentRequest::factory()->create([
-            'applicant_id'          => $this->applicant->id,
-            'application_id'        => $application->id,
-            'camper_id'             => $this->camper->id,
+            'applicant_id' => $this->applicant->id,
+            'application_id' => $application->id,
+            'camper_id' => $this->camper->id,
             'requested_by_admin_id' => $this->admin->id,
-            'status'                => DocumentRequestStatus::AwaitingUpload,
-            'due_date'              => '2026-01-10',
-            'created_at'            => '2026-03-01 08:00:00',
-            'updated_at'            => '2026-03-01 08:00:00',
+            'status' => DocumentRequestStatus::AwaitingUpload,
+            'due_date' => '2026-01-10',
+            'created_at' => '2026-03-01 08:00:00',
+            'updated_at' => '2026-03-01 08:00:00',
         ]);
 
         Sanctum::actingAs($this->admin);
