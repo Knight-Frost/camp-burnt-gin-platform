@@ -30,7 +30,10 @@ registerGuide({
       titleKey: 'guide.shared.settings.steps.delete_account.title',
       summaryKey: 'guide.shared.settings.steps.delete_account.summary',
       detailsKey: 'guide.shared.settings.steps.delete_account.details',
-      severity: 'urgent',
+      // 'warning' → "Important" (amber) flags the destructive nature
+      // without implying the user is required to do this. 'urgent' was
+      // rendering "Action needed" which read like a pending task.
+      severity: 'warning',
     },
   ],
   faq: [

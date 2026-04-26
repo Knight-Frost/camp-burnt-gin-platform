@@ -275,7 +275,7 @@ export function MedicalRecordTreatmentPage() {
     <div className="p-6 max-w-2xl">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div data-guide-anchor="medical-record-treatment.header" className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -295,7 +295,7 @@ export function MedicalRecordTreatmentPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex gap-2 mb-4 flex-wrap">
+      <div data-guide-anchor="medical-record-treatment.camper-search" className="flex gap-2 mb-4 flex-wrap">
 
         {/* Search */}
         <div className="relative flex-1 min-w-48">
@@ -440,14 +440,15 @@ export function MedicalRecordTreatmentPage() {
         </div>
       ) : (
         <>
-          <div className="space-y-2">
-            {visibleCampers.map((camper) => (
-              <CamperCard
-                key={camper.id}
-                camper={camper}
-                onOpen={() => openRecord(camper)}
-                onLogVisit={() => logVisit(camper)}
-              />
+          <div data-guide-anchor="medical-record-treatment.form" className="space-y-2">
+            {visibleCampers.map((camper, index) => (
+              <div key={camper.id} {...(index === 0 ? { 'data-guide-anchor': 'medical-record-treatment.submit' } : {})}>
+                <CamperCard
+                  camper={camper}
+                  onOpen={() => openRecord(camper)}
+                  onLogVisit={() => logVisit(camper)}
+                />
+              </div>
             ))}
           </div>
 

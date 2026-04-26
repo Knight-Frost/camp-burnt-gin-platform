@@ -482,16 +482,6 @@ export function ApplicantApplicationDetailPage() {
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Camp staff will review your application and may contact you with questions.</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: 'rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)' }}>
-                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--ember-orange)' }} />
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: 'var(--ember-orange)' }}>Medical Examination Form required</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                      A completed medical exam form signed by a licensed physician must be on file before your application can be approved.
-                      Download the form from the <Link to={ROUTES.PARENT_DOCUMENTS} className="underline hover:opacity-80">Documents page</Link>, take it to your doctor, then upload the completed form.
-                    </p>
-                  </div>
-                </div>
               </div>
             )}
             {application.status === 'under_review' && (

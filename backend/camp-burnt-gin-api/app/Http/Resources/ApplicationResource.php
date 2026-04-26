@@ -403,18 +403,10 @@ class ApplicationResource extends JsonResource
                 'applicant_label' => "Action needed: Upload the $label",
             ];
         }
-        foreach ($report['expired_documents'] as $e) {
-            $label = $this->humanDocumentLabel($e['document_type']);
-            $issues[] = [
-                'category' => 'expired',
-                'document_type' => $e['document_type'],
-                'document_id' => $e['document_id'] ?? null,
-                'expiration_date' => $e['expiration_date'] ?? null,
-                'exam_date' => $e['exam_date'] ?? null,
-                'admin_label' => "Blocks approval: $label expired ".($e['expiration_date'] ?? '').' — re-submission required',
-                'applicant_label' => "Action needed: $label is out of date; upload a current copy",
-            ];
-        }
+        // Expired and incomplete-metadata document blocks are intentionally
+        // omitted: exam-date / expiration-date enforcement was removed from
+        // the approval gate. Unverified is the only remaining document-level
+        // status that surfaces here.
         foreach ($report['unverified_documents'] as $u) {
             $label = $this->humanDocumentLabel($u['document_type']);
             $issues[] = [
@@ -423,16 +415,6 @@ class ApplicationResource extends JsonResource
                 'document_id' => $u['document_id'] ?? null,
                 'admin_label' => "Pending: $label awaiting verification",
                 'applicant_label' => "$label submitted — awaiting staff review",
-            ];
-        }
-        foreach ($report['incomplete_documents'] as $i) {
-            $label = $this->humanDocumentLabel($i['document_type']);
-            $issues[] = [
-                'category' => 'incomplete_metadata',
-                'document_type' => $i['document_type'],
-                'document_id' => $i['document_id'] ?? null,
-                'admin_label' => "Blocks approval: $label has no exam date on file",
-                'applicant_label' => "Action needed: $label is missing the physician exam date. Re-upload with the exam date completed.",
             ];
         }
 

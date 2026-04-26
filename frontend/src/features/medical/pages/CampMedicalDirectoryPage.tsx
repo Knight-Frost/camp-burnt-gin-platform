@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 
 import { getMedicalCampers } from '@/features/medical/api/medical.api';
+import { useMedicalSession } from '@/features/medical/context/MedicalSessionContext';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ROUTES } from '@/shared/constants/routes';
@@ -198,6 +199,10 @@ export function CampMedicalDirectoryPage() {
   // Local search input value (updates immediately for UX, debounced for API)
   const [searchInput, setSearchInput] = useState('');
 
+  // Honors the layout-header session filter — narrows the directory to
+  // campers whose application is in the active session.
+  const { activeSessionId } = useMedicalSession();
+
   // ── Fetch campers ──────────────────────────────────────────────────────────
   const fetchCampers = useCallback(async (pg = 1, append = false) => {
     if (!append) setLoading(true);
@@ -206,6 +211,7 @@ export function CampMedicalDirectoryPage() {
     try {
       const data = await getMedicalCampers({
         search: filters.search || undefined,
+        ...(activeSessionId && { session_id: activeSessionId }),
         page: pg,
       });
       if (append && camperResponse) {
@@ -219,12 +225,12 @@ export function CampMedicalDirectoryPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [filters.search, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters.search, retryKey, activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setPage(1);
     void fetchCampers(1, false);
-  }, [filters.search, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters.search, retryKey, activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Search handling ────────────────────────────────────────────────────────
   function handleSearchChange(value: string) {
@@ -274,7 +280,7 @@ export function CampMedicalDirectoryPage() {
     <div className="p-6 max-w-7xl space-y-6">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div data-guide-anchor="medical-directory.header" className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="font-headline text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
             {t('medical.directory.title')}
@@ -292,7 +298,7 @@ export function CampMedicalDirectoryPage() {
       </div>
 
       {/* ── Search + Filters ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div data-guide-anchor="medical-directory.search" className="flex flex-col sm:flex-row gap-3">
         {/* Search bar — prominent */}
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
@@ -380,10 +386,11 @@ export function CampMedicalDirectoryPage() {
           </p>
 
           <div
+            data-guide-anchor="medical-directory.list"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
           >
-            {displayedCampers.map((camper) => (
-              <div key={camper.id}>
+            {displayedCampers.map((camper, index) => (
+              <div key={camper.id} {...(index === 0 ? { 'data-guide-anchor': 'medical-directory.row' } : {})}>
                 <CamperCard camper={camper} />
               </div>
             ))}

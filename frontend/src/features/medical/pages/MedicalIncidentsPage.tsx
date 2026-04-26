@@ -27,6 +27,7 @@ import { getCamper } from '@/features/admin/api/admin.api';
 import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
+import { useMedicalSession } from '@/features/medical/context/MedicalSessionContext';
 
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
@@ -530,6 +531,11 @@ export function MedicalIncidentsPage() {
   const [filterType, setFilterType] = useState<IncidentType | ''>('');
   const [filterSeverity, setFilterSeverity] = useState<IncidentSeverity | ''>('');
 
+  // Global view honors the session filter from the layout header. Camper-
+  // scoped view shows the full history regardless of session.
+  const { activeSessionId } = useMedicalSession();
+  const sessionFilter = !hasCamper && activeSessionId ? { session_id: activeSessionId } : {};
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -537,6 +543,7 @@ export function MedicalIncidentsPage() {
     try {
       const params = {
         ...(hasCamper && { camper_id: id! }),
+        ...sessionFilter,
         ...(filterType && { type: filterType }),
         ...(filterSeverity && { severity: filterSeverity }),
         page: 1,
@@ -559,7 +566,7 @@ export function MedicalIncidentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [hasCamper, id, filterType, filterSeverity, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasCamper, id, filterType, filterSeverity, retryKey, activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
 
@@ -569,6 +576,7 @@ export function MedicalIncidentsPage() {
       const nextPage = page + 1;
       const res = await getMedicalIncidents({
         ...(hasCamper && { camper_id: id! }),
+        ...sessionFilter,
         ...(filterType && { type: filterType }),
         ...(filterSeverity && { severity: filterSeverity }),
         page: nextPage,
@@ -609,7 +617,7 @@ export function MedicalIncidentsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-6" data-guide-anchor="medical-incidents.header">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.10)' }}>
@@ -639,6 +647,7 @@ export function MedicalIncidentsPage() {
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
+            data-guide-anchor="medical-incidents.report"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{ background: 'var(--ember-orange)', color: '#fff' }}
           >
@@ -713,9 +722,9 @@ export function MedicalIncidentsPage() {
         />
       ) : (
         <>
-          <div className="space-y-3">
-            {incidents.map((incident) => (
-              <div key={incident.id}>
+          <div className="space-y-3" data-guide-anchor="medical-incidents.history">
+            {incidents.map((incident, index) => (
+              <div key={incident.id} {...(index === 0 ? { 'data-guide-anchor': 'medical-incidents.severity' } : {})}>
                 <IncidentCard incident={incident} />
               </div>
             ))}

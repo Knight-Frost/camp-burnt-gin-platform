@@ -360,12 +360,16 @@ class InboxService
         // Apply the folder-specific filter using a switch statement
         switch ($folder) {
             case 'inbox':
-                // Active (not archived), human conversations, not trashed by this user.
-                // Gmail-style: only show conversations where at least one message was
-                // sent by someone OTHER than the current user (or a system message).
-                // Conversations the user initiated with no reply stay in Sent only.
+                // Active (not archived), not trashed by this user, with at least
+                // one message from someone other than the current user (or a
+                // system-generated message — those have sender_id IS NULL).
+                // The 'whereNull('sender_id')' branch in the messages whereHas
+                // is what admits system notifications; we deliberately do NOT
+                // call userConversations() here so application-status updates,
+                // document review outcomes, and other system messages land in
+                // the inbox alongside human conversations. Conversations the
+                // user initiated with no reply stay in Sent only.
                 $query->active()
-                    ->userConversations()
                     ->whereHas('participantRecords', function ($q) use ($user) {
                         $q->where('user_id', $user->id)->whereNull('trashed_at');
                     })

@@ -111,15 +111,17 @@ class DocumentEnforcementService
         $strictMode = app()->environment('production')
             || (bool) config('compliance.strict_enabled');
 
-        if ($strictMode) {
-            $expiredDocuments = $this->findExpiredDocuments($requiredDocuments, $uploadedDocuments);
-            $unverifiedDocuments = $this->findUnverifiedDocuments($requiredDocuments, $uploadedDocuments);
-            $incompleteDocuments = $this->findIncompleteMetadataDocuments($requiredDocuments, $uploadedDocuments);
-        } else {
-            $expiredDocuments = collect();
-            $unverifiedDocuments = collect();
-            $incompleteDocuments = collect();
-        }
+        // Exam-date / expiration-date enforcement is intentionally disabled.
+        // A document's mere presence (and verification, in strict mode) is
+        // sufficient — the system does not block approval on missing or past
+        // exam_date / expiration_date values. See the TASK note on this file
+        // for the deliberate decision to drop the CYSHCN 12-month rule from
+        // the compliance gate.
+        $expiredDocuments = collect();
+        $incompleteDocuments = collect();
+        $unverifiedDocuments = $strictMode
+            ? $this->findUnverifiedDocuments($requiredDocuments, $uploadedDocuments)
+            : collect();
 
         // A camper is fully compliant only when every category is empty
         $isCompliant = $missingDocuments->isEmpty()

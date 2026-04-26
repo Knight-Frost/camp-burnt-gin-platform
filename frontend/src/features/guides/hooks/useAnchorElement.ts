@@ -12,8 +12,12 @@ export interface AnchorResult {
   searching: boolean;
 }
 
-const POLL_INTERVAL_MS = 150;
-const POLL_TIMEOUT_MS  = 2500;
+const POLL_INTERVAL_MS = 100;
+// Most anchors are present at first render; only a few are lazy-rendered
+// (e.g., the first item in an async-loaded list). 800ms is enough to catch
+// those without making the UI feel frozen when an anchor is genuinely
+// missing — the centered fallback can take over quickly.
+const POLL_TIMEOUT_MS  = 800;
 
 function queryAnchor(anchorId: string): HTMLElement | null {
   return document.querySelector(

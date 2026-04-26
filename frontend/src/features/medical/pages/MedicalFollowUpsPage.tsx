@@ -27,6 +27,7 @@ import {
 import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
+import { useMedicalSession } from '@/features/medical/context/MedicalSessionContext';
 
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
@@ -419,14 +420,19 @@ export function MedicalFollowUpsPage() {
   const [hasMore, setHasMore] = useState(false);
   const [tabCounts, setTabCounts] = useState<Partial<Record<TabKey, number>>>({});
 
+  // Page is global (not camper-scoped). Honors the layout-header session
+  // filter when set.
+  const { activeSessionId } = useMedicalSession();
+
   const buildParams = useCallback((tab: TabKey, pg: number) => {
     const tab_def = TABS.find((t) => t.key === tab);
     return {
       ...(tab_def?.status && { status: tab_def.status }),
       ...(tab_def?.overdue && { overdue: true }),
+      ...(activeSessionId && { session_id: activeSessionId }),
       page: pg,
     };
-  }, []);
+  }, [activeSessionId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -489,6 +495,7 @@ export function MedicalFollowUpsPage() {
 
         <button
           onClick={() => setShowForm((v) => !v)}
+          data-guide-anchor="medical-follow-ups.add"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
           style={{ background: showForm ? 'var(--muted)' : 'var(--ember-orange)', color: showForm ? 'var(--muted-foreground)' : '#fff' }}
         >
@@ -506,7 +513,7 @@ export function MedicalFollowUpsPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1" data-guide-anchor="medical-follow-ups.tabs">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -565,9 +572,9 @@ export function MedicalFollowUpsPage() {
         />
       ) : (
         <>
-          <div className="space-y-3">
-            {followUps.map((fu) => (
-              <div key={fu.id}>
+          <div className="space-y-3" data-guide-anchor="medical-follow-ups.list">
+            {followUps.map((fu, index) => (
+              <div key={fu.id} {...(index === 0 ? { 'data-guide-anchor': 'medical-follow-ups.priority' } : {})}>
                 <FollowUpCard
                   followUp={fu}
                   onStatusChange={handleStatusChange}

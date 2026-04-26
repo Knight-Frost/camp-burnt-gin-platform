@@ -1,3 +1,11 @@
 import './dashboard';
 import './camperRecord';
 import './treatments';
+import './visits';
+import './incidents';
+import './followUps';
+import './emergency';
+import './directory';
+import './documents';
+import './recordTreatment';
+import './risk';

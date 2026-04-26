@@ -71,7 +71,7 @@ export function ProfileHint() {
   }, [user]);
 
   if (!hint) return null;
-  return SmartHintRenderer({ hint });
+  return <SmartHintRenderer hint={hint} />;
 }
 
 registerSmartHintResolver('PROFILE', ProfileHint);

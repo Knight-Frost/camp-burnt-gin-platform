@@ -104,7 +104,7 @@ export function GuideCoachmark({
   onSkip,
 }: Props) {
   const { t }              = useTranslation();
-  const { rect, searching } = useAnchorElement(step.anchorId);
+  const { rect } = useAnchorElement(step.anchorId);
   const isFirst = currentIndex === 0;
   const isLast  = currentIndex === totalSteps - 1;
 
@@ -117,40 +117,48 @@ export function GuideCoachmark({
     }
   }, [step.id, step.anchorId]);
 
-  // When the anchor search has finished and the element was not found, silently
-  // advance to the next step rather than showing an error dialog.
-  useEffect(() => {
-    if (!searching && !rect) {
-      const id = setTimeout(onNext, 0);
-      return () => clearTimeout(id);
-    }
-  }, [searching, rect, onNext]);
-
-  // While still searching, render nothing so the UI doesn't flash.
-  if (searching) return null;
-
-  // If anchor wasn't found, render nothing — the useEffect above fires onNext.
-  if (!rect) return null;
-
-  const position      = pickPosition(rect, step.position);
-  const positionStyle = tooltipStyle(rect, position);
+  // ALWAYS render the coachmark — never `return null` mid-search. Returning
+  // null gave the user a blank screen for up to the poll timeout after each
+  // Next click, which felt exactly like "Next button doesn't work" and made
+  // late steps appear to materialise on their own.
+  //
+  // While we're still searching for the anchor (or it's genuinely missing),
+  // we render the coachmark centered with a soft scrim. If the anchor is
+  // found mid-search, framer-motion's `layout` smoothly animates the
+  // transition from centered to the spotlighted position.
+  const showSpotlight = !!rect;
+  const position      = showSpotlight ? pickPosition(rect, step.position) : 'bottom';
+  const positionStyle = showSpotlight
+    ? tooltipStyle(rect, position)
+    : {
+        top:  Math.max(VIEWPORT_PADDING, window.innerHeight / 2 - TOOLTIP_HEIGHT_EST / 2),
+        left: Math.max(VIEWPORT_PADDING, window.innerWidth  / 2 - TOOLTIP_WIDTH      / 2),
+      };
 
   return (
     <>
-      <motion.div
-        layout
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="fixed pointer-events-none z-[699]"
-        style={{
-          top:          rect.top  - 4,
-          left:         rect.left - 4,
-          width:        rect.width  + 8,
-          height:       rect.height + 8,
-          borderRadius: '12px',
-          boxShadow:    '0 0 0 9999px rgba(0, 0, 0, 0.55)',
-        }}
-        aria-hidden="true"
-      />
+      {!showSpotlight ? (
+        <div
+          className="fixed inset-0 pointer-events-none z-[699]"
+          style={{ background: 'rgba(0, 0, 0, 0.55)' }}
+          aria-hidden="true"
+        />
+      ) : (
+        <motion.div
+          layout
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="fixed pointer-events-none z-[699]"
+          style={{
+            top:          rect.top  - 4,
+            left:         rect.left - 4,
+            width:        rect.width  + 8,
+            height:       rect.height + 8,
+            borderRadius: '12px',
+            boxShadow:    '0 0 0 9999px rgba(0, 0, 0, 0.55)',
+          }}
+          aria-hidden="true"
+        />
+      )}
       <motion.div
         layout
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -158,7 +166,7 @@ export function GuideCoachmark({
         aria-modal="true"
         aria-labelledby={`coachmark-title-${step.id}`}
         aria-describedby={`coachmark-body-${step.id}`}
-        className="fixed z-[700] rounded-2xl p-4"
+        className="fixed z-[700] rounded-2xl p-4 pointer-events-auto"
         style={{
           width:      TOOLTIP_WIDTH,
           background: 'var(--popover)',

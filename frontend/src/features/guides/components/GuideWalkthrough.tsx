@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -37,24 +37,29 @@ export function GuideWalkthrough() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [mode, dispatch]);
 
-  if (mode !== 'walkthrough' || !walkthrough || walkthrough.steps.length === 0) return null;
+  // ALL hooks must run on every render — declare them BEFORE the early
+  // return below. The hook count cannot change between renders, otherwise
+  // React throws "Rendered more hooks than during the previous render."
+  const stepCount = walkthrough?.steps.length ?? 0;
+  const safeIndex = Math.min(Math.max(0, stepIndex), Math.max(0, stepCount - 1));
+  const isLast    = stepCount > 0 && safeIndex === stepCount - 1;
 
-  const safeIndex = Math.min(Math.max(0, stepIndex), walkthrough.steps.length - 1);
-  const step = walkthrough.steps[safeIndex];
-  const isLast = safeIndex === walkthrough.steps.length - 1;
-
-  function handleNext() {
+  const handleNext = useCallback(() => {
     if (isLast) dispatch(exitWalkthrough());
     else dispatch(nextStep());
-  }
+  }, [dispatch, isLast]);
 
-  function handleBack() {
+  const handleBack = useCallback(() => {
     dispatch(previousStep());
-  }
+  }, [dispatch]);
 
-  function handleSkip() {
+  const handleSkip = useCallback(() => {
     dispatch(exitWalkthrough());
-  }
+  }, [dispatch]);
+
+  if (mode !== 'walkthrough' || !walkthrough || stepCount === 0) return null;
+
+  const step = walkthrough.steps[safeIndex];
 
   return createPortal(
     <GuideCoachmark

@@ -180,6 +180,579 @@
             }
           }
         }
+      },
+      "visits": {
+        "title": "Health office visits",
+        "summary": "Log every health office visit and review past visits across all campers.",
+        "steps": {
+          "when_to_log": {
+            "title": "When to log a visit",
+            "summary": "Log a visit any time a camper comes through the health office for evaluation, even if no treatment is given.",
+            "details": "A visit captures the encounter itself — when, who, why. Even a brief check-in counts. If you also gave medication or performed a procedure, log a separate treatment record on top of the visit."
+          },
+          "recording_vitals": {
+            "title": "Recording vitals",
+            "summary": "Vitals are optional but recommended whenever the camper is feeling unwell.",
+            "details": "Available fields are temperature, pulse, blood pressure (systolic/diastolic), SpO2, and weight. Leave blank what you did not measure. Recorded vitals appear as pills on the visit card so other staff can scan them quickly."
+          },
+          "disposition": {
+            "title": "Disposition",
+            "summary": "Disposition tells the next shift what happened to the camper after the visit.",
+            "details": "Choose from Returned to Activity, Monitoring, Sent Home, Emergency Transfer, or Other. Pick the most accurate option — this is what gets queried when staff need to know whether a camper is currently being watched."
+          },
+          "global_vs_camper": {
+            "title": "Global view vs camper view",
+            "summary": "/medical/visits is a read-only view of every visit. To add a visit, open it from the camper's record.",
+            "details": "The global page is for shift handoff and trend review. The add form only appears when you opened the page from a specific camper's record (/medical/records/:id/visits)."
+          },
+          "phi_handling": {
+            "title": "Handling PHI",
+            "summary": "Visit notes contain PHI. Do not screenshot, print, or share details outside the system.",
+            "details": "If you need to discuss a visit with another staff member, do it inside the messaging system or in person. Email and text messaging are not approved channels for PHI."
+          }
+        },
+        "faq": {
+          "visit_vs_treatment": {
+            "question": "What's the difference between a visit and a treatment?",
+            "answer": "A visit is the encounter — the camper came to the health office. A treatment is what you did during the visit (medication, intervention, procedure). One visit can have multiple treatments, or no treatments if it was just an evaluation."
+          },
+          "edit_visit": {
+            "question": "Can I edit a visit after I save it?",
+            "answer": "No. Visits are part of the medical record and cannot be edited or deleted to satisfy HIPAA retention rules. If something was recorded incorrectly, add a correction by logging a new visit referencing the original."
+          },
+          "emergency_transfer": {
+            "question": "When should I pick Emergency Transfer as the disposition?",
+            "answer": "Use Emergency Transfer when the camper was sent to a hospital, called an ambulance, or otherwise needed care beyond what the health office can provide. Notify camp leadership and the family in parallel — the disposition is just the record, not the alert."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Health office visits tour",
+          "steps": {
+            "header": {
+              "title": "Health office visits",
+              "body": "This page lists every health office visit. Use it for shift handoff and to spot patterns across campers."
+            },
+            "add-visit": {
+              "title": "Log a new visit",
+              "body": "Click here to start a new visit entry. Available only when you opened this page from a camper's record."
+            },
+            "filter": {
+              "title": "Filter by disposition",
+              "body": "Narrow the list to a single disposition — for example, only campers currently being monitored."
+            },
+            "visit-card": {
+              "title": "Visit card",
+              "body": "Each card shows the camper, date, disposition, and any vitals recorded. Click to expand the full visit notes."
+            }
+          }
+        }
+      },
+      "incidents": {
+        "title": "Incident reports",
+        "summary": "Document behavioral, medical, injury, and other incidents that need a formal record.",
+        "steps": {
+          "what_to_report": {
+            "title": "What to report",
+            "summary": "An incident is anything beyond a routine health office visit that needs a written record — injuries, behavioral events, allergic reactions, seizures, or anything camp leadership should know about.",
+            "details": "When in doubt, write it up. An incident report protects the camper, the staff, and the camp. A short report is better than no report."
+          },
+          "incident_types": {
+            "title": "Choosing the type",
+            "summary": "Pick the type that best describes what happened: Behavioral, Medical, Injury, Allergy, Seizure, or Other.",
+            "details": "If multiple types apply, pick the most clinically significant one. You can describe the secondary aspects in the description field. The type drives how the incident appears in trend reports later."
+          },
+          "severity_levels": {
+            "title": "Severity levels",
+            "summary": "Severity ranges from Minor to Critical. Pick the level that matches the actual impact on the camper.",
+            "details": "Critical = life-threatening or requiring emergency response. Severe = significant injury or extended care. Moderate = needed treatment beyond first aid. Minor = handled on the spot, no lasting effect. When in doubt, choose the higher severity."
+          },
+          "description_writing": {
+            "title": "Writing the description",
+            "summary": "Describe what happened in clear, factual language. Avoid speculation about cause or fault.",
+            "details": "Stick to what you saw and heard. Include what the camper said, what staff did, and what the outcome was. Save interpretations and recommendations for follow-up notes, not the initial report."
+          },
+          "witnesses": {
+            "title": "Listing witnesses",
+            "summary": "Record the names of any staff or campers who witnessed the incident.",
+            "details": "Witness names matter if the incident is later reviewed by leadership or family. List staff first, then campers if relevant. If you do not list a camper by name to avoid PHI cross-disclosure, note their cabin or activity group instead."
+          },
+          "phi_handling": {
+            "title": "Handling PHI",
+            "summary": "Incident reports often contain sensitive details. Treat them as PHI.",
+            "details": "Do not share incident reports outside the system. Discuss specifics in person or through internal messaging. Family communication should go through admin or camp leadership, not directly from the medical portal."
+          }
+        },
+        "faq": {
+          "when_critical": {
+            "question": "Which incidents count as Critical severity?",
+            "answer": "Anything life-threatening, requiring an emergency call, or resulting in transport to a hospital is Critical. Examples: anaphylactic reactions, prolonged seizures, head injuries with loss of consciousness, severe asthma attacks. When in doubt, mark Critical and notify leadership immediately."
+          },
+          "incident_vs_visit": {
+            "question": "Should I log this as an incident or a visit?",
+            "answer": "Log it as an incident if it needs a formal record beyond routine clinical care. Use a visit for normal health office check-ins. Many incidents will also have a corresponding visit (the camper came to the health office because of the incident)."
+          },
+          "edit_after_save": {
+            "question": "Can I edit an incident after saving?",
+            "answer": "No. Incident reports are part of the legal record and cannot be edited or deleted. If something is wrong, file a correction or addendum by submitting a new incident referencing the original."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Incident reports tour",
+          "steps": {
+            "header": {
+              "title": "Incident reports",
+              "body": "This is the formal log of every reportable incident. Use it for trend tracking and for handoffs to leadership."
+            },
+            "report": {
+              "title": "Report a new incident",
+              "body": "Click here to file an incident report. Available only when you opened the page from a specific camper's record."
+            },
+            "severity": {
+              "title": "Severity badge",
+              "body": "Each incident shows its severity at a glance. Critical and Severe rows stand out so they don't get missed."
+            },
+            "history": {
+              "title": "Incident history",
+              "body": "Every reported incident appears here, newest first. Click any card to expand the full description and witnesses."
+            }
+          }
+        }
+      },
+      "followUps": {
+        "title": "Follow-up tasks",
+        "summary": "Track every clinical follow-up that needs to happen — across all campers, in one queue.",
+        "steps": {
+          "shift_routine": {
+            "title": "Shift routine",
+            "summary": "Open this page at the start and end of every shift. Resolve overdue items first.",
+            "details": "Follow-ups are how the medical team passes work between shifts. If you finish a follow-up, mark it complete. If you cannot finish it, hand it off in the notes so the next shift knows where to pick up."
+          },
+          "tabs_overview": {
+            "title": "Tabs",
+            "summary": "Tabs slice the queue: All, Pending, In Progress, Overdue, Completed.",
+            "details": "Pending = not started yet. In Progress = someone is working on it. Overdue = the due date has passed and it is still not Completed. Completed = closed; the entry stays for the audit trail. Cancelled items are filtered out by default."
+          },
+          "priority_levels": {
+            "title": "Priority levels",
+            "summary": "Urgent, High, Medium, Low. Always work the highest priority first.",
+            "details": "Urgent items are time-sensitive — same shift if possible. High should be handled within 24 hours. Medium and Low can wait a couple of shifts but should not pile up."
+          },
+          "overdue_handling": {
+            "title": "Overdue items",
+            "summary": "Anything in the Overdue tab needs attention this shift.",
+            "details": "An overdue follow-up means a clinical task fell through the cracks. Triage it now: do it, hand it off in the notes, or escalate to a supervisor. Do not just keep snoozing the due date."
+          },
+          "completing": {
+            "title": "Completing a follow-up",
+            "summary": "Mark a follow-up Completed when the action is actually done — not when it is scheduled or assigned.",
+            "details": "If the action is partially done, leave it In Progress and add a note. Mark Completed only after the result is confirmed (e.g., medication was actually taken, the parent was actually contacted, the camper actually showed improvement)."
+          }
+        },
+        "faq": {
+          "who_creates": {
+            "question": "Who creates follow-ups?",
+            "answer": "Anyone on the medical team can create one. They are usually generated from a treatment, visit, or incident that needs a later check (e.g., \"recheck temp in 2 hours\" or \"call parent in the morning\")."
+          },
+          "cancel_vs_complete": {
+            "question": "What's the difference between Cancelled and Completed?",
+            "answer": "Completed means the action was done and the result was confirmed. Cancelled means the follow-up is no longer needed at all (e.g., the camper went home, the situation resolved on its own). Use Cancelled sparingly — Completed is almost always the right answer."
+          },
+          "overdue_meaning": {
+            "question": "How is Overdue calculated?",
+            "answer": "A follow-up becomes Overdue when its due date has passed and its status is still Pending or In Progress. Cancelled and Completed items never go Overdue."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Follow-ups tour",
+          "steps": {
+            "tabs": {
+              "title": "Filter tabs",
+              "body": "Switch between All, Pending, In Progress, Overdue, and Completed to focus on what needs attention right now."
+            },
+            "add": {
+              "title": "Create a follow-up",
+              "body": "Click here to add a new follow-up task. Search for the camper, set a due date and priority, and add the action you need to complete."
+            },
+            "priority": {
+              "title": "Priority badges",
+              "body": "Urgent and High items are visually emphasized so they don't slip past on a busy shift."
+            },
+            "list": {
+              "title": "Follow-up list",
+              "body": "Every follow-up appears here. Click a card to see details, edit, mark complete, or delete (admin-only for delete)."
+            }
+          }
+        }
+      },
+      "emergency": {
+        "title": "Emergency quick view",
+        "summary": "All critical medical information for one camper on a single screen — designed for speed in an emergency.",
+        "steps": {
+          "purpose": {
+            "title": "What this page is for",
+            "summary": "This is a read-only summary of the most important medical facts for a single camper. Open it the moment someone calls for help.",
+            "details": "Every section is fully expanded by default. Allergy alerts, seizure history, medications, diagnoses, emergency contacts, and recent visits all load at once. There is no clicking around — everything is visible immediately."
+          },
+          "critical_alerts": {
+            "title": "Critical alerts at the top",
+            "summary": "Life-threatening allergies and seizure history appear as red banners at the very top of the page.",
+            "details": "If the banners are red, read them before you do anything else. They will tell you what the allergy is, the reaction pattern, and the recommended treatment. A seizure banner means the camper has documented seizure history — follow your seizure protocol without waiting."
+          },
+          "contacts": {
+            "title": "Emergency contacts",
+            "summary": "Every emergency contact on file — with phone numbers you can tap to call — is shown here.",
+            "details": "Phone numbers are displayed as live links. Tap or click to dial directly. If a contact is authorized for pickup, the badge says so explicitly. Call the primary contact first, then secondary if there is no answer."
+          },
+          "read_only": {
+            "title": "Read-only — updates go in the full record",
+            "summary": "You cannot edit anything from this view. To update information, return to the full medical record.",
+            "details": "This restriction is intentional. Emergency situations are not the right moment to edit a record. Once the situation is stable, go to the full record and make any corrections or additions there."
+          },
+          "phi_handling": {
+            "title": "PHI on this screen",
+            "summary": "This page displays more sensitive data than almost any other. Do not leave it open unattended.",
+            "details": "Close the page as soon as the immediate situation is handled. Do not take photos or screenshots of the emergency view. The page contains a full clinical summary including diagnoses, medications, allergies, and contact information — all PHI."
+          }
+        },
+        "faq": {
+          "when_to_open": {
+            "question": "When should I use the Emergency View instead of the regular record?",
+            "answer": "Open the Emergency View when you need critical information right now — during an active allergic reaction, a fall, a seizure, or any urgent situation. The regular record is for routine review and documentation. The Emergency View is for when every second counts."
+          },
+          "update_info": {
+            "question": "The information here looks out of date. How do I update it?",
+            "answer": "Return to the camper's full medical record using the 'Back to Medical Record' link at the top. The Emergency View pulls live data, so any updates you make in the full record will appear here on the next page load."
+          },
+          "no_allergy_shown": {
+            "question": "I know this camper has an allergy but it's not showing as a critical alert. Why?",
+            "answer": "Critical alerts only show life-threatening and severe allergies. Mild or moderate allergies still appear in the Allergies section below the alerts. Scroll down to see the full allergy list with severity levels for every entry."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Emergency view tour",
+          "steps": {
+            "header": {
+              "title": "Camper identity + risk level",
+              "body": "The camper's name, date of birth, and risk level are shown here at a glance. The red 'EMERGENCY VIEW' badge reminds you that this page is read-only."
+            },
+            "allergies": {
+              "title": "Allergy section",
+              "body": "Every allergy on file, with severity and treatment instructions. Life-threatening entries are highlighted in red so they can't be missed."
+            },
+            "medications": {
+              "title": "Current medications",
+              "body": "All active medications with dose, frequency, and purpose. Check here before administering anything."
+            },
+            "contacts": {
+              "title": "Emergency contacts",
+              "body": "Tap any phone number to call directly. Authorized pickup contacts are labeled. Call the primary contact first."
+            }
+          }
+        }
+      },
+      "directory": {
+        "title": "Camp medical directory",
+        "summary": "Find any camper's medical record fast. Use the directory for lookups, the Emergency Protocol link for urgent situations.",
+        "steps": {
+          "purpose": {
+            "title": "What the directory is for",
+            "summary": "The directory lists every camper with a medical record in the current session. It is the fastest way to get to a specific camper's record.",
+            "details": "Think of it as a visual index. Scan through it at the start of a shift to spot high-risk campers. Use search when you know who you are looking for. Filters help narrow the list when you need everyone with a specific condition."
+          },
+          "search_filters": {
+            "title": "Search and filters",
+            "summary": "Type a name in the search box to find a camper instantly. Use the alert and medication filters to narrow the list.",
+            "details": "The search updates as you type with a short debounce — you do not have to press Enter. The alert filter lets you show only life-threatening allergies, any allergy, or any diagnosis. The medication filter shows only campers currently on medication. Combine both filters for tighter results."
+          },
+          "alert_indicators": {
+            "title": "Alert indicators on each card",
+            "summary": "Cards show allergy count, medication count, and primary diagnosis at a glance.",
+            "details": "A red left border and a red alert banner at the top of the card means the camper has at least one life-threatening allergy. That visual priority is intentional — these are the campers where a mistake has the most severe consequences. Blue badge = medications on file. Orange badge = allergies present."
+          },
+          "emergency_protocol": {
+            "title": "Emergency Protocol button",
+            "summary": "Each camper card has an 'Emergency Protocol' link. It opens the Emergency View for that camper.",
+            "details": "Use this link when something is actively happening and you need critical information fast. The Emergency Protocol link opens a read-only, fully expanded summary of that camper's allergies, medications, diagnoses, and emergency contacts."
+          },
+          "phi_handling": {
+            "title": "PHI in the directory",
+            "summary": "The directory displays medical information for every camper at once. Treat the entire page as PHI.",
+            "details": "Do not leave the directory open on a shared screen. Do not take screenshots. Each card shows allergy count, medication count, and primary diagnosis — all PHI. If someone unauthorized is nearby, lock or close the screen."
+          }
+        },
+        "faq": {
+          "not_seeing_camper": {
+            "question": "I can't find a camper in the directory. Where are they?",
+            "answer": "The directory only shows campers with a medical record linked to the current session. If a camper is registered but their medical record has not been set up yet, they will not appear here. Contact admin to check the application and medical record status."
+          },
+          "life_threatening_border": {
+            "question": "Why do some camper cards have a red left border?",
+            "answer": "The red border flags campers with at least one life-threatening allergy on file. It is a visual priority signal so that when you are scanning the directory quickly, those campers are immediately visible. Always check their allergy details before providing any food, medication, or care."
+          },
+          "directory_vs_search": {
+            "question": "What's the difference between this directory and the search bar on the medical dashboard?",
+            "answer": "The dashboard search opens a quick lookup for one camper at a time. The Medical Directory is a full browsable list with filters, alert indicators, and the Emergency Protocol shortcut on every card. Use the directory when you need to scan or filter across all campers."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Camp medical directory tour",
+          "steps": {
+            "header": {
+              "title": "Directory header",
+              "body": "The total number of campers with medical records is shown here. Check it at the start of a session to confirm everyone is loaded."
+            },
+            "search": {
+              "title": "Search and filters",
+              "body": "Type a name to search instantly. Use the alert and medication filters to narrow to a specific group of campers."
+            },
+            "list": {
+              "title": "Camper grid",
+              "body": "Each card shows the camper's name, age, session, allergy count, and medication count. Red border = life-threatening allergy on file."
+            },
+            "row": {
+              "title": "Camper card actions",
+              "body": "Click 'View Record' to open the full medical record. Click 'Emergency Protocol' to open the read-only emergency summary."
+            }
+          }
+        }
+      },
+      "documents": {
+        "title": "Camper documents",
+        "summary": "Upload, review, and download medical documents for a single camper.",
+        "steps": {
+          "what_goes_here": {
+            "title": "What belongs in documents",
+            "summary": "Store supporting clinical files here — immunization records, physician forms, insurance cards, or any other document the camper's family submitted.",
+            "details": "Documents are attached to a specific camper. They are separate from treatment logs and incident reports. If you receive a paper form from a parent, scan or photograph it and upload it here so it lives alongside the digital record."
+          },
+          "uploading": {
+            "title": "Uploading a file",
+            "summary": "Drag a file onto the drop zone or click it to browse your device. Multiple files can be uploaded at once.",
+            "details": "Accepted formats are PDF, JPG, JPEG, and PNG. Each file goes through a security scan before it appears in the list. While a file is uploading, you will see a progress bar in the pending section. Errors are shown inline — if a file fails, dismiss it and try again."
+          },
+          "scan_status": {
+            "title": "Security scan status",
+            "summary": "Each document shows one of three statuses: Available, Pending review, or Failed security check.",
+            "details": "'Available' means the scan passed and the file can be downloaded. 'Pending review' means the scan has not finished yet — wait a moment and refresh. 'Failed security check' means the file was blocked and cannot be used. If a legitimate file fails the scan, contact your IT administrator."
+          },
+          "downloading": {
+            "title": "Downloading a file",
+            "summary": "Click the Download button on any row to save the file to your device.",
+            "details": "Downloads are tracked by the system. Only download files you need for clinical purposes. Do not save camper documents to personal devices or shared drives — downloaded files must be stored and deleted according to your camp's PHI handling policy."
+          },
+          "phi_handling": {
+            "title": "Documents contain PHI",
+            "summary": "Every file uploaded here is considered Protected Health Information. Handle downloads with care.",
+            "details": "Immunization records, physician forms, and insurance documents are highly sensitive. Do not email them, store them on personal devices, or print them unless required by your camp's policy. If you must share a document with a provider, use the camp's approved transfer process."
+          }
+        },
+        "faq": {
+          "accepted_formats": {
+            "question": "Which file formats can I upload?",
+            "answer": "PDF, JPG, JPEG, and PNG. These cover the vast majority of scanned forms and photos. If you have a file in another format (e.g., DOCX or TIFF), convert it to PDF first."
+          },
+          "failed_scan": {
+            "question": "A file I uploaded shows 'Failed security check'. What should I do?",
+            "answer": "Do not use the file. The security scan blocked it because it matched a blocked extension or MIME type. If you believe the file is legitimate, contact your IT administrator — do not try to rename the file and re-upload to bypass the check."
+          },
+          "delete_document": {
+            "question": "Can I delete a document after uploading it?",
+            "answer": "Medical documents cannot be deleted because they are part of the health record. If you uploaded the wrong file, notify your administrator. Admins can archive documents, which removes them from the active view while keeping them on file for compliance."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Camper documents tour",
+          "steps": {
+            "header": {
+              "title": "Documents header",
+              "body": "The camper's name confirms you are in the right record. All documents uploaded here are attached to this camper only."
+            },
+            "upload": {
+              "title": "Upload zone",
+              "body": "Drag a file here or click to browse. PDF, JPG, and PNG are accepted. Multiple files can be uploaded in one go."
+            },
+            "list": {
+              "title": "Document list",
+              "body": "Every uploaded document appears here with its filename, size, upload date, and security scan status."
+            },
+            "preview": {
+              "title": "Download",
+              "body": "Click the Download button on any row to save the file. Only download what you need for clinical use."
+            }
+          }
+        }
+      },
+      "recordTreatment": {
+        "title": "Camper records",
+        "summary": "Search for any camper and jump directly to their medical record or log a health office visit.",
+        "steps": {
+          "finding_camper": {
+            "title": "Finding a camper",
+            "summary": "Type a name in the search bar to filter the list instantly. The search debounces automatically — no need to press Enter.",
+            "details": "You can also search by camper ID if you know it — the system detects a numeric entry and searches by ID instead of name. The search covers all registered campers, not just those with medical records. If a camper has no medical record yet, their card will say so."
+          },
+          "alert_badges": {
+            "title": "Medical alert badges",
+            "summary": "Each camper card shows allergy count, medication count, and special care flags at a glance.",
+            "details": "A red left border on the card means at least one life-threatening allergy. Orange badge = allergies. Blue badge = medications. Yellow shield = special care notes. Read these before you open the record so you arrive prepared."
+          },
+          "log_visit": {
+            "title": "Log a health office visit",
+            "summary": "Click 'Log Visit' at the bottom of any camper card to jump directly to that camper's visits page.",
+            "details": "This shortcut saves you the step of opening the full record and navigating to visits. Use it when a camper is standing in front of you and you need to document the encounter quickly. The Log Visit link goes to the same form as opening the full record and clicking Visits."
+          },
+          "filters": {
+            "title": "Age group and alert filters",
+            "summary": "Filter the list by age group (Under 10, 10–12, 13–15, 16+) or by a medical alert type.",
+            "details": "Age group and alert filters apply client-side after the camper list loads. They are useful for shift planning — for example, filter by 'Allergies' to see everyone with an allergy on file, or filter by 'Special Care' to see campers who need additional attention."
+          },
+          "phi_handling": {
+            "title": "PHI in the camper list",
+            "summary": "The camper list exposes medical alert information for every camper. Treat the screen as PHI.",
+            "details": "Alert badges showing allergy and medication counts are PHI. Do not leave this page visible to people who are not authorized medical staff. Lock or close the screen if you step away."
+          }
+        },
+        "faq": {
+          "record_vs_directory": {
+            "question": "What's the difference between this page and the Medical Directory?",
+            "answer": "Camper Records pulls from the full camper list (all registered campers), while the Medical Directory only shows campers with a completed medical record in the current session. Use Camper Records when you need to reach a camper who may not have a record yet, or when you want to log a visit quickly from a searchable list."
+          },
+          "search_by_id": {
+            "question": "Can I search by camper number instead of name?",
+            "answer": "Yes. Type a numeric camper ID in the search box and the system will look it up by ID instead of name. This is faster when you have the ID handy — for example, from a wristband or a printed roster."
+          },
+          "no_record": {
+            "question": "A camper card says 'No medical record'. What should I do?",
+            "answer": "It means the camper does not yet have a medical record set up in the system. You can still navigate to their profile, but you won't be able to log treatments or access health history. Contact admin to create or link the medical record."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Camper records tour",
+          "steps": {
+            "header": {
+              "title": "Page header",
+              "body": "This page is your index of all campers. Find anyone here and jump to their record or log a visit."
+            },
+            "camper-search": {
+              "title": "Search and filters",
+              "body": "Type a name or ID to narrow the list. Use age group and medical alert filters to slice the results further."
+            },
+            "form": {
+              "title": "Camper card",
+              "body": "Each card shows the camper's name, age, and medical alert badges. Red border = life-threatening allergy on file."
+            },
+            "submit": {
+              "title": "Log Visit shortcut",
+              "body": "Click 'Log Visit' at the bottom of any card to jump directly to that camper's visit entry form."
+            }
+          }
+        }
+      },
+      "risk": {
+        "title": "Risk management configuration",
+        "summary": "Configure the risk scoring engine — factors, conditional rules, and supervision level thresholds.",
+        "steps": {
+          "score_explained": {
+            "title": "How the risk score works",
+            "summary": "The risk engine adds point values for each clinical condition present on a camper's record. The total determines their supervision level.",
+            "details": "Each risk factor reads a specific field from the camper's medical record. When that condition is present, the factor's point value is added to the score. The score then falls into a supervision tier (Standard, Enhanced, One-to-One) based on the configured thresholds. Disabling a factor removes it from scoring entirely. Setting it to 0 pts flags it without affecting the score."
+          },
+          "factor_categories": {
+            "title": "Risk factor categories",
+            "summary": "Factors are grouped into five categories: Medical, Behavioral, Physical, Feeding, and Allergy.",
+            "details": "Each category can be expanded to see its individual factors. The detection source (which record field triggers the factor) is shown in blue under each factor label. Point values are editable inline — change a value and click Save. Factors can be toggled on or off independently."
+          },
+          "supervision_levels": {
+            "title": "Supervision thresholds",
+            "summary": "The Thresholds tab controls which score range maps to which supervision level and staffing ratio.",
+            "details": "Raising the minimum score for a level reduces the number of campers assigned to enhanced supervision. Lowering it increases that number. Use the Preview Impact button before saving any threshold change — it shows how many current campers would be affected. Changes take effect on the next risk assessment, not retroactively."
+          },
+          "override": {
+            "title": "Conditional scoring rules",
+            "summary": "Scoring rules fire when multiple factors are true simultaneously, adding bonus points for clinical combinations that are more complex together than the sum of each factor.",
+            "details": "Example: 'Seizures + Life-threatening allergy' might warrant 10 bonus points beyond the individual factor scores. Rules can also subtract points. A rule fires only when ALL of its conditions are true at the same time. Disable a rule without deleting it to temporarily pause it."
+          },
+          "phi_handling": {
+            "title": "Configuration changes affect real campers",
+            "summary": "Changes to factors, rules, or thresholds take effect on every future risk assessment. Test carefully before saving.",
+            "details": "This is not PHI exposure in the traditional sense, but configuration mistakes can affect the supervision level assigned to every camper. Always use Preview Impact before changing a threshold. If you are unsure about a change, discuss it with the camp medical director before saving."
+          }
+        },
+        "faq": {
+          "score_changes": {
+            "question": "If I change a factor's point value, do existing camper scores update immediately?",
+            "answer": "No. Changes apply to future risk assessments only. Stored assessment records are not retroactively changed. To recalculate a specific camper's score with the new values, open their risk assessment and trigger a recalculation."
+          },
+          "high_risk_action": {
+            "question": "What should I do when I see a camper scored as High Risk?",
+            "answer": "Review the active factors on their assessment to understand what is driving the score. Confirm that the listed conditions are accurate. Notify camp leadership and the medical director if the score has changed significantly since last assessment. The score guides staffing ratios — it does not replace clinical judgment."
+          },
+          "override_when": {
+            "question": "When should I use a conditional scoring rule instead of just raising a factor's point value?",
+            "answer": "Use a rule when two or more conditions together are clinically more significant than each condition alone. For example, a camper with both seizures and a life-threatening allergy needs a higher supervision ratio than either condition alone would suggest. Rules let you model that combined complexity without inflating individual factor scores across all campers."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Risk management tour",
+          "steps": {
+            "header": {
+              "title": "Risk management header",
+              "body": "This page configures the scoring engine. Changes here affect how risk is calculated for every camper going forward."
+            },
+            "factors": {
+              "title": "Risk Factors tab",
+              "body": "Expand any category to see its factors, adjust point values, and toggle factors on or off."
+            },
+            "recommendations": {
+              "title": "Scoring Rules tab",
+              "body": "Add conditional rules that fire when multiple factors are simultaneously present, adding bonus points for complex clinical combinations."
+            },
+            "actions": {
+              "title": "Thresholds tab",
+              "body": "Set the score ranges that map to each supervision level. Use Preview Impact before saving to see how many campers would be affected."
+            }
+          }
+        }
       }
     }
   }

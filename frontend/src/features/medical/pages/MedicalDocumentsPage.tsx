@@ -173,7 +173,7 @@ export function MedicalDocumentsPage() {
       </Link>
 
       {/* Header */}
-      <div className="mb-6">
+      <div data-guide-anchor="medical-documents.header" className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(96,165,250,0.1)' }}>
             <FileText className="h-3.5 w-3.5" style={{ color: 'var(--night-sky-blue)' }} />
@@ -191,6 +191,7 @@ export function MedicalDocumentsPage() {
 
       {/* Drop zone */}
       <div
+        data-guide-anchor="medical-documents.upload"
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
@@ -272,10 +273,11 @@ export function MedicalDocumentsPage() {
           description={t('medical.documents.empty_desc')}
         />
       ) : (
-        <div className="space-y-2">
-          {documents.map((doc) => (
+        <div data-guide-anchor="medical-documents.list" className="space-y-2">
+          {documents.map((doc, index) => (
             <div
               key={doc.id}
+              {...(index === 0 ? { 'data-guide-anchor': 'medical-documents.preview' } : {})}
               className="flex items-center gap-4 rounded-xl border px-5 py-4"
               style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
             >

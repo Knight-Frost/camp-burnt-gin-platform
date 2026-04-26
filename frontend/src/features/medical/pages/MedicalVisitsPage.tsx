@@ -28,6 +28,7 @@ import { getCamper } from '@/features/admin/api/admin.api';
 import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
+import { useMedicalSession } from '@/features/medical/context/MedicalSessionContext';
 
 import { ROUTES } from '@/shared/constants/routes';
 import type { Camper } from '@/features/admin/types/admin.types';
@@ -648,6 +649,12 @@ export function MedicalVisitsPage() {
   const [hasMore, setHasMore] = useState(false);
   const [filterDisposition, setFilterDisposition] = useState<VisitDisposition | ''>('');
 
+  // Global view (no camper in URL) honors the session filter from the layout
+  // header. Camper-scoped view shows that camper's full history regardless of
+  // session — the camper id already narrows the data.
+  const { activeSessionId } = useMedicalSession();
+  const sessionFilter = !hasCamper && activeSessionId ? { session_id: activeSessionId } : {};
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -655,6 +662,7 @@ export function MedicalVisitsPage() {
     try {
       const params = {
         ...(hasCamper && { camper_id: id! }),
+        ...sessionFilter,
         ...(filterDisposition && { disposition: filterDisposition }),
         page: 1,
       };
@@ -676,7 +684,7 @@ export function MedicalVisitsPage() {
     } finally {
       setLoading(false);
     }
-  }, [hasCamper, id, filterDisposition, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasCamper, id, filterDisposition, retryKey, activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
 
@@ -686,6 +694,7 @@ export function MedicalVisitsPage() {
       const nextPage = page + 1;
       const res = await getMedicalVisits({
         ...(hasCamper && { camper_id: id! }),
+        ...sessionFilter,
         ...(filterDisposition && { disposition: filterDisposition }),
         page: nextPage,
       });
@@ -719,7 +728,7 @@ export function MedicalVisitsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-6" data-guide-anchor="medical-visits.header">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(5,150,105,0.10)' }}>
@@ -747,6 +756,7 @@ export function MedicalVisitsPage() {
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
+            data-guide-anchor="medical-visits.add-visit"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{ background: 'var(--ember-orange)', color: '#fff' }}
           >
@@ -757,7 +767,7 @@ export function MedicalVisitsPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="flex items-center gap-3 mb-6 flex-wrap" data-guide-anchor="medical-visits.filter">
         <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
           <Filter className="h-3.5 w-3.5" />
           {t('common.filter') || 'Filter'}:
@@ -813,8 +823,8 @@ export function MedicalVisitsPage() {
       ) : (
         <>
           <div className="space-y-3">
-            {visits.map((visit) => (
-              <div key={visit.id}>
+            {visits.map((visit, index) => (
+              <div key={visit.id} {...(index === 0 ? { 'data-guide-anchor': 'medical-visits.visit-card' } : {})}>
                 <VisitCard visit={visit} />
               </div>
             ))}

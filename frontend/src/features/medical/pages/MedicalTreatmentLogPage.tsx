@@ -34,6 +34,7 @@ import { getCamper } from '@/features/admin/api/admin.api';
 import { CamperSearch } from '@/features/medical/components/CamperSearch';
 import { Skeletons } from '@/ui/components/Skeletons';
 import { EmptyState } from '@/ui/components/EmptyState';
+import { useMedicalSession } from '@/features/medical/context/MedicalSessionContext';
 
 import type { Camper } from '@/features/admin/types/admin.types';
 
@@ -616,6 +617,10 @@ export function MedicalTreatmentLogPage() {
   const [savedLog, setSavedLog]   = useState<TreatmentLog | null>(null);
   const [retryKey, setRetryKey]   = useState(0);
 
+  // Global view honors the layout session filter; camper-scoped view
+  // shows that camper's full treatment history regardless of session.
+  const { activeSessionId } = useMedicalSession();
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -628,7 +633,9 @@ export function MedicalTreatmentLogPage() {
         setCamper(c);
         setLogs(Array.isArray(l.data) ? l.data : []);
       } else {
-        const l = await getTreatmentLogs();
+        const l = await getTreatmentLogs(
+          activeSessionId ? { session_id: activeSessionId } : undefined,
+        );
         setLogs(Array.isArray(l.data) ? l.data : []);
       }
     } catch {
@@ -636,7 +643,7 @@ export function MedicalTreatmentLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [hasCamper, id, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasCamper, id, retryKey, activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
 

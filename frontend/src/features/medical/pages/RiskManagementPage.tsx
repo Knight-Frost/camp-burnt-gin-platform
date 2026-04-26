@@ -971,7 +971,7 @@ export default function RiskManagementPage() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div>
+      <div data-guide-anchor="medical-camper-risk.header">
         <div className="flex items-center gap-3 mb-1">
           <ShieldAlert className="h-6 w-6" style={{ color: 'var(--ember-orange)' }} />
           <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Risk Management</h1>
@@ -983,7 +983,7 @@ export default function RiskManagementPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--glass-medium)' }}>
+      <div data-guide-anchor="medical-camper-risk.factors" className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--glass-medium)' }}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -1002,9 +1002,9 @@ export default function RiskManagementPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'factors'    && <RiskFactorsTab />}
+      {activeTab === 'factors'    && <div data-guide-anchor="medical-camper-risk.recommendations"><RiskFactorsTab /></div>}
       {activeTab === 'rules'      && <ScoringRulesTab />}
-      {activeTab === 'thresholds' && <ThresholdsTab />}
+      {activeTab === 'thresholds' && <div data-guide-anchor="medical-camper-risk.actions"><ThresholdsTab /></div>}
     </div>
   );
 }

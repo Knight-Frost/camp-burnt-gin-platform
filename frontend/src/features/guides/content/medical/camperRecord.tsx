@@ -50,7 +50,10 @@ registerGuide({
       titleKey: 'guide.medical.camperRecord.steps.no_share.title',
       summaryKey: 'guide.medical.camperRecord.steps.no_share.summary',
       detailsKey: 'guide.medical.camperRecord.steps.no_share.details',
-      severity: 'urgent',
+      // 'warning' (Important) — cautionary HIPAA reminder, not a pending
+      // task. Matches the other PHI-handling steps across visits /
+      // incidents / follow-ups guides.
+      severity: 'warning',
     },
   ],
   faq: [
@@ -84,7 +87,7 @@ export function MedicalRecordHint() {
   }, [user]);
 
   if (!hint) return null;
-  return SmartHintRenderer({ hint });
+  return <SmartHintRenderer hint={hint} />;
 }
 
 registerSmartHintResolver('MEDICAL_RECORD_DETAIL', MedicalRecordHint);

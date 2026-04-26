@@ -50,11 +50,15 @@ class ApplicationDocumentResource extends JsonResource
         }
 
         // Single ground-truth status — what admin and applicant both render from.
+        // Exam-date and expiration-date checks are intentionally NOT in this
+        // match: the system does not block approval on missing or past
+        // exam_date / expiration_date values. The is_expired and
+        // is_incomplete_metadata booleans below remain for purely
+        // informational display, but they never drive a "Blocks approval"
+        // label.
         $complianceStatus = match (true) {
             $isArchived => 'archived',
             ! $isSubmitted => 'draft',
-            $isExpired => 'expired',
-            $isIncompleteMetadata => 'incomplete_metadata',
             ! $isVerified => 'unverified',
             default => 'ok',
         };
@@ -113,9 +117,7 @@ class ApplicationDocumentResource extends JsonResource
         return match ($status) {
             'ok' => "$label — verified",
             'draft' => "$label — draft (not submitted by applicant yet)",
-            'expired' => "Blocks approval: $label has expired; re-submission required",
             'unverified' => "Pending review: $label awaiting admin verification",
-            'incomplete_metadata' => "Blocks approval: $label has no exam date on file",
             'archived' => "$label — archived",
             default => $label,
         };
@@ -128,9 +130,7 @@ class ApplicationDocumentResource extends JsonResource
         return match ($status) {
             'ok' => "$label — submitted and verified",
             'draft' => "$label uploaded — submit to staff to finalize",
-            'expired' => "Action needed: $label is out of date; upload a current copy",
             'unverified' => "$label submitted — awaiting staff review",
-            'incomplete_metadata' => "Action needed: $label is missing the physician exam date. Re-upload with the exam date completed.",
             'archived' => "$label — archived",
             default => $label,
         };

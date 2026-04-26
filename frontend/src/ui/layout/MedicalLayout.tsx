@@ -10,7 +10,7 @@
  *  - Session indicator rendered in portal header area via provider
  */
 
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   User,
@@ -35,10 +35,27 @@ import { MedicalSessionProvider } from '@/features/medical/context/MedicalSessio
 import { MedicalSessionIndicator } from '@/features/medical/components/MedicalSessionIndicator';
 import { useUnreadMessageCount } from '@/ui/context/MessagingCountContext';
 
+// Pages that actually read the active session and filter their data by it.
+// Other medical-portal pages render the same layout but ignore the session,
+// so showing the picker on them is misleading — switching sessions there
+// does nothing. Add a route here once the corresponding page wires up
+// `useMedicalSession()` and passes `session_id` to its API call.
+const SESSION_FILTER_ROUTES: ReadonlyArray<string> = [
+  ROUTES.MEDICAL_DASHBOARD,
+  ROUTES.MEDICAL_DIRECTORY,
+  ROUTES.MEDICAL_VISITS,
+  ROUTES.MEDICAL_INCIDENTS,
+  ROUTES.MEDICAL_FOLLOW_UPS,
+  ROUTES.MEDICAL_TREATMENT_LOGS,
+];
+
 export function MedicalLayout() {
   const { t } = useTranslation();
+  const location = useLocation();
   const user = useAppSelector((state) => state.auth.user);
   const { unreadSystemCount } = useUnreadMessageCount();
+
+  const showSessionBar = SESSION_FILTER_ROUTES.includes(location.pathname);
 
   const hasAccess = Boolean(
     user?.roles?.some((r) => ['medical', 'admin', 'super_admin'].includes(r.name)) ||
@@ -86,7 +103,7 @@ export function MedicalLayout() {
 
   return (
     <MedicalSessionProvider>
-      <DashboardShell navItems={navItems} pageTitle={t('medical.dashboard.title')} subHeader={sessionBar}>
+      <DashboardShell navItems={navItems} pageTitle={t('medical.dashboard.title')} subHeader={showSessionBar ? sessionBar : undefined}>
         <Outlet />
       </DashboardShell>
     </MedicalSessionProvider>

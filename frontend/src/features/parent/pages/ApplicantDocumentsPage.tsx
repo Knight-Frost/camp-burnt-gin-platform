@@ -984,6 +984,22 @@ export function ApplicantDocumentsPage() {
     load();
   }, []);
 
+  // Refresh whenever the tab becomes active again. Without this the page
+  // shows stale state when an admin verifies / approves a document in
+  // another tab — the applicant comes back to the page and still sees
+  // "Awaiting review" until they manually refresh.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') load();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', load);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', load);
+    };
+  }, []);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   // Supplementary upload (UploadArea — not linked to a specific task)

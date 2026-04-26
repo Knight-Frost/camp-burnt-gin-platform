@@ -259,7 +259,7 @@ export function MedicalEmergencyViewPage() {
       </Link>
 
       {/* Page header */}
-      <div className="rounded-2xl border p-5 mb-6 flex items-center justify-between gap-4" style={{ background: 'rgba(220,38,38,0.05)', borderColor: 'rgba(220,38,38,0.25)' }}>
+      <div data-guide-anchor="medical-emergency.header" className="rounded-2xl border p-5 mb-6 flex items-center justify-between gap-4" style={{ background: 'rgba(220,38,38,0.05)', borderColor: 'rgba(220,38,38,0.25)' }}>
         <div className="flex items-center gap-3 min-w-0">
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -355,7 +355,7 @@ export function MedicalEmergencyViewPage() {
         </div>
 
         {/* 2. ALLERGIES */}
-        <div>
+        <div data-guide-anchor="medical-emergency.allergies">
           <Section
             icon={<AlertTriangle className="h-4 w-4" />}
             title={t('medical.emergency.allergies') || 'ALLERGIES'}
@@ -406,7 +406,7 @@ export function MedicalEmergencyViewPage() {
         </div>
 
         {/* 3. CURRENT MEDICATIONS */}
-        <div>
+        <div data-guide-anchor="medical-emergency.medications">
           <Section
             icon={<Pill className="h-4 w-4" />}
             title={t('medical.emergency.medications') || 'CURRENT MEDICATIONS'}
@@ -486,7 +486,7 @@ export function MedicalEmergencyViewPage() {
         </div>
 
         {/* 5. EMERGENCY CONTACTS */}
-        <div>
+        <div data-guide-anchor="medical-emergency.contacts">
           <Section
             icon={<Phone className="h-4 w-4" />}
             title={t('medical.emergency.emergency_contacts') || 'EMERGENCY CONTACTS'}

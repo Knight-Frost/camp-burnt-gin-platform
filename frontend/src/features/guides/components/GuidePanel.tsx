@@ -62,34 +62,39 @@ export function GuidePanel() {
 
   return createPortal(
     <>
+      {/* The full-screen click-outside button is rendered OUTSIDE AnimatePresence
+          so it unmounts immediately when showPanel becomes false. If it were
+          inside, AnimatePresence would keep it mounted for the panel's slide-out
+          animation (~300ms), and during that overlap it could intercept clicks
+          on whatever appears in front (e.g., the walkthrough coachmark). */}
+      {showPanel && (
+        <button
+          type="button"
+          aria-label={t('guide.panel_close')}
+          className="fixed inset-0 cursor-default bg-transparent"
+          style={{ zIndex: 399 }}
+          onClick={() => dispatch(closeGuide())}
+        />
+      )}
       <AnimatePresence>
         {showPanel && (
-          <>
-            <button
-              type="button"
-              aria-label={t('guide.panel_close')}
-              className="fixed inset-0 cursor-default bg-transparent"
-              style={{ zIndex: 399 }}
-              onClick={() => dispatch(closeGuide())}
-            />
-
-            <motion.aside
-              key="guide-panel"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-full max-w-[480px] flex flex-col border-l z-[400]"
-              style={{
-                background: 'var(--card)',
-                borderColor: 'var(--border)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: 'var(--shadow-card)',
-              }}
-              aria-label={t('guide.panel_title')}
-              role="complementary"
-              onClick={(e) => e.stopPropagation()}
-            >
+          <motion.aside
+            key="guide-panel"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed top-0 right-0 h-full w-full max-w-[480px] flex flex-col border-l z-[400]"
+            style={{
+              background: 'var(--card)',
+              borderColor: 'var(--border)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: 'var(--shadow-card)',
+            }}
+            aria-label={t('guide.panel_title')}
+            role="complementary"
+            onClick={(e) => e.stopPropagation()}
+          >
               {/* Header */}
               <div
                 className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
@@ -117,8 +122,7 @@ export function GuidePanel() {
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 {guide ? <PageGuideContent guide={guide} /> : <EmptyGuideContent />}
               </div>
-            </motion.aside>
-          </>
+          </motion.aside>
         )}
       </AnimatePresence>
 

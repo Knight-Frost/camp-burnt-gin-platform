@@ -83,7 +83,7 @@ export function MedicalDashboardHint() {
   }, [user]);
 
   if (!hint) return null;
-  return SmartHintRenderer({ hint });
+  return <SmartHintRenderer hint={hint} />;
 }
 
 registerSmartHintResolver('MEDICAL_DASHBOARD', MedicalDashboardHint);

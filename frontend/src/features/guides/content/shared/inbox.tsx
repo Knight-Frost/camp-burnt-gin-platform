@@ -83,7 +83,7 @@ export function SharedInboxHint() {
   }, [unreadMessageCount]);
 
   if (!hint) return null;
-  return SmartHintRenderer({ hint });
+  return <SmartHintRenderer hint={hint} />;
 }
 
 for (const routeKey of SHARED_INBOX_ROUTE_KEYS) {

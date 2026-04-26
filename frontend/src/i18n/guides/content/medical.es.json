@@ -180,6 +180,579 @@
             }
           }
         }
+      },
+      "visits": {
+        "title": "Visitas a la oficina de salud",
+        "summary": "Registra cada visita a la oficina de salud y revisa las visitas pasadas de todos los campistas.",
+        "steps": {
+          "when_to_log": {
+            "title": "Cuándo registrar una visita",
+            "summary": "Registra una visita cada vez que un campista pase por la oficina de salud para evaluación, incluso si no se administra tratamiento.",
+            "details": "Una visita captura el encuentro en sí: cuándo, quién, por qué. Incluso un control breve cuenta. Si además administraste medicamentos o realizaste un procedimiento, registra un tratamiento aparte sobre la visita."
+          },
+          "recording_vitals": {
+            "title": "Registro de signos vitales",
+            "summary": "Los signos vitales son opcionales pero recomendados cuando el campista no se siente bien.",
+            "details": "Los campos disponibles son temperatura, pulso, presión arterial (sistólica/diastólica), SpO2 y peso. Deja en blanco lo que no mediste. Los signos vitales registrados aparecen como etiquetas en la tarjeta de visita para que otro personal los pueda revisar rápidamente."
+          },
+          "disposition": {
+            "title": "Disposición",
+            "summary": "La disposición indica al siguiente turno qué pasó con el campista después de la visita.",
+            "details": "Elige entre Regresó a Actividad, Monitoreo, Enviado a Casa, Traslado de Emergencia u Otro. Selecciona la opción más precisa: esto es lo que se consulta cuando el personal necesita saber si un campista está siendo observado."
+          },
+          "global_vs_camper": {
+            "title": "Vista global vs vista de campista",
+            "summary": "/medical/visits es una vista de solo lectura de todas las visitas. Para agregar una visita, ábrela desde el expediente del campista.",
+            "details": "La página global es para entrega de turno y revisión de tendencias. El formulario de agregar solo aparece cuando abriste la página desde el expediente de un campista específico (/medical/records/:id/visits)."
+          },
+          "phi_handling": {
+            "title": "Manejo de PHI",
+            "summary": "Las notas de visita contienen PHI. No tomes capturas de pantalla, imprimas ni compartas detalles fuera del sistema.",
+            "details": "Si necesitas comentar una visita con otro miembro del personal, hazlo dentro del sistema de mensajería o en persona. El correo electrónico y los mensajes de texto no son canales aprobados para PHI."
+          }
+        },
+        "faq": {
+          "visit_vs_treatment": {
+            "question": "¿Cuál es la diferencia entre una visita y un tratamiento?",
+            "answer": "Una visita es el encuentro: el campista vino a la oficina de salud. Un tratamiento es lo que se hizo durante la visita (medicamento, intervención, procedimiento). Una visita puede tener varios tratamientos, o ninguno si fue solo una evaluación."
+          },
+          "edit_visit": {
+            "question": "¿Puedo editar una visita después de guardarla?",
+            "answer": "No. Las visitas forman parte del expediente médico y no pueden editarse ni eliminarse para cumplir con las reglas de retención de HIPAA. Si algo se registró incorrectamente, agrega una corrección registrando una nueva visita que haga referencia a la original."
+          },
+          "emergency_transfer": {
+            "question": "¿Cuándo debo elegir Traslado de Emergencia como disposición?",
+            "answer": "Usa Traslado de Emergencia cuando el campista fue enviado al hospital, se llamó una ambulancia o requirió atención más allá de lo que la oficina de salud puede proporcionar. Notifica al liderazgo del campamento y a la familia en paralelo: la disposición es solo el registro, no la alerta."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de visitas a la oficina de salud",
+          "steps": {
+            "header": {
+              "title": "Visitas a la oficina de salud",
+              "body": "Esta página lista cada visita a la oficina de salud. Úsala para entrega de turno y para detectar patrones entre campistas."
+            },
+            "add-visit": {
+              "title": "Registrar una nueva visita",
+              "body": "Haz clic aquí para iniciar una nueva entrada de visita. Disponible solo cuando abriste esta página desde el expediente de un campista."
+            },
+            "filter": {
+              "title": "Filtrar por disposición",
+              "body": "Reduce la lista a una sola disposición; por ejemplo, solo campistas que están en monitoreo."
+            },
+            "visit-card": {
+              "title": "Tarjeta de visita",
+              "body": "Cada tarjeta muestra el campista, la fecha, la disposición y los signos vitales registrados. Haz clic para expandir las notas completas de la visita."
+            }
+          }
+        }
+      },
+      "incidents": {
+        "title": "Reportes de incidentes",
+        "summary": "Documenta incidentes de comportamiento, médicos, lesiones y otros que requieran un registro formal.",
+        "steps": {
+          "what_to_report": {
+            "title": "Qué reportar",
+            "summary": "Un incidente es cualquier cosa más allá de una visita rutinaria a la oficina de salud que necesite un registro escrito: lesiones, eventos de comportamiento, reacciones alérgicas, convulsiones o cualquier cosa que el liderazgo del campamento deba saber.",
+            "details": "Cuando dudes, repórtalo. Un reporte de incidente protege al campista, al personal y al campamento. Un reporte breve es mejor que ningún reporte."
+          },
+          "incident_types": {
+            "title": "Elegir el tipo",
+            "summary": "Elige el tipo que mejor describa lo que sucedió: Comportamiento, Médico, Lesión, Alergia, Convulsión u Otro.",
+            "details": "Si aplican varios tipos, elige el más significativo clínicamente. Puedes describir los aspectos secundarios en el campo de descripción. El tipo determina cómo aparece el incidente en los reportes de tendencias."
+          },
+          "severity_levels": {
+            "title": "Niveles de severidad",
+            "summary": "La severidad va de Menor a Crítica. Elige el nivel que coincida con el impacto real sobre el campista.",
+            "details": "Crítica = riesgo de vida o que requiere respuesta de emergencia. Severa = lesión significativa o atención prolongada. Moderada = requirió tratamiento más allá de primeros auxilios. Menor = manejado en el momento, sin efecto duradero. Cuando dudes, elige la severidad más alta."
+          },
+          "description_writing": {
+            "title": "Redactar la descripción",
+            "summary": "Describe lo que sucedió en lenguaje claro y factual. Evita especular sobre causa o culpa.",
+            "details": "Apégate a lo que viste y oíste. Incluye lo que dijo el campista, lo que hizo el personal y cuál fue el resultado. Deja las interpretaciones y recomendaciones para las notas de seguimiento, no para el reporte inicial."
+          },
+          "witnesses": {
+            "title": "Listar testigos",
+            "summary": "Registra los nombres del personal o campistas que presenciaron el incidente.",
+            "details": "Los nombres de los testigos importan si el incidente se revisa después por liderazgo o familia. Lista primero al personal, luego a los campistas si es relevante. Si prefieres no listar a un campista por nombre para evitar divulgación cruzada de PHI, anota su cabaña o grupo de actividad."
+          },
+          "phi_handling": {
+            "title": "Manejo de PHI",
+            "summary": "Los reportes de incidentes a menudo contienen detalles sensibles. Trátalos como PHI.",
+            "details": "No compartas reportes de incidentes fuera del sistema. Discute los detalles en persona o a través de mensajería interna. La comunicación con la familia debe ir a través del administrador o liderazgo del campamento, no directamente desde el portal médico."
+          }
+        },
+        "faq": {
+          "when_critical": {
+            "question": "¿Qué incidentes cuentan como severidad Crítica?",
+            "answer": "Cualquier cosa que ponga en riesgo la vida, requiera una llamada de emergencia o resulte en traslado a un hospital es Crítica. Ejemplos: reacciones anafilácticas, convulsiones prolongadas, lesiones en la cabeza con pérdida de conciencia, ataques de asma severos. Cuando dudes, marca Crítica y notifica al liderazgo de inmediato."
+          },
+          "incident_vs_visit": {
+            "question": "¿Debo registrar esto como incidente o como visita?",
+            "answer": "Regístralo como incidente si necesita un registro formal más allá de la atención clínica rutinaria. Usa una visita para chequeos normales en la oficina de salud. Muchos incidentes también tendrán una visita correspondiente (el campista vino a la oficina de salud por causa del incidente)."
+          },
+          "edit_after_save": {
+            "question": "¿Puedo editar un incidente después de guardarlo?",
+            "answer": "No. Los reportes de incidentes son parte del registro legal y no pueden editarse ni eliminarse. Si algo está mal, presenta una corrección o adenda registrando un nuevo incidente que haga referencia al original."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de reportes de incidentes",
+          "steps": {
+            "header": {
+              "title": "Reportes de incidentes",
+              "body": "Este es el registro formal de cada incidente reportable. Úsalo para seguimiento de tendencias y entregas al liderazgo."
+            },
+            "report": {
+              "title": "Reportar un nuevo incidente",
+              "body": "Haz clic aquí para presentar un reporte de incidente. Disponible solo cuando abriste la página desde el expediente de un campista específico."
+            },
+            "severity": {
+              "title": "Etiqueta de severidad",
+              "body": "Cada incidente muestra su severidad de un vistazo. Las filas Crítica y Severa se destacan para que no se pasen por alto."
+            },
+            "history": {
+              "title": "Historial de incidentes",
+              "body": "Cada incidente reportado aparece aquí, los más recientes primero. Haz clic en cualquier tarjeta para expandir la descripción completa y los testigos."
+            }
+          }
+        }
+      },
+      "followUps": {
+        "title": "Tareas de seguimiento",
+        "summary": "Sigue cada seguimiento clínico que debe realizarse, de todos los campistas, en una sola cola.",
+        "steps": {
+          "shift_routine": {
+            "title": "Rutina de turno",
+            "summary": "Abre esta página al inicio y al final de cada turno. Resuelve primero los elementos atrasados.",
+            "details": "Los seguimientos son la forma en que el equipo médico se pasa el trabajo entre turnos. Si terminas un seguimiento, márcalo como completado. Si no puedes terminarlo, déjalo claro en las notas para que el siguiente turno sepa dónde retomarlo."
+          },
+          "tabs_overview": {
+            "title": "Pestañas",
+            "summary": "Las pestañas dividen la cola: Todos, Pendientes, En progreso, Atrasados, Completados.",
+            "details": "Pendiente = aún no comenzado. En progreso = alguien está trabajando en ello. Atrasado = la fecha límite pasó y aún no está Completado. Completado = cerrado; la entrada permanece para el rastro de auditoría. Los elementos cancelados están filtrados por defecto."
+          },
+          "priority_levels": {
+            "title": "Niveles de prioridad",
+            "summary": "Urgente, Alta, Media, Baja. Trabaja siempre primero la prioridad más alta.",
+            "details": "Los elementos Urgentes son sensibles al tiempo: el mismo turno si es posible. Alta debe atenderse dentro de 24 horas. Media y Baja pueden esperar un par de turnos pero no deben acumularse."
+          },
+          "overdue_handling": {
+            "title": "Elementos atrasados",
+            "summary": "Cualquier cosa en la pestaña Atrasados necesita atención este turno.",
+            "details": "Un seguimiento atrasado significa que una tarea clínica se pasó por alto. Tríalo ahora: hazlo, entrégalo en las notas o escálalo a un supervisor. No sigas posponiendo la fecha límite."
+          },
+          "completing": {
+            "title": "Completar un seguimiento",
+            "summary": "Marca un seguimiento como Completado cuando la acción esté realmente hecha, no cuando esté programada o asignada.",
+            "details": "Si la acción está parcialmente hecha, déjala En progreso y agrega una nota. Marca Completada solo después de confirmar el resultado (por ejemplo, el medicamento se administró, el padre fue contactado, el campista mostró mejoría)."
+          }
+        },
+        "faq": {
+          "who_creates": {
+            "question": "¿Quién crea los seguimientos?",
+            "answer": "Cualquier persona del equipo médico puede crearlos. Generalmente se generan a partir de un tratamiento, visita o incidente que requiere un chequeo posterior (por ejemplo, \"reverificar temperatura en 2 horas\" o \"llamar al padre por la mañana\")."
+          },
+          "cancel_vs_complete": {
+            "question": "¿Cuál es la diferencia entre Cancelado y Completado?",
+            "answer": "Completado significa que la acción se realizó y el resultado se confirmó. Cancelado significa que el seguimiento ya no es necesario en absoluto (por ejemplo, el campista se fue a casa, la situación se resolvió sola). Usa Cancelado con moderación: Completado casi siempre es la respuesta correcta."
+          },
+          "overdue_meaning": {
+            "question": "¿Cómo se calcula Atrasado?",
+            "answer": "Un seguimiento se vuelve Atrasado cuando su fecha límite ha pasado y su estado sigue siendo Pendiente o En progreso. Los elementos Cancelados y Completados nunca se vuelven Atrasados."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de seguimientos",
+          "steps": {
+            "tabs": {
+              "title": "Pestañas de filtro",
+              "body": "Cambia entre Todos, Pendientes, En progreso, Atrasados y Completados para enfocarte en lo que necesita atención ahora."
+            },
+            "add": {
+              "title": "Crear un seguimiento",
+              "body": "Haz clic aquí para agregar una nueva tarea de seguimiento. Busca al campista, establece fecha límite y prioridad, y agrega la acción que necesitas completar."
+            },
+            "priority": {
+              "title": "Etiquetas de prioridad",
+              "body": "Los elementos Urgente y Alta se enfatizan visualmente para que no se escapen en un turno ocupado."
+            },
+            "list": {
+              "title": "Lista de seguimientos",
+              "body": "Cada seguimiento aparece aquí. Haz clic en una tarjeta para ver detalles, editar, marcar como completado o eliminar (solo administrador para eliminar)."
+            }
+          }
+        }
+      },
+      "emergency": {
+        "title": "Vista de emergencia",
+        "summary": "Toda la información médica crítica de un campista en una sola pantalla — diseñada para actuar rápido en emergencias.",
+        "steps": {
+          "purpose": {
+            "title": "Para qué sirve esta página",
+            "summary": "Esta es una vista de solo lectura con los datos médicos más importantes de un campista. Ábrela en el momento en que alguien pida ayuda.",
+            "details": "Todas las secciones aparecen expandidas por defecto. Alertas de alergias, historial de convulsiones, medicamentos, diagnósticos, contactos de emergencia y visitas recientes se cargan a la vez. No hay que navegar por distintas secciones — todo es visible de inmediato."
+          },
+          "critical_alerts": {
+            "title": "Alertas críticas en la parte superior",
+            "summary": "Las alergias potencialmente mortales y el historial de convulsiones aparecen como banners rojos en la parte superior de la página.",
+            "details": "Si los banners son rojos, léelos antes de hacer cualquier otra cosa. Indicarán cuál es la alergia, el patrón de reacción y el tratamiento recomendado. Un banner de convulsiones significa que el campista tiene historial documentado: sigue el protocolo de convulsiones sin esperar."
+          },
+          "contacts": {
+            "title": "Contactos de emergencia",
+            "summary": "Todos los contactos de emergencia registrados — con números de teléfono que puedes tocar para llamar — se muestran aquí.",
+            "details": "Los números de teléfono son enlaces activos. Toca o haz clic para marcar directamente. Si un contacto está autorizado para recoger al campista, la etiqueta lo indica claramente. Llama primero al contacto principal y, si no contesta, al secundario."
+          },
+          "read_only": {
+            "title": "Solo lectura — las actualizaciones se hacen en el expediente completo",
+            "summary": "No puedes editar nada desde esta vista. Para actualizar información, vuelve al expediente médico completo.",
+            "details": "Esta restricción es intencional. Una emergencia no es el momento adecuado para editar un expediente. Una vez que la situación esté bajo control, ve al expediente completo y realiza allí las correcciones o adiciones necesarias."
+          },
+          "phi_handling": {
+            "title": "PHI en esta pantalla",
+            "summary": "Esta página muestra más datos sensibles que casi cualquier otra. No la dejes abierta sin atención.",
+            "details": "Cierra la página en cuanto se resuelva la situación inmediata. No tomes fotos ni capturas de pantalla de la vista de emergencia. La página contiene un resumen clínico completo que incluye diagnósticos, medicamentos, alergias e información de contacto — todo PHI."
+          }
+        },
+        "faq": {
+          "when_to_open": {
+            "question": "¿Cuándo debo usar la Vista de Emergencia en lugar del expediente normal?",
+            "answer": "Abre la Vista de Emergencia cuando necesites información crítica en este momento: durante una reacción alérgica activa, una caída, una convulsión o cualquier situación urgente. El expediente normal es para revisión y documentación rutinaria. La Vista de Emergencia es para cuando cada segundo cuenta."
+          },
+          "update_info": {
+            "question": "La información aquí parece desactualizada. ¿Cómo la actualizo?",
+            "answer": "Vuelve al expediente médico completo del campista usando el enlace 'Volver al expediente médico' en la parte superior. La Vista de Emergencia obtiene datos en tiempo real, por lo que cualquier actualización que hagas en el expediente completo aparecerá aquí en la siguiente carga de página."
+          },
+          "no_allergy_shown": {
+            "question": "Sé que este campista tiene una alergia pero no aparece como alerta crítica. ¿Por qué?",
+            "answer": "Las alertas críticas solo muestran alergias potencialmente mortales o severas. Las alergias leves o moderadas siguen apareciendo en la sección de Alergias más abajo en la página. Desplázate hacia abajo para ver la lista completa de alergias con los niveles de severidad de cada entrada."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de la vista de emergencia",
+          "steps": {
+            "header": {
+              "title": "Identidad del campista y nivel de riesgo",
+              "body": "El nombre, la fecha de nacimiento y el nivel de riesgo del campista se muestran aquí de un vistazo. La insignia roja 'VISTA DE EMERGENCIA' recuerda que esta página es de solo lectura."
+            },
+            "allergies": {
+              "title": "Sección de alergias",
+              "body": "Cada alergia registrada, con severidad e instrucciones de tratamiento. Las entradas potencialmente mortales están resaltadas en rojo para que no pasen desapercibidas."
+            },
+            "medications": {
+              "title": "Medicamentos actuales",
+              "body": "Todos los medicamentos activos con dosis, frecuencia y propósito. Consulta aquí antes de administrar cualquier cosa."
+            },
+            "contacts": {
+              "title": "Contactos de emergencia",
+              "body": "Toca cualquier número de teléfono para llamar directamente. Los contactos autorizados para recoger al campista están etiquetados. Llama primero al contacto principal."
+            }
+          }
+        }
+      },
+      "directory": {
+        "title": "Directorio médico del campamento",
+        "summary": "Encuentra el expediente médico de cualquier campista rápidamente. Usa el directorio para consultas y el enlace Protocolo de Emergencia para situaciones urgentes.",
+        "steps": {
+          "purpose": {
+            "title": "Para qué sirve el directorio",
+            "summary": "El directorio lista a todos los campistas con expediente médico en la sesión actual. Es la forma más rápida de llegar al expediente de un campista específico.",
+            "details": "Piénsalo como un índice visual. Revísalo al inicio del turno para identificar a los campistas de alto riesgo. Usa la búsqueda cuando sepas a quién buscas. Los filtros ayudan a reducir la lista cuando necesitas ver a todos con una condición específica."
+          },
+          "search_filters": {
+            "title": "Búsqueda y filtros",
+            "summary": "Escribe un nombre en el cuadro de búsqueda para encontrar a un campista al instante. Usa los filtros de alertas y medicamentos para reducir la lista.",
+            "details": "La búsqueda se actualiza mientras escribes con un breve retardo — no es necesario presionar Enter. El filtro de alertas permite mostrar solo alergias potencialmente mortales, cualquier alergia o cualquier diagnóstico. El filtro de medicamentos muestra únicamente a los campistas con medicación activa. Combina ambos filtros para resultados más precisos."
+          },
+          "alert_indicators": {
+            "title": "Indicadores de alerta en cada tarjeta",
+            "summary": "Las tarjetas muestran de un vistazo el conteo de alergias, medicamentos y el diagnóstico principal.",
+            "details": "Un borde izquierdo rojo y un banner de alerta en la parte superior de la tarjeta indican que el campista tiene al menos una alergia potencialmente mortal. Esa prioridad visual es intencional: son los campistas donde un error tiene consecuencias más graves. Insignia azul = medicamentos registrados. Insignia naranja = alergias presentes."
+          },
+          "emergency_protocol": {
+            "title": "Botón de Protocolo de Emergencia",
+            "summary": "Cada tarjeta de campista tiene un enlace 'Protocolo de Emergencia'. Abre la Vista de Emergencia para ese campista.",
+            "details": "Usa este enlace cuando algo esté ocurriendo activamente y necesites información crítica rápido. El enlace abre un resumen de solo lectura, completamente expandido, de las alergias, medicamentos, diagnósticos y contactos de emergencia de ese campista."
+          },
+          "phi_handling": {
+            "title": "PHI en el directorio",
+            "summary": "El directorio muestra información médica de todos los campistas a la vez. Trata toda la página como PHI.",
+            "details": "No dejes el directorio abierto en una pantalla compartida. No tomes capturas de pantalla. Cada tarjeta muestra el conteo de alergias, medicamentos y el diagnóstico principal — todo PHI. Si hay alguien no autorizado cerca, bloquea o cierra la pantalla."
+          }
+        },
+        "faq": {
+          "not_seeing_camper": {
+            "question": "No encuentro a un campista en el directorio. ¿Dónde está?",
+            "answer": "El directorio solo muestra campistas con expediente médico vinculado a la sesión actual. Si un campista está registrado pero su expediente médico aún no ha sido creado, no aparecerá aquí. Contacta al administrador para verificar el estado de la solicitud y del expediente médico."
+          },
+          "life_threatening_border": {
+            "question": "¿Por qué algunas tarjetas de campistas tienen un borde izquierdo rojo?",
+            "answer": "El borde rojo señala a campistas con al menos una alergia potencialmente mortal registrada. Es una señal de prioridad visual para que, al revisar el directorio rápidamente, esos campistas sean inmediatamente visibles. Consulta siempre los detalles de su alergia antes de administrar cualquier alimento, medicamento o atención."
+          },
+          "directory_vs_search": {
+            "question": "¿Cuál es la diferencia entre este directorio y la barra de búsqueda del panel médico?",
+            "answer": "La búsqueda del panel abre una consulta rápida para un campista a la vez. El Directorio Médico es una lista completa y navegable con filtros, indicadores de alerta y el acceso directo al Protocolo de Emergencia en cada tarjeta. Usa el directorio cuando necesites examinar o filtrar entre todos los campistas."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido del directorio médico",
+          "steps": {
+            "header": {
+              "title": "Encabezado del directorio",
+              "body": "El número total de campistas con expediente médico se muestra aquí. Verifícalo al inicio de la sesión para confirmar que todos están cargados."
+            },
+            "search": {
+              "title": "Búsqueda y filtros",
+              "body": "Escribe un nombre para buscar al instante. Usa los filtros de alertas y medicamentos para reducir la lista a un grupo específico."
+            },
+            "list": {
+              "title": "Cuadrícula de campistas",
+              "body": "Cada tarjeta muestra el nombre, la edad, la sesión, el conteo de alergias y medicamentos del campista. Borde rojo = alergia potencialmente mortal registrada."
+            },
+            "row": {
+              "title": "Acciones de la tarjeta",
+              "body": "Haz clic en 'Ver Expediente' para abrir el expediente médico completo. Haz clic en 'Protocolo de Emergencia' para abrir el resumen de solo lectura."
+            }
+          }
+        }
+      },
+      "documents": {
+        "title": "Documentos del campista",
+        "summary": "Sube, revisa y descarga documentos médicos de un campista específico.",
+        "steps": {
+          "what_goes_here": {
+            "title": "Qué va en documentos",
+            "summary": "Guarda aquí los archivos clínicos de apoyo: registros de vacunación, formularios médicos, tarjetas de seguro o cualquier documento que la familia del campista haya enviado.",
+            "details": "Los documentos están vinculados a un campista específico. Son independientes de los registros de tratamiento e informes de incidentes. Si recibes un formulario en papel de un padre, escanéalo o fotográfialo y súbelo aquí para que quede junto al expediente digital."
+          },
+          "uploading": {
+            "title": "Subir un archivo",
+            "summary": "Arrastra un archivo al área de carga o haz clic para buscar en tu dispositivo. Se pueden subir varios archivos a la vez.",
+            "details": "Los formatos aceptados son PDF, JPG, JPEG y PNG. Cada archivo pasa por un análisis de seguridad antes de aparecer en la lista. Mientras se sube un archivo, verás una barra de progreso en la sección de pendientes. Los errores se muestran en línea: si un archivo falla, descártalo e inténtalo de nuevo."
+          },
+          "scan_status": {
+            "title": "Estado del análisis de seguridad",
+            "summary": "Cada documento muestra uno de tres estados: Disponible, Revisión pendiente o No pasó el análisis de seguridad.",
+            "details": "'Disponible' significa que el análisis fue exitoso y el archivo puede descargarse. 'Revisión pendiente' significa que el análisis aún no ha terminado — espera un momento y recarga la página. 'No pasó el análisis' significa que el archivo fue bloqueado y no puede usarse. Si un archivo legítimo no pasa el análisis, contacta a tu administrador de IT."
+          },
+          "downloading": {
+            "title": "Descargar un archivo",
+            "summary": "Haz clic en el botón Descargar de cualquier fila para guardar el archivo en tu dispositivo.",
+            "details": "Las descargas son registradas por el sistema. Descarga solo los archivos que necesites para fines clínicos. No guardes documentos de campistas en dispositivos personales ni en carpetas compartidas — los archivos descargados deben almacenarse y eliminarse conforme a la política de manejo de PHI de tu campamento."
+          },
+          "phi_handling": {
+            "title": "Los documentos contienen PHI",
+            "summary": "Cada archivo subido aquí se considera Información de Salud Protegida. Maneja las descargas con cuidado.",
+            "details": "Los registros de vacunación, formularios médicos y documentos de seguro son altamente sensibles. No los envíes por correo electrónico, no los guardes en dispositivos personales ni los imprimas a menos que la política de tu campamento lo requiera. Si debes compartir un documento con un proveedor, usa el proceso de transferencia oficial del campamento."
+          }
+        },
+        "faq": {
+          "accepted_formats": {
+            "question": "¿Qué formatos de archivo puedo subir?",
+            "answer": "PDF, JPG, JPEG y PNG. Estos cubren la gran mayoría de formularios escaneados y fotos. Si tienes un archivo en otro formato (por ejemplo, DOCX o TIFF), conviértelo a PDF primero."
+          },
+          "failed_scan": {
+            "question": "Un archivo que subí muestra 'No pasó el análisis de seguridad'. ¿Qué debo hacer?",
+            "answer": "No uses el archivo. El análisis de seguridad lo bloqueó porque coincidió con una extensión o tipo MIME bloqueado. Si crees que el archivo es legítimo, contacta a tu administrador de IT — no intentes renombrar el archivo y volver a subirlo para eludir el control."
+          },
+          "delete_document": {
+            "question": "¿Puedo eliminar un documento después de subirlo?",
+            "answer": "Los documentos médicos no pueden eliminarse porque forman parte del expediente de salud. Si subiste el archivo incorrecto, notifica a tu administrador. Los administradores pueden archivar documentos, lo que los retira de la vista activa pero los mantiene registrados para cumplimiento normativo."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de documentos del campista",
+          "steps": {
+            "header": {
+              "title": "Encabezado de documentos",
+              "body": "El nombre del campista confirma que estás en el expediente correcto. Todos los documentos subidos aquí están vinculados únicamente a este campista."
+            },
+            "upload": {
+              "title": "Zona de carga",
+              "body": "Arrastra un archivo aquí o haz clic para buscarlo. Se aceptan PDF, JPG y PNG. Se pueden subir varios archivos en una sola vez."
+            },
+            "list": {
+              "title": "Lista de documentos",
+              "body": "Cada documento subido aparece aquí con su nombre de archivo, tamaño, fecha de carga y estado del análisis de seguridad."
+            },
+            "preview": {
+              "title": "Descargar",
+              "body": "Haz clic en el botón Descargar de cualquier fila para guardar el archivo. Descarga solo lo que necesites para uso clínico."
+            }
+          }
+        }
+      },
+      "recordTreatment": {
+        "title": "Expedientes de campistas",
+        "summary": "Busca a cualquier campista y accede directamente a su expediente médico o registra una visita a la oficina de salud.",
+        "steps": {
+          "finding_camper": {
+            "title": "Encontrar a un campista",
+            "summary": "Escribe un nombre en la barra de búsqueda para filtrar la lista al instante. La búsqueda tiene un breve retardo automático — no es necesario presionar Enter.",
+            "details": "También puedes buscar por ID de campista si lo conoces: el sistema detecta una entrada numérica y busca por ID en lugar de nombre. La búsqueda abarca a todos los campistas registrados, no solo a los que tienen expediente médico. Si un campista no tiene expediente, su tarjeta lo indicará."
+          },
+          "alert_badges": {
+            "title": "Insignias de alerta médica",
+            "summary": "Cada tarjeta de campista muestra de un vistazo el conteo de alergias, medicamentos e indicadores de cuidado especial.",
+            "details": "Un borde izquierdo rojo en la tarjeta significa que hay al menos una alergia potencialmente mortal. Insignia naranja = alergias. Insignia azul = medicamentos. Escudo amarillo = notas de cuidado especial. Lee estas insignias antes de abrir el expediente para llegar preparado."
+          },
+          "log_visit": {
+            "title": "Registrar una visita a la oficina de salud",
+            "summary": "Haz clic en 'Registrar Visita' en la parte inferior de cualquier tarjeta para ir directamente a la página de visitas de ese campista.",
+            "details": "Este acceso directo te ahorra el paso de abrir el expediente completo y navegar hasta visitas. Úsalo cuando un campista esté frente a ti y necesites documentar el encuentro rápidamente. El enlace de Registrar Visita lleva al mismo formulario que abrir el expediente completo y hacer clic en Visitas."
+          },
+          "filters": {
+            "title": "Filtros por grupo de edad y alerta",
+            "summary": "Filtra la lista por grupo de edad (Menores de 10, 10–12, 13–15, 16+) o por tipo de alerta médica.",
+            "details": "Los filtros de grupo de edad y alerta se aplican del lado del cliente después de que se carga la lista de campistas. Son útiles para la planificación del turno — por ejemplo, filtra por 'Alergias' para ver a todos con una alergia registrada, o filtra por 'Cuidado Especial' para ver a los campistas que requieren atención adicional."
+          },
+          "phi_handling": {
+            "title": "PHI en la lista de campistas",
+            "summary": "La lista de campistas expone información de alerta médica de todos los campistas. Trata la pantalla como PHI.",
+            "details": "Las insignias de alerta que muestran el conteo de alergias y medicamentos son PHI. No dejes esta página visible para personas que no sean personal médico autorizado. Bloquea o cierra la pantalla si te alejas."
+          }
+        },
+        "faq": {
+          "record_vs_directory": {
+            "question": "¿Cuál es la diferencia entre esta página y el Directorio Médico?",
+            "answer": "Expedientes de Campistas obtiene datos de la lista completa de campistas (todos los registrados), mientras que el Directorio Médico solo muestra campistas con un expediente médico completo en la sesión actual. Usa Expedientes de Campistas cuando necesites llegar a un campista que quizás no tenga expediente aún, o cuando quieras registrar una visita rápidamente desde una lista buscable."
+          },
+          "search_by_id": {
+            "question": "¿Puedo buscar por número de campista en vez de por nombre?",
+            "answer": "Sí. Escribe un ID numérico de campista en el cuadro de búsqueda y el sistema lo buscará por ID en lugar de por nombre. Esto es más rápido cuando tienes el ID a la mano, por ejemplo, de una pulsera identificadora o una lista impresa."
+          },
+          "no_record": {
+            "question": "La tarjeta de un campista dice 'Sin expediente médico'. ¿Qué hago?",
+            "answer": "Significa que el campista aún no tiene un expediente médico creado en el sistema. Puedes navegar a su perfil, pero no podrás registrar tratamientos ni acceder al historial de salud. Contacta al administrador para crear o vincular el expediente médico."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de expedientes de campistas",
+          "steps": {
+            "header": {
+              "title": "Encabezado de la página",
+              "body": "Esta página es tu índice de todos los campistas. Encuentra a cualquiera aquí y ve a su expediente o registra una visita."
+            },
+            "camper-search": {
+              "title": "Búsqueda y filtros",
+              "body": "Escribe un nombre o ID para reducir la lista. Usa los filtros de grupo de edad y alerta médica para segmentar los resultados."
+            },
+            "form": {
+              "title": "Tarjeta del campista",
+              "body": "Cada tarjeta muestra el nombre, la edad y las insignias de alerta médica del campista. Borde rojo = alergia potencialmente mortal registrada."
+            },
+            "submit": {
+              "title": "Acceso directo a Registrar Visita",
+              "body": "Haz clic en 'Registrar Visita' en la parte inferior de cualquier tarjeta para ir directamente al formulario de entrada de visitas de ese campista."
+            }
+          }
+        }
+      },
+      "risk": {
+        "title": "Configuración de gestión de riesgos",
+        "summary": "Configura el motor de puntuación de riesgos: factores, reglas condicionales y umbrales de niveles de supervisión.",
+        "steps": {
+          "score_explained": {
+            "title": "Cómo funciona la puntuación de riesgo",
+            "summary": "El motor de riesgo suma los valores en puntos de cada condición clínica presente en el expediente de un campista. El total determina su nivel de supervisión.",
+            "details": "Cada factor de riesgo lee un campo específico del expediente médico del campista. Cuando esa condición está presente, el valor en puntos del factor se suma a la puntuación. La puntuación cae entonces en un nivel de supervisión (Estándar, Reforzado, Uno a Uno) según los umbrales configurados. Deshabilitar un factor lo excluye completamente de la puntuación. Establecerlo en 0 puntos lo marca sin afectar la puntuación."
+          },
+          "factor_categories": {
+            "title": "Categorías de factores de riesgo",
+            "summary": "Los factores se agrupan en cinco categorías: Médico, Conductual, Físico, Alimentación y Alergia.",
+            "details": "Cada categoría puede expandirse para ver sus factores individuales. La fuente de detección (qué campo del expediente activa el factor) se muestra en azul bajo la etiqueta de cada factor. Los valores en puntos son editables en línea — cambia un valor y haz clic en Guardar. Los factores pueden activarse o desactivarse de forma independiente."
+          },
+          "supervision_levels": {
+            "title": "Umbrales de supervisión",
+            "summary": "La pestaña de Umbrales controla qué rango de puntuación corresponde a qué nivel de supervisión y proporción de personal.",
+            "details": "Aumentar la puntuación mínima de un nivel reduce el número de campistas asignados a supervisión reforzada. Bajarla aumenta ese número. Usa el botón Previsualizar impacto antes de guardar cualquier cambio de umbral: muestra cuántos campistas actuales se verían afectados. Los cambios toman efecto en la próxima evaluación de riesgos, no de forma retroactiva."
+          },
+          "override": {
+            "title": "Reglas de puntuación condicional",
+            "summary": "Las reglas de puntuación se activan cuando varios factores son ciertos simultáneamente, añadiendo puntos adicionales por combinaciones clínicas más complejas que la suma de cada factor por separado.",
+            "details": "Ejemplo: 'Convulsiones + alergia potencialmente mortal' podría justificar 10 puntos adicionales más allá de las puntuaciones individuales de cada factor. Las reglas también pueden restar puntos. Una regla se activa solo cuando TODAS sus condiciones son ciertas al mismo tiempo. Deshabilita una regla sin eliminarla para pausarla temporalmente."
+          },
+          "phi_handling": {
+            "title": "Los cambios de configuración afectan a campistas reales",
+            "summary": "Los cambios en factores, reglas o umbrales toman efecto en todas las evaluaciones de riesgo futuras. Revisa con cuidado antes de guardar.",
+            "details": "Esto no es una exposición de PHI en el sentido tradicional, pero los errores de configuración pueden afectar el nivel de supervisión asignado a cada campista. Usa siempre Previsualizar impacto antes de cambiar un umbral. Si no estás seguro de un cambio, consúltalo con el director médico del campamento antes de guardar."
+          }
+        },
+        "faq": {
+          "score_changes": {
+            "question": "Si cambio el valor en puntos de un factor, ¿se actualizan inmediatamente las puntuaciones de los campistas existentes?",
+            "answer": "No. Los cambios se aplican solo a las evaluaciones de riesgo futuras. Los registros de evaluación almacenados no se modifican de forma retroactiva. Para recalcular la puntuación de un campista específico con los nuevos valores, abre su evaluación de riesgos y activa un recálculo."
+          },
+          "high_risk_action": {
+            "question": "¿Qué debo hacer cuando veo a un campista puntuado como Alto Riesgo?",
+            "answer": "Revisa los factores activos en su evaluación para entender qué impulsa la puntuación. Confirma que las condiciones listadas sean precisas. Notifica al liderazgo del campamento y al director médico si la puntuación ha cambiado significativamente desde la última evaluación. La puntuación guía las proporciones de personal, pero no reemplaza el juicio clínico."
+          },
+          "override_when": {
+            "question": "¿Cuándo debo usar una regla de puntuación condicional en lugar de simplemente aumentar el valor de un factor?",
+            "answer": "Usa una regla cuando dos o más condiciones juntas son clínicamente más significativas que cada condición por separado. Por ejemplo, un campista con convulsiones y una alergia potencialmente mortal necesita una proporción de supervisión más alta de lo que cada condición sola sugeriría. Las reglas permiten modelar esa complejidad combinada sin inflar las puntuaciones individuales de los factores para todos los campistas."
+          }
+        },
+        "hint": {
+          "general": {
+            "message": null
+          }
+        },
+        "walkthrough": {
+          "title": "Recorrido de gestión de riesgos",
+          "steps": {
+            "header": {
+              "title": "Encabezado de gestión de riesgos",
+              "body": "Esta página configura el motor de puntuación. Los cambios aquí afectan cómo se calcula el riesgo para todos los campistas en adelante."
+            },
+            "factors": {
+              "title": "Pestaña de Factores de Riesgo",
+              "body": "Expande cualquier categoría para ver sus factores, ajustar los valores en puntos y activar o desactivar factores."
+            },
+            "recommendations": {
+              "title": "Pestaña de Reglas de Puntuación",
+              "body": "Agrega reglas condicionales que se activan cuando múltiples factores están presentes simultáneamente, añadiendo puntos adicionales por combinaciones clínicas complejas."
+            },
+            "actions": {
+              "title": "Pestaña de Umbrales",
+              "body": "Establece los rangos de puntuación que corresponden a cada nivel de supervisión. Usa Previsualizar impacto antes de guardar para ver cuántos campistas se verían afectados."
+            }
+          }
+        }
       }
     }
   }

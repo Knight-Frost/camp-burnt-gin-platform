@@ -91,6 +91,8 @@ export const ROUTES = {
   MEDICAL_DIRECTORY: '/medical/directory',
   // Risk assessment view in the medical portal
   MEDICAL_CAMPER_RISK: (id: number | string) => `/medical/records/${id}/risk`,
+  // Risk engine configuration page (factors, rules, thresholds)
+  MEDICAL_RISK_MANAGEMENT: '/medical/risk-management',
 
   // ─── Super Admin portal ─────────────────────────────────────────────────────
   SUPER_ADMIN_APPLICATION_EDIT: (id: number | string) =>

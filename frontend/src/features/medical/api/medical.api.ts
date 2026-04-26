@@ -23,7 +23,7 @@ import type {
 
 // ─── Camper list ──────────────────────────────────────────────────────────────
 
-export async function getMedicalCampers(params?: { search?: string; page?: number }): Promise<PaginatedResponse<Camper>> {
+export async function getMedicalCampers(params?: { search?: string; session_id?: number; page?: number }): Promise<PaginatedResponse<Camper>> {
   const { data } = await axiosInstance.get<PaginatedResponse<Camper>>('/campers', { params });
   return data;
 }
