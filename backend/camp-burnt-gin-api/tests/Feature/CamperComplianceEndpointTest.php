@@ -167,11 +167,16 @@ class CamperComplianceEndpointTest extends TestCase
 
     public function test_compliance_status_shows_expired_documents(): void
     {
+        // Policy change: expiration-date enforcement was removed.
+        // expired_documents is always an empty array in the compliance response.
+        // An approved document with a past expiration_date is treated as valid;
+        // non-compliance here comes only from other missing required types.
         $parent = $this->createUserWithRole('applicant');
         $camper = Camper::factory()->for($parent)->create();
         $camper->medicalRecord()->create([]);
 
-        // Upload expired document; must be submitted so enforcement service sees it
+        // Upload an "expired" document; submitted so enforcement sees it.
+        // Under the new policy this doc is treated as valid.
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $camper->id,
@@ -194,15 +199,22 @@ class CamperComplianceEndpointTest extends TestCase
             ->getJson("/api/campers/{$camper->id}/compliance-status");
 
         $response->assertStatus(200);
+
+        // Camper is still non-compliant — immunization_record and insurance_card are missing.
         $response->assertJson([
             'data' => [
                 'is_compliant' => false,
             ],
         ]);
 
+        // expired_documents must be empty — expiry enforcement was removed.
         $expired = $response->json('data.expired_documents');
-        $this->assertNotEmpty($expired);
-        $this->assertEquals('official_medical_form', $expired[0]['document_type']);
+        $this->assertEmpty($expired);
+
+        // The "expired" medical form is now treated as present and approved, so it
+        // must NOT appear in missing_documents either.
+        $missingTypes = collect($response->json('data.missing_documents'))->pluck('document_type');
+        $this->assertNotContains('official_medical_form', $missingTypes);
     }
 
     public function test_compliance_status_shows_compliant_when_all_valid(): void

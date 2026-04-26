@@ -137,7 +137,14 @@ class ApplicationApprovalEnforcementTest extends TestCase
 
     public function test_approval_blocked_when_documents_expired(): void
     {
-        // Upload expired document; submitted_at required so enforcement service sees it
+        // Policy change: expiration-date enforcement was removed.
+        // An approved document with a past expiration_date is no longer treated as
+        // a compliance failure — expired_documents is always empty. However, approval
+        // is still blocked here because immunization_record and insurance_card are
+        // missing. The test is updated to assert that expired_documents is empty
+        // while the overall 422 still fires for missing required documents.
+
+        // Upload an "expired" document; submitted_at required so enforcement sees it.
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $this->camper->id,
@@ -162,10 +169,17 @@ class ApplicationApprovalEnforcementTest extends TestCase
                 'notes' => 'Approving application',
             ]);
 
+        // Still 422 — other required documents (immunization_record, insurance_card) are missing.
         $response->assertStatus(422);
-        $response->assertJsonPath('compliance_details.expired_documents', function ($expired) {
-            return count($expired) > 0;
-        });
+
+        // expired_documents must be empty — expiry enforcement was removed.
+        $response->assertJsonPath('compliance_details.expired_documents', []);
+
+        // The blocking reason is missing required documents, not expiry.
+        $missingTypes = collect($response->json('compliance_details.missing_documents'))
+            ->pluck('document_type');
+        $this->assertContains('immunization_record', $missingTypes);
+        $this->assertContains('insurance_card', $missingTypes);
 
         $this->application->refresh();
         $this->assertEquals(ApplicationStatus::Submitted, $this->application->status);

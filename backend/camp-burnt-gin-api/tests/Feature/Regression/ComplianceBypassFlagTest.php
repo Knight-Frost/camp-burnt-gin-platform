@@ -16,11 +16,13 @@ use Tests\Traits\WithRoles;
  * Regression coverage for the testing-bypass flag
  * (config `compliance.strict_enabled`, env APP_COMPLIANCE_CHECKS).
  *
- * Contract:
- *   • flag on  → enforce missing + expired + unverified + incomplete.
- *   • flag off → enforce missing ONLY. The other three rules are
- *     silently skipped so dev / staging submission flows work.
- *   • production env → ALWAYS strict regardless of the flag value.
+ * Contract (post expiry-enforcement removal):
+ *   • flag on  → enforce missing + unverified. expired and incomplete are
+ *     always empty regardless of flag value.
+ *   • flag off → enforce missing ONLY. unverified is skipped so dev /
+ *     staging submission flows work.
+ *   • production env → ALWAYS strict for missing + unverified. expired and
+ *     incomplete remain empty (expiry enforcement was intentionally removed).
  */
 class ComplianceBypassFlagTest extends TestCase
 {
@@ -99,6 +101,11 @@ class ComplianceBypassFlagTest extends TestCase
 
     public function test_flag_on_enforces_expired_rule_as_usual(): void
     {
+        // Policy change: expired_documents is always empty regardless of strict mode.
+        // Expiry-date enforcement was intentionally removed from checkCompliance().
+        // What strict mode still gates is unverified documents — that contract is
+        // tested separately. Here we assert that even with the flag on, an expired
+        // approved document does NOT appear in expired_documents.
         Config::set('compliance.strict_enabled', true);
         $this->ensureRequiredRule('official_medical_form');
 
@@ -115,16 +122,24 @@ class ComplianceBypassFlagTest extends TestCase
 
         $report = app(DocumentEnforcementService::class)->checkCompliance($camper);
 
-        $this->assertNotEmpty(
+        // expired_documents must be empty — expiry enforcement was removed.
+        $this->assertEmpty(
             $report['expired_documents'],
-            'strict mode must still report the expired medical form',
+            'expired_documents must always be empty after the policy change',
         );
+        // The doc is approved, so unverified must also be empty.
+        $this->assertEmpty($report['unverified_documents']);
     }
 
     public function test_production_env_forces_strict_even_when_flag_is_off(): void
     {
         // Safety override: a misconfigured .env in production cannot
         // silently disable the document gate. The environment wins.
+        //
+        // Policy change: expiry enforcement was removed from checkCompliance(), so
+        // expired_documents is always empty even in production. What the production
+        // override still guards is unverified documents — an approved document with a
+        // past expiration_date is no longer a compliance failure in any environment.
         app()->detectEnvironment(fn () => 'production');
         Config::set('compliance.strict_enabled', false);
 
@@ -142,9 +157,16 @@ class ComplianceBypassFlagTest extends TestCase
 
         $report = app(DocumentEnforcementService::class)->checkCompliance($camper);
 
-        $this->assertNotEmpty(
+        // expired_documents must be empty — expiry enforcement was removed.
+        $this->assertEmpty(
             $report['expired_documents'],
-            'production environment must force strict mode regardless of flag',
+            'expired_documents must always be empty after the policy change, even in production',
+        );
+        // The document is Approved, so the production strict-mode guard on
+        // unverified_documents is satisfied — it must also be empty.
+        $this->assertEmpty(
+            $report['unverified_documents'],
+            'production strict mode must still gate unverified documents, but this doc is approved',
         );
     }
 }

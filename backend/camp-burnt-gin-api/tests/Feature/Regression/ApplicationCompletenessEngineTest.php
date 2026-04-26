@@ -331,8 +331,11 @@ class ApplicationCompletenessEngineTest extends TestCase
         $result = $this->engine()->evaluate($app->fresh());
 
         $this->assertSame('SUBMITTED', $result['state']);
-        // But the payload still tells the truth about what's wrong.
-        $this->assertNotEmpty(
+        // Policy change: expiration-date enforcement was removed from checkCompliance().
+        // expired_documents is always empty — a past expiration_date is no longer a
+        // compliance failure. The document is still counted as present and approved,
+        // so the documents['expired'] bucket in the engine result is also empty.
+        $this->assertEmpty(
             array_filter(
                 $result['documents']['expired'],
                 fn ($d) => $d['document_type'] === 'official_medical_form',
@@ -441,9 +444,12 @@ class ApplicationCompletenessEngineTest extends TestCase
 
     public function test_revalidate_apply_reverts_submitted_app_with_expired_medical_form(): void
     {
+        // Policy change: expiration-date enforcement was removed from checkCompliance().
+        // An expired medical form is no longer treated as invalid — the document is
+        // counted as present and approved. The revalidate command therefore must NOT
+        // revert a submitted application whose only "problem" is a past expiration_date.
+        // This test is inverted from its original intent to lock that new contract.
         Notification::fake();
-        // strict_enabled gates expired-document detection; override for this
-        // test so the revalidate command can identify the drift.
         config()->set('compliance.strict_enabled', true);
 
         $parent = $this->createParent();
@@ -462,43 +468,41 @@ class ApplicationCompletenessEngineTest extends TestCase
         ]);
         TestApplicationFixture::attachConsents($app);
 
-        // Seed required-document rules so the enforcer actually has
-        // rules to evaluate (without rules the compliance block reports
-        // "is_compliant=true" trivially — no rules match).
         $this->seed(\Database\Seeders\RequiredDocumentRuleSeeder::class);
 
-        // Expire the medical form so it now blocks.
+        // Expire the medical form.
         Document::where('documentable_id', $camper->id)
             ->where('document_type', 'official_medical_form')
             ->update(['expiration_date' => now()->subDay()]);
 
-        // Sanity-check: engine sees the expired doc and marks invalid.
+        // Sanity-check: engine sees the expired doc but still considers the app valid
+        // because expiry is no longer enforced by checkCompliance().
         $preCheck = $this->engine()->evaluate($app->fresh(), forFinalization: true);
-        $this->assertFalse(
+        $this->assertTrue(
             $preCheck['is_valid'],
-            'Expected pre-check invalid; got: '.json_encode($preCheck['documents']),
+            'Expected pre-check valid (expiry enforcement removed); got: '.json_encode($preCheck['documents']),
         );
+        $this->assertEmpty($preCheck['documents']['expired']);
 
         $output = new \Symfony\Component\Console\Output\BufferedOutput;
         \Illuminate\Support\Facades\Artisan::call('applications:revalidate', ['--apply' => true], $output);
 
+        // App must NOT be reverted — the revalidate command found nothing invalid.
         $app->refresh();
-        $this->assertTrue(
+        $this->assertFalse(
             $app->isDraft(),
-            'Revalidate must revert invalid submitted app to draft. Command output: '.$output->fetch(),
+            'Revalidate must NOT revert an app whose only issue is an expired doc (expiry enforcement removed). Command output: '.$output->fetch(),
         );
-        $this->assertNull($app->submitted_at, 'submitted_at must be cleared on revert');
+        $this->assertNotNull($app->submitted_at, 'submitted_at must not be cleared when no revert occurs');
+        $this->assertSame(ApplicationStatus::Submitted, $app->status);
 
-        // Audit + notification were recorded.
-        $this->assertDatabaseHas('audit_logs', [
+        // Neither an audit log entry nor a notification should have been recorded.
+        $this->assertDatabaseMissing('audit_logs', [
             'auditable_type' => Application::class,
             'auditable_id' => $app->id,
             'action' => 'application.reverted.revalidation',
         ]);
-        Notification::assertSentTo(
-            $parent,
-            \App\Notifications\ApplicationRevertedToDraftNotification::class,
-        );
+        Notification::assertNothingSent();
     }
 
     public function test_revalidate_dry_run_does_not_touch_rows(): void

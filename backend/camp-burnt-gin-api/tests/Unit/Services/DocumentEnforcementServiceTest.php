@@ -220,9 +220,16 @@ class DocumentEnforcementServiceTest extends TestCase
 
     public function test_camper_not_compliant_with_expired_documents(): void
     {
+        // Policy change: expiration-date enforcement was removed from checkCompliance().
+        // expired_documents is always an empty collection regardless of strict mode.
+        // An approved-but-past-expiry document counts as present and verified, so
+        // non-compliance in this scenario comes only from other missing required types
+        // (immunization_record, insurance_card). The camper is still non-compliant,
+        // but the reason is missing documents — not expired ones.
         $camper = Camper::factory()->create();
 
-        // Upload expired document; submitted_at required so enforcement service sees it
+        // Upload an "expired" document; submitted_at required so enforcement sees it.
+        // Under the new policy this doc is treated as valid (expiry is ignored).
         Document::create([
             'documentable_type' => Camper::class,
             'documentable_id' => $camper->id,
@@ -243,8 +250,11 @@ class DocumentEnforcementServiceTest extends TestCase
 
         $compliance = $this->service->checkCompliance($camper);
 
+        // expired_documents must ALWAYS be empty — expiry enforcement was removed.
+        $this->assertEmpty($compliance['expired_documents']);
+        // Camper is still non-compliant because immunization_record and insurance_card
+        // are missing — the overall is_compliant flag still reflects reality.
         $this->assertFalse($compliance['is_compliant']);
-        $this->assertNotEmpty($compliance['expired_documents']);
     }
 
     public function test_service_returns_structured_compliance_data_without_phi(): void

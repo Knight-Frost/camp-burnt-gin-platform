@@ -48,12 +48,18 @@ class DocumentComplianceDedupeTest extends TestCase
 
     public function test_multiple_expired_rows_of_same_type_dedupe_to_one(): void
     {
+        // Policy change: expiration-date enforcement was removed from checkCompliance().
+        // expired_documents is always empty regardless of how many expired rows exist.
+        // The per-type deduplication logic in binByType() still works as designed, but
+        // its output never reaches the expired bucket. Approved docs (regardless of
+        // expiration_date) are counted as present, so the type is neither missing
+        // nor expired — it is fully compliant on the presence + verification axes.
         $this->ensureRequiredRule('official_medical_form', 'Medical Form');
 
         $parent = $this->createParent();
         $camper = Camper::factory()->forUser($parent)->create();
 
-        // Six stale uploads, all expired.
+        // Six uploads, all with past expiration_date.
         for ($i = 0; $i < 6; $i++) {
             Document::factory()->create([
                 'documentable_type' => Camper::class,
@@ -67,15 +73,14 @@ class DocumentComplianceDedupeTest extends TestCase
 
         $report = app(DocumentEnforcementService::class)->checkCompliance($camper);
 
-        $this->assertCount(
-            1,
+        // expired_documents must always be empty — expiry enforcement was removed.
+        $this->assertEmpty(
             $report['expired_documents'],
-            'Six historical expired rows must dedupe to one compliance entry',
+            'expired_documents must be empty after the policy change regardless of row count',
         );
-        $this->assertSame(
-            'official_medical_form',
-            $report['expired_documents'][0]['document_type'],
-        );
+        // Approved docs are present → type is not missing.
+        $missingTypes = collect($report['missing_documents'])->pluck('document_type')->all();
+        $this->assertNotContains('official_medical_form', $missingTypes);
     }
 
     public function test_fresh_upload_supersedes_all_older_expired_rows(): void
@@ -125,8 +130,10 @@ class DocumentComplianceDedupeTest extends TestCase
 
     public function test_type_with_only_expired_rows_does_not_also_appear_missing(): void
     {
-        // A single required type must surface in exactly one bucket:
-        // missing OR expired OR unverified, never more than one.
+        // Policy change: expiration-date enforcement was removed. A required type whose
+        // only rows have a past expiration_date is now treated as present and approved —
+        // it appears in neither missing nor expired. Both buckets must be empty for
+        // this type; the doc satisfies the presence + verification axes on its own.
         $this->ensureRequiredRule('official_medical_form', 'Medical Form');
 
         $parent = $this->createParent();
@@ -146,16 +153,21 @@ class DocumentComplianceDedupeTest extends TestCase
         $missingTypes = collect($report['missing_documents'])->pluck('document_type')->all();
         $expiredTypes = collect($report['expired_documents'])->pluck('document_type')->all();
 
+        // Not missing — the doc exists and is approved.
         $this->assertNotContains('official_medical_form', $missingTypes);
-        $this->assertContains('official_medical_form', $expiredTypes);
+        // Not expired — expiry enforcement was removed; the bucket is always empty.
+        $this->assertNotContains('official_medical_form', $expiredTypes);
+        $this->assertEmpty($expiredTypes);
     }
 
     public function test_medical_form_without_exam_date_is_reported_as_incomplete(): void
     {
-        // New contract: a medical form uploaded without an exam_date is
-        // incomplete — it cannot be validated because there's no anchor
-        // to compute expiration from. Surface it explicitly instead of
-        // silently letting it pass compliance.
+        // Policy change: incomplete_documents enforcement was removed from checkCompliance().
+        // A medical form uploaded without an expiration_date (the exam-date anchor) is no
+        // longer surfaced in incomplete_documents — that bucket is always empty. The doc is
+        // treated as present and approved, satisfying the compliance gate on those two axes.
+        // The expired bucket is also empty (expiry enforcement removed). Neither missing
+        // nor incomplete fires for this scenario.
         $this->ensureRequiredRule('official_medical_form', 'Medical Form');
 
         $parent = $this->createParent();
@@ -165,19 +177,21 @@ class DocumentComplianceDedupeTest extends TestCase
             'documentable_type' => Camper::class,
             'documentable_id' => $camper->id,
             'document_type' => 'official_medical_form',
-            'expiration_date' => null, // no exam date was captured
+            'expiration_date' => null, // no exam date / expiration anchor
             'submitted_at' => now(),
             'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
         ]);
 
         $report = app(DocumentEnforcementService::class)->checkCompliance($camper);
 
-        $this->assertNotEmpty($report['incomplete_documents'], 'medical form without exam date must surface in incomplete_documents');
-        $this->assertSame('official_medical_form', $report['incomplete_documents'][0]['document_type']);
-        $this->assertSame('missing_exam_date', $report['incomplete_documents'][0]['reason']);
-
-        // And it must not double-surface in expired or missing.
-        $this->assertEmpty(collect($report['expired_documents'])->where('document_type', 'official_medical_form'));
+        // incomplete_documents must always be empty — incomplete-metadata enforcement was removed.
+        $this->assertEmpty(
+            $report['incomplete_documents'],
+            'incomplete_documents must be empty after the policy change',
+        );
+        // expired_documents must also be empty.
+        $this->assertEmpty($report['expired_documents']);
+        // The doc is present and approved, so it must not appear as missing either.
         $this->assertNotContains(
             'official_medical_form',
             collect($report['missing_documents'])->pluck('document_type')->all(),
@@ -186,35 +200,14 @@ class DocumentComplianceDedupeTest extends TestCase
 
     public function test_expired_medical_form_error_includes_exam_and_expiration_date(): void
     {
-        // Actionable error messaging: the applicant needs to know WHICH
-        // date is wrong. The compliance label must name both the
-        // physician's exam date and the computed expiration.
-        $this->ensureRequiredRule('official_medical_form', 'Medical Form');
-
-        $parent = $this->createParent();
-        $camper = Camper::factory()->forUser($parent)->create();
-
-        $expiration = now()->subMonths(2);
-        Document::factory()->create([
-            'documentable_type' => Camper::class,
-            'documentable_id' => $camper->id,
-            'document_type' => 'official_medical_form',
-            'expiration_date' => $expiration,
-            'submitted_at' => $expiration->copy()->subYear(),
-            'verification_status' => \App\Enums\DocumentVerificationStatus::Approved,
-        ]);
-
-        $report = app(DocumentEnforcementService::class)->checkCompliance($camper);
-
-        $this->assertCount(1, $report['expired_documents']);
-        $this->assertSame(
-            $expiration->copy()->subYear()->format('Y-m-d'),
-            $report['expired_documents'][0]['exam_date'],
-            'exam_date must be derivable from expiration_date so the UI can say "exam dated X"',
-        );
-        $this->assertSame(
-            $expiration->format('Y-m-d'),
-            $report['expired_documents'][0]['expiration_date'],
+        // Skipped: expiration-date enforcement was intentionally removed from
+        // checkCompliance(). expired_documents is always an empty collection,
+        // so the exam_date and expiration_date payload fields are never
+        // populated. There is no meaningful inverse assertion for this scenario —
+        // the feature that produced this output no longer exists.
+        $this->markTestSkipped(
+            'Expiry enforcement was removed; expired_documents is always empty. '
+            .'The exam_date / expiration_date payload this test covered is no longer emitted.'
         );
     }
 
