@@ -39,8 +39,8 @@ import { ROLE_LABELS, type RoleName } from '@/shared/constants/roles';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BRAND   = '#16a34a';
-const BRAND_T = 'rgba(22,163,74,0.10)';
+const BRAND   = '#15803d';
+const BRAND_T = 'rgba(21,128,61,0.10)';
 
 const CC_COLOR  = 'rgba(37,99,235,0.10)';
 const CC_TEXT   = '#1d4ed8';
@@ -529,12 +529,16 @@ export function FloatingCompose({ onClose, onCreated, isAdmin = false }: Floatin
               className="border-b px-4 py-2 flex items-center gap-3 flex-shrink-0"
               style={{ borderColor: 'var(--border)' }}
             >
-              <span className="text-xs font-medium w-9 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>{t('messaging_extra.subject_label')}</span>
+              <span className="text-xs font-medium w-9 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
+                {t('messaging_extra.subject_label')}
+                <span aria-hidden="true" style={{ color: '#dc2626', marginLeft: 2 }}>*</span>
+              </span>
               <input
                 value={subject}
                 onChange={(e) => handleSubjectChange(e.target.value)}
                 onFocus={() => setShowDropdown(false)}
-                placeholder="Subject"
+                placeholder="Subject (required)"
+                aria-required="true"
                 className="flex-1 text-sm bg-transparent outline-none py-0.5"
                 style={{ color: 'var(--foreground)' }}
               />

@@ -2,6 +2,7 @@
 
 namespace App\Services\Camper;
 
+use App\Enums\ActivityPermissionLevel;
 use App\Enums\SubmissionSource;
 use App\Models\Application;
 use App\Services\Document\DocumentEnforcementService;
@@ -749,7 +750,7 @@ class ApplicationCompletenessService
                 );
                 continue;
             }
-            if ($perm->permission_level === 'restricted' && empty($perm->restriction_notes)) {
+            if ($perm->permission_level === ActivityPermissionLevel::Restricted && empty($perm->restriction_notes)) {
                 $missing[] = $this->item(
                     'activity_'.$slug.'_notes',
                     $label.' is marked restricted — restriction notes are required',

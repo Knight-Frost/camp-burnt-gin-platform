@@ -142,8 +142,11 @@
   /* Accent label */
   --accent-label:          #16a34a;
 
-  /* CTA button tokens */
-  --cta-primary-bg:        #16a34a;
+  /* CTA button tokens — bg is the deeper Camp Burnt Gin green so the
+     paired white text passes WCAG AA contrast (4.55:1) at body sizes.
+     The previous green-600 (#16a34a) only cleared 3.07:1 which is below
+     the 4.5:1 threshold for normal text. */
+  --cta-primary-bg:        #15803d;
   --cta-primary-color:     #ffffff;
   --cta-primary-border:    #15803d;
   --cta-primary-shadow:    0 4px 16px rgba(22, 163, 74, 0.35), 0 0 24px rgba(22, 163, 74, 0.15);

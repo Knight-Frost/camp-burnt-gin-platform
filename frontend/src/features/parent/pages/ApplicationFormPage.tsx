@@ -1270,7 +1270,16 @@ function Section1({
           </div>
           <div>
             <FieldLabel>{t('applicant.form.s1_relationship_to_camper_label')}</FieldLabel>
-            <TextInput value={data.g1_relationship} onChange={set('g1_relationship')} placeholder={t('applicant.form.s1_relationship_placeholder')} />
+            <SelectInput value={data.g1_relationship} onChange={set('g1_relationship')}>
+              <option value="">{t('applicant.form.s1_select_relationship')}</option>
+              <option value="Parent">{t('applicant.form.s1_rel_parent')}</option>
+              <option value="Stepparent">{t('applicant.form.s1_rel_stepparent')}</option>
+              <option value="Foster parent">{t('applicant.form.s1_rel_foster_parent')}</option>
+              <option value="Grandparent">{t('applicant.form.s1_rel_grandparent')}</option>
+              <option value="Legal guardian">{t('applicant.form.s1_rel_legal_guardian')}</option>
+              <option value="Other relative">{t('applicant.form.s1_rel_other_relative')}</option>
+              <option value="Other">{t('applicant.form.s1_rel_other')}</option>
+            </SelectInput>
           </div>
         </FormRow>
         <FormRow cols={3}>
@@ -1326,8 +1335,12 @@ function Section1({
             <SelectInput value={data.g2_relationship} onChange={set('g2_relationship')}>
               <option value="">{t('applicant.form.s1_select_relationship')}</option>
               <option value="Parent">{t('applicant.form.s1_rel_parent')}</option>
+              <option value="Stepparent">{t('applicant.form.s1_rel_stepparent')}</option>
               <option value="Foster parent">{t('applicant.form.s1_rel_foster_parent')}</option>
-              <option value="Other">{t('applicant.form.s1_gender_other')}</option>
+              <option value="Grandparent">{t('applicant.form.s1_rel_grandparent')}</option>
+              <option value="Legal guardian">{t('applicant.form.s1_rel_legal_guardian')}</option>
+              <option value="Other relative">{t('applicant.form.s1_rel_other_relative')}</option>
+              <option value="Other">{t('applicant.form.s1_rel_other')}</option>
             </SelectInput>
           </div>
         </FormRow>
@@ -1462,7 +1475,10 @@ function Section1({
 
       {/* Session & Language */}
       <SectionCard>
-        <SubHeading>{t('applicant.form.s1_camp_session_heading')}</SubHeading>
+        <SubHeading>
+          {t('applicant.form.s1_camp_session_heading')}
+          <span aria-hidden="true" style={{ color: '#dc2626', marginLeft: 4 }}>*</span>
+        </SubHeading>
         {sessions.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Loading available sessions…

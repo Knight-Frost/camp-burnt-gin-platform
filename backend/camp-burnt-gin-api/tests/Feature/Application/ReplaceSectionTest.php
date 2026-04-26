@@ -408,6 +408,41 @@ class ReplaceSectionTest extends TestCase
             ->assertJsonPath('validation.sections.activities.is_complete', true);
     }
 
+    public function test_activities_section_can_be_saved_twice_in_a_row(): void
+    {
+        // Regression for BUG-134. The activities table had a stale unique
+        // index on (camper_id, activity_name) that survived the soft-delete
+        // retro-fit. The second save soft-deleted the existing rows then
+        // tried to re-insert the same (camper_id, activity_name) pairs and
+        // collided on the unique index, returning 500 and leaving
+        // sections_reviewed['activities'] unstamped — which made the
+        // section never register as complete.
+        [$parent, $camper, $app] = $this->makeDraft();
+
+        $this->actingAs($parent)
+            ->postJson("/api/applications/{$app->id}/sections/activities", [
+                'permissions' => $this->validActivities(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('validation.sections.activities.is_complete', true);
+
+        // Second save with the same payload — this is what every
+        // section-to-section navigation triggers (flushSection on leave).
+        $this->actingAs($parent)
+            ->postJson("/api/applications/{$app->id}/sections/activities", [
+                'permissions' => $this->validActivities(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('validation.sections.activities.is_complete', true);
+
+        $camper->refresh();
+        $this->assertCount(
+            count($this->validActivities()),
+            $camper->activityPermissions()->get(),
+            'Second save must end with exactly one live row per activity.',
+        );
+    }
+
     public function test_activities_restricted_requires_notes(): void
     {
         [$parent, , $app] = $this->makeDraft();
